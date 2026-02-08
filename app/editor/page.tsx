@@ -4,5 +4,5 @@ export default function UGCEditor() {
       <h1>UGC Editor</h1>
       <p>Editor coming soon.</p>
     </main>
-  );
+  )
 }
