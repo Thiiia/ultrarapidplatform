@@ -25,11 +25,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <div style={{ display: "flex", minHeight: "100vh" }}>
-          
           <aside style={{ width: 220, padding: 16, borderRight: "1px solid #333" }}>
             <h3 style={{ marginTop: 0 }}>Platform</h3>
 
@@ -38,13 +35,28 @@ export default function RootLayout({
               <Link href="/teacher">Teacher</Link>
               <Link href="/editor">Editor</Link>
               <Link href="/launch">Launch</Link>
+
+              {/* Logout posts to your API route */}
+              <form action="/api/logout" method="POST" style={{ marginTop: 10 }}>
+                <button
+                  type="submit"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    textAlign: "left",
+                    cursor: "pointer",
+                    font: "inherit",
+                    color: "inherit",
+                  }}
+                >
+                  Logout
+                </button>
+              </form>
             </nav>
           </aside>
 
-          <main style={{ flex: 1, padding: 24 }}>
-            {children}
-          </main>
-
+          <main style={{ flex: 1, padding: 24 }}>{children}</main>
         </div>
       </body>
     </html>
