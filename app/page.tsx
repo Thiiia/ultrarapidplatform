@@ -9,3 +9,4 @@ export default async function HomePage() {
 
   redirect("/student");
 }
+// trigger vercel deploy
