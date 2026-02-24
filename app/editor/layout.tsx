@@ -2,8 +2,6 @@
 
 import React from "react";
 import ReactGridLayout, { useContainerWidth } from "react-grid-layout";
-import "react-grid-layout/css/styles.css";
-import "react-resizable/css/styles.css";
 
 export default function MyGrid() {
   const { width, containerRef, mounted } = useContainerWidth();
