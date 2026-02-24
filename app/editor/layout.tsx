@@ -2,8 +2,7 @@
 
 import React from "react";
 import dynamic from "next/dynamic";
-import "react-grid-layout/css/styles.css";
-import "react-resizable/css/styles.css";
+
 
 /* ---- Dynamically import to disable SSR ---- */
 const ReactGridLayout = dynamic(() => import("react-grid-layout"), {
