@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+/** Carmen's file button SVG component */
+import FileButton from "@/app/assets/FileButton"
+
 
 type ValidationResult =
   | { ok: true }
@@ -26,6 +29,13 @@ export default function EditorPage() {
 
   const [contentText, setContentText] = useState<string>(""); // JSON textarea
   const [lastValidation, setLastValidation] = useState<ValidationResult | null>(null);
+
+  const [count, setCount] = useState(0);
+
+  const handleClick = () => {
+    setCount(count + 1);
+    alert("Button clicked!");
+  };
 
   const contentJsonParsed = useMemo(() => {
     try {
@@ -197,6 +207,7 @@ export default function EditorPage() {
   }, []);
 
   return (
+
     <div style={{ padding: 24, maxWidth: 1100 }}>
       <h1 style={{ fontSize: 36, fontWeight: 700, marginBottom: 8 }}>Editor</h1>
       <p style={{ color: "#555", marginBottom: 16 }}>
@@ -216,6 +227,10 @@ export default function EditorPage() {
             fontFamily: "monospace",
           }}
         />
+
+        <FileButton onClick={() => alert("Clicked!")}
+        />
+
         <button
           onClick={() => loadMission(missionId)}
           disabled={loading}
@@ -320,6 +335,6 @@ export default function EditorPage() {
           </div>
         )}
       </div>
-    </div>
-  );
+    </div> 
+ );
 }
