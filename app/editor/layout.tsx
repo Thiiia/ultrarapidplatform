@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import ReactGridLayout, { useContainerWidth } from "react-grid-layout";
 
 export default function MyGrid() {
   const { width, containerRef, mounted } = useContainerWidth();
