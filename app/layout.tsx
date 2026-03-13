@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,7 +37,6 @@ export default function RootLayout({
               <Link href="/editor">Editor</Link>
               <Link href="/launch">Launch</Link>
 
-              {/* Logout posts to your API route */}
               <form action="/api/logout" method="POST" style={{ marginTop: 10 }}>
                 <button
                   type="submit"
@@ -58,6 +58,8 @@ export default function RootLayout({
 
           <main style={{ flex: 1, padding: 24 }}>{children}</main>
         </div>
+
+        <Analytics />
       </body>
     </html>
   );
