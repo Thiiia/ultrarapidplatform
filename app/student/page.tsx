@@ -1,142 +1,269 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 
-export const dynamic = "force-dynamic";
+const topTabs = [
+  { label: "Home", href: "/student", active: true },
+  { label: "My Lessons", href: "/student/lessons" },
+  { label: "Lesson Builder", href: "/student/lesson-builder" },
+  { label: "Progress", href: "/student/progress" },
+];
 
-function pillStyle() {
-  return {
-    display: "inline-flex",
-    alignItems: "center",
-    border: "1px solid #e6e6e6",
-    borderRadius: 999,
-    padding: "6px 10px",
-    fontSize: 12,
-    fontWeight: 700 as const,
-    opacity: 0.85,
-    background: "white",
-  };
-}
+const utilityTabs = [
+  { label: "Notifications", href: "/student/notifications" },
+  { label: "Settings", href: "/student/settings" },
+  { label: "Profile", href: "/student/profile" },
+];
 
-function cardStyle() {
-  return {
-    border: "1px solid #e6e6e6",
-    borderRadius: 12,
-    padding: 14,
-    background: "white",
-  };
-}
+type SectionProps = {
+  title: string;
+  children?: React.ReactNode;
+};
 
-export default async function StudentPage() {
-  const student = await prisma.user.findFirst({
-    where: { role: "student" },
-    select: { id: true, name: true },
-  });
-
-  if (!student) {
-    return (
-      <div style={{ padding: 16 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.2 }}>
-          Student Dashboard
-        </h1>
-        <p style={{ marginTop: 8 }}>
-          No student found. Seed again: <code>npx tsx prisma/seed.ts</code>
-        </p>
-      </div>
-    );
-  }
-
-  const missions = await prisma.mission.findMany({
-    where: { published: true },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      progress: {
-        where: { userId: student.id },
-        select: { status: true, score: true, updatedAt: true },
-      },
-    },
-  });
-
-  const publishedCount = missions.length;
-  const inProgressCount = missions.filter((m) => m.progress[0]?.status === "in_progress").length;
-  const completedCount = missions.filter((m) => m.progress[0]?.status === "complete").length;
-
+function DashboardSection({ title, children }: SectionProps) {
   return (
-    <div style={{ padding: 16, maxWidth: 1100 }}>
-      <h1 style={{ fontSize: 30, fontWeight: 900, letterSpacing: -0.3 }}>
-        Student Dashboard
-      </h1>
-      <div style={{ marginTop: 6, opacity: 0.8 }}>
-        Welcome{student.name ? `, ${student.name}` : ""}.
-      </div>
+    <section
+      style={{
+        background: "#111827",
+        border: "1px solid #374151",
+        borderRadius: 16,
+        padding: 20,
+      }}
+    >
+      <h2
+        style={{
+          margin: "0 0 16px 0",
+          fontSize: 22,
+          fontWeight: 700,
+        }}
+      >
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
 
-      {/* Stats */}
-      <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
-        <div style={cardStyle()}>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>Published missions</div>
-          <div style={{ marginTop: 6, fontSize: 26, fontWeight: 900 }}>{publishedCount}</div>
+function PlaceholderCard({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div
+      style={{
+        background: "#1f2937",
+        border: "1px solid #374151",
+        borderRadius: 12,
+        padding: 16,
+      }}
+    >
+      <h3 style={{ margin: "0 0 8px 0", fontSize: 16 }}>{title}</h3>
+      <p style={{ margin: 0, color: "#d1d5db", lineHeight: 1.5 }}>{description}</p>
+    </div>
+  );
+}
+
+export default function StudentPage() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 20,
+      }}
+    >
+      {/* 1. Header Bar */}
+      <section
+        style={{
+          background: "#111827",
+          border: "1px solid #374151",
+          borderRadius: 16,
+          padding: 16,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          {topTabs.map((tab) => (
+            <Link
+              key={tab.label}
+              href={tab.href}
+              style={{
+                textDecoration: "none",
+                padding: "10px 16px",
+                borderRadius: 999,
+                border: tab.active ? "1px solid #60a5fa" : "1px solid #4b5563",
+                background: tab.active ? "#1d4ed8" : "#1f2937",
+                color: "#ffffff",
+                fontWeight: 600,
+              }}
+            >
+              {tab.label}
+            </Link>
+          ))}
         </div>
-        <div style={cardStyle()}>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>In progress</div>
-          <div style={{ marginTop: 6, fontSize: 26, fontWeight: 900 }}>{inProgressCount}</div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            flexWrap: "wrap",
+            marginLeft: "auto",
+          }}
+        >
+          {utilityTabs.map((tab) => (
+            <Link
+              key={tab.label}
+              href={tab.href}
+              style={{
+                textDecoration: "none",
+                padding: "10px 14px",
+                borderRadius: 999,
+                border: "1px solid #4b5563",
+                background: "#1f2937",
+                color: "#ffffff",
+                fontWeight: 500,
+              }}
+            >
+              {tab.label}
+            </Link>
+          ))}
         </div>
-        <div style={cardStyle()}>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>Completed</div>
-          <div style={{ marginTop: 6, fontSize: 26, fontWeight: 900 }}>{completedCount}</div>
+      </section>
+
+      {/* 2. Welcome Back */}
+      <DashboardSection title="Welcome Back">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr",
+            gap: 16,
+          }}
+        >
+          <PlaceholderCard
+            title="Ready for your next lesson?"
+            description="Pick up where you left off, continue your current assignment, or explore a new song-based learning challenge."
+          />
+          <PlaceholderCard
+            title="Today at a glance"
+            description="3 lessons queued, 1 song recommendation, and 2 activities waiting for review."
+          />
         </div>
-      </div>
+      </DashboardSection>
 
-      <h2 style={{ marginTop: 22, fontSize: 18, fontWeight: 900 }}>Published Missions</h2>
+      {/* 3. Your Learning Queue */}
+      <DashboardSection title="Your Learning Queue">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 16,
+          }}
+        >
+          <PlaceholderCard
+            title="Lesson 1: Rhythm Basics"
+            description="Continue your current lesson and complete the next checkpoint."
+          />
+          <PlaceholderCard
+            title="Lesson 2: Timing Practice"
+            description="Build accuracy with short interactive timing drills."
+          />
+          <PlaceholderCard
+            title="Lesson 3: Chord Flow"
+            description="Practice transitions and prepare for your next score submission."
+          />
+        </div>
+      </DashboardSection>
 
-      <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-        {missions.map((m) => {
-          const p = m.progress[0];
-          const status = p?.status ?? "not_started";
-          const score = p?.score ?? 0;
+      {/* 4. Learning Insights */}
+      <DashboardSection title="Learning Insights">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+            gap: 16,
+          }}
+        >
+          <PlaceholderCard title="Hours Played" description="8.5 hours this week" />
+          <PlaceholderCard title="Lessons Completed" description="12 total completed" />
+          <PlaceholderCard title="Average Score" description="91%" />
+          <PlaceholderCard title="Current Streak" description="5 learning days in a row" />
+        </div>
+      </DashboardSection>
 
-          return (
-            <div key={m.id} style={cardStyle()}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                <div>
-                  <div style={{ fontWeight: 900, fontSize: 18 }}>{m.title}</div>
-                  {m.description ? (
-                    <div style={{ marginTop: 6, opacity: 0.8 }}>{m.description}</div>
-                  ) : null}
+      {/* 5. Choose a subject */}
+      <DashboardSection title="Choose a subject">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+            gap: 16,
+          }}
+        >
+          <PlaceholderCard title="Rhythm" description="Strengthen timing, tempo, and consistency." />
+          <PlaceholderCard title="Melody" description="Practice pitch movement and musical phrasing." />
+          <PlaceholderCard title="Harmony" description="Explore chord progressions and tonal balance." />
+          <PlaceholderCard title="Technique" description="Focus on control, speed, and accuracy." />
+        </div>
+      </DashboardSection>
 
-                  <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <span style={pillStyle()}>Status: {status}</span>
-                    <span style={pillStyle()}>Score: {score}</span>
-                  </div>
-                </div>
+      {/* 6. Choose a song */}
+      <DashboardSection title="Choose a song">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 16,
+          }}
+        >
+          <PlaceholderCard
+            title="Song A"
+            description="A beginner-friendly track focused on rhythm recognition."
+          />
+          <PlaceholderCard
+            title="Song B"
+            description="A mid-level song with timing and coordination challenges."
+          />
+          <PlaceholderCard
+            title="Song C"
+            description="A performance-based practice song with score tracking."
+          />
+        </div>
+      </DashboardSection>
 
-                <div style={{ textAlign: "right", minWidth: 180 }}>
-                  <Link
-                    href={`/launch?missionId=${m.id}`}
-                    style={{
-                      display: "inline-block",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid #ddd",
-                      background: "white",
-                      fontWeight: 900,
-                      textDecoration: "none",
-                      color: "inherit",
-                    }}
-                  >
-                    Launch
-                  </Link>
-
-                  <div style={{ marginTop: 10, fontSize: 12, opacity: 0.6 }}>
-                    ID: <code>{m.id}</code>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {/* 7. Recommended for You */}
+      <DashboardSection title="Recommended for You">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 16,
+          }}
+        >
+          <PlaceholderCard
+            title="Recommended Lesson"
+            description="Based on your recent scores, try a lesson focused on tempo consistency."
+          />
+          <PlaceholderCard
+            title="Recommended Song"
+            description="This song matches your current rhythm skill level and recent progress."
+          />
+          <PlaceholderCard
+            title="Recommended Practice Goal"
+            description="Spend 20 minutes on timing drills to improve your next assignment score."
+          />
+        </div>
+      </DashboardSection>
     </div>
   );
 }
