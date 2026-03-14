@@ -7,6 +7,7 @@ export default async function HomePage() {
   if (!role) redirect("/login");
   if (role === "teacher") redirect("/teacher");
 
-  redirect("/student");
+  if (role === "student") redirect("/student");
+
 }
 // trigger vercel deploy
