@@ -25,24 +25,31 @@ export async function POST(req: Request) {
   const sessionId = randomUUID();
   const userIdHash = hashUserId(`demo-${role}-${sessionId}`);
 
-  await track("login_completed", {
-    role,
-    user_id_hash: userIdHash,
-    session_id: sessionId,
-    environment: getEnvironment(),
-    app_area: "auth",
-    timestamp: new Date().toISOString(),
-    login_method: "role_selector",
-    success: true,
-  });
+  try {
+    await track("login_completed", {
+      role,
+      user_id_hash: userIdHash,
+      session_id: sessionId,
+      environment: getEnvironment(),
+      app_area: "auth",
+      timestamp: new Date().toISOString(),
+      login_method: "role_selector",
+      success: true,
+    });
+  } catch (error) {
+    console.error("Failed to track login_completed:", error);
+  }
 
-  const res = NextResponse.redirect(
-    new URL(role === "teacher" ? "/teacher" : "/student", req.url)
-  );
+  const destination = role === "teacher" ? "/teacher" : "/student";
+
+  const res = NextResponse.redirect(new URL(destination, req.url), {
+    status: 303,
+  });
 
   res.cookies.set("role", role, {
     httpOnly: true,
     sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
     path: "/",
   });
 
