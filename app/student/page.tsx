@@ -1,11 +1,33 @@
+"use client";
+
 import Link from "next/link";
+import type { FC, SVGProps } from "react";
+import { usePathname } from "next/navigation";
 import URIcon from "@/public/URIcon.svg";
 import HomeIcon from "@/public/Home.svg";
+import MyLessonsTab from "@/public/my_lessons_tab.svg";
+import LessonBuilderTab from "@/public/lesson_builder_tab.svg";
+import ProgressTab from "@/public/progress_tab.svg";
 
-const topTabs = [
-  { label: "My Lessons", href: "/student/lessons" },
-  { label: "Lesson Builder", href: "/student/lesson-builder" },
-  { label: "Progress", href: "/student/progress" },
+type TabIcon = FC<SVGProps<SVGSVGElement>>;
+
+type HeaderTab = {
+  label: string;
+  href: string;
+  Icon: TabIcon;
+  width: number;
+};
+
+const topTabs: HeaderTab[] = [
+  { label: "Home", href: "/student", Icon: HomeIcon, width: 81.77 },
+  { label: "My Lessons", href: "/student/lessons", Icon: MyLessonsTab, width: 117.37 },
+  {
+    label: "Lesson Builder",
+    href: "/student/lesson-builder",
+    Icon: LessonBuilderTab,
+    width: 134.83,
+  },
+  { label: "Progress", href: "/student/progress", Icon: ProgressTab, width: 99.69 },
 ];
 
 const utilityTabs = [
@@ -66,6 +88,8 @@ function PlaceholderCard({
 }
 
 export default function StudentPage() {
+  const pathname = usePathname();
+
   return (
     <div
       style={{
@@ -79,69 +103,68 @@ export default function StudentPage() {
           background: "#FFFFFF",
           border: "none",
           borderBottom: "1px solid #D1D5DC",
-          borderRadius: 0,
-          padding: 16,
+          borderRadius: 4,
+          padding: 12,
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          gap: 16,
+          gap: 8,
           flexWrap: "wrap",
         }}
       >
         <div
           style={{
             display: "flex",
-            gap: 12,
             alignItems: "center",
+            gap: 8,
             flexWrap: "wrap",
           }}
         >
           <URIcon
             aria-label="UltraRapid"
-            style={{ width: 145.95, height: 35, display: "block" }}
+            style={{ width: 145.95, height: 35, display: "block", flexShrink: 0 }}
           />
 
-          <Link
-            href="/student"
-            aria-label="Home"
+          <div
             style={{
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              width: 81.77,
-              height: 45.5,
-              borderRadius: 0,
-              border: "none",
-              background: "#FFFFFF",
-              cursor: "pointer",
-          }}
->
-            <HomeIcon style={{ width: 81.77, height: 45.5, display: "block" }} />
-          </Link>
+              gap: 0,
+              flexWrap: "wrap",
+            }}
+          >
+            {topTabs.map((tab) => {
+              const isActive = pathname === tab.href;
 
-          {topTabs.map((tab) => (
-            <Link
-              key={tab.label}
-              href={tab.href}
-              style={{
-                textDecoration: "none",
-                padding: "12px 12px",
-                borderRadius: 0,
-                border: "1px solid #4b5563",
-                background: "#FFFFFF",
-                color: "#ffffff",
-                fontWeight: 600,
-              }}
-            >
-              {tab.label}
-            </Link>
-          ))}
+              return (
+                <Link
+                  key={tab.label}
+                  href={tab.href}
+                  aria-label={tab.label}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: tab.width,
+                    height: 45.5,
+                    borderRadius: 0,
+                    border: isActive ? "1px solid #60a5fa" : "1px solid #4b5563",
+                    background: "#FFFFFF",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  <tab.Icon style={{ width: 134.83, height: 45.5, display: "block" }} />
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
         <div
           style={{
             display: "flex",
-            gap: 12,
+            gap: 6,
             flexWrap: "wrap",
             marginLeft: "auto",
           }}
