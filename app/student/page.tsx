@@ -1,7 +1,8 @@
 import Link from "next/link";
+import URIcon from "@/public/URIcon.svg";
+import HomeIcon from "@/public/Home.svg";
 
 const topTabs = [
-  { label: "Home", href: "/student", active: true },
   { label: "My Lessons", href: "/student/lessons" },
   { label: "Lesson Builder", href: "/student/lesson-builder" },
   { label: "Progress", href: "/student/progress" },
@@ -22,7 +23,7 @@ function DashboardSection({ title, children }: SectionProps) {
   return (
     <section
       style={{
-        background: "#111827",
+        background: "#FFFFFF",
         border: "1px solid #374151",
         borderRadius: 16,
         padding: 20,
@@ -73,12 +74,12 @@ export default function StudentPage() {
         gap: 20,
       }}
     >
-      {/* 1. Header Bar */}
       <section
         style={{
-          background: "#111827",
-          border: "1px solid #374151",
-          borderRadius: 16,
+          background: "#FFFFFF",
+          border: "none",
+          borderBottom: "1px solid #D1D5DC",
+          borderRadius: 0,
           padding: 16,
           display: "flex",
           justifyContent: "space-between",
@@ -91,19 +92,43 @@ export default function StudentPage() {
           style={{
             display: "flex",
             gap: 12,
+            alignItems: "center",
             flexWrap: "wrap",
           }}
         >
+          <URIcon
+            aria-label="UltraRapid"
+            style={{ width: 145.95, height: 35, display: "block" }}
+          />
+
+          <Link
+            href="/student"
+            aria-label="Home"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 81.77,
+              height: 45.5,
+              borderRadius: 0,
+              border: "none",
+              background: "#FFFFFF",
+              cursor: "pointer",
+          }}
+>
+            <HomeIcon style={{ width: 81.77, height: 45.5, display: "block" }} />
+          </Link>
+
           {topTabs.map((tab) => (
             <Link
               key={tab.label}
               href={tab.href}
               style={{
                 textDecoration: "none",
-                padding: "10px 16px",
-                borderRadius: 999,
-                border: tab.active ? "1px solid #60a5fa" : "1px solid #4b5563",
-                background: tab.active ? "#1d4ed8" : "#1f2937",
+                padding: "12px 12px",
+                borderRadius: 0,
+                border: "1px solid #4b5563",
+                background: "#FFFFFF",
                 color: "#ffffff",
                 fontWeight: 600,
               }}
@@ -141,7 +166,6 @@ export default function StudentPage() {
         </div>
       </section>
 
-      {/* 2. Welcome Back */}
       <DashboardSection title="Welcome Back">
         <div
           style={{
@@ -161,7 +185,6 @@ export default function StudentPage() {
         </div>
       </DashboardSection>
 
-      {/* 3. Your Learning Queue */}
       <DashboardSection title="Your Learning Queue">
         <div
           style={{
@@ -185,7 +208,6 @@ export default function StudentPage() {
         </div>
       </DashboardSection>
 
-      {/* 4. Learning Insights */}
       <DashboardSection title="Learning Insights">
         <div
           style={{
@@ -201,7 +223,6 @@ export default function StudentPage() {
         </div>
       </DashboardSection>
 
-      {/* 5. Choose a subject */}
       <DashboardSection title="Choose a subject">
         <div
           style={{
@@ -217,7 +238,6 @@ export default function StudentPage() {
         </div>
       </DashboardSection>
 
-      {/* 6. Choose a song */}
       <DashboardSection title="Choose a song">
         <div
           style={{
@@ -241,7 +261,6 @@ export default function StudentPage() {
         </div>
       </DashboardSection>
 
-      {/* 7. Recommended for You */}
       <DashboardSection title="Recommended for You">
         <div
           style={{
