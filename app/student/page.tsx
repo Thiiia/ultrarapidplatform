@@ -1,17 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import type { FC, SVGProps } from "react";
 import { usePathname } from "next/navigation";
-import URIcon from "@/public/URIcon.svg";
-import HomeIcon from "@/public/Home.svg";
-import MyLessonsTab from "@/public/my_lessons_tab.svg";
-import LessonBuilderTab from "@/public/lesson_builder_tab.svg";
-import ProgressTab from "@/public/progress_tab.svg";
+import type { FC, ReactNode, SVGProps } from "react";
+
+/* Header Icon imports */
+import URIcon from "@/public/header_icons/URIcon.svg";
+import HomeIcon from "@/public/header_icons/Home.svg";
+import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
+import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab.svg";
+import ProgressTab from "@/public/header_icons/progress_tab.svg";
+
+/* Utility Icon Imports */
+import NotificationsIcon from "@/public/utility_icons/notifications_icon.svg";
+import SettingsIcon from "@/public/utility_icons/settings_icon.svg";
+import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
 
 type HeaderTab = {
+  label: string;
+  href: string;
+  Icon: TabIcon;
+  width: number;
+};
+
+type UtilityTab = {
   label: string;
   href: string;
   Icon: TabIcon;
@@ -30,15 +44,15 @@ const topTabs: HeaderTab[] = [
   { label: "Progress", href: "/student/progress", Icon: ProgressTab, width: 99.69 },
 ];
 
-const utilityTabs = [
-  { label: "Notifications", href: "/student/notifications" },
-  { label: "Settings", href: "/student/settings" },
-  { label: "Profile", href: "/student/profile" },
+const utilityTabs: UtilityTab[] = [
+  { label: "Notifications", href: "/student/notifications", Icon: NotificationsIcon, width: 47.5 },
+  { label: "Settings", href: "/student/settings", Icon: SettingsIcon, width: 47.5 },
+  { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 168.06 },
 ];
 
 type SectionProps = {
   title: string;
-  children?: React.ReactNode;
+  children?: ReactNode;
 };
 
 function DashboardSection({ title, children }: SectionProps) {
@@ -46,8 +60,10 @@ function DashboardSection({ title, children }: SectionProps) {
     <section
       style={{
         background: "#FFFFFF",
-        border: "1px solid #374151",
-        borderRadius: 16,
+        height: 230,
+        border: "none",
+        borderBottom: "1px solid #E5E7EB",
+        borderRadius: 0,
         padding: 20,
       }}
     >
@@ -101,14 +117,15 @@ export default function StudentPage() {
       <section
         style={{
           background: "#FFFFFF",
+          height: 70,
           border: "none",
           borderBottom: "1px solid #D1D5DC",
-          borderRadius: 4,
-          padding: 12,
+          borderRadius: 0,
+          padding: 16,
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          gap: 8,
+          gap: 7.5,
           flexWrap: "wrap",
         }}
       >
@@ -129,7 +146,7 @@ export default function StudentPage() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 0,
+              gap: 6,
               flexWrap: "wrap",
             }}
           >
@@ -148,13 +165,20 @@ export default function StudentPage() {
                     width: tab.width,
                     height: 45.5,
                     borderRadius: 0,
-                    border: isActive ? "1px solid #60a5fa" : "1px solid #4b5563",
+                    border: "none",
                     background: "#FFFFFF",
                     cursor: "pointer",
                     flexShrink: 0,
+                    opacity: isActive ? 1 : 0.9,
                   }}
                 >
-                  <tab.Icon style={{ width: 134.83, height: 45.5, display: "block" }} />
+                  <tab.Icon
+                    style={{
+                      width: tab.width,
+                      height: 45.5,
+                      display: "block",
+                    }}
+                  />
                 </Link>
               );
             })}
@@ -173,17 +197,27 @@ export default function StudentPage() {
             <Link
               key={tab.label}
               href={tab.href}
+              aria-label={tab.label}
               style={{
-                textDecoration: "none",
-                padding: "10px 14px",
-                borderRadius: 999,
-                border: "1px solid #4b5563",
-                background: "#1f2937",
-                color: "#ffffff",
-                fontWeight: 500,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: tab.width,
+                height: 47.5,
+                borderRadius: 0,
+                border: "none",
+                background: "#FFFFFF",
+                cursor: "pointer",
+                flexShrink: 0,
               }}
             >
-              {tab.label}
+              <tab.Icon
+                style={{
+                  width: tab.width,
+                  height: 47.5,
+                  display: "block",
+                }}
+              />
             </Link>
           ))}
         </div>
@@ -194,7 +228,7 @@ export default function StudentPage() {
           style={{
             display: "grid",
             gridTemplateColumns: "2fr 1fr",
-            gap: 16,
+            gap: 15,
           }}
         >
           <PlaceholderCard
@@ -213,7 +247,7 @@ export default function StudentPage() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: 16,
+            gap: 15,
           }}
         >
           <PlaceholderCard
@@ -236,7 +270,7 @@ export default function StudentPage() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-            gap: 16,
+            gap: 15,
           }}
         >
           <PlaceholderCard title="Hours Played" description="8.5 hours this week" />
@@ -251,7 +285,7 @@ export default function StudentPage() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-            gap: 16,
+            gap: 15,
           }}
         >
           <PlaceholderCard title="Rhythm" description="Strengthen timing, tempo, and consistency." />
@@ -266,7 +300,7 @@ export default function StudentPage() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: 16,
+            gap: 15,
           }}
         >
           <PlaceholderCard
