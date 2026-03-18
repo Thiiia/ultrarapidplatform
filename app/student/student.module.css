@@ -664,3 +664,70 @@
     grid-template-columns: 1fr;
   }
 }
+
+.headerTabButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  border: none;
+  background: #ffffff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background-color 0.18s ease,
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.headerTabButton:hover {
+  background: #d1d5db;
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.headerTabButton svg,
+.utilityButton svg {
+  pointer-events: none;
+  background: transparent;
+}
+
+.headerTabButtonActive {
+  background: #9ca3af;
+  opacity: 1;
+}
+
+.headerTabButtonActive:hover {
+  background: #d1d5db;
+}
+
+.utilityButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  border: none;
+  background: #ffffff;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 0;
+  line-height: 0;
+  transition:
+    background-color 0.18s ease,
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.utilityButton:hover {
+  background: #d1d5db;
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.utilityButton svg {
+  display: block;
+  flex-shrink: 0;
+  pointer-events: none;
+  background: transparent;
+}

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { FC, ReactNode, SVGProps } from "react";
+import styles from "./student.module.css";
+import clsx from "clsx";
 
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
@@ -45,9 +47,9 @@ const topTabs: HeaderTab[] = [
 ];
 
 const utilityTabs: UtilityTab[] = [
-  { label: "Notifications", href: "/student/notifications", Icon: NotificationsIcon, width: 47.5 },
-  { label: "Settings", href: "/student/settings", Icon: SettingsIcon, width: 47.5 },
-  { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 168.06 },
+  { label: "Notifications", href: "/student/notifications", Icon: NotificationsIcon, width: 38 },
+  { label: "Settings", href: "/student/settings", Icon: SettingsIcon, width: 38 },
+  { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 134.45 },
 ];
 
 type SectionProps = {
@@ -150,76 +152,74 @@ export default function StudentPage() {
               flexWrap: "wrap",
             }}
           >
-            {topTabs.map((tab) => {
-              const isActive = pathname === tab.href;
+ {topTabs.map((tab) => {
+  const isActive = pathname === tab.href;
 
-              return (
-                <Link
-                  key={tab.label}
-                  href={tab.href}
-                  aria-label={tab.label}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: tab.width,
-                    height: 45.5,
-                    borderRadius: 0,
-                    border: "none",
-                    background: "#FFFFFF",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                    opacity: isActive ? 1 : 0.9,
-                  }}
-                >
-                  <tab.Icon
-                    style={{
-                      width: tab.width,
-                      height: 45.5,
-                      display: "block",
-                    }}
-                  />
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+  return (
+    <Link
+      key={tab.label}
+      href={tab.href}
+      aria-label={tab.label}
+      className={clsx(
+        styles.headerTabButton,
+        isActive && styles.headerTabButtonActive
+      )}
+      style={{
+        width: tab.width,
+        height: 45.5,
+        opacity: 1,
+      }}
+    >
+      <tab.Icon
+        style={{
+          width: tab.width,
+          height: 45.5,
+          display: "block",
+        }}
+      />
+    </Link>
+  );
+})}
+    </div>
+  </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            flexWrap: "wrap",
-            marginLeft: "auto",
-          }}
+  <div
+    style={{
+      display: "flex",
+      gap: 6,
+      flexWrap: "wrap",
+      marginLeft: "auto",
+      }}
         >
-          {utilityTabs.map((tab) => (
-            <Link
-              key={tab.label}
-              href={tab.href}
-              aria-label={tab.label}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: tab.width,
-                height: 47.5,
-                borderRadius: 0,
-                border: "none",
-                background: "#FFFFFF",
-                cursor: "pointer",
-                flexShrink: 0,
-              }}
-            >
-              <tab.Icon
-                style={{
-                  width: tab.width,
-                  height: 47.5,
-                  display: "block",
-                }}
-              />
-            </Link>
-          ))}
+{utilityTabs.map((tab) => {
+  const iconWidth =
+    tab.label === "Profile" ? 134.45 :
+    tab.label === "Notifications" ? 38 :
+    38;
+
+  const iconHeight = 38;
+
+  return (
+    <Link
+      key={tab.label}
+      href={tab.href}
+      aria-label={tab.label}
+      className={styles.utilityButton}
+      style={{
+        width: tab.width,
+        height: 38,
+      }}
+    >
+      <tab.Icon
+        style={{
+          width: iconWidth,
+          height: iconHeight,
+          display: "block",
+        }}
+      />
+    </Link>
+  );
+})}
         </div>
       </section>
 
