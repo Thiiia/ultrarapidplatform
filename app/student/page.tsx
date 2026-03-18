@@ -8,7 +8,7 @@ import clsx from "clsx";
 
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
-import HomeIcon from "@/public/header_icons/Home.svg";
+import HomeIcon from "@/public/header_icons/Home_pressed.svg";
 import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
 import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab.svg";
 import ProgressTab from "@/public/header_icons/progress_tab.svg";
