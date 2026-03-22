@@ -296,27 +296,44 @@ export default function StudentPage() {
       </DashboardSection>
 
       <DashboardSection title="Choose a song">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: 15,
-          }}
-        >
-          <PlaceholderCard
-            title="Song A"
-            description="A beginner-friendly track focused on rhythm recognition."
-          />
-          <PlaceholderCard
-            title="Song B"
-            description="A mid-level song with timing and coordination challenges."
-          />
-          <PlaceholderCard
-            title="Song C"
-            description="A performance-based practice song with score tracking."
-          />
-        </div>
-      </DashboardSection>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+      gap: 15,
+    }}
+  >
+    <Link
+      href="/student/combined-analysis"
+      style={{ textDecoration: "none", color: "inherit" }}
+    >
+      <PlaceholderCard
+        title="Song A"
+        description="A beginner-friendly track focused on rhythm recognition."
+      />
+    </Link>
+
+    <Link
+      href="/student/combined-analysis"
+      style={{ textDecoration: "none", color: "inherit" }}
+    >
+      <PlaceholderCard
+        title="Song B"
+        description="A mid-level song with timing and coordination challenges."
+      />
+    </Link>
+
+    <Link
+      href="/student/combined-analysis"
+      style={{ textDecoration: "none", color: "inherit" }}
+    >
+      <PlaceholderCard
+        title="Song C"
+        description="A performance-based practice song with score tracking."
+      />
+    </Link>
+  </div>
+</DashboardSection>
 
       <DashboardSection title="Recommended for You">
         <div
