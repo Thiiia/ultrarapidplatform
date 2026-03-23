@@ -87,15 +87,15 @@ export default function ProcessingSection({
       const timeoutId = setTimeout(() => controller.abort(), 1_200_000);
 
       try {
-        const response = await fetch("/api/combined-analysis", {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-          },
-          body: formData,
-          signal: controller.signal,
-          keepalive: false,
-        });
+        const response = await fetch(`${API_CONFIG.COMBINED_API_URL}/api/analyze`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+        },
+        body: formData,
+        signal: controller.signal,
+        keepalive: false,
+      });
 
         clearTimeout(timeoutId);
 
