@@ -66,11 +66,11 @@ export default function ProcessingSection({
   const startedRef = useRef(false);
 
   useEffect(() => {
-  if (startedRef.current) return;
-  startedRef.current = true;
-  void processAudio();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
+    if (startedRef.current) return;
+    startedRef.current = true;
+    void processAudio();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const processAudio = async () => {
     try {
@@ -88,14 +88,14 @@ export default function ProcessingSection({
 
       try {
         const response = await fetch(`${API_CONFIG.COMBINED_API_URL}/api/analyze`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-        },
-        body: formData,
-        signal: controller.signal,
-        keepalive: false,
-      });
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+          },
+          body: formData,
+          signal: controller.signal,
+          keepalive: false,
+        });
 
         clearTimeout(timeoutId);
 
