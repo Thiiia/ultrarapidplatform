@@ -87,6 +87,9 @@ export default function ProcessingSection({
       const timeoutId = setTimeout(() => controller.abort(), 1_200_000);
 
       try {
+        console.log("COMBINED_API_URL", API_CONFIG.COMBINED_API_URL);
+        console.log("POSTING TO", `${API_CONFIG.COMBINED_API_URL}/api/analyze`);
+
         const response = await fetch(`${API_CONFIG.COMBINED_API_URL}/api/analyze`, {
           method: "POST",
           headers: {
