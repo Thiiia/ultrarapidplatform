@@ -23,26 +23,11 @@ import { motion } from "framer-motion";
 import API_CONFIG from "../config";
 
 const STEPS = [
-  {
-    label: "Uploading Audio",
-    description: "Sending your file to the server...",
-  },
-  {
-    label: "Vocal Analysis",
-    description: "Extracting syllable timestamps (30-60s)",
-  },
-  {
-    label: "Percussion Separation",
-    description: "Separating drums from the mix (30-120s)",
-  },
-  {
-    label: "Drum Analysis",
-    description: "Analyzing percussion patterns (2-15 minutes)",
-  },
-  {
-    label: "Complete",
-    description: "Processing finished!",
-  },
+  { label: "Uploading Audio", description: "Sending your file to the server..." },
+  { label: "Vocal Analysis", description: "Extracting syllable timestamps (30-60s)" },
+  { label: "Percussion Separation", description: "Separating drums from the mix (30-120s)" },
+  { label: "Drum Analysis", description: "Analyzing percussion patterns (2-15 minutes)" },
+  { label: "Complete", description: "Processing finished!" },
 ];
 
 type ProcessingData = {
@@ -81,51 +66,83 @@ export default function ProcessingSection({
       const formData = new FormData();
       formData.append("audio_file", file);
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60_000);
+
       setActiveStep(1);
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1_200_000);
+      const startResponse = await fetch(`${API_CONFIG.COMBINED_API_URL}/api/analyze`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+        },
+        body: formData,
+        signal: controller.signal,
+      });
 
-      try {
-        console.log("COMBINED_API_URL", API_CONFIG.COMBINED_API_URL);
-        console.log("POSTING TO", `${API_CONFIG.COMBINED_API_URL}/api/analyze`);
+      clearTimeout(timeoutId);
 
-        const response = await fetch(`${API_CONFIG.COMBINED_API_URL}/api/analyze`, {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-          },
-          body: formData,
-          signal: controller.signal,
-          keepalive: false,
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => "Unknown error");
-          throw new Error(`Server error (${response.status}): ${errorText}`);
-        }
-
-        const result = await response.json();
-
-        setActiveStep(4);
-        setProgress(100);
-
-        setTimeout(() => {
-          onComplete(result);
-        }, 1000);
-      } catch (fetchErr: any) {
-        clearTimeout(timeoutId);
-
-        if (fetchErr?.name === "AbortError") {
-          throw new Error(
-            "Request timeout (20 minutes exceeded). This song might be too long or complex. Please try a shorter song.",
-          );
-        }
-
-        throw fetchErr;
+      if (!startResponse.ok) {
+        const errorText = await startResponse.text().catch(() => "Unknown error");
+        throw new Error(`Server error (${startResponse.status}): ${errorText}`);
       }
+
+      const startData = await startResponse.json();
+      const jobId = startData.job_id;
+
+      if (!jobId) {
+        throw new Error("No job_id returned from backend");
+      }
+
+      let pollCount = 0;
+      const maxPolls = 240; // ~20 min at 5s
+
+      while (pollCount < maxPolls) {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        pollCount += 1;
+
+        const pollResponse = await fetch(
+          `${API_CONFIG.COMBINED_API_URL}/api/analyze/${jobId}`,
+          {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+            },
+          },
+        );
+
+        if (!pollResponse.ok) {
+          const errorText = await pollResponse.text().catch(() => "Unknown error");
+          throw new Error(`Polling error (${pollResponse.status}): ${errorText}`);
+        }
+
+        const pollData = await pollResponse.json();
+
+        if (pollData.status === "complete") {
+          setActiveStep(4);
+          setProgress(100);
+
+          setTimeout(() => {
+            onComplete(pollData.result);
+          }, 1000);
+
+          return;
+        }
+
+        if (pollData.status === "failed") {
+          throw new Error(pollData.error || "Analysis job failed");
+        }
+
+        if (pollCount < 20) {
+          setActiveStep(1);
+        } else if (pollCount < 40) {
+          setActiveStep(2);
+        } else {
+          setActiveStep(3);
+        }
+      }
+
+      throw new Error("Analysis timed out while waiting for completion");
     } catch (err: any) {
       console.error("Processing error:", err);
 
@@ -152,8 +169,8 @@ export default function ProcessingSection({
     if (activeStep > 0 && activeStep < 4) {
       const timer = setInterval(() => {
         setProgress((oldProgress) => {
-          const diff = Math.random() * 10;
-          return Math.min(oldProgress + diff, 90);
+          const diff = Math.random() * 6;
+          return Math.min(oldProgress + diff, 95);
         });
       }, 2000);
 
