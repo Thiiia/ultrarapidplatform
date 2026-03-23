@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -63,11 +63,14 @@ export default function ProcessingSection({
   const [activeStep, setActiveStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    void processAudio();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  if (startedRef.current) return;
+  startedRef.current = true;
+  void processAudio();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   const processAudio = async () => {
     try {
@@ -84,9 +87,8 @@ export default function ProcessingSection({
       const timeoutId = setTimeout(() => controller.abort(), 1_200_000);
 
       try {
-        const response = await fetch(`${API_CONFIG.COMBINED_API_URL}/api/analyze`, {
+        const response = await fetch("/api/combined-analysis", {
           method: "POST",
-          mode: "cors",
           headers: {
             Accept: "application/json",
           },
