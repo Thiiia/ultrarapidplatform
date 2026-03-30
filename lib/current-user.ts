@@ -1,8 +1,8 @@
-import { auth0 } from "@/lib/auth0";
+import { getAuth0 } from "@/lib/auth0";
 import { prisma } from "@/lib/prisma";
 
 export async function getCurrentAppUser() {
-  const session = await auth0.getSession();
+  const session = await getAuth0().getSession();
 
   if (!session?.user) {
     return null;

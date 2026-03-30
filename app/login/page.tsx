@@ -54,23 +54,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </div>
         )}
 
-        <a
-          href="/auth/login?returnTo=/api/post-login"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "100%",
-            height: 48,
-            borderRadius: 10,
-            background: "#2563EB",
-            color: "#FFFFFF",
-            textDecoration: "none",
-            fontWeight: 600,
-          }}
-        >
-          Continue to sign in
-        </a>
+        <a href="/auth/login?returnTo=/api/post-login">Continue to sign in</a>
       </div>
     </main>
   );
