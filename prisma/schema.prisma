@@ -8,17 +8,55 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  auth0Sub  String   @unique
-  email     String   @unique
-  name      String?
-  role      Role     @default(student)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String     @id @default(cuid())
+  auth0Sub         String     @unique
+  email            String     @unique
+  name             String?
+  role             Role       @default(student)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  authoredMissions Mission[]  @relation("MissionAuthor")
+  progressRecords  Progress[]
+}
+
+model Mission {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  published   Boolean    @default(false)
+  contentJson Json
+  authorId    String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  author      User       @relation("MissionAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  progress    Progress[]
+}
+
+model Progress {
+  id         String         @id @default(cuid())
+  userId     String
+  missionId  String
+  status     ProgressStatus @default(not_started)
+  score      Float          @default(0)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mission    Mission        @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, missionId], name: "userId_missionId")
 }
 
 enum Role {
   student
   teacher
   admin
+}
+
+enum ProgressStatus {
+  not_started
+  in_progress
+  complete
 }
