@@ -1,16 +1,12 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { auth0 } from "@/lib/auth0";
 
 export default async function HomePage() {
-  const role = (await cookies()).get("role")?.value;
-/*
-  if (!role) redirect("/login");
-  if (role === "teacher") redirect("/teacher");
+  const session = await auth0.getSession();
 
-  if (role === "student") redirect("/student");
-*/
+  if (!session?.user) {
+    redirect("/login");
+  }
 
-redirect("/login");
-
+  redirect("/api/post-login");
 }
-// trigger vercel deploy

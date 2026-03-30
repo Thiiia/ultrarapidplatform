@@ -3,61 +3,22 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  auth0Sub  String   @unique
+  email     String   @unique
+  name      String?
+  role      Role     @default(student)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum Role {
   student
   teacher
-}
-
-enum ProgressStatus {
-  not_started
-  in_progress
-  complete
-}
-
-model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String?  @unique
-  role      Role
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  missionsAuthored Mission[]  @relation("MissionsAuthored")
-  progress         Progress[]
-}
-
-model Mission {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  published   Boolean  @default(false)
-  contentJson Json
-
-  authorId  String
-  author    User     @relation("MissionsAuthored", fields: [authorId], references: [id])
-
-  progress  Progress[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Progress {
-  id        String         @id @default(cuid())
-  status    ProgressStatus @default(not_started)
-  score     Int            @default(0)
-
-  userId    String
-  user      User           @relation(fields: [userId], references: [id])
-
-  missionId String
-  mission   Mission        @relation(fields: [missionId], references: [id])
-
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-
-  @@unique([userId, missionId])
+  admin
 }
