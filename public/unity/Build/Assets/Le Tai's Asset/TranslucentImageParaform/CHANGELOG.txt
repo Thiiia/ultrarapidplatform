@@ -1,0 +1,21 @@
+Changelog:
+
+v1.2.0:
+ - Edge Glint is now specified with colors instead of strength. Migrate old materials using The menu: Tools/Translucent Image/Migrate Paraform Materials
+ Note: Requires Translucent Image 6.6.1+
+
+v1.1.2:
+ - Adjust demo to compensate for Translucent Image brightness change
+
+v1.1.1:
+ - Fix corner size jump around at small sizes
+
+v1.1.0:
+ - Ring Thickness feature lets you create ring-shaped UIs.
+ Note: Requires updating Translucent Image
+
+v1.0.1:
+ - Improve demo
+
+v1.0.0:
+ - Initial release

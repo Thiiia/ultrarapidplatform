@@ -1,0 +1,1367 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dbf025d3c9c514f4c8ce4d2e73265441, type: 3}
+  m_Name: EquationDataSet
+  m_EditorClassIdentifier: Assembly-CSharp::EquationDataSet
+  difficultyLevels:
+  - levelName: Year 5
+    schoolYear: 0
+    equations:
+    - x+2=4
+    - x+3=6
+    - x-1=6
+    - x-2=6
+    - x-3=6
+    - 2x=6
+    - 2x+2=6
+    - x+2=8
+    - x+3=10
+    - x+4=12
+    - x+4=8
+    - x+5=10
+    - x+5=14
+    - x-1=10
+    - x-2=10
+    - x-3=10
+    - x-4=6
+    - 2x+4=8
+    - 3x=12
+    - 2x+5=15
+    - 2x+6=16
+    - 3x+3=12
+    - 5x+3=13
+    - 4x=20
+    - 4x+4=20
+    entries:
+    - id: Year5_001_moveconstant
+      equation: x+2=4
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 1
+    - id: Year5_002_moveconstant
+      equation: x+3=6
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 1
+    - id: Year5_003_moveconstant
+      equation: x-1=6
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 1
+    - id: Year5_004_moveconstant
+      equation: x-2=6
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 1
+    - id: Year5_005_moveconstant
+      equation: x-3=6
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 1
+    - id: Year5_006_dividebycoefficient
+      equation: 2x=6
+      skillTag: 3
+      estimatedSteps: 3
+      complexityScore: 1
+    - id: Year5_007_mixedmultistep
+      equation: 2x+2=6
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 1
+    - id: Year5_008_moveconstant
+      equation: x+2=8
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year5_009_moveconstant
+      equation: x+3=10
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year5_010_moveconstant
+      equation: x+4=12
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year5_011_moveconstant
+      equation: x+4=8
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year5_012_moveconstant
+      equation: x+5=10
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year5_013_moveconstant
+      equation: x+5=14
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year5_014_moveconstant
+      equation: x-1=10
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year5_015_moveconstant
+      equation: x-2=10
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year5_016_moveconstant
+      equation: x-3=10
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year5_017_moveconstant
+      equation: x-4=6
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year5_018_mixedmultistep
+      equation: 2x+4=8
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 2
+    - id: Year5_019_dividebycoefficient
+      equation: 3x=12
+      skillTag: 3
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year5_020_mixedmultistep
+      equation: 2x+5=15
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year5_021_mixedmultistep
+      equation: 2x+6=16
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year5_022_mixedmultistep
+      equation: 3x+3=12
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year5_023_mixedmultistep
+      equation: 5x+3=13
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year5_024_dividebycoefficient
+      equation: 4x=20
+      skillTag: 3
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year5_025_mixedmultistep
+      equation: 4x+4=20
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 4
+  - levelName: Year 6
+    schoolYear: 1
+    equations:
+    - 2x+2=6
+    - x+4=10
+    - x+4=15
+    - x+5=12
+    - 2x+4=8
+    - x+6=14
+    - x+7=16
+    - x+8=18
+    - 3x=12
+    - 2x+2=18
+    - 2x+6=16
+    - 3x+3=12
+    - 3x+4=13
+    - 3x+5=14
+    - 5x+3=13
+    - 4x=20
+    - 2x+8=24
+    - 4x+4=20
+    - 4x+5=21
+    - 4x+6=22
+    - 5x=30
+    - 3x+3=30
+    - 3x+7=25
+    - 5x+5=30
+    - 6x+4=22
+    entries:
+    - id: Year6_001_mixedmultistep
+      equation: 2x+2=6
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 1
+    - id: Year6_002_moveconstant
+      equation: x+4=10
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year6_003_moveconstant
+      equation: x+4=15
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year6_004_moveconstant
+      equation: x+5=12
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year6_005_mixedmultistep
+      equation: 2x+4=8
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 2
+    - id: Year6_006_moveconstant
+      equation: x+6=14
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 3
+    - id: Year6_007_moveconstant
+      equation: x+7=16
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 3
+    - id: Year6_008_moveconstant
+      equation: x+8=18
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 3
+    - id: Year6_009_dividebycoefficient
+      equation: 3x=12
+      skillTag: 3
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year6_010_mixedmultistep
+      equation: 2x+2=18
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year6_011_mixedmultistep
+      equation: 2x+6=16
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year6_012_mixedmultistep
+      equation: 3x+3=12
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year6_013_mixedmultistep
+      equation: 3x+4=13
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year6_014_mixedmultistep
+      equation: 3x+5=14
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year6_015_mixedmultistep
+      equation: 5x+3=13
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year6_016_dividebycoefficient
+      equation: 4x=20
+      skillTag: 3
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year6_017_mixedmultistep
+      equation: 2x+8=24
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year6_018_mixedmultistep
+      equation: 4x+4=20
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year6_019_mixedmultistep
+      equation: 4x+5=21
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year6_020_mixedmultistep
+      equation: 4x+6=22
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year6_021_dividebycoefficient
+      equation: 5x=30
+      skillTag: 3
+      estimatedSteps: 3
+      complexityScore: 5
+    - id: Year6_022_mixedmultistep
+      equation: 3x+3=30
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 5
+    - id: Year6_023_mixedmultistep
+      equation: 3x+7=25
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 5
+    - id: Year6_024_mixedmultistep
+      equation: 5x+5=30
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 5
+    - id: Year6_025_mixedmultistep
+      equation: 6x+4=22
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 5
+  - levelName: Year 7
+    schoolYear: 2
+    equations:
+    - x-2=7
+    - 2x+2=6
+    - x+3=8
+    - x+4=10
+    - x+5=12
+    - x-3=7
+    - x-4=7
+    - x-5=7
+    - -2x+13=1
+    - -2x+9=5
+    - x+6=14
+    - 4x=12
+    - -3x+10=1
+    - -4x+11=-5
+    - 3x+2=11
+    - 3x+3=12
+    - 4x-3=13
+    - 5x=20
+    - -3x+14=-7
+    - -5x+12=-13
+    - 3x+6=27
+    - 4x-7=25
+    - 5x+4=29
+    - 6x=30
+    - 6x-5=31
+    entries:
+    - id: Year7_001_moveconstant
+      equation: x-2=7
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 1
+    - id: Year7_002_mixedmultistep
+      equation: 2x+2=6
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 1
+    - id: Year7_003_moveconstant
+      equation: x+3=8
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year7_004_moveconstant
+      equation: x+4=10
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year7_005_moveconstant
+      equation: x+5=12
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year7_006_moveconstant
+      equation: x-3=7
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year7_007_moveconstant
+      equation: x-4=7
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year7_008_moveconstant
+      equation: x-5=7
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 2
+    - id: Year7_009_signflip
+      equation: -2x+13=1
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 2
+    - id: Year7_010_signflip
+      equation: -2x+9=5
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 2
+    - id: Year7_011_moveconstant
+      equation: x+6=14
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 3
+    - id: Year7_012_dividebycoefficient
+      equation: 4x=12
+      skillTag: 3
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year7_013_signflip
+      equation: -3x+10=1
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year7_014_signflip
+      equation: -4x+11=-5
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year7_015_mixedmultistep
+      equation: 3x+2=11
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year7_016_mixedmultistep
+      equation: 3x+3=12
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year7_017_mixedmultistep
+      equation: 4x-3=13
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year7_018_dividebycoefficient
+      equation: 5x=20
+      skillTag: 3
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year7_019_signflip
+      equation: -3x+14=-7
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year7_020_signflip
+      equation: -5x+12=-13
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year7_021_mixedmultistep
+      equation: 3x+6=27
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 5
+    - id: Year7_022_mixedmultistep
+      equation: 4x-7=25
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 5
+    - id: Year7_023_mixedmultistep
+      equation: 5x+4=29
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 5
+    - id: Year7_024_dividebycoefficient
+      equation: 6x=30
+      skillTag: 3
+      estimatedSteps: 3
+      complexityScore: 6
+    - id: Year7_025_mixedmultistep
+      equation: 6x-5=31
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 6
+  - levelName: Year 8
+    schoolYear: 3
+    equations:
+    - -3x+8=2
+    - -4x+9=-3
+    - 3x+2=11
+    - 4x+3=x+9
+    - -5x+10=-10
+    - 4x+3=19
+    - 5x+4=2x+13
+    - 2(x+1)=8
+    - 2(x-1)=8
+    - 2(x-4)=8
+    - 3x+6=27
+    - 5x+4=29
+    - 4x+7=2x+19
+    - 3(x-2)=12
+    - -6x+11=-19
+    - 5x+8=3x+22
+    - 6x+5=3x+17
+    - 3(x+2)=18
+    - 4(x-3)=16
+    - -7x+12=-30
+    - 6x+5=41
+    - 7x+6=x+36
+    - 6x+9=x+49
+    - 4(x+3)=32
+    - 5(x+4)=50
+    entries:
+    - id: Year8_001_signflip
+      equation: -3x+8=2
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year8_002_signflip
+      equation: -4x+9=-3
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year8_003_mixedmultistep
+      equation: 3x+2=11
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year8_004_movevariable
+      equation: 4x+3=x+9
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 3
+    - id: Year8_005_signflip
+      equation: -5x+10=-10
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year8_006_mixedmultistep
+      equation: 4x+3=19
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year8_007_movevariable
+      equation: 5x+4=2x+13
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 4
+    - id: Year8_008_expandbrackets
+      equation: 2(x+1)=8
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 4
+    - id: Year8_009_expandbrackets
+      equation: 2(x-1)=8
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 4
+    - id: Year8_010_expandbrackets
+      equation: 2(x-4)=8
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 4
+    - id: Year8_011_mixedmultistep
+      equation: 3x+6=27
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 5
+    - id: Year8_012_mixedmultistep
+      equation: 5x+4=29
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 5
+    - id: Year8_013_movevariable
+      equation: 4x+7=2x+19
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 5
+    - id: Year8_014_expandbrackets
+      equation: 3(x-2)=12
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 5
+    - id: Year8_015_signflip
+      equation: -6x+11=-19
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 6
+    - id: Year8_016_movevariable
+      equation: 5x+8=3x+22
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 6
+    - id: Year8_017_movevariable
+      equation: 6x+5=3x+17
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 6
+    - id: Year8_018_expandbrackets
+      equation: 3(x+2)=18
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 6
+    - id: Year8_019_expandbrackets
+      equation: 4(x-3)=16
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 6
+    - id: Year8_020_signflip
+      equation: -7x+12=-30
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 7
+    - id: Year8_021_mixedmultistep
+      equation: 6x+5=41
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 7
+    - id: Year8_022_movevariable
+      equation: 7x+6=x+36
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 7
+    - id: Year8_023_movevariable
+      equation: 6x+9=x+49
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 8
+    - id: Year8_024_expandbrackets
+      equation: 4(x+3)=32
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 8
+    - id: Year8_025_expandbrackets
+      equation: 5(x+4)=50
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 10
+  - levelName: Year 9
+    schoolYear: 4
+    equations:
+    - 2x+2=x+4
+    - 3x+3=2x+6
+    - x+1/2=5/2
+    - x+1/2=13/2
+    - x+2/3=11/3
+    - 4x+4=3x+8
+    - 2x+1/3=13/3
+    - 2(x+1)=10
+    - x+2/3=23/3
+    - x+3/4=19/4
+    - 5x+5=4x+10
+    - 5x+4=x+16
+    - 6x+5=2x+21
+    - 2(x+2)=20
+    - 3(x-2)=9
+    - x+4/5=29/5
+    - 3x+1/2=19/2
+    - 4x+1/3=x+19/3
+    - 5x+8=2x+29
+    - 3(x-3)=18
+    - 5x+1/2=2x+19/2
+    - 7x+6=3x+26
+    - 5(x-1)=30
+    - 6x+9=3x+33
+    - 4(x+3)=36
+    - 2x+3/4=59/4
+    - 5x+1/2=51/2
+    - 8x+7=x+49
+    - 4x+1/4=x+73/4
+    - 7x+4/3=2x+79/3
+    entries:
+    - id: Year9_001_movevariable
+      equation: 2x+2=x+4
+      skillTag: 2
+      estimatedSteps: 3
+      complexityScore: 2
+    - id: Year9_002_movevariable
+      equation: 3x+3=2x+6
+      skillTag: 2
+      estimatedSteps: 3
+      complexityScore: 2
+    - id: Year9_003_moveconstant
+      equation: x+1/2=5/2
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 3
+    - id: Year9_004_moveconstant
+      equation: x+1/2=13/2
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 4
+    - id: Year9_005_moveconstant
+      equation: x+2/3=11/3
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 4
+    - id: Year9_006_movevariable
+      equation: 4x+4=3x+8
+      skillTag: 2
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year9_007_mixedmultistep
+      equation: 2x+1/3=13/3
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year9_008_expandbrackets
+      equation: 2(x+1)=10
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 4
+    - id: Year9_009_moveconstant
+      equation: x+2/3=23/3
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 5
+    - id: Year9_010_moveconstant
+      equation: x+3/4=19/4
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 5
+    - id: Year9_011_movevariable
+      equation: 5x+5=4x+10
+      skillTag: 2
+      estimatedSteps: 3
+      complexityScore: 5
+    - id: Year9_012_movevariable
+      equation: 5x+4=x+16
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 5
+    - id: Year9_013_movevariable
+      equation: 6x+5=2x+21
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 5
+    - id: Year9_014_expandbrackets
+      equation: 2(x+2)=20
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 5
+    - id: Year9_015_expandbrackets
+      equation: 3(x-2)=9
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 5
+    - id: Year9_016_moveconstant
+      equation: x+4/5=29/5
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 6
+    - id: Year9_017_mixedmultistep
+      equation: 3x+1/2=19/2
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 6
+    - id: Year9_018_movevariable
+      equation: 4x+1/3=x+19/3
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 6
+    - id: Year9_019_movevariable
+      equation: 5x+8=2x+29
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 6
+    - id: Year9_020_expandbrackets
+      equation: 3(x-3)=18
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 6
+    - id: Year9_021_movevariable
+      equation: 5x+1/2=2x+19/2
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 7
+    - id: Year9_022_movevariable
+      equation: 7x+6=3x+26
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 7
+    - id: Year9_023_expandbrackets
+      equation: 5(x-1)=30
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 7
+    - id: Year9_024_movevariable
+      equation: 6x+9=3x+33
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 8
+    - id: Year9_025_expandbrackets
+      equation: 4(x+3)=36
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 8
+    - id: Year9_026_mixedmultistep
+      equation: 2x+3/4=59/4
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 9
+    - id: Year9_027_mixedmultistep
+      equation: 5x+1/2=51/2
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 9
+    - id: Year9_028_movevariable
+      equation: 8x+7=x+49
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 9
+    - id: Year9_029_movevariable
+      equation: 4x+1/4=x+73/4
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year9_030_movevariable
+      equation: 7x+4/3=2x+79/3
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+  - levelName: Year 10
+    schoolYear: 5
+    equations:
+    - 2x+2=x+4
+    - 3x+3=2x+6
+    - x+0.2=2.2
+    - x+0.5=5.5
+    - 4x+4=3x+8
+    - 2(x+0.5)=15.0
+    - x+0.4=4.4
+    - 5x+5=4x+10
+    - 6x+6=5x+12
+    - x+0.3=3.3
+    - x+0.6=6.6
+    - 5x+1/2=x+17/2
+    - 7x+7=6x+14
+    - 2x+0.3=4.3
+    - 4x+0.5=16.5
+    - 5(x+0.4)=32.0
+    - 3x+0.4=9.4
+    - 4x+0.2=x+9.2
+    - 2(x+0.1)=6.2
+    - x+0.7=7.7
+    - 2x+0.8=14.8
+    - 5x+5/2=2x+41/2
+    - 6x+2/3=2x+38/3
+    - 4x+0.6=2x+14.6
+    - 6x+0.4=3x+15.4
+    - 6x+1/3=3x+64/3
+    - 7x+0.5=x+36.5
+    - 7x+3/4=3x+67/4
+    - 3(x+0.2)=12.6
+    - 4(x+0.3)=21.2
+    entries:
+    - id: Year10_001_movevariable
+      equation: 2x+2=x+4
+      skillTag: 2
+      estimatedSteps: 3
+      complexityScore: 2
+    - id: Year10_002_movevariable
+      equation: 3x+3=2x+6
+      skillTag: 2
+      estimatedSteps: 3
+      complexityScore: 2
+    - id: Year10_003_moveconstant
+      equation: x+0.2=2.2
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 4
+    - id: Year10_004_moveconstant
+      equation: x+0.5=5.5
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 4
+    - id: Year10_005_movevariable
+      equation: 4x+4=3x+8
+      skillTag: 2
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year10_006_expandbrackets
+      equation: 2(x+0.5)=15.0
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 4
+    - id: Year10_007_moveconstant
+      equation: x+0.4=4.4
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 5
+    - id: Year10_008_movevariable
+      equation: 5x+5=4x+10
+      skillTag: 2
+      estimatedSteps: 3
+      complexityScore: 5
+    - id: Year10_009_movevariable
+      equation: 6x+6=5x+12
+      skillTag: 2
+      estimatedSteps: 3
+      complexityScore: 5
+    - id: Year10_010_moveconstant
+      equation: x+0.3=3.3
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 6
+    - id: Year10_011_moveconstant
+      equation: x+0.6=6.6
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 6
+    - id: Year10_012_movevariable
+      equation: 5x+1/2=x+17/2
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 6
+    - id: Year10_013_movevariable
+      equation: 7x+7=6x+14
+      skillTag: 2
+      estimatedSteps: 3
+      complexityScore: 7
+    - id: Year10_014_mixedmultistep
+      equation: 2x+0.3=4.3
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 7
+    - id: Year10_015_mixedmultistep
+      equation: 4x+0.5=16.5
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 7
+    - id: Year10_016_expandbrackets
+      equation: 5(x+0.4)=32.0
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 7
+    - id: Year10_017_mixedmultistep
+      equation: 3x+0.4=9.4
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 8
+    - id: Year10_018_movevariable
+      equation: 4x+0.2=x+9.2
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 8
+    - id: Year10_019_expandbrackets
+      equation: 2(x+0.1)=6.2
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 8
+    - id: Year10_020_moveconstant
+      equation: x+0.7=7.7
+      skillTag: 1
+      estimatedSteps: 2
+      complexityScore: 9
+    - id: Year10_021_mixedmultistep
+      equation: 2x+0.8=14.8
+      skillTag: 7
+      estimatedSteps: 3
+      complexityScore: 9
+    - id: Year10_022_movevariable
+      equation: 5x+5/2=2x+41/2
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 9
+    - id: Year10_023_movevariable
+      equation: 6x+2/3=2x+38/3
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 9
+    - id: Year10_024_movevariable
+      equation: 4x+0.6=2x+14.6
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year10_025_movevariable
+      equation: 6x+0.4=3x+15.4
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year10_026_movevariable
+      equation: 6x+1/3=3x+64/3
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year10_027_movevariable
+      equation: 7x+0.5=x+36.5
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year10_028_movevariable
+      equation: 7x+3/4=3x+67/4
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year10_029_expandbrackets
+      equation: 3(x+0.2)=12.6
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year10_030_expandbrackets
+      equation: 4(x+0.3)=21.2
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 10
+  - levelName: Year 11
+    schoolYear: 6
+    equations:
+    - 2x+2=x+4
+    - 3x+3=2x+6
+    - SUB:x=1.0;5x+1.5
+    - SUB:x=1.5;6x+2.0
+    - SUB:x=2;3x+2
+    - SUB:x=2;3x-2
+    - SUB:x=3/2;4x+1
+    - SUB:x=3;4x+3
+    - SUB:x=3;4x-3
+    - SUB:x=4/3;5x+2
+    - SUB:x=4;5x+4
+    - SUB:x=4;5x-4
+    - -4x+12=4
+    - -5x+13=-2
+    - 4x+4=3x+8
+    - -4x+16=-8
+    - -6x+14=-10
+    - -7x+15=-20
+    - 5(x-0.4)=33.0
+    - 6(x-0.5)=45.0
+    - 6x+0.2=x+15.2
+    - 6x+0.6=2x+28.6
+    - 7x+2/3=2x+122/3
+    - 7x+2/3=2x+62/3
+    - 8x+0.4=3x+25.4
+    - 8x+3/4=3x+103/4
+    - 9x+0.5=x+48.5
+    - 3(x-0.2)=14.4
+    - 3(x-0.6)=25.2
+    - 4(x-0.3)=22.8
+    entries:
+    - id: Year11_001_movevariable
+      equation: 2x+2=x+4
+      skillTag: 2
+      estimatedSteps: 3
+      complexityScore: 2
+    - id: Year11_002_movevariable
+      equation: 3x+3=2x+6
+      skillTag: 2
+      estimatedSteps: 3
+      complexityScore: 2
+    - id: Year11_003_substitution
+      equation: SUB:x=1.0;5x+1.5
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year11_004_substitution
+      equation: SUB:x=1.5;6x+2.0
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year11_005_substitution
+      equation: SUB:x=2;3x+2
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year11_006_substitution
+      equation: SUB:x=2;3x-2
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year11_007_substitution
+      equation: SUB:x=3/2;4x+1
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year11_008_substitution
+      equation: SUB:x=3;4x+3
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year11_009_substitution
+      equation: SUB:x=3;4x-3
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year11_010_substitution
+      equation: SUB:x=4/3;5x+2
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year11_011_substitution
+      equation: SUB:x=4;5x+4
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year11_012_substitution
+      equation: SUB:x=4;5x-4
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year11_013_signflip
+      equation: -4x+12=4
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year11_014_signflip
+      equation: -5x+13=-2
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 3
+    - id: Year11_015_movevariable
+      equation: 4x+4=3x+8
+      skillTag: 2
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year11_016_signflip
+      equation: -4x+16=-8
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 4
+    - id: Year11_017_signflip
+      equation: -6x+14=-10
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 5
+    - id: Year11_018_signflip
+      equation: -7x+15=-20
+      skillTag: 6
+      estimatedSteps: 3
+      complexityScore: 6
+    - id: Year11_019_expandbrackets
+      equation: 5(x-0.4)=33.0
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 7
+    - id: Year11_020_expandbrackets
+      equation: 6(x-0.5)=45.0
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 9
+    - id: Year11_021_movevariable
+      equation: 6x+0.2=x+15.2
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year11_022_movevariable
+      equation: 6x+0.6=2x+28.6
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year11_023_movevariable
+      equation: 7x+2/3=2x+122/3
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year11_024_movevariable
+      equation: 7x+2/3=2x+62/3
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year11_025_movevariable
+      equation: 8x+0.4=3x+25.4
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year11_026_movevariable
+      equation: 8x+3/4=3x+103/4
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year11_027_movevariable
+      equation: 9x+0.5=x+48.5
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year11_028_expandbrackets
+      equation: 3(x-0.2)=14.4
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year11_029_expandbrackets
+      equation: 3(x-0.6)=25.2
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year11_030_expandbrackets
+      equation: 4(x-0.3)=22.8
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 10
+  - levelName: Year 12
+    schoolYear: 7
+    equations:
+    - SUB:x=11/5;9x+6
+    - SUB:x=11/5;9x-6
+    - SUB:x=5/2;6x+3
+    - SUB:x=5/2;6x-3
+    - SUB:x=7/3;7x+4
+    - SUB:x=7/3;7x-4
+    - SUB:x=9/4;8x+5
+    - SUB:x=9/4;8x-5
+    - 6x+1=x+16
+    - -4x+14=x+8
+    - -5x+15=2x+6
+    - 6x+1=2x+33
+    - 7x+1=2x+21
+    - 8x+1=3x+26
+    - -6x+16=3x+4
+    - -7x+17=x-13
+    - 7x+1=3x+37
+    - 2(x+0.2)=x+3.4
+    - -8x+18=2x-18
+    - 9x+1=4x+31
+    - 8x+1=4x+41
+    - -9x+19=3x-23
+    - 10x+1=x+64
+    - 2(x+0.7)=3x-6.6
+    - 3(x+0.3)=2x+4.9
+    - 4(x+0.4)=3x+6.6
+    - 3(x+0.8)=x+20.4
+    - 4(x+0.2)=2x+20.8
+    - 5(x+0.5)=x+26.5
+    - 6(x+0.6)=2x+31.6
+    entries:
+    - id: Year12_001_substitution
+      equation: SUB:x=11/5;9x+6
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year12_002_substitution
+      equation: SUB:x=11/5;9x-6
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year12_003_substitution
+      equation: SUB:x=5/2;6x+3
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year12_004_substitution
+      equation: SUB:x=5/2;6x-3
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year12_005_substitution
+      equation: SUB:x=7/3;7x+4
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year12_006_substitution
+      equation: SUB:x=7/3;7x-4
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year12_007_substitution
+      equation: SUB:x=9/4;8x+5
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year12_008_substitution
+      equation: SUB:x=9/4;8x-5
+      skillTag: 5
+      estimatedSteps: 1
+      complexityScore: 3
+    - id: Year12_009_movevariable
+      equation: 6x+1=x+16
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 4
+    - id: Year12_010_signflip
+      equation: -4x+14=x+8
+      skillTag: 6
+      estimatedSteps: 4
+      complexityScore: 4
+    - id: Year12_011_signflip
+      equation: -5x+15=2x+6
+      skillTag: 6
+      estimatedSteps: 4
+      complexityScore: 5
+    - id: Year12_012_movevariable
+      equation: 6x+1=2x+33
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 6
+    - id: Year12_013_movevariable
+      equation: 7x+1=2x+21
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 6
+    - id: Year12_014_movevariable
+      equation: 8x+1=3x+26
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 6
+    - id: Year12_015_signflip
+      equation: -6x+16=3x+4
+      skillTag: 6
+      estimatedSteps: 4
+      complexityScore: 6
+    - id: Year12_016_signflip
+      equation: -7x+17=x-13
+      skillTag: 6
+      estimatedSteps: 4
+      complexityScore: 6
+    - id: Year12_017_movevariable
+      equation: 7x+1=3x+37
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 7
+    - id: Year12_018_expandbrackets
+      equation: 2(x+0.2)=x+3.4
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 7
+    - id: Year12_019_signflip
+      equation: -8x+18=2x-18
+      skillTag: 6
+      estimatedSteps: 4
+      complexityScore: 7
+    - id: Year12_020_movevariable
+      equation: 9x+1=4x+31
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 8
+    - id: Year12_021_movevariable
+      equation: 8x+1=4x+41
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 9
+    - id: Year12_022_signflip
+      equation: -9x+19=3x-23
+      skillTag: 6
+      estimatedSteps: 4
+      complexityScore: 9
+    - id: Year12_023_movevariable
+      equation: 10x+1=x+64
+      skillTag: 2
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year12_024_expandbrackets
+      equation: 2(x+0.7)=3x-6.6
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year12_025_expandbrackets
+      equation: 3(x+0.3)=2x+4.9
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year12_026_expandbrackets
+      equation: 4(x+0.4)=3x+6.6
+      skillTag: 4
+      estimatedSteps: 4
+      complexityScore: 10
+    - id: Year12_027_expandbrackets
+      equation: 3(x+0.8)=x+20.4
+      skillTag: 4
+      estimatedSteps: 5
+      complexityScore: 10
+    - id: Year12_028_expandbrackets
+      equation: 4(x+0.2)=2x+20.8
+      skillTag: 4
+      estimatedSteps: 5
+      complexityScore: 10
+    - id: Year12_029_expandbrackets
+      equation: 5(x+0.5)=x+26.5
+      skillTag: 4
+      estimatedSteps: 5
+      complexityScore: 10
+    - id: Year12_030_expandbrackets
+      equation: 6(x+0.6)=2x+31.6
+      skillTag: 4
+      estimatedSteps: 5
+      complexityScore: 10

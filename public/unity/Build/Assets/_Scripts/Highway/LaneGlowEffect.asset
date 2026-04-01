@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 583d08bacc7a1a1458082b898b58631f, type: 3}
+  m_Name: LaneGlowEffect
+  m_EditorClassIdentifier: 
+  tagID: laneGlow
+  glowGradient:
+    serializedVersion: 2
+    key0: {r: 1, g: 0.5764706, b: 0.003921569, a: 1}
+    key1: {r: 0.9960785, g: 0.09411766, b: 0, a: 1}
+    key2: {r: 1, g: 0.847298, b: 0, a: 0.8039216}
+    key3: {r: 0.94117653, g: 0.52156866, b: 0.003921569, a: 0.8039216}
+    key4: {r: 0.94117653, g: 0.52156866, b: 0.003921569, a: 0}
+    key5: {r: 0.94117653, g: 0.52156866, b: 0.003921569, a: 0}
+    key6: {r: 0, g: 0, b: 0, a: 0}
+    key7: {r: 0, g: 0, b: 0, a: 0}
+    ctime0: 0
+    ctime1: 30840
+    ctime2: 53970
+    ctime3: 65535
+    ctime4: 65535
+    ctime5: 54484
+    ctime6: 0
+    ctime7: 0
+    atime0: 0
+    atime1: 32768
+    atime2: 43819
+    atime3: 43819
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 2
+    m_ColorSpace: 0
+    m_NumColorKeys: 4
+    m_NumAlphaKeys: 2
+  cycleSpeed: 0.2

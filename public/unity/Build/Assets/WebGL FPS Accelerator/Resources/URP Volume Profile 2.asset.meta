@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 1d48dbd42f3822b44b78353d57cd8646
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 174567
+  packageName: WebGL FPS Accelerator
+  packageVersion: 2.0.0
+  assetPath: Assets/WebGL FPS Accelerator/Resources/URP Volume Profile 2.asset
+  uploadId: 600997

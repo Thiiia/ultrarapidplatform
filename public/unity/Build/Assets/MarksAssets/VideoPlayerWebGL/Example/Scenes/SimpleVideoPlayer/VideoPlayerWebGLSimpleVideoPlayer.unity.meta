@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 42a916c0663294093b742e542b2b2f1d
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 192420
+  packageName: Video Player WebGL
+  packageVersion: 1.9
+  assetPath: Assets/MarksAssets/VideoPlayerWebGL/Example/Scenes/SimpleVideoPlayer/VideoPlayerWebGLSimpleVideoPlayer.unity
+  uploadId: 823376

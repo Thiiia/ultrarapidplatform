@@ -1,0 +1,19 @@
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.2/respin/6000.2.8f1-e4064264ae96' branch; Version is '6000.2.8f1 (c9992ac36c34) revision 13211946'; Using compiler version '194234433'; Build Type 'Release'
+OS: 'Windows 11  (10.0.26200) 64bit Core' Language: 'en' Physical Memory: 32475 MB
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-tboya" at "2026-01-26T18:28:56.4525709Z"
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+Date: 2026-01-26T18:28:56Z
+
+COMMAND LINE ARGUMENTS:
+Unity.exe
+-batchmode
+-nographics
+-quit
+-projectPath
+C:\Users\tboya\Documents\GitHub\ULTRARAPID-MVP-Main
+-logFile
+C:\Users\tboya\Documents\GitHub\ULTRARAPID-MVP-Main\_unity_compile.log
+Successfully changed project path to: C:\Users\tboya\Documents\GitHub\ULTRARAPID-MVP-Main
+C:/Users/tboya/Documents/GitHub/ULTRARAPID-MVP-Main
+Exiting without the bug reporter. Application will terminate with return code 1

@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: e67abcccbb09fb64181fa601c9e972b1
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 174567
+  packageName: WebGL FPS Accelerator
+  packageVersion: 2.0.0
+  assetPath: Assets/WebGL FPS Accelerator/Resources/Animation 3.anim
+  uploadId: 600997

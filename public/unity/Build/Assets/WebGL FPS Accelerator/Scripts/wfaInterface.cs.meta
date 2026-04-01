@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 484029bb8f01d2249ae4edefd6da7d33
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 174567
+  packageName: WebGL FPS Accelerator
+  packageVersion: 2.0.0
+  assetPath: Assets/WebGL FPS Accelerator/Scripts/wfaInterface.cs
+  uploadId: 600997

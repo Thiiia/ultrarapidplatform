@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: f045cd53817cf0e40b59498b26d46794
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 174567
+  packageName: WebGL FPS Accelerator
+  packageVersion: 2.0.0
+  assetPath: Assets/WebGL FPS Accelerator/Resources/windmillPrefab.prefab
+  uploadId: 600997

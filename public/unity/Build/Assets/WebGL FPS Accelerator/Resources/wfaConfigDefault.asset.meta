@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: eefbc782ce5d8ea47b660bb0190a673a
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 174567
+  packageName: WebGL FPS Accelerator
+  packageVersion: 2.0.0
+  assetPath: Assets/WebGL FPS Accelerator/Resources/wfaConfigDefault.asset
+  uploadId: 600997

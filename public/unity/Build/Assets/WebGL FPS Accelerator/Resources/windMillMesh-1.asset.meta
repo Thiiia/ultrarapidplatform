@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 3613ca968829d0f4bbce150d06127e8b
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 174567
+  packageName: WebGL FPS Accelerator
+  packageVersion: 2.0.0
+  assetPath: Assets/WebGL FPS Accelerator/Resources/windMillMesh-1.asset
+  uploadId: 600997

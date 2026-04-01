@@ -1,0 +1,145 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using CrazyGames.TreeLib;
+using UnityEditor;
+using UnityEditor.IMGUI.Controls;
+using UnityEngine;
+
+#if UNITY_6000_0_OR_NEWER
+using BaseTreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem<int>;
+using BaseTreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+#else
+using BaseTreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem;
+using BaseTreeViewState = UnityEditor.IMGUI.Controls.TreeViewState;
+#endif
+
+namespace CrazyGames.WindowComponents.AudioOptimizations
+{
+    class AudioTree : TreeViewWithTreeModel<AudioTreeItem>
+    {
+        public AudioTree(BaseTreeViewState treeViewState, MultiColumnHeader multiColumnHeader, TreeModel<AudioTreeItem> model)
+            : base(treeViewState, multiColumnHeader, model)
+        {
+            showBorder = true;
+            showAlternatingRowBackgrounds = true;
+            multiColumnHeader.sortingChanged += OnSortingChanged;
+            Reload();
+        }
+
+        void SortIfNeeded(BaseTreeViewItem root, IList<BaseTreeViewItem> rows)
+        {
+            if (rows.Count <= 1)
+                return;
+
+            if (multiColumnHeader.sortedColumnIndex == -1)
+            {
+                return; // No column to sort for (just use the order the data are in)
+            }
+
+
+            var sortedColumns = multiColumnHeader.state.sortedColumns;
+
+            if (sortedColumns.Length == 0)
+                return;
+
+            var items = rootItem.children.Cast<TreeViewDataItem<AudioTreeItem>>().OrderBy(i => i.data.AudioName);
+            var sortedColumnIndex = sortedColumns[0];
+            var ascending = multiColumnHeader.IsSortedAscending(sortedColumnIndex);
+            switch (sortedColumnIndex)
+            {
+                case 0:
+                    items = items.Order(i => i.data.AudioName, ascending);
+                    break;
+                case 1:
+                    items = items.Order(i => i.data.LoadType, ascending);
+                    break;
+                case 2:
+                    items = items.Order(i => i.data.Quality, ascending);
+                    break;
+            }
+
+            rootItem.children = items.Cast<BaseTreeViewItem>().ToList();
+            TreeToList(root, rows);
+            Repaint();
+        }
+
+        public static void TreeToList(BaseTreeViewItem root, IList<BaseTreeViewItem> result)
+        {
+            if (root == null)
+                throw new NullReferenceException("root");
+            if (result == null)
+                throw new NullReferenceException("result");
+
+            result.Clear();
+
+            if (root.children == null)
+                return;
+
+            Stack<BaseTreeViewItem> stack = new Stack<BaseTreeViewItem>();
+            for (int i = root.children.Count - 1; i >= 0; i--)
+                stack.Push(root.children[i]);
+
+            while (stack.Count > 0)
+            {
+                BaseTreeViewItem current = stack.Pop();
+                result.Add(current);
+
+                if (current.hasChildren && current.children[0] != null)
+                {
+                    for (int i = current.children.Count - 1; i >= 0; i--)
+                    {
+                        stack.Push(current.children[i]);
+                    }
+                }
+            }
+        }
+
+
+        void OnSortingChanged(MultiColumnHeader multiColumnHeader)
+        {
+            SortIfNeeded(rootItem, GetRows());
+        }
+
+        protected override IList<BaseTreeViewItem> BuildRows(BaseTreeViewItem root)
+        {
+            var rows = base.BuildRows(root);
+            SortIfNeeded(root, rows);
+            return rows;
+        }
+
+        protected override void RowGUI(RowGUIArgs args)
+        {
+            var item = (TreeViewDataItem<AudioTreeItem>)args.item;
+
+            for (int i = 0; i < args.GetNumVisibleColumns(); ++i)
+            {
+                CellGUI(args.GetCellRect(i), item, args.GetColumn(i), ref args);
+            }
+        }
+
+        private void CellGUI(Rect cellRect, TreeViewDataItem<AudioTreeItem> item, int column, ref RowGUIArgs args)
+        {
+            CenterRectUsingSingleLineHeight(ref cellRect);
+            switch (column)
+            {
+                case 0:
+                    GUI.Label(cellRect, item.data.AudioName);
+                    break;
+                case 1:
+                    GUI.Label(cellRect, item.data.LoadType);
+                    break;
+                case 2:
+                    GUI.Label(cellRect, item.data.Quality.ToString());
+                    break;
+            }
+        }
+
+        protected override void SelectionChanged(IList<int> selectedIds)
+        {
+            base.SelectionChanged(selectedIds);
+            var item = treeModel.Find(selectedIds.First());
+            Selection.activeObject = AssetDatabase.LoadMainAssetAtPath(item.AudioPath);
+        }
+    }
+}

@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 7cba06ff707dca646915e4c0660b4949
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 330742
+  packageName: Paraform - Procedural Liquid Glass UI for Translucent Image
+  packageVersion: 1.2.0
+  assetPath: Assets/Le Tai's Asset/TranslucentImageParaform/Editor/Migration.cs
+  uploadId: 870142

@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: e50706ea5a5c43940bd2c5b495bff9c6
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 174567
+  packageName: WebGL FPS Accelerator
+  packageVersion: 2.0.0
+  assetPath: Assets/WebGL FPS Accelerator/Resources/dropDown.prefab
+  uploadId: 600997

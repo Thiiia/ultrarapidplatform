@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: e127423de26a11a4cbe311c30eb1e937
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures: []
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 174567
+  packageName: WebGL FPS Accelerator
+  packageVersion: 2.0.0
+  assetPath: Assets/WebGL FPS Accelerator/Resources/wfaUnlit.shader
+  uploadId: 600997

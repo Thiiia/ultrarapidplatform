@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: bb18a3e7dc02631459a91b97ae60629b
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 174567
+  packageName: WebGL FPS Accelerator
+  packageVersion: 2.0.0
+  assetPath: Assets/WebGL FPS Accelerator/Resources/wfaUnlit.mat
+  uploadId: 600997

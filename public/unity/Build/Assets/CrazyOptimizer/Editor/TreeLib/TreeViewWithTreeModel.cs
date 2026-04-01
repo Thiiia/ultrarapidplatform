@@ -1,0 +1,251 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEditor;
+using UnityEditor.IMGUI.Controls;
+using UnityEngine;
+
+#if UNITY_6000_0_OR_NEWER
+using BaseTreeView = UnityEditor.IMGUI.Controls.TreeView<int>;
+using BaseTreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem<int>;
+using BaseTreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+#else
+using BaseTreeView = UnityEditor.IMGUI.Controls.TreeView;
+using BaseTreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem;
+using BaseTreeViewState = UnityEditor.IMGUI.Controls.TreeViewState;
+#endif
+
+namespace CrazyGames.TreeLib
+{
+
+	internal class TreeViewDataItem<T> : BaseTreeViewItem where T : TreeElement
+	{
+		public T data { get; set; }
+
+		public TreeViewDataItem (int id, int depth, string displayName, T data) : base (id, depth, displayName)
+		{
+			this.data = data;
+		}
+	}
+
+	internal class TreeViewWithTreeModel<T> : BaseTreeView where T : TreeElement
+	{
+		TreeModel<T> m_TreeModel;
+		readonly List<BaseTreeViewItem> m_Rows = new List<BaseTreeViewItem>(100);
+		public event Action treeChanged;
+
+		public TreeModel<T> treeModel { get { return m_TreeModel; } }
+		public event Action<IList<BaseTreeViewItem>>  beforeDroppingDraggedItems;
+
+
+		public TreeViewWithTreeModel (BaseTreeViewState state, TreeModel<T> model) : base (state)
+		{
+			Init (model);
+		}
+
+		public TreeViewWithTreeModel (BaseTreeViewState state, MultiColumnHeader multiColumnHeader, TreeModel<T> model)
+			: base(state, multiColumnHeader)
+		{
+			Init (model);
+		}
+
+		void Init (TreeModel<T> model)
+		{
+			m_TreeModel = model;
+			m_TreeModel.modelChanged += ModelChanged;
+		}
+
+		void ModelChanged ()
+		{
+			if (treeChanged != null)
+				treeChanged ();
+
+			Reload ();
+		}
+
+		protected override BaseTreeViewItem BuildRoot()
+		{
+			int depthForHiddenRoot = -1;
+			return new TreeViewDataItem<T>(m_TreeModel.root.id, depthForHiddenRoot, m_TreeModel.root.name, m_TreeModel.root);
+		}
+
+		protected override IList<BaseTreeViewItem> BuildRows (BaseTreeViewItem root)
+		{
+			if (m_TreeModel.root == null)
+			{
+				Debug.LogError ("tree model root is null. did you call SetData()?");
+			}
+
+			m_Rows.Clear ();
+			if (!string.IsNullOrEmpty(searchString))
+			{
+				Search (m_TreeModel.root, searchString, m_Rows);
+			}
+			else
+			{
+				if (m_TreeModel.root.hasChildren)
+					AddChildrenRecursive(m_TreeModel.root, 0, m_Rows);
+			}
+
+			// We still need to setup the child parent information for the rows since this 
+			// information is used by the TreeView internal logic (navigation, dragging etc)
+			SetupParentsAndChildrenFromDepths (root, m_Rows);
+
+			return m_Rows;
+		}
+
+		void AddChildrenRecursive (T parent, int depth, IList<BaseTreeViewItem> newRows)
+		{
+			foreach (T child in parent.children)
+			{
+				var item = new TreeViewDataItem<T>(child.id, depth, child.name, child);
+				newRows.Add(item);
+
+				if (child.hasChildren)
+				{
+					if (IsExpanded(child.id))
+					{
+						AddChildrenRecursive (child, depth + 1, newRows);
+					}
+					else
+					{
+						item.children = CreateChildListForCollapsedParent();
+					}
+				}
+			}
+		}
+
+		void Search(T searchFromThis, string search, List<BaseTreeViewItem> result)
+		{
+			if (string.IsNullOrEmpty(search))
+				throw new ArgumentException("Invalid search: cannot be null or empty", "search");
+
+			const int kItemDepth = 0; // tree is flattened when searching
+
+			Stack<T> stack = new Stack<T>();
+			foreach (var element in searchFromThis.children)
+				stack.Push((T)element);
+			while (stack.Count > 0)
+			{
+				T current = stack.Pop();
+				// Matches search?
+				if (current.name.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
+				{
+					result.Add(new TreeViewDataItem<T>(current.id, kItemDepth, current.name, current));
+				}
+
+				if (current.children != null && current.children.Count > 0)
+				{
+					foreach (var element in current.children)
+					{
+						stack.Push((T)element);
+					}
+				}
+			}
+			SortSearchResult(result);
+		}
+
+		protected virtual void SortSearchResult (List<BaseTreeViewItem> rows)
+		{
+			rows.Sort ((x,y) => EditorUtility.NaturalCompare (x.displayName, y.displayName)); // sort by displayName by default, can be overriden for multicolumn solutions
+		}
+	
+		protected override IList<int> GetAncestors (int id)
+		{
+			return m_TreeModel.GetAncestors(id);
+		}
+
+		protected override IList<int> GetDescendantsThatHaveChildren (int id)
+		{
+			return m_TreeModel.GetDescendantsThatHaveChildren(id);
+		}
+
+
+		// Dragging
+		//-----------
+	
+		const string k_GenericDragID = "GenericDragColumnDragging";
+
+		protected override bool CanStartDrag (CanStartDragArgs args)
+		{
+			return true;
+		}
+
+		protected override void SetupDragAndDrop(SetupDragAndDropArgs args)
+		{
+			if (hasSearch)
+				return;
+
+			DragAndDrop.PrepareStartDrag();
+			var draggedRows = GetRows().Where(item => args.draggedItemIDs.Contains(item.id)).ToList();
+			DragAndDrop.SetGenericData(k_GenericDragID, draggedRows);
+			DragAndDrop.objectReferences = new UnityEngine.Object[] { }; // this IS required for dragging to work
+			string title = draggedRows.Count == 1 ? draggedRows[0].displayName : "< Multiple >";
+			DragAndDrop.StartDrag (title);
+		}
+
+		protected override DragAndDropVisualMode HandleDragAndDrop (DragAndDropArgs args)
+		{
+			// Check if we can handle the current drag data (could be dragged in from other areas/windows in the editor)
+			var draggedRows = DragAndDrop.GetGenericData(k_GenericDragID) as List<BaseTreeViewItem>;
+			if (draggedRows == null)
+				return DragAndDropVisualMode.None;
+
+			// Parent item is null when dragging outside any tree view items.
+			switch (args.dragAndDropPosition)
+			{
+				case DragAndDropPosition.UponItem:
+				case DragAndDropPosition.BetweenItems:
+					{
+						bool validDrag = ValidDrag(args.parentItem, draggedRows);
+						if (args.performDrop && validDrag)
+						{
+							T parentData = ((TreeViewDataItem<T>)args.parentItem).data;
+							OnDropDraggedElementsAtIndex(draggedRows, parentData, args.insertAtIndex == -1 ? 0 : args.insertAtIndex);
+						}
+						return validDrag ? DragAndDropVisualMode.Move : DragAndDropVisualMode.None;
+					}
+
+				case DragAndDropPosition.OutsideItems:
+					{
+						if (args.performDrop)
+							OnDropDraggedElementsAtIndex(draggedRows, m_TreeModel.root, m_TreeModel.root.children.Count);
+
+						return DragAndDropVisualMode.Move;
+					}
+				default:
+					Debug.LogError("Unhandled enum " + args.dragAndDropPosition);
+					return DragAndDropVisualMode.None;
+			}
+		}
+
+		public virtual void OnDropDraggedElementsAtIndex (List<BaseTreeViewItem> draggedRows, T parent, int insertIndex)
+		{
+			if (beforeDroppingDraggedItems != null)
+				beforeDroppingDraggedItems (draggedRows);
+
+			var draggedElements = new List<TreeElement> ();
+			foreach (var x in draggedRows)
+				draggedElements.Add (((TreeViewDataItem<T>) x).data);
+		
+			var selectedIDs = draggedElements.Select (x => x.id).ToArray();
+			m_TreeModel.MoveElements (parent, insertIndex, draggedElements);
+			SetSelection(selectedIDs, TreeViewSelectionOptions.RevealAndFrame);
+		}
+
+
+		bool ValidDrag(BaseTreeViewItem parent, List<BaseTreeViewItem> draggedItems)
+		{
+			BaseTreeViewItem currentParent = parent;
+			while (currentParent != null)
+			{
+				if (draggedItems.Contains(currentParent))
+					return false;
+				currentParent = currentParent.parent;
+			}
+			return true;
+		}
+	
+	}
+
+}
