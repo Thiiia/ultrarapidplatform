@@ -1,0 +1,193 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+
+type UnityInstance = {
+  SendMessage?: (
+    gameObjectName: string,
+    methodName: string,
+    parameter?: string | number
+  ) => void;
+  Quit?: () => Promise<void>;
+  SetFullscreen?: (enabled: number) => void;
+};
+
+declare global {
+  interface Window {
+    createUnityInstance?: (
+      canvas: HTMLCanvasElement,
+      config: {
+        dataUrl: string;
+        frameworkUrl: string;
+        codeUrl: string;
+        streamingAssetsUrl?: string;
+        companyName?: string;
+        productName?: string;
+        productVersion?: string;
+        devicePixelRatio?: number;
+      },
+      onProgress?: (progress: number) => void
+    ) => Promise<UnityInstance>;
+  }
+}
+
+type UnityPlayerProps = {
+  launchPayload?: {
+    userId?: string;
+    sessionToken?: string;
+    levelId?: string;
+  };
+};
+
+export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const unityRef = useRef<UnityInstance | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(
+    'idle'
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    let scriptEl: HTMLScriptElement | null = document.querySelector(
+      'script[data-unity-loader="true"]'
+    );
+
+    const loadUnity = async () => {
+      try {
+        setStatus('loading');
+
+        if (!scriptEl) {
+          scriptEl = document.createElement('script');
+          scriptEl.src = '/unity/Build/game.loader.js';
+          scriptEl.async = true;
+          scriptEl.dataset.unityLoader = 'true';
+
+          await new Promise<void>((resolve, reject) => {
+            scriptEl!.onload = () => resolve();
+            scriptEl!.onerror = () =>
+              reject(new Error('Failed to load Unity loader script.'));
+            document.body.appendChild(scriptEl!);
+          });
+        }
+
+        if (!window.createUnityInstance) {
+          throw new Error('Unity loader did not expose createUnityInstance().');
+        }
+
+        if (!canvasRef.current) {
+          throw new Error('Canvas element not found.');
+        }
+
+        scriptEl.src = '/unity/Build/fc96ba23d365a685e1f98ae146afbc37.loader.js';
+
+        const instance = await window.createUnityInstance(
+        canvasRef.current,
+        {
+            dataUrl: '/unity/Build/f26c85758070a66cd0156f7adc74e2b8.data.unityweb',
+            frameworkUrl: '/unity/Build/fa55d4fdf326802be97e89b7437d1998.framework.js.unityweb',
+            codeUrl: '/unity/Build/6d24779f7be871cf4eb9a906644700da.wasm.unityweb',
+            streamingAssetsUrl: '/unity/StreamingAssets',
+            companyName: 'Thiiia',
+            productName: 'UltraRapid',
+            productVersion: '1.0.0',
+            devicePixelRatio: window.devicePixelRatio || 1,
+        },
+        (value: number) => {
+            if (isMounted) setProgress(value);
+        }
+        );
+
+        if (!isMounted) {
+          await instance.Quit?.();
+          return;
+        }
+
+        unityRef.current = instance;
+        setStatus('ready');
+
+        // Optional: send initial launch data into Unity once loaded.
+        if (launchPayload?.userId) {
+          instance.SendMessage?.('WebBridge', 'SetUserId', launchPayload.userId);
+        }
+        if (launchPayload?.sessionToken) {
+          instance.SendMessage?.(
+            'WebBridge',
+            'SetSessionToken',
+            launchPayload.sessionToken
+          );
+        }
+        if (launchPayload?.levelId) {
+          instance.SendMessage?.('WebBridge', 'SetLevelId', launchPayload.levelId);
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        setStatus('error');
+        setError(err instanceof Error ? err.message : 'Unknown Unity load error.');
+      }
+    };
+
+    loadUnity();
+
+    return () => {
+      isMounted = false;
+
+      const instance = unityRef.current;
+      unityRef.current = null;
+
+      if (instance?.Quit) {
+        void instance.Quit();
+      }
+    };
+  }, [launchPayload?.levelId, launchPayload?.sessionToken, launchPayload?.userId]);
+
+  const startGame = () => {
+    unityRef.current?.SendMessage?.('GameManager', 'StartGame', '');
+  };
+
+  const openFullscreen = () => {
+    unityRef.current?.SetFullscreen?.(1);
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="rounded border p-3 text-sm">
+        {status === 'loading' && <span>Loading Unity: {Math.round(progress * 100)}%</span>}
+        {status === 'ready' && <span>Unity is ready.</span>}
+        {status === 'error' && <span>Error: {error}</span>}
+        {status === 'idle' && <span>Preparing Unity…</span>}
+      </div>
+
+      <div className="overflow-hidden rounded-xl border bg-black">
+        <canvas
+          ref={canvasRef}
+          id="unity-canvas"
+          width={1280}
+          height={720}
+          className="block h-auto w-full"
+        />
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={startGame}
+          disabled={status !== 'ready'}
+          className="rounded border px-4 py-2 disabled:opacity-50"
+        >
+          Start Game
+        </button>
+
+        <button
+          type="button"
+          onClick={openFullscreen}
+          disabled={status !== 'ready'}
+          className="rounded border px-4 py-2 disabled:opacity-50"
+        >
+          Fullscreen
+        </button>
+      </div>
+    </div>
+  );
+}

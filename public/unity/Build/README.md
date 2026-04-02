@@ -1,1 +1,0 @@
-Ultra Rapid is built for learners who tune out traditional methods. Just choose a song, pick a subject, and instantly turn it into a rhythm game; mapped to your national curriculum and designed for deep, repeatable learning.

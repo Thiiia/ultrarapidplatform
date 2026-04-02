@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAppUser } from "@/lib/current-user";
+import Link from "next/link";
 
 type AdminUserRow = {
   id: string;
@@ -189,6 +190,12 @@ export default async function AdminPage() {
           </table>
         </div>
       </div>
+            <Link
+        href="/game?autostart=1"
+        className="inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-neutral-100"
+      >
+        Launch Game
+      </Link>
     </main>
   );
 }
