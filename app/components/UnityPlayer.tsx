@@ -85,22 +85,22 @@ useEffect(() => {
         throw new Error('Canvas element not found.');
       }
 
-      const instance = await window.createUnityInstance(
-        canvasRef.current,
-        {
-          dataUrl: '/unity/Build/ultrarapid.data.unityweb',
-          frameworkUrl: '/unity/Build/ultrarapid.framework.js.unityweb',
-          codeUrl: '/unity/Build/ultrarapid.wasm.unityweb',
-          streamingAssetsUrl: '/unity/StreamingAssets',
-          companyName: 'YourCompany',
-          productName: 'UltraRapid',
-          productVersion: '1.0.0',
-          devicePixelRatio: window.devicePixelRatio || 1,
-        },
-        (value: number) => {
-          if (isMounted) setProgress(value);
-        }
-      );
+const instance = await window.createUnityInstance(
+  canvasRef.current,
+  {
+    dataUrl: "/unity/Build/ultrarapid.data.unityweb?v=2026-04-05-2",
+    frameworkUrl: "/unity/Build/ultrarapid.framework.js.unityweb?v=2026-04-05-2",
+    codeUrl: "/unity/Build/ultrarapid.wasm.unityweb?v=2026-04-05-2",
+    streamingAssetsUrl: "/unity/StreamingAssets",
+    companyName: "YourCompany",
+    productName: "UltraRapid",
+    productVersion: "1.0.1",
+    devicePixelRatio: window.devicePixelRatio || 1,
+  },
+  (value: number) => {
+    if (isMounted) setProgress(value);
+  }
+);
 
       if (!isMounted) {
         await instance.Quit?.();
