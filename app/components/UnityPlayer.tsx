@@ -109,12 +109,23 @@ useEffect(() => {
 
       unityRef.current = instance;
       setStatus('ready');
-    } catch (err) {
-      if (!isMounted) return;
-      setStatus('error');
-      setError(err instanceof Error ? err.message : 'Unknown Unity load error.');
-    }
-  };
+} catch (err: unknown) {
+  if (!isMounted) return;
+
+  console.error("Unity load error (raw):", err);
+
+  const message =
+    err instanceof Error
+      ? err.message
+      : typeof err === "string"
+        ? err
+        : err && typeof err === "object" && "message" in err
+          ? String((err as { message?: unknown }).message)
+          : String(err);
+
+  setStatus("error");
+  setError(message);
+}
 
   loadUnity();
 
