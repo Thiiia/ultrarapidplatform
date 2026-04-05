@@ -126,6 +126,7 @@ useEffect(() => {
   setStatus("error");
   setError(message);
 }
+  };
 
   loadUnity();
 
