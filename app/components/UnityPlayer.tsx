@@ -48,99 +48,87 @@ export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
   );
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    let scriptEl: HTMLScriptElement | null = document.querySelector(
-      'script[data-unity-loader="true"]'
-    );
+useEffect(() => {
+  let isMounted = true;
+  let scriptEl: HTMLScriptElement | null = document.querySelector(
+    'script[data-unity-loader="true"]'
+  );
 
-    const loadUnity = async () => {
-      try {
-        setStatus('loading');
+  const loadUnity = async () => {
+    try {
+      setStatus('loading');
 
-        if (!scriptEl) {
-          scriptEl = document.createElement('script');
-          scriptEl.src = '/unity/Build/game.loader.js';
-          scriptEl.async = true;
-          scriptEl.dataset.unityLoader = 'true';
+      if (!scriptEl) {
+        scriptEl = document.createElement('script');
+        scriptEl.src = '/unity/Build/ultrarapid.loader.js';
+        scriptEl.async = true;
+        scriptEl.dataset.unityLoader = 'true';
 
-          await new Promise<void>((resolve, reject) => {
-            scriptEl!.onload = () => resolve();
-            scriptEl!.onerror = () =>
-              reject(new Error('Failed to load Unity loader script.'));
-            document.body.appendChild(scriptEl!);
-          });
-        }
+        await new Promise<void>((resolve, reject) => {
+          scriptEl!.onload = () => resolve();
+          scriptEl!.onerror = () => {
+            reject(
+              new Error(
+                `Could not load Unity loader script at ${scriptEl?.src}`
+              )
+            );
+          };
+          document.body.appendChild(scriptEl!);
+        });
+      }
 
-        if (!window.createUnityInstance) {
-          throw new Error('Unity loader did not expose createUnityInstance().');
-        }
+      if (!window.createUnityInstance) {
+        throw new Error('Unity loader did not expose createUnityInstance().');
+      }
 
-        if (!canvasRef.current) {
-          throw new Error('Canvas element not found.');
-        }
+      if (!canvasRef.current) {
+        throw new Error('Canvas element not found.');
+      }
 
-        scriptEl.src = '/unity/Build/fc96ba23d365a685e1f98ae146afbc37.loader.js';
-
-        const instance = await window.createUnityInstance(
+      const instance = await window.createUnityInstance(
         canvasRef.current,
         {
-            dataUrl: '/unity/Build/f26c85758070a66cd0156f7adc74e2b8.data.unityweb',
-            frameworkUrl: '/unity/Build/fa55d4fdf326802be97e89b7437d1998.framework.js.unityweb',
-            codeUrl: '/unity/Build/6d24779f7be871cf4eb9a906644700da.wasm.unityweb',
-            streamingAssetsUrl: '/unity/StreamingAssets',
-            companyName: 'Thiiia',
-            productName: 'UltraRapid',
-            productVersion: '1.0.0',
-            devicePixelRatio: window.devicePixelRatio || 1,
+          dataUrl: '/unity/Build/ultrarapid.data.unityweb',
+          frameworkUrl: '/unity/Build/ultrarapid.framework.js.unityweb',
+          codeUrl: '/unity/Build/ultrarapid.wasm.unityweb',
+          streamingAssetsUrl: '/unity/StreamingAssets',
+          companyName: 'YourCompany',
+          productName: 'UltraRapid',
+          productVersion: '1.0.0',
+          devicePixelRatio: window.devicePixelRatio || 1,
         },
         (value: number) => {
-            if (isMounted) setProgress(value);
+          if (isMounted) setProgress(value);
         }
-        );
+      );
 
-        if (!isMounted) {
-          await instance.Quit?.();
-          return;
-        }
-
-        unityRef.current = instance;
-        setStatus('ready');
-
-        // Optional: send initial launch data into Unity once loaded.
-        if (launchPayload?.userId) {
-          instance.SendMessage?.('WebBridge', 'SetUserId', launchPayload.userId);
-        }
-        if (launchPayload?.sessionToken) {
-          instance.SendMessage?.(
-            'WebBridge',
-            'SetSessionToken',
-            launchPayload.sessionToken
-          );
-        }
-        if (launchPayload?.levelId) {
-          instance.SendMessage?.('WebBridge', 'SetLevelId', launchPayload.levelId);
-        }
-      } catch (err) {
-        if (!isMounted) return;
-        setStatus('error');
-        setError(err instanceof Error ? err.message : 'Unknown Unity load error.');
+      if (!isMounted) {
+        await instance.Quit?.();
+        return;
       }
-    };
 
-    loadUnity();
+      unityRef.current = instance;
+      setStatus('ready');
+    } catch (err) {
+      if (!isMounted) return;
+      setStatus('error');
+      setError(err instanceof Error ? err.message : 'Unknown Unity load error.');
+    }
+  };
 
-    return () => {
-      isMounted = false;
+  loadUnity();
 
-      const instance = unityRef.current;
-      unityRef.current = null;
+  return () => {
+    isMounted = false;
 
-      if (instance?.Quit) {
-        void instance.Quit();
-      }
-    };
-  }, [launchPayload?.levelId, launchPayload?.sessionToken, launchPayload?.userId]);
+    const instance = unityRef.current;
+    unityRef.current = null;
+
+    if (instance?.Quit) {
+      void instance.Quit();
+    }
+  };
+}, []);
 
   const startGame = () => {
     unityRef.current?.SendMessage?.('GameManager', 'StartGame', '');
