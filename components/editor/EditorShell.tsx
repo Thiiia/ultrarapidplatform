@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { SongLoader } from "./SongLoader"
 import { BlockPalette } from "./BlockPalette"
 import { Timeline } from "./Timeline"
@@ -20,18 +20,27 @@ type EditorShellProps = {
 
 export function EditorShell({ chartFile = "" }: EditorShellProps) {
   const project = useEditorStore((s) => s.project)
+  const lastStartedChartRef = useRef<string>("")
 
   useEffect(() => {
     if (!project) return
+    if (!chartFile) return
 
     const timeout = window.setTimeout(() => {
-      if (chartFile) {
-        loadUnityChart(chartFile)
-      }
+      const previewPayload = projectToUnityPreview(project)
 
-      loadUnityPreview(projectToUnityPreview(project))
-      startUnityEditorPreview()
-    }, 300)
+      console.log("[EditorShell] Sending chart to Unity")
+      loadUnityChart(chartFile)
+
+      console.log("[EditorShell] Sending preview payload to Unity")
+      loadUnityPreview(previewPayload)
+
+      if (lastStartedChartRef.current !== chartFile) {
+        console.log("[EditorShell] Starting Unity editor preview")
+        startUnityEditorPreview()
+        lastStartedChartRef.current = chartFile
+      }
+    }, 400)
 
     return () => window.clearTimeout(timeout)
   }, [project, chartFile])
