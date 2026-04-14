@@ -59,9 +59,9 @@ export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
         const instance = await window.createUnityInstance(
           canvasRef.current,
           {
-            dataUrl: "/unity/Build/ultrarapid.data.unityweb?v=2026-04-05-2",
-            frameworkUrl: "/unity/Build/ultrarapid.framework.js.unityweb?v=2026-04-05-2",
-            codeUrl: "/unity/Build/ultrarapid.wasm.unityweb?v=2026-04-05-2",
+            dataUrl: "/unity/Build/ultrarapid.data.unityweb",
+            frameworkUrl: "/unity/Build/ultrarapid.framework.js.unityweb",
+            codeUrl: "/unity/Build/ultrarapid.wasm.unityweb",
             streamingAssetsUrl: "/unity/StreamingAssets",
             companyName: "YourCompany",
             productName: "UltraRapid",
