@@ -13,21 +13,24 @@ type UnityPlayerProps = {
 export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const unityRef = useRef<UnityInstance | null>(null);
+  const hasStartedRef = useRef(false);
   const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
-    "idle"
-  );
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
+    let cancelled = false;
     let scriptEl: HTMLScriptElement | null = document.querySelector(
       'script[data-unity-loader="true"]'
     );
 
-    const loadUnity = async () => {
+    async function loadUnity() {
+      if (hasStartedRef.current) return;
+      hasStartedRef.current = true;
+
       try {
         setStatus("loading");
+        setError(null);
 
         if (!scriptEl) {
           scriptEl = document.createElement("script");
@@ -37,13 +40,8 @@ export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
 
           await new Promise<void>((resolve, reject) => {
             scriptEl!.onload = () => resolve();
-            scriptEl!.onerror = () => {
-              reject(
-                new Error(
-                  `Could not load Unity loader script at ${scriptEl?.src}`
-                )
-              );
-            };
+            scriptEl!.onerror = () =>
+              reject(new Error(`Could not load Unity loader script at ${scriptEl?.src}`));
             document.body.appendChild(scriptEl!);
           });
         }
@@ -59,9 +57,9 @@ export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
         const instance = await window.createUnityInstance(
           canvasRef.current,
           {
-            dataUrl: "/unity/Build/ultrarapid.data.unityweb",
-            frameworkUrl: "/unity/Build/ultrarapid.framework.js.unityweb",
-            codeUrl: "/unity/Build/ultrarapid.wasm.unityweb",
+            dataUrl: "/unity/Build/ultrarapid.data.unityweb?v=2026-04-05-2",
+            frameworkUrl: "/unity/Build/ultrarapid.framework.js.unityweb?v=2026-04-05-2",
+            codeUrl: "/unity/Build/ultrarapid.wasm.unityweb?v=2026-04-05-2",
             streamingAssetsUrl: "/unity/StreamingAssets",
             companyName: "YourCompany",
             productName: "UltraRapid",
@@ -69,11 +67,11 @@ export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
             devicePixelRatio: window.devicePixelRatio || 1,
           },
           (value: number) => {
-            if (isMounted) setProgress(value);
+            if (!cancelled) setProgress(value);
           }
         );
 
-        if (!isMounted) {
+        if (cancelled) {
           await instance.Quit?.();
           return;
         }
@@ -90,28 +88,35 @@ export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
           );
         }
       } catch (err: unknown) {
-        if (!isMounted) return;
-
-        console.error("Unity load error (raw):", err);
+        if (cancelled) return;
 
         const message =
           err instanceof Error
             ? err.message
             : typeof err === "string"
               ? err
-              : err && typeof err === "object" && "message" in err
-                ? String((err as { message?: unknown }).message)
-                : String(err);
+              : String(err);
 
+        // Ignore cancellation-style aborts caused by teardown/navigation
+        if (
+          message.includes("AbortError") ||
+          message.includes("aborted a request") ||
+          message.includes("user aborted")
+        ) {
+          console.warn("Unity load was aborted during teardown/navigation.");
+          return;
+        }
+
+        console.error("Unity load error:", err);
         setStatus("error");
         setError(message);
       }
-    };
+    }
 
     loadUnity();
 
     return () => {
-      isMounted = false;
+      cancelled = true;
 
       const instance = unityRef.current;
       unityRef.current = null;
@@ -124,7 +129,7 @@ export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
         void instance.Quit();
       }
     };
-  }, [launchPayload]);
+  }, []);
 
   const startGame = () => {
     unityRef.current?.SendMessage?.("GameManager", "StartGame", "");
