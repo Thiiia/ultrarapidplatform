@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { EditorShell } from "@/components/editor/EditorShell"
 import { useEditorStore } from "@/lib/editor/editor-store"
 import { chartToProject } from "@/lib/editor/chart-to-project"
@@ -19,6 +19,7 @@ type EditorRedirectPayload = {
 
 export default function EditorPage() {
   const setProject = useEditorStore((s) => s.setProject)
+  const [chartFile, setChartFile] = useState("")
 
   useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_editor_payload")
@@ -28,8 +29,8 @@ export default function EditorPage() {
       const payload: EditorRedirectPayload = JSON.parse(raw)
 
       if (payload?.chartFile) {
+        setChartFile(payload.chartFile)
         const project = chartToProject(payload)
-        console.log("project notes", project?.notes?.length)
         setProject(project)
       }
 
@@ -39,5 +40,5 @@ export default function EditorPage() {
     }
   }, [setProject])
 
-  return <EditorShell />
+  return <EditorShell chartFile={chartFile} />
 }

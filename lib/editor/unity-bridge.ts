@@ -20,6 +20,10 @@ export function loadUnityChart(chartText: string) {
   return sendUnityMessage("LoadChartText", chartText)
 }
 
+export function startUnityEditorPreview() {
+  return sendUnityMessage("StartEditorPreview")
+}
+
 export function setUnityPlayheadTick(tick: number) {
   return sendUnityMessage("SetPlayheadTick", tick)
 }
