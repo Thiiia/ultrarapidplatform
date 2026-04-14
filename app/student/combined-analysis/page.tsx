@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Box,
   Container,
@@ -50,7 +51,81 @@ type ProcessingData = {
   file: File;
 } | null;
 
+type EditorAnalysisMetadata = {
+  songTitle: string;
+  artist: string;
+  bpm: number;
+  durationSeconds: number;
+  vocalSyllableCount: number;
+  percussionHitCount: number;
+  uploadedFileName: string;
+};
+
+type EditorRedirectPayload = {
+  chartFile: string;
+  analysisMetadata: EditorAnalysisMetadata;
+  rawResults: any;
+};
+
+function getEditorRedirectPayload(
+  nextResults: any,
+  processingData: ProcessingData
+): EditorRedirectPayload {
+  const chartFile =
+    nextResults?.chart_file ??
+    nextResults?.chartFile ??
+    nextResults?.results?.chart_file ??
+    "";
+
+  const vocalSyllables =
+    nextResults?.vocal_analysis?.syllables ??
+    nextResults?.results?.vocal_analysis?.syllables ??
+    [];
+
+  const drumHits =
+    nextResults?.percussion_analysis?.drum_hits ??
+    nextResults?.results?.percussion_analysis?.drum_hits ??
+    [];
+
+  const analysisMetadata: EditorAnalysisMetadata = {
+    songTitle:
+      nextResults?.song_title ??
+      nextResults?.songTitle ??
+      nextResults?.metadata?.song_title ??
+      processingData?.file?.name?.replace(/\.[^/.]+$/, "") ??
+      "Untitled Song",
+    artist:
+      nextResults?.artist ??
+      nextResults?.metadata?.artist ??
+      "Unknown Artist",
+    bpm:
+      Number(
+        nextResults?.bpm ??
+          nextResults?.metadata?.bpm ??
+          nextResults?.results?.bpm
+      ) || 120,
+    durationSeconds:
+      Number(
+        nextResults?.duration_seconds ??
+          nextResults?.durationSeconds ??
+          nextResults?.metadata?.duration_seconds ??
+          nextResults?.results?.duration_seconds
+      ) || 0,
+    vocalSyllableCount: Array.isArray(vocalSyllables) ? vocalSyllables.length : 0,
+    percussionHitCount: Array.isArray(drumHits) ? drumHits.length : 0,
+    uploadedFileName: processingData?.file?.name ?? "",
+  };
+
+  return {
+    chartFile,
+    analysisMetadata,
+    rawResults: nextResults,
+  };
+}
+
 export default function CombinedAnalysisPage() {
+  const router = useRouter();
+
   const [currentStep, setCurrentStep] = useState<"upload" | "processing" | "results">("upload");
   const [processingData, setProcessingData] = useState<ProcessingData>(null);
   const [results, setResults] = useState<any>(null);
@@ -63,12 +138,22 @@ export default function CombinedAnalysisPage() {
   const handleProcessingComplete = (nextResults: any) => {
     setResults(nextResults);
     setCurrentStep("results");
+
+    const editorPayload = getEditorRedirectPayload(nextResults, processingData);
+
+    sessionStorage.setItem(
+      "ultrarapid_editor_payload",
+      JSON.stringify(editorPayload)
+    );
+
+    router.push("/editor");
   };
 
   const handleReset = () => {
     setCurrentStep("upload");
     setProcessingData(null);
     setResults(null);
+    sessionStorage.removeItem("ultrarapid_editor_payload");
   };
 
   return (
