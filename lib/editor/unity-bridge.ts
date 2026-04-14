@@ -2,10 +2,12 @@ import { UnityPreviewPayload } from "./types"
 
 const GAME_OBJECT = "WebEditorBridge"
 
-export function sendUnityMessage(method: string, value?: string) {
+export function sendUnityMessage(method: string, value?: string | number) {
   if (typeof window === "undefined") return false
+
   const unity = window.unityInstance
-  if (!unity) return false
+  if (!unity?.SendMessage) return false
+
   unity.SendMessage(GAME_OBJECT, method, value)
   return true
 }
@@ -19,7 +21,7 @@ export function loadUnityChart(chartText: string) {
 }
 
 export function setUnityPlayheadTick(tick: number) {
-  return sendUnityMessage("SetPlayheadTick", String(tick))
+  return sendUnityMessage("SetPlayheadTick", tick)
 }
 
 export function playUnityPreview() {
