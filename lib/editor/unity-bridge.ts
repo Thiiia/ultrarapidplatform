@@ -1,11 +1,3 @@
-declare global {
-  interface Window {
-    unityInstance?: {
-      SendMessage: (gameObject: string, method: string, value?: string) => void
-    }
-  }
-}
-
 import { UnityPreviewPayload } from "./types"
 
 const GAME_OBJECT = "WebEditorBridge"

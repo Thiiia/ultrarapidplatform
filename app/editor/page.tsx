@@ -29,6 +29,7 @@ export default function EditorPage() {
 
       if (payload?.chartFile) {
         const project = chartToProject(payload)
+        console.log("project notes", project?.notes?.length)
         setProject(project)
       }
 
