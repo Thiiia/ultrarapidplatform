@@ -2,8 +2,13 @@ export {}
 
 declare global {
   interface UnityInstance {
-    SendMessage: (gameObject: string, method: string, value?: string) => void
+    SendMessage?: (
+      gameObjectName: string,
+      methodName: string,
+      parameter?: string | number
+    ) => void
     Quit?: () => Promise<void>
+    SetFullscreen?: (enabled: number) => void
   }
 
   interface UnityConfig {

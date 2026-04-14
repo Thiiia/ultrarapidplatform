@@ -1,35 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
-
-type UnityInstance = {
-  SendMessage?: (
-    gameObjectName: string,
-    methodName: string,
-    parameter?: string | number
-  ) => void;
-  Quit?: () => Promise<void>;
-  SetFullscreen?: (enabled: number) => void;
-};
-
-declare global {
-  interface Window {
-    createUnityInstance?: (
-      canvas: HTMLCanvasElement,
-      config: {
-        dataUrl: string;
-        frameworkUrl: string;
-        codeUrl: string;
-        streamingAssetsUrl?: string;
-        companyName?: string;
-        productName?: string;
-        productVersion?: string;
-        devicePixelRatio?: number;
-      },
-      onProgress?: (progress: number) => void
-    ) => Promise<UnityInstance>;
-  }
-}
+import { useEffect, useRef, useState } from "react";
 
 type UnityPlayerProps = {
   launchPayload?: {
@@ -43,107 +14,120 @@ export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const unityRef = useRef<UnityInstance | null>(null);
   const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>(
-    'idle'
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
+    "idle"
   );
   const [error, setError] = useState<string | null>(null);
 
-useEffect(() => {
-  let isMounted = true;
-  let scriptEl: HTMLScriptElement | null = document.querySelector(
-    'script[data-unity-loader="true"]'
-  );
+  useEffect(() => {
+    let isMounted = true;
+    let scriptEl: HTMLScriptElement | null = document.querySelector(
+      'script[data-unity-loader="true"]'
+    );
 
-  const loadUnity = async () => {
-    try {
-      setStatus('loading');
+    const loadUnity = async () => {
+      try {
+        setStatus("loading");
 
-      if (!scriptEl) {
-        scriptEl = document.createElement('script');
-        scriptEl.src = '/unity/Build/ultrarapid.loader.js';
-        scriptEl.async = true;
-        scriptEl.dataset.unityLoader = 'true';
+        if (!scriptEl) {
+          scriptEl = document.createElement("script");
+          scriptEl.src = "/unity/Build/ultrarapid.loader.js";
+          scriptEl.async = true;
+          scriptEl.dataset.unityLoader = "true";
 
-        await new Promise<void>((resolve, reject) => {
-          scriptEl!.onload = () => resolve();
-          scriptEl!.onerror = () => {
-            reject(
-              new Error(
-                `Could not load Unity loader script at ${scriptEl?.src}`
-              )
-            );
-          };
-          document.body.appendChild(scriptEl!);
-        });
+          await new Promise<void>((resolve, reject) => {
+            scriptEl!.onload = () => resolve();
+            scriptEl!.onerror = () => {
+              reject(
+                new Error(
+                  `Could not load Unity loader script at ${scriptEl?.src}`
+                )
+              );
+            };
+            document.body.appendChild(scriptEl!);
+          });
+        }
+
+        if (!window.createUnityInstance) {
+          throw new Error("Unity loader did not expose createUnityInstance().");
+        }
+
+        if (!canvasRef.current) {
+          throw new Error("Canvas element not found.");
+        }
+
+        const instance = await window.createUnityInstance(
+          canvasRef.current,
+          {
+            dataUrl: "/unity/Build/ultrarapid.data.unityweb?v=2026-04-05-2",
+            frameworkUrl: "/unity/Build/ultrarapid.framework.js.unityweb?v=2026-04-05-2",
+            codeUrl: "/unity/Build/ultrarapid.wasm.unityweb?v=2026-04-05-2",
+            streamingAssetsUrl: "/unity/StreamingAssets",
+            companyName: "YourCompany",
+            productName: "UltraRapid",
+            productVersion: "1.0.1",
+            devicePixelRatio: window.devicePixelRatio || 1,
+          },
+          (value: number) => {
+            if (isMounted) setProgress(value);
+          }
+        );
+
+        if (!isMounted) {
+          await instance.Quit?.();
+          return;
+        }
+
+        unityRef.current = instance;
+        window.unityInstance = instance;
+        setStatus("ready");
+
+        if (launchPayload) {
+          unityRef.current?.SendMessage?.(
+            "GameManager",
+            "ReceiveLaunchPayload",
+            JSON.stringify(launchPayload)
+          );
+        }
+      } catch (err: unknown) {
+        if (!isMounted) return;
+
+        console.error("Unity load error (raw):", err);
+
+        const message =
+          err instanceof Error
+            ? err.message
+            : typeof err === "string"
+              ? err
+              : err && typeof err === "object" && "message" in err
+                ? String((err as { message?: unknown }).message)
+                : String(err);
+
+        setStatus("error");
+        setError(message);
+      }
+    };
+
+    loadUnity();
+
+    return () => {
+      isMounted = false;
+
+      const instance = unityRef.current;
+      unityRef.current = null;
+
+      if (window.unityInstance === instance) {
+        window.unityInstance = undefined;
       }
 
-      if (!window.createUnityInstance) {
-        throw new Error('Unity loader did not expose createUnityInstance().');
+      if (instance?.Quit) {
+        void instance.Quit();
       }
-
-      if (!canvasRef.current) {
-        throw new Error('Canvas element not found.');
-      }
-
-const instance = await window.createUnityInstance(
-  canvasRef.current,
-  {
-    dataUrl: "/unity/Build/ultrarapid.data.unityweb?v=2026-04-05-2",
-    frameworkUrl: "/unity/Build/ultrarapid.framework.js.unityweb?v=2026-04-05-2",
-    codeUrl: "/unity/Build/ultrarapid.wasm.unityweb?v=2026-04-05-2",
-    streamingAssetsUrl: "/unity/StreamingAssets",
-    companyName: "YourCompany",
-    productName: "UltraRapid",
-    productVersion: "1.0.1",
-    devicePixelRatio: window.devicePixelRatio || 1,
-  },
-  (value: number) => {
-    if (isMounted) setProgress(value);
-  }
-);
-
-      if (!isMounted) {
-        await instance.Quit?.();
-        return;
-      }
-
-      unityRef.current = instance;
-      setStatus('ready');
-} catch (err: unknown) {
-  if (!isMounted) return;
-
-  console.error("Unity load error (raw):", err);
-
-  const message =
-    err instanceof Error
-      ? err.message
-      : typeof err === "string"
-        ? err
-        : err && typeof err === "object" && "message" in err
-          ? String((err as { message?: unknown }).message)
-          : String(err);
-
-  setStatus("error");
-  setError(message);
-}
-  };
-
-  loadUnity();
-
-  return () => {
-    isMounted = false;
-
-    const instance = unityRef.current;
-    unityRef.current = null;
-
-    if (instance?.Quit) {
-      void instance.Quit();
-    }
-  };
-}, []);
+    };
+  }, [launchPayload]);
 
   const startGame = () => {
-    unityRef.current?.SendMessage?.('GameManager', 'StartGame', '');
+    unityRef.current?.SendMessage?.("GameManager", "StartGame", "");
   };
 
   const openFullscreen = () => {
@@ -153,10 +137,10 @@ const instance = await window.createUnityInstance(
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded border p-3 text-sm">
-        {status === 'loading' && <span>Loading Unity: {Math.round(progress * 100)}%</span>}
-        {status === 'ready' && <span>Unity is ready.</span>}
-        {status === 'error' && <span>Error: {error}</span>}
-        {status === 'idle' && <span>Preparing Unity…</span>}
+        {status === "loading" && <span>Loading Unity: {Math.round(progress * 100)}%</span>}
+        {status === "ready" && <span>Unity is ready.</span>}
+        {status === "error" && <span>Error: {error}</span>}
+        {status === "idle" && <span>Preparing Unity…</span>}
       </div>
 
       <div className="overflow-hidden rounded-xl border bg-black">
@@ -173,7 +157,7 @@ const instance = await window.createUnityInstance(
         <button
           type="button"
           onClick={startGame}
-          disabled={status !== 'ready'}
+          disabled={status !== "ready"}
           className="rounded border px-4 py-2 disabled:opacity-50"
         >
           Start Game
@@ -182,7 +166,7 @@ const instance = await window.createUnityInstance(
         <button
           type="button"
           onClick={openFullscreen}
-          disabled={status !== 'ready'}
+          disabled={status !== "ready"}
           className="rounded border px-4 py-2 disabled:opacity-50"
         >
           Fullscreen
