@@ -1,0 +1,39 @@
+declare global {
+  interface Window {
+    unityInstance?: {
+      SendMessage: (gameObject: string, method: string, value?: string) => void
+    }
+  }
+}
+
+import { UnityPreviewPayload } from "./types"
+
+const GAME_OBJECT = "WebEditorBridge"
+
+export function sendUnityMessage(method: string, value?: string) {
+  if (typeof window === "undefined") return false
+  const unity = window.unityInstance
+  if (!unity) return false
+  unity.SendMessage(GAME_OBJECT, method, value)
+  return true
+}
+
+export function loadUnityPreview(payload: UnityPreviewPayload) {
+  return sendUnityMessage("LoadPreviewJson", JSON.stringify(payload))
+}
+
+export function loadUnityChart(chartText: string) {
+  return sendUnityMessage("LoadChartText", chartText)
+}
+
+export function setUnityPlayheadTick(tick: number) {
+  return sendUnityMessage("SetPlayheadTick", String(tick))
+}
+
+export function playUnityPreview() {
+  return sendUnityMessage("PlayPreview")
+}
+
+export function pauseUnityPreview() {
+  return sendUnityMessage("PausePreview")
+}
