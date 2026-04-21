@@ -9,10 +9,8 @@ import { UnityPreview } from "./UnityPreview"
 import { useEditorStore } from "@/lib/editor/editor-store"
 import {
   loadUnityChart,
-  loadUnityPreview,
   startUnityEditorPreview,
 } from "@/lib/editor/unity-bridge"
-import { projectToUnityPreview } from "@/lib/editor/project-to-unity-preview"
 
 type EditorShellProps = {
   chartFile?: string
@@ -24,16 +22,16 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
 
   useEffect(() => {
     if (!project) return
-    if (!chartFile) return
+    if (!chartFile || !chartFile.trim()) return
 
     const timeout = window.setTimeout(() => {
-      const previewPayload = projectToUnityPreview(project)
-
       console.log("[EditorShell] Sending chart to Unity")
-      loadUnityChart(chartFile)
+      const chartLoaded = loadUnityChart(chartFile)
 
-      console.log("[EditorShell] Sending preview payload to Unity")
-      loadUnityPreview(previewPayload)
+      if (!chartLoaded) {
+        console.warn("[EditorShell] Unity is not ready yet")
+        return
+      }
 
       if (lastStartedChartRef.current !== chartFile) {
         console.log("[EditorShell] Starting Unity editor preview")
