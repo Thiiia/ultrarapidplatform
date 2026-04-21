@@ -128,31 +128,26 @@ export default function CombinedAnalysisPage() {
 
   const [currentStep, setCurrentStep] = useState<"upload" | "processing" | "results">("upload");
   const [processingData, setProcessingData] = useState<ProcessingData>(null);
-  const [results, setResults] = useState<any>(null);
 
   const handleFileUpload = (file: File) => {
     setCurrentStep("processing");
     setProcessingData({ file });
   };
 
-  const handleProcessingComplete = (nextResults: any) => {
-    setResults(nextResults);
-    setCurrentStep("results");
+const handleProcessingComplete = (nextResults: any) => {
+  const editorPayload = getEditorRedirectPayload(nextResults, processingData);
 
-    const editorPayload = getEditorRedirectPayload(nextResults, processingData);
+  sessionStorage.setItem(
+    "ultrarapid_editor_payload",
+    JSON.stringify(editorPayload)
+  );
 
-    sessionStorage.setItem(
-      "ultrarapid_editor_payload",
-      JSON.stringify(editorPayload)
-    );
-
-    router.push("/editor");
-  };
+  router.replace("/editor");
+};
 
   const handleReset = () => {
     setCurrentStep("upload");
     setProcessingData(null);
-    setResults(null);
     sessionStorage.removeItem("ultrarapid_editor_payload");
   };
 
@@ -260,14 +255,6 @@ export default function CombinedAnalysisPage() {
             processingData={processingData}
             onComplete={handleProcessingComplete}
             onReset={handleReset}
-          />
-        )}
-
-        {currentStep === "results" && (
-          <CombinedResultsSection
-            results={results}
-            onReset={handleReset}
-            audioFile={processingData?.file}
           />
         )}
       </Container>
