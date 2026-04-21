@@ -20,6 +20,7 @@ declare global {
     productName?: string
     productVersion?: string
     devicePixelRatio?: number
+    autoSyncPersistentDataPath?: boolean
   }
 
   interface Window {

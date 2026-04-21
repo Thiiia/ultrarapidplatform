@@ -57,14 +57,15 @@ export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
         const instance = await window.createUnityInstance(
           canvasRef.current,
           {
-            dataUrl: "/unity/Build/ultrarapid.data.unityweb?v=2026-04-05-2",
-            frameworkUrl: "/unity/Build/ultrarapid.framework.js.unityweb?v=2026-04-05-2",
-            codeUrl: "/unity/Build/ultrarapid.wasm.unityweb?v=2026-04-05-2",
+            dataUrl: "/unity/Build/ultrarapid.data.unityweb?v=2026-04-21-1",
+            frameworkUrl: "/unity/Build/ultrarapid.framework.js.unityweb?v=2026-04-21-1",
+            codeUrl: "/unity/Build/ultrarapid.wasm.unityweb?v=2026-04-21-1",
             streamingAssetsUrl: "/unity/StreamingAssets",
             companyName: "YourCompany",
             productName: "UltraRapid",
             productVersion: "1.0.1",
             devicePixelRatio: window.devicePixelRatio || 1,
+            autoSyncPersistentDataPath: true,
           },
           (value: number) => {
             if (!cancelled) setProgress(value);

@@ -8,7 +8,12 @@ export function sendUnityMessage(method: string, value?: string | number) {
   const unity = window.unityInstance
   if (!unity?.SendMessage) return false
 
-  unity.SendMessage(GAME_OBJECT, method, value)
+  if (value === undefined) {
+    unity.SendMessage(GAME_OBJECT, method)
+  } else {
+    unity.SendMessage(GAME_OBJECT, method, value)
+  }
+
   return true
 }
 
@@ -25,7 +30,7 @@ export function startUnityEditorPreview() {
 }
 
 export function setUnityPlayheadTick(tick: number) {
-  return sendUnityMessage("SetPlayheadTick", tick)
+  return sendUnityMessage("SetPlayheadTick", String(tick))
 }
 
 export function playUnityPreview() {
