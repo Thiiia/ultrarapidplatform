@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { SongLoader } from "./SongLoader"
 import { BlockPalette } from "./BlockPalette"
 import { Timeline } from "./Timeline"
@@ -18,57 +18,79 @@ type EditorShellProps = {
 
 export function EditorShell({ chartFile = "" }: EditorShellProps) {
   const project = useEditorStore((s) => s.project)
-  const lastSentChartRef = useRef<string>("")
-  const lastLaunchedChartRef = useRef<string>("")
+  const [localChartText, setLocalChartText] = useState(chartFile)
+  const [unityEnabled, setUnityEnabled] = useState(false)
+  const [pendingStart, setPendingStart] = useState(false)
+  const launchedChartRef = useRef("")
+
+  useEffect(() => {
+    if (chartFile && chartFile.trim()) {
+      setLocalChartText(chartFile)
+    }
+  }, [chartFile])
+
+  const handleStart = () => {
+    if (!localChartText.trim()) {
+      console.warn("[EditorShell] Cannot start preview: chart text is empty")
+      return
+    }
+
+    if (launchedChartRef.current === localChartText && unityEnabled) {
+      console.log("[EditorShell] Preview already started for this chart version")
+      return
+    }
+
+    setUnityEnabled(true)
+    setPendingStart(true)
+  }
 
   useEffect(() => {
     if (!project) return
-    if (!chartFile || !chartFile.trim()) return
+    if (!unityEnabled) return
+    if (!pendingStart) return
+    if (!localChartText.trim()) return
 
     const timeout = window.setTimeout(() => {
-      if (lastSentChartRef.current === chartFile) return
+      console.log("[EditorShell] Sending chart to Unity")
+      const loaded = loadUnityChart(localChartText)
 
-      console.log("[EditorShell] Sending chart to Unity for live preview")
-      const sent = loadUnityChart(chartFile)
-
-      if (!sent) {
+      if (!loaded) {
         console.warn("[EditorShell] Unity is not ready yet")
         return
       }
 
-      lastSentChartRef.current = chartFile
-    }, 400)
+      console.log("[EditorShell] Starting Unity editor preview")
+      const started = startUnityEditorPreview()
+
+      if (!started) {
+        console.warn("[EditorShell] Unity preview start message was not delivered")
+        return
+      }
+
+      launchedChartRef.current = localChartText
+      setPendingStart(false)
+    }, 600)
 
     return () => window.clearTimeout(timeout)
-  }, [project, chartFile])
-
-  const handleLaunchFullPreview = () => {
-    if (!chartFile || !chartFile.trim()) {
-      console.warn("[EditorShell] Cannot launch preview: chartFile is empty")
-      return
-    }
-
-    if (lastLaunchedChartRef.current === chartFile) {
-      console.log("[EditorShell] Full preview already launched for this chart version")
-      return
-    }
-
-    console.log("[EditorShell] Launching full Unity preview")
-    const sent = startUnityEditorPreview()
-
-    if (!sent) {
-      console.warn("[EditorShell] Unity is not ready yet")
-      return
-    }
-
-    lastLaunchedChartRef.current = chartFile
-  }
+  }, [project, unityEnabled, pendingStart, localChartText])
 
   return (
     <div className="px-6 py-6">
       <div className="grid grid-cols-12 gap-4 items-start">
         <div className="col-span-2 space-y-4">
-          <SongLoader />
+          <SongLoader
+            onChartTextReady={(text) => {
+              setLocalChartText(text)
+              launchedChartRef.current = ""
+            }}
+            onSongFileSelected={async (file) => {
+              // Replace this with your real analyzer call.
+              // It should return the generated chart text as a string.
+              throw new Error(
+                `Song analysis is not wired yet for ${file.name}. Connect this to your analyzer endpoint.`
+              )
+            }}
+          />
           <BlockPalette />
         </div>
 
@@ -77,21 +99,21 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
             <div>
               <h1 className="text-xl font-semibold">Lesson Builder</h1>
               <p className="text-sm text-gray-500">
-                Edit the chart and preview the gameplay in the center panel.
+                Upload a song or .chart file, then click Start to load the algebra level.
               </p>
             </div>
 
             <button
               type="button"
-              onClick={handleLaunchFullPreview}
-              disabled={!chartFile || !chartFile.trim()}
+              onClick={handleStart}
+              disabled={!localChartText || !localChartText.trim()}
               className="rounded border px-4 py-2 disabled:opacity-50"
             >
-              Launch Full Preview
+              Start
             </button>
           </div>
 
-          <UnityPreview />
+          <UnityPreview enabled={unityEnabled} />
 
           <Timeline />
         </div>

@@ -1,8 +1,6 @@
-import { UnityPreviewPayload } from "./types"
-
 const GAME_OBJECT = "WebEditorBridge"
 
-export function sendUnityMessage(method: string, value?: string | number) {
+export function sendUnityMessage(method: string, value?: string) {
   if (typeof window === "undefined") return false
 
   const unity = window.unityInstance
@@ -17,16 +15,16 @@ export function sendUnityMessage(method: string, value?: string | number) {
   return true
 }
 
-export function loadUnityPreview(payload: UnityPreviewPayload) {
-  return sendUnityMessage("LoadPreviewJson", JSON.stringify(payload))
-}
-
 export function loadUnityChart(chartText: string) {
   return sendUnityMessage("LoadChartText", chartText)
 }
 
 export function startUnityEditorPreview() {
   return sendUnityMessage("StartEditorPreview")
+}
+
+export function loadUnityPreview(json: string) {
+  return sendUnityMessage("LoadPreviewJson", json)
 }
 
 export function setUnityPlayheadTick(tick: number) {
