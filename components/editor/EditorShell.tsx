@@ -6,10 +6,12 @@ import { BlockPalette } from "./BlockPalette"
 import { Timeline } from "./Timeline"
 import { InspectorPanel } from "./InspectorPanel"
 import { UnityPreview } from "./UnityPreview"
+import { ChartWavePanel } from "./ChartWavePanel"
 import { useEditorStore } from "@/lib/editor/editor-store"
 import {
   loadUnityChart,
   startUnityEditorPreview,
+  setUnityPreviewSeconds,
 } from "@/lib/editor/unity-bridge"
 
 type EditorShellProps = {
@@ -18,25 +20,36 @@ type EditorShellProps = {
 
 export function EditorShell({ chartFile = "" }: EditorShellProps) {
   const project = useEditorStore((s) => s.project)
-  const [localChartText, setLocalChartText] = useState(chartFile)
+
+  const [songFile, setSongFile] = useState<File | null>(null)
+  const [chartText, setChartText] = useState(chartFile)
   const [unityEnabled, setUnityEnabled] = useState(false)
   const [pendingStart, setPendingStart] = useState(false)
-  const launchedChartRef = useRef("")
+
+  const launchedSignatureRef = useRef("")
 
   useEffect(() => {
     if (chartFile && chartFile.trim()) {
-      setLocalChartText(chartFile)
+      setChartText(chartFile)
     }
   }, [chartFile])
 
+  const canStart = Boolean(songFile && chartText.trim())
+
   const handleStart = () => {
-    if (!localChartText.trim()) {
-      console.warn("[EditorShell] Cannot start preview: chart text is empty")
+    if (!songFile) {
+      console.warn("[EditorShell] Cannot start: no song file uploaded")
       return
     }
 
-    if (launchedChartRef.current === localChartText && unityEnabled) {
-      console.log("[EditorShell] Preview already started for this chart version")
+    if (!chartText.trim()) {
+      console.warn("[EditorShell] Cannot start: no chart text uploaded")
+      return
+    }
+
+    const signature = `${songFile.name}::${chartText.length}`
+    if (unityEnabled && launchedSignatureRef.current === signature) {
+      console.log("[EditorShell] Preview already started for this upload set")
       return
     }
 
@@ -48,13 +61,16 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
     if (!project) return
     if (!unityEnabled) return
     if (!pendingStart) return
-    if (!localChartText.trim()) return
+    if (!songFile) return
+    if (!chartText.trim()) return
+
+    const signature = `${songFile.name}::${chartText.length}`
 
     const timeout = window.setTimeout(() => {
       console.log("[EditorShell] Sending chart to Unity")
-      const loaded = loadUnityChart(localChartText)
+      const chartLoaded = loadUnityChart(chartText)
 
-      if (!loaded) {
+      if (!chartLoaded) {
         console.warn("[EditorShell] Unity is not ready yet")
         return
       }
@@ -63,32 +79,27 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
       const started = startUnityEditorPreview()
 
       if (!started) {
-        console.warn("[EditorShell] Unity preview start message was not delivered")
+        console.warn("[EditorShell] Failed to send StartEditorPreview")
         return
       }
 
-      launchedChartRef.current = localChartText
+      launchedSignatureRef.current = signature
       setPendingStart(false)
-    }, 600)
+    }, 700)
 
     return () => window.clearTimeout(timeout)
-  }, [project, unityEnabled, pendingStart, localChartText])
+  }, [project, unityEnabled, pendingStart, songFile, chartText])
 
   return (
     <div className="px-6 py-6">
       <div className="grid grid-cols-12 gap-4 items-start">
         <div className="col-span-2 space-y-4">
           <SongLoader
-            onChartTextReady={(text) => {
-              setLocalChartText(text)
-              launchedChartRef.current = ""
+            onSongFileReady={(file) => {
+              setSongFile(file)
             }}
-            onSongFileSelected={async (file) => {
-              // Replace this with your real analyzer call.
-              // It should return the generated chart text as a string.
-              throw new Error(
-                `Song analysis is not wired yet for ${file.name}. Connect this to your analyzer endpoint.`
-              )
+            onChartTextReady={(text) => {
+              setChartText(text)
             }}
           />
           <BlockPalette />
@@ -99,14 +110,14 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
             <div>
               <h1 className="text-xl font-semibold">Lesson Builder</h1>
               <p className="text-sm text-gray-500">
-                Upload a song or .chart file, then click Start to load the algebra level.
+                Upload both a song file and a .chart file, then click Start.
               </p>
             </div>
 
             <button
               type="button"
               onClick={handleStart}
-              disabled={!localChartText || !localChartText.trim()}
+              disabled={!canStart}
               className="rounded border px-4 py-2 disabled:opacity-50"
             >
               Start
@@ -114,6 +125,15 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
           </div>
 
           <UnityPreview enabled={unityEnabled} />
+
+          <ChartWavePanel
+            songFile={songFile}
+            chartText={chartText}
+            disabled={!unityEnabled}
+            onScrubSeconds={(seconds) => {
+              setUnityPreviewSeconds(seconds)
+            }}
+          />
 
           <Timeline />
         </div>

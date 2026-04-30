@@ -3,29 +3,43 @@
 import { ChangeEvent, useRef, useState } from "react"
 
 type SongLoaderProps = {
-  onChartTextReady?: (chartText: string) => void
-  onSongFileSelected?: (file: File) => Promise<string>
+  onSongFileReady: (file: File) => void
+  onChartTextReady: (text: string, fileName: string) => void
 }
 
 export function SongLoader({
+  onSongFileReady,
   onChartTextReady,
-  onSongFileSelected,
 }: SongLoaderProps) {
-  const chartInputRef = useRef<HTMLInputElement | null>(null)
   const songInputRef = useRef<HTMLInputElement | null>(null)
+  const chartInputRef = useRef<HTMLInputElement | null>(null)
 
-  const [status, setStatus] = useState<string>("No file loaded yet.")
-  const [isProcessingSong, setIsProcessingSong] = useState(false)
+  const [songName, setSongName] = useState("")
+  const [chartName, setChartName] = useState("")
+  const [status, setStatus] = useState("Upload both a song file and a .chart file.")
 
-  const handleChartClick = () => {
-    chartInputRef.current?.click()
-  }
-
-  const handleSongClick = () => {
+  const handleSongButtonClick = () => {
     songInputRef.current?.click()
   }
 
-  const handleChartFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handleChartButtonClick = () => {
+    chartInputRef.current?.click()
+  }
+
+  const handleSongChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setSongName(file.name)
+    onSongFileReady(file)
+    setStatus(chartName
+      ? `Loaded song "${file.name}" and chart "${chartName}".`
+      : `Loaded song "${file.name}". Now upload a .chart file.`)
+
+    event.target.value = ""
+  }
+
+  const handleChartChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -33,48 +47,20 @@ export function SongLoader({
       const text = await file.text()
 
       if (!text.trim()) {
-        setStatus("The selected .chart file was empty.")
+        setStatus(`The chart file "${file.name}" was empty.`)
+        event.target.value = ""
         return
       }
 
-      onChartTextReady?.(text)
-      setStatus(`Loaded chart file: ${file.name}`)
+      setChartName(file.name)
+      onChartTextReady(text, file.name)
+      setStatus(songName
+        ? `Loaded song "${songName}" and chart "${file.name}".`
+        : `Loaded chart "${file.name}". Now upload a song file.`)
     } catch (error) {
-      console.error("Failed to read .chart file", error)
-      setStatus("Failed to read the .chart file.")
+      console.error("Failed to read chart file", error)
+      setStatus(`Failed to read chart file "${file.name}".`)
     } finally {
-      event.target.value = ""
-    }
-  }
-
-  const handleSongFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    if (!onSongFileSelected) {
-      setStatus("Song upload is wired, but no song analysis handler was provided yet.")
-      event.target.value = ""
-      return
-    }
-
-    try {
-      setIsProcessingSong(true)
-      setStatus(`Analyzing song: ${file.name}...`)
-
-      const chartText = await onSongFileSelected(file)
-
-      if (!chartText || !chartText.trim()) {
-        setStatus("Song analysis completed, but no chart text was returned.")
-        return
-      }
-
-      onChartTextReady?.(chartText)
-      setStatus(`Analyzed song and generated chart: ${file.name}`)
-    } catch (error) {
-      console.error("Failed to analyze uploaded song", error)
-      setStatus("Failed to analyze the uploaded song.")
-    } finally {
-      setIsProcessingSong(false)
       event.target.value = ""
     }
   }
@@ -84,31 +70,38 @@ export function SongLoader({
       <div>
         <h2 className="text-lg font-semibold">Song Loader</h2>
         <p className="text-sm text-gray-500">
-          Upload a song to generate a chart, or upload a .chart file directly.
+          Upload one song file and one .chart file before starting Unity.
         </p>
       </div>
 
       <div className="grid gap-3">
         <button
           type="button"
-          onClick={handleSongClick}
-          disabled={isProcessingSong}
-          className="rounded border px-4 py-2 text-left disabled:opacity-50"
+          onClick={handleSongButtonClick}
+          className="rounded border px-4 py-2 text-left"
         >
-          {isProcessingSong ? "Processing song..." : "Upload song"}
+          Upload song file
         </button>
 
         <button
           type="button"
-          onClick={handleChartClick}
+          onClick={handleChartButtonClick}
           className="rounded border px-4 py-2 text-left"
         >
           Upload .chart file
         </button>
       </div>
 
-      <div className="rounded-xl bg-black/5 p-3 text-sm text-gray-600">
-        {status}
+      <div className="rounded-xl bg-black/5 p-3 text-sm text-gray-700 space-y-1">
+        <div>
+          <span className="font-medium">Song:</span>{" "}
+          {songName || "Not uploaded yet"}
+        </div>
+        <div>
+          <span className="font-medium">Chart:</span>{" "}
+          {chartName || "Not uploaded yet"}
+        </div>
+        <div className="pt-2 text-gray-500">{status}</div>
       </div>
 
       <input
@@ -116,7 +109,7 @@ export function SongLoader({
         type="file"
         accept="audio/*"
         className="hidden"
-        onChange={handleSongFileChange}
+        onChange={handleSongChange}
       />
 
       <input
@@ -124,7 +117,7 @@ export function SongLoader({
         type="file"
         accept=".chart,text/plain"
         className="hidden"
-        onChange={handleChartFileChange}
+        onChange={handleChartChange}
       />
     </div>
   )

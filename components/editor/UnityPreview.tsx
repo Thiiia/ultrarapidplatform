@@ -12,7 +12,7 @@ export function UnityPreview({ enabled }: UnityPreviewProps) {
       <div className="text-center">
         <h2 className="text-xl font-semibold">Gameplay Preview</h2>
         <p className="text-sm text-gray-500">
-          Upload a song or .chart file, then click Start to load the algebra level.
+          Unity loads after both files are uploaded and Start is clicked.
         </p>
       </div>
 
@@ -22,7 +22,7 @@ export function UnityPreview({ enabled }: UnityPreviewProps) {
         </div>
       ) : (
         <div className="rounded-xl border bg-black/5 p-10 text-center text-sm text-gray-500">
-          Unity preview is idle. Upload a song or .chart file, then click Start.
+          Unity preview is idle. Upload a song file and a .chart file, then click Start.
         </div>
       )}
     </div>

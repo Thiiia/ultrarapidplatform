@@ -23,12 +23,8 @@ export function startUnityEditorPreview() {
   return sendUnityMessage("StartEditorPreview")
 }
 
-export function loadUnityPreview(json: string) {
-  return sendUnityMessage("LoadPreviewJson", json)
-}
-
-export function setUnityPlayheadTick(tick: number) {
-  return sendUnityMessage("SetPlayheadTick", String(tick))
+export function setUnityPreviewSeconds(seconds: number) {
+  return sendUnityMessage("SetPreviewSeconds", String(seconds))
 }
 
 export function playUnityPreview() {
