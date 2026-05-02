@@ -16,7 +16,7 @@ export function SongLoader({
 
   const [songName, setSongName] = useState("")
   const [chartName, setChartName] = useState("")
-  const [status, setStatus] = useState("Upload both a song file and a .chart file.")
+  const [status, setStatus] = useState("Upload a song file and a .chart file.")
 
   const handleSongButtonClick = () => {
     songInputRef.current?.click()
@@ -70,7 +70,7 @@ export function SongLoader({
       <div>
         <h2 className="text-lg font-semibold">Song Loader</h2>
         <p className="text-sm text-gray-500">
-          Upload one song file and one .chart file before starting Unity.
+          Upload one song file and one .chart file for the editor.
         </p>
       </div>
 

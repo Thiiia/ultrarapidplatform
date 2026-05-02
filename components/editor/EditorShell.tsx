@@ -1,18 +1,11 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { SongLoader } from "./SongLoader"
 import { BlockPalette } from "./BlockPalette"
 import { Timeline } from "./Timeline"
 import { InspectorPanel } from "./InspectorPanel"
-import { UnityPreview } from "./UnityPreview"
-import { ChartWavePanel } from "./ChartWavePanel"
 import { useEditorStore } from "@/lib/editor/editor-store"
-import {
-  loadUnityChart,
-  startUnityEditorPreview,
-  setUnityPreviewSeconds,
-} from "@/lib/editor/unity-bridge"
 
 type EditorShellProps = {
   chartFile?: string
@@ -23,72 +16,17 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
 
   const [songFile, setSongFile] = useState<File | null>(null)
   const [chartText, setChartText] = useState(chartFile)
-  const [unityEnabled, setUnityEnabled] = useState(false)
-  const [pendingStart, setPendingStart] = useState(false)
-
-  const launchedSignatureRef = useRef("")
+  const [chartFileName, setChartFileName] = useState("")
+  const [showChart, setShowChart] = useState(false)
 
   useEffect(() => {
     if (chartFile && chartFile.trim()) {
       setChartText(chartFile)
-    }
-  }, [chartFile])
-
-  const canStart = Boolean(songFile && chartText.trim())
-
-  const handleStart = () => {
-    if (!songFile) {
-      console.warn("[EditorShell] Cannot start: no song file uploaded")
-      return
-    }
-
-    if (!chartText.trim()) {
-      console.warn("[EditorShell] Cannot start: no chart text uploaded")
-      return
-    }
-
-    const signature = `${songFile.name}::${chartText.length}`
-    if (unityEnabled && launchedSignatureRef.current === signature) {
-      console.log("[EditorShell] Preview already started for this upload set")
-      return
-    }
-
-    setUnityEnabled(true)
-    setPendingStart(true)
-  }
-
-  useEffect(() => {
-    if (!project) return
-    if (!unityEnabled) return
-    if (!pendingStart) return
-    if (!songFile) return
-    if (!chartText.trim()) return
-
-    const signature = `${songFile.name}::${chartText.length}`
-
-    const timeout = window.setTimeout(() => {
-      console.log("[EditorShell] Sending chart to Unity")
-      const chartLoaded = loadUnityChart(chartText)
-
-      if (!chartLoaded) {
-        console.warn("[EditorShell] Unity is not ready yet")
-        return
+      if (!chartFileName) {
+        setChartFileName("generated.chart")
       }
-
-      console.log("[EditorShell] Starting Unity editor preview")
-      const started = startUnityEditorPreview()
-
-      if (!started) {
-        console.warn("[EditorShell] Failed to send StartEditorPreview")
-        return
-      }
-
-      launchedSignatureRef.current = signature
-      setPendingStart(false)
-    }, 700)
-
-    return () => window.clearTimeout(timeout)
-  }, [project, unityEnabled, pendingStart, songFile, chartText])
+    }
+  }, [chartFile, chartFileName])
 
   return (
     <div className="px-6 py-6">
@@ -98,8 +36,9 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
             onSongFileReady={(file) => {
               setSongFile(file)
             }}
-            onChartTextReady={(text) => {
+            onChartTextReady={(text, fileName) => {
               setChartText(text)
+              setChartFileName(fileName)
             }}
           />
           <BlockPalette />
@@ -110,30 +49,49 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
             <div>
               <h1 className="text-xl font-semibold">Lesson Builder</h1>
               <p className="text-sm text-gray-500">
-                Upload both a song file and a .chart file, then click Start.
+                Upload a song file and a .chart file to build and inspect the lesson in the browser.
               </p>
             </div>
 
             <button
               type="button"
-              onClick={handleStart}
-              disabled={!canStart}
+              onClick={() => setShowChart((prev) => !prev)}
+              disabled={!chartText.trim()}
               className="rounded border px-4 py-2 disabled:opacity-50"
             >
-              Start
+              {showChart ? "Hide .chart" : "View .chart"}
             </button>
           </div>
 
-          <UnityPreview enabled={unityEnabled} />
+          <div className="rounded-2xl border p-4 space-y-3">
+            <h2 className="text-lg font-semibold">Editor Preview</h2>
+            <p className="text-sm text-gray-500">
+              Unity has been removed from the editor page. This area is now reserved for browser-based chart and audio tools.
+            </p>
 
-          <ChartWavePanel
-            songFile={songFile}
-            chartText={chartText}
-            disabled={!unityEnabled}
-            onScrubSeconds={(seconds) => {
-              setUnityPreviewSeconds(seconds)
-            }}
-          />
+            <div className="rounded-xl border bg-black/5 p-6 text-sm text-gray-600">
+              <div>
+                <span className="font-medium">Song:</span>{" "}
+                {songFile ? songFile.name : "Not uploaded yet"}
+              </div>
+              <div>
+                <span className="font-medium">Chart:</span>{" "}
+                {chartFileName || "Not uploaded yet"}
+              </div>
+              <div className="pt-3 text-gray-500">
+                Next step: add the waveform panel and shared timeline slider here.
+              </div>
+            </div>
+          </div>
+
+          {showChart && (
+            <div className="rounded-2xl border p-4 space-y-3">
+              <h2 className="text-lg font-semibold">Current .chart File</h2>
+              <div className="rounded-xl bg-black text-green-300 p-4 overflow-auto max-h-96 text-xs whitespace-pre-wrap">
+                {chartText || "No chart file loaded."}
+              </div>
+            </div>
+          )}
 
           <Timeline />
         </div>
