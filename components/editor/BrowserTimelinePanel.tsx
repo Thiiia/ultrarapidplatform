@@ -13,7 +13,7 @@ type ParsedChartEvent = {
   type: ChartEventType
   tick: number
   length: number
-  lane?: number
+  lane: number
   seconds: number
   label: string
 }
@@ -37,6 +37,11 @@ function formatTime(value: number) {
   const minutes = Math.floor(value / 60)
   const seconds = Math.floor(value % 60)
   return `${minutes}:${String(seconds).padStart(2, "0")}`
+}
+
+function laneLabel(lane: number) {
+  const labels = ["G", "R", "Y", "B", "O"]
+  return labels[lane] ?? String(lane)
 }
 
 function parseResolution(chartText: string) {
@@ -123,8 +128,6 @@ function parseTrackSection(chartText: string) {
   return ""
 }
 
-
-
 function parseChartData(chartText: string): ParsedChartData {
   if (!chartText.trim()) {
     return {
@@ -148,7 +151,6 @@ function parseChartData(chartText: string): ParsedChartData {
       const tick = Number(match[1])
       const lane = Number(match[2])
       const length = Number(match[3])
-
       const type: ChartEventType = length > 0 ? "drag" : "hit"
 
       return {
@@ -157,7 +159,7 @@ function parseChartData(chartText: string): ParsedChartData {
         lane,
         length,
         seconds: tickToSeconds(tick, resolution, bpmPoints),
-        label: type === "drag" ? `Drag lane ${lane}` : `Hit lane ${lane}`,
+        label: type === "drag" ? `Drag lane ${laneLabel(lane)}` : `Hit lane ${laneLabel(lane)}`,
       }
     })
     .filter((event) => {
@@ -173,7 +175,7 @@ function parseChartData(chartText: string): ParsedChartData {
   const hits = noteEvents.filter((event) => event.type === "hit")
   const drags = noteEvents.filter((event) => event.type === "drag")
 
-  // Spins are intentionally empty until you define a custom encoding.
+  // Reserved for future custom mechanic encoding.
   const spins: ParsedChartEvent[] = []
 
   const events = [...hits, ...drags].sort((a, b) => a.seconds - b.seconds)
@@ -190,42 +192,48 @@ function parseChartData(chartText: string): ParsedChartData {
 }
 
 function getNearbyEvents(events: ParsedChartEvent[], currentTime: number, windowSeconds = 3) {
-  return events.filter(
-    (event) => Math.abs(event.seconds - currentTime) <= windowSeconds
-  )
+  return events.filter((event) => Math.abs(event.seconds - currentTime) <= windowSeconds)
 }
 
-function EventList({
+function DotPanel({
   title,
   events,
+  dotClassName,
 }: {
   title: string
   events: ParsedChartEvent[]
+  dotClassName: string
 }) {
   return (
     <div className="rounded-xl border p-4 bg-white">
       <h3 className="text-base font-semibold">{title}</h3>
       <p className="mt-1 text-sm text-gray-500">Count: {events.length}</p>
 
-      <div className="mt-3 space-y-2 max-h-40 overflow-auto">
+      <div className="mt-3 flex flex-wrap gap-2 min-h-[44px]">
         {events.length === 0 ? (
           <div className="text-sm text-gray-400">No nearby events.</div>
         ) : (
-          events.slice(0, 12).map((event, index) => (
-            <div
-              key={`${title}-${event.tick}-${index}`}
-              className="rounded border px-3 py-2 text-sm text-gray-700"
-            >
-              <div className="font-medium">{event.label}</div>
-              <div className="text-xs text-gray-500">
-                {formatTime(event.seconds)} • tick {event.tick}
-                {typeof event.lane === "number" ? ` • lane ${event.lane}` : ""}
-                {event.length > 0 ? ` • len ${event.length}` : ""}
-              </div>
-            </div>
+          events.map((event, index) => (
+            <button
+              key={`${title}-${event.tick}-${event.lane}-${index}`}
+              type="button"
+              title={`${event.label} • ${formatTime(event.seconds)} • tick ${event.tick} • lane ${laneLabel(event.lane)}`}
+              className={`h-3 w-3 rounded-full ${dotClassName}`}
+            />
           ))
         )}
       </div>
+
+      {events.length > 0 && (
+        <div className="mt-3 text-xs text-gray-500 space-y-1">
+          {events.slice(0, 6).map((event, index) => (
+            <div key={`meta-${title}-${event.tick}-${index}`}>
+              {formatTime(event.seconds)} • lane {laneLabel(event.lane)}
+              {event.length > 0 ? ` • sustain ${event.length}` : ""}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -309,9 +317,7 @@ export function BrowserTimelinePanel({
     [parsed.spins, currentTime]
   )
 
-  const chartPosition =
-    duration > 0 ? currentTime / duration : 0
-
+  const chartPosition = duration > 0 ? currentTime / duration : 0
   const estimatedChartTick = Math.round(chartPosition * parsed.maxTick)
 
   return (
@@ -319,7 +325,7 @@ export function BrowserTimelinePanel({
       <div>
         <h2 className="text-lg font-semibold">Timeline Panel</h2>
         <p className="text-sm text-gray-500">
-          The slider plays and seeks the uploaded song. The event panels are populated from parsed .chart events.
+          The slider plays and seeks the uploaded song. Hits are normal notes, drags are sustains, and spins are reserved for future custom mechanic encoding.
         </p>
       </div>
 
@@ -358,9 +364,23 @@ export function BrowserTimelinePanel({
       />
 
       <div className="grid grid-cols-3 gap-4">
-        <EventList title="Hits" events={nearbyHits} />
-        <EventList title="Drags" events={nearbyDrags} />
-        <EventList title="Spins" events={nearbySpins} />
+        <DotPanel
+          title="Hits"
+          events={nearbyHits}
+          dotClassName="bg-purple-600"
+        />
+
+        <DotPanel
+          title="Drags"
+          events={nearbyDrags}
+          dotClassName="bg-red-600"
+        />
+
+        <DotPanel
+          title="Spins"
+          events={nearbySpins}
+          dotClassName="bg-gray-400"
+        />
       </div>
 
       {audioUrl ? (
