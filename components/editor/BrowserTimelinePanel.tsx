@@ -33,9 +33,16 @@ type ParsedChartData = {
   maxTick: number
 }
 
+type TimelineSegment = {
+  startSeconds: number
+  endSeconds: number
+  color: { r: number; g: number; b: number }
+}
+
 const HIT_COLOR = { r: 147, g: 51, b: 234 }   // purple-600
 const DRAG_COLOR = { r: 220, g: 38, b: 38 }   // red-600
 const SPIN_COLOR = { r: 156, g: 163, b: 175 } // gray-400
+const EMPTY_COLOR = { r: 229, g: 231, b: 235 } // gray-200
 
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value < 0) return "0:00"
@@ -51,6 +58,26 @@ function laneLabel(lane: number) {
 
 function rgbToCss(color: { r: number; g: number; b: number }) {
   return `rgb(${Math.round(color.r)}, ${Math.round(color.g)}, ${Math.round(color.b)})`
+}
+
+function averageColors(colors: Array<{ r: number; g: number; b: number }>) {
+  if (!colors.length) return EMPTY_COLOR
+
+  const total = colors.reduce(
+    (acc, color) => {
+      acc.r += color.r
+      acc.g += color.g
+      acc.b += color.b
+      return acc
+    },
+    { r: 0, g: 0, b: 0 }
+  )
+
+  return {
+    r: total.r / colors.length,
+    g: total.g / colors.length,
+    b: total.b / colors.length,
+  }
 }
 
 function parseResolution(chartText: string) {
@@ -204,32 +231,58 @@ function getNearbyEvents(events: ParsedChartEvent[], currentTime: number, window
   return events.filter((event) => Math.abs(event.seconds - currentTime) <= windowSeconds)
 }
 
-function getNearestEvents(events: ParsedChartEvent[], currentTime: number, count = 3) {
-  return [...events]
-    .sort((a, b) => Math.abs(a.seconds - currentTime) - Math.abs(b.seconds - currentTime))
-    .slice(0, count)
+function buildTimelineSegments(
+  events: ParsedChartEvent[],
+  duration: number,
+  sliderWidthPx = 1200,
+  segmentWidthPx = 4
+): TimelineSegment[] {
+  if (!Number.isFinite(duration) || duration <= 0) {
+    return []
+  }
+
+  const segmentCount = Math.max(1, Math.ceil(sliderWidthPx / segmentWidthPx))
+  const secondsPerSegment = duration / segmentCount
+
+  const segments: TimelineSegment[] = []
+
+  for (let i = 0; i < segmentCount; i++) {
+    const startSeconds = i * secondsPerSegment
+    const endSeconds = i === segmentCount - 1 ? duration : (i + 1) * secondsPerSegment
+
+    const segmentEvents = events.filter(
+      (event) => event.seconds >= startSeconds && event.seconds < endSeconds
+    )
+
+    const color = averageColors(segmentEvents.map((event) => event.color))
+
+    segments.push({
+      startSeconds,
+      endSeconds,
+      color,
+    })
+  }
+
+  return segments
 }
 
-function averageEventColor(events: ParsedChartEvent[]) {
-  if (!events.length) {
-    return { r: 203, g: 213, b: 225 } // slate-300 fallback
+function buildSegmentGradient(segments: TimelineSegment[], duration: number) {
+  if (!segments.length || duration <= 0) {
+    return "#e5e7eb"
   }
 
-  const total = events.reduce(
-    (acc, event) => {
-      acc.r += event.color.r
-      acc.g += event.color.g
-      acc.b += event.color.b
-      return acc
-    },
-    { r: 0, g: 0, b: 0 }
-  )
+  const stops: string[] = []
 
-  return {
-    r: total.r / events.length,
-    g: total.g / events.length,
-    b: total.b / events.length,
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i]
+    const startPercent = (segment.startSeconds / duration) * 100
+    const endPercent = (segment.endSeconds / duration) * 100
+    const color = rgbToCss(segment.color)
+
+    stops.push(`${color} ${startPercent}%`, `${color} ${endPercent}%`)
   }
+
+  return `linear-gradient(to right, ${stops.join(", ")})`
 }
 
 function HorizontalDotPanel({
@@ -290,8 +343,19 @@ export function BrowserTimelinePanel({
   const [currentTime, setCurrentTime] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
 
-  // Full chart is parsed once when chartText changes, not while the song plays.
+  // Parse the full chart once on upload / chartText change.
   const parsed = useMemo(() => parseChartData(chartText), [chartText])
+
+  // Precompute the full colored slider once we know duration and parsed events.
+  const timelineSegments = useMemo(
+    () => buildTimelineSegments(parsed.events, duration, 1200, 4),
+    [parsed.events, duration]
+  )
+
+  const timelineGradient = useMemo(
+    () => buildSegmentGradient(timelineSegments, duration),
+    [timelineSegments, duration]
+  )
 
   useEffect(() => {
     if (!songFile) {
@@ -359,32 +423,15 @@ export function BrowserTimelinePanel({
     [parsed.spins, currentTime]
   )
 
-  const nearestThreeEvents = useMemo(
-    () => getNearestEvents(parsed.events, currentTime, 3),
-    [parsed.events, currentTime]
-  )
-
-  const averageColor = useMemo(
-    () => averageEventColor(nearestThreeEvents),
-    [nearestThreeEvents]
-  )
-
-  const averageColorCss = rgbToCss(averageColor)
-
   const chartPosition = duration > 0 ? currentTime / duration : 0
   const estimatedChartTick = Math.round(chartPosition * parsed.maxTick)
-  const sliderProgressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
-
-  const sliderTrackStyle = {
-    background: `linear-gradient(to right, ${averageColorCss} 0%, ${averageColorCss} ${sliderProgressPercent}%, #e5e7eb ${sliderProgressPercent}%, #e5e7eb 100%)`,
-  }
 
   return (
     <div className="rounded-2xl border p-4 space-y-4">
       <div>
         <h2 className="text-lg font-semibold">Timeline Panel</h2>
         <p className="text-sm text-gray-500">
-          The .chart is parsed once on upload. The slider plays and seeks the uploaded song, and the track color reflects the average color of the nearest 3 parsed events.
+          The .chart is parsed once on upload. The slider is divided into 4px color sections, and each section uses the average RGB color of all chart events that fall inside that time range.
         </p>
       </div>
 
@@ -411,11 +458,14 @@ export function BrowserTimelinePanel({
         </div>
 
         <div className="text-sm text-gray-500">
-          Avg color: {averageColorCss}
+          Segments: {timelineSegments.length}
         </div>
       </div>
 
-      <div className="rounded-lg border p-2" style={sliderTrackStyle}>
+      <div
+        className="rounded-lg border p-2"
+        style={{ background: timelineGradient }}
+      >
         <input
           type="range"
           min={0}
