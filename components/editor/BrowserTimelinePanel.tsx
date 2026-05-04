@@ -16,6 +16,7 @@ type ParsedChartEvent = {
   lane: number
   seconds: number
   label: string
+  color: { r: number; g: number; b: number }
 }
 
 type SyncBpmPoint = {
@@ -32,6 +33,10 @@ type ParsedChartData = {
   maxTick: number
 }
 
+const HIT_COLOR = { r: 147, g: 51, b: 234 }   // purple-600
+const DRAG_COLOR = { r: 220, g: 38, b: 38 }   // red-600
+const SPIN_COLOR = { r: 156, g: 163, b: 175 } // gray-400
+
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value < 0) return "0:00"
   const minutes = Math.floor(value / 60)
@@ -42,6 +47,10 @@ function formatTime(value: number) {
 function laneLabel(lane: number) {
   const labels = ["G", "R", "Y", "B", "O"]
   return labels[lane] ?? String(lane)
+}
+
+function rgbToCss(color: { r: number; g: number; b: number }) {
+  return `rgb(${Math.round(color.r)}, ${Math.round(color.g)}, ${Math.round(color.b)})`
 }
 
 function parseResolution(chartText: string) {
@@ -152,6 +161,7 @@ function parseChartData(chartText: string): ParsedChartData {
       const lane = Number(match[2])
       const length = Number(match[3])
       const type: ChartEventType = length > 0 ? "drag" : "hit"
+      const color = type === "drag" ? DRAG_COLOR : HIT_COLOR
 
       return {
         type,
@@ -160,6 +170,7 @@ function parseChartData(chartText: string): ParsedChartData {
         length,
         seconds: tickToSeconds(tick, resolution, bpmPoints),
         label: type === "drag" ? `Drag lane ${laneLabel(lane)}` : `Hit lane ${laneLabel(lane)}`,
+        color,
       }
     })
     .filter((event) => {
@@ -170,15 +181,13 @@ function parseChartData(chartText: string): ParsedChartData {
         Number.isFinite(event.seconds)
       )
     })
-    .sort((a, b) => a.tick - b.tick)
+    .sort((a, b) => a.seconds - b.seconds)
 
   const hits = noteEvents.filter((event) => event.type === "hit")
   const drags = noteEvents.filter((event) => event.type === "drag")
-
-  // Reserved for future custom mechanic encoding.
   const spins: ParsedChartEvent[] = []
 
-  const events = [...hits, ...drags].sort((a, b) => a.seconds - b.seconds)
+  const events = [...hits, ...drags, ...spins].sort((a, b) => a.seconds - b.seconds)
   const maxTick = events.length ? Math.max(...events.map((event) => event.tick)) : 0
 
   return {
@@ -195,7 +204,35 @@ function getNearbyEvents(events: ParsedChartEvent[], currentTime: number, window
   return events.filter((event) => Math.abs(event.seconds - currentTime) <= windowSeconds)
 }
 
-function DotPanel({
+function getNearestEvents(events: ParsedChartEvent[], currentTime: number, count = 3) {
+  return [...events]
+    .sort((a, b) => Math.abs(a.seconds - currentTime) - Math.abs(b.seconds - currentTime))
+    .slice(0, count)
+}
+
+function averageEventColor(events: ParsedChartEvent[]) {
+  if (!events.length) {
+    return { r: 203, g: 213, b: 225 } // slate-300 fallback
+  }
+
+  const total = events.reduce(
+    (acc, event) => {
+      acc.r += event.color.r
+      acc.g += event.color.g
+      acc.b += event.color.b
+      return acc
+    },
+    { r: 0, g: 0, b: 0 }
+  )
+
+  return {
+    r: total.r / events.length,
+    g: total.g / events.length,
+    b: total.b / events.length,
+  }
+}
+
+function HorizontalDotPanel({
   title,
   events,
   dotClassName,
@@ -205,28 +242,32 @@ function DotPanel({
   dotClassName: string
 }) {
   return (
-    <div className="rounded-xl border p-4 bg-white">
-      <h3 className="text-base font-semibold">{title}</h3>
-      <p className="mt-1 text-sm text-gray-500">Count: {events.length}</p>
+    <div className="rounded-xl border p-4 bg-white space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold">{title}</h3>
+        <p className="text-sm text-gray-500">Count: {events.length}</p>
+      </div>
 
-      <div className="mt-3 flex flex-wrap gap-2 min-h-[44px]">
-        {events.length === 0 ? (
-          <div className="text-sm text-gray-400">No nearby events.</div>
-        ) : (
-          events.map((event, index) => (
-            <button
-              key={`${title}-${event.tick}-${event.lane}-${index}`}
-              type="button"
-              title={`${event.label} • ${formatTime(event.seconds)} • tick ${event.tick} • lane ${laneLabel(event.lane)}`}
-              className={`h-3 w-3 rounded-full ${dotClassName}`}
-            />
-          ))
-        )}
+      <div className="rounded-lg border bg-black/5 p-3 min-h-[56px]">
+        <div className="flex flex-wrap gap-2 items-center">
+          {events.length === 0 ? (
+            <div className="text-sm text-gray-400">No nearby events.</div>
+          ) : (
+            events.map((event, index) => (
+              <button
+                key={`${title}-${event.tick}-${event.lane}-${index}`}
+                type="button"
+                title={`${event.label} • ${formatTime(event.seconds)} • tick ${event.tick} • lane ${laneLabel(event.lane)}`}
+                className={`h-3 w-3 rounded-full ${dotClassName} shrink-0`}
+              />
+            ))
+          )}
+        </div>
       </div>
 
       {events.length > 0 && (
-        <div className="mt-3 text-xs text-gray-500 space-y-1">
-          {events.slice(0, 6).map((event, index) => (
+        <div className="text-xs text-gray-500 space-y-1">
+          {events.slice(0, 8).map((event, index) => (
             <div key={`meta-${title}-${event.tick}-${index}`}>
               {formatTime(event.seconds)} • lane {laneLabel(event.lane)}
               {event.length > 0 ? ` • sustain ${event.length}` : ""}
@@ -249,6 +290,7 @@ export function BrowserTimelinePanel({
   const [currentTime, setCurrentTime] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
 
+  // Full chart is parsed once when chartText changes, not while the song plays.
   const parsed = useMemo(() => parseChartData(chartText), [chartText])
 
   useEffect(() => {
@@ -317,15 +359,32 @@ export function BrowserTimelinePanel({
     [parsed.spins, currentTime]
   )
 
+  const nearestThreeEvents = useMemo(
+    () => getNearestEvents(parsed.events, currentTime, 3),
+    [parsed.events, currentTime]
+  )
+
+  const averageColor = useMemo(
+    () => averageEventColor(nearestThreeEvents),
+    [nearestThreeEvents]
+  )
+
+  const averageColorCss = rgbToCss(averageColor)
+
   const chartPosition = duration > 0 ? currentTime / duration : 0
   const estimatedChartTick = Math.round(chartPosition * parsed.maxTick)
+  const sliderProgressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
+
+  const sliderTrackStyle = {
+    background: `linear-gradient(to right, ${averageColorCss} 0%, ${averageColorCss} ${sliderProgressPercent}%, #e5e7eb ${sliderProgressPercent}%, #e5e7eb 100%)`,
+  }
 
   return (
     <div className="rounded-2xl border p-4 space-y-4">
       <div>
         <h2 className="text-lg font-semibold">Timeline Panel</h2>
         <p className="text-sm text-gray-500">
-          The slider plays and seeks the uploaded song. Hits are normal notes, drags are sustains, and spins are reserved for future custom mechanic encoding.
+          The .chart is parsed once on upload. The slider plays and seeks the uploaded song, and the track color reflects the average color of the nearest 3 parsed events.
         </p>
       </div>
 
@@ -350,33 +409,39 @@ export function BrowserTimelinePanel({
         <div className="text-sm text-gray-500">
           Parsed events: {parsed.events.length}
         </div>
+
+        <div className="text-sm text-gray-500">
+          Avg color: {averageColorCss}
+        </div>
       </div>
 
-      <input
-        type="range"
-        min={0}
-        max={duration || 0}
-        step={0.01}
-        value={Math.min(currentTime, duration || 0)}
-        onChange={(e) => handleSliderChange(Number(e.target.value))}
-        disabled={!songFile}
-        className="w-full"
-      />
+      <div className="rounded-lg border p-2" style={sliderTrackStyle}>
+        <input
+          type="range"
+          min={0}
+          max={duration || 0}
+          step={0.01}
+          value={Math.min(currentTime, duration || 0)}
+          onChange={(e) => handleSliderChange(Number(e.target.value))}
+          disabled={!songFile}
+          className="w-full bg-transparent"
+        />
+      </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <DotPanel
+      <div className="space-y-4">
+        <HorizontalDotPanel
           title="Hits"
           events={nearbyHits}
           dotClassName="bg-purple-600"
         />
 
-        <DotPanel
+        <HorizontalDotPanel
           title="Drags"
           events={nearbyDrags}
           dotClassName="bg-red-600"
         />
 
-        <DotPanel
+        <HorizontalDotPanel
           title="Spins"
           events={nearbySpins}
           dotClassName="bg-gray-400"
