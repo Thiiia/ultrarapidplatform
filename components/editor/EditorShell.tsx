@@ -5,6 +5,7 @@ import { SongLoader } from "./SongLoader"
 import { BlockPalette } from "./BlockPalette"
 import { Timeline } from "./Timeline"
 import { InspectorPanel } from "./InspectorPanel"
+import { BrowserTimelinePanel } from "./BrowserTimelinePanel"
 import { useEditorStore } from "@/lib/editor/editor-store"
 
 type EditorShellProps = {
@@ -64,9 +65,9 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
           </div>
 
           <div className="rounded-2xl border p-4 space-y-3">
-            <h2 className="text-lg font-semibold">Editor Preview</h2>
+            <h2 className="text-lg font-semibold">Editor Window</h2>
             <p className="text-sm text-gray-500">
-              Unity has been removed from the editor page. This area is now reserved for browser-based chart and audio tools.
+              Browser-only editor preview area.
             </p>
 
             <div className="rounded-xl border bg-black/5 p-6 text-sm text-gray-600">
@@ -79,10 +80,15 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
                 {chartFileName || "Not uploaded yet"}
               </div>
               <div className="pt-3 text-gray-500">
-                Next step: add the waveform panel and shared timeline slider here.
+                Use the panel below to play the song and scrub through the chart timeline.
               </div>
             </div>
           </div>
+
+          <BrowserTimelinePanel
+            songFile={songFile}
+            chartText={chartText}
+          />
 
           {showChart && (
             <div className="rounded-2xl border p-4 space-y-3">
