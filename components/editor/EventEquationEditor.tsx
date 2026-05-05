@@ -29,56 +29,70 @@ export function EventEquationEditor({
   }
 
   return (
-    <div className="rounded-2xl border p-4 space-y-4 bg-white">
+    <div className="h-full w-full rounded-2xl border p-8 space-y-6 bg-white">
       <div>
-        <h3 className="text-lg font-semibold">Event Equation</h3>
-        <p className="text-sm text-gray-500">
+        <h3 className="text-2xl font-semibold">Event Equation</h3>
+        <p className="text-base text-gray-500">
           Edit the equation assigned to the current event.
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
-        <EquationCircle
-          value={value.leftA}
-          onChange={(next) => update("leftA", next)}
-          placeholder="x"
-          size={120}
-        />
+      <div className="h-[calc(100%-110px)] flex flex-col items-center justify-center gap-8">
+        <div className="flex flex-wrap items-center justify-center gap-8">
+          <EquationCircle
+            value={value.leftA}
+            onChange={(next) => update("leftA", next)}
+            placeholder="x"
+            size={200}
+          />
 
-        <select
-          value={value.operatorA}
-          onChange={(e) => update("operatorA", e.target.value as EquationValue["operatorA"])}
-          className="rounded border px-3 py-2 text-2xl font-bold bg-transparent"
-        >
-          {OPERATOR_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+          <select
+            value={value.operatorA}
+            onChange={(e) => update("operatorA", e.target.value as EquationValue["operatorA"])}
+            className="rounded border px-4 py-3 text-4xl font-bold bg-transparent"
+            style={{
+              fontFamily: "var(--font-grandstander)",
+              fontWeight: 700,
+            }}
+          >
+            {OPERATOR_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
 
-        <EquationCircle
-          value={value.leftB}
-          onChange={(next) => update("leftB", next)}
-          placeholder="2"
-          size={120}
-        />
+          <EquationCircle
+            value={value.leftB}
+            onChange={(next) => update("leftB", next)}
+            placeholder="2"
+            size={200}
+          />
 
-        <span className="text-4xl font-bold">{value.equals}</span>
+          <span
+            className="text-5xl font-bold"
+            style={{
+              fontFamily: "var(--font-grandstander)",
+              fontWeight: 700,
+            }}
+          >
+            {value.equals}
+          </span>
 
-        <EquationCircle
-          value={value.right}
-          onChange={(next) => update("right", next)}
-          placeholder="7"
-          size={120}
-        />
-      </div>
+          <EquationCircle
+            value={value.right}
+            onChange={(next) => update("right", next)}
+            placeholder="7"
+            size={200}
+          />
+        </div>
 
-      <div className="rounded-xl bg-black/5 p-3 text-sm text-gray-600">
-        Current equation:{" "}
-        <span className="font-medium">
-          {value.leftA} {value.operatorA} {value.leftB} {value.equals} {value.right}
-        </span>
+        <div className="rounded-xl bg-black/5 p-4 text-lg text-gray-600">
+          Current equation:{" "}
+          <span className="font-medium">
+            {value.leftA} {value.operatorA} {value.leftB} {value.equals} {value.right}
+          </span>
+        </div>
       </div>
     </div>
   )

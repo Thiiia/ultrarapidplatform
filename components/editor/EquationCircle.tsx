@@ -15,17 +15,17 @@ type EquationCircleProps = {
 function getFontSize(value: string) {
   const length = value.trim().length
 
-  if (length <= 1) return 98.05
-  if (length === 2) return 82
-  if (length === 3) return 68
-  return 56
+  if (length <= 1) return 120
+  if (length === 2) return 96
+  if (length === 3) return 80
+  return 64
 }
 
 export function EquationCircle({
   value = "",
   onChange,
   placeholder = "",
-  size = 156,
+  size = 200,
   readOnly = false,
   imageSrc = "/images/equation-circle.png",
 }: EquationCircleProps) {
