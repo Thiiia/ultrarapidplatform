@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { SongLoader } from "./SongLoader"
-import { BlockPalette } from "./BlockPalette"
 import { Timeline } from "./Timeline"
 import { InspectorPanel } from "./InspectorPanel"
 import { BrowserTimelinePanel } from "./BrowserTimelinePanel"
@@ -49,7 +48,6 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
               setChartFileName(fileName)
             }}
           />
-          <BlockPalette />
         </div>
 
         <div className="col-span-8 space-y-4">
@@ -91,48 +89,10 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
             </button>
           </div>
 
-          <div
-            style={{
-              borderRadius: "24px",
-              border: "1px solid #334155",
-              padding: "16px",
-              background: "#111827",
-            }}
-          >
-            <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#FFFFFF" }}>
-              Editor Window
-            </h2>
-            <p style={{ marginTop: "8px", marginBottom: "12px", fontSize: "14px", color: "#cbd5e1" }}>
-              Browser-only editor preview area.
-            </p>
-
-            <div
-              style={{
-                borderRadius: "16px",
-                border: "1px solid #334155",
-                background: "#1f2937",
-                padding: "24px",
-                fontSize: "14px",
-                color: "#e5e7eb",
-              }}
-            >
-              <div>
-                <span style={{ fontWeight: 600 }}>Song:</span>{" "}
-                {songFile ? songFile.name : "Not uploaded yet"}
-              </div>
-              <div>
-                <span style={{ fontWeight: 600 }}>Chart:</span>{" "}
-                {chartFileName || "Not uploaded yet"}
-              </div>
-              <div style={{ paddingTop: "12px", color: "#cbd5e1" }}>
-                Use the panel below to play the song and scrub through the chart timeline.
-              </div>
-            </div>
-          </div>
-
           <BrowserTimelinePanel
             songFile={songFile}
             chartText={chartText}
+            chartFileName={chartFileName || "chart.chart"}
           />
 
           {showChart && (

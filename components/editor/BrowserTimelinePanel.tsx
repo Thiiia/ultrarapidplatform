@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { EventEquationEditor, EquationValue } from "./EventEquationEditor"
+import { EquationBlockPalette } from "./EquationBlockPalette"
 
 type BrowserTimelinePanelProps = {
   songFile: File | null
   chartText: string
+  chartFileName?: string
 }
 
 type ChartEventType = "hit" | "drag" | "spin"
@@ -19,7 +21,6 @@ type ParsedChartEvent = {
   seconds: number
   label: string
   color: { r: number; g: number; b: number }
-  equation: EquationValue
 }
 
 type SyncBpmPoint = {
@@ -42,12 +43,19 @@ type TimelineSegment = {
   color: { r: number; g: number; b: number }
 }
 
+type EquationBindingsFile = {
+  version: 1
+  chartFileName: string
+  chartSignature: string
+  bindings: Record<string, EquationValue>
+}
+
 const HIT_COLOR = { r: 147, g: 51, b: 234 }
 const DRAG_COLOR = { r: 220, g: 38, b: 38 }
 const EMPTY_COLOR = { r: 51, g: 65, b: 85 }
 
 const DEFAULT_EQUATION: EquationValue = {
-  leftA: "x",
+  leftA: "X",
   operatorA: "+",
   leftB: "2",
   equals: "=",
@@ -201,7 +209,7 @@ function parseChartData(chartText: string): ParsedChartData {
       const color = type === "drag" ? DRAG_COLOR : HIT_COLOR
 
       return {
-        id: `event-${tick}-${lane}-${index}`,
+        id: `${type}:${tick}:${lane}:${length}:${index}`,
         type,
         tick,
         lane,
@@ -209,7 +217,6 @@ function parseChartData(chartText: string): ParsedChartData {
         seconds: tickToSeconds(tick, resolution, bpmPoints),
         label: type === "drag" ? `Drag lane ${laneLabel(lane)}` : `Hit lane ${laneLabel(lane)}`,
         color,
-        equation: { ...DEFAULT_EQUATION },
       }
     })
     .filter((event) => {
@@ -312,6 +319,26 @@ function getCurrentEventIndex(events: ParsedChartEvent[], currentTime: number) {
   return closestIndex
 }
 
+function buildChartSignature(parsed: ParsedChartData) {
+  return `${parsed.resolution}:${parsed.maxTick}:${parsed.events.length}`
+}
+
+function downloadEquationBindings(
+  fileName: string,
+  content: EquationBindingsFile
+) {
+  const blob = new Blob([JSON.stringify(content, null, 2)], {
+    type: "application/json",
+  })
+
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = fileName
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
 function HorizontalDotPanel({
   title,
   events,
@@ -389,8 +416,10 @@ function HorizontalDotPanel({
 export function BrowserTimelinePanel({
   songFile,
   chartText,
+  chartFileName = "chart.chart",
 }: BrowserTimelinePanelProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const importInputRef = useRef<HTMLInputElement | null>(null)
 
   const [audioUrl, setAudioUrl] = useState("")
   const [duration, setDuration] = useState(0)
@@ -398,10 +427,17 @@ export function BrowserTimelinePanel({
   const [isPlaying, setIsPlaying] = useState(false)
 
   const parsed = useMemo(() => parseChartData(chartText), [chartText])
-  const [editableEvents, setEditableEvents] = useState<ParsedChartEvent[]>([])
+  const chartSignature = useMemo(() => buildChartSignature(parsed), [parsed])
+
+  const [equationsByEventId, setEquationsByEventId] = useState<Record<string, EquationValue>>({})
 
   useEffect(() => {
-    setEditableEvents(parsed.events)
+    const nextBindings: Record<string, EquationValue> = {}
+    parsed.events.forEach((event) => {
+      nextBindings[event.id] = equationsByEventId[event.id] ?? { ...DEFAULT_EQUATION }
+    })
+    setEquationsByEventId(nextBindings)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsed])
 
   useEffect(() => {
@@ -422,8 +458,8 @@ export function BrowserTimelinePanel({
   }, [songFile])
 
   const timelineSegments = useMemo(
-    () => buildTimelineSegments(editableEvents, duration, 1200, 4),
-    [editableEvents, duration]
+    () => buildTimelineSegments(parsed.events, duration, 1200, 4),
+    [parsed.events, duration]
   )
 
   const timelineGradient = useMemo(
@@ -466,29 +502,64 @@ export function BrowserTimelinePanel({
   }
 
   const nearbyHits = useMemo(
-    () => getNearbyEvents(editableEvents.filter((e) => e.type === "hit"), currentTime),
-    [editableEvents, currentTime]
+    () => getNearbyEvents(parsed.hits, currentTime),
+    [parsed.hits, currentTime]
   )
 
   const nearbyDrags = useMemo(
-    () => getNearbyEvents(editableEvents.filter((e) => e.type === "drag"), currentTime),
-    [editableEvents, currentTime]
+    () => getNearbyEvents(parsed.drags, currentTime),
+    [parsed.drags, currentTime]
   )
 
   const nearbySpins = useMemo(
-    () => getNearbyEvents(editableEvents.filter((e) => e.type === "spin"), currentTime),
-    [editableEvents, currentTime]
+    () => getNearbyEvents(parsed.spins, currentTime),
+    [parsed.spins, currentTime]
   )
 
   const currentEventIndex = useMemo(
-    () => getCurrentEventIndex(editableEvents, currentTime),
-    [editableEvents, currentTime]
+    () => getCurrentEventIndex(parsed.events, currentTime),
+    [parsed.events, currentTime]
   )
 
-  const currentEvent = currentEventIndex >= 0 ? editableEvents[currentEventIndex] : null
+  const currentEvent = currentEventIndex >= 0 ? parsed.events[currentEventIndex] : null
+  const currentEquation = currentEvent
+    ? equationsByEventId[currentEvent.id] ?? DEFAULT_EQUATION
+    : null
 
   const chartPosition = duration > 0 ? currentTime / duration : 0
   const estimatedChartTick = Math.round(chartPosition * parsed.maxTick)
+
+  const handleExport = () => {
+    const fileBase = chartFileName.replace(/\.chart$/i, "")
+    downloadEquationBindings(`${fileBase}.equations.json`, {
+      version: 1,
+      chartFileName,
+      chartSignature,
+      bindings: equationsByEventId,
+    })
+  }
+
+  const handleImport = async (file: File) => {
+    try {
+      const raw = await file.text()
+      const parsedFile = JSON.parse(raw) as EquationBindingsFile
+
+      if (!parsedFile.bindings || typeof parsedFile.bindings !== "object") {
+        return
+      }
+
+      if (parsedFile.chartSignature !== chartSignature) {
+        console.warn("Equation binding file does not match current chart signature.")
+      }
+
+      setEquationsByEventId((prev) => ({
+        ...prev,
+        ...parsedFile.bindings,
+      }))
+    } catch (error) {
+      console.error("Failed to import equation bindings", error)
+    }
+  }
 
   return (
     <div
@@ -508,49 +579,58 @@ export function BrowserTimelinePanel({
           Timeline Panel
         </h2>
         <p style={{ marginTop: "8px", marginBottom: 0, fontSize: "14px", color: "#cbd5e1" }}>
-          Each parsed chart event gets an equation. The layout is centered, responsive, and keeps the equation row horizontal.
+          Drag blocks onto the equation to replace values. Equations are stored separately from the chart in a sidecar JSON file.
         </p>
       </div>
 
       <div
         style={{
-          margin: "0 auto",
+          display: "grid",
+          gridTemplateColumns: "220px 1fr",
+          gap: "16px",
+          alignItems: "stretch",
           width: "100%",
           maxWidth: "1200px",
-          height: "clamp(240px, 26vw, 340px)",
-          background: "#1f2937",
-          borderRadius: "20px",
-          padding: "16px",
+          margin: "0 auto",
         }}
       >
-        {currentEvent ? (
-          <EventEquationEditor
-            value={currentEvent.equation}
-            onChange={(nextEquation) => {
-              setEditableEvents((prev) =>
-                prev.map((event, index) =>
-                  index === currentEventIndex
-                    ? { ...event, equation: nextEquation }
-                    : event
-                )
-              )
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              height: "100%",
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "14px",
-              color: "#cbd5e1",
-            }}
-          >
-            No event is currently available at this chart position.
-          </div>
-        )}
+        <EquationBlockPalette />
+
+        <div
+          style={{
+            width: "100%",
+            minHeight: "280px",
+            background: "#1f2937",
+            borderRadius: "20px",
+            padding: "16px",
+          }}
+        >
+          {currentEvent && currentEquation ? (
+            <EventEquationEditor
+              value={currentEquation}
+              onChange={(nextEquation) => {
+                setEquationsByEventId((prev) => ({
+                  ...prev,
+                  [currentEvent.id]: nextEquation,
+                }))
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                height: "100%",
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "14px",
+                color: "#cbd5e1",
+              }}
+            >
+              No event is currently available at this chart position.
+            </div>
+          )}
+        </div>
       </div>
 
       <div
@@ -560,6 +640,9 @@ export function BrowserTimelinePanel({
           gap: "12px",
           flexWrap: "wrap",
           color: "#FFFFFF",
+          width: "100%",
+          maxWidth: "1200px",
+          margin: "0 auto",
         }}
       >
         <button
@@ -579,6 +662,50 @@ export function BrowserTimelinePanel({
           {isPlaying ? "Pause" : "Play"}
         </button>
 
+        <button
+          type="button"
+          onClick={handleExport}
+          style={{
+            borderRadius: "8px",
+            border: "1px solid #475569",
+            background: "#1f2937",
+            color: "#FFFFFF",
+            padding: "8px 16px",
+            cursor: "pointer",
+          }}
+        >
+          Export equations
+        </button>
+
+        <button
+          type="button"
+          onClick={() => importInputRef.current?.click()}
+          style={{
+            borderRadius: "8px",
+            border: "1px solid #475569",
+            background: "#1f2937",
+            color: "#FFFFFF",
+            padding: "8px 16px",
+            cursor: "pointer",
+          }}
+        >
+          Import equations
+        </button>
+
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".json"
+          style={{ display: "none" }}
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            if (file) {
+              void handleImport(file)
+            }
+            event.currentTarget.value = ""
+          }}
+        />
+
         <div style={{ fontSize: "14px", color: "#e5e7eb", minWidth: "120px" }}>
           {formatTime(currentTime)} / {formatTime(duration)}
         </div>
@@ -588,7 +715,7 @@ export function BrowserTimelinePanel({
         </div>
 
         <div style={{ fontSize: "14px", color: "#cbd5e1" }}>
-          Parsed events: {editableEvents.length}
+          Parsed events: {parsed.events.length}
         </div>
 
         <div style={{ fontSize: "14px", color: "#cbd5e1" }}>
@@ -625,7 +752,16 @@ export function BrowserTimelinePanel({
         />
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          width: "100%",
+          maxWidth: "1200px",
+          margin: "0 auto",
+        }}
+      >
         <HorizontalDotPanel
           title="Hits"
           events={nearbyHits}

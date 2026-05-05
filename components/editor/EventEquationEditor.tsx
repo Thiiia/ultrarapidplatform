@@ -31,7 +31,7 @@ export function EventEquationEditor({
 
     const updateSize = () => {
       const width = element.clientWidth
-      const next = Math.max(48, Math.min(width * 0.055, 72))
+      const next = Math.max(52, Math.min(width * 0.06, 72))
       setCircleSize(next)
     }
 
@@ -60,6 +60,49 @@ export function EventEquationEditor({
       ...value,
       [key]: nextValue,
     })
+  }
+
+  const handleDropOnSlot = (slot: "leftA" | "leftB" | "right", droppedValue: string) => {
+    update(slot, droppedValue)
+  }
+
+  const renderDroppableCircle = (
+    slot: "leftA" | "leftB" | "right",
+    currentValue: string,
+    placeholder: string
+  ) => {
+    return (
+      <div
+        onDragOver={(event) => {
+          event.preventDefault()
+          event.dataTransfer.dropEffect = "copy"
+        }}
+        onDrop={(event) => {
+          event.preventDefault()
+          const droppedValue =
+            event.dataTransfer.getData("application/x-equation-block") ||
+            event.dataTransfer.getData("text/plain")
+
+          if (droppedValue) {
+            handleDropOnSlot(slot, droppedValue)
+          }
+        }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: "9999px",
+          outline: "2px dashed transparent",
+        }}
+      >
+        <EquationCircle
+          value={currentValue}
+          onChange={(next) => update(slot, next)}
+          placeholder={placeholder}
+          size={circleSize}
+        />
+      </div>
+    )
   }
 
   return (
@@ -94,7 +137,7 @@ export function EventEquationEditor({
             color: "#cbd5e1",
           }}
         >
-          Edit the equation assigned to the current event.
+          Drag blocks from the left or type directly into the circles.
         </p>
       </div>
 
@@ -120,12 +163,7 @@ export function EventEquationEditor({
             minWidth: "max-content",
           }}
         >
-          <EquationCircle
-            value={value.leftA}
-            onChange={(next) => update("leftA", next)}
-            placeholder="x"
-            size={circleSize}
-          />
+          {renderDroppableCircle("leftA", value.leftA, "X")}
 
           <select
             value={value.operatorA}
@@ -154,12 +192,7 @@ export function EventEquationEditor({
             ))}
           </select>
 
-          <EquationCircle
-            value={value.leftB}
-            onChange={(next) => update("leftB", next)}
-            placeholder="2"
-            size={circleSize}
-          />
+          {renderDroppableCircle("leftB", value.leftB, "2")}
 
           <span
             style={{
@@ -174,12 +207,7 @@ export function EventEquationEditor({
             {value.equals}
           </span>
 
-          <EquationCircle
-            value={value.right}
-            onChange={(next) => update("right", next)}
-            placeholder="7"
-            size={circleSize}
-          />
+          {renderDroppableCircle("right", value.right, "7")}
         </div>
       </div>
 
