@@ -43,7 +43,6 @@ export function EventEquationEditor({
             value={value.leftA}
             onChange={(next) => update("leftA", next)}
             placeholder="x"
-            size={200}
           />
 
           <select
@@ -66,7 +65,6 @@ export function EventEquationEditor({
             value={value.leftB}
             onChange={(next) => update("leftB", next)}
             placeholder="2"
-            size={200}
           />
 
           <span
@@ -83,7 +81,6 @@ export function EventEquationEditor({
             value={value.right}
             onChange={(next) => update("right", next)}
             placeholder="7"
-            size={200}
           />
         </div>
 

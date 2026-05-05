@@ -25,7 +25,7 @@ export function EquationCircle({
   value = "",
   onChange,
   placeholder = "",
-  size = 200,
+  size,
   readOnly = false,
   imageSrc = "/images/equation-circle.png",
 }: EquationCircleProps) {
@@ -48,8 +48,8 @@ export function EquationCircle({
     <div
       className="relative shrink-0"
       style={{
-        width: `${size}px`,
-        height: `${size}px`,
+        width: size ? `${size}px` : "var(--equation-circle-size, 200px)",
+        height: size ? `${size}px` : "var(--equation-circle-size, 200px)",
       }}
     >
       <Image

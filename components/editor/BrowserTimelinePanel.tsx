@@ -44,7 +44,6 @@ type TimelineSegment = {
 
 const HIT_COLOR = { r: 147, g: 51, b: 234 }
 const DRAG_COLOR = { r: 220, g: 38, b: 38 }
-const SPIN_COLOR = { r: 156, g: 163, b: 175 }
 const EMPTY_COLOR = { r: 229, g: 231, b: 235 }
 
 const DEFAULT_EQUATION: EquationValue = {
@@ -457,28 +456,44 @@ export function BrowserTimelinePanel({
       <div>
         <h2 className="text-lg font-semibold">Timeline Panel</h2>
         <p className="text-sm text-gray-500">
-          Each parsed chart event gets an equation. For now every event starts as x + 2 = 7, and editing the equation updates the event nearest the current tick.
+          Each parsed chart event gets an equation. The viewing window is responsive, and circle diameter is tied to 13% of the window width.
         </p>
       </div>
 
-      {currentEvent ? (
-        <EventEquationEditor
-          value={currentEvent.equation}
-          onChange={(nextEquation) => {
-            setEditableEvents((prev) =>
-              prev.map((event, index) =>
-                index === currentEventIndex
-                  ? { ...event, equation: nextEquation }
-                  : event
-              )
-            )
+      <div
+        className="rounded-2xl border bg-white overflow-hidden mx-auto w-full"
+        style={{
+          maxWidth: "1400px",
+          height: "clamp(620px, 62vw, 880px)",
+          ["--equation-circle-size" as string]: "13vw",
+        }}
+      >
+        <div
+          className="h-full w-full p-6 md:p-8"
+          style={{
+            ["--equation-circle-size" as string]: "min(calc(100% * 0.13), 220px)",
           }}
-        />
-      ) : (
-        <div className="rounded-xl border p-4 text-sm text-gray-500">
-          No event is currently available at this chart position.
+        >
+          {currentEvent ? (
+            <EventEquationEditor
+              value={currentEvent.equation}
+              onChange={(nextEquation) => {
+                setEditableEvents((prev) =>
+                  prev.map((event, index) =>
+                    index === currentEventIndex
+                      ? { ...event, equation: nextEquation }
+                      : event
+                  )
+                )
+              }}
+            />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center text-sm text-gray-500">
+              No event is currently available at this chart position.
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="flex items-center gap-3 flex-wrap">
         <button
