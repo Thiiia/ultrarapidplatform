@@ -30,7 +30,14 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
   }, [chartFile, chartFileName])
 
   return (
-    <div className="px-6 py-6">
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0f172a",
+        color: "#FFFFFF",
+        padding: "24px",
+      }}
+    >
       <div className="grid grid-cols-12 gap-4 items-start">
         <div className="col-span-2 space-y-4">
           <SongLoader
@@ -46,10 +53,22 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
         </div>
 
         <div className="col-span-8 space-y-4">
-          <div className="rounded-2xl border p-4 flex items-center justify-between">
+          <div
+            style={{
+              borderRadius: "24px",
+              border: "1px solid #334155",
+              padding: "16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              background: "#111827",
+            }}
+          >
             <div>
-              <h1 className="text-xl font-semibold">Lesson Builder</h1>
-              <p className="text-sm text-gray-500">
+              <h1 style={{ margin: 0, fontSize: "20px", fontWeight: 700, color: "#FFFFFF" }}>
+                Lesson Builder
+              </h1>
+              <p style={{ marginTop: "8px", marginBottom: 0, fontSize: "14px", color: "#cbd5e1" }}>
                 Upload a song file and a .chart file to build and inspect the lesson in the browser.
               </p>
             </div>
@@ -58,28 +77,54 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
               type="button"
               onClick={() => setShowChart((prev) => !prev)}
               disabled={!chartText.trim()}
-              className="rounded border px-4 py-2 disabled:opacity-50"
+              style={{
+                borderRadius: "8px",
+                border: "1px solid #475569",
+                background: "#1f2937",
+                color: "#FFFFFF",
+                padding: "8px 16px",
+                opacity: !chartText.trim() ? 0.5 : 1,
+                cursor: !chartText.trim() ? "not-allowed" : "pointer",
+              }}
             >
               {showChart ? "Hide .chart" : "View .chart"}
             </button>
           </div>
 
-          <div className="rounded-2xl border p-4 space-y-3">
-            <h2 className="text-lg font-semibold">Editor Window</h2>
-            <p className="text-sm text-gray-500">
+          <div
+            style={{
+              borderRadius: "24px",
+              border: "1px solid #334155",
+              padding: "16px",
+              background: "#111827",
+            }}
+          >
+            <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#FFFFFF" }}>
+              Editor Window
+            </h2>
+            <p style={{ marginTop: "8px", marginBottom: "12px", fontSize: "14px", color: "#cbd5e1" }}>
               Browser-only editor preview area.
             </p>
 
-            <div className="rounded-xl border bg-black/5 p-6 text-sm text-gray-600">
+            <div
+              style={{
+                borderRadius: "16px",
+                border: "1px solid #334155",
+                background: "#1f2937",
+                padding: "24px",
+                fontSize: "14px",
+                color: "#e5e7eb",
+              }}
+            >
               <div>
-                <span className="font-medium">Song:</span>{" "}
+                <span style={{ fontWeight: 600 }}>Song:</span>{" "}
                 {songFile ? songFile.name : "Not uploaded yet"}
               </div>
               <div>
-                <span className="font-medium">Chart:</span>{" "}
+                <span style={{ fontWeight: 600 }}>Chart:</span>{" "}
                 {chartFileName || "Not uploaded yet"}
               </div>
-              <div className="pt-3 text-gray-500">
+              <div style={{ paddingTop: "12px", color: "#cbd5e1" }}>
                 Use the panel below to play the song and scrub through the chart timeline.
               </div>
             </div>
@@ -91,9 +136,31 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
           />
 
           {showChart && (
-            <div className="rounded-2xl border p-4 space-y-3">
-              <h2 className="text-lg font-semibold">Current .chart File</h2>
-              <div className="rounded-xl bg-black text-green-300 p-4 overflow-auto max-h-96 text-xs whitespace-pre-wrap">
+            <div
+              style={{
+                borderRadius: "24px",
+                border: "1px solid #334155",
+                padding: "16px",
+                background: "#111827",
+              }}
+            >
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#FFFFFF" }}>
+                Current .chart File
+              </h2>
+              <div
+                style={{
+                  marginTop: "12px",
+                  borderRadius: "16px",
+                  background: "#020617",
+                  color: "#86efac",
+                  padding: "16px",
+                  overflow: "auto",
+                  maxHeight: "24rem",
+                  fontSize: "12px",
+                  whiteSpace: "pre-wrap",
+                  border: "1px solid #334155",
+                }}
+              >
                 {chartText || "No chart file loaded."}
               </div>
             </div>

@@ -15,17 +15,17 @@ type EquationCircleProps = {
 function getFontSize(value: string, size: number) {
   const length = value.trim().length
 
-  if (length <= 1) return Math.max(14, size * 0.34)
-  if (length === 2) return Math.max(12, size * 0.28)
-  if (length === 3) return Math.max(10, size * 0.22)
-  return Math.max(9, size * 0.18)
+  if (length <= 1) return Math.max(18, size * 0.36)
+  if (length === 2) return Math.max(16, size * 0.28)
+  if (length === 3) return Math.max(14, size * 0.22)
+  return Math.max(12, size * 0.18)
 }
 
 export function EquationCircle({
   value = "",
   onChange,
   placeholder = "",
-  size = 34,
+  size = 56,
   readOnly = false,
   imageSrc = "/images/equation-circle.png",
 }: EquationCircleProps) {
@@ -90,13 +90,12 @@ export function EquationCircle({
               fontSize: `${fontSize}px`,
               color: "#FFFFFF",
               WebkitTextFillColor: "#FFFFFF",
-              textShadow: "0 0 3px rgba(0,0,0,0.65)",
+              textShadow: "0 0 4px rgba(0,0,0,0.85)",
               width: "68%",
               textAlign: "center",
               lineHeight: 1,
               whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
+              overflow: "visible",
               display: "block",
             }}
           >
@@ -122,7 +121,7 @@ export function EquationCircle({
               fontSize: `${fontSize}px`,
               color: "#FFFFFF",
               WebkitTextFillColor: "#FFFFFF",
-              textShadow: "0 0 3px rgba(0,0,0,0.65)",
+              textShadow: "0 0 4px rgba(0,0,0,0.85)",
               lineHeight: 1,
               caretColor: "#FFFFFF",
               padding: 0,

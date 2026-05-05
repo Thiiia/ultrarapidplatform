@@ -44,7 +44,7 @@ type TimelineSegment = {
 
 const HIT_COLOR = { r: 147, g: 51, b: 234 }
 const DRAG_COLOR = { r: 220, g: 38, b: 38 }
-const EMPTY_COLOR = { r: 229, g: 231, b: 235 }
+const EMPTY_COLOR = { r: 51, g: 65, b: 85 }
 
 const DEFAULT_EQUATION: EquationValue = {
   leftA: "x",
@@ -279,7 +279,7 @@ function buildTimelineSegments(
 
 function buildSegmentGradient(segments: TimelineSegment[], duration: number) {
   if (!segments.length || duration <= 0) {
-    return "#e5e7eb"
+    return "#334155"
   }
 
   const stops: string[] = []
@@ -322,22 +322,61 @@ function HorizontalDotPanel({
   dotClassName: string
 }) {
   return (
-    <div className="rounded-xl border p-4 bg-white space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold">{title}</h3>
-        <p className="text-sm text-gray-500">Count: {events.length}</p>
+    <div
+      style={{
+        borderRadius: "16px",
+        border: "1px solid #334155",
+        padding: "16px",
+        background: "#1e293b",
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#FFFFFF" }}>
+          {title}
+        </h3>
+        <p style={{ margin: 0, fontSize: "14px", color: "#cbd5e1" }}>Count: {events.length}</p>
       </div>
 
-      <div className="rounded-lg border bg-black/5 p-3 min-h-[56px]">
-        <div className="flex flex-wrap gap-2 items-center">
+      <div
+        style={{
+          borderRadius: "12px",
+          border: "1px solid #334155",
+          background: "#0f172a",
+          padding: "12px",
+          minHeight: "56px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "8px",
+            alignItems: "center",
+          }}
+        >
           {events.length === 0 ? (
-            <div className="text-sm text-gray-400">No nearby events.</div>
+            <div style={{ fontSize: "14px", color: "#94a3b8" }}>No nearby events.</div>
           ) : (
             events.map((event, index) => (
               <div
                 key={`${title}-${event.tick}-${event.lane}-${index}`}
                 title={`${event.label} • ${formatTime(event.seconds)} • tick ${event.tick} • lane ${laneLabel(event.lane)}`}
-                className={`h-3 w-3 rounded-full ${dotClassName} shrink-0`}
+                className={dotClassName}
+                style={{
+                  width: "12px",
+                  height: "12px",
+                  borderRadius: "9999px",
+                  flexShrink: 0,
+                }}
               />
             ))
           )}
@@ -365,16 +404,6 @@ export function BrowserTimelinePanel({
     setEditableEvents(parsed.events)
   }, [parsed])
 
-  const timelineSegments = useMemo(
-    () => buildTimelineSegments(editableEvents, duration, 1200, 4),
-    [editableEvents, duration]
-  )
-
-  const timelineGradient = useMemo(
-    () => buildSegmentGradient(timelineSegments, duration),
-    [timelineSegments, duration]
-  )
-
   useEffect(() => {
     if (!songFile) {
       setAudioUrl("")
@@ -391,6 +420,16 @@ export function BrowserTimelinePanel({
       URL.revokeObjectURL(url)
     }
   }, [songFile])
+
+  const timelineSegments = useMemo(
+    () => buildTimelineSegments(editableEvents, duration, 1200, 4),
+    [editableEvents, duration]
+  )
+
+  const timelineGradient = useMemo(
+    () => buildSegmentGradient(timelineSegments, duration),
+    [timelineSegments, duration]
+  )
 
   const handleLoadedMetadata = () => {
     const audio = audioRef.current
@@ -452,19 +491,36 @@ export function BrowserTimelinePanel({
   const estimatedChartTick = Math.round(chartPosition * parsed.maxTick)
 
   return (
-    <div className="rounded-2xl border p-4 space-y-4">
+    <div
+      style={{
+        borderRadius: "24px",
+        border: "1px solid #334155",
+        padding: "16px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
+        background: "#111827",
+        color: "#FFFFFF",
+      }}
+    >
       <div>
-        <h2 className="text-lg font-semibold">Timeline Panel</h2>
-        <p className="text-sm text-gray-500">
+        <h2 style={{ margin: 0, fontSize: "20px", fontWeight: 700, color: "#FFFFFF" }}>
+          Timeline Panel
+        </h2>
+        <p style={{ marginTop: "8px", marginBottom: 0, fontSize: "14px", color: "#cbd5e1" }}>
           Each parsed chart event gets an equation. The layout is centered, responsive, and keeps the equation row horizontal.
         </p>
       </div>
 
       <div
-        className="mx-auto w-full overflow-hidden"
         style={{
+          margin: "0 auto",
+          width: "100%",
           maxWidth: "1200px",
-          height: "clamp(220px, 24vw, 320px)",
+          height: "clamp(240px, 26vw, 340px)",
+          background: "#1f2937",
+          borderRadius: "20px",
+          padding: "16px",
         }}
       >
         {currentEvent ? (
@@ -481,42 +537,75 @@ export function BrowserTimelinePanel({
             }}
           />
         ) : (
-          <div className="h-full w-full flex items-center justify-center text-sm text-gray-500">
+          <div
+            style={{
+              height: "100%",
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "14px",
+              color: "#cbd5e1",
+            }}
+          >
             No event is currently available at this chart position.
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-3 flex-wrap">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap",
+          color: "#FFFFFF",
+        }}
+      >
         <button
           type="button"
           onClick={handlePlayPause}
           disabled={!songFile}
-          className="rounded border px-4 py-2 disabled:opacity-50"
+          style={{
+            borderRadius: "8px",
+            border: "1px solid #475569",
+            background: "#1f2937",
+            color: "#FFFFFF",
+            padding: "8px 16px",
+            opacity: !songFile ? 0.5 : 1,
+            cursor: !songFile ? "not-allowed" : "pointer",
+          }}
         >
           {isPlaying ? "Pause" : "Play"}
         </button>
 
-        <div className="text-sm text-gray-600 min-w-[120px]">
+        <div style={{ fontSize: "14px", color: "#e5e7eb", minWidth: "120px" }}>
           {formatTime(currentTime)} / {formatTime(duration)}
         </div>
 
-        <div className="text-sm text-gray-500">
+        <div style={{ fontSize: "14px", color: "#cbd5e1" }}>
           Chart tick: {estimatedChartTick}
         </div>
 
-        <div className="text-sm text-gray-500">
+        <div style={{ fontSize: "14px", color: "#cbd5e1" }}>
           Parsed events: {editableEvents.length}
         </div>
 
-        <div className="text-sm text-gray-500">
+        <div style={{ fontSize: "14px", color: "#cbd5e1" }}>
           Current event: {currentEvent ? currentEvent.label : "None"}
         </div>
       </div>
 
       <div
-        className="rounded-lg border p-2"
-        style={{ background: timelineGradient }}
+        style={{
+          width: "100%",
+          maxWidth: "1200px",
+          margin: "0 auto",
+          borderRadius: "12px",
+          border: "1px solid #334155",
+          padding: "10px 12px",
+          background: timelineGradient,
+        }}
       >
         <input
           type="range"
@@ -526,11 +615,17 @@ export function BrowserTimelinePanel({
           value={Math.min(currentTime, duration || 0)}
           onChange={(e) => handleSliderChange(Number(e.target.value))}
           disabled={!songFile}
-          className="w-full bg-transparent"
+          style={{
+            width: "100%",
+            margin: 0,
+            background: "transparent",
+            accentColor: "#ffffff",
+            display: "block",
+          }}
         />
       </div>
 
-      <div className="space-y-4">
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         <HorizontalDotPanel
           title="Hits"
           events={nearbyHits}

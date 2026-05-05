@@ -23,7 +23,7 @@ export function EventEquationEditor({
   onChange,
 }: EventEquationEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const [circleSize, setCircleSize] = useState(34)
+  const [circleSize, setCircleSize] = useState(56)
 
   useEffect(() => {
     const element = containerRef.current
@@ -31,7 +31,7 @@ export function EventEquationEditor({
 
     const updateSize = () => {
       const width = element.clientWidth
-      const next = Math.max(28, Math.min(width * 0.028, 36))
+      const next = Math.max(48, Math.min(width * 0.055, 72))
       setCircleSize(next)
     }
 
@@ -46,12 +46,12 @@ export function EventEquationEditor({
   }, [])
 
   const operatorFontSize = useMemo(
-    () => Math.max(16, Math.min(circleSize * 0.85, 24)),
+    () => Math.max(24, Math.min(circleSize * 0.72, 36)),
     [circleSize]
   )
 
   const equalsFontSize = useMemo(
-    () => Math.max(18, Math.min(circleSize * 0.95, 26)),
+    () => Math.max(26, Math.min(circleSize * 0.82, 40)),
     [circleSize]
   )
 
@@ -71,7 +71,8 @@ export function EventEquationEditor({
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
-        gap: "12px",
+        gap: "14px",
+        color: "#FFFFFF",
       }}
     >
       <div>
@@ -79,7 +80,8 @@ export function EventEquationEditor({
           style={{
             margin: 0,
             fontSize: "28px",
-            fontWeight: 600,
+            fontWeight: 700,
+            color: "#FFFFFF",
           }}
         >
           Event Equation
@@ -88,8 +90,8 @@ export function EventEquationEditor({
           style={{
             marginTop: "8px",
             marginBottom: 0,
-            fontSize: "16px",
-            color: "#6b7280",
+            fontSize: "15px",
+            color: "#cbd5e1",
           }}
         >
           Edit the equation assigned to the current event.
@@ -113,7 +115,7 @@ export function EventEquationEditor({
             flexWrap: "nowrap",
             alignItems: "center",
             justifyContent: "center",
-            gap: "12px",
+            gap: "14px",
             padding: "0 16px",
             minWidth: "max-content",
           }}
@@ -137,15 +139,16 @@ export function EventEquationEditor({
               fontFamily: "var(--font-grandstander)",
               fontWeight: 700,
               fontSize: `${operatorFontSize}px`,
+              color: "#FFFFFF",
               lineHeight: 1,
               padding: 0,
               margin: 0,
-              minWidth: "20px",
+              minWidth: "24px",
               cursor: "pointer",
             }}
           >
             {OPERATOR_OPTIONS.map((option) => (
-              <option key={option} value={option}>
+              <option key={option} value={option} style={{ color: "#111827" }}>
                 {option}
               </option>
             ))}
@@ -165,6 +168,7 @@ export function EventEquationEditor({
               fontSize: `${equalsFontSize}px`,
               lineHeight: 1,
               display: "inline-block",
+              color: "#FFFFFF",
             }}
           >
             {value.equals}
@@ -182,11 +186,11 @@ export function EventEquationEditor({
       <div
         style={{
           fontSize: "14px",
-          color: "#4b5563",
+          color: "#cbd5e1",
         }}
       >
         Current equation:{" "}
-        <span style={{ fontWeight: 500 }}>
+        <span style={{ fontWeight: 600, color: "#FFFFFF" }}>
           {value.leftA} {value.operatorA} {value.leftB} {value.equals} {value.right}
         </span>
       </div>
