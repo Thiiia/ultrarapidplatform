@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { EventEquationEditor, EquationValue } from "./EventEquationEditor"
 
 type BrowserTimelinePanelProps = {
   songFile: File | null
@@ -10,6 +11,7 @@ type BrowserTimelinePanelProps = {
 type ChartEventType = "hit" | "drag" | "spin"
 
 type ParsedChartEvent = {
+  id: string
   type: ChartEventType
   tick: number
   length: number
@@ -17,6 +19,7 @@ type ParsedChartEvent = {
   seconds: number
   label: string
   color: { r: number; g: number; b: number }
+  equation: EquationValue
 }
 
 type SyncBpmPoint = {
@@ -39,10 +42,18 @@ type TimelineSegment = {
   color: { r: number; g: number; b: number }
 }
 
-const HIT_COLOR = { r: 147, g: 51, b: 234 }   // purple-600
-const DRAG_COLOR = { r: 220, g: 38, b: 38 }   // red-600
-const SPIN_COLOR = { r: 156, g: 163, b: 175 } // gray-400
-const EMPTY_COLOR = { r: 229, g: 231, b: 235 } // gray-200
+const HIT_COLOR = { r: 147, g: 51, b: 234 }
+const DRAG_COLOR = { r: 220, g: 38, b: 38 }
+const SPIN_COLOR = { r: 156, g: 163, b: 175 }
+const EMPTY_COLOR = { r: 229, g: 231, b: 235 }
+
+const DEFAULT_EQUATION: EquationValue = {
+  leftA: "x",
+  operatorA: "+",
+  leftB: "2",
+  equals: "=",
+  right: "7",
+}
 
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value < 0) return "0:00"
@@ -183,7 +194,7 @@ function parseChartData(chartText: string): ParsedChartData {
   const noteMatches = [...trackSection.matchAll(/^\s*(\d+)\s*=\s*N\s+(\d+)\s+(\d+)/gm)]
 
   const noteEvents: ParsedChartEvent[] = noteMatches
-    .map((match) => {
+    .map((match, index) => {
       const tick = Number(match[1])
       const lane = Number(match[2])
       const length = Number(match[3])
@@ -191,6 +202,7 @@ function parseChartData(chartText: string): ParsedChartData {
       const color = type === "drag" ? DRAG_COLOR : HIT_COLOR
 
       return {
+        id: `event-${tick}-${lane}-${index}`,
         type,
         tick,
         lane,
@@ -198,6 +210,7 @@ function parseChartData(chartText: string): ParsedChartData {
         seconds: tickToSeconds(tick, resolution, bpmPoints),
         label: type === "drag" ? `Drag lane ${laneLabel(lane)}` : `Hit lane ${laneLabel(lane)}`,
         color,
+        equation: { ...DEFAULT_EQUATION },
       }
     })
     .filter((event) => {
@@ -243,7 +256,6 @@ function buildTimelineSegments(
 
   const segmentCount = Math.max(1, Math.ceil(sliderWidthPx / segmentWidthPx))
   const secondsPerSegment = duration / segmentCount
-
   const segments: TimelineSegment[] = []
 
   for (let i = 0; i < segmentCount; i++) {
@@ -273,8 +285,7 @@ function buildSegmentGradient(segments: TimelineSegment[], duration: number) {
 
   const stops: string[] = []
 
-  for (let i = 0; i < segments.length; i++) {
-    const segment = segments[i]
+  for (const segment of segments) {
     const startPercent = (segment.startSeconds / duration) * 100
     const endPercent = (segment.endSeconds / duration) * 100
     const color = rgbToCss(segment.color)
@@ -283,6 +294,23 @@ function buildSegmentGradient(segments: TimelineSegment[], duration: number) {
   }
 
   return `linear-gradient(to right, ${stops.join(", ")})`
+}
+
+function getCurrentEventIndex(events: ParsedChartEvent[], currentTime: number) {
+  if (!events.length) return -1
+
+  let closestIndex = 0
+  let closestDistance = Math.abs(events[0].seconds - currentTime)
+
+  for (let i = 1; i < events.length; i++) {
+    const distance = Math.abs(events[i].seconds - currentTime)
+    if (distance < closestDistance) {
+      closestDistance = distance
+      closestIndex = i
+    }
+  }
+
+  return closestIndex
 }
 
 function HorizontalDotPanel({
@@ -307,9 +335,8 @@ function HorizontalDotPanel({
             <div className="text-sm text-gray-400">No nearby events.</div>
           ) : (
             events.map((event, index) => (
-              <button
+              <div
                 key={`${title}-${event.tick}-${event.lane}-${index}`}
-                type="button"
                 title={`${event.label} • ${formatTime(event.seconds)} • tick ${event.tick} • lane ${laneLabel(event.lane)}`}
                 className={`h-3 w-3 rounded-full ${dotClassName} shrink-0`}
               />
@@ -317,17 +344,6 @@ function HorizontalDotPanel({
           )}
         </div>
       </div>
-
-      {events.length > 0 && (
-        <div className="text-xs text-gray-500 space-y-1">
-          {events.slice(0, 8).map((event, index) => (
-            <div key={`meta-${title}-${event.tick}-${index}`}>
-              {formatTime(event.seconds)} • lane {laneLabel(event.lane)}
-              {event.length > 0 ? ` • sustain ${event.length}` : ""}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
@@ -343,13 +359,16 @@ export function BrowserTimelinePanel({
   const [currentTime, setCurrentTime] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
 
-  // Parse the full chart once on upload / chartText change.
   const parsed = useMemo(() => parseChartData(chartText), [chartText])
+  const [editableEvents, setEditableEvents] = useState<ParsedChartEvent[]>([])
 
-  // Precompute the full colored slider once we know duration and parsed events.
+  useEffect(() => {
+    setEditableEvents(parsed.events)
+  }, [parsed])
+
   const timelineSegments = useMemo(
-    () => buildTimelineSegments(parsed.events, duration, 1200, 4),
-    [parsed.events, duration]
+    () => buildTimelineSegments(editableEvents, duration, 1200, 4),
+    [editableEvents, duration]
   )
 
   const timelineGradient = useMemo(
@@ -409,19 +428,26 @@ export function BrowserTimelinePanel({
   }
 
   const nearbyHits = useMemo(
-    () => getNearbyEvents(parsed.hits, currentTime),
-    [parsed.hits, currentTime]
+    () => getNearbyEvents(editableEvents.filter((e) => e.type === "hit"), currentTime),
+    [editableEvents, currentTime]
   )
 
   const nearbyDrags = useMemo(
-    () => getNearbyEvents(parsed.drags, currentTime),
-    [parsed.drags, currentTime]
+    () => getNearbyEvents(editableEvents.filter((e) => e.type === "drag"), currentTime),
+    [editableEvents, currentTime]
   )
 
   const nearbySpins = useMemo(
-    () => getNearbyEvents(parsed.spins, currentTime),
-    [parsed.spins, currentTime]
+    () => getNearbyEvents(editableEvents.filter((e) => e.type === "spin"), currentTime),
+    [editableEvents, currentTime]
   )
+
+  const currentEventIndex = useMemo(
+    () => getCurrentEventIndex(editableEvents, currentTime),
+    [editableEvents, currentTime]
+  )
+
+  const currentEvent = currentEventIndex >= 0 ? editableEvents[currentEventIndex] : null
 
   const chartPosition = duration > 0 ? currentTime / duration : 0
   const estimatedChartTick = Math.round(chartPosition * parsed.maxTick)
@@ -431,9 +457,28 @@ export function BrowserTimelinePanel({
       <div>
         <h2 className="text-lg font-semibold">Timeline Panel</h2>
         <p className="text-sm text-gray-500">
-          The .chart is parsed once on upload. The slider is divided into 4px color sections, and each section uses the average RGB color of all chart events that fall inside that time range.
+          Each parsed chart event gets an equation. For now every event starts as x + 2 = 7, and editing the equation updates the event nearest the current tick.
         </p>
       </div>
+
+      {currentEvent ? (
+        <EventEquationEditor
+          value={currentEvent.equation}
+          onChange={(nextEquation) => {
+            setEditableEvents((prev) =>
+              prev.map((event, index) =>
+                index === currentEventIndex
+                  ? { ...event, equation: nextEquation }
+                  : event
+              )
+            )
+          }}
+        />
+      ) : (
+        <div className="rounded-xl border p-4 text-sm text-gray-500">
+          No event is currently available at this chart position.
+        </div>
+      )}
 
       <div className="flex items-center gap-3 flex-wrap">
         <button
@@ -454,11 +499,11 @@ export function BrowserTimelinePanel({
         </div>
 
         <div className="text-sm text-gray-500">
-          Parsed events: {parsed.events.length}
+          Parsed events: {editableEvents.length}
         </div>
 
         <div className="text-sm text-gray-500">
-          Segments: {timelineSegments.length}
+          Current event: {currentEvent ? currentEvent.label : "None"}
         </div>
       </div>
 
