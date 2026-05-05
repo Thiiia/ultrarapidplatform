@@ -12,20 +12,21 @@ type EquationCircleProps = {
   imageSrc?: string
 }
 
-function getFontSize(value: string) {
+function getFontSize(value: string, size: number) {
   const length = value.trim().length
+  const base = size * 0.6
 
-  if (length <= 1) return 120
-  if (length === 2) return 96
-  if (length === 3) return 80
-  return 64
+  if (length <= 1) return base
+  if (length === 2) return size * 0.48
+  if (length === 3) return size * 0.4
+  return size * 0.32
 }
 
 export function EquationCircle({
   value = "",
   onChange,
   placeholder = "",
-  size,
+  size = 200,
   readOnly = false,
   imageSrc = "/images/equation-circle.png",
 }: EquationCircleProps) {
@@ -36,7 +37,7 @@ export function EquationCircle({
   }, [value])
 
   const displayValue = internalValue || placeholder
-  const fontSize = useMemo(() => getFontSize(displayValue), [displayValue])
+  const fontSize = useMemo(() => getFontSize(displayValue, size), [displayValue, size])
 
   const handleChange = (nextValue: string) => {
     const sanitized = nextValue.replace(/\s+/g, "")
@@ -48,8 +49,8 @@ export function EquationCircle({
     <div
       className="relative shrink-0"
       style={{
-        width: size ? `${size}px` : "var(--equation-circle-size, 200px)",
-        height: size ? `${size}px` : "var(--equation-circle-size, 200px)",
+        width: `${size}px`,
+        height: `${size}px`,
       }}
     >
       <Image

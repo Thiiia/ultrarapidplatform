@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useMemo, useRef, useState } from "react"
 import { EquationCircle } from "./EquationCircle"
 
 export type EquationValue = {
@@ -21,6 +22,33 @@ export function EventEquationEditor({
   value,
   onChange,
 }: EventEquationEditorProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [circleSize, setCircleSize] = useState(180)
+
+  useEffect(() => {
+    const element = containerRef.current
+    if (!element) return
+
+    const updateSize = () => {
+      const width = element.clientWidth
+      const next = Math.max(100, Math.min(width * 0.13, 220))
+      setCircleSize(next)
+    }
+
+    updateSize()
+
+    const observer = new ResizeObserver(() => {
+      updateSize()
+    })
+
+    observer.observe(element)
+
+    return () => observer.disconnect()
+  }, [])
+
+  const operatorFontSize = useMemo(() => Math.max(32, circleSize * 0.28), [circleSize])
+  const equalsFontSize = useMemo(() => Math.max(40, circleSize * 0.34), [circleSize])
+
   const update = <K extends keyof EquationValue>(key: K, nextValue: EquationValue[K]) => {
     onChange({
       ...value,
@@ -29,7 +57,7 @@ export function EventEquationEditor({
   }
 
   return (
-    <div className="h-full w-full rounded-2xl border p-8 space-y-6 bg-white">
+    <div ref={containerRef} className="h-full w-full rounded-2xl border p-8 space-y-6 bg-white">
       <div>
         <h3 className="text-2xl font-semibold">Event Equation</h3>
         <p className="text-base text-gray-500">
@@ -43,15 +71,17 @@ export function EventEquationEditor({
             value={value.leftA}
             onChange={(next) => update("leftA", next)}
             placeholder="x"
+            size={circleSize}
           />
 
           <select
             value={value.operatorA}
             onChange={(e) => update("operatorA", e.target.value as EquationValue["operatorA"])}
-            className="rounded border px-4 py-3 text-4xl font-bold bg-transparent"
+            className="rounded border px-4 py-3 font-bold bg-transparent"
             style={{
               fontFamily: "var(--font-grandstander)",
               fontWeight: 700,
+              fontSize: `${operatorFontSize}px`,
             }}
           >
             {OPERATOR_OPTIONS.map((option) => (
@@ -65,13 +95,15 @@ export function EventEquationEditor({
             value={value.leftB}
             onChange={(next) => update("leftB", next)}
             placeholder="2"
+            size={circleSize}
           />
 
           <span
-            className="text-5xl font-bold"
+            className="font-bold"
             style={{
               fontFamily: "var(--font-grandstander)",
               fontWeight: 700,
+              fontSize: `${equalsFontSize}px`,
             }}
           >
             {value.equals}
@@ -81,6 +113,7 @@ export function EventEquationEditor({
             value={value.right}
             onChange={(next) => update("right", next)}
             placeholder="7"
+            size={circleSize}
           />
         </div>
 

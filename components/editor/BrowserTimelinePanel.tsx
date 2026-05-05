@@ -456,7 +456,7 @@ export function BrowserTimelinePanel({
       <div>
         <h2 className="text-lg font-semibold">Timeline Panel</h2>
         <p className="text-sm text-gray-500">
-          Each parsed chart event gets an equation. The viewing window is responsive, and circle diameter is tied to 13% of the window width.
+          Each parsed chart event gets an equation. The viewing window is responsive, and the circles resize based on the equation editor width.
         </p>
       </div>
 
@@ -465,15 +465,9 @@ export function BrowserTimelinePanel({
         style={{
           maxWidth: "1400px",
           height: "clamp(620px, 62vw, 880px)",
-          ["--equation-circle-size" as string]: "13vw",
         }}
       >
-        <div
-          className="h-full w-full p-6 md:p-8"
-          style={{
-            ["--equation-circle-size" as string]: "min(calc(100% * 0.13), 220px)",
-          }}
-        >
+        <div className="h-full w-full p-6 md:p-8">
           {currentEvent ? (
             <EventEquationEditor
               value={currentEvent.equation}
