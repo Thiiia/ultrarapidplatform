@@ -93,6 +93,7 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
             songFile={songFile}
             chartText={chartText}
             chartFileName={chartFileName || "chart.chart"}
+            onChartTextChange={setChartText}
           />
 
           {showChart && (

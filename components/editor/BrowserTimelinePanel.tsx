@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { EventEquationEditor, EquationValue } from "./EventEquationEditor"
 import { EquationBlockPalette } from "./EquationBlockPalette"
+import { EventTypePalette } from "./EventTypePalette"
 
 type BrowserTimelinePanelProps = {
   songFile: File | null
   chartText: string
   chartFileName?: string
+  onChartTextChange?: (nextChartText: string) => void
 }
 
 type ChartEventType = "hit" | "drag" | "spin"
@@ -52,6 +54,7 @@ type EquationBindingsFile = {
 
 const HIT_COLOR = { r: 147, g: 51, b: 234 }
 const DRAG_COLOR = { r: 220, g: 38, b: 38 }
+const SPIN_COLOR = { r: 156, g: 163, b: 175 }
 const EMPTY_COLOR = { r: 51, g: 65, b: 85 }
 
 const DEFAULT_EQUATION: EquationValue = {
@@ -107,9 +110,7 @@ function parseResolution(chartText: string) {
 
 function parseSyncTrack(chartText: string) {
   const syncSectionMatch = chartText.match(/\[SyncTrack\]\s*\{([\s\S]*?)\}/i)
-  if (!syncSectionMatch) {
-    return [{ tick: 0, bpm: 120 }]
-  }
+  if (!syncSectionMatch) return [{ tick: 0, bpm: 120 }]
 
   const section = syncSectionMatch[1]
   const matches = [...section.matchAll(/^\s*(\d+)\s*=\s*B\s+(\d+)/gm)]
@@ -118,8 +119,7 @@ function parseSyncTrack(chartText: string) {
     .map((match) => {
       const tick = Number(match[1])
       const raw = Number(match[2])
-      const bpm = raw / 1000
-      return { tick, bpm }
+      return { tick, bpm: raw / 1000 }
     })
     .filter((point) => Number.isFinite(point.tick) && Number.isFinite(point.bpm) && point.bpm > 0)
     .sort((a, b) => a.tick - b.tick)
@@ -149,8 +149,7 @@ function tickToSeconds(tick: number, resolution: number, bpmPoints: SyncBpmPoint
 
     if (deltaTicks > 0) {
       const beats = deltaTicks / resolution
-      const secondsPerBeat = 60 / current.bpm
-      totalSeconds += beats * secondsPerBeat
+      totalSeconds += beats * (60 / current.bpm)
     }
 
     if (!next || tick < next.tick) break
@@ -174,12 +173,14 @@ function parseTrackSection(chartText: string) {
   for (const sectionName of preferredSections) {
     const regex = new RegExp(`\\[${sectionName}\\]\\s*\\{([\\s\\S]*?)\\}`, "i")
     const match = chartText.match(regex)
-    if (match) {
-      return match[1]
-    }
+    if (match) return match[1]
   }
 
   return ""
+}
+
+function buildEventId(type: ChartEventType, tick: number, lane: number, length: number, index: number) {
+  return `${type}:${tick}:${lane}:${length}:${index}`
 }
 
 function parseChartData(chartText: string): ParsedChartData {
@@ -209,7 +210,7 @@ function parseChartData(chartText: string): ParsedChartData {
       const color = type === "drag" ? DRAG_COLOR : HIT_COLOR
 
       return {
-        id: `${type}:${tick}:${lane}:${length}:${index}`,
+        id: buildEventId(type, tick, lane, length, index),
         type,
         tick,
         lane,
@@ -219,14 +220,12 @@ function parseChartData(chartText: string): ParsedChartData {
         color,
       }
     })
-    .filter((event) => {
-      return (
-        Number.isFinite(event.tick) &&
-        Number.isFinite(event.lane) &&
-        Number.isFinite(event.length) &&
-        Number.isFinite(event.seconds)
-      )
-    })
+    .filter((event) =>
+      Number.isFinite(event.tick) &&
+      Number.isFinite(event.lane) &&
+      Number.isFinite(event.length) &&
+      Number.isFinite(event.seconds)
+    )
     .sort((a, b) => a.seconds - b.seconds)
 
   const hits = noteEvents.filter((event) => event.type === "hit")
@@ -236,14 +235,7 @@ function parseChartData(chartText: string): ParsedChartData {
   const events = [...hits, ...drags, ...spins].sort((a, b) => a.seconds - b.seconds)
   const maxTick = events.length ? Math.max(...events.map((event) => event.tick)) : 0
 
-  return {
-    resolution,
-    events,
-    hits,
-    drags,
-    spins,
-    maxTick,
-  }
+  return { resolution, events, hits, drags, spins, maxTick }
 }
 
 function getNearbyEvents(events: ParsedChartEvent[], currentTime: number, windowSeconds = 3) {
@@ -256,9 +248,7 @@ function buildTimelineSegments(
   sliderWidthPx = 1200,
   segmentWidthPx = 4
 ): TimelineSegment[] {
-  if (!Number.isFinite(duration) || duration <= 0) {
-    return []
-  }
+  if (!Number.isFinite(duration) || duration <= 0) return []
 
   const segmentCount = Math.max(1, Math.ceil(sliderWidthPx / segmentWidthPx))
   const secondsPerSegment = duration / segmentCount
@@ -273,21 +263,14 @@ function buildTimelineSegments(
     )
 
     const color = averageColors(segmentEvents.map((event) => event.color))
-
-    segments.push({
-      startSeconds,
-      endSeconds,
-      color,
-    })
+    segments.push({ startSeconds, endSeconds, color })
   }
 
   return segments
 }
 
 function buildSegmentGradient(segments: TimelineSegment[], duration: number) {
-  if (!segments.length || duration <= 0) {
-    return "#334155"
-  }
+  if (!segments.length || duration <= 0) return "#334155"
 
   const stops: string[] = []
 
@@ -323,20 +306,38 @@ function buildChartSignature(parsed: ParsedChartData) {
   return `${parsed.resolution}:${parsed.maxTick}:${parsed.events.length}`
 }
 
-function downloadEquationBindings(
-  fileName: string,
-  content: EquationBindingsFile
-) {
-  const blob = new Blob([JSON.stringify(content, null, 2)], {
-    type: "application/json",
-  })
-
+function downloadEquationBindings(fileName: string, content: EquationBindingsFile) {
+  const blob = new Blob([JSON.stringify(content, null, 2)], { type: "application/json" })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement("a")
   anchor.href = url
   anchor.download = fileName
   anchor.click()
   URL.revokeObjectURL(url)
+}
+
+function updateChartEventType(
+  chartText: string,
+  event: ParsedChartEvent,
+  nextType: ChartEventType
+) {
+  if (nextType === "spin") {
+    return chartText
+  }
+
+  const currentLength = event.length
+  const nextLength = nextType === "hit" ? 0 : currentLength > 0 ? currentLength : 240
+
+  const escapedTick = String(event.tick).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const escapedLane = String(event.lane).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const escapedLength = String(event.length).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+
+  const pattern = new RegExp(
+    `(^\\s*${escapedTick}\\s*=\\s*N\\s+${escapedLane}\\s+)${escapedLength}(\\s*$)`,
+    "m"
+  )
+
+  return chartText.replace(pattern, `$1${nextLength}$2`)
 }
 
 function HorizontalDotPanel({
@@ -349,47 +350,14 @@ function HorizontalDotPanel({
   dotClassName: string
 }) {
   return (
-    <div
-      style={{
-        borderRadius: "16px",
-        border: "1px solid #334155",
-        padding: "16px",
-        background: "#1e293b",
-        display: "flex",
-        flexDirection: "column",
-        gap: "12px",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#FFFFFF" }}>
-          {title}
-        </h3>
+    <div style={{ borderRadius: "16px", border: "1px solid #334155", padding: "16px", background: "#1e293b", display: "flex", flexDirection: "column", gap: "12px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#FFFFFF" }}>{title}</h3>
         <p style={{ margin: 0, fontSize: "14px", color: "#cbd5e1" }}>Count: {events.length}</p>
       </div>
 
-      <div
-        style={{
-          borderRadius: "12px",
-          border: "1px solid #334155",
-          background: "#0f172a",
-          padding: "12px",
-          minHeight: "56px",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "8px",
-            alignItems: "center",
-          }}
-        >
+      <div style={{ borderRadius: "12px", border: "1px solid #334155", background: "#0f172a", padding: "12px", minHeight: "56px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
           {events.length === 0 ? (
             <div style={{ fontSize: "14px", color: "#94a3b8" }}>No nearby events.</div>
           ) : (
@@ -398,12 +366,7 @@ function HorizontalDotPanel({
                 key={`${title}-${event.tick}-${event.lane}-${index}`}
                 title={`${event.label} • ${formatTime(event.seconds)} • tick ${event.tick} • lane ${laneLabel(event.lane)}`}
                 className={dotClassName}
-                style={{
-                  width: "12px",
-                  height: "12px",
-                  borderRadius: "9999px",
-                  flexShrink: 0,
-                }}
+                style={{ width: "12px", height: "12px", borderRadius: "9999px", flexShrink: 0 }}
               />
             ))
           )}
@@ -417,6 +380,7 @@ export function BrowserTimelinePanel({
   songFile,
   chartText,
   chartFileName = "chart.chart",
+  onChartTextChange,
 }: BrowserTimelinePanelProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const importInputRef = useRef<HTMLInputElement | null>(null)
@@ -432,12 +396,13 @@ export function BrowserTimelinePanel({
   const [equationsByEventId, setEquationsByEventId] = useState<Record<string, EquationValue>>({})
 
   useEffect(() => {
-    const nextBindings: Record<string, EquationValue> = {}
-    parsed.events.forEach((event) => {
-      nextBindings[event.id] = equationsByEventId[event.id] ?? { ...DEFAULT_EQUATION }
+    setEquationsByEventId((prev) => {
+      const nextBindings: Record<string, EquationValue> = {}
+      parsed.events.forEach((event) => {
+        nextBindings[event.id] = prev[event.id] ?? { ...DEFAULT_EQUATION }
+      })
+      return nextBindings
     })
-    setEquationsByEventId(nextBindings)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsed])
 
   useEffect(() => {
@@ -482,16 +447,12 @@ export function BrowserTimelinePanel({
   const handleSliderChange = (value: number) => {
     const audio = audioRef.current
     setCurrentTime(value)
-
-    if (audio) {
-      audio.currentTime = value
-    }
+    if (audio) audio.currentTime = value
   }
 
   const handlePlayPause = async () => {
     const audio = audioRef.current
     if (!audio) return
-
     if (audio.paused) {
       await audio.play()
       setIsPlaying(true)
@@ -501,30 +462,13 @@ export function BrowserTimelinePanel({
     }
   }
 
-  const nearbyHits = useMemo(
-    () => getNearbyEvents(parsed.hits, currentTime),
-    [parsed.hits, currentTime]
-  )
+  const nearbyHits = useMemo(() => getNearbyEvents(parsed.hits, currentTime), [parsed.hits, currentTime])
+  const nearbyDrags = useMemo(() => getNearbyEvents(parsed.drags, currentTime), [parsed.drags, currentTime])
+  const nearbySpins = useMemo(() => getNearbyEvents(parsed.spins, currentTime), [parsed.spins, currentTime])
 
-  const nearbyDrags = useMemo(
-    () => getNearbyEvents(parsed.drags, currentTime),
-    [parsed.drags, currentTime]
-  )
-
-  const nearbySpins = useMemo(
-    () => getNearbyEvents(parsed.spins, currentTime),
-    [parsed.spins, currentTime]
-  )
-
-  const currentEventIndex = useMemo(
-    () => getCurrentEventIndex(parsed.events, currentTime),
-    [parsed.events, currentTime]
-  )
-
+  const currentEventIndex = useMemo(() => getCurrentEventIndex(parsed.events, currentTime), [parsed.events, currentTime])
   const currentEvent = currentEventIndex >= 0 ? parsed.events[currentEventIndex] : null
-  const currentEquation = currentEvent
-    ? equationsByEventId[currentEvent.id] ?? DEFAULT_EQUATION
-    : null
+  const currentEquation = currentEvent ? equationsByEventId[currentEvent.id] ?? DEFAULT_EQUATION : null
 
   const chartPosition = duration > 0 ? currentTime / duration : 0
   const estimatedChartTick = Math.round(chartPosition * parsed.maxTick)
@@ -543,10 +487,7 @@ export function BrowserTimelinePanel({
     try {
       const raw = await file.text()
       const parsedFile = JSON.parse(raw) as EquationBindingsFile
-
-      if (!parsedFile.bindings || typeof parsedFile.bindings !== "object") {
-        return
-      }
+      if (!parsedFile.bindings || typeof parsedFile.bindings !== "object") return
 
       if (parsedFile.chartSignature !== chartSignature) {
         console.warn("Equation binding file does not match current chart signature.")
@@ -561,50 +502,40 @@ export function BrowserTimelinePanel({
     }
   }
 
+  const handleTypeChange = (nextType: ChartEventType) => {
+    if (!currentEvent) return
+
+    const nextChartText = updateChartEventType(chartText, currentEvent, nextType)
+    if (nextChartText !== chartText) {
+      onChartTextChange?.(nextChartText)
+    }
+  }
+
   return (
-    <div
-      style={{
-        borderRadius: "24px",
-        border: "1px solid #334155",
-        padding: "16px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "16px",
-        background: "#111827",
-        color: "#FFFFFF",
-      }}
-    >
+    <div style={{ borderRadius: "24px", border: "1px solid #334155", padding: "16px", display: "flex", flexDirection: "column", gap: "16px", background: "#111827", color: "#FFFFFF" }}>
       <div>
         <h2 style={{ margin: 0, fontSize: "20px", fontWeight: 700, color: "#FFFFFF" }}>
           Timeline Panel
         </h2>
         <p style={{ marginTop: "8px", marginBottom: 0, fontSize: "14px", color: "#cbd5e1" }}>
-          Drag blocks onto the equation to replace values. Equations are stored separately from the chart in a sidecar JSON file.
+          Use the left palette to replace equation values, and the right palette to change the current event type.
         </p>
       </div>
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "220px 1fr",
+          gridTemplateColumns: "220px 1fr 220px",
           gap: "16px",
           alignItems: "stretch",
           width: "100%",
-          maxWidth: "1200px",
+          maxWidth: "1440px",
           margin: "0 auto",
         }}
       >
         <EquationBlockPalette />
 
-        <div
-          style={{
-            width: "100%",
-            minHeight: "280px",
-            background: "#1f2937",
-            borderRadius: "20px",
-            padding: "16px",
-          }}
-        >
+        <div style={{ width: "100%", minHeight: "280px", background: "#1f2937", borderRadius: "20px", padding: "16px" }}>
           {currentEvent && currentEquation ? (
             <EventEquationEditor
               value={currentEquation}
@@ -616,35 +547,19 @@ export function BrowserTimelinePanel({
               }}
             />
           ) : (
-            <div
-              style={{
-                height: "100%",
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "14px",
-                color: "#cbd5e1",
-              }}
-            >
+            <div style={{ height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", color: "#cbd5e1" }}>
               No event is currently available at this chart position.
             </div>
           )}
         </div>
+
+        <EventTypePalette
+          currentType={currentEvent?.type ?? null}
+          onSelectType={handleTypeChange}
+        />
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          flexWrap: "wrap",
-          color: "#FFFFFF",
-          width: "100%",
-          maxWidth: "1200px",
-          margin: "0 auto",
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", color: "#FFFFFF", width: "100%", maxWidth: "1440px", margin: "0 auto" }}>
         <button
           type="button"
           onClick={handlePlayPause}
@@ -699,9 +614,7 @@ export function BrowserTimelinePanel({
           style={{ display: "none" }}
           onChange={(event) => {
             const file = event.target.files?.[0]
-            if (file) {
-              void handleImport(file)
-            }
+            if (file) void handleImport(file)
             event.currentTarget.value = ""
           }}
         />
@@ -726,7 +639,7 @@ export function BrowserTimelinePanel({
       <div
         style={{
           width: "100%",
-          maxWidth: "1200px",
+          maxWidth: "1440px",
           margin: "0 auto",
           borderRadius: "12px",
           border: "1px solid #334155",
@@ -752,33 +665,10 @@ export function BrowserTimelinePanel({
         />
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-          width: "100%",
-          maxWidth: "1200px",
-          margin: "0 auto",
-        }}
-      >
-        <HorizontalDotPanel
-          title="Hits"
-          events={nearbyHits}
-          dotClassName="bg-purple-600"
-        />
-
-        <HorizontalDotPanel
-          title="Drags"
-          events={nearbyDrags}
-          dotClassName="bg-red-600"
-        />
-
-        <HorizontalDotPanel
-          title="Spins"
-          events={nearbySpins}
-          dotClassName="bg-gray-400"
-        />
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%", maxWidth: "1440px", margin: "0 auto" }}>
+        <HorizontalDotPanel title="Hits" events={nearbyHits} dotClassName="bg-purple-600" />
+        <HorizontalDotPanel title="Drags" events={nearbyDrags} dotClassName="bg-red-600" />
+        <HorizontalDotPanel title="Spins" events={nearbySpins} dotClassName="bg-gray-400" />
       </div>
 
       {audioUrl ? (
