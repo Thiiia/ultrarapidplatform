@@ -75,21 +75,6 @@ export function EventTypePalette({
             event.stopPropagation()
             event.dataTransfer.setData("application/x-hit-ellipse", "hit-ellipse")
             event.dataTransfer.effectAllowed = "copy"
-
-            const dragGhost = document.createElement("img")
-            dragGhost.src = "/images/hit-ellipse.png"
-            dragGhost.width = 40
-            dragGhost.height = 40
-            dragGhost.style.pointerEvents = "none"
-            dragGhost.style.position = "absolute"
-            dragGhost.style.top = "-9999px"
-            document.body.appendChild(dragGhost)
-
-            event.dataTransfer.setDragImage(dragGhost, 20, 20)
-
-            window.setTimeout(() => {
-              document.body.removeChild(dragGhost)
-            }, 0)
           }}
           onDragEnd={(event) => {
             event.stopPropagation()
@@ -101,6 +86,7 @@ export function EventTypePalette({
             alignItems: "center",
             justifyContent: "center",
             cursor: "grab",
+            borderRadius: "12px",
           }}
         >
           <Image
@@ -112,9 +98,10 @@ export function EventTypePalette({
               width: "48px",
               height: "48px",
               objectFit: "contain",
-              pointerEvents: "none",
+              display: "block",
               userSelect: "none",
             }}
+            draggable={false}
           />
         </div>
 
