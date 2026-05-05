@@ -464,7 +464,7 @@ export function BrowserTimelinePanel({
         className="mx-auto w-full overflow-hidden"
         style={{
           maxWidth: "1200px",
-          height: "clamp(260px, 32vw, 420px)",
+          height: "clamp(220px, 24vw, 320px)",
         }}
       >
         {currentEvent ? (

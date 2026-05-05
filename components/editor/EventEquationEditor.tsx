@@ -23,7 +23,7 @@ export function EventEquationEditor({
   onChange,
 }: EventEquationEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const [circleSize, setCircleSize] = useState(96)
+  const [circleSize, setCircleSize] = useState(36)
 
   useEffect(() => {
     const element = containerRef.current
@@ -31,7 +31,7 @@ export function EventEquationEditor({
 
     const updateSize = () => {
       const width = element.clientWidth
-      const next = Math.max(72, Math.min(width * 0.09, 120))
+      const next = Math.max(28, Math.min(width * 0.03, 40))
       setCircleSize(next)
     }
 
@@ -46,12 +46,12 @@ export function EventEquationEditor({
   }, [])
 
   const operatorFontSize = useMemo(
-    () => Math.max(26, Math.min(circleSize * 0.42, 42)),
+    () => Math.max(16, Math.min(circleSize * 0.75, 24)),
     [circleSize]
   )
 
   const equalsFontSize = useMemo(
-    () => Math.max(30, Math.min(circleSize * 0.5, 48)),
+    () => Math.max(18, Math.min(circleSize * 0.9, 28)),
     [circleSize]
   )
 
@@ -63,7 +63,7 @@ export function EventEquationEditor({
   }
 
   return (
-    <div ref={containerRef} className="h-full w-full flex flex-col justify-center gap-6">
+    <div ref={containerRef} className="h-full w-full flex flex-col justify-center gap-4">
       <div>
         <h3 className="text-2xl font-semibold">Event Equation</h3>
         <p className="text-base text-gray-500">
@@ -72,7 +72,7 @@ export function EventEquationEditor({
       </div>
 
       <div className="flex-1 flex items-center justify-center overflow-x-auto">
-        <div className="flex flex-nowrap items-center justify-center gap-4 px-4">
+        <div className="flex flex-nowrap items-center justify-center gap-3 px-4">
           <EquationCircle
             value={value.leftA}
             onChange={(next) => update("leftA", next)}
@@ -89,6 +89,8 @@ export function EventEquationEditor({
               fontWeight: 700,
               fontSize: `${operatorFontSize}px`,
               lineHeight: 1,
+              padding: 0,
+              margin: 0,
             }}
           >
             {OPERATOR_OPTIONS.map((option) => (
@@ -125,7 +127,7 @@ export function EventEquationEditor({
         </div>
       </div>
 
-      <div className="text-base text-gray-600">
+      <div className="text-sm text-gray-600">
         Current equation:{" "}
         <span className="font-medium">
           {value.leftA} {value.operatorA} {value.leftB} {value.equals} {value.right}

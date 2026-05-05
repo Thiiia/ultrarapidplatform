@@ -15,17 +15,17 @@ type EquationCircleProps = {
 function getFontSize(value: string, size: number) {
   const length = value.trim().length
 
-  if (length <= 1) return size * 0.42
-  if (length === 2) return size * 0.34
-  if (length === 3) return size * 0.28
-  return size * 0.22
+  if (length <= 1) return size * 0.38
+  if (length === 2) return size * 0.28
+  if (length === 3) return size * 0.22
+  return size * 0.18
 }
 
 export function EquationCircle({
   value = "",
   onChange,
   placeholder = "",
-  size = 110,
+  size = 36,
   readOnly = false,
   imageSrc = "/images/equation-circle.png",
 }: EquationCircleProps) {
@@ -57,10 +57,10 @@ export function EquationCircle({
         alt="Equation circle"
         width={size}
         height={size}
-        className="absolute inset-0 h-full w-full object-contain pointer-events-none select-none"
+        className="absolute inset-0 z-0 h-full w-full object-contain pointer-events-none select-none"
       />
 
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute inset-0 z-10 flex items-center justify-center">
         {readOnly ? (
           <span
             className="text-center leading-none select-none"
@@ -70,6 +70,7 @@ export function EquationCircle({
               fontSize: `${fontSize}px`,
               color: "#FFFFFF",
               width: "70%",
+              textShadow: "0 0 4px rgba(0,0,0,0.45)",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -83,15 +84,20 @@ export function EquationCircle({
             value={internalValue}
             onChange={(e) => handleChange(e.target.value)}
             placeholder={placeholder}
-            className="bg-transparent border-none outline-none text-center"
+            className="relative z-10 block bg-transparent border-none outline-none text-center"
             style={{
               fontFamily: "var(--font-grandstander)",
               fontWeight: 700,
               fontSize: `${fontSize}px`,
               color: "#FFFFFF",
+              WebkitTextFillColor: "#FFFFFF",
+              textShadow: "0 0 4px rgba(0,0,0,0.45)",
               width: "70%",
               lineHeight: 1,
               caretColor: "#FFFFFF",
+              backgroundColor: "transparent",
+              padding: 0,
+              margin: 0,
             }}
             autoComplete="off"
             spellCheck={false}
