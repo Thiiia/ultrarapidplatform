@@ -1,23 +1,22 @@
 "use client"
 
+import Image from "next/image"
+
+export type EditorEventMode =
+  | "hit_vertical"
+  | "hit_diagonal_left"
+  | "hit_diagonal_right"
+  | "drag"
+  | "spin"
+
 type EventTypePaletteProps = {
-  currentType: "hit" | "drag" | "spin" | null
-  onSelectType: (type: "hit" | "drag" | "spin") => void
+  currentMode: EditorEventMode | null
+  onSelectMode: (mode: EditorEventMode) => void
 }
 
-const TYPES: Array<{
-  key: "hit" | "drag" | "spin"
-  label: string
-  color: string
-}> = [
-  { key: "hit", label: "Hit", color: "#9333ea" },
-  { key: "drag", label: "Drag", color: "#dc2626" },
-  { key: "spin", label: "Spin", color: "#9ca3af" },
-]
-
 export function EventTypePalette({
-  currentType,
-  onSelectType,
+  currentMode,
+  onSelectMode,
 }: EventTypePaletteProps) {
   return (
     <div
@@ -52,44 +51,87 @@ export function EventTypePalette({
             color: "#cbd5e1",
           }}
         >
-          Change the current event type.
+          Drag the ellipse onto a circle for hit layouts. Use buttons for drag/spin.
         </p>
       </div>
 
-      {TYPES.map((type) => {
-        const active = currentType === type.key
+      <div
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.setData("application/x-hit-ellipse", "hit-ellipse")
+          event.dataTransfer.effectAllowed = "copy"
+        }}
+        style={{
+          borderRadius: "16px",
+          border: "1px solid #475569",
+          background: "#111827",
+          padding: "14px",
+          cursor: "grab",
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          alignItems: "center",
+          textAlign: "center",
+        }}
+      >
+        <Image
+          src="/images/hit-ellipse.png"
+          alt="Hit ellipse"
+          width={48}
+          height={48}
+          style={{
+            width: "48px",
+            height: "48px",
+            objectFit: "contain",
+            pointerEvents: "none",
+            userSelect: "none",
+          }}
+        />
+        <div style={{ fontWeight: 700, color: "#FFFFFF", fontSize: "14px" }}>
+          Hit Ellipse
+        </div>
+        <div style={{ fontSize: "12px", color: "#cbd5e1", lineHeight: 1.4 }}>
+          Drop above a circle = Vertical hit
+          <br />
+          Drop up-left = Diagonal Left
+          <br />
+          Drop up-right = Diagonal Right
+        </div>
+      </div>
 
-        return (
-          <button
-            key={type.key}
-            type="button"
-            onClick={() => onSelectType(type.key)}
-            style={{
-              borderRadius: "14px",
-              border: active ? `2px solid ${type.color}` : "1px solid #475569",
-              background: active ? "#0f172a" : "#111827",
-              color: "#FFFFFF",
-              padding: "14px 16px",
-              cursor: "pointer",
-              textAlign: "left",
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-            }}
-          >
-            <span
-              style={{
-                width: "12px",
-                height: "12px",
-                borderRadius: "9999px",
-                background: type.color,
-                flexShrink: 0,
-              }}
-            />
-            <span style={{ fontWeight: 600 }}>{type.label}</span>
-          </button>
-        )
-      })}
+      <button
+        type="button"
+        onClick={() => onSelectMode("drag")}
+        style={{
+          borderRadius: "14px",
+          border: currentMode === "drag" ? "2px solid #dc2626" : "1px solid #475569",
+          background: currentMode === "drag" ? "#0f172a" : "#111827",
+          color: "#FFFFFF",
+          padding: "14px 16px",
+          cursor: "pointer",
+          textAlign: "left",
+          fontWeight: 600,
+        }}
+      >
+        Drag
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onSelectMode("spin")}
+        style={{
+          borderRadius: "14px",
+          border: currentMode === "spin" ? "2px solid #9ca3af" : "1px solid #475569",
+          background: currentMode === "spin" ? "#0f172a" : "#111827",
+          color: "#FFFFFF",
+          padding: "14px 16px",
+          cursor: "pointer",
+          textAlign: "left",
+          fontWeight: 600,
+        }}
+      >
+        Spin
+      </button>
     </div>
   )
 }

@@ -1,9 +1,13 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { EventEquationEditor, EquationValue } from "./EventEquationEditor"
+import {
+  EventEquationEditor,
+  EquationValue,
+  EventVisualBinding,
+} from "./EventEquationEditor"
 import { EquationBlockPalette } from "./EquationBlockPalette"
-import { EventTypePalette } from "./EventTypePalette"
+import { EventTypePalette, EditorEventMode } from "./EventTypePalette"
 
 type BrowserTimelinePanelProps = {
   songFile: File | null
@@ -12,7 +16,7 @@ type BrowserTimelinePanelProps = {
   onChartTextChange?: (nextChartText: string) => void
 }
 
-type ChartEventType = "hit" | "drag" | "spin"
+type ChartEventType = "hit" | "drag"
 
 type ParsedChartEvent = {
   id: string
@@ -23,6 +27,10 @@ type ParsedChartEvent = {
   seconds: number
   label: string
   color: { r: number; g: number; b: number }
+}
+
+type EffectiveEvent = ParsedChartEvent & {
+  editorMode: EditorEventMode
 }
 
 type SyncBpmPoint = {
@@ -45,11 +53,16 @@ type TimelineSegment = {
   color: { r: number; g: number; b: number }
 }
 
+type EventBinding = {
+  equation: EquationValue
+  visual: EventVisualBinding
+}
+
 type EquationBindingsFile = {
-  version: 1
+  version: 2
   chartFileName: string
   chartSignature: string
-  bindings: Record<string, EquationValue>
+  bindings: Record<string, EventBinding>
 }
 
 const HIT_COLOR = { r: 147, g: 51, b: 234 }
@@ -179,8 +192,28 @@ function parseTrackSection(chartText: string) {
   return ""
 }
 
-function buildEventId(type: ChartEventType, tick: number, lane: number, length: number, index: number) {
-  return `${type}:${tick}:${lane}:${length}:${index}`
+function buildEventId(tick: number, lane: number, index: number) {
+  return `${tick}:${lane}:${index}`
+}
+
+function getDefaultVisualForParsedEvent(type: ChartEventType): EventVisualBinding {
+  if (type === "drag") {
+    return {
+      mode: "drag",
+      hitAnchorSlot: "leftB",
+    }
+  }
+
+  return {
+    mode: "hit_vertical",
+    hitAnchorSlot: "leftB",
+  }
+}
+
+function getColorForMode(mode: EditorEventMode) {
+  if (mode === "drag") return DRAG_COLOR
+  if (mode === "spin") return SPIN_COLOR
+  return HIT_COLOR
 }
 
 function parseChartData(chartText: string): ParsedChartData {
@@ -210,7 +243,7 @@ function parseChartData(chartText: string): ParsedChartData {
       const color = type === "drag" ? DRAG_COLOR : HIT_COLOR
 
       return {
-        id: buildEventId(type, tick, lane, length, index),
+        id: buildEventId(tick, lane, index),
         type,
         tick,
         lane,
@@ -239,12 +272,16 @@ function parseChartData(chartText: string): ParsedChartData {
   return { resolution, events, hits, drags, spins, maxTick }
 }
 
-function getNearbyEvents(events: ParsedChartEvent[], currentTime: number, windowSeconds = 3) {
+function getNearbyEvents<T extends { seconds: number }>(
+  events: T[],
+  currentTime: number,
+  windowSeconds = 3
+) {
   return events.filter((event) => Math.abs(event.seconds - currentTime) <= windowSeconds)
 }
 
 function buildTimelineSegments(
-  events: ParsedChartEvent[],
+  events: Array<{ seconds: number; color: { r: number; g: number; b: number } }>,
   duration: number,
   sliderWidthPx = 1200,
   segmentWidthPx = 4
@@ -279,14 +316,13 @@ function buildSegmentGradient(segments: TimelineSegment[], duration: number) {
     const startPercent = (segment.startSeconds / duration) * 100
     const endPercent = (segment.endSeconds / duration) * 100
     const color = rgbToCss(segment.color)
-
     stops.push(`${color} ${startPercent}%`, `${color} ${endPercent}%`)
   }
 
   return `linear-gradient(to right, ${stops.join(", ")})`
 }
 
-function getCurrentEventIndex(events: ParsedChartEvent[], currentTime: number) {
+function getCurrentEventIndex<T extends { seconds: number }>(events: T[], currentTime: number) {
   if (!events.length) return -1
 
   let closestIndex = 0
@@ -317,16 +353,21 @@ function downloadEquationBindings(fileName: string, content: EquationBindingsFil
   URL.revokeObjectURL(url)
 }
 
-function updateChartEventType(
+function updateChartEventMode(
   chartText: string,
   event: ParsedChartEvent,
-  nextType: ChartEventType
+  nextMode: EditorEventMode
 ) {
-  if (nextType === "spin") {
+  if (nextMode === "spin") {
     return chartText
   }
 
-  const nextLength = nextType === "hit" ? 0 : event.length > 0 ? event.length : 240
+  const nextLength =
+    nextMode === "drag"
+      ? event.length > 0
+        ? event.length
+        : 240
+      : 0
 
   const escapedTick = String(event.tick).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   const escapedLane = String(event.lane).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -346,7 +387,7 @@ function HorizontalDotPanel({
   dotClassName,
 }: {
   title: string
-  events: ParsedChartEvent[]
+  events: EffectiveEvent[]
   dotClassName: string
 }) {
   return (
@@ -418,14 +459,19 @@ export function BrowserTimelinePanel({
   const parsed = useMemo(() => parseChartData(chartText), [chartText])
   const chartSignature = useMemo(() => buildChartSignature(parsed), [parsed])
 
-  const [equationsByEventId, setEquationsByEventId] = useState<Record<string, EquationValue>>({})
+  const [bindingsByEventId, setBindingsByEventId] = useState<Record<string, EventBinding>>({})
 
   useEffect(() => {
-    setEquationsByEventId((prev) => {
-      const nextBindings: Record<string, EquationValue> = {}
+    setBindingsByEventId((prev) => {
+      const nextBindings: Record<string, EventBinding> = {}
+
       parsed.events.forEach((event) => {
-        nextBindings[event.id] = prev[event.id] ?? { ...DEFAULT_EQUATION }
+        nextBindings[event.id] = prev[event.id] ?? {
+          equation: { ...DEFAULT_EQUATION },
+          visual: getDefaultVisualForParsedEvent(event.type),
+        }
       })
+
       return nextBindings
     })
   }, [parsed])
@@ -447,9 +493,43 @@ export function BrowserTimelinePanel({
     }
   }, [songFile])
 
+  const effectiveEvents = useMemo<EffectiveEvent[]>(() => {
+    return parsed.events.map((event) => {
+      const binding = bindingsByEventId[event.id]
+      const mode = binding?.visual.mode ?? getDefaultVisualForParsedEvent(event.type).mode
+
+      return {
+        ...event,
+        editorMode: mode,
+        color: getColorForMode(mode),
+      }
+    })
+  }, [parsed.events, bindingsByEventId])
+
+  const effectiveHits = useMemo(
+    () =>
+      effectiveEvents.filter(
+        (event) =>
+          event.editorMode === "hit_vertical" ||
+          event.editorMode === "hit_diagonal_left" ||
+          event.editorMode === "hit_diagonal_right"
+      ),
+    [effectiveEvents]
+  )
+
+  const effectiveDrags = useMemo(
+    () => effectiveEvents.filter((event) => event.editorMode === "drag"),
+    [effectiveEvents]
+  )
+
+  const effectiveSpins = useMemo(
+    () => effectiveEvents.filter((event) => event.editorMode === "spin"),
+    [effectiveEvents]
+  )
+
   const timelineSegments = useMemo(
-    () => buildTimelineSegments(parsed.events, duration, 1200, 4),
-    [parsed.events, duration]
+    () => buildTimelineSegments(effectiveEvents, duration, 1200, 4),
+    [effectiveEvents, duration]
   )
 
   const timelineGradient = useMemo(
@@ -488,17 +568,17 @@ export function BrowserTimelinePanel({
     }
   }
 
-  const nearbyHits = useMemo(() => getNearbyEvents(parsed.hits, currentTime), [parsed.hits, currentTime])
-  const nearbyDrags = useMemo(() => getNearbyEvents(parsed.drags, currentTime), [parsed.drags, currentTime])
-  const nearbySpins = useMemo(() => getNearbyEvents(parsed.spins, currentTime), [parsed.spins, currentTime])
+  const nearbyHits = useMemo(() => getNearbyEvents(effectiveHits, currentTime), [effectiveHits, currentTime])
+  const nearbyDrags = useMemo(() => getNearbyEvents(effectiveDrags, currentTime), [effectiveDrags, currentTime])
+  const nearbySpins = useMemo(() => getNearbyEvents(effectiveSpins, currentTime), [effectiveSpins, currentTime])
 
   const currentEventIndex = useMemo(
-    () => getCurrentEventIndex(parsed.events, currentTime),
-    [parsed.events, currentTime]
+    () => getCurrentEventIndex(effectiveEvents, currentTime),
+    [effectiveEvents, currentTime]
   )
 
-  const currentEvent = currentEventIndex >= 0 ? parsed.events[currentEventIndex] : null
-  const currentEquation = currentEvent ? equationsByEventId[currentEvent.id] ?? DEFAULT_EQUATION : null
+  const currentEvent = currentEventIndex >= 0 ? effectiveEvents[currentEventIndex] : null
+  const currentBinding = currentEvent ? bindingsByEventId[currentEvent.id] : null
 
   const chartPosition = duration > 0 ? currentTime / duration : 0
   const estimatedChartTick = Math.round(chartPosition * parsed.maxTick)
@@ -506,10 +586,10 @@ export function BrowserTimelinePanel({
   const handleExport = () => {
     const fileBase = chartFileName.replace(/\.chart$/i, "")
     downloadEquationBindings(`${fileBase}.equations.json`, {
-      version: 1,
+      version: 2,
       chartFileName,
       chartSignature,
-      bindings: equationsByEventId,
+      bindings: bindingsByEventId,
     })
   }
 
@@ -517,13 +597,14 @@ export function BrowserTimelinePanel({
     try {
       const raw = await file.text()
       const parsedFile = JSON.parse(raw) as EquationBindingsFile
+
       if (!parsedFile.bindings || typeof parsedFile.bindings !== "object") return
 
       if (parsedFile.chartSignature !== chartSignature) {
         console.warn("Equation binding file does not match current chart signature.")
       }
 
-      setEquationsByEventId((prev) => ({
+      setBindingsByEventId((prev) => ({
         ...prev,
         ...parsedFile.bindings,
       }))
@@ -532,10 +613,21 @@ export function BrowserTimelinePanel({
     }
   }
 
-  const handleTypeChange = (nextType: ChartEventType) => {
+  const handleModeChange = (nextMode: EditorEventMode) => {
     if (!currentEvent) return
 
-    const nextChartText = updateChartEventType(chartText, currentEvent, nextType)
+    setBindingsByEventId((prev) => ({
+      ...prev,
+      [currentEvent.id]: {
+        equation: prev[currentEvent.id]?.equation ?? { ...DEFAULT_EQUATION },
+        visual: {
+          mode: nextMode,
+          hitAnchorSlot: prev[currentEvent.id]?.visual.hitAnchorSlot ?? "leftB",
+        },
+      },
+    }))
+
+    const nextChartText = updateChartEventMode(chartText, currentEvent, nextMode)
     if (nextChartText !== chartText) {
       onChartTextChange?.(nextChartText)
     }
@@ -587,16 +679,33 @@ export function BrowserTimelinePanel({
             padding: "16px",
           }}
         >
-          {currentEvent && currentEquation ? (
+          {currentEvent && currentBinding ? (
             <EventEquationEditor
-              value={currentEquation}
+              value={currentBinding.equation}
               onChange={(nextEquation) => {
-                setEquationsByEventId((prev) => ({
+                setBindingsByEventId((prev) => ({
                   ...prev,
-                  [currentEvent.id]: nextEquation,
+                  [currentEvent.id]: {
+                    equation: nextEquation,
+                    visual: prev[currentEvent.id]?.visual ?? getDefaultVisualForParsedEvent("hit"),
+                  },
                 }))
               }}
-              eventType={currentEvent.type}
+              eventVisual={currentBinding.visual}
+              onEventVisualChange={(nextVisual) => {
+                setBindingsByEventId((prev) => ({
+                  ...prev,
+                  [currentEvent.id]: {
+                    equation: prev[currentEvent.id]?.equation ?? { ...DEFAULT_EQUATION },
+                    visual: nextVisual,
+                  },
+                }))
+
+                const nextChartText = updateChartEventMode(chartText, currentEvent, nextVisual.mode)
+                if (nextChartText !== chartText) {
+                  onChartTextChange?.(nextChartText)
+                }
+              }}
             />
           ) : (
             <div
@@ -617,8 +726,8 @@ export function BrowserTimelinePanel({
 
         <div style={{ display: "flex" }}>
           <EventTypePalette
-            currentType={currentEvent?.type ?? null}
-            onSelectType={handleTypeChange}
+            currentMode={currentBinding?.visual.mode ?? null}
+            onSelectMode={handleModeChange}
           />
         </div>
       </div>
@@ -703,7 +812,7 @@ export function BrowserTimelinePanel({
         </div>
 
         <div style={{ fontSize: "14px", color: "#cbd5e1" }}>
-          Parsed events: {parsed.events.length}
+          Parsed events: {effectiveEvents.length}
         </div>
 
         <div style={{ fontSize: "14px", color: "#cbd5e1" }}>

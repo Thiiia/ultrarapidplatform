@@ -3,6 +3,7 @@
 import Image from "next/image"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { EquationCircle } from "./EquationCircle"
+import type { EditorEventMode } from "./EventTypePalette"
 
 export type EquationValue = {
   leftA: string
@@ -12,18 +13,68 @@ export type EquationValue = {
   right: string
 }
 
+export type EquationSlot = "leftA" | "leftB" | "right"
+
+export type EventVisualBinding = {
+  mode: EditorEventMode
+  hitAnchorSlot: EquationSlot | null
+}
+
 type EventEquationEditorProps = {
   value: EquationValue
   onChange: (value: EquationValue) => void
-  eventType?: "hit" | "drag" | "spin" | null
+  eventVisual: EventVisualBinding
+  onEventVisualChange: (value: EventVisualBinding) => void
 }
 
 const OPERATOR_OPTIONS: Array<EquationValue["operatorA"]> = ["+", "-", "×", "÷"]
 
+function inferHitModeFromDrop(
+  relativeX: number,
+  relativeY: number
+): EditorEventMode {
+  if (Math.abs(relativeX) < 10) {
+    return "hit_vertical"
+  }
+
+  if (relativeX < 0) {
+    return "hit_diagonal_left"
+  }
+
+  return "hit_diagonal_right"
+}
+
+function getHitEllipseOffsets(mode: EditorEventMode, circleSize: number) {
+  const verticalY = circleSize * 0.78
+  const diagonalX = circleSize * 0.72
+  const diagonalY = circleSize * 0.62
+
+  switch (mode) {
+    case "hit_vertical":
+      return [
+        { x: 0, y: -verticalY },
+        { x: 0, y: verticalY },
+      ]
+    case "hit_diagonal_left":
+      return [
+        { x: -diagonalX, y: -diagonalY },
+        { x: diagonalX, y: diagonalY },
+      ]
+    case "hit_diagonal_right":
+      return [
+        { x: diagonalX, y: -diagonalY },
+        { x: -diagonalX, y: diagonalY },
+      ]
+    default:
+      return []
+  }
+}
+
 export function EventEquationEditor({
   value,
   onChange,
-  eventType = null,
+  eventVisual,
+  onEventVisualChange,
 }: EventEquationEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [circleSize, setCircleSize] = useState(56)
@@ -65,12 +116,77 @@ export function EventEquationEditor({
     })
   }
 
-  const handleDropOnSlot = (slot: "leftA" | "leftB" | "right", droppedValue: string) => {
-    update(slot, droppedValue)
+  const handleDropOnSlot = (
+    slot: EquationSlot,
+    event: React.DragEvent<HTMLDivElement>
+  ) => {
+    event.preventDefault()
+
+    const equationBlock =
+      event.dataTransfer.getData("application/x-equation-block") ||
+      event.dataTransfer.getData("text/plain")
+
+    const hitEllipse = event.dataTransfer.getData("application/x-hit-ellipse")
+
+    if (hitEllipse) {
+      const rect = event.currentTarget.getBoundingClientRect()
+      const centerX = rect.left + rect.width / 2
+      const centerY = rect.top + rect.height / 2
+
+      const relativeX = event.clientX - centerX
+      const relativeY = event.clientY - centerY
+
+      // We care about the 3 "upper" placements.
+      // If dropped low, we still infer left/right/vertical from x.
+      const nextMode = inferHitModeFromDrop(relativeX, relativeY)
+
+      onEventVisualChange({
+        mode: nextMode,
+        hitAnchorSlot: slot,
+      })
+      return
+    }
+
+    if (equationBlock) {
+      update(slot, equationBlock)
+    }
+  }
+
+  const renderHitEllipses = (slot: EquationSlot) => {
+    const isHitMode =
+      eventVisual.mode === "hit_vertical" ||
+      eventVisual.mode === "hit_diagonal_left" ||
+      eventVisual.mode === "hit_diagonal_right"
+
+    if (!isHitMode || eventVisual.hitAnchorSlot !== slot) return null
+
+    const markerSize = Math.round(circleSize * 0.62)
+    const offsets = getHitEllipseOffsets(eventVisual.mode, circleSize)
+
+    return offsets.map((offset, index) => (
+      <Image
+        key={`${slot}-${eventVisual.mode}-${index}`}
+        src="/images/hit-ellipse.png"
+        alt="Hit ellipse marker"
+        width={markerSize}
+        height={markerSize}
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: `${markerSize}px`,
+          height: `${markerSize}px`,
+          transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
+          zIndex: 1,
+          pointerEvents: "none",
+          userSelect: "none",
+        }}
+      />
+    ))
   }
 
   const renderDroppableCircle = (
-    slot: "leftA" | "leftB" | "right",
+    slot: EquationSlot,
     currentValue: string,
     placeholder: string
   ) => {
@@ -80,16 +196,7 @@ export function EventEquationEditor({
           event.preventDefault()
           event.dataTransfer.dropEffect = "copy"
         }}
-        onDrop={(event) => {
-          event.preventDefault()
-          const droppedValue =
-            event.dataTransfer.getData("application/x-equation-block") ||
-            event.dataTransfer.getData("text/plain")
-
-          if (droppedValue) {
-            handleDropOnSlot(slot, droppedValue)
-          }
-        }}
+        onDrop={(event) => handleDropOnSlot(slot, event)}
         style={{
           display: "flex",
           alignItems: "center",
@@ -98,14 +205,20 @@ export function EventEquationEditor({
           outline: "2px dashed transparent",
           position: "relative",
           zIndex: 2,
+          minWidth: `${circleSize}px`,
+          minHeight: `${circleSize}px`,
         }}
       >
-        <EquationCircle
-          value={currentValue}
-          onChange={(next) => update(slot, next)}
-          placeholder={placeholder}
-          size={circleSize}
-        />
+        {renderHitEllipses(slot)}
+
+        <div style={{ position: "relative", zIndex: 3 }}>
+          <EquationCircle
+            value={currentValue}
+            onChange={(next) => update(slot, next)}
+            placeholder={placeholder}
+            size={circleSize}
+          />
+        </div>
       </div>
     )
   }
@@ -142,7 +255,7 @@ export function EventEquationEditor({
             color: "#cbd5e1",
           }}
         >
-          Drag blocks from the left or type directly into the circles.
+          Drag number blocks onto circles. Drag the ellipse marker onto a circle to set the hit layout.
         </p>
       </div>
 
@@ -165,7 +278,7 @@ export function EventEquationEditor({
             alignItems: "center",
             justifyContent: "center",
             gap: "14px",
-            padding: "18px 16px 48px 16px",
+            padding: "28px 20px 56px 20px",
             minWidth: "max-content",
           }}
         >
@@ -190,7 +303,7 @@ export function EventEquationEditor({
               minWidth: "24px",
               cursor: "pointer",
               position: "relative",
-              zIndex: 2,
+              zIndex: 3,
             }}
           >
             {OPERATOR_OPTIONS.map((option) => (
@@ -209,7 +322,7 @@ export function EventEquationEditor({
               zIndex: 2,
             }}
           >
-            {eventType === "drag" && (
+            {eventVisual.mode === "drag" && (
               <Image
                 src="/images/drag-arc.png"
                 alt="Drag arc"
@@ -240,7 +353,7 @@ export function EventEquationEditor({
               display: "inline-block",
               color: "#FFFFFF",
               position: "relative",
-              zIndex: 2,
+              zIndex: 3,
             }}
           >
             {value.equals}
