@@ -456,37 +456,35 @@ export function BrowserTimelinePanel({
       <div>
         <h2 className="text-lg font-semibold">Timeline Panel</h2>
         <p className="text-sm text-gray-500">
-          Each parsed chart event gets an equation. The viewing window is responsive, and the circles resize based on the equation editor width.
+          Each parsed chart event gets an equation. The layout is centered, responsive, and keeps the equation row horizontal.
         </p>
       </div>
 
       <div
-        className="rounded-2xl border bg-white overflow-hidden mx-auto w-full"
+        className="mx-auto w-full overflow-hidden"
         style={{
-          maxWidth: "1400px",
-          height: "clamp(620px, 62vw, 880px)",
+          maxWidth: "1200px",
+          height: "clamp(260px, 32vw, 420px)",
         }}
       >
-        <div className="h-full w-full p-6 md:p-8">
-          {currentEvent ? (
-            <EventEquationEditor
-              value={currentEvent.equation}
-              onChange={(nextEquation) => {
-                setEditableEvents((prev) =>
-                  prev.map((event, index) =>
-                    index === currentEventIndex
-                      ? { ...event, equation: nextEquation }
-                      : event
-                  )
+        {currentEvent ? (
+          <EventEquationEditor
+            value={currentEvent.equation}
+            onChange={(nextEquation) => {
+              setEditableEvents((prev) =>
+                prev.map((event, index) =>
+                  index === currentEventIndex
+                    ? { ...event, equation: nextEquation }
+                    : event
                 )
-              }}
-            />
-          ) : (
-            <div className="h-full w-full flex items-center justify-center text-sm text-gray-500">
-              No event is currently available at this chart position.
-            </div>
-          )}
-        </div>
+              )
+            }}
+          />
+        ) : (
+          <div className="h-full w-full flex items-center justify-center text-sm text-gray-500">
+            No event is currently available at this chart position.
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">

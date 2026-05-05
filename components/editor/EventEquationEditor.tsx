@@ -23,14 +23,37 @@ export function EventEquationEditor({
   onChange,
 }: EventEquationEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const [circleSize, setCircleSize] = useState(140)
+  const [circleSize, setCircleSize] = useState(96)
 
-useEffect(() => {
-  setCircleSize(140)
-}, [])
+  useEffect(() => {
+    const element = containerRef.current
+    if (!element) return
 
-  const operatorFontSize = useMemo(() => Math.max(32, circleSize * 0.28), [circleSize])
-  const equalsFontSize = useMemo(() => Math.max(40, circleSize * 0.34), [circleSize])
+    const updateSize = () => {
+      const width = element.clientWidth
+      const next = Math.max(72, Math.min(width * 0.09, 120))
+      setCircleSize(next)
+    }
+
+    updateSize()
+
+    const observer = new ResizeObserver(() => {
+      updateSize()
+    })
+
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+
+  const operatorFontSize = useMemo(
+    () => Math.max(26, Math.min(circleSize * 0.42, 42)),
+    [circleSize]
+  )
+
+  const equalsFontSize = useMemo(
+    () => Math.max(30, Math.min(circleSize * 0.5, 48)),
+    [circleSize]
+  )
 
   const update = <K extends keyof EquationValue>(key: K, nextValue: EquationValue[K]) => {
     onChange({
@@ -40,7 +63,7 @@ useEffect(() => {
   }
 
   return (
-    <div ref={containerRef} className="h-full w-full rounded-2xl border p-8 space-y-6 bg-white">
+    <div ref={containerRef} className="h-full w-full flex flex-col justify-center gap-6">
       <div>
         <h3 className="text-2xl font-semibold">Event Equation</h3>
         <p className="text-base text-gray-500">
@@ -48,8 +71,8 @@ useEffect(() => {
         </p>
       </div>
 
-      <div className="h-[calc(100%-110px)] flex flex-col items-center justify-center gap-8">
-        <div className="flex flex-wrap items-center justify-center gap-8">
+      <div className="flex-1 flex items-center justify-center overflow-x-auto">
+        <div className="flex flex-nowrap items-center justify-center gap-4 px-4">
           <EquationCircle
             value={value.leftA}
             onChange={(next) => update("leftA", next)}
@@ -60,11 +83,12 @@ useEffect(() => {
           <select
             value={value.operatorA}
             onChange={(e) => update("operatorA", e.target.value as EquationValue["operatorA"])}
-            className="rounded border px-4 py-3 font-bold bg-transparent"
+            className="bg-transparent border-none outline-none appearance-none text-center"
             style={{
               fontFamily: "var(--font-grandstander)",
               fontWeight: 700,
               fontSize: `${operatorFontSize}px`,
+              lineHeight: 1,
             }}
           >
             {OPERATOR_OPTIONS.map((option) => (
@@ -82,11 +106,11 @@ useEffect(() => {
           />
 
           <span
-            className="font-bold"
             style={{
               fontFamily: "var(--font-grandstander)",
               fontWeight: 700,
               fontSize: `${equalsFontSize}px`,
+              lineHeight: 1,
             }}
           >
             {value.equals}
@@ -99,13 +123,13 @@ useEffect(() => {
             size={circleSize}
           />
         </div>
+      </div>
 
-        <div className="rounded-xl bg-black/5 p-4 text-lg text-gray-600">
-          Current equation:{" "}
-          <span className="font-medium">
-            {value.leftA} {value.operatorA} {value.leftB} {value.equals} {value.right}
-          </span>
-        </div>
+      <div className="text-base text-gray-600">
+        Current equation:{" "}
+        <span className="font-medium">
+          {value.leftA} {value.operatorA} {value.leftB} {value.equals} {value.right}
+        </span>
       </div>
     </div>
   )

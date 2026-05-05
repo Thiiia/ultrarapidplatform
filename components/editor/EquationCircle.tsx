@@ -14,19 +14,18 @@ type EquationCircleProps = {
 
 function getFontSize(value: string, size: number) {
   const length = value.trim().length
-  const base = size * 0.6
 
-  if (length <= 1) return base
-  if (length === 2) return size * 0.48
-  if (length === 3) return size * 0.4
-  return size * 0.32
+  if (length <= 1) return size * 0.42
+  if (length === 2) return size * 0.34
+  if (length === 3) return size * 0.28
+  return size * 0.22
 }
 
 export function EquationCircle({
   value = "",
   onChange,
   placeholder = "",
-  size = 180,
+  size = 110,
   readOnly = false,
   imageSrc = "/images/equation-circle.png",
 }: EquationCircleProps) {
@@ -49,9 +48,8 @@ export function EquationCircle({
     <div
       className="relative shrink-0"
       style={{
-        width: size,
-        height: size,
-        outline: "2px solid red",
+        width: `${size}px`,
+        height: `${size}px`,
       }}
     >
       <Image
@@ -59,7 +57,7 @@ export function EquationCircle({
         alt="Equation circle"
         width={size}
         height={size}
-        className="absolute inset-0 object-contain pointer-events-none select-none"
+        className="absolute inset-0 h-full w-full object-contain pointer-events-none select-none"
       />
 
       <div className="absolute inset-0 flex items-center justify-center">
@@ -71,7 +69,7 @@ export function EquationCircle({
               fontWeight: 700,
               fontSize: `${fontSize}px`,
               color: "#FFFFFF",
-              width: "78%",
+              width: "70%",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -91,7 +89,7 @@ export function EquationCircle({
               fontWeight: 700,
               fontSize: `${fontSize}px`,
               color: "#FFFFFF",
-              width: "78%",
+              width: "70%",
               lineHeight: 1,
               caretColor: "#FFFFFF",
             }}
