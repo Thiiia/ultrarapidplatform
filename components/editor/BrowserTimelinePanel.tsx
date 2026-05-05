@@ -220,11 +220,12 @@ function parseChartData(chartText: string): ParsedChartData {
         color,
       }
     })
-    .filter((event) =>
-      Number.isFinite(event.tick) &&
-      Number.isFinite(event.lane) &&
-      Number.isFinite(event.length) &&
-      Number.isFinite(event.seconds)
+    .filter(
+      (event) =>
+        Number.isFinite(event.tick) &&
+        Number.isFinite(event.lane) &&
+        Number.isFinite(event.length) &&
+        Number.isFinite(event.seconds)
     )
     .sort((a, b) => a.seconds - b.seconds)
 
@@ -325,8 +326,7 @@ function updateChartEventType(
     return chartText
   }
 
-  const currentLength = event.length
-  const nextLength = nextType === "hit" ? 0 : currentLength > 0 ? currentLength : 240
+  const nextLength = nextType === "hit" ? 0 : event.length > 0 ? event.length : 240
 
   const escapedTick = String(event.tick).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   const escapedLane = String(event.lane).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -350,13 +350,33 @@ function HorizontalDotPanel({
   dotClassName: string
 }) {
   return (
-    <div style={{ borderRadius: "16px", border: "1px solid #334155", padding: "16px", background: "#1e293b", display: "flex", flexDirection: "column", gap: "12px" }}>
+    <div
+      style={{
+        borderRadius: "16px",
+        border: "1px solid #334155",
+        padding: "16px",
+        background: "#1e293b",
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+      }}
+    >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#FFFFFF" }}>{title}</h3>
+        <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#FFFFFF" }}>
+          {title}
+        </h3>
         <p style={{ margin: 0, fontSize: "14px", color: "#cbd5e1" }}>Count: {events.length}</p>
       </div>
 
-      <div style={{ borderRadius: "12px", border: "1px solid #334155", background: "#0f172a", padding: "12px", minHeight: "56px" }}>
+      <div
+        style={{
+          borderRadius: "12px",
+          border: "1px solid #334155",
+          background: "#0f172a",
+          padding: "12px",
+          minHeight: "56px",
+        }}
+      >
         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
           {events.length === 0 ? (
             <div style={{ fontSize: "14px", color: "#94a3b8" }}>No nearby events.</div>
@@ -366,7 +386,12 @@ function HorizontalDotPanel({
                 key={`${title}-${event.tick}-${event.lane}-${index}`}
                 title={`${event.label} • ${formatTime(event.seconds)} • tick ${event.tick} • lane ${laneLabel(event.lane)}`}
                 className={dotClassName}
-                style={{ width: "12px", height: "12px", borderRadius: "9999px", flexShrink: 0 }}
+                style={{
+                  width: "12px",
+                  height: "12px",
+                  borderRadius: "9999px",
+                  flexShrink: 0,
+                }}
               />
             ))
           )}
@@ -453,6 +478,7 @@ export function BrowserTimelinePanel({
   const handlePlayPause = async () => {
     const audio = audioRef.current
     if (!audio) return
+
     if (audio.paused) {
       await audio.play()
       setIsPlaying(true)
@@ -466,7 +492,11 @@ export function BrowserTimelinePanel({
   const nearbyDrags = useMemo(() => getNearbyEvents(parsed.drags, currentTime), [parsed.drags, currentTime])
   const nearbySpins = useMemo(() => getNearbyEvents(parsed.spins, currentTime), [parsed.spins, currentTime])
 
-  const currentEventIndex = useMemo(() => getCurrentEventIndex(parsed.events, currentTime), [parsed.events, currentTime])
+  const currentEventIndex = useMemo(
+    () => getCurrentEventIndex(parsed.events, currentTime),
+    [parsed.events, currentTime]
+  )
+
   const currentEvent = currentEventIndex >= 0 ? parsed.events[currentEventIndex] : null
   const currentEquation = currentEvent ? equationsByEventId[currentEvent.id] ?? DEFAULT_EQUATION : null
 
@@ -512,7 +542,18 @@ export function BrowserTimelinePanel({
   }
 
   return (
-    <div style={{ borderRadius: "24px", border: "1px solid #334155", padding: "16px", display: "flex", flexDirection: "column", gap: "16px", background: "#111827", color: "#FFFFFF" }}>
+    <div
+      style={{
+        borderRadius: "24px",
+        border: "1px solid #334155",
+        padding: "16px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
+        background: "#111827",
+        color: "#FFFFFF",
+      }}
+    >
       <div>
         <h2 style={{ margin: 0, fontSize: "20px", fontWeight: 700, color: "#FFFFFF" }}>
           Timeline Panel
@@ -526,16 +567,26 @@ export function BrowserTimelinePanel({
         style={{
           display: "grid",
           gridTemplateColumns: "220px 1fr 220px",
-          gap: "16px",
+          gap: "10px",
           alignItems: "stretch",
           width: "100%",
           maxWidth: "1440px",
           margin: "0 auto",
         }}
       >
-        <EquationBlockPalette />
+        <div style={{ display: "flex" }}>
+          <EquationBlockPalette />
+        </div>
 
-        <div style={{ width: "100%", minHeight: "280px", background: "#1f2937", borderRadius: "20px", padding: "16px" }}>
+        <div
+          style={{
+            width: "100%",
+            minHeight: "280px",
+            background: "#1f2937",
+            borderRadius: "20px",
+            padding: "16px",
+          }}
+        >
           {currentEvent && currentEquation ? (
             <EventEquationEditor
               value={currentEquation}
@@ -545,21 +596,45 @@ export function BrowserTimelinePanel({
                   [currentEvent.id]: nextEquation,
                 }))
               }}
+              eventType={currentEvent.type}
             />
           ) : (
-            <div style={{ height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", color: "#cbd5e1" }}>
+            <div
+              style={{
+                height: "100%",
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "14px",
+                color: "#cbd5e1",
+              }}
+            >
               No event is currently available at this chart position.
             </div>
           )}
         </div>
 
-        <EventTypePalette
-          currentType={currentEvent?.type ?? null}
-          onSelectType={handleTypeChange}
-        />
+        <div style={{ display: "flex" }}>
+          <EventTypePalette
+            currentType={currentEvent?.type ?? null}
+            onSelectType={handleTypeChange}
+          />
+        </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", color: "#FFFFFF", width: "100%", maxWidth: "1440px", margin: "0 auto" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap",
+          color: "#FFFFFF",
+          width: "100%",
+          maxWidth: "1440px",
+          margin: "0 auto",
+        }}
+      >
         <button
           type="button"
           onClick={handlePlayPause}
@@ -665,7 +740,16 @@ export function BrowserTimelinePanel({
         />
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%", maxWidth: "1440px", margin: "0 auto" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          width: "100%",
+          maxWidth: "1440px",
+          margin: "0 auto",
+        }}
+      >
         <HorizontalDotPanel title="Hits" events={nearbyHits} dotClassName="bg-purple-600" />
         <HorizontalDotPanel title="Drags" events={nearbyDrags} dotClassName="bg-red-600" />
         <HorizontalDotPanel title="Spins" events={nearbySpins} dotClassName="bg-gray-400" />

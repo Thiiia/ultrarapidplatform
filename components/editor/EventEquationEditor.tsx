@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { EquationCircle } from "./EquationCircle"
 
@@ -14,6 +15,7 @@ export type EquationValue = {
 type EventEquationEditorProps = {
   value: EquationValue
   onChange: (value: EquationValue) => void
+  eventType?: "hit" | "drag" | "spin" | null
 }
 
 const OPERATOR_OPTIONS: Array<EquationValue["operatorA"]> = ["+", "-", "×", "÷"]
@@ -21,6 +23,7 @@ const OPERATOR_OPTIONS: Array<EquationValue["operatorA"]> = ["+", "-", "×", "÷
 export function EventEquationEditor({
   value,
   onChange,
+  eventType = null,
 }: EventEquationEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [circleSize, setCircleSize] = useState(56)
@@ -93,6 +96,8 @@ export function EventEquationEditor({
           justifyContent: "center",
           borderRadius: "9999px",
           outline: "2px dashed transparent",
+          position: "relative",
+          zIndex: 2,
         }}
       >
         <EquationCircle
@@ -153,13 +158,14 @@ export function EventEquationEditor({
       >
         <div
           style={{
+            position: "relative",
             display: "flex",
             flexDirection: "row",
             flexWrap: "nowrap",
             alignItems: "center",
             justifyContent: "center",
             gap: "14px",
-            padding: "0 16px",
+            padding: "18px 16px 48px 16px",
             minWidth: "max-content",
           }}
         >
@@ -183,6 +189,8 @@ export function EventEquationEditor({
               margin: 0,
               minWidth: "24px",
               cursor: "pointer",
+              position: "relative",
+              zIndex: 2,
             }}
           >
             {OPERATOR_OPTIONS.map((option) => (
@@ -192,7 +200,36 @@ export function EventEquationEditor({
             ))}
           </select>
 
-          {renderDroppableCircle("leftB", value.leftB, "2")}
+          <div
+            style={{
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2,
+            }}
+          >
+            {eventType === "drag" && (
+              <Image
+                src="/images/drag-arc.png"
+                alt="Drag arc"
+                width={Math.round(circleSize * 4.25)}
+                height={Math.round(circleSize * 2.45)}
+                style={{
+                  position: "absolute",
+                  left: `${circleSize * 0.12}px`,
+                  top: `${circleSize * 0.52}px`,
+                  width: `${circleSize * 4.25}px`,
+                  height: "auto",
+                  zIndex: 0,
+                  pointerEvents: "none",
+                  userSelect: "none",
+                }}
+              />
+            )}
+
+            {renderDroppableCircle("leftB", value.leftB, "2")}
+          </div>
 
           <span
             style={{
@@ -202,6 +239,8 @@ export function EventEquationEditor({
               lineHeight: 1,
               display: "inline-block",
               color: "#FFFFFF",
+              position: "relative",
+              zIndex: 2,
             }}
           >
             {value.equals}
