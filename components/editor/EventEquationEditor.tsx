@@ -23,28 +23,11 @@ export function EventEquationEditor({
   onChange,
 }: EventEquationEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const [circleSize, setCircleSize] = useState(180)
+  const [circleSize, setCircleSize] = useState(140)
 
-  useEffect(() => {
-    const element = containerRef.current
-    if (!element) return
-
-    const updateSize = () => {
-      const width = element.clientWidth
-      const next = Math.max(100, Math.min(width * 0.13, 220))
-      setCircleSize(next)
-    }
-
-    updateSize()
-
-    const observer = new ResizeObserver(() => {
-      updateSize()
-    })
-
-    observer.observe(element)
-
-    return () => observer.disconnect()
-  }, [])
+useEffect(() => {
+  setCircleSize(140)
+}, [])
 
   const operatorFontSize = useMemo(() => Math.max(32, circleSize * 0.28), [circleSize])
   const equalsFontSize = useMemo(() => Math.max(40, circleSize * 0.34), [circleSize])

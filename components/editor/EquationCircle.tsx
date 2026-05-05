@@ -26,7 +26,7 @@ export function EquationCircle({
   value = "",
   onChange,
   placeholder = "",
-  size = 200,
+  size = 180,
   readOnly = false,
   imageSrc = "/images/equation-circle.png",
 }: EquationCircleProps) {
@@ -49,15 +49,17 @@ export function EquationCircle({
     <div
       className="relative shrink-0"
       style={{
-        width: `${size}px`,
-        height: `${size}px`,
+        width: size,
+        height: size,
+        outline: "2px solid red",
       }}
     >
       <Image
         src={imageSrc}
         alt="Equation circle"
-        fill
-        className="object-contain pointer-events-none select-none"
+        width={size}
+        height={size}
+        className="absolute inset-0 object-contain pointer-events-none select-none"
       />
 
       <div className="absolute inset-0 flex items-center justify-center">
