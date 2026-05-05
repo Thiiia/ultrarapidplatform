@@ -15,17 +15,17 @@ type EquationCircleProps = {
 function getFontSize(value: string, size: number) {
   const length = value.trim().length
 
-  if (length <= 1) return size * 0.38
-  if (length === 2) return size * 0.28
-  if (length === 3) return size * 0.22
-  return size * 0.18
+  if (length <= 1) return Math.max(14, size * 0.34)
+  if (length === 2) return Math.max(12, size * 0.28)
+  if (length === 3) return Math.max(10, size * 0.22)
+  return Math.max(9, size * 0.18)
 }
 
 export function EquationCircle({
   value = "",
   onChange,
   placeholder = "",
-  size = 36,
+  size = 34,
   readOnly = false,
   imageSrc = "/images/equation-circle.png",
 }: EquationCircleProps) {
@@ -46,10 +46,13 @@ export function EquationCircle({
 
   return (
     <div
-      className="relative shrink-0"
       style={{
+        position: "relative",
         width: `${size}px`,
         height: `${size}px`,
+        minWidth: `${size}px`,
+        minHeight: `${size}px`,
+        flex: "0 0 auto",
       }}
     >
       <Image
@@ -57,23 +60,44 @@ export function EquationCircle({
         alt="Equation circle"
         width={size}
         height={size}
-        className="absolute inset-0 z-0 h-full w-full object-contain pointer-events-none select-none"
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          pointerEvents: "none",
+          userSelect: "none",
+          zIndex: 0,
+        }}
       />
 
-      <div className="absolute inset-0 z-10 flex items-center justify-center">
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 2,
+        }}
+      >
         {readOnly ? (
           <span
-            className="text-center leading-none select-none"
             style={{
               fontFamily: "var(--font-grandstander)",
               fontWeight: 700,
               fontSize: `${fontSize}px`,
               color: "#FFFFFF",
-              width: "70%",
-              textShadow: "0 0 4px rgba(0,0,0,0.45)",
+              WebkitTextFillColor: "#FFFFFF",
+              textShadow: "0 0 3px rgba(0,0,0,0.65)",
+              width: "68%",
+              textAlign: "center",
+              lineHeight: 1,
+              whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              display: "block",
             }}
           >
             {displayValue}
@@ -84,23 +108,28 @@ export function EquationCircle({
             value={internalValue}
             onChange={(e) => handleChange(e.target.value)}
             placeholder={placeholder}
-            className="relative z-10 block bg-transparent border-none outline-none text-center"
+            autoComplete="off"
+            spellCheck={false}
             style={{
+              display: "block",
+              width: "68%",
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              textAlign: "center",
               fontFamily: "var(--font-grandstander)",
               fontWeight: 700,
               fontSize: `${fontSize}px`,
               color: "#FFFFFF",
               WebkitTextFillColor: "#FFFFFF",
-              textShadow: "0 0 4px rgba(0,0,0,0.45)",
-              width: "70%",
+              textShadow: "0 0 3px rgba(0,0,0,0.65)",
               lineHeight: 1,
               caretColor: "#FFFFFF",
-              backgroundColor: "transparent",
               padding: 0,
               margin: 0,
+              position: "relative",
+              zIndex: 3,
             }}
-            autoComplete="off"
-            spellCheck={false}
           />
         )}
       </div>
