@@ -51,45 +51,77 @@ export function EventTypePalette({
             color: "#cbd5e1",
           }}
         >
-          Drag the ellipse onto a circle for hit layouts. Use buttons for drag/spin.
+          Drag only the ellipse onto a circle for hit layouts. Use buttons for drag/spin.
         </p>
       </div>
 
       <div
-        draggable
-        onDragStart={(event) => {
-          event.dataTransfer.setData("application/x-hit-ellipse", "hit-ellipse")
-          event.dataTransfer.effectAllowed = "copy"
-        }}
         style={{
           borderRadius: "16px",
           border: "1px solid #475569",
           background: "#111827",
           padding: "14px",
-          cursor: "grab",
           display: "flex",
           flexDirection: "column",
           gap: "10px",
           alignItems: "center",
           textAlign: "center",
+          userSelect: "none",
         }}
       >
-        <Image
-          src="/images/hit-ellipse.png"
-          alt="Hit ellipse"
-          width={48}
-          height={48}
-          style={{
-            width: "48px",
-            height: "48px",
-            objectFit: "contain",
-            pointerEvents: "none",
-            userSelect: "none",
+        <div
+          draggable
+          onDragStart={(event) => {
+            event.stopPropagation()
+            event.dataTransfer.setData("application/x-hit-ellipse", "hit-ellipse")
+            event.dataTransfer.effectAllowed = "copy"
+
+            const dragGhost = document.createElement("img")
+            dragGhost.src = "/images/hit-ellipse.png"
+            dragGhost.width = 40
+            dragGhost.height = 40
+            dragGhost.style.pointerEvents = "none"
+            dragGhost.style.position = "absolute"
+            dragGhost.style.top = "-9999px"
+            document.body.appendChild(dragGhost)
+
+            event.dataTransfer.setDragImage(dragGhost, 20, 20)
+
+            window.setTimeout(() => {
+              document.body.removeChild(dragGhost)
+            }, 0)
           }}
-        />
+          onDragEnd={(event) => {
+            event.stopPropagation()
+          }}
+          style={{
+            width: "56px",
+            height: "56px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "grab",
+          }}
+        >
+          <Image
+            src="/images/hit-ellipse.png"
+            alt="Hit ellipse"
+            width={48}
+            height={48}
+            style={{
+              width: "48px",
+              height: "48px",
+              objectFit: "contain",
+              pointerEvents: "none",
+              userSelect: "none",
+            }}
+          />
+        </div>
+
         <div style={{ fontWeight: 700, color: "#FFFFFF", fontSize: "14px" }}>
           Hit Ellipse
         </div>
+
         <div style={{ fontSize: "12px", color: "#cbd5e1", lineHeight: 1.4 }}>
           Drop above a circle = Vertical hit
           <br />
