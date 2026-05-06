@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { SongLoader } from "./SongLoader"
-import { Timeline } from "./Timeline"
 import { InspectorPanel } from "./InspectorPanel"
 import { BrowserTimelinePanel } from "./BrowserTimelinePanel"
+import { Timeline } from "./Timeline"
 import { useEditorStore } from "@/lib/editor/editor-store"
 
 type EditorShellProps = {
@@ -43,7 +43,7 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
             onSongFileReady={(file) => {
               setSongFile(file)
             }}
-            onChartTextReady={(text, fileName) => {
+            onChartTextReady={({ text, fileName }) => {
               setChartText(text)
               setChartFileName(fileName)
             }}
@@ -67,7 +67,7 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
                 Lesson Builder
               </h1>
               <p style={{ marginTop: "8px", marginBottom: 0, fontSize: "14px", color: "#cbd5e1" }}>
-                Upload a song file and a .chart file to build and inspect the lesson in the browser.
+                Upload a song and a chart source, normalize to .chart, and edit events in the browser.
               </p>
             </div>
 
