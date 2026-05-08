@@ -33,14 +33,8 @@ const OPERATOR_OPTIONS: Array<EquationValue["operatorA"]> = ["+", "-", "×", "÷
 const SLOT_ORDER: EquationSlot[] = ["leftA", "leftB", "right"]
 
 function inferHitModeFromDrop(relativeX: number): EditorEventMode {
-  if (Math.abs(relativeX) < 10) {
-    return "hit_vertical"
-  }
-
-  if (relativeX < 0) {
-    return "hit_diagonal_left"
-  }
-
+  if (Math.abs(relativeX) < 10) return "hit_vertical"
+  if (relativeX < 0) return "hit_diagonal_left"
   return "hit_diagonal_right"
 }
 
@@ -70,16 +64,6 @@ function getHitEllipseOffsets(mode: EditorEventMode, circleSize: number) {
   }
 }
 
-function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
-  const dx = a.x - b.x
-  const dy = a.y - b.y
-  return Math.sqrt(dx * dx + dy * dy)
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max)
-}
-
 export function EventEquationEditor({
   value,
   onChange,
@@ -93,28 +77,25 @@ export function EventEquationEditor({
   const leftBRef = useRef<HTMLDivElement | null>(null)
   const rightRef = useRef<HTMLDivElement | null>(null)
 
-  const [circleSize, setCircleSize] = useState(56)
+  const [circleSize, setCircleSize] = useState(72)
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [slotCenters, setSlotCenters] = useState<Record<EquationSlot, { x: number; y: number }>>({
     leftA: { x: 0, y: 0 },
     leftB: { x: 0, y: 0 },
     right: { x: 0, y: 0 },
   })
-  const [isDraggingArcEnd, setIsDraggingArcEnd] = useState(false)
-  const [dragPointer, setDragPointer] = useState<{ x: number; y: number } | null>(null)
 
   const gradientId = useMemo(
     () => `drag-gradient-${Math.random().toString(36).slice(2)}`,
     []
   )
 
-  const slotRefs: Record<EquationSlot, React.RefObject<HTMLDivElement | null>> = {
-    leftA: leftARef,
-    leftB: leftBRef,
-    right: rightRef,
+  const update = <K extends keyof EquationValue>(key: K, nextValue: EquationValue[K]) => {
+    onChange({
+      ...value,
+      [key]: nextValue,
+    })
   }
-
-  const dragStartSlot = eventVisual.dragStartSlot ?? "leftB"
-  const dragEndSlot = eventVisual.dragEndSlot ?? "right"
 
   useEffect(() => {
     const element = containerRef.current
@@ -122,7 +103,7 @@ export function EventEquationEditor({
 
     const updateSize = () => {
       const width = element.clientWidth
-      const next = Math.max(52, Math.min(width * 0.06, 72))
+      const next = Math.max(60, Math.min(width * 0.075, 92))
       setCircleSize(next)
     }
 
@@ -144,16 +125,18 @@ export function EventEquationEditor({
       const wrapperRect = wrapper.getBoundingClientRect()
 
       const getCenter = (node: HTMLDivElement | null) => {
-        if (!node) {
-          return { x: 0, y: 0 }
-        }
-
+        if (!node) return { x: 0, y: 0 }
         const rect = node.getBoundingClientRect()
         return {
           x: rect.left - wrapperRect.left + rect.width / 2,
           y: rect.top - wrapperRect.top + rect.height / 2,
         }
       }
+
+      setCanvasSize({
+        width: wrapperRect.width,
+        height: wrapperRect.height,
+      })
 
       setSlotCenters({
         leftA: getCenter(leftARef.current),
@@ -182,72 +165,15 @@ export function EventEquationEditor({
     }
   }, [circleSize])
 
-  useEffect(() => {
-    if (!isDraggingArcEnd) return
-
-    const handlePointerMove = (event: PointerEvent) => {
-      const wrapper = equationAreaRef.current
-      if (!wrapper) return
-
-      const rect = wrapper.getBoundingClientRect()
-      const x = clamp(event.clientX - rect.left, 0, rect.width)
-      const y = clamp(event.clientY - rect.top, 0, rect.height)
-
-      setDragPointer({ x, y })
-    }
-
-    const handlePointerUp = () => {
-      const pointer = dragPointer
-      if (pointer) {
-        let nearestSlot: EquationSlot = SLOT_ORDER[0]
-        let nearestDistance = Number.POSITIVE_INFINITY
-
-        for (const slot of SLOT_ORDER) {
-          const center = slotCenters[slot]
-          const nextDistance = distance(pointer, center)
-          if (nextDistance < nearestDistance) {
-            nearestDistance = nextDistance
-            nearestSlot = slot
-          }
-        }
-
-        onEventVisualChange({
-          ...eventVisual,
-          mode: "drag",
-          dragStartSlot,
-          dragEndSlot: nearestSlot,
-        })
-      }
-
-      setIsDraggingArcEnd(false)
-      setDragPointer(null)
-    }
-
-    window.addEventListener("pointermove", handlePointerMove)
-    window.addEventListener("pointerup", handlePointerUp)
-
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove)
-      window.removeEventListener("pointerup", handlePointerUp)
-    }
-  }, [dragPointer, dragStartSlot, eventVisual, isDraggingArcEnd, onEventVisualChange, slotCenters])
-
   const operatorFontSize = useMemo(
-    () => Math.max(24, Math.min(circleSize * 0.72, 36)),
+    () => Math.max(24, Math.min(circleSize * 0.72, 38)),
     [circleSize]
   )
 
   const equalsFontSize = useMemo(
-    () => Math.max(26, Math.min(circleSize * 0.82, 40)),
+    () => Math.max(26, Math.min(circleSize * 0.82, 42)),
     [circleSize]
   )
-
-  const update = <K extends keyof EquationValue>(key: K, nextValue: EquationValue[K]) => {
-    onChange({
-      ...value,
-      [key]: nextValue,
-    })
-  }
 
   const handleDropOnSlot = (slot: EquationSlot, event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -275,6 +201,42 @@ export function EventEquationEditor({
     if (equationBlock) {
       update(slot, equationBlock)
     }
+  }
+
+  const handleDragSlotSelection = (slot: EquationSlot) => {
+    if (eventVisual.mode !== "drag") return
+
+    const currentStart = eventVisual.dragStartSlot ?? null
+    const currentEnd = eventVisual.dragEndSlot ?? null
+
+    if (!currentStart) {
+      onEventVisualChange({
+        ...eventVisual,
+        mode: "drag",
+        dragStartSlot: slot,
+        dragEndSlot: null,
+      })
+      return
+    }
+
+    if (currentStart && !currentEnd) {
+      if (slot === currentStart) return
+
+      onEventVisualChange({
+        ...eventVisual,
+        mode: "drag",
+        dragStartSlot: currentStart,
+        dragEndSlot: slot,
+      })
+      return
+    }
+
+    onEventVisualChange({
+      ...eventVisual,
+      mode: "drag",
+      dragStartSlot: slot,
+      dragEndSlot: null,
+    })
   }
 
   const renderHitEllipses = (slot: EquationSlot) => {
@@ -313,50 +275,41 @@ export function EventEquationEditor({
   const renderDroppableCircle = (
     slot: EquationSlot,
     currentValue: string,
-    placeholder: string
+    placeholder: string,
+    ref: React.RefObject<HTMLDivElement | null>
   ) => {
-    const isDragStart = eventVisual.mode === "drag" && dragStartSlot === slot
+    const isDragStart = eventVisual.mode === "drag" && eventVisual.dragStartSlot === slot
+    const isDragEnd = eventVisual.mode === "drag" && eventVisual.dragEndSlot === slot
 
     return (
       <div
-        ref={slotRefs[slot]}
+        ref={ref}
         onDragOver={(event) => {
           event.preventDefault()
           event.dataTransfer.dropEffect = "copy"
         }}
         onDrop={(event) => handleDropOnSlot(slot, event)}
-        onClick={() => {
-          if (eventVisual.mode !== "drag") return
-
-          onEventVisualChange({
-            ...eventVisual,
-            mode: "drag",
-            dragStartSlot: slot,
-            dragEndSlot:
-              eventVisual.dragEndSlot && eventVisual.dragEndSlot !== slot
-                ? eventVisual.dragEndSlot
-                : slot === "right"
-                  ? "leftB"
-                  : "right",
-          })
-        }}
+        onClick={() => handleDragSlotSelection(slot)}
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           borderRadius: "9999px",
-          outline: "2px dashed transparent",
           position: "relative",
-          zIndex: 3,
+          zIndex: 4,
           minWidth: `${circleSize}px`,
           minHeight: `${circleSize}px`,
           cursor: eventVisual.mode === "drag" ? "pointer" : "default",
-          boxShadow: isDragStart ? "0 0 0 3px rgba(239, 68, 68, 0.55)" : "none",
+          boxShadow: isDragStart
+            ? "0 0 0 3px rgba(239, 68, 68, 0.6)"
+            : isDragEnd
+              ? "0 0 0 3px rgba(255, 255, 255, 0.35)"
+              : "none",
         }}
       >
         {renderHitEllipses(slot)}
 
-        <div style={{ position: "relative", zIndex: 4 }}>
+        <div style={{ position: "relative", zIndex: 5 }}>
           <EquationCircle
             value={currentValue}
             onChange={(next) => update(slot, next)}
@@ -368,27 +321,52 @@ export function EventEquationEditor({
     )
   }
 
-  const currentDragStartCenter = slotCenters[dragStartSlot]
-  const currentDragEndCenter = dragPointer ?? slotCenters[dragEndSlot]
   const shouldRenderDrag =
     eventVisual.mode === "drag" &&
-    currentDragStartCenter.x > 0 &&
-    currentDragEndCenter.x > 0
+    !!eventVisual.dragStartSlot &&
+    !!eventVisual.dragEndSlot &&
+    eventVisual.dragStartSlot !== eventVisual.dragEndSlot
 
   const circleRadius = circleSize / 2
-  const dragStrokeWidth = Math.max(20, circleSize * 0.8)
+  const capRadius = circleRadius
+  const capYOffset = circleRadius * 0.9
 
-  const dragPath = shouldRenderDrag
-    ? (() => {
-        const startX = currentDragStartCenter.x
-        const startY = currentDragStartCenter.y + circleRadius * 0.45
-        const endX = currentDragEndCenter.x
-        const endY = currentDragEndCenter.y
-        const controlY = Math.max(startY, endY) + circleSize * 2.2
+  const dragGeometry = useMemo(() => {
+    if (!shouldRenderDrag) return null
 
-        return `M ${startX} ${startY} C ${startX} ${controlY}, ${endX} ${controlY}, ${endX} ${endY}`
-      })()
-    : null
+    const startSlot = eventVisual.dragStartSlot as EquationSlot
+    const endSlot = eventVisual.dragEndSlot as EquationSlot
+
+    const startCenter = slotCenters[startSlot]
+    const endCenter = slotCenters[endSlot]
+
+    if (!startCenter || !endCenter) return null
+
+    const startCap = {
+      x: startCenter.x,
+      y: startCenter.y + capYOffset,
+    }
+
+    const endCap = {
+      x: endCenter.x,
+      y: endCenter.y + capYOffset,
+    }
+
+    const span = Math.abs(endCap.x - startCap.x)
+    const depth = Math.max(circleSize * 2.2, span * 0.52)
+    const controlY = Math.max(startCap.y, endCap.y) + depth
+
+    const path = `M ${startCap.x} ${startCap.y}
+      C ${startCap.x} ${controlY},
+        ${endCap.x} ${controlY},
+        ${endCap.x} ${endCap.y}`
+
+    return {
+      startCap,
+      endCap,
+      path,
+    }
+  }, [shouldRenderDrag, eventVisual.dragStartSlot, eventVisual.dragEndSlot, slotCenters, capYOffset, circleSize])
 
   return (
     <div
@@ -422,7 +400,8 @@ export function EventEquationEditor({
             color: "#cbd5e1",
           }}
         >
-          Drag number blocks onto circles. Drag the ellipse marker onto a circle to set the hit layout. In drag mode, click a circle to choose the drag start, then drag the end cap onto any circle.
+          Drag number blocks onto circles. Drag the ellipse marker onto a circle for hit layouts.
+          In drag mode, click one circle for the start, then another for the end.
         </p>
       </div>
 
@@ -446,91 +425,75 @@ export function EventEquationEditor({
             alignItems: "center",
             justifyContent: "center",
             gap: "14px",
-            padding: "28px 20px 80px 20px",
+            padding: "28px 20px 120px 20px",
             minWidth: "max-content",
           }}
         >
-          {shouldRenderDrag && dragPath ? (
-            <>
-              <svg
-                width="100%"
-                height="100%"
-                viewBox={`0 0 ${Math.max(
-                  currentDragStartCenter.x,
-                  currentDragEndCenter.x,
-                  slotCenters.leftA.x,
-                  slotCenters.leftB.x,
-                  slotCenters.right.x
-                ) + circleSize} ${Math.max(
-                  currentDragStartCenter.y,
-                  currentDragEndCenter.y,
-                  slotCenters.leftA.y,
-                  slotCenters.leftB.y,
-                  slotCenters.right.y
-                ) + circleSize * 3}`}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  width: "100%",
-                  height: "100%",
-                  overflow: "visible",
-                  pointerEvents: "none",
-                  zIndex: 1,
-                }}
-              >
-                <defs>
-                  <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#ef4444" />
-                    <stop offset="35%" stopColor="#f59e0b" />
-                    <stop offset="65%" stopColor="#84cc16" />
-                    <stop offset="100%" stopColor="#6b7280" />
-                  </linearGradient>
-                </defs>
+          {dragGeometry && canvasSize.width > 0 && canvasSize.height > 0 ? (
+            <svg
+              width={canvasSize.width}
+              height={canvasSize.height}
+              viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                overflow: "visible",
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+            >
+              <defs>
+                <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#ef4444" />
+                  <stop offset="18%" stopColor="#f97316" />
+                  <stop offset="42%" stopColor="#eab308" />
+                  <stop offset="65%" stopColor="#bef264" />
+                  <stop offset="100%" stopColor="#4b5563" />
+                </linearGradient>
+              </defs>
 
-                <path
-                  d={dragPath}
-                  fill="none"
-                  stroke={`url(#${gradientId})`}
-                  strokeWidth={dragStrokeWidth}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity={0.72}
-                />
-              </svg>
-
-              <div
-                onPointerDown={(event) => {
-                  event.preventDefault()
-                  event.stopPropagation()
-                  setIsDraggingArcEnd(true)
-
-                  const wrapper = equationAreaRef.current
-                  if (!wrapper) return
-
-                  const rect = wrapper.getBoundingClientRect()
-                  setDragPointer({
-                    x: clamp(event.clientX - rect.left, 0, rect.width),
-                    y: clamp(event.clientY - rect.top, 0, rect.height),
-                  })
-                }}
-                style={{
-                  position: "absolute",
-                  left: currentDragEndCenter.x - circleRadius,
-                  top: currentDragEndCenter.y - circleRadius,
-                  width: circleSize,
-                  height: circleSize,
-                  borderRadius: "9999px",
-                  border: "2px solid rgba(255,255,255,0.52)",
-                  background: "rgba(31, 41, 55, 0.92)",
-                  boxShadow: "0 0 0 2px rgba(0,0,0,0.18)",
-                  zIndex: 2,
-                  cursor: isDraggingArcEnd ? "grabbing" : "grab",
-                }}
+              <path
+                d={dragGeometry.path}
+                fill="none"
+                stroke="rgba(255,255,255,0.06)"
+                strokeWidth={circleSize * 0.98}
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
-            </>
+
+              <path
+                d={dragGeometry.path}
+                fill="none"
+                stroke={`url(#${gradientId})`}
+                strokeWidth={circleSize * 0.88}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity={0.82}
+              />
+
+              <circle
+                cx={dragGeometry.startCap.x}
+                cy={dragGeometry.startCap.y}
+                r={capRadius}
+                fill="#2a2a2d"
+                stroke="rgba(255,255,255,0.28)"
+                strokeWidth="3"
+              />
+
+              <circle
+                cx={dragGeometry.endCap.x}
+                cy={dragGeometry.endCap.y}
+                r={capRadius}
+                fill="#2a2a2d"
+                stroke="rgba(255,255,255,0.28)"
+                strokeWidth="3"
+              />
+            </svg>
           ) : null}
 
-          {renderDroppableCircle("leftA", value.leftA, "X")}
+          {renderDroppableCircle("leftA", value.leftA, "X", leftARef)}
 
           <select
             value={value.operatorA}
@@ -551,7 +514,7 @@ export function EventEquationEditor({
               minWidth: "24px",
               cursor: "pointer",
               position: "relative",
-              zIndex: 4,
+              zIndex: 5,
             }}
           >
             {OPERATOR_OPTIONS.map((option) => (
@@ -561,7 +524,7 @@ export function EventEquationEditor({
             ))}
           </select>
 
-          {renderDroppableCircle("leftB", value.leftB, "2")}
+          {renderDroppableCircle("leftB", value.leftB, "2", leftBRef)}
 
           <span
             style={{
@@ -572,13 +535,13 @@ export function EventEquationEditor({
               display: "inline-block",
               color: "#FFFFFF",
               position: "relative",
-              zIndex: 4,
+              zIndex: 5,
             }}
           >
             {value.equals}
           </span>
 
-          {renderDroppableCircle("right", value.right, "7")}
+          {renderDroppableCircle("right", value.right, "7", rightRef)}
         </div>
       </div>
 
@@ -600,9 +563,9 @@ export function EventEquationEditor({
 
         {eventVisual.mode === "drag" ? (
           <div>
-            Drag route:{" "}
+            Drag selection:{" "}
             <span style={{ fontWeight: 600, color: "#FFFFFF" }}>
-              {dragStartSlot} → {dragEndSlot}
+              start = {eventVisual.dragStartSlot ?? "none"}, end = {eventVisual.dragEndSlot ?? "none"}
             </span>
           </div>
         ) : null}

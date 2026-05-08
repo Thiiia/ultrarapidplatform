@@ -201,16 +201,16 @@ function getDefaultVisualForParsedEvent(type: ChartEventType): EventVisualBindin
     return {
       mode: "drag",
       hitAnchorSlot: "leftB",
-      dragStartSlot: "leftB",
-      dragEndSlot: "right",
+      dragStartSlot: null,
+      dragEndSlot: null,
     }
   }
 
   return {
     mode: "hit_vertical",
     hitAnchorSlot: "leftB",
-    dragStartSlot: "leftB",
-    dragEndSlot: "right",
+    dragStartSlot: null,
+    dragEndSlot: null,
   }
 }
 
@@ -627,8 +627,10 @@ const handleModeChange = (nextMode: EditorEventMode) => {
       visual: {
         mode: nextMode,
         hitAnchorSlot: prev[currentEvent.id]?.visual.hitAnchorSlot ?? "leftB",
-        dragStartSlot: prev[currentEvent.id]?.visual.dragStartSlot ?? "leftB",
-        dragEndSlot: prev[currentEvent.id]?.visual.dragEndSlot ?? "right",
+        dragStartSlot:
+          prev[currentEvent.id]?.visual.dragStartSlot ?? null,
+        dragEndSlot:
+          prev[currentEvent.id]?.visual.dragEndSlot ?? null,
       },
     },
   }))
