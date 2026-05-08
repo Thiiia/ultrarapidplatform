@@ -11,6 +11,31 @@ type EditorShellProps = {
   chartFile?: string
 }
 
+function updateChartMusicStream(chartText: string, fileName: string) {
+  if (!chartText.trim() || !fileName.trim()) return chartText
+
+  const songSectionRegex = /\[Song\]\s*\{([\s\S]*?)\}/i
+  const songSectionMatch = chartText.match(songSectionRegex)
+  if (!songSectionMatch) return chartText
+
+  const songBody = songSectionMatch[1]
+
+  if (/MusicStream\s*=/.test(songBody)) {
+    return chartText.replace(
+      /MusicStream\s*=\s*"[^"]*"|MusicStream\s*=\s*[^\r\n]+/i,
+      `MusicStream = "${fileName}"`
+    )
+  }
+
+  const nextSongBody = `${songBody.trimEnd()}
+  MusicStream = "${fileName}"
+`
+
+  return chartText.replace(songSectionRegex, `[Song]
+{
+${nextSongBody}}`)
+}
+
 export function EditorShell({ chartFile = "" }: EditorShellProps) {
   const project = useEditorStore((s) => s.project)
 
@@ -42,9 +67,13 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
           <SongLoader
             onSongFileReady={(file) => {
               setSongFile(file)
+              setChartText((prev) => updateChartMusicStream(prev, file.name))
             }}
             onChartTextReady={({ text, fileName }) => {
-              setChartText(text)
+              const nextText = songFile
+                ? updateChartMusicStream(text, songFile.name)
+                : text
+              setChartText(nextText)
               setChartFileName(fileName)
             }}
           />
@@ -63,11 +92,26 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
             }}
           >
             <div>
-              <h1 style={{ margin: 0, fontSize: "20px", fontWeight: 700, color: "#FFFFFF" }}>
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: "20px",
+                  fontWeight: 700,
+                  color: "#FFFFFF",
+                }}
+              >
                 Lesson Builder
               </h1>
-              <p style={{ marginTop: "8px", marginBottom: 0, fontSize: "14px", color: "#cbd5e1" }}>
-                Upload a song and a chart source, normalize to .chart, and edit events in the browser.
+              <p
+                style={{
+                  marginTop: "8px",
+                  marginBottom: 0,
+                  fontSize: "14px",
+                  color: "#cbd5e1",
+                }}
+              >
+                Upload a song and a chart source, or start from a blank .chart
+                and build in the browser.
               </p>
             </div>
 
@@ -105,7 +149,14 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
                 background: "#111827",
               }}
             >
-              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#FFFFFF" }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: "18px",
+                  fontWeight: 700,
+                  color: "#FFFFFF",
+                }}
+              >
                 Current .chart File
               </h2>
               <div

@@ -3,6 +3,11 @@
 import { ChangeEvent, useRef, useState } from "react"
 
 type ChartSourceFormat = "chart" | "mid" | "eof"
+type BlankDifficultySection =
+  | "EasySingle"
+  | "MediumSingle"
+  | "HardSingle"
+  | "ExpertSingle"
 
 type SongLoaderProps = {
   onSongFileReady: (file: File) => void
@@ -47,6 +52,48 @@ function isConvertChartResponse(
   )
 }
 
+function createBlankChartText(options: {
+  songFileName?: string
+  bpm: number
+  difficultySection: BlankDifficultySection
+}) {
+  const safeBpm = Math.max(1, Math.round(options.bpm))
+  const bpmValue = safeBpm * 1000
+  const musicStream = options.songFileName || "song.ogg"
+
+  return `[Song]
+{
+  Name = "New Song"
+  Artist = "Unknown Artist"
+  Charter = "UltraRapid"
+  Album = "Unknown Album"
+  Year = "2025"
+  Offset = 0
+  Resolution = 192
+  Player2 = bass
+  Difficulty = 0
+  PreviewStart = 0
+  PreviewEnd = 0
+  Genre = "Unknown"
+  MediaType = "cd"
+  MusicStream = "${musicStream}"
+}
+
+[SyncTrack]
+{
+  0 = B ${bpmValue}
+}
+
+[Events]
+{
+}
+
+[${options.difficultySection}]
+{
+}
+`
+}
+
 export function SongLoader({
   onSongFileReady,
   onChartTextReady,
@@ -56,8 +103,13 @@ export function SongLoader({
 
   const [songName, setSongName] = useState("")
   const [chartName, setChartName] = useState("")
-  const [status, setStatus] = useState("Upload a song file and a chart source.")
+  const [status, setStatus] = useState(
+    "Upload a song file, upload a chart source, or create a blank chart."
+  )
   const [isConverting, setIsConverting] = useState(false)
+  const [blankBpm, setBlankBpm] = useState(120)
+  const [blankDifficultySection, setBlankDifficultySection] =
+    useState<BlankDifficultySection>("ExpertSingle")
 
   const handleSongButtonClick = () => {
     songInputRef.current?.click()
@@ -65,6 +117,28 @@ export function SongLoader({
 
   const handleChartButtonClick = () => {
     chartInputRef.current?.click()
+  }
+
+  const handleCreateBlankChart = () => {
+    const fileName = "blank.chart"
+    const text = createBlankChartText({
+      songFileName: songName || undefined,
+      bpm: blankBpm,
+      difficultySection: blankDifficultySection,
+    })
+
+    setChartName(fileName)
+    onChartTextReady({
+      text,
+      fileName,
+      sourceFormat: "chart",
+    })
+
+    setStatus(
+      songName
+        ? `Created "${fileName}" at ${blankBpm} BPM using ${blankDifficultySection}, linked to "${songName}".`
+        : `Created blank chart "${fileName}" at ${blankBpm} BPM using ${blankDifficultySection}. Now upload a song file if needed.`
+    )
   }
 
   const handleSongChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -83,7 +157,7 @@ export function SongLoader({
     setStatus(
       chartName
         ? `Loaded song "${file.name}" and chart "${chartName}".`
-        : `Loaded song "${file.name}". Now upload a .chart, .mid, .midi, or .eof file.`
+        : `Loaded song "${file.name}". Now upload a .chart, .mid, .midi, or .eof file, or create a blank chart.`
     )
 
     event.target.value = ""
@@ -209,7 +283,8 @@ export function SongLoader({
             color: "#cbd5e1",
           }}
         >
-          Upload an .mp3 or .ogg song and a .chart, .mid, .midi, or .eof chart source.
+          Upload an .mp3 or .ogg song, upload a .chart/.mid/.midi/.eof chart
+          source, or create a blank .chart.
         </p>
       </div>
 
@@ -253,6 +328,107 @@ export function SongLoader({
           {isConverting
             ? "Converting chart source..."
             : "Upload chart (.chart / .mid / .midi / .eof)"}
+        </button>
+      </div>
+
+      <div
+        style={{
+          borderRadius: "14px",
+          border: "1px solid #334155",
+          background: "#0f172a",
+          padding: "12px",
+          display: "grid",
+          gap: "10px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "13px",
+            fontWeight: 700,
+            color: "#FFFFFF",
+          }}
+        >
+          Create blank .chart
+        </div>
+
+        <label
+          style={{
+            display: "grid",
+            gap: "6px",
+            fontSize: "12px",
+            color: "#cbd5e1",
+          }}
+        >
+          BPM
+          <input
+            type="number"
+            min={1}
+            value={blankBpm}
+            onChange={(e) => setBlankBpm(Math.max(1, Number(e.target.value) || 1))}
+            style={{
+              borderRadius: "8px",
+              border: "1px solid #475569",
+              background: "#111827",
+              color: "#FFFFFF",
+              padding: "8px 10px",
+            }}
+          />
+        </label>
+
+        <label
+          style={{
+            display: "grid",
+            gap: "6px",
+            fontSize: "12px",
+            color: "#cbd5e1",
+          }}
+        >
+          Difficulty section
+          <select
+            value={blankDifficultySection}
+            onChange={(e) =>
+              setBlankDifficultySection(e.target.value as BlankDifficultySection)
+            }
+            style={{
+              borderRadius: "8px",
+              border: "1px solid #475569",
+              background: "#111827",
+              color: "#FFFFFF",
+              padding: "8px 10px",
+            }}
+          >
+            <option value="EasySingle">EasySingle</option>
+            <option value="MediumSingle">MediumSingle</option>
+            <option value="HardSingle">HardSingle</option>
+            <option value="ExpertSingle">ExpertSingle</option>
+          </select>
+        </label>
+
+        <div
+          style={{
+            fontSize: "12px",
+            color: "#94a3b8",
+          }}
+        >
+          MusicStream will use the uploaded song filename when available.
+        </div>
+
+        <button
+          type="button"
+          onClick={handleCreateBlankChart}
+          disabled={isConverting}
+          style={{
+            borderRadius: "10px",
+            border: "1px solid #475569",
+            background: "#1f2937",
+            color: "#FFFFFF",
+            padding: "10px 12px",
+            textAlign: "left",
+            cursor: isConverting ? "not-allowed" : "pointer",
+            opacity: isConverting ? 0.6 : 1,
+          }}
+        >
+          Create blank .chart
         </button>
       </div>
 

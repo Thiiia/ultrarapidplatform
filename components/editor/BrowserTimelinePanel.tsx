@@ -476,6 +476,25 @@ function removeChartEvent(chartText: string, tick: number, lane: number) {
   return chartText.replace(sectionRegex, `$1${normalizedBody}$3`)
 }
 
+function getRelativeLabels(events: EffectiveEvent[], activeEventId?: string | null) {
+  if (!events.length || !activeEventId) {
+    return events.map(() => "")
+  }
+
+  const activeIndex = events.findIndex((event) => event.id === activeEventId)
+  if (activeIndex === -1) {
+    return events.map(() => "")
+  }
+
+  return events.map((_, index) => {
+    const delta = index - activeIndex
+    if (delta === 0) return "0"
+    if (delta === -1) return "-1"
+    if (delta === 1) return "+1"
+    return ""
+  })
+}
+
 function HorizontalDotPanel({
   title,
   events,
@@ -489,6 +508,8 @@ function HorizontalDotPanel({
   activeEventId?: string | null
   onEventClick: (event: EffectiveEvent) => void
 }) {
+  const labels = getRelativeLabels(events, activeEventId)
+
   return (
     <div
       style={{
@@ -514,35 +535,58 @@ function HorizontalDotPanel({
           border: "1px solid #334155",
           background: "#0f172a",
           padding: "12px",
-          minHeight: "56px",
+          minHeight: "72px",
         }}
       >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "flex-start" }}>
           {events.length === 0 ? (
             <div style={{ fontSize: "14px", color: "#94a3b8" }}>No nearby events.</div>
           ) : (
             events.map((event, index) => {
               const isActive = activeEventId === event.id
+              const label = labels[index]
 
               return (
-                <button
+                <div
                   key={`${title}-${event.tick}-${event.lane}-${index}`}
-                  type="button"
-                  title={`${event.label} • ${formatTime(event.seconds)} • tick ${event.tick} • lane ${laneLabel(event.lane)}`}
-                  onClick={() => onEventClick(event)}
-                  className={dotClassName}
                   style={{
-                    width: "12px",
-                    height: "12px",
-                    borderRadius: "9999px",
-                    flexShrink: 0,
-                    border: isActive ? "2px solid #ffffff" : "none",
-                    outline: "none",
-                    cursor: "pointer",
-                    boxShadow: isActive ? "0 0 0 2px rgba(255,255,255,0.25)" : "none",
-                    padding: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "6px",
+                    minWidth: "18px",
                   }}
-                />
+                >
+                  <button
+                    type="button"
+                    title={`${event.label} • ${formatTime(event.seconds)} • tick ${event.tick} • lane ${laneLabel(event.lane)}`}
+                    onClick={() => onEventClick(event)}
+                    className={dotClassName}
+                    style={{
+                      width: "14px",
+                      height: "14px",
+                      borderRadius: "9999px",
+                      flexShrink: 0,
+                      border: isActive ? "2px solid #ffffff" : "1px solid rgba(255,255,255,0.18)",
+                      outline: "none",
+                      cursor: "pointer",
+                      boxShadow: isActive ? "0 0 0 3px rgba(255,255,255,0.22)" : "none",
+                      filter: isActive ? "brightness(1.25)" : "none",
+                      padding: 0,
+                    }}
+                  />
+                  <div
+                    style={{
+                      minHeight: "14px",
+                      fontSize: "11px",
+                      lineHeight: 1,
+                      color: isActive ? "#FFFFFF" : "#94a3b8",
+                      fontWeight: isActive ? 700 : 500,
+                    }}
+                  >
+                    {label}
+                  </div>
+                </div>
               )
             })
           )}
@@ -994,6 +1038,7 @@ export function BrowserTimelinePanel({
             borderRadius: "20px",
             padding: "16px",
             overflow: "hidden",
+            display: "flex",
           }}
         >
           {currentEvent && currentBinding ? (
@@ -1033,20 +1078,42 @@ export function BrowserTimelinePanel({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                textAlign: "center",
                 fontSize: "14px",
                 color: "#cbd5e1",
               }}
             >
-              No event is currently available at this chart position.
+              No event exists at the current tick.
             </div>
           )}
         </div>
 
         <div style={{ display: "flex" }}>
-          <EventTypePalette
-            currentMode={currentBinding?.visual.mode ?? null}
-            onSelectMode={handleModeChange}
-          />
+          {currentEvent && currentBinding ? (
+            <EventTypePalette
+              currentMode={currentBinding.visual.mode ?? null}
+              onSelectMode={handleModeChange}
+            />
+          ) : (
+            <div
+              style={{
+                width: "220px",
+                minWidth: "220px",
+                borderRadius: "20px",
+                border: "1px solid #334155",
+                background: "#1f2937",
+                padding: "16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#94a3b8",
+                fontSize: "13px",
+                textAlign: "center",
+              }}
+            >
+              No event selected.
+            </div>
+          )}
         </div>
       </div>
 
