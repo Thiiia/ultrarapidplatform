@@ -7,7 +7,7 @@ type EquationBlockPaletteProps = {
   onBlockDragEnd?: () => void
 }
 
-const BLOCKS: Array<{ kind: EquationTokenKind; value: string; label?: string }> = [
+const BLOCKS: Array<{ kind: EquationTokenKind; value: string }> = [
   { kind: "circle", value: "" },
   { kind: "circle", value: "X" },
   { kind: "circle", value: "Y" },
@@ -129,11 +129,7 @@ export function EquationBlockPalette({
               }}
             >
               {block.kind === "circle" ? (
-                <EquationCircle
-                  value={block.value}
-                  readOnly
-                  size={56}
-                />
+                <EquationCircle value={block.value} readOnly size={56} />
               ) : (
                 renderOperatorToken(block.value)
               )}

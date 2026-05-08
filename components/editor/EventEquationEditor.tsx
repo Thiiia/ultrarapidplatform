@@ -246,6 +246,7 @@ export function EventEquationEditor({
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 })
   const [tokenCenters, setTokenCenters] = useState<Record<string, { x: number; y: number }>>({})
+  const [hoveredTokenId, setHoveredTokenId] = useState<string | null>(null)
 
   const gradientId = useMemo(
     () => `drag-gradient-${Math.random().toString(36).slice(2)}`,
@@ -285,8 +286,6 @@ export function EventEquationEditor({
       const wrapper = equationAreaRef.current
       if (!viewport || !wrapper) return
 
-      const viewportRect = viewport.getBoundingClientRect()
-
       setViewportSize({
         width: viewport.clientWidth,
         height: viewport.clientHeight,
@@ -301,14 +300,15 @@ export function EventEquationEditor({
       })
 
       const wrapperRect = wrapper.getBoundingClientRect()
+      const safeScale = equationScale || 1
       const nextCenters: Record<string, { x: number; y: number }> = {}
 
       Object.entries(tokenRefs.current).forEach(([tokenId, node]) => {
         if (!node) return
         const rect = node.getBoundingClientRect()
         nextCenters[tokenId] = {
-          x: (rect.left - wrapperRect.left) / equationScale + rect.width / (2 * equationScale),
-          y: (rect.top - wrapperRect.top) / equationScale + rect.height / (2 * equationScale),
+          x: (rect.left - wrapperRect.left) / safeScale + rect.width / (2 * safeScale),
+          y: (rect.top - wrapperRect.top) / safeScale + rect.height / (2 * safeScale),
         }
       })
 
@@ -351,6 +351,34 @@ export function EventEquationEditor({
         token.id === tokenId ? { ...token, value: nextValue } : token
       )
     )
+  }
+
+  const removeTokenById = (tokenId: string) => {
+    if (value.length <= 1) return
+
+    const next = value.filter((token) => token.id !== tokenId)
+    if (next.length === 0) return
+
+    onChange(next)
+    setHoveredTokenId((current) => (current === tokenId ? null : current))
+
+    if (
+      eventVisual.hitAnchorTokenId === tokenId ||
+      eventVisual.dragStartTokenId === tokenId ||
+      eventVisual.dragEndTokenId === tokenId
+    ) {
+      const firstCircle = next.find((token) => token.kind === "circle")?.id ?? null
+
+      onEventVisualChange({
+        ...eventVisual,
+        hitAnchorTokenId:
+          eventVisual.hitAnchorTokenId === tokenId ? firstCircle : eventVisual.hitAnchorTokenId,
+        dragStartTokenId:
+          eventVisual.dragStartTokenId === tokenId ? null : eventVisual.dragStartTokenId,
+        dragEndTokenId:
+          eventVisual.dragEndTokenId === tokenId ? null : eventVisual.dragEndTokenId,
+      })
+    }
   }
 
   const replaceToken = (tokenId: string, payload: DraggedEquationToken) => {
@@ -508,10 +536,10 @@ export function EventEquationEditor({
     const c1x = isRightToLeft ? startCap.x + controlOffset : startCap.x - controlOffset
     const c2x = isRightToLeft ? endCap.x - controlOffset : endCap.x + controlOffset
 
-const path = `M ${startCap.x} ${startCap.y}
-  C ${startCap.x} ${controlY},
-    ${endCap.x} ${controlY},
-    ${endCap.x} ${endCap.y}`
+    const path = `M ${startCap.x} ${startCap.y}
+      C ${c1x} ${controlY},
+        ${c2x} ${controlY},
+        ${endCap.x} ${endCap.y}`
 
     return {
       startCap,
@@ -531,6 +559,7 @@ const path = `M ${startCap.x} ${startCap.y}
     const isDragStart = eventVisual.mode === "drag" && eventVisual.dragStartTokenId === token.id
     const isDragEnd = eventVisual.mode === "drag" && eventVisual.dragEndTokenId === token.id
     const isCircle = token.kind === "circle"
+    const showRemove = hoveredTokenId === token.id && value.length > 1
 
     return (
       <div
@@ -538,6 +567,8 @@ const path = `M ${startCap.x} ${startCap.y}
         ref={(node) => {
           tokenRefs.current[token.id] = node
         }}
+        onMouseEnter={() => setHoveredTokenId(token.id)}
+        onMouseLeave={() => setHoveredTokenId((current) => (current === token.id ? null : current))}
         onDragOver={(event) => {
           event.preventDefault()
           event.dataTransfer.dropEffect = "copy"
@@ -564,6 +595,40 @@ const path = `M ${startCap.x} ${startCap.y}
         }}
       >
         {isCircle ? renderHitEllipses(token.id) : null}
+
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            removeTokenById(token.id)
+          }}
+          style={{
+            position: "absolute",
+            top: "-10px",
+            right: "-10px",
+            width: "22px",
+            height: "22px",
+            borderRadius: "9999px",
+            border: "1px solid rgba(255,255,255,0.18)",
+            background: "#0f172a",
+            color: "#FFFFFF",
+            fontSize: "14px",
+            lineHeight: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            zIndex: 10,
+            padding: 0,
+            opacity: showRemove ? 1 : 0,
+            pointerEvents: showRemove ? "auto" : "none",
+            transition: "opacity 120ms ease",
+          }}
+          aria-label={`Remove ${token.kind}`}
+          title="Remove"
+        >
+          ×
+        </button>
 
         <div style={{ position: "relative", zIndex: 5 }}>
           {token.kind === "circle" ? (
