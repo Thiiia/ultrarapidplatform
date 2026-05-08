@@ -30,7 +30,6 @@ type EventEquationEditorProps = {
 }
 
 const OPERATOR_OPTIONS: Array<EquationValue["operatorA"]> = ["+", "-", "×", "÷"]
-const SLOT_ORDER: EquationSlot[] = ["leftA", "leftB", "right"]
 
 function inferHitModeFromDrop(relativeX: number): EditorEventMode {
   if (Math.abs(relativeX) < 10) return "hit_vertical"
@@ -303,7 +302,7 @@ export function EventEquationEditor({
           boxShadow: isDragStart
             ? "0 0 0 3px rgba(239, 68, 68, 0.6)"
             : isDragEnd
-              ? "0 0 0 3px rgba(255, 255, 255, 0.35)"
+              ? "0 0 0 3px rgba(255,255,255,0.25)"
               : "none",
         }}
       >
@@ -327,10 +326,6 @@ export function EventEquationEditor({
     !!eventVisual.dragEndSlot &&
     eventVisual.dragStartSlot !== eventVisual.dragEndSlot
 
-  const circleRadius = circleSize / 2
-  const capRadius = circleRadius
-  const capYOffset = circleRadius * 0.9
-
   const dragGeometry = useMemo(() => {
     if (!shouldRenderDrag) return null
 
@@ -342,18 +337,24 @@ export function EventEquationEditor({
 
     if (!startCenter || !endCenter) return null
 
+    const circleRadius = circleSize / 2
+
+    // Move the arc upward so the end caps sit tucked directly underneath
+    // the visible equation circles.
+    const capCenterYOffset = circleRadius * 0.28
+
     const startCap = {
       x: startCenter.x,
-      y: startCenter.y + capYOffset,
+      y: startCenter.y + capCenterYOffset,
     }
 
     const endCap = {
       x: endCenter.x,
-      y: endCenter.y + capYOffset,
+      y: endCenter.y + capCenterYOffset,
     }
 
     const span = Math.abs(endCap.x - startCap.x)
-    const depth = Math.max(circleSize * 2.2, span * 0.52)
+    const depth = Math.max(circleSize * 1.95, span * 0.5)
     const controlY = Math.max(startCap.y, endCap.y) + depth
 
     const path = `M ${startCap.x} ${startCap.y}
@@ -365,8 +366,15 @@ export function EventEquationEditor({
       startCap,
       endCap,
       path,
+      capRadius: circleRadius,
     }
-  }, [shouldRenderDrag, eventVisual.dragStartSlot, eventVisual.dragEndSlot, slotCenters, capYOffset, circleSize])
+  }, [
+    shouldRenderDrag,
+    eventVisual.dragStartSlot,
+    eventVisual.dragEndSlot,
+    slotCenters,
+    circleSize,
+  ])
 
   return (
     <div
@@ -425,7 +433,7 @@ export function EventEquationEditor({
             alignItems: "center",
             justifyContent: "center",
             gap: "14px",
-            padding: "28px 20px 120px 20px",
+            padding: "28px 20px 110px 20px",
             minWidth: "max-content",
           }}
         >
@@ -457,7 +465,7 @@ export function EventEquationEditor({
               <path
                 d={dragGeometry.path}
                 fill="none"
-                stroke="rgba(255,255,255,0.06)"
+                stroke="rgba(255,255,255,0.05)"
                 strokeWidth={circleSize * 0.98}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -470,25 +478,21 @@ export function EventEquationEditor({
                 strokeWidth={circleSize * 0.88}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                opacity={0.82}
+                opacity={0.84}
               />
 
               <circle
                 cx={dragGeometry.startCap.x}
                 cy={dragGeometry.startCap.y}
-                r={capRadius}
-                fill="#2a2a2d"
-                stroke="rgba(255,255,255,0.28)"
-                strokeWidth="3"
+                r={dragGeometry.capRadius}
+                fill="#46484d"
               />
 
               <circle
                 cx={dragGeometry.endCap.x}
                 cy={dragGeometry.endCap.y}
-                r={capRadius}
-                fill="#2a2a2d"
-                stroke="rgba(255,255,255,0.28)"
-                strokeWidth="3"
+                r={dragGeometry.capRadius}
+                fill="#46484d"
               />
             </svg>
           ) : null}
