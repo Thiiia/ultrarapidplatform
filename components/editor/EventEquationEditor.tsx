@@ -376,6 +376,7 @@ export function EventEquationEditor({
 
   const handleDropOnInsertGap = (index: number, event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
+    event.stopPropagation()
     const draggedToken = parseDraggedToken(event)
     if (!draggedToken) return
     insertTokenAtIndex(index, draggedToken)
@@ -502,7 +503,7 @@ export function EventEquationEditor({
     circleSize,
   ])
 
-  const renderToken = (token: any) => {
+  const renderToken = (token: EquationToken) => {
     const isDragStart = eventVisual.mode === "drag" && eventVisual.dragStartTokenId === token.id
     const isDragEnd = eventVisual.mode === "drag" && eventVisual.dragEndTokenId === token.id
     const isCircle = token.kind === "circle"
@@ -544,7 +545,7 @@ export function EventEquationEditor({
 
         <div style={{ position: "relative", zIndex: 5 }}>
           {token.kind === "circle" ? (
-            <EventEquationEditor.EquationCircle
+            <EquationCircle
               value={token.value}
               onChange={(next: string) => handleTokenValueChange(token.id, next)}
               size={circleSize}
@@ -592,26 +593,32 @@ export function EventEquationEditor({
         const draggedToken = parseDraggedToken(event)
         if (!draggedToken || !canInsertIntoGap(draggedToken)) return
         event.preventDefault()
+        event.stopPropagation()
         event.dataTransfer.dropEffect = "copy"
       }}
-      onDrop={(event) => handleDropOnInsertGap(index, event)}
+      onDrop={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        handleDropOnInsertGap(index, event)
+      }}
       style={{
-        width: "18px",
-        minWidth: "18px",
+        width: "34px",
+        minWidth: "34px",
         height: `${Math.max(circleSize, 56)}px`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         position: "relative",
-        zIndex: 3,
+        zIndex: 6,
+        cursor: "copy",
       }}
     >
       <div
         style={{
-          width: "4px",
-          height: "70%",
+          width: "8px",
+          height: "78%",
           borderRadius: "999px",
-          background: "rgba(255,255,255,0.12)",
+          background: "rgba(255,255,255,0.18)",
         }}
       />
     </div>
@@ -781,8 +788,4 @@ export function EventEquationEditor({
       </div>
     </div>
   )
-}
-
-EventEquationEditor.EquationCircle = function BoundEquationCircle(props: any) {
-  return <EquationCircle {...props} />
 }
