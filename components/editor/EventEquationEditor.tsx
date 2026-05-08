@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { EditorEventMode } from "./EventTypePalette"
 
 export type EquationTokenKind = "circle" | "operator" | "equals"
@@ -89,10 +89,11 @@ function parseDraggedToken(event: React.DragEvent) {
   }
 }
 
-function getTokenFontSize(value: string) {
-  if (value.length <= 1) return 30
-  if (value.length === 2) return 24
-  return 20
+function getTokenFontSize(value: string, size: number) {
+  const length = value.length
+  if (length <= 1) return size * 0.42
+  if (length === 2) return size * 0.34
+  return size * 0.28
 }
 
 function canReplaceToken(target: EquationToken, dragged: DraggedEquationToken) {
@@ -101,6 +102,10 @@ function canReplaceToken(target: EquationToken, dragged: DraggedEquationToken) {
 
 function canInsertIntoGap(dragged: DraggedEquationToken) {
   return dragged.kind === "circle" || dragged.kind === "operator"
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
 }
 
 export function EquationCircle({
@@ -123,8 +128,8 @@ export function EquationCircle({
   }, [value])
 
   const fontSize = useMemo(
-    () => getTokenFontSize(internalValue || value || ""),
-    [internalValue, value]
+    () => getTokenFontSize(internalValue || value || "", size),
+    [internalValue, value, size]
   )
 
   const handleChange = (nextValue: string) => {
@@ -238,9 +243,9 @@ export function EventEquationEditor({
   const tokenRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   const [circleSize, setCircleSize] = useState(72)
-  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
+  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 })
   const [tokenCenters, setTokenCenters] = useState<Record<string, { x: number; y: number }>>({})
-  const [equationScale, setEquationScale] = useState(1)
 
   const gradientId = useMemo(
     () => `drag-gradient-${Math.random().toString(36).slice(2)}`,
@@ -251,46 +256,59 @@ export function EventEquationEditor({
     const element = containerRef.current
     if (!element) return
 
-    const updateSize = () => {
+    const updateBaseSize = () => {
       const width = element.clientWidth
-      const next = Math.max(60, Math.min(width * 0.075, 92))
+      const next = clamp(width * 0.075, 60, 92)
       setCircleSize(next)
     }
 
-    updateSize()
+    updateBaseSize()
 
-    const observer = new ResizeObserver(() => updateSize())
+    const observer = new ResizeObserver(() => updateBaseSize())
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
 
-  useEffect(() => {
+  const equationScale = useMemo(() => {
+    if (!viewportSize.width || !viewportSize.height || !naturalSize.width || !naturalSize.height) {
+      return 1
+    }
+
+    const horizontal = (viewportSize.width - 24) / naturalSize.width
+    const vertical = (viewportSize.height - 24) / naturalSize.height
+    return clamp(Math.min(horizontal, vertical, 1), 0.35, 1)
+  }, [viewportSize, naturalSize])
+
+  useLayoutEffect(() => {
     const measureLayout = () => {
-      const wrapper = equationAreaRef.current
       const viewport = viewportRef.current
-      if (!wrapper || !viewport) return
+      const wrapper = equationAreaRef.current
+      if (!viewport || !wrapper) return
 
-      const wrapperRect = wrapper.getBoundingClientRect()
-      const viewportWidth = viewport.clientWidth
-      const naturalWidth = wrapper.scrollWidth
-      const nextScale =
-        naturalWidth > 0 ? Math.min(1, Math.max(0.45, (viewportWidth - 24) / naturalWidth)) : 1
+      const viewportRect = viewport.getBoundingClientRect()
 
-      setEquationScale(nextScale)
-
-      setCanvasSize({
-        width: wrapperRect.width,
-        height: wrapperRect.height,
+      setViewportSize({
+        width: viewport.clientWidth,
+        height: viewport.clientHeight,
       })
 
+      const naturalWidth = wrapper.scrollWidth
+      const naturalHeight = wrapper.scrollHeight
+
+      setNaturalSize({
+        width: naturalWidth,
+        height: naturalHeight,
+      })
+
+      const wrapperRect = wrapper.getBoundingClientRect()
       const nextCenters: Record<string, { x: number; y: number }> = {}
 
       Object.entries(tokenRefs.current).forEach(([tokenId, node]) => {
         if (!node) return
         const rect = node.getBoundingClientRect()
         nextCenters[tokenId] = {
-          x: rect.left - wrapperRect.left + rect.width / 2,
-          y: rect.top - wrapperRect.top + rect.height / 2,
+          x: (rect.left - wrapperRect.left) / equationScale + rect.width / (2 * equationScale),
+          y: (rect.top - wrapperRect.top) / equationScale + rect.height / (2 * equationScale),
         }
       })
 
@@ -303,18 +321,14 @@ export function EventEquationEditor({
     if (containerRef.current) observer.observe(containerRef.current)
     if (viewportRef.current) observer.observe(viewportRef.current)
     if (equationAreaRef.current) observer.observe(equationAreaRef.current)
-
-    Object.values(tokenRefs.current).forEach((node) => {
-      if (node) observer.observe(node)
-    })
+    Object.values(tokenRefs.current).forEach((node) => node && observer.observe(node))
 
     window.addEventListener("resize", measureLayout)
-
     return () => {
       observer.disconnect()
       window.removeEventListener("resize", measureLayout)
     }
-  }, [value, circleSize])
+  }, [value, circleSize, equationScale])
 
   const operatorFontSize = useMemo(
     () => Math.max(24, Math.min(circleSize * 0.72, 38)),
@@ -464,58 +478,54 @@ export function EventEquationEditor({
     tokenCenters[eventVisual.dragStartTokenId] &&
     tokenCenters[eventVisual.dragEndTokenId]
 
-const dragGeometry = useMemo(() => {
-  if (!shouldRenderDrag) return null
+  const dragGeometry = useMemo(() => {
+    if (!shouldRenderDrag) return null
 
-  const startCenter = tokenCenters[eventVisual.dragStartTokenId as string]
-  const endCenter = tokenCenters[eventVisual.dragEndTokenId as string]
-  if (!startCenter || !endCenter) return null
+    const startCenter = tokenCenters[eventVisual.dragStartTokenId as string]
+    const endCenter = tokenCenters[eventVisual.dragEndTokenId as string]
+    if (!startCenter || !endCenter) return null
 
-  const circleRadius = circleSize / 2
-  const capCenterYOffset = circleRadius * 0.02
+    const circleRadius = circleSize / 2
+    const capCenterYOffset = circleRadius * 0.02
 
-  const startCap = {
-    x: startCenter.x,
-    y: startCenter.y + capCenterYOffset,
-  }
+    const startCap = {
+      x: startCenter.x,
+      y: startCenter.y + capCenterYOffset,
+    }
 
-  const endCap = {
-    x: endCenter.x,
-    y: endCenter.y + capCenterYOffset,
-  }
+    const endCap = {
+      x: endCenter.x,
+      y: endCenter.y + capCenterYOffset,
+    }
 
-  const dx = endCap.x - startCap.x
-  const absDx = Math.abs(dx)
-  const isRightToLeft = dx < 0
+    const dx = endCap.x - startCap.x
+    const absDx = Math.abs(dx)
+    const isRightToLeft = dx < 0
+    const depth = Math.max(circleSize * 1.82, absDx * 0.48)
+    const controlY = Math.max(startCap.y, endCap.y) + depth
+    const controlOffset = Math.max(circleSize * 0.9, absDx * 0.22)
 
-  const depth = Math.max(circleSize * 1.82, absDx * 0.48)
-  const controlY = Math.max(startCap.y, endCap.y) + depth
+    const c1x = isRightToLeft ? startCap.x + controlOffset : startCap.x - controlOffset
+    const c2x = isRightToLeft ? endCap.x - controlOffset : endCap.x + controlOffset
 
-  // Reflect the curve horizontally when dragging right-to-left.
-  // This makes the arc feel mirrored instead of always using the same shape.
-  const controlOffset = Math.max(circleSize * 0.9, absDx * 0.22)
+const path = `M ${startCap.x} ${startCap.y}
+  C ${startCap.x} ${controlY},
+    ${endCap.x} ${controlY},
+    ${endCap.x} ${endCap.y}`
 
-  const c1x = isRightToLeft ? startCap.x + controlOffset : startCap.x - controlOffset
-  const c2x = isRightToLeft ? endCap.x - controlOffset : endCap.x + controlOffset
-
-  const path = `M ${startCap.x} ${startCap.y}
-    C ${c1x} ${controlY},
-      ${c2x} ${controlY},
-      ${endCap.x} ${endCap.y}`
-
-  return {
-    startCap,
-    endCap,
-    path,
-    capRadius: circleRadius,
-  }
-}, [
-  shouldRenderDrag,
-  eventVisual.dragStartTokenId,
-  eventVisual.dragEndTokenId,
-  tokenCenters,
-  circleSize,
-])
+    return {
+      startCap,
+      endCap,
+      path,
+      capRadius: circleRadius,
+    }
+  }, [
+    shouldRenderDrag,
+    eventVisual.dragStartTokenId,
+    eventVisual.dragEndTokenId,
+    tokenCenters,
+    circleSize,
+  ])
 
   const renderToken = (token: EquationToken) => {
     const isDragStart = eventVisual.mode === "drag" && eventVisual.dragStartTokenId === token.id
@@ -534,9 +544,7 @@ const dragGeometry = useMemo(() => {
         }}
         onDrop={(event) => handleDropOnToken(token.id, event)}
         onClick={() => {
-          if (isCircle) {
-            handleDragTokenSelection(token.id)
-          }
+          if (isCircle) handleDragTokenSelection(token.id)
         }}
         style={{
           display: "flex",
@@ -544,8 +552,8 @@ const dragGeometry = useMemo(() => {
           justifyContent: "center",
           position: "relative",
           zIndex: 4,
-          minWidth: isCircle ? `${circleSize}px` : "56px",
-          minHeight: isCircle ? `${circleSize}px` : "56px",
+          minWidth: isCircle ? `${circleSize}px` : `${Math.max(42, circleSize * 0.78)}px`,
+          minHeight: isCircle ? `${circleSize}px` : `${Math.max(42, circleSize * 0.78)}px`,
           cursor: eventVisual.mode === "drag" && isCircle ? "pointer" : "default",
           boxShadow: isDragStart
             ? "0 0 0 3px rgba(239, 68, 68, 0.6)"
@@ -624,9 +632,9 @@ const dragGeometry = useMemo(() => {
         insertTokenAtIndex(index, draggedToken)
       }}
       style={{
-        width: "64px",
-        minWidth: "64px",
-        height: `${Math.max(circleSize + 28, 84)}px`,
+        width: `${Math.max(28, circleSize * 0.52)}px`,
+        minWidth: `${Math.max(28, circleSize * 0.52)}px`,
+        height: `${Math.max(circleSize + 12, 72)}px`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -639,7 +647,7 @@ const dragGeometry = useMemo(() => {
     >
       <div
         style={{
-          width: "10px",
+          width: `${Math.max(6, circleSize * 0.12)}px`,
           height: "78%",
           borderRadius: "999px",
           background: "rgba(255,255,255,0.24)",
@@ -647,6 +655,9 @@ const dragGeometry = useMemo(() => {
       />
     </div>
   )
+
+  const scaledWidth = naturalSize.width * equationScale
+  const scaledHeight = naturalSize.height * equationScale
 
   return (
     <div
@@ -659,6 +670,7 @@ const dragGeometry = useMemo(() => {
         justifyContent: "center",
         gap: "14px",
         color: "#FFFFFF",
+        minWidth: 0,
       }}
     >
       <div>
@@ -688,25 +700,33 @@ const dragGeometry = useMemo(() => {
         ref={viewportRef}
         style={{
           flex: 1,
+          width: "100%",
+          minWidth: 0,
+          minHeight: 0,
+          overflow: "hidden",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          overflow: "hidden",
-          width: "100%",
+          position: "relative",
         }}
       >
         <div
           style={{
-            transform: `scale(${equationScale})`,
-            transformOrigin: "center center",
-            transition: "transform 120ms ease-out",
-            willChange: "transform",
+            position: "relative",
+            width: `${scaledWidth || 1}px`,
+            height: `${scaledHeight || 1}px`,
+            flex: "0 0 auto",
           }}
         >
           <div
             ref={equationAreaRef}
             style={{
-              position: "relative",
+              position: "absolute",
+              left: 0,
+              top: 0,
+              transform: `scale(${equationScale})`,
+              transformOrigin: "top left",
+              width: "max-content",
               display: "flex",
               flexDirection: "row",
               flexWrap: "nowrap",
@@ -717,11 +737,11 @@ const dragGeometry = useMemo(() => {
               minWidth: "max-content",
             }}
           >
-            {dragGeometry && canvasSize.width > 0 && canvasSize.height > 0 ? (
+            {dragGeometry && naturalSize.width > 0 && naturalSize.height > 0 ? (
               <svg
-                width={canvasSize.width}
-                height={canvasSize.height}
-                viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
+                width={naturalSize.width}
+                height={naturalSize.height}
+                viewBox={`0 0 ${naturalSize.width} ${naturalSize.height}`}
                 style={{
                   position: "absolute",
                   inset: 0,
