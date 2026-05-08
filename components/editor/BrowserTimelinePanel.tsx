@@ -174,6 +174,36 @@ function tickToSeconds(tick: number, resolution: number, bpmPoints: SyncBpmPoint
   return totalSeconds
 }
 
+function secondsToTick(seconds: number, resolution: number, bpmPoints: SyncBpmPoint[]) {
+  if (seconds <= 0) return 0
+
+  let elapsedSeconds = 0
+
+  for (let i = 0; i < bpmPoints.length; i++) {
+    const current = bpmPoints[i]
+    const next = bpmPoints[i + 1]
+    const segmentStartTick = current.tick
+    const segmentEndTick = next ? next.tick : Number.POSITIVE_INFINITY
+
+    const segmentTickSpan =
+      segmentEndTick === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : segmentEndTick - segmentStartTick
+
+    const secondsPerBeat = 60 / current.bpm
+    const secondsPerTick = secondsPerBeat / resolution
+    const segmentDuration =
+      segmentTickSpan === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : segmentTickSpan * secondsPerTick
+
+    if (elapsedSeconds + segmentDuration >= seconds) {
+      const remainingSeconds = seconds - elapsedSeconds
+      return Math.max(0, Math.round(segmentStartTick + remainingSeconds / secondsPerTick))
+    }
+
+    elapsedSeconds += segmentDuration
+  }
+
+  return 0
+}
+
 function parseTrackSection(chartText: string) {
   const preferredSections = [
     "ExpertSingle",
@@ -341,23 +371,6 @@ function buildSegmentGradient(segments: TimelineSegment[], duration: number) {
   }
 
   return `linear-gradient(to right, ${stops.join(", ")})`
-}
-
-function getCurrentEventIndex<T extends { seconds: number }>(events: T[], currentTime: number) {
-  if (!events.length) return -1
-
-  let closestIndex = 0
-  let closestDistance = Math.abs(events[0].seconds - currentTime)
-
-  for (let i = 1; i < events.length; i++) {
-    const distance = Math.abs(events[i].seconds - currentTime)
-    if (distance < closestDistance) {
-      closestDistance = distance
-      closestIndex = i
-    }
-  }
-
-  return closestIndex
 }
 
 function buildChartSignature(parsed: ParsedChartData) {
@@ -610,9 +623,11 @@ export function BrowserTimelinePanel({
   const [currentTime, setCurrentTime] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [draggedPaletteToken, setDraggedPaletteToken] = useState<DraggedEquationToken | null>(null)
+  const [statusMessage, setStatusMessage] = useState("")
 
   const parsed = useMemo(() => parseChartData(chartText), [chartText])
   const chartSignature = useMemo(() => buildChartSignature(parsed), [parsed])
+  const bpmPoints = useMemo(() => parseSyncTrack(chartText), [chartText])
 
   const [bindingsByEventId, setBindingsByEventId] = useState<Record<string, EventBinding>>({})
   const [pendingTick, setPendingTick] = useState(0)
@@ -731,20 +746,23 @@ export function BrowserTimelinePanel({
   const nearbyDrags = useMemo(() => getNearbyEvents(effectiveDrags, currentTime), [effectiveDrags, currentTime])
   const nearbySpins = useMemo(() => getNearbyEvents(effectiveSpins, currentTime), [effectiveSpins, currentTime])
 
-  const currentEventIndex = useMemo(
-    () => getCurrentEventIndex(effectiveEvents, currentTime),
-    [effectiveEvents, currentTime]
+  const currentTick = useMemo(
+    () => secondsToTick(currentTime, parsed.resolution, bpmPoints),
+    [currentTime, parsed.resolution, bpmPoints]
   )
 
-  const currentEvent = currentEventIndex >= 0 ? effectiveEvents[currentEventIndex] : null
+  const currentEvent = useMemo(() => {
+    return effectiveEvents.find((event) => event.tick === currentTick) ?? null
+  }, [effectiveEvents, currentTick])
+
   const currentBinding = currentEvent ? bindingsByEventId[currentEvent.id] : null
 
   const chartPosition = duration > 0 ? currentTime / duration : 0
   const estimatedChartTick = Math.round(chartPosition * parsed.maxTick)
 
   useEffect(() => {
-    setPendingTick(estimatedChartTick)
-  }, [estimatedChartTick])
+    setPendingTick(currentTick)
+  }, [currentTick])
 
   const handleJumpToEvent = (event: EffectiveEvent) => {
     const nextTime = event.seconds
@@ -753,6 +771,7 @@ export function BrowserTimelinePanel({
     setPendingLane(event.lane)
     setPendingType(event.type)
     setPendingLength(event.length > 0 ? event.length : 240)
+    setStatusMessage(`Selected ${event.label} at tick ${event.tick}.`)
 
     const audio = audioRef.current
     if (audio) {
@@ -785,24 +804,33 @@ export function BrowserTimelinePanel({
           },
       }))
 
+      setStatusMessage(`Added ${normalizedType} event at tick ${normalizedTick}, lane ${laneLabel(normalizedLane)}.`)
       onChartTextChange?.(nextChartText)
+    } else {
+      setStatusMessage("No event was added.")
     }
   }
 
   const handleRemoveEvent = () => {
-    const normalizedTick = Math.max(0, Math.floor(pendingTick))
-    const normalizedLane = Math.max(0, Math.floor(pendingLane))
-    const pendingId = buildPendingEventId(normalizedTick, normalizedLane)
-    const nextChartText = removeChartEvent(chartText, normalizedTick, normalizedLane)
+    const targetTick = currentEvent ? currentEvent.tick : Math.max(0, Math.floor(pendingTick))
+    const targetLane = currentEvent ? currentEvent.lane : Math.max(0, Math.floor(pendingLane))
+    const pendingId = buildPendingEventId(targetTick, targetLane)
+    const nextChartText = removeChartEvent(chartText, targetTick, targetLane)
 
     if (nextChartText !== chartText) {
       setBindingsByEventId((prev) => {
         const next = { ...prev }
         delete next[pendingId]
+        if (currentEvent) {
+          delete next[currentEvent.id]
+        }
         return next
       })
 
+      setStatusMessage(`Removed event at tick ${targetTick}, lane ${laneLabel(targetLane)}.`)
       onChartTextChange?.(nextChartText)
+    } else {
+      setStatusMessage("No event existed to remove at the selected tick and lane.")
     }
   }
 
@@ -831,8 +859,10 @@ export function BrowserTimelinePanel({
         ...prev,
         ...parsedFile.bindings,
       }))
+      setStatusMessage("Imported equation sidecar file.")
     } catch (error) {
       console.error("Failed to import equation bindings", error)
+      setStatusMessage("Failed to import equation sidecar file.")
     }
   }
 
@@ -1006,6 +1036,24 @@ export function BrowserTimelinePanel({
           Remove Event
         </button>
       </div>
+
+      {statusMessage ? (
+        <div
+          style={{
+            width: "100%",
+            maxWidth: "1440px",
+            margin: "0 auto",
+            borderRadius: "12px",
+            border: "1px solid #334155",
+            background: "#0f172a",
+            color: "#cbd5e1",
+            padding: "10px 12px",
+            fontSize: "13px",
+          }}
+        >
+          {statusMessage}
+        </div>
+      ) : null}
 
       <div
         style={{
@@ -1194,6 +1242,10 @@ export function BrowserTimelinePanel({
 
         <div style={{ fontSize: "14px", color: "#cbd5e1" }}>
           Chart tick: {estimatedChartTick}
+        </div>
+
+        <div style={{ fontSize: "14px", color: "#cbd5e1" }}>
+          Current tick: {currentTick}
         </div>
 
         <div style={{ fontSize: "14px", color: "#cbd5e1" }}>
