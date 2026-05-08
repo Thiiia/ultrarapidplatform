@@ -337,25 +337,25 @@ export function EventEquationEditor({
 
     if (!startCenter || !endCenter) return null
 
-    const circleRadius = circleSize / 2
+const circleRadius = circleSize / 2
 
-    // Move the arc upward so the end caps sit tucked directly underneath
-    // the visible equation circles.
-    const capCenterYOffset = circleRadius * 0.28
+// Smaller offset = move the drag arc endpoints upward.
+// 0.02 gives a much tighter fit directly under the equation circles.
+const capCenterYOffset = circleRadius * 0.02
 
-    const startCap = {
-      x: startCenter.x,
-      y: startCenter.y + capCenterYOffset,
-    }
+const startCap = {
+  x: startCenter.x,
+  y: startCenter.y + capCenterYOffset,
+}
 
-    const endCap = {
-      x: endCenter.x,
-      y: endCenter.y + capCenterYOffset,
-    }
+const endCap = {
+  x: endCenter.x,
+  y: endCenter.y + capCenterYOffset,
+}
 
-    const span = Math.abs(endCap.x - startCap.x)
-    const depth = Math.max(circleSize * 1.95, span * 0.5)
-    const controlY = Math.max(startCap.y, endCap.y) + depth
+const span = Math.abs(endCap.x - startCap.x)
+const depth = Math.max(circleSize * 1.82, span * 0.48)
+const controlY = Math.max(startCap.y, endCap.y) + depth
 
     const path = `M ${startCap.x} ${startCap.y}
       C ${startCap.x} ${controlY},
