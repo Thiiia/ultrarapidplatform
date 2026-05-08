@@ -201,12 +201,16 @@ function getDefaultVisualForParsedEvent(type: ChartEventType): EventVisualBindin
     return {
       mode: "drag",
       hitAnchorSlot: "leftB",
+      dragStartSlot: "leftB",
+      dragEndSlot: "right",
     }
   }
 
   return {
     mode: "hit_vertical",
     hitAnchorSlot: "leftB",
+    dragStartSlot: "leftB",
+    dragEndSlot: "right",
   }
 }
 
@@ -613,25 +617,27 @@ export function BrowserTimelinePanel({
     }
   }
 
-  const handleModeChange = (nextMode: EditorEventMode) => {
-    if (!currentEvent) return
+const handleModeChange = (nextMode: EditorEventMode) => {
+  if (!currentEvent) return
 
-    setBindingsByEventId((prev) => ({
-      ...prev,
-      [currentEvent.id]: {
-        equation: prev[currentEvent.id]?.equation ?? { ...DEFAULT_EQUATION },
-        visual: {
-          mode: nextMode,
-          hitAnchorSlot: prev[currentEvent.id]?.visual.hitAnchorSlot ?? "leftB",
-        },
+  setBindingsByEventId((prev) => ({
+    ...prev,
+    [currentEvent.id]: {
+      equation: prev[currentEvent.id]?.equation ?? { ...DEFAULT_EQUATION },
+      visual: {
+        mode: nextMode,
+        hitAnchorSlot: prev[currentEvent.id]?.visual.hitAnchorSlot ?? "leftB",
+        dragStartSlot: prev[currentEvent.id]?.visual.dragStartSlot ?? "leftB",
+        dragEndSlot: prev[currentEvent.id]?.visual.dragEndSlot ?? "right",
       },
-    }))
+    },
+  }))
 
-    const nextChartText = updateChartEventMode(chartText, currentEvent, nextMode)
-    if (nextChartText !== chartText) {
-      onChartTextChange?.(nextChartText)
-    }
+  const nextChartText = updateChartEventMode(chartText, currentEvent, nextMode)
+  if (nextChartText !== chartText) {
+    onChartTextChange?.(nextChartText)
   }
+}
 
   return (
     <div
