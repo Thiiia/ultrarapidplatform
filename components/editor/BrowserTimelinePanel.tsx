@@ -6,7 +6,6 @@ import {
   EventEquationEditor,
   EquationValue,
   EventVisualBinding,
-  EquationToken,
 } from "./EventEquationEditor"
 import { EquationBlockPalette } from "./EquationBlockPalette"
 import { EventTypePalette, EditorEventMode } from "./EventTypePalette"
@@ -190,14 +189,23 @@ function parseTrackSection(chartText: string) {
   for (const sectionName of preferredSections) {
     const regex = new RegExp(`\\[${sectionName}\\]\\s*\\{([\\s\\S]*?)\\}`, "i")
     const match = chartText.match(regex)
-    if (match) return match[1]
+    if (match) {
+      return {
+        name: sectionName,
+        body: match[1],
+      }
+    }
   }
 
-  return ""
+  return null
 }
 
 function buildEventId(tick: number, lane: number, index: number) {
   return `${tick}:${lane}:${index}`
+}
+
+function buildPendingEventId(tick: number, lane: number) {
+  return `${Math.floor(tick)}:${Math.floor(lane)}:0`
 }
 
 function getDefaultVisualForParsedEvent(type: ChartEventType): EventVisualBinding {
@@ -243,7 +251,7 @@ function parseChartData(chartText: string): ParsedChartData {
 
   const resolution = parseResolution(chartText)
   const bpmPoints = parseSyncTrack(chartText)
-  const trackSection = parseTrackSection(chartText)
+  const trackSection = parseTrackSection(chartText)?.body ?? ""
 
   const noteMatches = [...trackSection.matchAll(/^\s*(\d+)\s*=\s*N\s+(\d+)\s+(\d+)/gm)]
 
@@ -394,6 +402,80 @@ function updateChartEventMode(
   return chartText.replace(pattern, `$1${nextLength}$2`)
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+function insertChartEvent(
+  chartText: string,
+  tick: number,
+  lane: number,
+  type: "hit" | "drag",
+  length: number
+) {
+  const parsedTick = Math.max(0, Math.floor(tick))
+  const parsedLane = Math.max(0, Math.floor(lane))
+  const parsedLength = type === "drag" ? Math.max(1, Math.floor(length)) : 0
+
+  const trackSection = parseTrackSection(chartText)
+  if (!trackSection) return chartText
+
+  const existingPattern = new RegExp(
+    `^\\s*${escapeRegExp(String(parsedTick))}\\s*=\\s*N\\s+${escapeRegExp(String(parsedLane))}\\s+\\d+\\s*$`,
+    "m"
+  )
+
+  if (existingPattern.test(trackSection.body)) {
+    return chartText.replace(existingPattern, `  ${parsedTick} = N ${parsedLane} ${parsedLength}`)
+  }
+
+  const lines = trackSection.body
+    .split("\n")
+    .map((line) => line.replace(/\r/g, ""))
+    .filter((line) => line.trim().length > 0)
+
+  lines.push(`  ${parsedTick} = N ${parsedLane} ${parsedLength}`)
+
+  lines.sort((a, b) => {
+    const matchA = a.match(/^\s*(\d+)\s*=\s*N\s+(\d+)\s+(\d+)/)
+    const matchB = b.match(/^\s*(\d+)\s*=\s*N\s+(\d+)\s+(\d+)/)
+
+    if (!matchA || !matchB) return a.localeCompare(b)
+
+    const tickA = Number(matchA[1])
+    const tickB = Number(matchB[1])
+    if (tickA !== tickB) return tickA - tickB
+
+    const laneA = Number(matchA[2])
+    const laneB = Number(matchB[2])
+    return laneA - laneB
+  })
+
+  const nextBody = `\n${lines.join("\n")}\n`
+  const sectionRegex = new RegExp(`(\\[${trackSection.name}\\]\\s*\\{)([\\s\\S]*?)(\\})`, "i")
+  return chartText.replace(sectionRegex, `$1${nextBody}$3`)
+}
+
+function removeChartEvent(chartText: string, tick: number, lane: number) {
+  const trackSection = parseTrackSection(chartText)
+  if (!trackSection) return chartText
+
+  const pattern = new RegExp(
+    `^\\s*${escapeRegExp(String(Math.floor(tick)))}\\s*=\\s*N\\s+${escapeRegExp(String(Math.floor(lane)))}\\s+\\d+\\s*$`,
+    "m"
+  )
+
+  const nextBody = trackSection.body
+    .split("\n")
+    .map((line) => line.replace(/\r/g, ""))
+    .filter((line) => !pattern.test(line))
+    .join("\n")
+
+  const normalizedBody = nextBody.trim().length ? `\n${nextBody}\n` : "\n"
+  const sectionRegex = new RegExp(`(\\[${trackSection.name}\\]\\s*\\{)([\\s\\S]*?)(\\})`, "i")
+  return chartText.replace(sectionRegex, `$1${normalizedBody}$3`)
+}
+
 function HorizontalDotPanel({
   title,
   events,
@@ -489,6 +571,10 @@ export function BrowserTimelinePanel({
   const chartSignature = useMemo(() => buildChartSignature(parsed), [parsed])
 
   const [bindingsByEventId, setBindingsByEventId] = useState<Record<string, EventBinding>>({})
+  const [pendingTick, setPendingTick] = useState(0)
+  const [pendingLane, setPendingLane] = useState(0)
+  const [pendingType, setPendingType] = useState<"hit" | "drag">("hit")
+  const [pendingLength, setPendingLength] = useState(240)
 
   useEffect(() => {
     setBindingsByEventId((prev) => {
@@ -612,13 +698,67 @@ export function BrowserTimelinePanel({
   const chartPosition = duration > 0 ? currentTime / duration : 0
   const estimatedChartTick = Math.round(chartPosition * parsed.maxTick)
 
+  useEffect(() => {
+    setPendingTick(estimatedChartTick)
+  }, [estimatedChartTick])
+
   const handleJumpToEvent = (event: EffectiveEvent) => {
     const nextTime = event.seconds
     setCurrentTime(nextTime)
+    setPendingTick(event.tick)
+    setPendingLane(event.lane)
+    setPendingType(event.type)
+    setPendingLength(event.length > 0 ? event.length : 240)
 
     const audio = audioRef.current
     if (audio) {
       audio.currentTime = nextTime
+    }
+  }
+
+  const handleAddEvent = () => {
+    const normalizedTick = Math.max(0, Math.floor(pendingTick))
+    const normalizedLane = Math.max(0, Math.floor(pendingLane))
+    const normalizedType: ChartEventType = pendingType
+    const normalizedLength = normalizedType === "drag" ? Math.max(1, Math.floor(pendingLength)) : 0
+    const nextChartText = insertChartEvent(
+      chartText,
+      normalizedTick,
+      normalizedLane,
+      normalizedType,
+      normalizedLength
+    )
+
+    if (nextChartText !== chartText) {
+      const pendingId = buildPendingEventId(normalizedTick, normalizedLane)
+
+      setBindingsByEventId((prev) => ({
+        ...prev,
+        [pendingId]:
+          prev[pendingId] ?? {
+            equation: makeDefaultEquation(),
+            visual: getDefaultVisualForParsedEvent(normalizedType),
+          },
+      }))
+
+      onChartTextChange?.(nextChartText)
+    }
+  }
+
+  const handleRemoveEvent = () => {
+    const normalizedTick = Math.max(0, Math.floor(pendingTick))
+    const normalizedLane = Math.max(0, Math.floor(pendingLane))
+    const pendingId = buildPendingEventId(normalizedTick, normalizedLane)
+    const nextChartText = removeChartEvent(chartText, normalizedTick, normalizedLane)
+
+    if (nextChartText !== chartText) {
+      setBindingsByEventId((prev) => {
+        const next = { ...prev }
+        delete next[pendingId]
+        return next
+      })
+
+      onChartTextChange?.(nextChartText)
     }
   }
 
@@ -694,6 +834,133 @@ export function BrowserTimelinePanel({
         <p style={{ marginTop: "8px", marginBottom: 0, fontSize: "14px", color: "#cbd5e1" }}>
           Click any event dot to jump directly to that event and load its equation.
         </p>
+      </div>
+
+      <div
+        style={{
+          borderRadius: "16px",
+          border: "1px solid #334155",
+          background: "#0f172a",
+          padding: "14px",
+          display: "grid",
+          gridTemplateColumns: "repeat(6, minmax(0, auto))",
+          gap: "10px",
+          alignItems: "end",
+          width: "100%",
+          maxWidth: "1440px",
+          margin: "0 auto",
+        }}
+      >
+        <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px", color: "#cbd5e1" }}>
+          Tick
+          <input
+            type="number"
+            min={0}
+            value={pendingTick}
+            onChange={(e) => setPendingTick(Math.max(0, Number(e.target.value) || 0))}
+            style={{
+              width: "110px",
+              borderRadius: "8px",
+              border: "1px solid #475569",
+              background: "#111827",
+              color: "#FFFFFF",
+              padding: "8px 10px",
+            }}
+          />
+        </label>
+
+        <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px", color: "#cbd5e1" }}>
+          Lane
+          <select
+            value={pendingLane}
+            onChange={(e) => setPendingLane(Number(e.target.value))}
+            style={{
+              width: "110px",
+              borderRadius: "8px",
+              border: "1px solid #475569",
+              background: "#111827",
+              color: "#FFFFFF",
+              padding: "8px 10px",
+            }}
+          >
+            <option value={0}>Lane G</option>
+            <option value={1}>Lane R</option>
+            <option value={2}>Lane Y</option>
+            <option value={3}>Lane B</option>
+            <option value={4}>Lane O</option>
+          </select>
+        </label>
+
+        <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px", color: "#cbd5e1" }}>
+          Type
+          <select
+            value={pendingType}
+            onChange={(e) => setPendingType(e.target.value as "hit" | "drag")}
+            style={{
+              width: "110px",
+              borderRadius: "8px",
+              border: "1px solid #475569",
+              background: "#111827",
+              color: "#FFFFFF",
+              padding: "8px 10px",
+            }}
+          >
+            <option value="hit">Hit</option>
+            <option value="drag">Drag</option>
+          </select>
+        </label>
+
+        <label style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px", color: "#cbd5e1" }}>
+          Drag Length
+          <input
+            type="number"
+            min={1}
+            value={pendingLength}
+            onChange={(e) => setPendingLength(Math.max(1, Number(e.target.value) || 1))}
+            disabled={pendingType !== "drag"}
+            style={{
+              width: "120px",
+              borderRadius: "8px",
+              border: "1px solid #475569",
+              background: "#111827",
+              color: "#FFFFFF",
+              padding: "8px 10px",
+              opacity: pendingType === "drag" ? 1 : 0.5,
+            }}
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={handleAddEvent}
+          style={{
+            borderRadius: "8px",
+            border: "1px solid #475569",
+            background: "#1f2937",
+            color: "#FFFFFF",
+            padding: "10px 14px",
+            cursor: "pointer",
+            height: "40px",
+          }}
+        >
+          Add Event
+        </button>
+
+        <button
+          type="button"
+          onClick={handleRemoveEvent}
+          style={{
+            borderRadius: "8px",
+            border: "1px solid #7f1d1d",
+            background: "#3f0d12",
+            color: "#FFFFFF",
+            padding: "10px 14px",
+            cursor: "pointer",
+            height: "40px",
+          }}
+        >
+          Remove Event
+        </button>
       </div>
 
       <div
