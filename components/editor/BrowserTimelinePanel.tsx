@@ -73,11 +73,7 @@ const EMPTY_COLOR = { r: 51, g: 65, b: 85 }
 
 function makeDefaultEquation(): EquationValue {
   return [
-    { id: crypto.randomUUID(), kind: "circle", value: "X" },
-    { id: crypto.randomUUID(), kind: "operator", value: "+" },
-    { id: crypto.randomUUID(), kind: "circle", value: "2" },
-    { id: crypto.randomUUID(), kind: "equals", value: "=" },
-    { id: crypto.randomUUID(), kind: "circle", value: "7" },
+    { id: crypto.randomUUID(), kind: "circle", value: "" },
   ]
 }
 
@@ -240,16 +236,18 @@ function buildPendingEventId(tick: number, lane: number) {
 
 function getDefaultVisualForParsedEvent(type: ChartEventType): EventVisualBinding {
   const defaultEquation = makeDefaultEquation()
-  const circleIds = defaultEquation.filter((token) => token.kind === "circle").map((token) => token.id)
-  const anchorId = circleIds[1] ?? circleIds[0] ?? null
-  const endId = circleIds[2] ?? circleIds[1] ?? null
+  const circleIds = defaultEquation
+    .filter((token) => token.kind === "circle")
+    .map((token) => token.id)
+
+  const anchorId = circleIds[0] ?? null
 
   if (type === "drag") {
     return {
       mode: "drag",
       hitAnchorTokenId: anchorId,
       dragStartTokenId: anchorId,
-      dragEndTokenId: endId,
+      dragEndTokenId: null,
     }
   }
 
