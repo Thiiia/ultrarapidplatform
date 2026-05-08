@@ -72,9 +72,7 @@ const SPIN_COLOR = { r: 156, g: 163, b: 175 }
 const EMPTY_COLOR = { r: 51, g: 65, b: 85 }
 
 function makeDefaultEquation(): EquationValue {
-  return [
-    { id: crypto.randomUUID(), kind: "circle", value: "" },
-  ]
+  return [{ id: crypto.randomUUID(), kind: "circle", value: "" }]
 }
 
 function formatTime(value: number) {
@@ -236,10 +234,7 @@ function buildPendingEventId(tick: number, lane: number) {
 
 function getDefaultVisualForParsedEvent(type: ChartEventType): EventVisualBinding {
   const defaultEquation = makeDefaultEquation()
-  const circleIds = defaultEquation
-    .filter((token) => token.kind === "circle")
-    .map((token) => token.id)
-
+  const circleIds = defaultEquation.filter((token) => token.kind === "circle").map((token) => token.id)
   const anchorId = circleIds[0] ?? null
 
   if (type === "drag") {
@@ -381,6 +376,16 @@ function downloadEquationBindings(fileName: string, content: EquationBindingsFil
   const anchor = document.createElement("a")
   anchor.href = url
   anchor.download = fileName
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+function downloadChartFile(fileName: string, chartText: string) {
+  const blob = new Blob([chartText], { type: "text/plain;charset=utf-8" })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = fileName.toLowerCase().endsWith(".chart") ? fileName : `${fileName}.chart`
   anchor.click()
   URL.revokeObjectURL(url)
 }
@@ -842,6 +847,11 @@ export function BrowserTimelinePanel({
     })
   }
 
+  const handleSaveChart = () => {
+    downloadChartFile(chartFileName || "chart.chart", chartText)
+    setStatusMessage(`Saved ${chartFileName || "chart.chart"}.`)
+  }
+
   const handleImport = async (file: File) => {
     try {
       const raw = await file.text()
@@ -1190,6 +1200,21 @@ export function BrowserTimelinePanel({
           }}
         >
           {isPlaying ? "Pause" : "Play"}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleSaveChart}
+          style={{
+            borderRadius: "8px",
+            border: "1px solid #475569",
+            background: "#1f2937",
+            color: "#FFFFFF",
+            padding: "8px 16px",
+            cursor: "pointer",
+          }}
+        >
+          Save .chart
         </button>
 
         <button

@@ -101,7 +101,7 @@ function canReplaceToken(target: EquationToken, dragged: DraggedEquationToken) {
 }
 
 function canInsertIntoGap(dragged: DraggedEquationToken) {
-  return dragged.kind === "circle" || dragged.kind === "operator"
+  return dragged.kind === "circle" || dragged.kind === "operator" || dragged.kind === "equals"
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -758,7 +758,7 @@ export function EventEquationEditor({
             color: "#cbd5e1",
           }}
         >
-          Drop onto matching token types to replace them. Drag circles or operators into a gap to extend the equation.
+          Drop onto matching token types to replace them. Drag circles, operators, or equals signs into a gap to extend the equation.
         </p>
       </div>
 
