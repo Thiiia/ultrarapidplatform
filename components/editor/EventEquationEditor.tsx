@@ -2,24 +2,25 @@
 
 import Image from "next/image"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { EquationCircle } from "./EquationCircle"
 import type { EditorEventMode } from "./EventTypePalette"
 
-export type EquationValue = {
-  leftA: string
-  operatorA: "+" | "-" | "×" | "÷"
-  leftB: string
-  equals: "="
-  right: string
+export type EquationTokenKind = "circle" | "operator" | "equals"
+
+export type EquationToken = {
+  id: string
+  kind: EquationTokenKind
+  value: string
 }
 
-export type EquationSlot = "leftA" | "leftB" | "right"
+export type EquationValue = EquationToken[]
+
+export type EquationTokenId = string
 
 export type EventVisualBinding = {
   mode: EditorEventMode
-  hitAnchorSlot: EquationSlot | null
-  dragStartSlot?: EquationSlot | null
-  dragEndSlot?: EquationSlot | null
+  hitAnchorTokenId: EquationTokenId | null
+  dragStartTokenId?: EquationTokenId | null
+  dragEndTokenId?: EquationTokenId | null
 }
 
 type EventEquationEditorProps = {
@@ -29,7 +30,18 @@ type EventEquationEditorProps = {
   onEventVisualChange: (value: EventVisualBinding) => void
 }
 
-const OPERATOR_OPTIONS: Array<EquationValue["operatorA"]> = ["+", "-", "×", "÷"]
+type DraggedEquationToken = {
+  kind: EquationTokenKind
+  value: string
+}
+
+function createToken(kind: EquationTokenKind, value: string): EquationToken {
+  return {
+    id: crypto.randomUUID(),
+    kind,
+    value,
+  }
+}
 
 function inferHitModeFromDrop(relativeX: number): EditorEventMode {
   if (Math.abs(relativeX) < 10) return "hit_vertical"
@@ -63,6 +75,176 @@ function getHitEllipseOffsets(mode: EditorEventMode, circleSize: number) {
   }
 }
 
+function parseDraggedToken(event: React.DragEvent) {
+  const raw = event.dataTransfer.getData("application/x-equation-token")
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw) as DraggedEquationToken
+    if (!parsed || !parsed.kind) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function getTokenFontSize(value: string) {
+  if (value.length <= 1) return 30
+  if (value.length === 2) return 24
+  return 20
+}
+
+export function EquationCircle({
+  value = "",
+  onChange,
+  size = 72,
+  readOnly = false,
+  imageSrc = "/images/equation-circle.png",
+}: {
+  value?: string
+  onChange?: (value: string) => void
+  size?: number
+  readOnly?: boolean
+  imageSrc?: string
+}) {
+  const [internalValue, setInternalValue] = useState(value)
+
+  useEffect(() => {
+    setInternalValue(value)
+  }, [value])
+
+  const fontSize = useMemo(
+    () => getTokenFontSize(internalValue || value || ""),
+    [internalValue, value]
+  )
+
+  const handleChange = (nextValue: string) => {
+    const sanitized = nextValue.replace(/\s+/g, "")
+    setInternalValue(sanitized)
+    onChange?.(sanitized)
+  }
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: `${size}px`,
+        height: `${size}px`,
+        minWidth: `${size}px`,
+        minHeight: `${size}px`,
+        flex: "0 0 auto",
+      }}
+    >
+      <Image
+        src={imageSrc}
+        alt="Equation circle"
+        width={size}
+        height={size}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          pointerEvents: "none",
+          userSelect: "none",
+          zIndex: 0,
+        }}
+      />
+
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 2,
+        }}
+      >
+        {readOnly ? (
+          <span
+            style={{
+              fontFamily: "var(--font-grandstander)",
+              fontWeight: 700,
+              fontSize: `${fontSize}px`,
+              color: "#FFFFFF",
+              WebkitTextFillColor: "#FFFFFF",
+              textShadow: "0 0 4px rgba(0,0,0,0.85)",
+              width: "68%",
+              textAlign: "center",
+              lineHeight: 1,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              display: "block",
+            }}
+          >
+            {value}
+          </span>
+        ) : (
+          <input
+            type="text"
+            value={internalValue}
+            onChange={(e) => handleChange(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+            style={{
+              display: "block",
+              width: "68%",
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              textAlign: "center",
+              fontFamily: "var(--font-grandstander)",
+              fontWeight: 700,
+              fontSize: `${fontSize}px`,
+              color: "#FFFFFF",
+              WebkitTextFillColor: "#FFFFFF",
+              textShadow: "0 0 4px rgba(0,0,0,0.85)",
+              lineHeight: 1,
+              caretColor: "#FFFFFF",
+              padding: 0,
+              margin: 0,
+              position: "relative",
+              zIndex: 3,
+            }}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function OperatorTokenView({
+  value,
+  selected,
+}: {
+  value: string
+  selected?: boolean
+}) {
+  return (
+    <div
+      style={{
+        minWidth: "56px",
+        height: "56px",
+        borderRadius: "14px",
+        border: selected ? "2px solid rgba(255,255,255,0.35)" : "1px solid #475569",
+        background: "#111827",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#FFFFFF",
+        fontFamily: "var(--font-grandstander)",
+        fontWeight: 700,
+        fontSize: "28px",
+      }}
+    >
+      {value}
+    </div>
+  )
+}
+
 export function EventEquationEditor({
   value,
   onChange,
@@ -71,30 +253,16 @@ export function EventEquationEditor({
 }: EventEquationEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const equationAreaRef = useRef<HTMLDivElement | null>(null)
-
-  const leftARef = useRef<HTMLDivElement | null>(null)
-  const leftBRef = useRef<HTMLDivElement | null>(null)
-  const rightRef = useRef<HTMLDivElement | null>(null)
+  const tokenRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   const [circleSize, setCircleSize] = useState(72)
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
-  const [slotCenters, setSlotCenters] = useState<Record<EquationSlot, { x: number; y: number }>>({
-    leftA: { x: 0, y: 0 },
-    leftB: { x: 0, y: 0 },
-    right: { x: 0, y: 0 },
-  })
+  const [tokenCenters, setTokenCenters] = useState<Record<string, { x: number; y: number }>>({})
 
   const gradientId = useMemo(
     () => `drag-gradient-${Math.random().toString(36).slice(2)}`,
     []
   )
-
-  const update = <K extends keyof EquationValue>(key: K, nextValue: EquationValue[K]) => {
-    onChange({
-      ...value,
-      [key]: nextValue,
-    })
-  }
 
   useEffect(() => {
     const element = containerRef.current
@@ -108,10 +276,7 @@ export function EventEquationEditor({
 
     updateSize()
 
-    const observer = new ResizeObserver(() => {
-      updateSize()
-    })
-
+    const observer = new ResizeObserver(() => updateSize())
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
@@ -123,38 +288,34 @@ export function EventEquationEditor({
 
       const wrapperRect = wrapper.getBoundingClientRect()
 
-      const getCenter = (node: HTMLDivElement | null) => {
-        if (!node) return { x: 0, y: 0 }
-        const rect = node.getBoundingClientRect()
-        return {
-          x: rect.left - wrapperRect.left + rect.width / 2,
-          y: rect.top - wrapperRect.top + rect.height / 2,
-        }
-      }
-
       setCanvasSize({
         width: wrapperRect.width,
         height: wrapperRect.height,
       })
 
-      setSlotCenters({
-        leftA: getCenter(leftARef.current),
-        leftB: getCenter(leftBRef.current),
-        right: getCenter(rightRef.current),
+      const nextCenters: Record<string, { x: number; y: number }> = {}
+
+      Object.entries(tokenRefs.current).forEach(([tokenId, node]) => {
+        if (!node) return
+        const rect = node.getBoundingClientRect()
+        nextCenters[tokenId] = {
+          x: rect.left - wrapperRect.left + rect.width / 2,
+          y: rect.top - wrapperRect.top + rect.height / 2,
+        }
       })
+
+      setTokenCenters(nextCenters)
     }
 
     measureLayout()
 
-    const observer = new ResizeObserver(() => {
-      measureLayout()
-    })
-
+    const observer = new ResizeObserver(() => measureLayout())
     if (containerRef.current) observer.observe(containerRef.current)
     if (equationAreaRef.current) observer.observe(equationAreaRef.current)
-    if (leftARef.current) observer.observe(leftARef.current)
-    if (leftBRef.current) observer.observe(leftBRef.current)
-    if (rightRef.current) observer.observe(rightRef.current)
+
+    Object.values(tokenRefs.current).forEach((node) => {
+      if (node) observer.observe(node)
+    })
 
     window.addEventListener("resize", measureLayout)
 
@@ -162,7 +323,7 @@ export function EventEquationEditor({
       observer.disconnect()
       window.removeEventListener("resize", measureLayout)
     }
-  }, [circleSize])
+  }, [value, circleSize])
 
   const operatorFontSize = useMemo(
     () => Math.max(24, Math.min(circleSize * 0.72, 38)),
@@ -174,15 +335,40 @@ export function EventEquationEditor({
     [circleSize]
   )
 
-  const handleDropOnSlot = (slot: EquationSlot, event: React.DragEvent<HTMLDivElement>) => {
+  const circleTokenIds = useMemo(
+    () => value.filter((token) => token.kind === "circle").map((token) => token.id),
+    [value]
+  )
+
+  const handleTokenValueChange = (tokenId: string, nextValue: string) => {
+    onChange(
+      value.map((token) =>
+        token.id === tokenId ? { ...token, value: nextValue } : token
+      )
+    )
+  }
+
+  const replaceToken = (tokenId: string, payload: DraggedEquationToken) => {
+    onChange(
+      value.map((token) =>
+        token.id === tokenId
+          ? { ...token, kind: payload.kind, value: payload.value }
+          : token
+      )
+    )
+  }
+
+  const insertTokenAtIndex = (index: number, payload: DraggedEquationToken) => {
+    const nextToken = createToken(payload.kind, payload.value)
+    const next = [...value]
+    next.splice(index, 0, nextToken)
+    onChange(next)
+  }
+
+  const handleDropOnToken = (tokenId: string, event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
 
-const rawEquationBlock =
-  event.dataTransfer.getData("application/x-equation-block") ||
-  event.dataTransfer.getData("text/plain")
-
-const equationBlock = rawEquationBlock === "__EMPTY__" ? "" : rawEquationBlock
-
+    const draggedToken = parseDraggedToken(event)
     const hitEllipse = event.dataTransfer.getData("application/x-hit-ellipse")
 
     if (hitEllipse) {
@@ -194,40 +380,48 @@ const equationBlock = rawEquationBlock === "__EMPTY__" ? "" : rawEquationBlock
       onEventVisualChange({
         ...eventVisual,
         mode: nextMode,
-        hitAnchorSlot: slot,
+        hitAnchorTokenId: tokenId,
       })
       return
     }
 
-    if (rawEquationBlock) {
-      update(slot, equationBlock)
+    if (draggedToken) {
+      replaceToken(tokenId, draggedToken)
     }
   }
 
-  const handleDragSlotSelection = (slot: EquationSlot) => {
-    if (eventVisual.mode !== "drag") return
+  const handleDropOnInsertGap = (index: number, event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const draggedToken = parseDraggedToken(event)
+    if (!draggedToken) return
+    insertTokenAtIndex(index, draggedToken)
+  }
 
-    const currentStart = eventVisual.dragStartSlot ?? null
-    const currentEnd = eventVisual.dragEndSlot ?? null
+  const handleDragTokenSelection = (tokenId: string) => {
+    if (eventVisual.mode !== "drag") return
+    if (!circleTokenIds.includes(tokenId)) return
+
+    const currentStart = eventVisual.dragStartTokenId ?? null
+    const currentEnd = eventVisual.dragEndTokenId ?? null
 
     if (!currentStart) {
       onEventVisualChange({
         ...eventVisual,
         mode: "drag",
-        dragStartSlot: slot,
-        dragEndSlot: null,
+        dragStartTokenId: tokenId,
+        dragEndTokenId: null,
       })
       return
     }
 
     if (currentStart && !currentEnd) {
-      if (slot === currentStart) return
+      if (tokenId === currentStart) return
 
       onEventVisualChange({
         ...eventVisual,
         mode: "drag",
-        dragStartSlot: currentStart,
-        dragEndSlot: slot,
+        dragStartTokenId: currentStart,
+        dragEndTokenId: tokenId,
       })
       return
     }
@@ -235,25 +429,25 @@ const equationBlock = rawEquationBlock === "__EMPTY__" ? "" : rawEquationBlock
     onEventVisualChange({
       ...eventVisual,
       mode: "drag",
-      dragStartSlot: slot,
-      dragEndSlot: null,
+      dragStartTokenId: tokenId,
+      dragEndTokenId: null,
     })
   }
 
-  const renderHitEllipses = (slot: EquationSlot) => {
+  const renderHitEllipses = (tokenId: string) => {
     const isHitMode =
       eventVisual.mode === "hit_vertical" ||
       eventVisual.mode === "hit_diagonal_left" ||
       eventVisual.mode === "hit_diagonal_right"
 
-    if (!isHitMode || eventVisual.hitAnchorSlot !== slot) return null
+    if (!isHitMode || eventVisual.hitAnchorTokenId !== tokenId) return null
 
     const markerSize = Math.round(circleSize * 0.62)
     const offsets = getHitEllipseOffsets(eventVisual.mode, circleSize)
 
     return offsets.map((offset, index) => (
       <Image
-        key={`${slot}-${eventVisual.mode}-${index}`}
+        key={`${tokenId}-${eventVisual.mode}-${index}`}
         src="/images/hit-ellipse.png"
         alt="Hit ellipse marker"
         width={markerSize}
@@ -273,91 +467,37 @@ const equationBlock = rawEquationBlock === "__EMPTY__" ? "" : rawEquationBlock
     ))
   }
 
-  const renderDroppableCircle = (
-    slot: EquationSlot,
-    currentValue: string,
-    placeholder: string,
-    ref: React.RefObject<HTMLDivElement | null>
-  ) => {
-    const isDragStart = eventVisual.mode === "drag" && eventVisual.dragStartSlot === slot
-    const isDragEnd = eventVisual.mode === "drag" && eventVisual.dragEndSlot === slot
-
-    return (
-      <div
-        ref={ref}
-        onDragOver={(event) => {
-          event.preventDefault()
-          event.dataTransfer.dropEffect = "copy"
-        }}
-        onDrop={(event) => handleDropOnSlot(slot, event)}
-        onClick={() => handleDragSlotSelection(slot)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: "9999px",
-          position: "relative",
-          zIndex: 4,
-          minWidth: `${circleSize}px`,
-          minHeight: `${circleSize}px`,
-          cursor: eventVisual.mode === "drag" ? "pointer" : "default",
-          boxShadow: isDragStart
-            ? "0 0 0 3px rgba(239, 68, 68, 0.6)"
-            : isDragEnd
-              ? "0 0 0 3px rgba(255,255,255,0.25)"
-              : "none",
-        }}
-      >
-        {renderHitEllipses(slot)}
-
-        <div style={{ position: "relative", zIndex: 5 }}>
-          <EquationCircle
-            value={currentValue}
-            onChange={(next) => update(slot, next)}
-            placeholder={placeholder}
-            size={circleSize}
-          />
-        </div>
-      </div>
-    )
-  }
-
   const shouldRenderDrag =
     eventVisual.mode === "drag" &&
-    !!eventVisual.dragStartSlot &&
-    !!eventVisual.dragEndSlot &&
-    eventVisual.dragStartSlot !== eventVisual.dragEndSlot
+    !!eventVisual.dragStartTokenId &&
+    !!eventVisual.dragEndTokenId &&
+    eventVisual.dragStartTokenId !== eventVisual.dragEndTokenId &&
+    tokenCenters[eventVisual.dragStartTokenId] &&
+    tokenCenters[eventVisual.dragEndTokenId]
 
   const dragGeometry = useMemo(() => {
     if (!shouldRenderDrag) return null
 
-    const startSlot = eventVisual.dragStartSlot as EquationSlot
-    const endSlot = eventVisual.dragEndSlot as EquationSlot
-
-    const startCenter = slotCenters[startSlot]
-    const endCenter = slotCenters[endSlot]
-
+    const startCenter = tokenCenters[eventVisual.dragStartTokenId as string]
+    const endCenter = tokenCenters[eventVisual.dragEndTokenId as string]
     if (!startCenter || !endCenter) return null
 
-const circleRadius = circleSize / 2
+    const circleRadius = circleSize / 2
+    const capCenterYOffset = circleRadius * 0.02
 
-// Smaller offset = move the drag arc endpoints upward.
-// 0.02 gives a much tighter fit directly under the equation circles.
-const capCenterYOffset = circleRadius * 0.02
+    const startCap = {
+      x: startCenter.x,
+      y: startCenter.y + capCenterYOffset,
+    }
 
-const startCap = {
-  x: startCenter.x,
-  y: startCenter.y + capCenterYOffset,
-}
+    const endCap = {
+      x: endCenter.x,
+      y: endCenter.y + capCenterYOffset,
+    }
 
-const endCap = {
-  x: endCenter.x,
-  y: endCenter.y + capCenterYOffset,
-}
-
-const span = Math.abs(endCap.x - startCap.x)
-const depth = Math.max(circleSize * 1.82, span * 0.48)
-const controlY = Math.max(startCap.y, endCap.y) + depth
+    const span = Math.abs(endCap.x - startCap.x)
+    const depth = Math.max(circleSize * 1.82, span * 0.48)
+    const controlY = Math.max(startCap.y, endCap.y) + depth
 
     const path = `M ${startCap.x} ${startCap.y}
       C ${startCap.x} ${controlY},
@@ -372,11 +512,124 @@ const controlY = Math.max(startCap.y, endCap.y) + depth
     }
   }, [
     shouldRenderDrag,
-    eventVisual.dragStartSlot,
-    eventVisual.dragEndSlot,
-    slotCenters,
+    eventVisual.dragStartTokenId,
+    eventVisual.dragEndTokenId,
+    tokenCenters,
     circleSize,
   ])
+
+  const renderToken = (token: EquationToken) => {
+    const isDragStart = eventVisual.mode === "drag" && eventVisual.dragStartTokenId === token.id
+    const isDragEnd = eventVisual.mode === "drag" && eventVisual.dragEndTokenId === token.id
+    const isCircle = token.kind === "circle"
+
+    return (
+      <div
+        key={token.id}
+        ref={(node) => {
+          tokenRefs.current[token.id] = node
+        }}
+        onDragOver={(event) => {
+          event.preventDefault()
+          event.dataTransfer.dropEffect = "copy"
+        }}
+        onDrop={(event) => handleDropOnToken(token.id, event)}
+        onClick={() => {
+          if (isCircle) {
+            handleDragTokenSelection(token.id)
+          }
+        }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "relative",
+          zIndex: 4,
+          minWidth: isCircle ? `${circleSize}px` : "56px",
+          minHeight: isCircle ? `${circleSize}px` : "56px",
+          cursor: eventVisual.mode === "drag" && isCircle ? "pointer" : "default",
+          boxShadow: isDragStart
+            ? "0 0 0 3px rgba(239, 68, 68, 0.6)"
+            : isDragEnd
+              ? "0 0 0 3px rgba(255,255,255,0.25)"
+              : "none",
+          borderRadius: "9999px",
+        }}
+      >
+        {isCircle ? renderHitEllipses(token.id) : null}
+
+        <div style={{ position: "relative", zIndex: 5 }}>
+          {token.kind === "circle" ? (
+            <EquationCircle
+              value={token.value}
+              onChange={(next) => handleTokenValueChange(token.id, next)}
+              size={circleSize}
+            />
+          ) : token.kind === "equals" ? (
+            <span
+              style={{
+                fontFamily: "var(--font-grandstander)",
+                fontWeight: 700,
+                fontSize: `${equalsFontSize}px`,
+                lineHeight: 1,
+                display: "inline-block",
+                color: "#FFFFFF",
+                position: "relative",
+                zIndex: 5,
+              }}
+            >
+              {token.value}
+            </span>
+          ) : (
+            <span
+              style={{
+                fontFamily: "var(--font-grandstander)",
+                fontWeight: 700,
+                fontSize: `${operatorFontSize}px`,
+                lineHeight: 1,
+                display: "inline-block",
+                color: "#FFFFFF",
+                position: "relative",
+                zIndex: 5,
+              }}
+            >
+              {token.value}
+            </span>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const renderInsertGap = (index: number) => (
+    <div
+      key={`gap-${index}`}
+      onDragOver={(event) => {
+        event.preventDefault()
+        event.dataTransfer.dropEffect = "copy"
+      }}
+      onDrop={(event) => handleDropOnInsertGap(index, event)}
+      style={{
+        width: "18px",
+        minWidth: "18px",
+        height: `${Math.max(circleSize, 56)}px`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        position: "relative",
+        zIndex: 3,
+      }}
+    >
+      <div
+        style={{
+          width: "4px",
+          height: "70%",
+          borderRadius: "999px",
+          background: "rgba(255,255,255,0.12)",
+        }}
+      />
+    </div>
+  )
 
   return (
     <div
@@ -410,8 +663,7 @@ const controlY = Math.max(startCap.y, endCap.y) + depth
             color: "#cbd5e1",
           }}
         >
-          Drag number blocks onto circles. Drag the ellipse marker onto a circle for hit layouts.
-          In drag mode, click one circle for the start, then another for the end.
+          Drop blocks onto tokens to replace them, or into the gaps to insert new tokens.
         </p>
       </div>
 
@@ -434,7 +686,7 @@ const controlY = Math.max(startCap.y, endCap.y) + depth
             flexWrap: "nowrap",
             alignItems: "center",
             justifyContent: "center",
-            gap: "14px",
+            gap: "8px",
             padding: "28px 20px 110px 20px",
             minWidth: "max-content",
           }}
@@ -499,55 +751,20 @@ const controlY = Math.max(startCap.y, endCap.y) + depth
             </svg>
           ) : null}
 
-          {renderDroppableCircle("leftA", value.leftA, "X", leftARef)}
-
-          <select
-            value={value.operatorA}
-            onChange={(e) => update("operatorA", e.target.value as EquationValue["operatorA"])}
-            style={{
-              background: "transparent",
-              border: "none",
-              outline: "none",
-              appearance: "none",
-              textAlign: "center",
-              fontFamily: "var(--font-grandstander)",
-              fontWeight: 700,
-              fontSize: `${operatorFontSize}px`,
-              color: "#FFFFFF",
-              lineHeight: 1,
-              padding: 0,
-              margin: 0,
-              minWidth: "24px",
-              cursor: "pointer",
-              position: "relative",
-              zIndex: 5,
-            }}
-          >
-            {OPERATOR_OPTIONS.map((option) => (
-              <option key={option} value={option} style={{ color: "#111827" }}>
-                {option}
-              </option>
-            ))}
-          </select>
-
-          {renderDroppableCircle("leftB", value.leftB, "2", leftBRef)}
-
-          <span
-            style={{
-              fontFamily: "var(--font-grandstander)",
-              fontWeight: 700,
-              fontSize: `${equalsFontSize}px`,
-              lineHeight: 1,
-              display: "inline-block",
-              color: "#FFFFFF",
-              position: "relative",
-              zIndex: 5,
-            }}
-          >
-            {value.equals}
-          </span>
-
-          {renderDroppableCircle("right", value.right, "7", rightRef)}
+          {value.map((token, index) => (
+            <div
+              key={`wrap-${token.id}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              {renderInsertGap(index)}
+              {renderToken(token)}
+              {index === value.length - 1 ? renderInsertGap(index + 1) : null}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -563,7 +780,7 @@ const controlY = Math.max(startCap.y, endCap.y) + depth
         <div>
           Current equation:{" "}
           <span style={{ fontWeight: 600, color: "#FFFFFF" }}>
-            {value.leftA} {value.operatorA} {value.leftB} {value.equals} {value.right}
+            {value.map((token) => token.value || "○").join(" ")}
           </span>
         </div>
 
@@ -571,7 +788,7 @@ const controlY = Math.max(startCap.y, endCap.y) + depth
           <div>
             Drag selection:{" "}
             <span style={{ fontWeight: 600, color: "#FFFFFF" }}>
-              start = {eventVisual.dragStartSlot ?? "none"}, end = {eventVisual.dragEndSlot ?? "none"}
+              start = {eventVisual.dragStartTokenId ?? "none"}, end = {eventVisual.dragEndTokenId ?? "none"}
             </span>
           </div>
         ) : null}

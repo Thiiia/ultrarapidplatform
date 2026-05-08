@@ -59,7 +59,7 @@ type EventBinding = {
 }
 
 type EquationBindingsFile = {
-  version: 2
+  version: 3
   chartFileName: string
   chartSignature: string
   bindings: Record<string, EventBinding>
@@ -70,12 +70,14 @@ const DRAG_COLOR = { r: 220, g: 38, b: 38 }
 const SPIN_COLOR = { r: 156, g: 163, b: 175 }
 const EMPTY_COLOR = { r: 51, g: 65, b: 85 }
 
-const DEFAULT_EQUATION: EquationValue = {
-  leftA: "X",
-  operatorA: "+",
-  leftB: "2",
-  equals: "=",
-  right: "7",
+function makeDefaultEquation(): EquationValue {
+  return [
+    { id: crypto.randomUUID(), kind: "circle", value: "X" },
+    { id: crypto.randomUUID(), kind: "operator", value: "+" },
+    { id: crypto.randomUUID(), kind: "circle", value: "2" },
+    { id: crypto.randomUUID(), kind: "equals", value: "=" },
+    { id: crypto.randomUUID(), kind: "circle", value: "7" },
+  ]
 }
 
 function formatTime(value: number) {
@@ -197,20 +199,25 @@ function buildEventId(tick: number, lane: number, index: number) {
 }
 
 function getDefaultVisualForParsedEvent(type: ChartEventType): EventVisualBinding {
+  const defaultEquation = makeDefaultEquation()
+  const circleIds = defaultEquation.filter((token) => token.kind === "circle").map((token) => token.id)
+  const anchorId = circleIds[1] ?? circleIds[0] ?? null
+  const endId = circleIds[2] ?? circleIds[1] ?? null
+
   if (type === "drag") {
     return {
       mode: "drag",
-      hitAnchorSlot: "leftB",
-      dragStartSlot: null,
-      dragEndSlot: null,
+      hitAnchorTokenId: anchorId,
+      dragStartTokenId: anchorId,
+      dragEndTokenId: endId,
     }
   }
 
   return {
     mode: "hit_vertical",
-    hitAnchorSlot: "leftB",
-    dragStartSlot: null,
-    dragEndSlot: null,
+    hitAnchorTokenId: anchorId,
+    dragStartTokenId: null,
+    dragEndTokenId: null,
   }
 }
 
@@ -389,10 +396,14 @@ function HorizontalDotPanel({
   title,
   events,
   dotClassName,
+  activeEventId,
+  onEventClick,
 }: {
   title: string
   events: EffectiveEvent[]
   dotClassName: string
+  activeEventId?: string | null
+  onEventClick: (event: EffectiveEvent) => void
 }) {
   return (
     <div
@@ -426,19 +437,30 @@ function HorizontalDotPanel({
           {events.length === 0 ? (
             <div style={{ fontSize: "14px", color: "#94a3b8" }}>No nearby events.</div>
           ) : (
-            events.map((event, index) => (
-              <div
-                key={`${title}-${event.tick}-${event.lane}-${index}`}
-                title={`${event.label} • ${formatTime(event.seconds)} • tick ${event.tick} • lane ${laneLabel(event.lane)}`}
-                className={dotClassName}
-                style={{
-                  width: "12px",
-                  height: "12px",
-                  borderRadius: "9999px",
-                  flexShrink: 0,
-                }}
-              />
-            ))
+            events.map((event, index) => {
+              const isActive = activeEventId === event.id
+
+              return (
+                <button
+                  key={`${title}-${event.tick}-${event.lane}-${index}`}
+                  type="button"
+                  title={`${event.label} • ${formatTime(event.seconds)} • tick ${event.tick} • lane ${laneLabel(event.lane)}`}
+                  onClick={() => onEventClick(event)}
+                  className={dotClassName}
+                  style={{
+                    width: "12px",
+                    height: "12px",
+                    borderRadius: "9999px",
+                    flexShrink: 0,
+                    border: isActive ? "2px solid #ffffff" : "none",
+                    outline: "none",
+                    cursor: "pointer",
+                    boxShadow: isActive ? "0 0 0 2px rgba(255,255,255,0.25)" : "none",
+                    padding: 0,
+                  }}
+                />
+              )
+            })
           )}
         </div>
       </div>
@@ -471,7 +493,7 @@ export function BrowserTimelinePanel({
 
       parsed.events.forEach((event) => {
         nextBindings[event.id] = prev[event.id] ?? {
-          equation: { ...DEFAULT_EQUATION },
+          equation: makeDefaultEquation(),
           visual: getDefaultVisualForParsedEvent(event.type),
         }
       })
@@ -587,10 +609,20 @@ export function BrowserTimelinePanel({
   const chartPosition = duration > 0 ? currentTime / duration : 0
   const estimatedChartTick = Math.round(chartPosition * parsed.maxTick)
 
+  const handleJumpToEvent = (event: EffectiveEvent) => {
+    const nextTime = event.seconds
+    setCurrentTime(nextTime)
+
+    const audio = audioRef.current
+    if (audio) {
+      audio.currentTime = nextTime
+    }
+  }
+
   const handleExport = () => {
     const fileBase = chartFileName.replace(/\.chart$/i, "")
     downloadEquationBindings(`${fileBase}.equations.json`, {
-      version: 2,
+      version: 3,
       chartFileName,
       chartSignature,
       bindings: bindingsByEventId,
@@ -617,29 +649,27 @@ export function BrowserTimelinePanel({
     }
   }
 
-const handleModeChange = (nextMode: EditorEventMode) => {
-  if (!currentEvent) return
+  const handleModeChange = (nextMode: EditorEventMode) => {
+    if (!currentEvent) return
 
-  setBindingsByEventId((prev) => ({
-    ...prev,
-    [currentEvent.id]: {
-      equation: prev[currentEvent.id]?.equation ?? { ...DEFAULT_EQUATION },
-      visual: {
-        mode: nextMode,
-        hitAnchorSlot: prev[currentEvent.id]?.visual.hitAnchorSlot ?? "leftB",
-        dragStartSlot:
-          prev[currentEvent.id]?.visual.dragStartSlot ?? null,
-        dragEndSlot:
-          prev[currentEvent.id]?.visual.dragEndSlot ?? null,
+    setBindingsByEventId((prev) => ({
+      ...prev,
+      [currentEvent.id]: {
+        equation: prev[currentEvent.id]?.equation ?? makeDefaultEquation(),
+        visual: {
+          mode: nextMode,
+          hitAnchorTokenId: prev[currentEvent.id]?.visual.hitAnchorTokenId ?? null,
+          dragStartTokenId: prev[currentEvent.id]?.visual.dragStartTokenId ?? null,
+          dragEndTokenId: prev[currentEvent.id]?.visual.dragEndTokenId ?? null,
+        },
       },
-    },
-  }))
+    }))
 
-  const nextChartText = updateChartEventMode(chartText, currentEvent, nextMode)
-  if (nextChartText !== chartText) {
-    onChartTextChange?.(nextChartText)
+    const nextChartText = updateChartEventMode(chartText, currentEvent, nextMode)
+    if (nextChartText !== chartText) {
+      onChartTextChange?.(nextChartText)
+    }
   }
-}
 
   return (
     <div
@@ -659,7 +689,7 @@ const handleModeChange = (nextMode: EditorEventMode) => {
           Timeline Panel
         </h2>
         <p style={{ marginTop: "8px", marginBottom: 0, fontSize: "14px", color: "#cbd5e1" }}>
-          Use the left palette to replace equation values, and the right palette to change the current event type.
+          Click any event dot to jump directly to that event and load its equation.
         </p>
       </div>
 
@@ -704,7 +734,7 @@ const handleModeChange = (nextMode: EditorEventMode) => {
                 setBindingsByEventId((prev) => ({
                   ...prev,
                   [currentEvent.id]: {
-                    equation: prev[currentEvent.id]?.equation ?? { ...DEFAULT_EQUATION },
+                    equation: prev[currentEvent.id]?.equation ?? makeDefaultEquation(),
                     visual: nextVisual,
                   },
                 }))
@@ -867,9 +897,29 @@ const handleModeChange = (nextMode: EditorEventMode) => {
           margin: "0 auto",
         }}
       >
-        <HorizontalDotPanel title="Hits" events={nearbyHits} dotClassName="bg-purple-600" />
-        <HorizontalDotPanel title="Drags" events={nearbyDrags} dotClassName="bg-red-600" />
-        <HorizontalDotPanel title="Spins" events={nearbySpins} dotClassName="bg-gray-400" />
+        <HorizontalDotPanel
+          title="Hits"
+          events={nearbyHits}
+          dotClassName="bg-purple-600"
+          activeEventId={currentEvent?.id ?? null}
+          onEventClick={handleJumpToEvent}
+        />
+
+        <HorizontalDotPanel
+          title="Drags"
+          events={nearbyDrags}
+          dotClassName="bg-red-600"
+          activeEventId={currentEvent?.id ?? null}
+          onEventClick={handleJumpToEvent}
+        />
+
+        <HorizontalDotPanel
+          title="Spins"
+          events={nearbySpins}
+          dotClassName="bg-gray-400"
+          activeEventId={currentEvent?.id ?? null}
+          onEventClick={handleJumpToEvent}
+        />
       </div>
 
       {audioUrl ? (

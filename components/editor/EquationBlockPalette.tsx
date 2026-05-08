@@ -1,26 +1,54 @@
 "use client"
 
-import { EquationCircle } from "./EquationCircle"
+import { EquationCircle, EquationTokenKind } from "./EventEquationEditor"
 
 type EquationBlockPaletteProps = {
-  onBlockDragStart?: (value: string) => void
+  onBlockDragStart?: (payload: { kind: EquationTokenKind; value: string }) => void
 }
 
-const BLOCKS = [
-  { label: "", dragValue: "__EMPTY__" },
-  { label: "X", dragValue: "X" },
-  { label: "Y", dragValue: "Y" },
-  { label: "1", dragValue: "1" },
-  { label: "2", dragValue: "2" },
-  { label: "3", dragValue: "3" },
-  { label: "4", dragValue: "4" },
-  { label: "5", dragValue: "5" },
-  { label: "6", dragValue: "6" },
-  { label: "7", dragValue: "7" },
-  { label: "8", dragValue: "8" },
-  { label: "9", dragValue: "9" },
-  { label: "10", dragValue: "10" },
+const BLOCKS: Array<{ kind: EquationTokenKind; value: string; label?: string }> = [
+  { kind: "circle", value: "" },
+  { kind: "circle", value: "X" },
+  { kind: "circle", value: "Y" },
+  { kind: "circle", value: "1" },
+  { kind: "circle", value: "2" },
+  { kind: "circle", value: "3" },
+  { kind: "circle", value: "4" },
+  { kind: "circle", value: "5" },
+  { kind: "circle", value: "6" },
+  { kind: "circle", value: "7" },
+  { kind: "circle", value: "8" },
+  { kind: "circle", value: "9" },
+  { kind: "circle", value: "10" },
+  { kind: "operator", value: "+" },
+  { kind: "operator", value: "-" },
+  { kind: "operator", value: "×" },
+  { kind: "operator", value: "÷" },
+  { kind: "equals", value: "=" },
 ]
+
+function renderOperatorToken(value: string) {
+  return (
+    <div
+      style={{
+        minWidth: "56px",
+        height: "56px",
+        borderRadius: "14px",
+        border: "1px solid #475569",
+        background: "#111827",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#FFFFFF",
+        fontFamily: "var(--font-grandstander)",
+        fontWeight: 700,
+        fontSize: "28px",
+      }}
+    >
+      {value}
+    </div>
+  )
+}
 
 export function EquationBlockPalette({
   onBlockDragStart,
@@ -58,7 +86,7 @@ export function EquationBlockPalette({
             color: "#cbd5e1",
           }}
         >
-          Drag circles onto the equation to replace values.
+          Drag circles and symbols into the equation.
         </p>
       </div>
 
@@ -69,33 +97,44 @@ export function EquationBlockPalette({
           gap: "10px",
         }}
       >
-        {BLOCKS.map((block, index) => (
-          <div
-            key={`${block.dragValue}-${index}`}
-            draggable
-            onDragStart={(event) => {
-              event.stopPropagation()
-              event.dataTransfer.setData(
-                "application/x-equation-block",
-                block.dragValue
-              )
-              event.dataTransfer.effectAllowed = "copy"
-              onBlockDragStart?.(block.dragValue)
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "grab",
-            }}
-          >
-            <EquationCircle
-              value={block.label}
-              readOnly
-              size={56}
-            />
-          </div>
-        ))}
+        {BLOCKS.map((block, index) => {
+          const payload = JSON.stringify({
+            kind: block.kind,
+            value: block.value,
+          })
+
+          return (
+            <div
+              key={`${block.kind}-${block.value}-${index}`}
+              draggable
+              onDragStart={(event) => {
+                event.stopPropagation()
+                event.dataTransfer.setData("application/x-equation-token", payload)
+                event.dataTransfer.effectAllowed = "copy"
+                onBlockDragStart?.({
+                  kind: block.kind,
+                  value: block.value,
+                })
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "grab",
+              }}
+            >
+              {block.kind === "circle" ? (
+                <EquationCircle
+                  value={block.value}
+                  readOnly
+                  size={56}
+                />
+              ) : (
+                renderOperatorToken(block.value)
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
