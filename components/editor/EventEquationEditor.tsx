@@ -233,12 +233,14 @@ export function EventEquationEditor({
   onEventVisualChange,
 }: EventEquationEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const viewportRef = useRef<HTMLDivElement | null>(null)
   const equationAreaRef = useRef<HTMLDivElement | null>(null)
   const tokenRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   const [circleSize, setCircleSize] = useState(72)
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [tokenCenters, setTokenCenters] = useState<Record<string, { x: number; y: number }>>({})
+  const [equationScale, setEquationScale] = useState(1)
 
   const gradientId = useMemo(
     () => `drag-gradient-${Math.random().toString(36).slice(2)}`,
@@ -265,9 +267,16 @@ export function EventEquationEditor({
   useEffect(() => {
     const measureLayout = () => {
       const wrapper = equationAreaRef.current
-      if (!wrapper) return
+      const viewport = viewportRef.current
+      if (!wrapper || !viewport) return
 
       const wrapperRect = wrapper.getBoundingClientRect()
+      const viewportWidth = viewport.clientWidth
+      const naturalWidth = wrapper.scrollWidth
+      const nextScale =
+        naturalWidth > 0 ? Math.min(1, Math.max(0.45, (viewportWidth - 24) / naturalWidth)) : 1
+
+      setEquationScale(nextScale)
 
       setCanvasSize({
         width: wrapperRect.width,
@@ -292,6 +301,7 @@ export function EventEquationEditor({
 
     const observer = new ResizeObserver(() => measureLayout())
     if (containerRef.current) observer.observe(containerRef.current)
+    if (viewportRef.current) observer.observe(viewportRef.current)
     if (equationAreaRef.current) observer.observe(equationAreaRef.current)
 
     Object.values(tokenRefs.current).forEach((node) => {
@@ -376,14 +386,6 @@ export function EventEquationEditor({
     }
   }
 
-  const handleDropOnInsertGap = (index: number, event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault()
-    event.stopPropagation()
-    const draggedToken = draggedPaletteToken ?? parseDraggedToken(event)
-    if (!draggedToken) return
-    insertTokenAtIndex(index, draggedToken)
-  }
-
   const handleDragTokenSelection = (tokenId: string) => {
     if (eventVisual.mode !== "drag") return
     if (!circleTokenIds.includes(tokenId)) return
@@ -462,48 +464,58 @@ export function EventEquationEditor({
     tokenCenters[eventVisual.dragStartTokenId] &&
     tokenCenters[eventVisual.dragEndTokenId]
 
-  const dragGeometry = useMemo(() => {
-    if (!shouldRenderDrag) return null
+const dragGeometry = useMemo(() => {
+  if (!shouldRenderDrag) return null
 
-    const startCenter = tokenCenters[eventVisual.dragStartTokenId as string]
-    const endCenter = tokenCenters[eventVisual.dragEndTokenId as string]
-    if (!startCenter || !endCenter) return null
+  const startCenter = tokenCenters[eventVisual.dragStartTokenId as string]
+  const endCenter = tokenCenters[eventVisual.dragEndTokenId as string]
+  if (!startCenter || !endCenter) return null
 
-    const circleRadius = circleSize / 2
-    const capCenterYOffset = circleRadius * 0.02
+  const circleRadius = circleSize / 2
+  const capCenterYOffset = circleRadius * 0.02
 
-    const startCap = {
-      x: startCenter.x,
-      y: startCenter.y + capCenterYOffset,
-    }
+  const startCap = {
+    x: startCenter.x,
+    y: startCenter.y + capCenterYOffset,
+  }
 
-    const endCap = {
-      x: endCenter.x,
-      y: endCenter.y + capCenterYOffset,
-    }
+  const endCap = {
+    x: endCenter.x,
+    y: endCenter.y + capCenterYOffset,
+  }
 
-    const span = Math.abs(endCap.x - startCap.x)
-    const depth = Math.max(circleSize * 1.82, span * 0.48)
-    const controlY = Math.max(startCap.y, endCap.y) + depth
+  const dx = endCap.x - startCap.x
+  const absDx = Math.abs(dx)
+  const isRightToLeft = dx < 0
 
-    const path = `M ${startCap.x} ${startCap.y}
-      C ${startCap.x} ${controlY},
-        ${endCap.x} ${controlY},
-        ${endCap.x} ${endCap.y}`
+  const depth = Math.max(circleSize * 1.82, absDx * 0.48)
+  const controlY = Math.max(startCap.y, endCap.y) + depth
 
-    return {
-      startCap,
-      endCap,
-      path,
-      capRadius: circleRadius,
-    }
-  }, [
-    shouldRenderDrag,
-    eventVisual.dragStartTokenId,
-    eventVisual.dragEndTokenId,
-    tokenCenters,
-    circleSize,
-  ])
+  // Reflect the curve horizontally when dragging right-to-left.
+  // This makes the arc feel mirrored instead of always using the same shape.
+  const controlOffset = Math.max(circleSize * 0.9, absDx * 0.22)
+
+  const c1x = isRightToLeft ? startCap.x + controlOffset : startCap.x - controlOffset
+  const c2x = isRightToLeft ? endCap.x - controlOffset : endCap.x + controlOffset
+
+  const path = `M ${startCap.x} ${startCap.y}
+    C ${c1x} ${controlY},
+      ${c2x} ${controlY},
+      ${endCap.x} ${endCap.y}`
+
+  return {
+    startCap,
+    endCap,
+    path,
+    capRadius: circleRadius,
+  }
+}, [
+  shouldRenderDrag,
+  eventVisual.dragStartTokenId,
+  eventVisual.dragEndTokenId,
+  tokenCenters,
+  circleSize,
+])
 
   const renderToken = (token: EquationToken) => {
     const isDragStart = eventVisual.mode === "drag" && eventVisual.dragStartTokenId === token.id
@@ -673,103 +685,113 @@ export function EventEquationEditor({
       </div>
 
       <div
+        ref={viewportRef}
         style={{
           flex: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          overflowX: "auto",
-          overflowY: "hidden",
+          overflow: "hidden",
+          width: "100%",
         }}
       >
         <div
-          ref={equationAreaRef}
           style={{
-            position: "relative",
-            display: "flex",
-            flexDirection: "row",
-            flexWrap: "nowrap",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "8px",
-            padding: "28px 20px 110px 20px",
-            minWidth: "max-content",
+            transform: `scale(${equationScale})`,
+            transformOrigin: "center center",
+            transition: "transform 120ms ease-out",
+            willChange: "transform",
           }}
         >
-          {dragGeometry && canvasSize.width > 0 && canvasSize.height > 0 ? (
-            <svg
-              width={canvasSize.width}
-              height={canvasSize.height}
-              viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                overflow: "visible",
-                pointerEvents: "none",
-                zIndex: 1,
-              }}
-            >
-              <defs>
-                <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#ef4444" />
-                  <stop offset="18%" stopColor="#f97316" />
-                  <stop offset="42%" stopColor="#eab308" />
-                  <stop offset="65%" stopColor="#bef264" />
-                  <stop offset="100%" stopColor="#4b5563" />
-                </linearGradient>
-              </defs>
+          <div
+            ref={equationAreaRef}
+            style={{
+              position: "relative",
+              display: "flex",
+              flexDirection: "row",
+              flexWrap: "nowrap",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              padding: "28px 20px 110px 20px",
+              minWidth: "max-content",
+            }}
+          >
+            {dragGeometry && canvasSize.width > 0 && canvasSize.height > 0 ? (
+              <svg
+                width={canvasSize.width}
+                height={canvasSize.height}
+                viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  overflow: "visible",
+                  pointerEvents: "none",
+                  zIndex: 1,
+                }}
+              >
+                <defs>
+                  <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#ef4444" />
+                    <stop offset="18%" stopColor="#f97316" />
+                    <stop offset="42%" stopColor="#eab308" />
+                    <stop offset="65%" stopColor="#bef264" />
+                    <stop offset="100%" stopColor="#4b5563" />
+                  </linearGradient>
+                </defs>
 
-              <path
-                d={dragGeometry.path}
-                fill="none"
-                stroke="rgba(255,255,255,0.05)"
-                strokeWidth={circleSize * 0.98}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+                <path
+                  d={dragGeometry.path}
+                  fill="none"
+                  stroke="rgba(255,255,255,0.05)"
+                  strokeWidth={circleSize * 0.98}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
 
-              <path
-                d={dragGeometry.path}
-                fill="none"
-                stroke={`url(#${gradientId})`}
-                strokeWidth={circleSize * 0.88}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity={0.84}
-              />
+                <path
+                  d={dragGeometry.path}
+                  fill="none"
+                  stroke={`url(#${gradientId})`}
+                  strokeWidth={circleSize * 0.88}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={0.84}
+                />
 
-              <circle
-                cx={dragGeometry.startCap.x}
-                cy={dragGeometry.startCap.y}
-                r={dragGeometry.capRadius}
-                fill="#46484d"
-              />
+                <circle
+                  cx={dragGeometry.startCap.x}
+                  cy={dragGeometry.startCap.y}
+                  r={dragGeometry.capRadius}
+                  fill="#46484d"
+                />
 
-              <circle
-                cx={dragGeometry.endCap.x}
-                cy={dragGeometry.endCap.y}
-                r={dragGeometry.capRadius}
-                fill="#46484d"
-              />
-            </svg>
-          ) : null}
+                <circle
+                  cx={dragGeometry.endCap.x}
+                  cy={dragGeometry.endCap.y}
+                  r={dragGeometry.capRadius}
+                  fill="#46484d"
+                />
+              </svg>
+            ) : null}
 
-          {renderInsertGap(0)}
-          {value.map((token, index) => (
-            <div
-              key={`wrap-${token.id}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              {renderToken(token)}
-              {renderInsertGap(index + 1)}
-            </div>
-          ))}
+            {renderInsertGap(0)}
+            {value.map((token, index) => (
+              <div
+                key={`wrap-${token.id}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                {renderToken(token)}
+                {renderInsertGap(index + 1)}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
