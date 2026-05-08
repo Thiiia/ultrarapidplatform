@@ -4,6 +4,7 @@ import { EquationCircle, EquationTokenKind } from "./EventEquationEditor"
 
 type EquationBlockPaletteProps = {
   onBlockDragStart?: (payload: { kind: EquationTokenKind; value: string }) => void
+  onBlockDragEnd?: () => void
 }
 
 const BLOCKS: Array<{ kind: EquationTokenKind; value: string; label?: string }> = [
@@ -52,6 +53,7 @@ function renderOperatorToken(value: string) {
 
 export function EquationBlockPalette({
   onBlockDragStart,
+  onBlockDragEnd,
 }: EquationBlockPaletteProps) {
   return (
     <div
@@ -115,6 +117,9 @@ export function EquationBlockPalette({
                   kind: block.kind,
                   value: block.value,
                 })
+              }}
+              onDragEnd={() => {
+                onBlockDragEnd?.()
               }}
               style={{
                 display: "flex",

@@ -23,16 +23,17 @@ export type EventVisualBinding = {
   dragEndTokenId?: EquationTokenId | null
 }
 
+export type DraggedEquationToken = {
+  kind: EquationTokenKind
+  value: string
+}
+
 type EventEquationEditorProps = {
   value: EquationValue
+  draggedPaletteToken?: DraggedEquationToken | null
   onChange: (value: EquationValue) => void
   eventVisual: EventVisualBinding
   onEventVisualChange: (value: EventVisualBinding) => void
-}
-
-type DraggedEquationToken = {
-  kind: EquationTokenKind
-  value: string
 }
 
 function createToken(kind: EquationTokenKind, value: string): EquationToken {
@@ -226,6 +227,7 @@ export function EquationCircle({
 
 export function EventEquationEditor({
   value,
+  draggedPaletteToken = null,
   onChange,
   eventVisual,
   onEventVisualChange,
@@ -349,7 +351,7 @@ export function EventEquationEditor({
   const handleDropOnToken = (tokenId: string, event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
 
-    const draggedToken = parseDraggedToken(event)
+    const draggedToken = draggedPaletteToken ?? parseDraggedToken(event)
     const hitEllipse = event.dataTransfer.getData("application/x-hit-ellipse")
 
     if (hitEllipse) {
@@ -377,7 +379,7 @@ export function EventEquationEditor({
   const handleDropOnInsertGap = (index: number, event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     event.stopPropagation()
-    const draggedToken = parseDraggedToken(event)
+    const draggedToken = draggedPaletteToken ?? parseDraggedToken(event)
     if (!draggedToken) return
     insertTokenAtIndex(index, draggedToken)
   }
@@ -589,36 +591,46 @@ export function EventEquationEditor({
   const renderInsertGap = (index: number) => (
     <div
       key={`gap-${index}`}
+      onDragEnter={(event) => {
+        const draggedToken = draggedPaletteToken ?? parseDraggedToken(event)
+        if (!draggedToken || !canInsertIntoGap(draggedToken)) return
+        event.preventDefault()
+        event.stopPropagation()
+      }}
       onDragOver={(event) => {
-        const draggedToken = parseDraggedToken(event)
+        const draggedToken = draggedPaletteToken ?? parseDraggedToken(event)
         if (!draggedToken || !canInsertIntoGap(draggedToken)) return
         event.preventDefault()
         event.stopPropagation()
         event.dataTransfer.dropEffect = "copy"
       }}
       onDrop={(event) => {
+        const draggedToken = draggedPaletteToken ?? parseDraggedToken(event)
+        if (!draggedToken || !canInsertIntoGap(draggedToken)) return
         event.preventDefault()
         event.stopPropagation()
-        handleDropOnInsertGap(index, event)
+        insertTokenAtIndex(index, draggedToken)
       }}
       style={{
-        width: "34px",
-        minWidth: "34px",
-        height: `${Math.max(circleSize, 56)}px`,
+        width: "64px",
+        minWidth: "64px",
+        height: `${Math.max(circleSize + 28, 84)}px`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         position: "relative",
-        zIndex: 6,
+        zIndex: 20,
         cursor: "copy",
+        borderRadius: "14px",
+        background: "rgba(255,255,255,0.02)",
       }}
     >
       <div
         style={{
-          width: "8px",
+          width: "10px",
           height: "78%",
           borderRadius: "999px",
-          background: "rgba(255,255,255,0.18)",
+          background: "rgba(255,255,255,0.24)",
         }}
       />
     </div>
@@ -744,6 +756,7 @@ export function EventEquationEditor({
             </svg>
           ) : null}
 
+          {renderInsertGap(0)}
           {value.map((token, index) => (
             <div
               key={`wrap-${token.id}`}
@@ -753,9 +766,8 @@ export function EventEquationEditor({
                 gap: "8px",
               }}
             >
-              {renderInsertGap(index)}
               {renderToken(token)}
-              {index === value.length - 1 ? renderInsertGap(index + 1) : null}
+              {renderInsertGap(index + 1)}
             </div>
           ))}
         </div>

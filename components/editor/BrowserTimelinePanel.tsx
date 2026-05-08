@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
+  DraggedEquationToken,
   EventEquationEditor,
   EquationValue,
   EventVisualBinding,
+  EquationToken,
 } from "./EventEquationEditor"
 import { EquationBlockPalette } from "./EquationBlockPalette"
 import { EventTypePalette, EditorEventMode } from "./EventTypePalette"
@@ -481,6 +483,7 @@ export function BrowserTimelinePanel({
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [draggedPaletteToken, setDraggedPaletteToken] = useState<DraggedEquationToken | null>(null)
 
   const parsed = useMemo(() => parseChartData(chartText), [chartText])
   const chartSignature = useMemo(() => buildChartSignature(parsed), [parsed])
@@ -705,7 +708,14 @@ export function BrowserTimelinePanel({
         }}
       >
         <div style={{ display: "flex" }}>
-          <EquationBlockPalette />
+          <EquationBlockPalette
+            onBlockDragStart={(payload) => {
+              setDraggedPaletteToken(payload)
+            }}
+            onBlockDragEnd={() => {
+              setDraggedPaletteToken(null)
+            }}
+          />
         </div>
 
         <div
@@ -720,6 +730,7 @@ export function BrowserTimelinePanel({
           {currentEvent && currentBinding ? (
             <EventEquationEditor
               value={currentBinding.equation}
+              draggedPaletteToken={draggedPaletteToken}
               onChange={(nextEquation) => {
                 setBindingsByEventId((prev) => ({
                   ...prev,
