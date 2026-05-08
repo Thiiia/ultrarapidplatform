@@ -177,9 +177,11 @@ export function EventEquationEditor({
   const handleDropOnSlot = (slot: EquationSlot, event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
 
-    const equationBlock =
-      event.dataTransfer.getData("application/x-equation-block") ||
-      event.dataTransfer.getData("text/plain")
+const rawEquationBlock =
+  event.dataTransfer.getData("application/x-equation-block") ||
+  event.dataTransfer.getData("text/plain")
+
+const equationBlock = rawEquationBlock === "__EMPTY__" ? "" : rawEquationBlock
 
     const hitEllipse = event.dataTransfer.getData("application/x-hit-ellipse")
 
@@ -197,7 +199,7 @@ export function EventEquationEditor({
       return
     }
 
-    if (equationBlock) {
+    if (rawEquationBlock) {
       update(slot, equationBlock)
     }
   }
