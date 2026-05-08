@@ -699,7 +699,7 @@ export function BrowserTimelinePanel({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "220px 1fr 220px",
+          gridTemplateColumns: "220px minmax(0, 1fr) 220px",
           gap: "10px",
           alignItems: "stretch",
           width: "100%",
@@ -721,10 +721,12 @@ export function BrowserTimelinePanel({
         <div
           style={{
             width: "100%",
+            minWidth: 0,
             minHeight: "280px",
             background: "#1f2937",
             borderRadius: "20px",
             padding: "16px",
+            overflow: "hidden",
           }}
         >
           {currentEvent && currentBinding ? (

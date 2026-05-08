@@ -671,6 +671,7 @@ const path = `M ${startCap.x} ${startCap.y}
         gap: "14px",
         color: "#FFFFFF",
         minWidth: 0,
+        overflow: "hidden",
       }}
     >
       <div>
@@ -716,6 +717,9 @@ const path = `M ${startCap.x} ${startCap.y}
             width: `${scaledWidth || 1}px`,
             height: `${scaledHeight || 1}px`,
             flex: "0 0 auto",
+            maxWidth: "100%",
+            maxHeight: "100%",
+            overflow: "hidden",
           }}
         >
           <div
