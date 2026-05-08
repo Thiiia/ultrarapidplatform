@@ -94,6 +94,14 @@ function getTokenFontSize(value: string) {
   return 20
 }
 
+function canReplaceToken(target: EquationToken, dragged: DraggedEquationToken) {
+  return target.kind === dragged.kind
+}
+
+function canInsertIntoGap(dragged: DraggedEquationToken) {
+  return dragged.kind === "circle" || dragged.kind === "operator"
+}
+
 export function EquationCircle({
   value = "",
   onChange,
@@ -216,35 +224,6 @@ export function EquationCircle({
   )
 }
 
-function OperatorTokenView({
-  value,
-  selected,
-}: {
-  value: string
-  selected?: boolean
-}) {
-  return (
-    <div
-      style={{
-        minWidth: "56px",
-        height: "56px",
-        borderRadius: "14px",
-        border: selected ? "2px solid rgba(255,255,255,0.35)" : "1px solid #475569",
-        background: "#111827",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#FFFFFF",
-        fontFamily: "var(--font-grandstander)",
-        fontWeight: 700,
-        fontSize: "28px",
-      }}
-    >
-      {value}
-    </div>
-  )
-}
-
 export function EventEquationEditor({
   value,
   onChange,
@@ -350,15 +329,17 @@ export function EventEquationEditor({
 
   const replaceToken = (tokenId: string, payload: DraggedEquationToken) => {
     onChange(
-      value.map((token) =>
-        token.id === tokenId
-          ? { ...token, kind: payload.kind, value: payload.value }
-          : token
-      )
+      value.map((token) => {
+        if (token.id !== tokenId) return token
+        if (!canReplaceToken(token, payload)) return token
+        return { ...token, kind: payload.kind, value: payload.value }
+      })
     )
   }
 
   const insertTokenAtIndex = (index: number, payload: DraggedEquationToken) => {
+    if (!canInsertIntoGap(payload)) return
+
     const nextToken = createToken(payload.kind, payload.value)
     const next = [...value]
     next.splice(index, 0, nextToken)
@@ -372,6 +353,9 @@ export function EventEquationEditor({
     const hitEllipse = event.dataTransfer.getData("application/x-hit-ellipse")
 
     if (hitEllipse) {
+      const targetToken = value.find((token) => token.id === tokenId)
+      if (!targetToken || targetToken.kind !== "circle") return
+
       const rect = event.currentTarget.getBoundingClientRect()
       const centerX = rect.left + rect.width / 2
       const relativeX = event.clientX - centerX
@@ -518,7 +502,7 @@ export function EventEquationEditor({
     circleSize,
   ])
 
-  const renderToken = (token: EquationToken) => {
+  const renderToken = (token: any) => {
     const isDragStart = eventVisual.mode === "drag" && eventVisual.dragStartTokenId === token.id
     const isDragEnd = eventVisual.mode === "drag" && eventVisual.dragEndTokenId === token.id
     const isCircle = token.kind === "circle"
@@ -560,9 +544,9 @@ export function EventEquationEditor({
 
         <div style={{ position: "relative", zIndex: 5 }}>
           {token.kind === "circle" ? (
-            <EquationCircle
+            <EventEquationEditor.EquationCircle
               value={token.value}
-              onChange={(next) => handleTokenValueChange(token.id, next)}
+              onChange={(next: string) => handleTokenValueChange(token.id, next)}
               size={circleSize}
             />
           ) : token.kind === "equals" ? (
@@ -605,6 +589,8 @@ export function EventEquationEditor({
     <div
       key={`gap-${index}`}
       onDragOver={(event) => {
+        const draggedToken = parseDraggedToken(event)
+        if (!draggedToken || !canInsertIntoGap(draggedToken)) return
         event.preventDefault()
         event.dataTransfer.dropEffect = "copy"
       }}
@@ -663,7 +649,7 @@ export function EventEquationEditor({
             color: "#cbd5e1",
           }}
         >
-          Drop blocks onto tokens to replace them, or into the gaps to insert new tokens.
+          Drop onto matching token types to replace them. Drag circles or operators into a gap to extend the equation.
         </p>
       </div>
 
@@ -780,7 +766,7 @@ export function EventEquationEditor({
         <div>
           Current equation:{" "}
           <span style={{ fontWeight: 600, color: "#FFFFFF" }}>
-            {value.map((token) => token.value || "○").join(" ")}
+            {value.map((token) => (token.kind === "circle" && token.value === "" ? "○" : token.value)).join(" ")}
           </span>
         </div>
 
@@ -795,4 +781,8 @@ export function EventEquationEditor({
       </div>
     </div>
   )
+}
+
+EventEquationEditor.EquationCircle = function BoundEquationCircle(props: any) {
+  return <EquationCircle {...props} />
 }
