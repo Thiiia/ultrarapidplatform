@@ -59,11 +59,11 @@ const headerStyles = {
 
 const sectionColors = {
   welcome: "#2B2B2B",
-  queue: "#EFF6FF",
-  insights: "#F3E8FF",
-  subjects: "#ECFDF5",
-  songs: "#FEF3C7",
-  recommended: "#FCE7F3",
+  queue: "#191919",
+  insights: "#191919",
+  subjects: "#191919",
+  songs: "#191919",
+  recommended: "#191919",
 };
 
 type SectionProps = {
@@ -81,6 +81,7 @@ function DashboardSection({
     <section
       style={{
         background: backgroundColor,
+        color: "#FFFFFF",
         height: 195,
         border: "none",
         borderBottom: "1px solid #E5E7EB",
@@ -93,6 +94,7 @@ function DashboardSection({
           margin: "0 0 16px 0",
           fontSize: 22,
           fontWeight: 700,
+          color: "#FFFFFF",
         }}
       >
         {title}
@@ -117,7 +119,7 @@ function PlaceholderCard({
   backgroundColor = "#1f2937",
   borderColor = "#374151",
   titleColor = "#FFFFFF",
-  textColor = "#d1d5db",
+  textColor = "#FFFFFF",
 }: PlaceholderCardProps) {
   return (
     <div
@@ -125,6 +127,7 @@ function PlaceholderCard({
         background: backgroundColor,
         border: `1px solid ${borderColor}`,
         borderRadius: 12,
+        color: "#FFFFFF",
         padding: 16,
       }}
     >
@@ -160,6 +163,7 @@ export default function StudentDashboard() {
         flexDirection: "column",
         gap: 0,
         paddingTop: 20,
+        color: "#FFFFFF",
       }}
     >
       <section
@@ -305,7 +309,7 @@ export default function StudentDashboard() {
             backgroundColor="#7C3AED"
             borderColor="#6D28D9"
             titleColor="#FFFFFF"
-            textColor="#EDE9FE"
+            textColor="#FFFFFF"
           />
           <PlaceholderCard
             title="Today at a glance"
@@ -313,7 +317,7 @@ export default function StudentDashboard() {
             backgroundColor="#2563EB"
             borderColor="#1D4ED8"
             titleColor="#FFFFFF"
-            textColor="#DBEAFE"
+            textColor="#FFFFFF"
           />
         </div>
       </DashboardSection>
@@ -335,7 +339,7 @@ export default function StudentDashboard() {
             backgroundColor="#0F766E"
             borderColor="#115E59"
             titleColor="#FFFFFF"
-            textColor="#CCFBF1"
+            textColor="#FFFFFF"
           />
           <PlaceholderCard
             title="Lesson 2: Timing Practice"
@@ -343,7 +347,7 @@ export default function StudentDashboard() {
             backgroundColor="#0891B2"
             borderColor="#0E7490"
             titleColor="#FFFFFF"
-            textColor="#CFFAFE"
+            textColor="#FFFFFF"
           />
           <PlaceholderCard
             title="Lesson 3: Chord Flow"
@@ -351,10 +355,14 @@ export default function StudentDashboard() {
             backgroundColor="#1D4ED8"
             borderColor="#1E40AF"
             titleColor="#FFFFFF"
-            textColor="#DBEAFE"
+            textColor="#FFFFFF"
           />
         </div>
       </DashboardSection>
+
+      {/*
+        Temporarily hidden while these lower dashboard panels are still being built.
+        Keep this JSX here so the panels can be restored when work resumes.
 
       <DashboardSection
         title="Learning Insights"
@@ -453,7 +461,7 @@ export default function StudentDashboard() {
               backgroundColor="#B45309"
               borderColor="#92400E"
               titleColor="#FFFFFF"
-              textColor="#FEF3C7"
+              textColor="#FFFFFF"
             />
           </Link>
 
@@ -467,7 +475,7 @@ export default function StudentDashboard() {
               backgroundColor="#C2410C"
               borderColor="#9A3412"
               titleColor="#FFFFFF"
-              textColor="#FFEDD5"
+              textColor="#FFFFFF"
             />
           </Link>
 
@@ -481,7 +489,7 @@ export default function StudentDashboard() {
               backgroundColor="#DC2626"
               borderColor="#B91C1C"
               titleColor="#FFFFFF"
-              textColor="#FEE2E2"
+              textColor="#FFFFFF"
             />
           </Link>
         </div>
@@ -518,6 +526,7 @@ export default function StudentDashboard() {
           />
         </div>
       </DashboardSection>
+      */}
     </div>
   );
 }
