@@ -266,14 +266,14 @@ function PlaceholderCard({
   return (
     <div
       style={{
-        background: "#1f2937",
-        border: "1px solid #374151",
+        background: "#2B2B2B",
+        border: "1px solid #FFFFFF14",
         borderRadius: 12,
         padding: 16,
       }}
     >
       <h3 style={{ margin: "0 0 8px 0", fontSize: 13, fontWeight: 500, lineHeight: "19.5px", letterSpacing: 0, textAlign: "center", color: "#fff" }}>{title}</h3>
-      <p style={{ margin: 0, color: "#d1d5db", fontSize: 13, fontWeight: 500, lineHeight: "19.5px", letterSpacing: 0, textAlign: "center" }}>{description}</p>
+      <p style={{ margin: 0, color: "#FFFFFF", fontSize: 13, fontWeight: 500, lineHeight: "19.5px", letterSpacing: 0, textAlign: "center" }}>{description}</p>
     </div>
   );
 }

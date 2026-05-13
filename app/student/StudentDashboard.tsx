@@ -280,8 +280,8 @@ type PlaceholderCardProps = {
 function PlaceholderCard({
   title,
   description,
-  backgroundColor = "#1f2937",
-  borderColor = "#374151",
+  backgroundColor = "#2B2B2B",
+  borderColor = "#FFFFFF14",
   titleColor = "#FFFFFF",
   textColor = "#FFFFFF",
 }: PlaceholderCardProps) {
@@ -357,16 +357,16 @@ export default function StudentDashboard() {
           <PlaceholderCard
             title="Ready for your next lesson?"
             description="Pick up where you left off, continue your current assignment, or explore a new song-based learning challenge."
-            backgroundColor="#7C3AED"
-            borderColor="#6D28D9"
+            backgroundColor="#191919"
+            borderColor="#FFFFFF14"
             titleColor="#FFFFFF"
             textColor="#FFFFFF"
           />
           <PlaceholderCard
             title="Today at a glance"
             description="3 lessons queued, 1 song recommendation, and 2 activities waiting for review."
-            backgroundColor="#2563EB"
-            borderColor="#1D4ED8"
+            backgroundColor="#191919"
+            borderColor="#FFFFFF14"
             titleColor="#FFFFFF"
             textColor="#FFFFFF"
           />
@@ -387,24 +387,24 @@ export default function StudentDashboard() {
           <PlaceholderCard
             title="Lesson 1: Rhythm Basics"
             description="Continue your current lesson and complete the next checkpoint."
-            backgroundColor="#0F766E"
-            borderColor="#115E59"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
             titleColor="#FFFFFF"
             textColor="#FFFFFF"
           />
           <PlaceholderCard
             title="Lesson 2: Timing Practice"
             description="Build accuracy with short interactive timing drills."
-            backgroundColor="#0891B2"
-            borderColor="#0E7490"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
             titleColor="#FFFFFF"
             textColor="#FFFFFF"
           />
           <PlaceholderCard
             title="Lesson 3: Chord Flow"
             description="Practice transitions and prepare for your next score submission."
-            backgroundColor="#1D4ED8"
-            borderColor="#1E40AF"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
             titleColor="#FFFFFF"
             textColor="#FFFFFF"
           />
@@ -429,26 +429,26 @@ export default function StudentDashboard() {
           <PlaceholderCard
             title="Hours Played"
             description="8.5 hours this week"
-            backgroundColor="#581C87"
-            borderColor="#6B21A8"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
           />
           <PlaceholderCard
             title="Lessons Completed"
             description="12 total completed"
-            backgroundColor="#6D28D9"
-            borderColor="#7C3AED"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
           />
           <PlaceholderCard
             title="Average Score"
             description="91%"
-            backgroundColor="#7E22CE"
-            borderColor="#9333EA"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
           />
           <PlaceholderCard
             title="Current Streak"
             description="5 learning days in a row"
-            backgroundColor="#A21CAF"
-            borderColor="#C026D3"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
           />
         </div>
       </DashboardSection>
@@ -467,26 +467,26 @@ export default function StudentDashboard() {
           <PlaceholderCard
             title="Rhythm"
             description="Strengthen timing, tempo, and consistency."
-            backgroundColor="#166534"
-            borderColor="#15803D"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
           />
           <PlaceholderCard
             title="Melody"
             description="Practice pitch movement and musical phrasing."
-            backgroundColor="#15803D"
-            borderColor="#16A34A"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
           />
           <PlaceholderCard
             title="Harmony"
             description="Explore chord progressions and tonal balance."
-            backgroundColor="#047857"
-            borderColor="#059669"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
           />
           <PlaceholderCard
             title="Technique"
             description="Focus on control, speed, and accuracy."
-            backgroundColor="#0F766E"
-            borderColor="#14B8A6"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
           />
         </div>
       </DashboardSection>
@@ -509,8 +509,8 @@ export default function StudentDashboard() {
             <PlaceholderCard
               title="Song A"
               description="A beginner-friendly track focused on rhythm recognition."
-              backgroundColor="#B45309"
-              borderColor="#92400E"
+              backgroundColor="#2B2B2B"
+              borderColor="#FFFFFF14"
               titleColor="#FFFFFF"
               textColor="#FFFFFF"
             />
@@ -523,8 +523,8 @@ export default function StudentDashboard() {
             <PlaceholderCard
               title="Song B"
               description="A mid-level song with timing and coordination challenges."
-              backgroundColor="#C2410C"
-              borderColor="#9A3412"
+              backgroundColor="#2B2B2B"
+              borderColor="#FFFFFF14"
               titleColor="#FFFFFF"
               textColor="#FFFFFF"
             />
@@ -537,8 +537,8 @@ export default function StudentDashboard() {
             <PlaceholderCard
               title="Song C"
               description="A performance-based practice song with score tracking."
-              backgroundColor="#DC2626"
-              borderColor="#B91C1C"
+              backgroundColor="#2B2B2B"
+              borderColor="#FFFFFF14"
               titleColor="#FFFFFF"
               textColor="#FFFFFF"
             />
@@ -560,20 +560,20 @@ export default function StudentDashboard() {
           <PlaceholderCard
             title="Recommended Lesson"
             description="Based on your recent scores, try a lesson focused on tempo consistency."
-            backgroundColor="#9D174D"
-            borderColor="#BE185D"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
           />
           <PlaceholderCard
             title="Recommended Song"
             description="This song matches your current rhythm skill level and recent progress."
-            backgroundColor="#BE185D"
-            borderColor="#DB2777"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
           />
           <PlaceholderCard
             title="Recommended Practice Goal"
             description="Spend 20 minutes on timing drills to improve your next assignment score."
-            backgroundColor="#C026D3"
-            borderColor="#D946EF"
+            backgroundColor="#2B2B2B"
+            borderColor="#FFFFFF14"
           />
         </div>
       </DashboardSection>
