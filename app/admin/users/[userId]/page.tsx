@@ -1,16 +1,20 @@
 import { notFound, redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { getCurrentAppUser } from "@/lib/current-user";
+import { prisma } from "@/lib/prisma";
+import { getStudentDashboardData } from "@/lib/student-dashboard";
+import { getTeacherDashboardData } from "@/lib/teacher-dashboard";
 import StudentDashboard from "@/app/student/StudentDashboard";
 import TeacherDashboard from "@/app/teacher/TeacherDashboard";
 
-type Props = {
+type AdminUserPreviewPageProps = {
   params: Promise<{
     userId: string;
   }>;
 };
 
-export default async function AdminUserDashboardPage({ params }: Props) {
+export default async function AdminUserPreviewPage({
+  params,
+}: AdminUserPreviewPageProps) {
   const currentUser = await getCurrentAppUser();
 
   if (!currentUser) {
@@ -18,13 +22,15 @@ export default async function AdminUserDashboardPage({ params }: Props) {
   }
 
   if (currentUser.role !== "admin") {
-    redirect("/student");
+    redirect(`/${currentUser.role}`);
   }
 
   const { userId } = await params;
 
   const targetUser = await prisma.user.findUnique({
-    where: { id: userId },
+    where: {
+      id: userId,
+    },
   });
 
   if (!targetUser) {
@@ -32,12 +38,25 @@ export default async function AdminUserDashboardPage({ params }: Props) {
   }
 
   if (targetUser.role === "student") {
-    return <StudentDashboard />;
+    const dashboardData = await getStudentDashboardData(targetUser.id);
+
+    if (!dashboardData) {
+      notFound();
+    }
+
+    return <StudentDashboard dashboardData={dashboardData} />;
   }
 
   if (targetUser.role === "teacher") {
+    const dashboardData = await getTeacherDashboardData(targetUser.id);
+
+    if (!dashboardData) {
+      notFound();
+    }
+
     return (
       <TeacherDashboard
+        dashboardData={dashboardData}
         adminViewing
         viewedUserName={targetUser.name}
         viewedUserEmail={targetUser.email}
@@ -45,35 +64,5 @@ export default async function AdminUserDashboardPage({ params }: Props) {
     );
   }
 
-  return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#111827",
-        color: "#FFFFFF",
-        padding: 32,
-      }}
-    >
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <h1>Admin User View</h1>
-        <p style={{ color: "#D1D5DB" }}>
-          Admin dashboard preview is not available through this route.
-        </p>
-        <a
-          href="/admin"
-          style={{
-            textDecoration: "none",
-            background: "#2563EB",
-            color: "#FFFFFF",
-            padding: "12px 16px",
-            borderRadius: 10,
-            fontWeight: 600,
-            display: "inline-flex",
-          }}
-        >
-          Back to Admin
-        </a>
-      </div>
-    </main>
-  );
+  redirect("/admin");
 }
