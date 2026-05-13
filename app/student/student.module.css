@@ -16,7 +16,14 @@
   min-height: 100vh;
   background: #191919;
   color: #ffffff;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 500;
+  font-style: normal;
+  font-size: 13px;
+  leading-trim: none;
+  line-height: 19.5px;
+  letter-spacing: 0;
+  text-align: center;
 }
 
 .brandBox {
@@ -744,9 +751,14 @@
   width: 82px;
   height: 38px;
   color: #334155;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  font-style: normal;
+  leading-trim: none;
+  line-height: 19.5px;
+  letter-spacing: 0;
+  text-align: center;
   text-decoration: none;
   background: #ffffff;
 }
@@ -754,4 +766,28 @@
 .logoutButton:hover {
   background: #d1d5db;
   color: #334155;
+}
+
+
+.studentTypography,
+.studentTypography * {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 500;
+  font-style: normal;
+  font-size: 13px;
+  leading-trim: none;
+  line-height: 19.5px;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.panelTitle {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 500;
+  font-style: normal;
+  font-size: 13px;
+  leading-trim: none;
+  line-height: 19.5px;
+  letter-spacing: 0;
+  text-align: left;
 }

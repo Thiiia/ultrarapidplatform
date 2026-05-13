@@ -96,15 +96,14 @@ function DashboardSection({
           height: 195,
           border: "none",
           borderRadius: 0,
-          padding: "20px 56px",
+          padding: "20px 0",
           margin: "0 auto",
         }}
       >
         <h2
+          className={styles.panelTitle}
           style={{
             margin: "0 0 16px 0",
-            fontSize: 22,
-            fontWeight: 700,
             color: "#FFFFFF",
           }}
         >
@@ -299,7 +298,11 @@ function PlaceholderCard({
       <h3
         style={{
           margin: "0 0 8px 0",
-          fontSize: 16,
+          fontSize: 13,
+          fontWeight: 500,
+          lineHeight: "19.5px",
+          letterSpacing: 0,
+          textAlign: "center",
           color: titleColor,
         }}
       >
@@ -309,7 +312,11 @@ function PlaceholderCard({
         style={{
           margin: 0,
           color: textColor,
-          lineHeight: 1.5,
+          fontSize: 13,
+          fontWeight: 500,
+          lineHeight: "19.5px",
+          letterSpacing: 0,
+          textAlign: "center",
         }}
       >
         {description}
@@ -323,6 +330,7 @@ export default function StudentDashboard() {
 
   return (
     <div
+      className={styles.studentTypography}
       style={{
         display: "flex",
         flexDirection: "column",

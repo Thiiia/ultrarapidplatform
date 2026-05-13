@@ -85,15 +85,14 @@ function DashboardSection({ title, children }: SectionProps) {
           minHeight: 230,
           border: "none",
           borderRadius: 0,
-          padding: 20,
+          padding: "20px 0",
           margin: "0 auto",
         }}
       >
         <h2
+          className={styles.panelTitle}
           style={{
             margin: "0 0 16px 0",
-            fontSize: 22,
-            fontWeight: 700,
             color: "#FFFFFF",
           }}
         >
@@ -274,8 +273,8 @@ function PlaceholderCard({
         padding: 16,
       }}
     >
-      <h3 style={{ margin: "0 0 8px 0", fontSize: 16, color: "#fff" }}>{title}</h3>
-      <p style={{ margin: 0, color: "#d1d5db", lineHeight: 1.5 }}>{description}</p>
+      <h3 style={{ margin: "0 0 8px 0", fontSize: 13, fontWeight: 500, lineHeight: "19.5px", letterSpacing: 0, textAlign: "center", color: "#fff" }}>{title}</h3>
+      <p style={{ margin: 0, color: "#d1d5db", fontSize: 13, fontWeight: 500, lineHeight: "19.5px", letterSpacing: 0, textAlign: "center" }}>{description}</p>
     </div>
   );
 }
@@ -285,6 +284,7 @@ export default function ProgressPage() {
 
   return (
     <div
+      className={styles.studentTypography}
       style={{
         display: "flex",
         flexDirection: "column",
