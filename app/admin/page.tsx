@@ -2,12 +2,19 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAppUser } from "@/lib/current-user";
 import Link from "next/link";
+import type { Role, UserStatus } from "@prisma/client";
 
 type AdminUserRow = {
   id: string;
-  name: string | null;
+  auth0Sub: string;
   email: string;
-  role: "student" | "teacher" | "admin";
+  name: string | null;
+  role: Role;
+  status: UserStatus;
+  schoolId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  lastLoginAt: Date | null;
 };
 
 async function updateUserRole(formData: FormData) {

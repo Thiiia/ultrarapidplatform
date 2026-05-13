@@ -6,7 +6,7 @@ import { z } from "zod";
 /**
  * Enums
  */
-export const UserRoleSchema = z.enum(["student", "teacher", "admin", "editor"]);
+export const UserRoleSchema = z.enum(["student", "teacher", "admin"]);
 
 export const UserStatusSchema = z.enum([
   "active",

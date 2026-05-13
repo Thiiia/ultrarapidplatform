@@ -157,7 +157,6 @@ enum Role {
   student
   teacher
   admin
-  editor
 }
 
 enum UserStatus {
