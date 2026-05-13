@@ -35,15 +35,15 @@ type UtilityTab = {
 };
 
 const topTabs: HeaderTab[] = [
-  { label: "Home", href: "/student", Icon: HomeIcon, width: 81.77 },
-  { label: "My Lessons", href: "/student/lessons", Icon: MyLessonsTab, width: 117.37 },
+  { label: "Home", href: "/student", Icon: HomeIcon, width: 99 },
+  { label: "My Lessons", href: "/student/lessons", Icon: MyLessonsTab, width: 139 },
   {
     label: "Lesson Builder",
     href: "/editor",
     Icon: LessonBuilderTab,
-    width: 134.83,
+    width: 159,
   },
-  { label: "Progress", href: "/student/progress", Icon: ProgressTab, width: 99.69 },
+  { label: "Progress", href: "/student/progress", Icon: ProgressTab, width: 120 },
 ];
 
 const utilityTabs: UtilityTab[] = [
@@ -66,6 +66,8 @@ const sectionColors = {
   recommended: "#191919",
 };
 
+const pagePanelInset = "7.5vw";
+
 type SectionProps = {
   title: string;
   children?: ReactNode;
@@ -82,6 +84,8 @@ function DashboardSection({
       style={{
         background: backgroundColor,
         color: "#FFFFFF",
+        width: "100%",
+        boxSizing: "border-box",
         height: 195,
         border: "none",
         borderBottom: "1px solid #E5E7EB",
@@ -163,30 +167,37 @@ export default function StudentDashboard() {
         flexDirection: "column",
         gap: 0,
         paddingTop: 20,
+        paddingLeft: pagePanelInset,
+        paddingRight: pagePanelInset,
+        boxSizing: "border-box",
         color: "#FFFFFF",
       }}
     >
       <section
         style={{
           background: headerStyles.backgroundColor,
+          width: "100%",
+          boxSizing: "border-box",
           height: 70,
           border: "none",
           borderBottom: `1px solid ${headerStyles.borderBottomColor}`,
           borderRadius: 0,
-          padding: 16,
+          padding: "16px 24px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          gap: 7.5,
-          flexWrap: "wrap",
+          gap: 24,
+          flexWrap: "nowrap",
+          overflowX: "auto",
         }}
       >
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
+            gap: 24,
+            flexWrap: "nowrap",
+            minWidth: 0,
           }}
         >
           <URIcon
@@ -198,8 +209,9 @@ export default function StudentDashboard() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              flexWrap: "wrap",
+              gap: 12,
+              flexWrap: "nowrap",
+              minWidth: 0,
             }}
           >
             {topTabs.map((tab) => {
@@ -237,9 +249,10 @@ export default function StudentDashboard() {
           style={{
             display: "flex",
             gap: 6,
-            flexWrap: "wrap",
+            flexWrap: "nowrap",
             marginLeft: "auto",
             alignItems: "center",
+            flexShrink: 0,
           }}
         >
           {utilityTabs.map((tab) => {
