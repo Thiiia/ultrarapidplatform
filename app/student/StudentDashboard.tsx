@@ -67,6 +67,7 @@ const sectionColors = {
 };
 
 const pagePanelInset = "7.5vw";
+const pageBackgroundColor = "#191919";
 
 type SectionProps = {
   title: string;
@@ -77,7 +78,7 @@ type SectionProps = {
 function DashboardSection({
   title,
   children,
-  backgroundColor = "#FFFFFF",
+  backgroundColor = pageBackgroundColor,
 }: SectionProps) {
   return (
     <section
@@ -88,7 +89,7 @@ function DashboardSection({
         boxSizing: "border-box",
         height: 195,
         border: "none",
-        borderBottom: "1px solid #E5E7EB",
+        borderBottom: "1px solid #FFFFFF14",
         borderRadius: 0,
         padding: "20px 56px",
       }}
@@ -166,6 +167,8 @@ export default function StudentDashboard() {
         display: "flex",
         flexDirection: "column",
         gap: 0,
+        minHeight: "100vh",
+        background: pageBackgroundColor,
         paddingTop: 20,
         paddingLeft: pagePanelInset,
         paddingRight: pagePanelInset,

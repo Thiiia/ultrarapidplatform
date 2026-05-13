@@ -51,6 +51,15 @@ const utilityTabs: UtilityTab[] = [
   { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 134.45 },
 ];
 
+const headerStyles = {
+  backgroundColor: "#2B2B2B",
+  borderBottomColor: "#FFFFFF14",
+};
+
+const pageBackgroundColor = "#191919";
+const firstPanelBackgroundColor = headerStyles.backgroundColor;
+
+
 
 type SectionProps = {
   title: string;
@@ -61,10 +70,13 @@ function DashboardSection({ title, children }: SectionProps) {
   return (
     <section
       style={{
-        background: "#FFFFFF",
+        background: firstPanelBackgroundColor,
+        color: "#FFFFFF",
+        width: "100%",
+        boxSizing: "border-box",
         minHeight: 230,
         border: "none",
-        borderBottom: "1px solid #E5E7EB",
+        borderBottom: `1px solid ${headerStyles.borderBottomColor}`,
         borderRadius: 0,
         padding: 20,
       }}
@@ -74,6 +86,7 @@ function DashboardSection({ title, children }: SectionProps) {
           margin: "0 0 16px 0",
           fontSize: 22,
           fontWeight: 700,
+          color: "#FFFFFF",
         }}
       >
         {title}
@@ -113,12 +126,15 @@ export default function MyLessonsPage() {
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 20,
+        gap: 0,
+        minHeight: "100vh",
+        background: pageBackgroundColor,
+        color: "#FFFFFF",
       }}
     >
       <section
         style={{
-          background: "#2B2B2B",
+          background: headerStyles.backgroundColor,
           width: "100%",
           boxSizing: "border-box",
           height: 70,
