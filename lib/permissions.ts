@@ -64,11 +64,6 @@ export const ROLE_PERMISSIONS: PermissionMap = {
     "view_launcher_status",
     "access_admin_tools",
   ],
-  editor: [
-    "view_editor_dashboard",
-    "edit_content",
-    "publish_content",
-  ],
 };
 
 export function hasPermission(
