@@ -34,15 +34,15 @@ type UtilityTab = {
 };
 
 const topTabs: HeaderTab[] = [
-  { label: "Home", href: "/student", Icon: HomeIcon, width: 81.77 },
-  { label: "My Lessons", href: "/student/lessons", Icon: MyLessonsTab, width: 117.37 },
+  { label: "Home", href: "/student", Icon: HomeIcon, width: 99 },
+  { label: "My Lessons", href: "/student/lessons", Icon: MyLessonsTab, width: 139 },
   {
     label: "Lesson Builder",
     href: "/student/lesson-builder",
     Icon: LessonBuilderTab,
-    width: 134.83,
+    width: 159,
   },
-  { label: "Progress", href: "/student/progress", Icon: ProgressTab, width: 99.69 },
+  { label: "Progress", href: "/student/progress", Icon: ProgressTab, width: 120 },
 ];
 
 const utilityTabs: UtilityTab[] = [
@@ -117,25 +117,29 @@ export default function LessonBuilderPage() {
     >
       <section
         style={{
-          background: "#FFFFFF",
+          background: "#2B2B2B",
+          width: "100%",
+          boxSizing: "border-box",
           height: 70,
           border: "none",
-          borderBottom: "1px solid #D1D5DC",
+          borderBottom: "1px solid #FFFFFF14",
           borderRadius: 0,
-          padding: 16,
+          padding: "16px 24px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          gap: 7.5,
-          flexWrap: "wrap",
+          gap: 24,
+          flexWrap: "nowrap",
+          overflowX: "auto",
         }}
       >
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
+            gap: 24,
+            flexWrap: "nowrap",
+            minWidth: 0,
           }}
         >
           <URIcon
@@ -147,8 +151,9 @@ export default function LessonBuilderPage() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              flexWrap: "wrap",
+              gap: 12,
+              flexWrap: "nowrap",
+              minWidth: 0,
             }}
           >
             {topTabs.map((tab) => {
@@ -186,8 +191,10 @@ export default function LessonBuilderPage() {
           style={{
             display: "flex",
             gap: 6,
-            flexWrap: "wrap",
+            flexWrap: "nowrap",
             marginLeft: "auto",
+            alignItems: "center",
+            flexShrink: 0,
           }}
         >
 {utilityTabs.map((tab) => {
