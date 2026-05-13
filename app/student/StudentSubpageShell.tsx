@@ -3,15 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { FC, ReactNode, SVGProps } from "react";
-import type { StudentDashboardData } from "@/lib/student-dashboard";
 import styles from "./student.module.css";
 
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
-import HomeIcon from "@/public/header_icons/Home_pressed.svg";
+import HomeIcon from "@/public/header_icons/Home.svg";
+import HomePressedIcon from "@/public/header_icons/Home_pressed.svg";
 import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
+import MyLessonsPressedTab from "@/public/header_icons/my_lessons_tab_pressed.svg";
 import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab.svg";
+import LessonBuilderPressedTab from "@/public/header_icons/lesson_builder_tab_pressed.svg";
 import ProgressTab from "@/public/header_icons/progress_tab.svg";
+import ProgressPressedTab from "@/public/header_icons/progress_tab_pressed.svg";
 
 /* Utility Icon Imports */
 // import NotificationsIcon from "@/public/utility_icons/notifications_icon.svg";
@@ -24,6 +27,7 @@ type HeaderTab = {
   label: string;
   href: string;
   Icon: TabIcon;
+  ActiveIcon: TabIcon;
   width: number;
 };
 
@@ -34,20 +38,46 @@ type UtilityTab = {
   width: number;
 };
 
-type StudentDashboardProps = {
-  dashboardData: StudentDashboardData;
+type StudentSubpageCard = {
+  title: string;
+  description: string;
+  href?: string;
+};
+
+type StudentSubpageShellProps = {
+  title: string;
+  cards: StudentSubpageCard[];
 };
 
 const topTabs: HeaderTab[] = [
-  { label: "Home", href: "/student", Icon: HomeIcon, width: 99 },
-  { label: "My Lessons", href: "/student/lessons", Icon: MyLessonsTab, width: 139 },
+  {
+    label: "Home",
+    href: "/student",
+    Icon: HomeIcon,
+    ActiveIcon: HomePressedIcon,
+    width: 99,
+  },
+  {
+    label: "My Lessons",
+    href: "/student/lessons",
+    Icon: MyLessonsTab,
+    ActiveIcon: MyLessonsPressedTab,
+    width: 139,
+  },
   {
     label: "Lesson Builder",
     href: "/student/lesson-builder",
     Icon: LessonBuilderTab,
+    ActiveIcon: LessonBuilderPressedTab,
     width: 159,
   },
-  { label: "Progress", href: "/student/progress", Icon: ProgressTab, width: 120 },
+  {
+    label: "Progress",
+    href: "/student/progress",
+    Icon: ProgressTab,
+    ActiveIcon: ProgressPressedTab,
+    width: 120,
+  },
 ];
 
 const utilityTabs: UtilityTab[] = [
@@ -61,40 +91,31 @@ const headerStyles = {
   borderBottomColor: "#FFFFFF14",
 };
 
-const sectionColors = {
-  welcome: "#2B2B2B",
-  queue: "#191919",
-};
-
 const pagePanelWidth = "85vw";
 const pageBackgroundColor = "#191919";
+const firstPanelBackgroundColor = headerStyles.backgroundColor;
 
 type SectionProps = {
   title: string;
   children?: ReactNode;
-  backgroundColor?: string;
 };
 
-function DashboardSection({
-  title,
-  children,
-  backgroundColor = pageBackgroundColor,
-}: SectionProps) {
+function DashboardSection({ title, children }: SectionProps) {
   return (
     <div
       style={{
-        background: backgroundColor,
+        background: firstPanelBackgroundColor,
         width: "100%",
-        borderBottom: "1px solid #FFFFFF14",
+        borderBottom: `1px solid ${headerStyles.borderBottomColor}`,
       }}
     >
       <section
         style={{
-          background: backgroundColor,
+          background: firstPanelBackgroundColor,
           color: "#FFFFFF",
           width: pagePanelWidth,
           boxSizing: "border-box",
-          minHeight: 195,
+          minHeight: 230,
           border: "none",
           borderRadius: 0,
           padding: "20px 0",
@@ -190,6 +211,7 @@ function HeaderBar({ pathname }: { pathname: string }) {
           >
             {topTabs.map((tab) => {
               const isActive = pathname === tab.href;
+              const Icon = isActive ? tab.ActiveIcon : tab.Icon;
 
               return (
                 <Link
@@ -208,7 +230,7 @@ function HeaderBar({ pathname }: { pathname: string }) {
                     justifyContent: "center",
                   }}
                 >
-                  <tab.Icon
+                  <Icon
                     style={{
                       width: tab.width,
                       height: 45.5,
@@ -271,34 +293,22 @@ function HeaderBar({ pathname }: { pathname: string }) {
   );
 }
 
-type PlaceholderCardProps = {
-  title: string;
-  description: string;
-  backgroundColor?: string;
-  borderColor?: string;
-  titleColor?: string;
-  textColor?: string;
-  href?: string;
-};
-
 function PlaceholderCard({
   title,
   description,
-  backgroundColor = "#2B2B2B",
-  borderColor = "#FFFFFF14",
-  titleColor = "#FFFFFF",
-  textColor = "#FFFFFF",
   href,
-}: PlaceholderCardProps) {
+}: {
+  title: string;
+  description: string;
+  href?: string;
+}) {
   const card = (
     <div
       style={{
-        background: backgroundColor,
-        border: `1px solid ${borderColor}`,
+        background: "#2B2B2B",
+        border: "1px solid #FFFFFF14",
         borderRadius: 12,
-        color: "#FFFFFF",
         padding: 16,
-        minHeight: 88,
       }}
     >
       <h3
@@ -309,7 +319,7 @@ function PlaceholderCard({
           lineHeight: "19.5px",
           letterSpacing: 0,
           textAlign: "center",
-          color: titleColor,
+          color: "#fff",
         }}
       >
         {title}
@@ -317,7 +327,7 @@ function PlaceholderCard({
       <p
         style={{
           margin: 0,
-          color: textColor,
+          color: "#FFFFFF",
           fontSize: 13,
           fontWeight: 500,
           lineHeight: "19.5px",
@@ -335,47 +345,17 @@ function PlaceholderCard({
   }
 
   return (
-    <Link href={href} style={{ textDecoration: "none", color: "inherit" }}>
+    <Link href={href} style={{ color: "inherit", textDecoration: "none" }}>
       {card}
     </Link>
   );
 }
 
-function formatDueDate(value: Date | string | null | undefined) {
-  if (!value) {
-    return "No due date";
-  }
-
-  const date = typeof value === "string" ? new Date(value) : value;
-
-  if (Number.isNaN(date.getTime())) {
-    return "No due date";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(date);
-}
-
-export default function StudentDashboard({ dashboardData }: StudentDashboardProps) {
+export default function StudentSubpageShell({
+  title,
+  cards,
+}: StudentSubpageShellProps) {
   const pathname = usePathname();
-
-  const displayName = dashboardData.name ?? "Student";
-
-  const classSummary =
-    dashboardData.classes.length > 0
-      ? dashboardData.classes.map((classItem) => classItem.name).join(", ")
-      : "No class assigned yet";
-
-  const teacherSummary =
-    dashboardData.teachers.length > 0
-      ? dashboardData.teachers
-          .map((teacher) => teacher.name ?? teacher.email)
-          .join(", ")
-      : "No teacher assigned yet";
-
-  const currentLessons = dashboardData.currentLessons.slice(0, 3);
 
   return (
     <div
@@ -392,83 +372,23 @@ export default function StudentDashboard({ dashboardData }: StudentDashboardProp
     >
       <HeaderBar pathname={pathname} />
 
-      <DashboardSection
-        title={`Welcome Back, ${displayName}`}
-        backgroundColor={sectionColors.welcome}
-      >
+      <DashboardSection title={title}>
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "2fr 1fr",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
             gap: 15,
           }}
         >
-          <PlaceholderCard
-            title="Ready for your next lesson?"
-            description={
-              currentLessons.length > 0
-                ? `You have ${currentLessons.length} current lesson${
-                    currentLessons.length === 1 ? "" : "s"
-                  } ready.`
-                : "You do not have any lessons assigned yet."
-            }
-            backgroundColor="#191919"
-            borderColor="#FFFFFF14"
-            titleColor="#FFFFFF"
-            textColor="#FFFFFF"
-            href={currentLessons[0]?.href}
-          />
-
-          <PlaceholderCard
-            title="Today at a glance"
-            description={`School: ${
-              dashboardData.school?.name ?? "Not assigned"
-            }. Class: ${classSummary}. Teacher: ${teacherSummary}.`}
-            backgroundColor="#191919"
-            borderColor="#FFFFFF14"
-            titleColor="#FFFFFF"
-            textColor="#FFFFFF"
-          />
+          {cards.map((card) => (
+            <PlaceholderCard
+              key={card.title}
+              title={card.title}
+              description={card.description}
+              href={card.href}
+            />
+          ))}
         </div>
-      </DashboardSection>
-
-      <DashboardSection
-        title="Your Learning Queue"
-        backgroundColor={sectionColors.queue}
-      >
-        {currentLessons.length > 0 ? (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-              gap: 15,
-            }}
-          >
-            {currentLessons.map((lesson) => (
-              <PlaceholderCard
-                key={`${lesson.missionId}-${lesson.assignmentId ?? "progress"}`}
-                title={lesson.title}
-                description={`${lesson.className ?? "Current lesson"} • ${
-                  lesson.teacherName ?? "Self-paced"
-                } • ${formatDueDate(lesson.dueAt)}`}
-                backgroundColor="#2B2B2B"
-                borderColor="#FFFFFF14"
-                titleColor="#FFFFFF"
-                textColor="#FFFFFF"
-                href={lesson.href}
-              />
-            ))}
-          </div>
-        ) : (
-          <PlaceholderCard
-            title="No lessons assigned yet"
-            description="Your teacher has not assigned any current lessons. Once they do, they will appear here."
-            backgroundColor="#2B2B2B"
-            borderColor="#FFFFFF14"
-            titleColor="#FFFFFF"
-            textColor="#FFFFFF"
-          />
-        )}
       </DashboardSection>
     </div>
   );

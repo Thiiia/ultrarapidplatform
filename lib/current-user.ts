@@ -8,27 +8,51 @@ export async function getCurrentAppUser() {
     return null;
   }
 
-  const sub = session.user.sub;
+  const auth0Sub = session.user.sub;
   const email = session.user.email;
-  const name = session.user.name;
+  const auth0Name = session.user.name;
 
-  if (!sub || !email) {
+  if (!auth0Sub || !email) {
     return null;
   }
 
-  const user = await prisma.user.upsert({
-    where: { auth0Sub: sub },
-    update: {
-      email,
-      name: name ?? null,
-    },
-    create: {
-      auth0Sub: sub,
-      email,
-      name: name ?? null,
-      role: "student",
+  const existingUser = await prisma.user.findUnique({
+    where: {
+      auth0Sub,
     },
   });
+
+  if (!existingUser) {
+    return prisma.user.create({
+      data: {
+        auth0Sub,
+        email,
+        name: auth0Name ?? null,
+        role: "student",
+        status: "active",
+        lastLoginAt: new Date(),
+      },
+    });
+  }
+
+  return prisma.user.update({
+    where: {
+      auth0Sub,
+    },
+    data: {
+      email,
+      name: existingUser.name ?? auth0Name ?? null,
+      lastLoginAt: new Date(),
+    },
+  });
+}
+
+export async function requireCurrentAppUser() {
+  const user = await getCurrentAppUser();
+
+  if (!user) {
+    throw new Error("User is not authenticated.");
+  }
 
   return user;
 }

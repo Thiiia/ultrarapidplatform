@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentAppUser } from "@/lib/current-user";
+import { getTeacherDashboardData } from "@/lib/teacher-dashboard";
 import TeacherDashboard from "./TeacherDashboard";
 
 export default async function TeacherPage() {
@@ -17,5 +18,11 @@ export default async function TeacherPage() {
     redirect("/student");
   }
 
-  return <TeacherDashboard />;
+  const dashboardData = await getTeacherDashboardData(user.id);
+
+  if (!dashboardData) {
+    redirect("/login");
+  }
+
+  return <TeacherDashboard dashboardData={dashboardData} />;
 }

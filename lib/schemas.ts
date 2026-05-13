@@ -1,11 +1,13 @@
-// Defines the data schemas for users, classes, assignments, scores, session telemetry, and content objects using Zod. 
-// For example, a class contains students and assignments, while a teacher must have access to different students etc.
+// Defines the data schemas for users, schools, classes, assignments, scores,
+// session telemetry, and content objects using Zod.
+
 import { z } from "zod";
 
 /**
  * Enums
  */
 export const UserRoleSchema = z.enum(["student", "teacher", "admin", "editor"]);
+
 export const UserStatusSchema = z.enum([
   "active",
   "inactive",
@@ -76,7 +78,21 @@ export const FailureStageSchema = z.enum([
  * Shared helpers
  */
 export const IdSchema = z.string().min(1);
-export const TimestampSchema = z.string().datetime({ offset: true }).or(z.string().datetime());
+export const TimestampSchema = z
+  .string()
+  .datetime({ offset: true })
+  .or(z.string().datetime());
+
+/**
+ * School
+ */
+export const SchoolSchema = z.object({
+  id: IdSchema,
+  name: z.string().min(1),
+
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
+});
 
 /**
  * User
@@ -91,15 +107,30 @@ export const UserAnalyticsSchema = z.object({
 
 export const UserSchema = z.object({
   id: IdSchema,
+
+  auth0Sub: z.string().min(1).optional(),
+
   role: UserRoleSchema,
-  email: z.string().email().optional(),
-  displayName: z.string().min(1),
+  email: z.string().email(),
+  name: z.string().min(1).nullable().optional(),
+  displayName: z.string().min(1).optional(),
+
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
   avatarUrl: z.string().url().optional(),
+
   status: UserStatusSchema,
 
-  classIds: z.array(IdSchema),
+  schoolId: IdSchema.nullable().optional(),
+
+  /**
+   * These are API/view-model relationship fields.
+   * Store the relationships in relational tables, not as copied arrays in Auth0.
+   */
+  classIds: z.array(IdSchema).optional(),
+  studentIds: z.array(IdSchema).optional(),
+  teacherIds: z.array(IdSchema).optional(),
+  currentLessonIds: z.array(IdSchema).optional(),
 
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
@@ -117,11 +148,26 @@ export const ClassSchema = z.object({
   description: z.string().optional(),
   term: z.string().optional(),
 
+  schoolId: IdSchema,
+
   teacherId: IdSchema,
   studentIds: z.array(IdSchema),
 
   assignmentIds: z.array(IdSchema),
   isArchived: z.boolean(),
+
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
+});
+
+/**
+ * Lesson
+ */
+export const LessonSchema = z.object({
+  id: IdSchema,
+  title: z.string().min(1),
+  slug: z.string().min(1).optional(),
+  description: z.string().optional(),
 
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
@@ -146,7 +192,8 @@ export const AssignmentSchema = z.object({
   classId: IdSchema.optional(),
   studentId: IdSchema.optional(),
 
-  contentId: IdSchema,
+  lessonId: IdSchema.optional(),
+  contentId: IdSchema.optional(),
   gameId: IdSchema.optional(),
 
   dueAt: TimestampSchema.optional(),
@@ -170,7 +217,8 @@ export const ScoreSchema = z.object({
   userId: IdSchema,
   classId: IdSchema.optional(),
   assignmentId: IdSchema,
-  contentId: IdSchema,
+  contentId: IdSchema.optional(),
+  lessonId: IdSchema.optional(),
   gameId: IdSchema.optional(),
   sessionId: IdSchema.optional(),
   launchId: IdSchema.optional(),
@@ -209,6 +257,7 @@ export const SessionTelemetrySchema = z.object({
   classId: IdSchema.optional(),
   assignmentId: IdSchema.optional(),
   contentId: IdSchema.optional(),
+  lessonId: IdSchema.optional(),
   gameId: IdSchema.optional(),
 
   appArea: AppAreaSchema,
@@ -271,6 +320,83 @@ export const ContentObjectSchema = z.object({
 });
 
 /**
+ * Dashboard API schemas
+ */
+export const StudentDashboardDataSchema = z.object({
+  id: IdSchema,
+  name: z.string().nullable(),
+  email: z.string().email(),
+  school: SchoolSchema.pick({
+    id: true,
+    name: true,
+  }).nullable(),
+  classes: z.array(
+    z.object({
+      id: IdSchema,
+      name: z.string(),
+      teacher: z.object({
+        id: IdSchema,
+        name: z.string().nullable(),
+        email: z.string().email(),
+      }),
+    }),
+  ),
+  teachers: z.array(
+    z.object({
+      id: IdSchema,
+      name: z.string().nullable(),
+      email: z.string().email(),
+    }),
+  ),
+  currentLessons: z.array(
+    z.object({
+      assignmentId: IdSchema,
+      title: z.string(),
+      slug: z.string().nullable().optional(),
+      status: AssignmentStatusSchema,
+      dueAt: z.date().nullable().optional(),
+      className: z.string().nullable(),
+      teacherName: z.string(),
+    }),
+  ),
+});
+
+export const TeacherDashboardDataSchema = z.object({
+  id: IdSchema,
+  name: z.string().nullable(),
+  email: z.string().email(),
+  school: SchoolSchema.pick({
+    id: true,
+    name: true,
+  }).nullable(),
+  classes: z.array(
+    z.object({
+      id: IdSchema,
+      name: z.string(),
+      studentCount: z.number().int().min(0),
+      assignments: z.array(
+        z.object({
+          id: IdSchema,
+          title: z.string(),
+          status: AssignmentStatusSchema,
+          dueAt: z.date().nullable().optional(),
+          lessonTitle: z.string(),
+        }),
+      ),
+    }),
+  ),
+  students: z.array(
+    z.object({
+      id: IdSchema,
+      name: z.string().nullable(),
+      email: z.string().email(),
+      classIds: z.array(IdSchema),
+      classNames: z.array(z.string()),
+    }),
+  ),
+});
+
+/**
  * Inferred TypeScript types
  */
 export type UserRole = z.infer<typeof UserRoleSchema>;
@@ -283,21 +409,42 @@ export type AppArea = z.infer<typeof AppAreaSchema>;
 export type Environment = z.infer<typeof EnvironmentSchema>;
 export type ScoreType = z.infer<typeof ScoreTypeSchema>;
 
+export type School = z.infer<typeof SchoolSchema>;
 export type User = z.infer<typeof UserSchema>;
 export type Class = z.infer<typeof ClassSchema>;
+export type Lesson = z.infer<typeof LessonSchema>;
 export type Assignment = z.infer<typeof AssignmentSchema>;
 export type Score = z.infer<typeof ScoreSchema>;
 export type SessionTelemetry = z.infer<typeof SessionTelemetrySchema>;
 export type ContentObject = z.infer<typeof ContentObjectSchema>;
 
+export type StudentDashboardData = z.infer<typeof StudentDashboardDataSchema>;
+export type TeacherDashboardData = z.infer<typeof TeacherDashboardDataSchema>;
+
 /**
  * Optional create/update variants
  */
+export const CreateSchoolSchema = SchoolSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  id: IdSchema.optional(),
+  createdAt: TimestampSchema.optional(),
+  updatedAt: TimestampSchema.optional(),
+});
+
+export const UpdateSchoolSchema = SchoolSchema.partial().extend({
+  id: IdSchema,
+});
+
 export const CreateUserSchema = UserSchema.omit({
+  id: true,
   createdAt: true,
   updatedAt: true,
   lastLoginAt: true,
 }).extend({
+  id: IdSchema.optional(),
   createdAt: TimestampSchema.optional(),
   updatedAt: TimestampSchema.optional(),
 });
@@ -307,9 +454,11 @@ export const UpdateUserSchema = UserSchema.partial().extend({
 });
 
 export const CreateClassSchema = ClassSchema.omit({
+  id: true,
   createdAt: true,
   updatedAt: true,
 }).extend({
+  id: IdSchema.optional(),
   createdAt: TimestampSchema.optional(),
   updatedAt: TimestampSchema.optional(),
 });
@@ -318,10 +467,26 @@ export const UpdateClassSchema = ClassSchema.partial().extend({
   id: IdSchema,
 });
 
-export const CreateAssignmentSchema = AssignmentSchema.omit({
+export const CreateLessonSchema = LessonSchema.omit({
+  id: true,
   createdAt: true,
   updatedAt: true,
 }).extend({
+  id: IdSchema.optional(),
+  createdAt: TimestampSchema.optional(),
+  updatedAt: TimestampSchema.optional(),
+});
+
+export const UpdateLessonSchema = LessonSchema.partial().extend({
+  id: IdSchema,
+});
+
+export const CreateAssignmentSchema = AssignmentSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  id: IdSchema.optional(),
   createdAt: TimestampSchema.optional(),
   updatedAt: TimestampSchema.optional(),
 });
@@ -331,7 +496,10 @@ export const UpdateAssignmentSchema = AssignmentSchema.partial().extend({
 });
 
 export const CreateScoreSchema = ScoreSchema.omit({
+  id: true,
   createdAt: true,
+}).extend({
+  id: IdSchema.optional(),
 });
 
 export const UpdateScoreSchema = ScoreSchema.partial().extend({
@@ -339,9 +507,11 @@ export const UpdateScoreSchema = ScoreSchema.partial().extend({
 });
 
 export const CreateSessionTelemetrySchema = SessionTelemetrySchema.omit({
+  id: true,
   createdAt: true,
   updatedAt: true,
 }).extend({
+  id: IdSchema.optional(),
   createdAt: TimestampSchema.optional(),
   updatedAt: TimestampSchema.optional(),
 });
@@ -351,9 +521,11 @@ export const UpdateSessionTelemetrySchema = SessionTelemetrySchema.partial().ext
 });
 
 export const CreateContentObjectSchema = ContentObjectSchema.omit({
+  id: true,
   createdAt: true,
   updatedAt: true,
 }).extend({
+  id: IdSchema.optional(),
   createdAt: TimestampSchema.optional(),
   updatedAt: TimestampSchema.optional(),
 });
