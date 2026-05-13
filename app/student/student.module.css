@@ -676,7 +676,7 @@
   flex-shrink: 0;
   box-sizing: border-box;
   line-height: 0;
-  overflow: hidden;
+  overflow: visible;
   transition:
     background-color 0.18s ease,
     opacity 0.18s ease,
@@ -718,6 +718,8 @@
   box-sizing: border-box;
   padding: 0;
   line-height: 0;
+  text-decoration: none;
+  color: #334155;
   transition:
     background-color 0.18s ease,
     opacity 0.18s ease,
@@ -735,4 +737,21 @@
   flex-shrink: 0;
   pointer-events: none;
   background: transparent;
+}
+
+
+.logoutButton {
+  width: 82px;
+  height: 38px;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  background: #ffffff;
+}
+
+.logoutButton:hover {
+  background: #d1d5db;
+  color: #334155;
 }
