@@ -67,7 +67,7 @@ const utilityTabs: UtilityTab[] = [
   { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 134.45 },
 ];
 
-const pagePanelWidth = "85vw";
+const pagePanelWidth = "92vw";
 const headerBackgroundColor = "#2B2B2B";
 const pageBackgroundColor = "#191919";
 const subtleBorderColor = "#FFFFFF14";
@@ -293,10 +293,12 @@ function EditorButton({
   children,
   disabled = false,
   onClick,
+  width,
 }: {
   children: React.ReactNode;
   disabled?: boolean;
   onClick?: () => void;
+  width?: number | string;
 }) {
   return (
     <button
@@ -306,6 +308,7 @@ function EditorButton({
       style={{
         ...sharedTextStyle,
         minHeight: 38,
+        width,
         border: `1px solid ${subtleBorderColor}`,
         borderRadius: 8,
         background: pageBackgroundColor,
@@ -359,9 +362,9 @@ function ChartDropdown({
   onUploadChartClick: () => void;
 }) {
   return (
-    <div style={{ minWidth: 260, position: "relative" }}>
+    <div style={{ width: 260, position: "relative" }}>
       <ControlLabel>Chart</ControlLabel>
-      <details className="editorChartDropdown" style={{ position: "relative" }}>
+      <details className="editorChartDropdown" style={{ position: "relative", width: "100%" }}>
         <summary
           style={{
             ...sharedTextStyle,
@@ -374,9 +377,25 @@ function ChartDropdown({
             cursor: "pointer",
             listStyle: "none",
             textAlign: "center",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
           }}
         >
-          {chartLabel}
+          <span
+            style={{
+              flex: 1,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {chartLabel}
+          </span>
+          <span aria-hidden="true" style={{ fontSize: 12, lineHeight: 1 }}>
+            ▾
+          </span>
         </summary>
         <div
           style={{
@@ -394,8 +413,8 @@ function ChartDropdown({
             boxShadow: "0 14px 34px rgba(0, 0, 0, 0.34)",
           }}
         >
-          <EditorButton onClick={onCreateBlankChart}>Create blank chart</EditorButton>
-          <EditorButton onClick={onUploadChartClick}>Upload chart</EditorButton>
+          <EditorButton width="100%" onClick={onCreateBlankChart}>Create blank chart</EditorButton>
+          <EditorButton width="100%" onClick={onUploadChartClick}>Upload chart</EditorButton>
         </div>
       </details>
     </div>
@@ -403,7 +422,6 @@ function ChartDropdown({
 }
 
 function EditorPanel({
-  songName,
   chartLabel,
   chartFile,
   isChartVisible,
@@ -412,7 +430,6 @@ function EditorPanel({
   onCreateBlankChart,
   onUploadChartClick,
 }: {
-  songName: string;
   chartLabel: string;
   chartFile: string;
   isChartVisible: boolean;
@@ -452,14 +469,9 @@ function EditorPanel({
             flexWrap: "wrap",
           }}
         >
-          <div>
+          <div style={{ width: 260 }}>
             <ControlLabel>Song</ControlLabel>
-            <EditorButton onClick={onSongUploadClick}>Upload song</EditorButton>
-          </div>
-
-          <div>
-            <ControlLabel>Selected song</ControlLabel>
-            <Readout>{songName}</Readout>
+            <EditorButton width="100%" onClick={onSongUploadClick}>Upload song</EditorButton>
           </div>
 
           <ChartDropdown
@@ -475,6 +487,58 @@ function EditorPanel({
       </div>
     </section>
   );
+}
+
+
+function normalizeEditorShellDom() {
+  const shell = document.querySelector(".editorPageShell");
+  if (!shell) return undefined;
+
+  const hiddenTextFragments = [
+    "Upload a song to begin",
+    "Inspector",
+    "Select a block to edit it",
+  ];
+
+  const updateDom = () => {
+    const walker = document.createTreeWalker(shell, NodeFilter.SHOW_TEXT);
+    const textNodes: Text[] = [];
+
+    while (walker.nextNode()) {
+      textNodes.push(walker.currentNode as Text);
+    }
+
+    textNodes.forEach((node) => {
+      const value = node.nodeValue ?? "";
+
+      if (value.includes("Timeline Panel")) {
+        node.nodeValue = value.replace(/Timeline Panel/g, "Timeline");
+      }
+
+      if (hiddenTextFragments.some((fragment) => value.includes(fragment))) {
+        const parent = node.parentElement;
+        const container = parent?.closest(
+          "section, aside, [class*='border'], [class*='rounded'], [class*='shadow']"
+        ) as HTMLElement | null;
+        const target = container ?? parent;
+
+        if (target) {
+          target.style.display = "none";
+        }
+      }
+    });
+  };
+
+  updateDom();
+
+  const observer = new MutationObserver(updateDom);
+  observer.observe(shell, {
+    childList: true,
+    characterData: true,
+    subtree: true,
+  });
+
+  return () => observer.disconnect();
 }
 
 export default function EditorPage() {
@@ -583,6 +647,10 @@ export default function EditorPage() {
     }
   }, [setProject]);
 
+  useEffect(() => {
+    return normalizeEditorShellDom();
+  }, [chartFile, isChartVisible]);
+
   return (
     <div
       className={styles.studentTypography}
@@ -613,7 +681,6 @@ export default function EditorPage() {
       />
 
       <EditorPanel
-        songName={selectedSongName}
         chartLabel={selectedChartLabel}
         chartFile={chartFile}
         isChartVisible={isChartVisible}
@@ -690,6 +757,20 @@ export default function EditorPage() {
 
         .editorPageShell {
           color: #ffffff;
+        }
+
+        .editorPageShell * {
+          scrollbar-width: none;
+        }
+
+        .editorPageShell *::-webkit-scrollbar {
+          display: none;
+        }
+
+        .editorPageShell [class*="timeline"],
+        .editorPageShell [data-panel*="timeline"],
+        .editorPageShell [aria-label*="Timeline"] {
+          background-color: #2b2b2b !important;
         }
 
         .editorPageShell > div {
