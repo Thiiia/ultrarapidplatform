@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { FC, SVGProps } from "react";
-import { useEffect, useState } from "react";
+import type { ChangeEvent, FC, SVGProps } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { EditorShell } from "@/components/editor/EditorShell";
 import { useEditorStore } from "@/lib/editor/editor-store";
 import { chartToProject } from "@/lib/editor/chart-to-project";
@@ -71,6 +71,59 @@ const pagePanelWidth = "85vw";
 const headerBackgroundColor = "#2B2B2B";
 const pageBackgroundColor = "#191919";
 const subtleBorderColor = "#FFFFFF14";
+const textColor = "#FFFFFF";
+
+const sharedTextStyle = {
+  fontFamily: "Space Grotesk, sans-serif",
+  fontSize: 13,
+  fontWeight: 500,
+  fontStyle: "normal",
+  lineHeight: "19.5px",
+  letterSpacing: 0,
+} as const;
+
+function createBlankChart(songName: string, artist = "Unknown Artist") {
+  const safeSongName = songName?.trim() || "Untitled Song";
+  const safeArtist = artist?.trim() || "Unknown Artist";
+
+  return [
+    "[Song]",
+    "{",
+    `  Name = "${safeSongName.replace(/"/g, "'")}"`,
+    `  Artist = "${safeArtist.replace(/"/g, "'")}"`,
+    "  Offset = 0",
+    "  Resolution = 240",
+    "  Player2 = bass",
+    "  Difficulty = 0",
+    "  PreviewStart = 0",
+    "  PreviewEnd = 0",
+    "  Genre = \"electronic\"",
+    "  MediaType = \"digital\"",
+    "}",
+    "[SyncTrack]",
+    "{",
+    "  0 = TS 4",
+    "  0 = B 120000",
+    "}",
+    "[Events]",
+    "{",
+    "  0 = E \"music_start\"",
+    "}",
+    "[ExpertSingle]",
+    "{",
+    "}",
+    "[HardSingle]",
+    "{",
+    "}",
+    "[MediumSingle]",
+    "{",
+    "}",
+    "[EasySingle]",
+    "{",
+    "}",
+    "",
+  ].join("\n");
+}
 
 function HeaderBar({ pathname }: { pathname: string }) {
   return (
@@ -186,30 +239,26 @@ function HeaderBar({ pathname }: { pathname: string }) {
             overflow: "visible",
           }}
         >
-          {utilityTabs.map((tab) => {
-            const iconHeight = 38;
-
-            return (
-              <Link
-                key={tab.label}
-                href={tab.href}
-                aria-label={tab.label}
-                className={styles.utilityButton}
+          {utilityTabs.map((tab) => (
+            <Link
+              key={tab.label}
+              href={tab.href}
+              aria-label={tab.label}
+              className={styles.utilityButton}
+              style={{
+                width: tab.width,
+                height: 38,
+              }}
+            >
+              <tab.Icon
                 style={{
                   width: tab.width,
                   height: 38,
+                  display: "block",
                 }}
-              >
-                <tab.Icon
-                  style={{
-                    width: tab.width,
-                    height: iconHeight,
-                    display: "block",
-                  }}
-                />
-              </Link>
-            );
-          })}
+              />
+            </Link>
+          ))}
 
           <a
             href="/auth/logout"
@@ -224,73 +273,154 @@ function HeaderBar({ pathname }: { pathname: string }) {
   );
 }
 
-function SelectionField({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function ControlLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label
+    <span
       style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-        minWidth: 220,
-        color: "#FFFFFF",
+        ...sharedTextStyle,
+        color: textColor,
+        display: "block",
+        marginBottom: 6,
         textAlign: "left",
       }}
     >
-      <span
-        style={{
-          color: "#FFFFFF",
-          fontSize: 13,
-          fontWeight: 500,
-          lineHeight: "19.5px",
-          letterSpacing: 0,
-          textAlign: "left",
-        }}
-      >
-        {label}
-      </span>
-      <select
-        value={value}
-        onChange={() => undefined}
-        style={{
-          width: "100%",
-          height: 38,
-          background: pageBackgroundColor,
-          border: `1px solid ${subtleBorderColor}`,
-          borderRadius: 8,
-          color: "#FFFFFF",
-          fontFamily: "Space Grotesk, sans-serif",
-          fontSize: 13,
-          fontWeight: 500,
-          lineHeight: "19.5px",
-          letterSpacing: 0,
-          padding: "0 12px",
-          textAlign: "left",
-        }}
-      >
-        <option value={value}>{value}</option>
-      </select>
-    </label>
+      {children}
+    </span>
   );
 }
 
-function EditorSelectionBar({
-  chartFile,
-  metadata,
+function EditorButton({
+  children,
+  disabled = false,
+  onClick,
 }: {
-  chartFile: string;
-  metadata?: EditorRedirectPayload["analysisMetadata"];
+  children: React.ReactNode;
+  disabled?: boolean;
+  onClick?: () => void;
 }) {
-  const songTitle = metadata?.songTitle?.trim() || "No song selected";
-  const artist = metadata?.artist?.trim();
-  const songValue = artist ? `${songTitle} - ${artist}` : songTitle;
-  const chartValue = chartFile || metadata?.uploadedFileName || "No chart selected";
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        ...sharedTextStyle,
+        minHeight: 38,
+        border: `1px solid ${subtleBorderColor}`,
+        borderRadius: 8,
+        background: pageBackgroundColor,
+        color: textColor,
+        padding: "8px 14px",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.55 : 1,
+        textAlign: "center",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
 
+function Readout({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        ...sharedTextStyle,
+        minHeight: 38,
+        border: `1px solid ${subtleBorderColor}`,
+        borderRadius: 8,
+        background: pageBackgroundColor,
+        color: textColor,
+        padding: "8px 12px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        minWidth: 220,
+        maxWidth: 320,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+      }}
+      title={typeof children === "string" ? children : undefined}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ChartDropdown({
+  chartLabel,
+  onCreateBlankChart,
+  onUploadChartClick,
+}: {
+  chartLabel: string;
+  onCreateBlankChart: () => void;
+  onUploadChartClick: () => void;
+}) {
+  return (
+    <div style={{ minWidth: 260, position: "relative" }}>
+      <ControlLabel>Chart</ControlLabel>
+      <details className="editorChartDropdown" style={{ position: "relative" }}>
+        <summary
+          style={{
+            ...sharedTextStyle,
+            minHeight: 38,
+            border: `1px solid ${subtleBorderColor}`,
+            borderRadius: 8,
+            background: pageBackgroundColor,
+            color: textColor,
+            padding: "8px 12px",
+            cursor: "pointer",
+            listStyle: "none",
+            textAlign: "center",
+          }}
+        >
+          {chartLabel}
+        </summary>
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: 0,
+            right: 0,
+            zIndex: 20,
+            background: headerBackgroundColor,
+            border: `1px solid ${subtleBorderColor}`,
+            borderRadius: 10,
+            padding: 8,
+            display: "grid",
+            gap: 8,
+            boxShadow: "0 14px 34px rgba(0, 0, 0, 0.34)",
+          }}
+        >
+          <EditorButton onClick={onCreateBlankChart}>Create blank chart</EditorButton>
+          <EditorButton onClick={onUploadChartClick}>Upload chart</EditorButton>
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function EditorPanel({
+  songName,
+  chartLabel,
+  chartFile,
+  isChartVisible,
+  onToggleChartVisible,
+  onSongUploadClick,
+  onCreateBlankChart,
+  onUploadChartClick,
+}: {
+  songName: string;
+  chartLabel: string;
+  chartFile: string;
+  isChartVisible: boolean;
+  onToggleChartVisible: () => void;
+  onSongUploadClick: () => void;
+  onCreateBlankChart: () => void;
+  onUploadChartClick: () => void;
+}) {
   return (
     <section
       style={{
@@ -302,39 +432,46 @@ function EditorSelectionBar({
       <div
         style={{
           width: pagePanelWidth,
-          minHeight: 86,
+          minHeight: 96,
           margin: "0 auto",
           boxSizing: "border-box",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 24,
-          color: "#FFFFFF",
+          gap: 20,
+          color: textColor,
+          flexWrap: "wrap",
+          padding: "14px 0",
         }}
       >
-        <h1
-          className={styles.panelTitle}
-          style={{
-            margin: 0,
-            color: "#FFFFFF",
-            flexShrink: 0,
-          }}
-        >
-          Editor
-        </h1>
-
         <div
           style={{
             display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
+            alignItems: "flex-end",
             gap: 16,
             flexWrap: "wrap",
           }}
         >
-          <SelectionField label="Song" value={songValue} />
-          <SelectionField label="Chart" value={chartValue} />
+          <div>
+            <ControlLabel>Song</ControlLabel>
+            <EditorButton onClick={onSongUploadClick}>Upload song</EditorButton>
+          </div>
+
+          <div>
+            <ControlLabel>Selected song</ControlLabel>
+            <Readout>{songName}</Readout>
+          </div>
+
+          <ChartDropdown
+            chartLabel={chartLabel}
+            onCreateBlankChart={onCreateBlankChart}
+            onUploadChartClick={onUploadChartClick}
+          />
         </div>
+
+        <EditorButton disabled={!chartFile.trim()} onClick={onToggleChartVisible}>
+          {isChartVisible ? "Hide chart" : "View chart"}
+        </EditorButton>
       </div>
     </section>
   );
@@ -342,9 +479,85 @@ function EditorSelectionBar({
 
 export default function EditorPage() {
   const pathname = usePathname();
+  const songUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const chartUploadInputRef = useRef<HTMLInputElement | null>(null);
   const setProject = useEditorStore((s) => s.setProject);
   const [chartFile, setChartFile] = useState("");
   const [metadata, setMetadata] = useState<EditorRedirectPayload["analysisMetadata"]>();
+  const [uploadedSongName, setUploadedSongName] = useState("");
+  const [uploadedChartName, setUploadedChartName] = useState("");
+  const [isChartVisible, setIsChartVisible] = useState(false);
+
+  const selectedSongName = useMemo(() => {
+    if (uploadedSongName.trim()) return uploadedSongName.trim();
+
+    const title = metadata?.songTitle?.trim();
+    const artist = metadata?.artist?.trim();
+
+    if (title && artist) return `${title} - ${artist}`;
+    if (title) return title;
+    if (metadata?.uploadedFileName?.trim()) return metadata.uploadedFileName.trim();
+
+    return "No song selected";
+  }, [metadata, uploadedSongName]);
+
+  const selectedChartLabel = useMemo(() => {
+    if (uploadedChartName.trim()) return uploadedChartName.trim();
+    if (chartFile.trim()) return "Generated chart loaded";
+    return "No chart selected";
+  }, [chartFile, uploadedChartName]);
+
+  const applyChartFile = (nextChartFile: string, nextChartName?: string) => {
+    setChartFile(nextChartFile);
+    setUploadedChartName(nextChartName ?? "");
+
+    const nextPayload: EditorRedirectPayload = {
+      chartFile: nextChartFile,
+      analysisMetadata: metadata,
+    };
+
+    const project = chartToProject(nextPayload);
+    setProject(project);
+  };
+
+  const handleCreateBlankChart = () => {
+    const blankChart = createBlankChart(
+      selectedSongName === "No song selected" ? "Untitled Song" : selectedSongName,
+      metadata?.artist
+    );
+    applyChartFile(blankChart, "Blank chart");
+    setIsChartVisible(true);
+  };
+
+  const handleSongUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadedSongName(file.name);
+    setMetadata((current) => ({
+      ...current,
+      songTitle: file.name.replace(/\.[^/.]+$/, ""),
+      uploadedFileName: file.name,
+    }));
+
+    event.target.value = "";
+  };
+
+  const handleChartUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const nextChartFile = typeof reader.result === "string" ? reader.result : "";
+      if (!nextChartFile.trim()) return;
+
+      applyChartFile(nextChartFile, file.name);
+      setIsChartVisible(true);
+    };
+    reader.readAsText(file);
+    event.target.value = "";
+  };
 
   useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_editor_payload");
@@ -359,6 +572,7 @@ export default function EditorPage() {
 
       if (payload?.chartFile) {
         setChartFile(payload.chartFile);
+        setUploadedChartName(payload.analysisMetadata?.uploadedFileName ? "Generated chart loaded" : "");
         const project = chartToProject(payload);
         setProject(project);
       }
@@ -374,36 +588,162 @@ export default function EditorPage() {
       className={styles.studentTypography}
       style={{
         minHeight: "100vh",
-        background: pageBackgroundColor,
-        color: "#FFFFFF",
+        background: headerBackgroundColor,
+        color: textColor,
         display: "flex",
         flexDirection: "column",
         overflowX: "hidden",
       }}
     >
       <HeaderBar pathname={pathname} />
-      <EditorSelectionBar chartFile={chartFile} metadata={metadata} />
+
+      <input
+        ref={songUploadInputRef}
+        type="file"
+        accept="audio/*,.mp3,.wav,.m4a,.ogg"
+        onChange={handleSongUpload}
+        style={{ display: "none" }}
+      />
+      <input
+        ref={chartUploadInputRef}
+        type="file"
+        accept=".chart,text/plain"
+        onChange={handleChartUpload}
+        style={{ display: "none" }}
+      />
+
+      <EditorPanel
+        songName={selectedSongName}
+        chartLabel={selectedChartLabel}
+        chartFile={chartFile}
+        isChartVisible={isChartVisible}
+        onToggleChartVisible={() => setIsChartVisible((current) => !current)}
+        onSongUploadClick={() => songUploadInputRef.current?.click()}
+        onCreateBlankChart={handleCreateBlankChart}
+        onUploadChartClick={() => chartUploadInputRef.current?.click()}
+      />
+
+      {isChartVisible && (
+        <section
+          style={{
+            width: "100%",
+            background: headerBackgroundColor,
+            borderBottom: `1px solid ${subtleBorderColor}`,
+          }}
+        >
+          <div
+            style={{
+              width: pagePanelWidth,
+              margin: "0 auto",
+              padding: "16px 0",
+              boxSizing: "border-box",
+            }}
+          >
+            <textarea
+              readOnly
+              value={chartFile}
+              style={{
+                ...sharedTextStyle,
+                width: "100%",
+                minHeight: 220,
+                boxSizing: "border-box",
+                background: pageBackgroundColor,
+                border: `1px solid ${subtleBorderColor}`,
+                borderRadius: 12,
+                color: textColor,
+                padding: 16,
+                resize: "vertical",
+                textAlign: "left",
+                fontFamily: "Space Grotesk, monospace",
+              }}
+            />
+          </div>
+        </section>
+      )}
 
       <main
         style={{
           width: "100%",
-          background: pageBackgroundColor,
-          color: "#FFFFFF",
+          background: headerBackgroundColor,
+          color: textColor,
           overflowX: "hidden",
         }}
       >
         <div
+          className="editorPageShell"
           style={{
             width: pagePanelWidth,
             margin: "0 auto",
             boxSizing: "border-box",
             background: pageBackgroundColor,
-            color: "#FFFFFF",
+            color: textColor,
           }}
         >
           <EditorShell chartFile={chartFile} />
         </div>
       </main>
+
+      <style jsx global>{`
+        .editorChartDropdown > summary::-webkit-details-marker {
+          display: none;
+        }
+
+        .editorPageShell {
+          color: #ffffff;
+        }
+
+        .editorPageShell > div {
+          padding-left: 0 !important;
+          padding-right: 0 !important;
+        }
+
+        .editorPageShell [class~="grid"][class~="grid-cols-12"] {
+          gap: 16px !important;
+        }
+
+        /* Hide the original Song Loader card only. Block Palette remains in the sidebar. */
+        .editorPageShell [class~="grid"][class~="grid-cols-12"] > div:first-child > *:first-child {
+          display: none !important;
+        }
+
+        /* Hide the old Lesson Builder/editor header panel. Its controls now live in the custom panel above. */
+        .editorPageShell [class~="col-span-8"] > *:first-child {
+          display: none !important;
+        }
+
+        .editorPageShell [class*="border"],
+        .editorPageShell [class*="rounded"],
+        .editorPageShell section,
+        .editorPageShell aside {
+          background-color: #2b2b2b !important;
+          border-color: #ffffff14 !important;
+          color: #ffffff !important;
+        }
+
+        .editorPageShell button,
+        .editorPageShell input,
+        .editorPageShell select,
+        .editorPageShell textarea,
+        .editorPageShell [role="button"],
+        .editorPageShell [class*="bg-white"],
+        .editorPageShell [class*="bg-gray"],
+        .editorPageShell [class*="bg-slate"] {
+          background-color: #191919 !important;
+          border-color: #ffffff14 !important;
+          color: #ffffff !important;
+        }
+
+        .editorPageShell p,
+        .editorPageShell span,
+        .editorPageShell h1,
+        .editorPageShell h2,
+        .editorPageShell h3,
+        .editorPageShell h4,
+        .editorPageShell label,
+        .editorPageShell div {
+          color: #ffffff !important;
+        }
+      `}</style>
     </div>
   );
 }
