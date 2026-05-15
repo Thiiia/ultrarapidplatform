@@ -561,22 +561,34 @@ function HorizontalDotPanel({
                     title={`${event.label} • ${formatTime(event.seconds)} • tick ${event.tick} • lane ${laneLabel(event.lane)}`}
                     onClick={() => onEventClick(event)}
                     style={{
-                      width: "14px",
-                      height: "14px",
+                      width: "18px",
+                      height: "18px",
                       borderRadius: "9999px",
-                      flexShrink: 0,
                       border: "none",
                       outline: "none",
                       cursor: "pointer",
                       padding: 0,
-                      backgroundColor: isActive
-                        ? "rgba(207,255,4,0.4)"
-                        : "rgba(207,255,4,0.3)",
-                      boxShadow: isActive
-                        ? "0 0 0 2px rgba(207,255,4,0.18)"
-                        : "none",
+                      background: "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
-                  />
+                  >
+                    <div
+                      style={{
+                        width: "14px",
+                        height: "14px",
+                        borderRadius: "9999px",
+                        background: isActive
+                          ? "rgba(207,255,4,0.4)"
+                          : "rgba(207,255,4,0.3)",
+                        boxShadow: isActive
+                          ? "0 0 0 2px rgba(207,255,4,0.18)"
+                          : "none",
+                      }}
+                    />
+                  </button>
+
                   <div
                     style={{
                       minHeight: "28px",

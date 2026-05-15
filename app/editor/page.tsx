@@ -379,6 +379,7 @@ function EditorPanel({
   onSongUploadClick,
   onCreateBlankChart,
   onUploadChartClick,
+  onLaunchGame,
 }: {
   songLabel: string;
   chartLabel: string;
@@ -389,6 +390,7 @@ function EditorPanel({
   onSongUploadClick: () => void;
   onCreateBlankChart: () => void;
   onUploadChartClick: () => void;
+  onLaunchGame: () => void;
 }) {
   return (
     <section
@@ -441,9 +443,22 @@ function EditorPanel({
           </div>
         </div>
 
-        <EditorButton disabled={!chartFile.trim()} onClick={onToggleChartVisible}>
-          {isChartVisible ? "Hide chart" : "View chart"}
-        </EditorButton>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <EditorButton onClick={onLaunchGame} width={160}>
+            Launch Game
+          </EditorButton>
+
+          <EditorButton disabled={!chartFile.trim()} onClick={onToggleChartVisible} width={160}>
+            {isChartVisible ? "Hide chart" : "View chart"}
+          </EditorButton>
+        </div>
       </div>
     </section>
   );
@@ -571,6 +586,10 @@ export default function EditorPage() {
     );
     applyChartFile(blankChart, "blank.chart");
     setIsChartVisible(false);
+  };
+
+  const handleLaunchGame = () => {
+    window.open("/game?autostart=1&fullscreen=1", "_blank", "noopener,noreferrer");
   };
 
   const handleSongUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -701,6 +720,7 @@ export default function EditorPage() {
         onSongUploadClick={() => songUploadInputRef.current?.click()}
         onCreateBlankChart={handleCreateBlankChart}
         onUploadChartClick={() => chartUploadInputRef.current?.click()}
+        onLaunchGame={handleLaunchGame}
       />
 
       {isChartVisible && (
