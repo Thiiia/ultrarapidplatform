@@ -43,7 +43,7 @@ const topTabs: HeaderTab[] = [
   { label: "My Lessons", href: "/student/lessons", Icon: MyLessonsTab, width: 139 },
   {
     label: "Lesson Builder",
-    href: "/student/lesson-builder",
+    href: "/editor",
     Icon: LessonBuilderTab,
     width: 159,
   },

@@ -66,7 +66,7 @@ const topTabs: HeaderTab[] = [
   },
   {
     label: "Lesson Builder",
-    href: "/student/lesson-builder",
+    href: "/editor",
     Icon: LessonBuilderTab,
     ActiveIcon: LessonBuilderPressedTab,
     width: 159,
