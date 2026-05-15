@@ -492,39 +492,22 @@ function removeChartEvent(chartText: string, tick: number, lane: number) {
   return chartText.replace(sectionRegex, `$1${normalizedBody}$3`)
 }
 
-function getRelativeLabels(events: EffectiveEvent[], activeEventId?: string | null) {
-  if (!events.length || !activeEventId) {
-    return events.map(() => "")
-  }
-
-  const activeIndex = events.findIndex((event) => event.id === activeEventId)
-  if (activeIndex === -1) {
-    return events.map(() => "")
-  }
-
-  return events.map((_, index) => {
-    const delta = index - activeIndex
-    if (delta === 0) return "0"
-    if (delta === -1) return "-1"
-    if (delta === 1) return "+1"
-    return ""
-  })
+function getTickLabels(events: EffectiveEvent[], activeEventId?: string | null) {
+  return events.map((event) => (event.id === activeEventId ? String(event.tick) : ""))
 }
 
 function HorizontalDotPanel({
   title,
   events,
-  dotClassName,
   activeEventId,
   onEventClick,
 }: {
   title: string
   events: EffectiveEvent[]
-  dotClassName: string
   activeEventId?: string | null
   onEventClick: (event: EffectiveEvent) => void
 }) {
-  const labels = getRelativeLabels(events, activeEventId)
+  const labels = getTickLabels(events, activeEventId)
 
   return (
     <div
@@ -570,25 +553,28 @@ function HorizontalDotPanel({
                     flexDirection: "column",
                     alignItems: "center",
                     gap: "6px",
-                    minWidth: "18px",
+                    minWidth: "28px",
                   }}
                 >
                   <button
                     type="button"
                     title={`${event.label} • ${formatTime(event.seconds)} • tick ${event.tick} • lane ${laneLabel(event.lane)}`}
                     onClick={() => onEventClick(event)}
-                    className={dotClassName}
                     style={{
                       width: "14px",
                       height: "14px",
                       borderRadius: "9999px",
                       flexShrink: 0,
-                      border: isActive ? "2px solid #ffffff" : "1px solid rgba(255,255,255,0.18)",
+                      border: "1px solid rgba(207,255,4,0.45)",
                       outline: "none",
                       cursor: "pointer",
-                      boxShadow: isActive ? "0 0 0 3px rgba(255,255,255,0.22)" : "none",
-                      filter: isActive ? "brightness(1.25)" : "none",
                       padding: 0,
+                      background: isActive
+                        ? "rgba(207,255,4,0.4)"
+                        : "rgba(207,255,4,0.3)",
+                      boxShadow: isActive
+                        ? "0 0 0 2px rgba(207,255,4,0.18)"
+                        : "none",
                     }}
                   />
                   <div
@@ -596,8 +582,9 @@ function HorizontalDotPanel({
                       minHeight: "14px",
                       fontSize: "11px",
                       lineHeight: 1,
-                      color: isActive ? "#FFFFFF" : "#94a3b8",
-                      fontWeight: isActive ? 700 : 500,
+                      color: isActive ? "#CFFF04" : "transparent",
+                      fontWeight: 700,
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {label}
@@ -1322,7 +1309,6 @@ export function BrowserTimelinePanel({
         <HorizontalDotPanel
           title="Hits"
           events={nearbyHits}
-          dotClassName="bg-purple-600"
           activeEventId={currentEvent?.id ?? null}
           onEventClick={handleJumpToEvent}
         />
@@ -1330,7 +1316,6 @@ export function BrowserTimelinePanel({
         <HorizontalDotPanel
           title="Drags"
           events={nearbyDrags}
-          dotClassName="bg-red-600"
           activeEventId={currentEvent?.id ?? null}
           onEventClick={handleJumpToEvent}
         />
@@ -1338,7 +1323,6 @@ export function BrowserTimelinePanel({
         <HorizontalDotPanel
           title="Spins"
           events={nearbySpins}
-          dotClassName="bg-gray-400"
           activeEventId={currentEvent?.id ?? null}
           onEventClick={handleJumpToEvent}
         />
