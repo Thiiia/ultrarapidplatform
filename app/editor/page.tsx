@@ -97,8 +97,8 @@ function createBlankChart(songName: string, artist = "Unknown Artist") {
     "  Difficulty = 0",
     "  PreviewStart = 0",
     "  PreviewEnd = 0",
-    "  Genre = \"electronic\"",
-    "  MediaType = \"digital\"",
+    '  Genre = "electronic"',
+    '  MediaType = "digital"',
     "}",
     "[SyncTrack]",
     "{",
@@ -107,7 +107,7 @@ function createBlankChart(songName: string, artist = "Unknown Artist") {
     "}",
     "[Events]",
     "{",
-    "  0 = E \"music_start\"",
+    '  0 = E "music_start"',
     "}",
     "[ExpertSingle]",
     "{",
@@ -123,24 +123,6 @@ function createBlankChart(songName: string, artist = "Unknown Artist") {
     "}",
     "",
   ].join("\n");
-}
-
-
-function getDotTickLabels(chartFile: string) {
-  const labels: Record<string, string> = {};
-
-  chartFile.split(/\r?\n/).forEach((line) => {
-    const match = line.match(/^\s*(\d+)\s*=\s*(?:N|S|E)?\s*(-?\d+)\b/);
-    if (!match) return;
-
-    const [, tick, dotType] = match;
-
-    if ((dotType === "0" || dotType === "1" || dotType === "-1") && !labels[dotType]) {
-      labels[dotType] = tick;
-    }
-  });
-
-  return labels;
 }
 
 function HeaderBar({ pathname }: { pathname: string }) {
@@ -430,8 +412,12 @@ function ChartDropdown({
             boxShadow: "0 14px 34px rgba(0, 0, 0, 0.34)",
           }}
         >
-          <EditorButton width="100%" onClick={onCreateBlankChart}>Create blank chart</EditorButton>
-          <EditorButton width="100%" onClick={onUploadChartClick}>Upload chart</EditorButton>
+          <EditorButton width="100%" onClick={onCreateBlankChart}>
+            Create blank chart
+          </EditorButton>
+          <EditorButton width="100%" onClick={onUploadChartClick}>
+            Upload chart
+          </EditorButton>
         </div>
       </details>
     </div>
@@ -487,7 +473,9 @@ function EditorPanel({
           }}
         >
           <div style={{ width: 260 }}>
-            <EditorButton width="100%" onClick={onSongUploadClick}>Upload song</EditorButton>
+            <EditorButton width="100%" onClick={onSongUploadClick}>
+              Upload song
+            </EditorButton>
           </div>
 
           <ChartDropdown
@@ -505,8 +493,7 @@ function EditorPanel({
   );
 }
 
-
-function normalizeEditorShellDom(dotTickLabels: Record<string, string>) {
+function normalizeEditorShellDom() {
   const shell = document.querySelector(".editorPageShell");
   if (!shell) return undefined;
 
@@ -529,30 +516,6 @@ function normalizeEditorShellDom(dotTickLabels: Record<string, string>) {
 
       if (value.includes("Timeline Panel")) {
         node.nodeValue = value.replace(/Timeline Panel/g, "Timeline");
-      }
-
-      const trimmedValue = value.trim();
-      const replacementTick = dotTickLabels[trimmedValue];
-
-      if (replacementTick) {
-        const parent = node.parentElement;
-        let cursor = parent;
-        let depth = 0;
-        let isDotTypeCard = false;
-
-        while (cursor && depth < 6) {
-          const nearbyText = cursor.innerText ?? "";
-          if (/\b(Hit|Drag|Spin)\b/i.test(nearbyText)) {
-            isDotTypeCard = true;
-            break;
-          }
-          cursor = cursor.parentElement;
-          depth += 1;
-        }
-
-        if (isDotTypeCard) {
-          node.nodeValue = value.replace(trimmedValue, replacementTick);
-        }
       }
 
       if (hiddenTextFragments.some((fragment) => value.includes(fragment))) {
@@ -581,6 +544,30 @@ function normalizeEditorShellDom(dotTickLabels: Record<string, string>) {
   return () => observer.disconnect();
 }
 
+function syncSongFileIntoEmbeddedLoader(file: File) {
+  const shell = document.querySelector(".editorPageShell");
+  if (!shell) return false;
+
+  const inputs = Array.from(shell.querySelectorAll('input[type="file"]')) as HTMLInputElement[];
+  const target = inputs.find((input) => {
+    const accept = (input.getAttribute("accept") || "").toLowerCase();
+    return accept.includes(".mp3") || accept.includes(".ogg") || accept.includes("audio/");
+  });
+
+  if (!target) return false;
+
+  try {
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    target.files = dataTransfer.files;
+    target.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  } catch (error) {
+    console.error("Failed to sync song file into embedded loader", error);
+    return false;
+  }
+}
+
 export default function EditorPage() {
   const pathname = usePathname();
   const songUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -591,6 +578,7 @@ export default function EditorPage() {
   const [uploadedSongName, setUploadedSongName] = useState("");
   const [uploadedChartName, setUploadedChartName] = useState("");
   const [isChartVisible, setIsChartVisible] = useState(false);
+  const [pendingSongFile, setPendingSongFile] = useState<File | null>(null);
 
   const selectedSongName = useMemo(() => {
     if (uploadedSongName.trim()) return uploadedSongName.trim();
@@ -610,8 +598,6 @@ export default function EditorPage() {
     if (chartFile.trim()) return "Generated chart loaded";
     return "No chart selected";
   }, [chartFile, uploadedChartName]);
-
-  const dotTickLabels = useMemo(() => getDotTickLabels(chartFile), [chartFile]);
 
   const applyChartFile = (nextChartFile: string, nextChartName?: string) => {
     setChartFile(nextChartFile);
@@ -645,6 +631,7 @@ export default function EditorPage() {
       songTitle: file.name.replace(/\.[^/.]+$/, ""),
       uploadedFileName: file.name,
     }));
+    setPendingSongFile(file);
 
     event.target.value = "";
   };
@@ -664,6 +651,34 @@ export default function EditorPage() {
     reader.readAsText(file);
     event.target.value = "";
   };
+
+  useEffect(() => {
+    if (!pendingSongFile) return;
+
+    let cancelled = false;
+    let attempts = 0;
+
+    const trySync = () => {
+      if (cancelled) return;
+
+      const synced = syncSongFileIntoEmbeddedLoader(pendingSongFile);
+      if (synced) {
+        setPendingSongFile(null);
+        return;
+      }
+
+      attempts += 1;
+      if (attempts < 10) {
+        window.requestAnimationFrame(trySync);
+      }
+    };
+
+    trySync();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingSongFile, chartFile, isChartVisible]);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_editor_payload");
@@ -690,8 +705,8 @@ export default function EditorPage() {
   }, [setProject]);
 
   useEffect(() => {
-    return normalizeEditorShellDom(dotTickLabels);
-  }, [chartFile, dotTickLabels, isChartVisible]);
+    return normalizeEditorShellDom();
+  }, [chartFile, isChartVisible]);
 
   return (
     <div
@@ -829,12 +844,10 @@ export default function EditorPage() {
           gap: 16px !important;
         }
 
-        /* Hide the original Song Loader card only. Block Palette remains in the sidebar. */
         .editorPageShell [class~="grid"][class~="grid-cols-12"] > div:first-child > *:first-child {
           display: none !important;
         }
 
-        /* Hide the old Lesson Builder/editor header panel. Its controls now live in the custom panel above. */
         .editorPageShell [class~="col-span-8"] > *:first-child {
           display: none !important;
         }
