@@ -10,14 +10,6 @@ export default async function StudentPage() {
     redirect("/login");
   }
 
-  if (user.role === "admin") {
-    redirect("/admin");
-  }
-
-  if (user.role !== "student") {
-    redirect("/teacher");
-  }
-
   const dashboardData = await getStudentDashboardData(user.id);
 
   if (!dashboardData) {
