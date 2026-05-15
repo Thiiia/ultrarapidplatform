@@ -589,7 +589,12 @@ export default function EditorPage() {
   };
 
   const handleLaunchGame = () => {
+    window.location.href = "https://ultrarapidtest.netlify.app/";
+
+    /*
+    // Old local build flow kept for later:
     window.open("/game?autostart=1&fullscreen=1", "_blank", "noopener,noreferrer");
+    */
   };
 
   const handleSongUpload = (event: ChangeEvent<HTMLInputElement>) => {
