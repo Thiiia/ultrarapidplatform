@@ -125,6 +125,24 @@ function createBlankChart(songName: string, artist = "Unknown Artist") {
   ].join("\n");
 }
 
+
+function getDotTickLabels(chartFile: string) {
+  const labels: Record<string, string> = {};
+
+  chartFile.split(/\r?\n/).forEach((line) => {
+    const match = line.match(/^\s*(\d+)\s*=\s*(?:N|S|E)?\s*(-?\d+)\b/);
+    if (!match) return;
+
+    const [, tick, dotType] = match;
+
+    if ((dotType === "0" || dotType === "1" || dotType === "-1") && !labels[dotType]) {
+      labels[dotType] = tick;
+    }
+  });
+
+  return labels;
+}
+
 function HeaderBar({ pathname }: { pathname: string }) {
   return (
     <header
@@ -363,7 +381,6 @@ function ChartDropdown({
 }) {
   return (
     <div style={{ width: 260, position: "relative" }}>
-      <ControlLabel>Chart</ControlLabel>
       <details className="editorChartDropdown" style={{ position: "relative", width: "100%" }}>
         <summary
           style={{
@@ -464,13 +481,12 @@ function EditorPanel({
         <div
           style={{
             display: "flex",
-            alignItems: "flex-end",
+            alignItems: "center",
             gap: 16,
             flexWrap: "wrap",
           }}
         >
           <div style={{ width: 260 }}>
-            <ControlLabel>Song</ControlLabel>
             <EditorButton width="100%" onClick={onSongUploadClick}>Upload song</EditorButton>
           </div>
 
@@ -490,7 +506,7 @@ function EditorPanel({
 }
 
 
-function normalizeEditorShellDom() {
+function normalizeEditorShellDom(dotTickLabels: Record<string, string>) {
   const shell = document.querySelector(".editorPageShell");
   if (!shell) return undefined;
 
@@ -513,6 +529,30 @@ function normalizeEditorShellDom() {
 
       if (value.includes("Timeline Panel")) {
         node.nodeValue = value.replace(/Timeline Panel/g, "Timeline");
+      }
+
+      const trimmedValue = value.trim();
+      const replacementTick = dotTickLabels[trimmedValue];
+
+      if (replacementTick) {
+        const parent = node.parentElement;
+        let cursor = parent;
+        let depth = 0;
+        let isDotTypeCard = false;
+
+        while (cursor && depth < 6) {
+          const nearbyText = cursor.innerText ?? "";
+          if (/\b(Hit|Drag|Spin)\b/i.test(nearbyText)) {
+            isDotTypeCard = true;
+            break;
+          }
+          cursor = cursor.parentElement;
+          depth += 1;
+        }
+
+        if (isDotTypeCard) {
+          node.nodeValue = value.replace(trimmedValue, replacementTick);
+        }
       }
 
       if (hiddenTextFragments.some((fragment) => value.includes(fragment))) {
@@ -570,6 +610,8 @@ export default function EditorPage() {
     if (chartFile.trim()) return "Generated chart loaded";
     return "No chart selected";
   }, [chartFile, uploadedChartName]);
+
+  const dotTickLabels = useMemo(() => getDotTickLabels(chartFile), [chartFile]);
 
   const applyChartFile = (nextChartFile: string, nextChartName?: string) => {
     setChartFile(nextChartFile);
@@ -648,8 +690,8 @@ export default function EditorPage() {
   }, [setProject]);
 
   useEffect(() => {
-    return normalizeEditorShellDom();
-  }, [chartFile, isChartVisible]);
+    return normalizeEditorShellDom(dotTickLabels);
+  }, [chartFile, dotTickLabels, isChartVisible]);
 
   return (
     <div
@@ -753,6 +795,11 @@ export default function EditorPage() {
       <style jsx global>{`
         .editorChartDropdown > summary::-webkit-details-marker {
           display: none;
+        }
+
+        .editorChartDropdown > summary {
+          height: 38px;
+          box-sizing: border-box;
         }
 
         .editorPageShell {
