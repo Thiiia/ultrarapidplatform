@@ -47,38 +47,41 @@ type StudentSubpageCard = {
 type StudentSubpageShellProps = {
   title: string;
   cards: StudentSubpageCard[];
+  navBasePath?: string;
 };
 
-const topTabs: HeaderTab[] = [
-  {
-    label: "Home",
-    href: "/student",
-    Icon: HomeIcon,
-    ActiveIcon: HomePressedIcon,
-    width: 99,
-  },
-  {
-    label: "My Lessons",
-    href: "/student/lessons",
-    Icon: MyLessonsTab,
-    ActiveIcon: MyLessonsPressedTab,
-    width: 139,
-  },
-  {
-    label: "Lesson Builder",
-    href: "/editor",
-    Icon: LessonBuilderTab,
-    ActiveIcon: LessonBuilderPressedTab,
-    width: 159,
-  },
-  {
-    label: "Progress",
-    href: "/student/progress",
-    Icon: ProgressTab,
-    ActiveIcon: ProgressPressedTab,
-    width: 120,
-  },
-];
+function getTopTabs(navBasePath = "/student"): HeaderTab[] {
+  return [
+    {
+      label: "Home",
+      href: navBasePath,
+      Icon: HomeIcon,
+      ActiveIcon: HomePressedIcon,
+      width: 99,
+    },
+    {
+      label: "My Lessons",
+      href: `${navBasePath}/lessons`,
+      Icon: MyLessonsTab,
+      ActiveIcon: MyLessonsPressedTab,
+      width: 139,
+    },
+    {
+      label: "Lesson Builder",
+      href: "/editor",
+      Icon: LessonBuilderTab,
+      ActiveIcon: LessonBuilderPressedTab,
+      width: 159,
+    },
+    {
+      label: "Progress",
+      href: `${navBasePath}/progress`,
+      Icon: ProgressTab,
+      ActiveIcon: ProgressPressedTab,
+      width: 120,
+    },
+  ];
+}
 
 const utilityTabs: UtilityTab[] = [
   // { label: "Notifications", href: "/student/notifications", Icon: NotificationsIcon, width: 38 },
@@ -137,7 +140,13 @@ function DashboardSection({ title, children }: SectionProps) {
   );
 }
 
-function HeaderBar({ pathname }: { pathname: string }) {
+function HeaderBar({
+  pathname,
+  topTabs,
+}: {
+  pathname: string;
+  topTabs: HeaderTab[];
+}) {
   return (
     <header
       style={{
@@ -210,7 +219,11 @@ function HeaderBar({ pathname }: { pathname: string }) {
             }}
           >
             {topTabs.map((tab) => {
-              const isActive = pathname === tab.href;
+              const isActive =
+                pathname === tab.href ||
+                (tab.href !== "/" && pathname.startsWith(`${tab.href}/`)) ||
+                (tab.href === "/editor" && pathname.startsWith("/editor"));
+
               const Icon = isActive ? tab.ActiveIcon : tab.Icon;
 
               return (
@@ -354,8 +367,10 @@ function PlaceholderCard({
 export default function StudentSubpageShell({
   title,
   cards,
+  navBasePath = "/student",
 }: StudentSubpageShellProps) {
   const pathname = usePathname();
+  const topTabs = getTopTabs(navBasePath);
 
   return (
     <div
@@ -370,7 +385,7 @@ export default function StudentSubpageShell({
         overflowX: "hidden",
       }}
     >
-      <HeaderBar pathname={pathname} />
+      <HeaderBar pathname={pathname} topTabs={topTabs} />
 
       <DashboardSection title={title}>
         <div

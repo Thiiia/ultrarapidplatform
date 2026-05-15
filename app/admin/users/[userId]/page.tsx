@@ -44,7 +44,12 @@ export default async function AdminUserPreviewPage({
       notFound();
     }
 
-    return <StudentDashboard dashboardData={dashboardData} />;
+    return (
+      <StudentDashboard
+        dashboardData={dashboardData}
+        navBasePath={`/admin/users/${targetUser.id}`}
+      />
+    );
   }
 
   if (targetUser.role === "teacher") {

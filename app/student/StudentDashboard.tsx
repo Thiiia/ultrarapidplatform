@@ -36,19 +36,37 @@ type UtilityTab = {
 
 type StudentDashboardProps = {
   dashboardData: StudentDashboardData;
+  navBasePath?: string;
 };
 
-const topTabs: HeaderTab[] = [
-  { label: "Home", href: "/student", Icon: HomeIcon, width: 99 },
-  { label: "My Lessons", href: "/student/lessons", Icon: MyLessonsTab, width: 139 },
-  {
-    label: "Lesson Builder",
-    href: "/editor",
-    Icon: LessonBuilderTab,
-    width: 159,
-  },
-  { label: "Progress", href: "/student/progress", Icon: ProgressTab, width: 120 },
-];
+function getTopTabs(navBasePath = "/student"): HeaderTab[] {
+  return [
+    {
+      label: "Home",
+      href: navBasePath,
+      Icon: HomeIcon,
+      width: 99,
+    },
+    {
+      label: "My Lessons",
+      href: `${navBasePath}/lessons`,
+      Icon: MyLessonsTab,
+      width: 139,
+    },
+    {
+      label: "Lesson Builder",
+      href: "/editor",
+      Icon: LessonBuilderTab,
+      width: 159,
+    },
+    {
+      label: "Progress",
+      href: `${navBasePath}/progress`,
+      Icon: ProgressTab,
+      width: 120,
+    },
+  ];
+}
 
 const utilityTabs: UtilityTab[] = [
   // { label: "Notifications", href: "/student/notifications", Icon: NotificationsIcon, width: 38 },
@@ -116,7 +134,13 @@ function DashboardSection({
   );
 }
 
-function HeaderBar({ pathname }: { pathname: string }) {
+function HeaderBar({
+  pathname,
+  topTabs,
+}: {
+  pathname: string;
+  topTabs: HeaderTab[];
+}) {
   return (
     <header
       style={{
@@ -189,7 +213,10 @@ function HeaderBar({ pathname }: { pathname: string }) {
             }}
           >
             {topTabs.map((tab) => {
-              const isActive = pathname === tab.href;
+              const isActive =
+                pathname === tab.href ||
+                (tab.href !== "/" && pathname.startsWith(`${tab.href}/`)) ||
+                (tab.href === "/editor" && pathname.startsWith("/editor"));
 
               return (
                 <Link
@@ -358,8 +385,12 @@ function formatDueDate(value: Date | string | null | undefined) {
   }).format(date);
 }
 
-export default function StudentDashboard({ dashboardData }: StudentDashboardProps) {
+export default function StudentDashboard({
+  dashboardData,
+  navBasePath = "/student",
+}: StudentDashboardProps) {
   const pathname = usePathname();
+  const topTabs = getTopTabs(navBasePath);
 
   const displayName = dashboardData.name ?? "Student";
 
@@ -390,7 +421,7 @@ export default function StudentDashboard({ dashboardData }: StudentDashboardProp
         overflowX: "hidden",
       }}
     >
-      <HeaderBar pathname={pathname} />
+      <HeaderBar pathname={pathname} topTabs={topTabs} />
 
       <DashboardSection
         title={`Welcome Back, ${displayName}`}
