@@ -589,7 +589,7 @@ export default function EditorPage() {
   };
 
   const handleLaunchGame = () => {
-    window.location.href = "https://ultrarapidtest.netlify.app/";
+    window.open("https://ultrarapidtest.netlify.app/", "_blank", "noopener,noreferrer");
 
     /*
     // Old local build flow kept for later:
