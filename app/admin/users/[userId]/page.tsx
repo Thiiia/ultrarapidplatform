@@ -15,14 +15,14 @@ type AdminUserPreviewPageProps = {
 export default async function AdminUserPreviewPage({
   params,
 }: AdminUserPreviewPageProps) {
-  const currentUser = await getCurrentAppUser();
+  const adminUser = await getCurrentAppUser();
 
-  if (!currentUser) {
+  if (!adminUser) {
     redirect("/login");
   }
 
-  if (currentUser.role !== "admin") {
-    redirect(`/${currentUser.role}`);
+  if (adminUser.role !== "admin") {
+    redirect(`/${adminUser.role}`);
   }
 
   const { userId } = await params;
