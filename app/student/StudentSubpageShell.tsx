@@ -50,6 +50,14 @@ type StudentSubpageShellProps = {
   navBasePath?: string;
 };
 
+function getEditorHref(navBasePath: string) {
+  if (navBasePath === "/student") {
+    return "/editor";
+  }
+
+  return `/editor?navBasePath=${encodeURIComponent(navBasePath)}`;
+}
+
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
     {
@@ -68,7 +76,7 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
     },
     {
       label: "Lesson Builder",
-      href: "/editor",
+      href: getEditorHref(navBasePath),
       Icon: LessonBuilderTab,
       ActiveIcon: LessonBuilderPressedTab,
       width: 159,
@@ -219,10 +227,15 @@ function HeaderBar({
             }}
           >
             {topTabs.map((tab) => {
+              const cleanTabHref = tab.href.split("?")[0];
+              const isHomeTab = tab.label === "Home";
+
               const isActive =
-                pathname === tab.href ||
-                (tab.href !== "/" && pathname.startsWith(`${tab.href}/`)) ||
-                (tab.href === "/editor" && pathname.startsWith("/editor"));
+                pathname === cleanTabHref ||
+                (!isHomeTab &&
+                  cleanTabHref !== "/" &&
+                  pathname.startsWith(`${cleanTabHref}/`)) ||
+                (cleanTabHref === "/editor" && pathname.startsWith("/editor"));
 
               const Icon = isActive ? tab.ActiveIcon : tab.Icon;
 

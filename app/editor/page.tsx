@@ -193,34 +193,44 @@ function HeaderBar({ pathname }: { pathname: string }) {
               overflow: "visible",
             }}
           >
-            {topTabs.map((tab) => {
-              const isActive = pathname === tab.href;
+{topTabs.map((tab) => {
+  const cleanTabHref = tab.href.split("?")[0];
+  const isHomeTab = tab.label === "Home";
 
-              return (
-                <Link
-                  key={tab.label}
-                  href={tab.href}
-                  aria-label={tab.label}
-                  className={`${styles.headerTabButton} ${isActive ? styles.headerTabButtonActive : ""}`}
-                  style={{
-                    width: tab.width,
-                    height: 45.5,
-                    opacity: 1,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <tab.Icon
-                    style={{
-                      width: tab.width,
-                      height: 45.5,
-                      display: "block",
-                    }}
-                  />
-                </Link>
-              );
-            })}
+  const isActive =
+    pathname === cleanTabHref ||
+    (!isHomeTab &&
+      cleanTabHref !== "/" &&
+      pathname.startsWith(`${cleanTabHref}/`)) ||
+    (cleanTabHref === "/editor" && pathname.startsWith("/editor"));
+
+  return (
+    <Link
+      key={tab.label}
+      href={tab.href}
+      aria-label={tab.label}
+      className={`${styles.headerTabButton} ${
+        isActive ? styles.headerTabButtonActive : ""
+      }`}
+      style={{
+        width: tab.width,
+        height: 45.5,
+        opacity: 1,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <tab.Icon
+        style={{
+          width: tab.width,
+          height: 45.5,
+          display: "block",
+        }}
+      />
+    </Link>
+  );
+})}
           </nav>
         </div>
 
