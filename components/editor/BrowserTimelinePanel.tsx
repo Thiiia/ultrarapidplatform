@@ -82,6 +82,13 @@ function formatTime(value: number) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`
 }
 
+function formatTimePrecise(value: number) {
+  if (!Number.isFinite(value) || value < 0) return "0:00.00"
+  const minutes = Math.floor(value / 60)
+  const seconds = value - minutes * 60
+  return `${minutes}:${seconds.toFixed(2).padStart(5, "0")}`
+}
+
 function laneLabel(lane: number) {
   const labels = ["G", "R", "Y", "B", "O"]
   return labels[lane] ?? String(lane)
@@ -492,10 +499,6 @@ function removeChartEvent(chartText: string, tick: number, lane: number) {
   return chartText.replace(sectionRegex, `$1${normalizedBody}$3`)
 }
 
-function getTickLabels(events: EffectiveEvent[], activeEventId?: string | null) {
-  return events.map((event) => (event.id === activeEventId ? String(event.tick) : ""))
-}
-
 function HorizontalDotPanel({
   title,
   events,
@@ -507,8 +510,6 @@ function HorizontalDotPanel({
   activeEventId?: string | null
   onEventClick: (event: EffectiveEvent) => void
 }) {
-  const labels = getTickLabels(events, activeEventId)
-
   return (
     <div
       style={{
@@ -534,16 +535,15 @@ function HorizontalDotPanel({
           border: "1px solid #334155",
           background: "#0f172a",
           padding: "12px",
-          minHeight: "72px",
+          minHeight: "86px",
         }}
       >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "flex-start" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", alignItems: "flex-start" }}>
           {events.length === 0 ? (
             <div style={{ fontSize: "14px", color: "#94a3b8" }}>No nearby events.</div>
           ) : (
             events.map((event, index) => {
               const isActive = activeEventId === event.id
-              const label = labels[index]
 
               return (
                 <div
@@ -553,7 +553,7 @@ function HorizontalDotPanel({
                     flexDirection: "column",
                     alignItems: "center",
                     gap: "6px",
-                    minWidth: "28px",
+                    minWidth: "56px",
                   }}
                 >
                   <button
@@ -565,11 +565,11 @@ function HorizontalDotPanel({
                       height: "14px",
                       borderRadius: "9999px",
                       flexShrink: 0,
-                      border: "1px solid rgba(207,255,4,0.45)",
+                      border: "none",
                       outline: "none",
                       cursor: "pointer",
                       padding: 0,
-                      background: isActive
+                      backgroundColor: isActive
                         ? "rgba(207,255,4,0.4)"
                         : "rgba(207,255,4,0.3)",
                       boxShadow: isActive
@@ -579,15 +579,26 @@ function HorizontalDotPanel({
                   />
                   <div
                     style={{
-                      minHeight: "14px",
+                      minHeight: "28px",
                       fontSize: "11px",
-                      lineHeight: 1,
+                      lineHeight: 1.2,
                       color: isActive ? "#CFFF04" : "transparent",
                       fontWeight: 700,
                       whiteSpace: "nowrap",
+                      textAlign: "center",
                     }}
                   >
-                    {label}
+                    {isActive ? (
+                      <>
+                        <div>{`tick: ${event.tick}`}</div>
+                        <div>{formatTimePrecise(event.seconds)}</div>
+                      </>
+                    ) : (
+                      <>
+                        <div>&nbsp;</div>
+                        <div>&nbsp;</div>
+                      </>
+                    )}
                   </div>
                 </div>
               )
