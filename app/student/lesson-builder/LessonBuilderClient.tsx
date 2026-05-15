@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { EditorShell } from "@/components/editor/EditorShell";
 import { useEditorStore } from "@/lib/editor/editor-store";
 import { chartToProject } from "@/lib/editor/chart-to-project";
-import styles from "../student/student.module.css";
+import styles from "../student.module.css";
 
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
@@ -19,7 +19,7 @@ import ProgressTab from "@/public/header_icons/progress_tab.svg";
 /* Utility Icon Imports */
 import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
 
-type EditorRedirectPayload = {
+type LessonBuilderPayload = {
   chartFile: string;
   analysisMetadata?: {
     songTitle?: string;
@@ -47,17 +47,33 @@ type UtilityTab = {
   width: number;
 };
 
-const topTabs: HeaderTab[] = [
-  { label: "Home", href: "/student", Icon: HomeIcon, width: 99 },
-  { label: "My Lessons", href: "/student/lessons", Icon: MyLessonsTab, width: 139 },
-  {
-    label: "Lesson Builder",
-    href: "/editor",
-    Icon: LessonBuilderTab,
-    width: 159,
-  },
-  { label: "Progress", href: "/student/progress", Icon: ProgressTab, width: 120 },
-];
+type LessonBuilderClientProps = {
+  navBasePath?: string;
+};
+
+function getTopTabs(navBasePath = "/student"): HeaderTab[] {
+  return [
+    { label: "Home", href: navBasePath, Icon: HomeIcon, width: 99 },
+    {
+      label: "My Lessons",
+      href: `${navBasePath}/lessons`,
+      Icon: MyLessonsTab,
+      width: 139,
+    },
+    {
+      label: "Lesson Builder",
+      href: `${navBasePath}/lesson-builder`,
+      Icon: LessonBuilderTab,
+      width: 159,
+    },
+    {
+      label: "Progress",
+      href: `${navBasePath}/progress`,
+      Icon: ProgressTab,
+      width: 120,
+    },
+  ];
+}
 
 const utilityTabs: UtilityTab[] = [
   { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 134.45 },
@@ -121,7 +137,13 @@ function createBlankChart(songName: string, artist = "Unknown Artist") {
   ].join("\n");
 }
 
-function HeaderBar({ pathname }: { pathname: string }) {
+function HeaderBar({
+  pathname,
+  topTabs,
+}: {
+  pathname: string;
+  topTabs: HeaderTab[];
+}) {
   return (
     <header
       style={{
@@ -193,44 +215,43 @@ function HeaderBar({ pathname }: { pathname: string }) {
               overflow: "visible",
             }}
           >
-{topTabs.map((tab) => {
-  const cleanTabHref = tab.href.split("?")[0];
-  const isHomeTab = tab.label === "Home";
+            {topTabs.map((tab) => {
+              const cleanTabHref = tab.href.split("?")[0];
+              const isHomeTab = tab.label === "Home";
 
-  const isActive =
-    pathname === cleanTabHref ||
-    (!isHomeTab &&
-      cleanTabHref !== "/" &&
-      pathname.startsWith(`${cleanTabHref}/`)) ||
-    (cleanTabHref === "/editor" && pathname.startsWith("/editor"));
+              const isActive =
+                pathname === cleanTabHref ||
+                (!isHomeTab &&
+                  cleanTabHref !== "/" &&
+                  pathname.startsWith(`${cleanTabHref}/`));
 
-  return (
-    <Link
-      key={tab.label}
-      href={tab.href}
-      aria-label={tab.label}
-      className={`${styles.headerTabButton} ${
-        isActive ? styles.headerTabButtonActive : ""
-      }`}
-      style={{
-        width: tab.width,
-        height: 45.5,
-        opacity: 1,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <tab.Icon
-        style={{
-          width: tab.width,
-          height: 45.5,
-          display: "block",
-        }}
-      />
-    </Link>
-  );
-})}
+              return (
+                <Link
+                  key={tab.label}
+                  href={tab.href}
+                  aria-label={tab.label}
+                  className={`${styles.headerTabButton} ${
+                    isActive ? styles.headerTabButtonActive : ""
+                  }`}
+                  style={{
+                    width: tab.width,
+                    height: 45.5,
+                    opacity: 1,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <tab.Icon
+                    style={{
+                      width: tab.width,
+                      height: 45.5,
+                      display: "block",
+                    }}
+                  />
+                </Link>
+              );
+            })}
           </nav>
         </div>
 
@@ -502,7 +523,7 @@ function normalizeEditorShellDom() {
       if (hiddenTextFragments.some((fragment) => value.includes(fragment))) {
         const parent = node.parentElement;
         const container = parent?.closest(
-          "section, aside, [class*='border'], [class*='rounded'], [class*='shadow']"
+          "section, aside, [class*='border'], [class*='rounded'], [class*='shadow']",
         ) as HTMLElement | null;
         const target = container ?? parent;
 
@@ -549,13 +570,17 @@ function syncSongFileIntoEmbeddedLoader(file: File) {
   }
 }
 
-export default function EditorPage() {
+export default function LessonBuilderClient({
+  navBasePath = "/student",
+}: LessonBuilderClientProps) {
   const pathname = usePathname();
+  const topTabs = useMemo(() => getTopTabs(navBasePath), [navBasePath]);
+
   const songUploadInputRef = useRef<HTMLInputElement | null>(null);
   const chartUploadInputRef = useRef<HTMLInputElement | null>(null);
   const setProject = useEditorStore((s) => s.setProject);
   const [chartFile, setChartFile] = useState("");
-  const [metadata, setMetadata] = useState<EditorRedirectPayload["analysisMetadata"]>();
+  const [metadata, setMetadata] = useState<LessonBuilderPayload["analysisMetadata"]>();
   const [uploadedSongName, setUploadedSongName] = useState("");
   const [uploadedChartName, setUploadedChartName] = useState("");
   const [isChartVisible, setIsChartVisible] = useState(false);
@@ -580,7 +605,7 @@ export default function EditorPage() {
     setChartFile(nextChartFile);
     setUploadedChartName(nextChartName ?? "");
 
-    const nextPayload: EditorRedirectPayload = {
+    const nextPayload: LessonBuilderPayload = {
       chartFile: nextChartFile,
       analysisMetadata: metadata,
     };
@@ -592,7 +617,7 @@ export default function EditorPage() {
   const handleCreateBlankChart = () => {
     const blankChart = createBlankChart(
       selectedSongNameForBlankChart,
-      metadata?.artist
+      metadata?.artist,
     );
     applyChartFile(blankChart, "blank.chart");
     setIsChartVisible(false);
@@ -671,7 +696,7 @@ export default function EditorPage() {
     if (!raw) return;
 
     try {
-      const payload: EditorRedirectPayload = JSON.parse(raw);
+      const payload: LessonBuilderPayload = JSON.parse(raw);
 
       if (payload?.analysisMetadata) {
         setMetadata(payload.analysisMetadata);
@@ -688,7 +713,7 @@ export default function EditorPage() {
 
       sessionStorage.removeItem("ultrarapid_editor_payload");
     } catch (error) {
-      console.error("Failed to hydrate editor payload", error);
+      console.error("Failed to hydrate lesson builder payload", error);
     }
   }, [setProject]);
 
@@ -708,7 +733,7 @@ export default function EditorPage() {
         overflowX: "hidden",
       }}
     >
-      <HeaderBar pathname={pathname} />
+      <HeaderBar pathname={pathname} topTabs={topTabs} />
 
       <input
         ref={songUploadInputRef}
