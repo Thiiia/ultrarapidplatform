@@ -11,6 +11,8 @@ import styles from "../student.module.css";
 
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
+import PlayTab from "@/public/header_icons/play_tab.svg";
+import PlayPressedTab from "@/public/header_icons/play_tab_pressed.svg";
 import HomeIcon from "@/public/header_icons/Home.svg";
 import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
 import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab_pressed.svg";
@@ -63,6 +65,12 @@ function getGameHref(navBasePath: string, launch?: string) {
 
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
+    {
+      label: "Play",
+      href: `${navBasePath}/game`,
+      Icon: PlayTab,
+      width: 99,
+    },
     { label: "Home", href: navBasePath, Icon: HomeIcon, width: 99 },
     {
       label: "My Lessons",
@@ -147,41 +155,12 @@ function createBlankChart(songName: string, artist = "Unknown Artist") {
   ].join("\n");
 }
 
-function HeaderPlayButton({ href }: { href: string }) {
-  return (
-    <Link
-      href={href}
-      aria-label="Play UltraRapid"
-      style={{
-        textDecoration: "none",
-        background: "#191919",
-        color: "#FFFFFF",
-        border: "1px solid #FFFFFF14",
-        borderRadius: 8,
-        height: 38,
-        padding: "0 14px",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 13,
-        fontWeight: 500,
-        lineHeight: "19.5px",
-        whiteSpace: "nowrap",
-      }}
-    >
-      Play UltraRapid
-    </Link>
-  );
-}
-
 function HeaderBar({
   pathname,
   topTabs,
-  gameHref,
 }: {
   pathname: string;
   topTabs: HeaderTab[];
-  gameHref: string;
 }) {
   return (
     <header
@@ -257,12 +236,16 @@ function HeaderBar({
             {topTabs.map((tab) => {
               const cleanTabHref = tab.href.split("?")[0];
               const isHomeTab = tab.label === "Home";
+              const isPlayTab = tab.label === "Play";
 
               const isActive =
                 pathname === cleanTabHref ||
                 (!isHomeTab &&
+                  !isPlayTab &&
                   cleanTabHref !== "/" &&
                   pathname.startsWith(`${cleanTabHref}/`));
+
+              const Icon = isPlayTab && isActive ? PlayPressedTab : tab.Icon;
 
               return (
                 <Link
@@ -281,7 +264,7 @@ function HeaderBar({
                     justifyContent: "center",
                   }}
                 >
-                  <tab.Icon
+                  <Icon
                     style={{
                       width: tab.width,
                       height: 45.5,
@@ -305,8 +288,6 @@ function HeaderBar({
             overflow: "visible",
           }}
         >
-          <HeaderPlayButton href={gameHref} />
-
           {utilityTabs.map((tab) => (
             <Link
               key={tab.label}
@@ -619,9 +600,10 @@ export default function LessonBuilderClient({
 }: LessonBuilderClientProps) {
   const pathname = usePathname();
   const topTabs = useMemo(() => getTopTabs(navBasePath), [navBasePath]);
-
-  const headerGameHref = useMemo(() => getGameHref(navBasePath), [navBasePath]);
-  const playNowHref = useMemo(() => getGameHref(navBasePath, "play-now"), [navBasePath]);
+  const playNowHref = useMemo(
+    () => getGameHref(navBasePath, "play-now"),
+    [navBasePath],
+  );
 
   const songUploadInputRef = useRef<HTMLInputElement | null>(null);
   const chartUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -777,7 +759,7 @@ export default function LessonBuilderClient({
         overflowX: "hidden",
       }}
     >
-      <HeaderBar pathname={pathname} topTabs={topTabs} gameHref={headerGameHref} />
+      <HeaderBar pathname={pathname} topTabs={topTabs} />
 
       <input
         ref={songUploadInputRef}

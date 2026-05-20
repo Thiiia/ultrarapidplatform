@@ -8,9 +8,11 @@ import styles from "../student.module.css";
 
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
+import PlayTab from "@/public/header_icons/play_tab.svg";
+import PlayPressedTab from "@/public/header_icons/play_tab_pressed.svg";
 import HomeIcon from "@/public/header_icons/Home.svg";
 import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
-import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab_pressed.svg";
+import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab.svg";
 import ProgressTab from "@/public/header_icons/progress_tab.svg";
 
 /* Utility Icon Imports */
@@ -39,16 +41,6 @@ type GameEmbedPageProps = {
   navBasePath?: string;
 };
 
-function getGameHref(navBasePath: string, launch?: string) {
-  const href = `${navBasePath}/game`;
-
-  if (!launch) {
-    return href;
-  }
-
-  return `${href}?launch=${encodeURIComponent(launch)}`;
-}
-
 function getEmbeddedGameUrl(launch: string | null) {
   if (!launch) {
     return GAME_URL;
@@ -66,6 +58,12 @@ function getEmbeddedGameUrl(launch: string | null) {
 
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
+    {
+      label: "Play",
+      href: `${navBasePath}/game`,
+      Icon: PlayTab,
+      width: 99,
+    },
     { label: "Home", href: navBasePath, Icon: HomeIcon, width: 99 },
     {
       label: "My Lessons",
@@ -98,41 +96,12 @@ const pageBackgroundColor = "#191919";
 const subtleBorderColor = "#FFFFFF14";
 const textColor = "#FFFFFF";
 
-function HeaderPlayButton({ href }: { href: string }) {
-  return (
-    <Link
-      href={href}
-      aria-label="Play UltraRapid"
-      style={{
-        textDecoration: "none",
-        background: "#191919",
-        color: "#FFFFFF",
-        border: "1px solid #FFFFFF14",
-        borderRadius: 8,
-        height: 38,
-        padding: "0 14px",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 13,
-        fontWeight: 500,
-        lineHeight: "19.5px",
-        whiteSpace: "nowrap",
-      }}
-    >
-      Play UltraRapid
-    </Link>
-  );
-}
-
 function HeaderBar({
   pathname,
   topTabs,
-  gameHref,
 }: {
   pathname: string;
   topTabs: HeaderTab[];
-  gameHref: string;
 }) {
   return (
     <header
@@ -208,12 +177,16 @@ function HeaderBar({
             {topTabs.map((tab) => {
               const cleanTabHref = tab.href.split("?")[0];
               const isHomeTab = tab.label === "Home";
+              const isPlayTab = tab.label === "Play";
 
               const isActive =
                 pathname === cleanTabHref ||
                 (!isHomeTab &&
+                  !isPlayTab &&
                   cleanTabHref !== "/" &&
                   pathname.startsWith(`${cleanTabHref}/`));
+
+              const Icon = isPlayTab && isActive ? PlayPressedTab : tab.Icon;
 
               return (
                 <Link
@@ -232,7 +205,7 @@ function HeaderBar({
                     justifyContent: "center",
                   }}
                 >
-                  <tab.Icon
+                  <Icon
                     style={{
                       width: tab.width,
                       height: 45.5,
@@ -256,8 +229,6 @@ function HeaderBar({
             overflow: "visible",
           }}
         >
-          <HeaderPlayButton href={gameHref} />
-
           {utilityTabs.map((tab) => (
             <Link
               key={tab.label}
@@ -299,7 +270,6 @@ export default function GameEmbedPage({
   const searchParams = useSearchParams();
 
   const topTabs = getTopTabs(navBasePath);
-  const headerGameHref = getGameHref(navBasePath);
 
   const embeddedGameUrl = useMemo(() => {
     return getEmbeddedGameUrl(searchParams.get("launch"));
@@ -317,11 +287,7 @@ export default function GameEmbedPage({
         overflowX: "hidden",
       }}
     >
-      <HeaderBar
-        pathname={pathname}
-        topTabs={topTabs}
-        gameHref={headerGameHref}
-      />
+      <HeaderBar pathname={pathname} topTabs={topTabs} />
 
       <main
         style={{
@@ -341,48 +307,8 @@ export default function GameEmbedPage({
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            gap: 12,
           }}
         >
-          <div
-            style={{
-              background: headerBackgroundColor,
-              border: `1px solid ${subtleBorderColor}`,
-              borderRadius: 12,
-              padding: 12,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <h1 style={{ margin: 0, fontSize: 18 }}>UltraRapid Game</h1>
-              <p style={{ margin: "4px 0 0 0", color: "#D1D5DB", fontSize: 13 }}>
-                The game is embedded below.
-              </p>
-            </div>
-
-            <a
-              href={embeddedGameUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: "#FFFFFF",
-                textDecoration: "none",
-                border: `1px solid ${subtleBorderColor}`,
-                borderRadius: 8,
-                padding: "8px 12px",
-                background: pageBackgroundColor,
-                fontSize: 13,
-                fontWeight: 500,
-              }}
-            >
-              Open in new tab
-            </a>
-          </div>
-
           <iframe
             src={embeddedGameUrl}
             title="UltraRapid Game"
@@ -390,7 +316,7 @@ export default function GameEmbedPage({
             allowFullScreen
             style={{
               width: "100%",
-              height: "calc(100vh - 170px)",
+              height: "calc(100vh - 105px)",
               minHeight: 640,
               border: `1px solid ${subtleBorderColor}`,
               borderRadius: 12,
