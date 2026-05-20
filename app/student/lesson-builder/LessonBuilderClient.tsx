@@ -65,12 +65,6 @@ function getGameHref(navBasePath: string, launch?: string) {
 
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
-    {
-      label: "Play",
-      href: `${navBasePath}/game`,
-      Icon: PlayTab,
-      width: 99,
-    },
     { label: "Home", href: navBasePath, Icon: HomeIcon, width: 99 },
     {
       label: "My Lessons",
@@ -89,6 +83,12 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
       href: `${navBasePath}/progress`,
       Icon: ProgressTab,
       width: 120,
+    },
+        {
+      label: "Play",
+      href: `${navBasePath}/game`,
+      Icon: PlayTab,
+      width: 99,
     },
   ];
 }

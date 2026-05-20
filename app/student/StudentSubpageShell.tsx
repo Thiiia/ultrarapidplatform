@@ -55,13 +55,6 @@ type StudentSubpageShellProps = {
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
     {
-      label: "Play",
-      href: `${navBasePath}/game`,
-      Icon: PlayTab,
-      ActiveIcon: PlayPressedTab,
-      width: 99,
-    },
-    {
       label: "Home",
       href: navBasePath,
       Icon: HomeIcon,
@@ -88,6 +81,13 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
       Icon: ProgressTab,
       ActiveIcon: ProgressPressedTab,
       width: 120,
+    },
+        {
+      label: "Play",
+      href: `${navBasePath}/game`,
+      Icon: PlayTab,
+      ActiveIcon: PlayPressedTab,
+      width: 99,
     },
   ];
 }
