@@ -28,7 +28,7 @@ type LessonBuilderPayload = {
     durationSeconds?: number;
     uploadedFileName?: string;
   };
-  rawResults?: any;
+  rawResults?: unknown;
 };
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
@@ -50,6 +50,16 @@ type UtilityTab = {
 type LessonBuilderClientProps = {
   navBasePath?: string;
 };
+
+function getGameHref(navBasePath: string, launch?: string) {
+  const href = `${navBasePath}/game`;
+
+  if (!launch) {
+    return href;
+  }
+
+  return `${href}?launch=${encodeURIComponent(launch)}`;
+}
 
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
@@ -137,12 +147,41 @@ function createBlankChart(songName: string, artist = "Unknown Artist") {
   ].join("\n");
 }
 
+function HeaderPlayButton({ href }: { href: string }) {
+  return (
+    <Link
+      href={href}
+      aria-label="Play UltraRapid"
+      style={{
+        textDecoration: "none",
+        background: "#191919",
+        color: "#FFFFFF",
+        border: "1px solid #FFFFFF14",
+        borderRadius: 8,
+        height: 38,
+        padding: "0 14px",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 13,
+        fontWeight: 500,
+        lineHeight: "19.5px",
+        whiteSpace: "nowrap",
+      }}
+    >
+      Play UltraRapid
+    </Link>
+  );
+}
+
 function HeaderBar({
   pathname,
   topTabs,
+  gameHref,
 }: {
   pathname: string;
   topTabs: HeaderTab[];
+  gameHref: string;
 }) {
   return (
     <header
@@ -266,6 +305,8 @@ function HeaderBar({
             overflow: "visible",
           }}
         >
+          <HeaderPlayButton href={gameHref} />
+
           {utilityTabs.map((tab) => (
             <Link
               key={tab.label}
@@ -348,7 +389,10 @@ function ChartDropdown({
 }) {
   return (
     <div style={{ width: 260, position: "relative" }}>
-      <details className="editorChartDropdown" style={{ position: "relative", width: "100%" }}>
+      <details
+        className="editorChartDropdown"
+        style={{ position: "relative", width: "100%" }}
+      >
         <summary
           style={{
             ...sharedTextStyle,
@@ -483,7 +527,7 @@ function EditorPanel({
           }}
         >
           <EditorButton onClick={onLaunchGame} width={160}>
-            Launch Game
+            Play Now
           </EditorButton>
 
           <EditorButton disabled={!chartFile.trim()} onClick={onToggleChartVisible} width={160}>
@@ -576,9 +620,14 @@ export default function LessonBuilderClient({
   const pathname = usePathname();
   const topTabs = useMemo(() => getTopTabs(navBasePath), [navBasePath]);
 
+  const headerGameHref = useMemo(() => getGameHref(navBasePath), [navBasePath]);
+  const playNowHref = useMemo(() => getGameHref(navBasePath, "play-now"), [navBasePath]);
+
   const songUploadInputRef = useRef<HTMLInputElement | null>(null);
   const chartUploadInputRef = useRef<HTMLInputElement | null>(null);
+
   const setProject = useEditorStore((s) => s.setProject);
+
   const [chartFile, setChartFile] = useState("");
   const [metadata, setMetadata] = useState<LessonBuilderPayload["analysisMetadata"]>();
   const [uploadedSongName, setUploadedSongName] = useState("");
@@ -624,12 +673,7 @@ export default function LessonBuilderClient({
   };
 
   const handleLaunchGame = () => {
-    window.open("https://ultrarapidtest.netlify.app/", "_blank", "noopener,noreferrer");
-
-    /*
-    // Old local build flow kept for later:
-    window.open("/game?autostart=1&fullscreen=1", "_blank", "noopener,noreferrer");
-    */
+    window.location.href = playNowHref;
   };
 
   const handleSongUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -733,7 +777,7 @@ export default function LessonBuilderClient({
         overflowX: "hidden",
       }}
     >
-      <HeaderBar pathname={pathname} topTabs={topTabs} />
+      <HeaderBar pathname={pathname} topTabs={topTabs} gameHref={headerGameHref} />
 
       <input
         ref={songUploadInputRef}
@@ -822,85 +866,6 @@ export default function LessonBuilderClient({
           <EditorShell chartFile={chartFile} />
         </div>
       </main>
-
-      <style jsx global>{`
-        .editorChartDropdown > summary::-webkit-details-marker {
-          display: none;
-        }
-
-        .editorChartDropdown > summary {
-          height: 38px;
-          box-sizing: border-box;
-        }
-
-        .editorPageShell {
-          color: #ffffff;
-        }
-
-        .editorPageShell * {
-          scrollbar-width: none;
-        }
-
-        .editorPageShell *::-webkit-scrollbar {
-          display: none;
-        }
-
-        .editorPageShell [class*="timeline"],
-        .editorPageShell [data-panel*="timeline"],
-        .editorPageShell [aria-label*="Timeline"] {
-          background-color: #2b2b2b !important;
-        }
-
-        .editorPageShell > div {
-          padding-left: 0 !important;
-          padding-right: 0 !important;
-        }
-
-        .editorPageShell [class~="grid"][class~="grid-cols-12"] {
-          gap: 16px !important;
-        }
-
-        .editorPageShell [class~="grid"][class~="grid-cols-12"] > div:first-child > *:first-child {
-          display: none !important;
-        }
-
-        .editorPageShell [class~="col-span-8"] > *:first-child {
-          display: none !important;
-        }
-
-        .editorPageShell [class*="border"],
-        .editorPageShell [class*="rounded"],
-        .editorPageShell section,
-        .editorPageShell aside {
-          background-color: #2b2b2b !important;
-          border-color: #ffffff14 !important;
-          color: #ffffff !important;
-        }
-
-        .editorPageShell button,
-        .editorPageShell input,
-        .editorPageShell select,
-        .editorPageShell textarea,
-        .editorPageShell [role="button"],
-        .editorPageShell [class*="bg-white"],
-        .editorPageShell [class*="bg-gray"],
-        .editorPageShell [class*="bg-slate"] {
-          background-color: #191919 !important;
-          border-color: #ffffff14 !important;
-          color: #ffffff !important;
-        }
-
-        .editorPageShell p,
-        .editorPageShell span,
-        .editorPageShell h1,
-        .editorPageShell h2,
-        .editorPageShell h3,
-        .editorPageShell h4,
-        .editorPageShell label,
-        .editorPageShell div {
-          color: #ffffff !important;
-        }
-      `}</style>
     </div>
   );
 }

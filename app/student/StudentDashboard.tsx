@@ -39,6 +39,16 @@ type StudentDashboardProps = {
   navBasePath?: string;
 };
 
+function getGameHref(navBasePath: string, launch?: string) {
+  const href = `${navBasePath}/game`;
+
+  if (!launch) {
+    return href;
+  }
+
+  return `${href}?launch=${encodeURIComponent(launch)}`;
+}
+
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
     {
@@ -134,12 +144,41 @@ function DashboardSection({
   );
 }
 
+function HeaderPlayButton({ href }: { href: string }) {
+  return (
+    <Link
+      href={href}
+      aria-label="Play UltraRapid"
+      style={{
+        textDecoration: "none",
+        background: "#191919",
+        color: "#FFFFFF",
+        border: "1px solid #FFFFFF14",
+        borderRadius: 8,
+        height: 38,
+        padding: "0 14px",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 13,
+        fontWeight: 500,
+        lineHeight: "19.5px",
+        whiteSpace: "nowrap",
+      }}
+    >
+      Play UltraRapid
+    </Link>
+  );
+}
+
 function HeaderBar({
   pathname,
   topTabs,
+  gameHref,
 }: {
   pathname: string;
   topTabs: HeaderTab[];
+  gameHref: string;
 }) {
   return (
     <header
@@ -263,6 +302,8 @@ function HeaderBar({
             overflow: "visible",
           }}
         >
+          <HeaderPlayButton href={gameHref} />
+
           {utilityTabs.map((tab) => {
             const iconWidth = tab.width;
             const iconHeight = 38;
@@ -395,6 +436,7 @@ export default function StudentDashboard({
 }: StudentDashboardProps) {
   const pathname = usePathname();
   const topTabs = getTopTabs(navBasePath);
+  const headerGameHref = getGameHref(navBasePath);
 
   const displayName = dashboardData.name ?? "Student";
 
@@ -425,7 +467,11 @@ export default function StudentDashboard({
         overflowX: "hidden",
       }}
     >
-      <HeaderBar pathname={pathname} topTabs={topTabs} />
+      <HeaderBar
+        pathname={pathname}
+        topTabs={topTabs}
+        gameHref={headerGameHref}
+      />
 
       <DashboardSection
         title={`Welcome Back, ${displayName}`}

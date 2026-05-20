@@ -1,25 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { FC, ReactNode, SVGProps } from "react";
-import styles from "./student.module.css";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useMemo } from "react";
+import type { FC, SVGProps } from "react";
+import styles from "../student.module.css";
 
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
 import HomeIcon from "@/public/header_icons/Home.svg";
-import HomePressedIcon from "@/public/header_icons/Home_pressed.svg";
 import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
-import MyLessonsPressedTab from "@/public/header_icons/my_lessons_tab_pressed.svg";
-import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab.svg";
-import LessonBuilderPressedTab from "@/public/header_icons/lesson_builder_tab_pressed.svg";
+import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab_pressed.svg";
 import ProgressTab from "@/public/header_icons/progress_tab.svg";
-import ProgressPressedTab from "@/public/header_icons/progress_tab_pressed.svg";
 
 /* Utility Icon Imports */
-// import NotificationsIcon from "@/public/utility_icons/notifications_icon.svg";
-// import SettingsIcon from "@/public/utility_icons/settings_icon.svg";
 import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
+
+const GAME_URL =
+  process.env.NEXT_PUBLIC_GAME_URL ?? "https://ultrarapidtest.netlify.app/";
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
 
@@ -27,7 +25,6 @@ type HeaderTab = {
   label: string;
   href: string;
   Icon: TabIcon;
-  ActiveIcon: TabIcon;
   width: number;
 };
 
@@ -38,15 +35,7 @@ type UtilityTab = {
   width: number;
 };
 
-type StudentSubpageCard = {
-  title: string;
-  description: string;
-  href?: string;
-};
-
-type StudentSubpageShellProps = {
-  title: string;
-  cards: StudentSubpageCard[];
+type GameEmbedPageProps = {
   navBasePath?: string;
 };
 
@@ -60,95 +49,54 @@ function getGameHref(navBasePath: string, launch?: string) {
   return `${href}?launch=${encodeURIComponent(launch)}`;
 }
 
+function getEmbeddedGameUrl(launch: string | null) {
+  if (!launch) {
+    return GAME_URL;
+  }
+
+  try {
+    const url = new URL(GAME_URL);
+    url.searchParams.set("launch", launch);
+    return url.toString();
+  } catch {
+    const separator = GAME_URL.includes("?") ? "&" : "?";
+    return `${GAME_URL}${separator}launch=${encodeURIComponent(launch)}`;
+  }
+}
+
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
-    {
-      label: "Home",
-      href: navBasePath,
-      Icon: HomeIcon,
-      ActiveIcon: HomePressedIcon,
-      width: 99,
-    },
+    { label: "Home", href: navBasePath, Icon: HomeIcon, width: 99 },
     {
       label: "My Lessons",
       href: `${navBasePath}/lessons`,
       Icon: MyLessonsTab,
-      ActiveIcon: MyLessonsPressedTab,
       width: 139,
     },
     {
       label: "Lesson Builder",
       href: `${navBasePath}/lesson-builder`,
       Icon: LessonBuilderTab,
-      ActiveIcon: LessonBuilderPressedTab,
       width: 159,
     },
     {
       label: "Progress",
       href: `${navBasePath}/progress`,
       Icon: ProgressTab,
-      ActiveIcon: ProgressPressedTab,
       width: 120,
     },
   ];
 }
 
 const utilityTabs: UtilityTab[] = [
-  // { label: "Notifications", href: "/student/notifications", Icon: NotificationsIcon, width: 38 },
-  // { label: "Settings", href: "/student/settings", Icon: SettingsIcon, width: 38 },
   { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 134.45 },
 ];
 
-const headerStyles = {
-  backgroundColor: "#2B2B2B",
-  borderBottomColor: "#FFFFFF14",
-};
-
-const pagePanelWidth = "85vw";
+const pagePanelWidth = "92vw";
+const headerBackgroundColor = "#2B2B2B";
 const pageBackgroundColor = "#191919";
-const firstPanelBackgroundColor = headerStyles.backgroundColor;
-
-type SectionProps = {
-  title: string;
-  children?: ReactNode;
-};
-
-function DashboardSection({ title, children }: SectionProps) {
-  return (
-    <div
-      style={{
-        background: firstPanelBackgroundColor,
-        width: "100%",
-        borderBottom: `1px solid ${headerStyles.borderBottomColor}`,
-      }}
-    >
-      <section
-        style={{
-          background: firstPanelBackgroundColor,
-          color: "#FFFFFF",
-          width: pagePanelWidth,
-          boxSizing: "border-box",
-          minHeight: 230,
-          border: "none",
-          borderRadius: 0,
-          padding: "20px 0",
-          margin: "0 auto",
-        }}
-      >
-        <h2
-          className={styles.panelTitle}
-          style={{
-            margin: "0 0 16px 0",
-            color: "#FFFFFF",
-          }}
-        >
-          {title}
-        </h2>
-        {children}
-      </section>
-    </div>
-  );
-}
+const subtleBorderColor = "#FFFFFF14";
+const textColor = "#FFFFFF";
 
 function HeaderPlayButton({ href }: { href: string }) {
   return (
@@ -189,12 +137,12 @@ function HeaderBar({
   return (
     <header
       style={{
-        background: headerStyles.backgroundColor,
+        background: headerBackgroundColor,
         width: "100%",
         boxSizing: "border-box",
         height: 70,
         border: "none",
-        borderBottom: `1px solid ${headerStyles.borderBottomColor}`,
+        borderBottom: `1px solid ${subtleBorderColor}`,
         borderRadius: 0,
         display: "flex",
         alignItems: "center",
@@ -267,8 +215,6 @@ function HeaderBar({
                   cleanTabHref !== "/" &&
                   pathname.startsWith(`${cleanTabHref}/`));
 
-              const Icon = isActive ? tab.ActiveIcon : tab.Icon;
-
               return (
                 <Link
                   key={tab.label}
@@ -286,7 +232,7 @@ function HeaderBar({
                     justifyContent: "center",
                   }}
                 >
-                  <Icon
+                  <tab.Icon
                     style={{
                       width: tab.width,
                       height: 45.5,
@@ -312,31 +258,26 @@ function HeaderBar({
         >
           <HeaderPlayButton href={gameHref} />
 
-          {utilityTabs.map((tab) => {
-            const iconWidth = tab.width;
-            const iconHeight = 38;
-
-            return (
-              <Link
-                key={tab.label}
-                href={tab.href}
-                aria-label={tab.label}
-                className={styles.utilityButton}
+          {utilityTabs.map((tab) => (
+            <Link
+              key={tab.label}
+              href={tab.href}
+              aria-label={tab.label}
+              className={styles.utilityButton}
+              style={{
+                width: tab.width,
+                height: 38,
+              }}
+            >
+              <tab.Icon
                 style={{
                   width: tab.width,
                   height: 38,
+                  display: "block",
                 }}
-              >
-                <tab.Icon
-                  style={{
-                    width: iconWidth,
-                    height: iconHeight,
-                    display: "block",
-                  }}
-                />
-              </Link>
-            );
-          })}
+              />
+            </Link>
+          ))}
 
           <a
             href="/auth/logout"
@@ -351,83 +292,28 @@ function HeaderBar({
   );
 }
 
-function PlaceholderCard({
-  title,
-  description,
-  href,
-}: {
-  title: string;
-  description: string;
-  href?: string;
-}) {
-  const card = (
-    <div
-      style={{
-        background: "#2B2B2B",
-        border: "1px solid #FFFFFF14",
-        borderRadius: 12,
-        padding: 16,
-      }}
-    >
-      <h3
-        style={{
-          margin: "0 0 8px 0",
-          fontSize: 13,
-          fontWeight: 500,
-          lineHeight: "19.5px",
-          letterSpacing: 0,
-          textAlign: "center",
-          color: "#fff",
-        }}
-      >
-        {title}
-      </h3>
-      <p
-        style={{
-          margin: 0,
-          color: "#FFFFFF",
-          fontSize: 13,
-          fontWeight: 500,
-          lineHeight: "19.5px",
-          letterSpacing: 0,
-          textAlign: "center",
-        }}
-      >
-        {description}
-      </p>
-    </div>
-  );
-
-  if (!href) {
-    return card;
-  }
-
-  return (
-    <Link href={href} style={{ color: "inherit", textDecoration: "none" }}>
-      {card}
-    </Link>
-  );
-}
-
-export default function StudentSubpageShell({
-  title,
-  cards,
+export default function GameEmbedPage({
   navBasePath = "/student",
-}: StudentSubpageShellProps) {
+}: GameEmbedPageProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const topTabs = getTopTabs(navBasePath);
   const headerGameHref = getGameHref(navBasePath);
+
+  const embeddedGameUrl = useMemo(() => {
+    return getEmbeddedGameUrl(searchParams.get("launch"));
+  }, [searchParams]);
 
   return (
     <div
       className={styles.studentTypography}
       style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 0,
         minHeight: "100vh",
         background: pageBackgroundColor,
-        color: "#FFFFFF",
+        color: textColor,
+        display: "flex",
+        flexDirection: "column",
         overflowX: "hidden",
       }}
     >
@@ -437,24 +323,82 @@ export default function StudentSubpageShell({
         gameHref={headerGameHref}
       />
 
-      <DashboardSection title={title}>
-        <div
+      <main
+        style={{
+          width: "100%",
+          flex: 1,
+          background: pageBackgroundColor,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <section
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: 15,
+            width: pagePanelWidth,
+            margin: "0 auto",
+            padding: "16px 0",
+            boxSizing: "border-box",
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
           }}
         >
-          {cards.map((card) => (
-            <PlaceholderCard
-              key={card.title}
-              title={card.title}
-              description={card.description}
-              href={card.href}
-            />
-          ))}
-        </div>
-      </DashboardSection>
+          <div
+            style={{
+              background: headerBackgroundColor,
+              border: `1px solid ${subtleBorderColor}`,
+              borderRadius: 12,
+              padding: 12,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <h1 style={{ margin: 0, fontSize: 18 }}>UltraRapid Game</h1>
+              <p style={{ margin: "4px 0 0 0", color: "#D1D5DB", fontSize: 13 }}>
+                The game is embedded below.
+              </p>
+            </div>
+
+            <a
+              href={embeddedGameUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: "#FFFFFF",
+                textDecoration: "none",
+                border: `1px solid ${subtleBorderColor}`,
+                borderRadius: 8,
+                padding: "8px 12px",
+                background: pageBackgroundColor,
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+            >
+              Open in new tab
+            </a>
+          </div>
+
+          <iframe
+            src={embeddedGameUrl}
+            title="UltraRapid Game"
+            allow="fullscreen; gamepad; autoplay"
+            allowFullScreen
+            style={{
+              width: "100%",
+              height: "calc(100vh - 170px)",
+              minHeight: 640,
+              border: `1px solid ${subtleBorderColor}`,
+              borderRadius: 12,
+              background: "#000000",
+            }}
+          />
+        </section>
+      </main>
     </div>
   );
 }
