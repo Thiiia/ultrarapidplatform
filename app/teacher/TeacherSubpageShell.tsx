@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import type { TeacherDashboardData } from "@/lib/teacher-dashboard";
 import styles from "../student/student.module.css";
 
 import URIcon from "@/public/header_icons/URIcon.svg";
@@ -15,12 +14,17 @@ type HeaderTab = {
   width: number;
 };
 
-type TeacherDashboardProps = {
-  dashboardData: TeacherDashboardData;
+type TeacherSubpageCard = {
+  title: string;
+  description: string;
+  href?: string;
+};
+
+type TeacherSubpageShellProps = {
+  title: string;
+  cards: TeacherSubpageCard[];
   navBasePath?: string;
-  adminViewing?: boolean;
-  viewedUserName?: string | null;
-  viewedUserEmail?: string;
+  children?: ReactNode;
 };
 
 function getTopTabs(navBasePath = "/teacher"): HeaderTab[] {
@@ -60,30 +64,6 @@ const headerStyles = {
   backgroundColor: "#2B2B2B",
   borderBottomColor: "#FFFFFF14",
 };
-
-const sectionColors = {
-  welcome: "#2B2B2B",
-  overview: "#191919",
-  classes: "#191919",
-  lessons: "#191919",
-};
-
-function formatDate(value: Date | string | null | undefined) {
-  if (!value) {
-    return "No due date";
-  }
-
-  const date = typeof value === "string" ? new Date(value) : value;
-
-  if (Number.isNaN(date.getTime())) {
-    return "No due date";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(date);
-}
 
 function HeaderTabButton({
   tab,
@@ -255,27 +235,25 @@ function HeaderBar({
 function DashboardSection({
   title,
   children,
-  backgroundColor = pageBackgroundColor,
 }: {
   title: string;
   children?: ReactNode;
-  backgroundColor?: string;
 }) {
   return (
     <div
       style={{
-        background: backgroundColor,
+        background: "#2B2B2B",
         width: "100%",
-        borderBottom: "1px solid #FFFFFF14",
+        borderBottom: `1px solid ${headerStyles.borderBottomColor}`,
       }}
     >
       <section
         style={{
-          background: backgroundColor,
+          background: "#2B2B2B",
           color: "#FFFFFF",
           width: pagePanelWidth,
           boxSizing: "border-box",
-          minHeight: 195,
+          minHeight: 230,
           border: "none",
           borderRadius: 0,
           padding: "20px 0",
@@ -309,12 +287,10 @@ function TeacherCard({
   const card = (
     <div
       style={{
-        background: "#2B2B2B",
+        background: "#191919",
         border: "1px solid #FFFFFF14",
         borderRadius: 12,
-        color: "#FFFFFF",
         padding: 16,
-        minHeight: 88,
       }}
     >
       <h3
@@ -351,27 +327,20 @@ function TeacherCard({
   }
 
   return (
-    <Link href={href} style={{ textDecoration: "none", color: "inherit" }}>
+    <Link href={href} style={{ color: "inherit", textDecoration: "none" }}>
       {card}
     </Link>
   );
 }
 
-export default function TeacherDashboard({
-  dashboardData,
+export default function TeacherSubpageShell({
+  title,
+  cards,
   navBasePath = "/teacher",
-  adminViewing = false,
-  viewedUserName,
-  viewedUserEmail,
-}: TeacherDashboardProps) {
+  children,
+}: TeacherSubpageShellProps) {
   const pathname = usePathname();
   const topTabs = getTopTabs(navBasePath);
-
-  const displayName =
-    viewedUserName ?? dashboardData.name ?? viewedUserEmail ?? dashboardData.email;
-
-  const recentClasses = dashboardData.classes.slice(0, 3);
-  const recentLessons = dashboardData.authoredMissions.slice(0, 3);
 
   return (
     <div
@@ -388,71 +357,8 @@ export default function TeacherDashboard({
     >
       <HeaderBar pathname={pathname} topTabs={topTabs} />
 
-      <DashboardSection
-        title={adminViewing ? `Viewing ${displayName}` : `Welcome Back, ${displayName}`}
-        backgroundColor={sectionColors.welcome}
-      >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "2fr 1fr",
-            gap: 15,
-          }}
-        >
-          <TeacherCard
-            title="Teaching overview"
-            description={`School: ${
-              dashboardData.school?.name ?? "Not assigned"
-            }. ${dashboardData.totals.classCount} class${
-              dashboardData.totals.classCount === 1 ? "" : "es"
-            }, ${dashboardData.totals.studentCount} student${
-              dashboardData.totals.studentCount === 1 ? "" : "s"
-            }.`}
-          />
-
-          <TeacherCard
-            title="Active assignments"
-            description={`${dashboardData.totals.activeAssignmentCount} assigned or in-progress item${
-              dashboardData.totals.activeAssignmentCount === 1 ? "" : "s"
-            } across your classes.`}
-            href={`${navBasePath}/lessons`}
-          />
-        </div>
-      </DashboardSection>
-
-      <DashboardSection title="Teacher Overview" backgroundColor={sectionColors.overview}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-            gap: 15,
-          }}
-        >
-          <TeacherCard
-            title="Classes"
-            description={`${dashboardData.totals.classCount} total`}
-            href={`${navBasePath}/classes`}
-          />
-          <TeacherCard
-            title="Students"
-            description={`${dashboardData.totals.studentCount} total`}
-            href={`${navBasePath}/students`}
-          />
-          <TeacherCard
-            title="Lessons"
-            description={`${dashboardData.totals.missionCount} authored`}
-            href={`${navBasePath}/lessons`}
-          />
-          <TeacherCard
-            title="Progress"
-            description="Review assignment activity and class progress."
-            href={`${navBasePath}/progress`}
-          />
-        </div>
-      </DashboardSection>
-
-      <DashboardSection title="Your Classes" backgroundColor={sectionColors.classes}>
-        {recentClasses.length > 0 ? (
+      <DashboardSection title={title}>
+        {children ?? (
           <div
             style={{
               display: "grid",
@@ -460,52 +366,15 @@ export default function TeacherDashboard({
               gap: 15,
             }}
           >
-            {recentClasses.map((classItem) => (
+            {cards.map((card) => (
               <TeacherCard
-                key={classItem.id}
-                title={classItem.name}
-                description={`${classItem.studentCount} student${
-                  classItem.studentCount === 1 ? "" : "s"
-                } • ${classItem.assignments.length} assignment${
-                  classItem.assignments.length === 1 ? "" : "s"
-                }`}
-                href={`${navBasePath}/classes`}
+                key={card.title}
+                title={card.title}
+                description={card.description}
+                href={card.href}
               />
             ))}
           </div>
-        ) : (
-          <TeacherCard
-            title="No classes assigned yet"
-            description="Once an admin assigns you to a class, it will appear here."
-          />
-        )}
-      </DashboardSection>
-
-      <DashboardSection title="Recent Lessons" backgroundColor={sectionColors.lessons}>
-        {recentLessons.length > 0 ? (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-              gap: 15,
-            }}
-          >
-            {recentLessons.map((lesson) => (
-              <TeacherCard
-                key={lesson.id}
-                title={lesson.title}
-                description={`${lesson.published ? "Published" : "Draft"} • Updated ${formatDate(
-                  lesson.updatedAt,
-                )}`}
-                href={`${navBasePath}/lessons`}
-              />
-            ))}
-          </div>
-        ) : (
-          <TeacherCard
-            title="No lessons yet"
-            description="Lessons you create or author will appear here."
-          />
         )}
       </DashboardSection>
     </div>

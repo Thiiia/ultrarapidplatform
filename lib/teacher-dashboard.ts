@@ -32,12 +32,15 @@ export async function getTeacherDashboardData(userId: string) {
             ],
           },
         },
+        orderBy: {
+          updatedAt: "desc",
+        },
       },
       authoredMissions: {
         orderBy: {
           updatedAt: "desc",
         },
-        take: 5,
+        take: 8,
       },
     },
   });
@@ -78,6 +81,15 @@ export async function getTeacherDashboardData(userId: string) {
 
   const students = Array.from(studentsById.values());
 
+  const activeAssignmentCount = teacher.classesTaught.reduce((total, classItem) => {
+    return (
+      total +
+      classItem.assignments.filter((assignment) => {
+        return assignment.status === "assigned" || assignment.status === "in_progress";
+      }).length
+    );
+  }, 0);
+
   return {
     id: teacher.id,
     name: teacher.name,
@@ -92,12 +104,16 @@ export async function getTeacherDashboardData(userId: string) {
       id: classItem.id,
       name: classItem.name,
       description: classItem.description,
+      term: classItem.term,
+      isArchived: classItem.isArchived,
       studentCount: classItem.students.length,
       assignments: classItem.assignments.map((assignment) => ({
         id: assignment.id,
         title: assignment.title,
+        description: assignment.description,
         status: assignment.status,
         dueAt: assignment.dueAt,
+        missionId: assignment.mission.id,
         missionTitle: assignment.mission.title,
       })),
     })),
@@ -112,14 +128,7 @@ export async function getTeacherDashboardData(userId: string) {
     totals: {
       classCount: teacher.classesTaught.length,
       studentCount: students.length,
-      activeAssignmentCount: teacher.classesTaught.reduce((total, classItem) => {
-        return (
-          total +
-          classItem.assignments.filter((assignment) =>
-            ["assigned", "in_progress"].includes(assignment.status),
-          ).length
-        );
-      }, 0),
+      activeAssignmentCount,
       missionCount: teacher.authoredMissions.length,
     },
   };
