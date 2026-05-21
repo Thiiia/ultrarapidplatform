@@ -62,6 +62,7 @@ export default async function AdminUserPreviewPage({
     return (
       <TeacherDashboard
         dashboardData={dashboardData}
+        navBasePath={`/admin/users/${targetUser.id}`}
         adminViewing
         viewedUserName={targetUser.name}
         viewedUserEmail={targetUser.email}

@@ -9,7 +9,7 @@ type PageProps = {
   }>;
 };
 
-export default async function AdminStudentLessonBuilderPreviewPage({
+export default async function AdminLessonBuilderPreviewPage({
   params,
 }: PageProps) {
   const adminUser = await getCurrentAppUser();
@@ -30,7 +30,7 @@ export default async function AdminStudentLessonBuilderPreviewPage({
     },
   });
 
-  if (!targetUser || targetUser.role !== "student") {
+  if (!targetUser || (targetUser.role !== "student" && targetUser.role !== "teacher")) {
     notFound();
   }
 
