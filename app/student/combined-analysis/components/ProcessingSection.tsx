@@ -21,6 +21,7 @@ import {
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import API_CONFIG from "../config";
+import type { CombinedAnalysisResults } from "../types";
 
 const STEPS = [
   { label: "Uploading Audio", description: "Sending your file to the server..." },
@@ -36,9 +37,23 @@ type ProcessingData = {
 
 type Props = {
   processingData: ProcessingData;
-  onComplete: (results: any) => void;
+  onComplete: (results: CombinedAnalysisResults) => void;
   onReset: () => void;
 };
+
+type StartAnalysisResponse = {
+  job_id?: string;
+};
+
+type PollAnalysisResponse = {
+  status?: "complete" | "failed" | string;
+  result?: CombinedAnalysisResults;
+  error?: string;
+};
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown processing error";
+}
 
 export default function ProcessingSection({
   processingData,
@@ -87,7 +102,7 @@ export default function ProcessingSection({
         throw new Error(`Server error (${startResponse.status}): ${errorText}`);
       }
 
-      const startData = await startResponse.json();
+      const startData = (await startResponse.json()) as StartAnalysisResponse;
       const jobId = startData.job_id;
 
       if (!jobId) {
@@ -116,14 +131,14 @@ export default function ProcessingSection({
           throw new Error(`Polling error (${pollResponse.status}): ${errorText}`);
         }
 
-        const pollData = await pollResponse.json();
+        const pollData = (await pollResponse.json()) as PollAnalysisResponse;
 
         if (pollData.status === "complete") {
           setActiveStep(4);
           setProgress(100);
 
           setTimeout(() => {
-            onComplete(pollData.result);
+            onComplete(pollData.result ?? {});
           }, 1000);
 
           return;
@@ -143,10 +158,10 @@ export default function ProcessingSection({
       }
 
       throw new Error("Analysis timed out while waiting for completion");
-    } catch (err: any) {
-      console.error("Processing error:", err);
+    } catch (error: unknown) {
+      console.error("Processing error:", error);
 
-      let errorMessage = err?.message || "Unknown processing error";
+      let errorMessage = getErrorMessage(error);
 
       if (
         errorMessage.includes("NetworkError") ||

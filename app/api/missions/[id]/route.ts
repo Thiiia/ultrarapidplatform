@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { validateMissionContent } from "@/lib/contracts/missionContent";
 
@@ -18,6 +19,14 @@ function getMissionIdFromUrl(request: Request) {
   const url = new URL(request.url);
   const parts = url.pathname.split("/").filter(Boolean);
   return parts[parts.length - 1];
+}
+
+function asRequestBody(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as Record<string, unknown>;
 }
 
 /**
@@ -75,7 +84,7 @@ export async function GET(request: Request) {
  * {
  *   "title": string,
  *   "description": string,
- *   "contentJson": any,
+ *   "contentJson": unknown,
  *   "published": boolean
  * }
  */
@@ -91,14 +100,14 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Missing mission id" }, { status: 400 });
   }
 
-  let body: any = {};
+  let body: Record<string, unknown> = {};
   try {
-    body = await request.json();
+    body = asRequestBody(await request.json());
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const data: Record<string, any> = {};
+  const data: Prisma.MissionUpdateInput = {};
 
   if (typeof body.title === "string") data.title = body.title.trim();
   if (typeof body.description === "string") data.description = body.description;
@@ -112,7 +121,7 @@ export async function PATCH(request: Request) {
         { status: 400 }
       );
     }
-    data.contentJson = validation.data as any;
+    data.contentJson = validation.data as Prisma.InputJsonValue;
   }
 
   if (Object.keys(data).length === 0) {

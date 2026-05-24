@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   DEFAULT_MISSION_CONTENT,
@@ -15,6 +16,14 @@ function getCookieValue(cookieHeader: string | null, name: string) {
     if (k === name) return decodeURIComponent(rest.join("="));
   }
   return undefined;
+}
+
+function asRequestBody(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as Record<string, unknown>;
 }
 
 /**
@@ -51,7 +60,7 @@ export async function GET(request: Request) {
  * {
  *   "title": string,
  *   "description": string,
- *   "contentJson": any,
+ *   "contentJson": unknown,
  *   "published": boolean
  * }
  */
@@ -62,9 +71,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: any = {};
+  let body: Record<string, unknown> = {};
   try {
-    body = await request.json();
+    body = asRequestBody(await request.json());
   } catch {
     // allow empty body
   }
@@ -108,7 +117,7 @@ export async function POST(request: Request) {
       title,
       description,
       published,
-      contentJson: validation.data as any,
+      contentJson: validation.data as Prisma.InputJsonValue,
       authorId: teacher.id,
     },
     select: {

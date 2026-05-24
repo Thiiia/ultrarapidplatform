@@ -10,7 +10,7 @@ type EditorRedirectPayload = {
     durationSeconds?: number
     uploadedFileName?: string
   }
-  rawResults?: any
+  rawResults?: unknown
 }
 
 function emptyDifficulty() {

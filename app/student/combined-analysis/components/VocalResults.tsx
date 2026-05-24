@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -21,17 +21,37 @@ import {
   Search as SearchIcon,
 } from "@mui/icons-material";
 import WaveSurferPlayer from "./WaveSurferPlayer";
+import type { VocalResultsData, VocalSyllable } from "../types";
 
 type Props = {
-  data: any;
+  data?: VocalResultsData;
   audioFile?: File | null;
 };
 
-export default function VocalResults({ data, audioFile }: Props) {
+const EMPTY_VOCAL_RESULTS: VocalResultsData = {};
+const EMPTY_SYLLABLES: VocalSyllable[] = [];
+
+export default function VocalResults({
+  data = EMPTY_VOCAL_RESULTS,
+  audioFile,
+}: Props) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredSyllables, setFilteredSyllables] = useState<any[]>(
-    data.syllables || [],
+  const syllables = useMemo(
+    () => data.syllables ?? EMPTY_SYLLABLES,
+    [data.syllables],
   );
+  const songTitle = data.song_info?.title || "unknown";
+
+  const filteredSyllables = useMemo(() => {
+    if (!searchTerm) return syllables;
+
+    const normalizedSearch = searchTerm.toLowerCase();
+    return syllables.filter(
+      (syl: VocalSyllable) =>
+        syl.syllable.toLowerCase().includes(normalizedSearch) ||
+        syl.word.toLowerCase().includes(normalizedSearch),
+    );
+  }, [searchTerm, syllables]);
 
   const handleDownloadJSON = () => {
     const jsonData = JSON.stringify(data, null, 2);
@@ -39,7 +59,7 @@ export default function VocalResults({ data, audioFile }: Props) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `vocal-analysis-${data.song_info?.title || "unknown"}.json`;
+    a.download = `vocal-analysis-${songTitle}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -49,7 +69,7 @@ export default function VocalResults({ data, audioFile }: Props) {
   const handleDownloadCSV = () => {
     const csvContent = [
       ["Syllable", "Word", "Start (s)", "End (s)", "Duration (s)", "Confidence"].join(","),
-      ...(data.syllables || []).map((syl: any) =>
+      ...syllables.map((syl: VocalSyllable) =>
         [
           syl.syllable,
           syl.word,
@@ -65,31 +85,18 @@ export default function VocalResults({ data, audioFile }: Props) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `vocal-timestamps-${data.song_info?.title || "unknown"}.csv`;
+    a.download = `vocal-timestamps-${songTitle}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  useEffect(() => {
-    if (!searchTerm) {
-      setFilteredSyllables(data.syllables || []);
-    } else {
-      const filtered = (data.syllables || []).filter(
-        (syl: any) =>
-          syl.syllable.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          syl.word.toLowerCase().includes(searchTerm.toLowerCase()),
-      );
-      setFilteredSyllables(filtered);
-    }
-  }, [searchTerm, data.syllables]);
-
   return (
     <Box>
       {audioFile && (
         <Box sx={{ mb: 3 }}>
-          <WaveSurferPlayer audioFile={audioFile} syllables={data.syllables || []} />
+          <WaveSurferPlayer audioFile={audioFile} syllables={syllables} />
         </Box>
       )}
 
@@ -144,7 +151,7 @@ export default function VocalResults({ data, audioFile }: Props) {
               Total Syllables
             </Typography>
             <Typography variant="h5" color="primary.main">
-              {data.processing.total_syllables}
+              {data.processing?.total_syllables ?? 0}
             </Typography>
           </Box>
           <Box>
@@ -152,7 +159,7 @@ export default function VocalResults({ data, audioFile }: Props) {
               Confidence
             </Typography>
             <Typography variant="h5" color="success.main">
-              {(data.processing.confidence * 100).toFixed(1)}%
+              {((data.processing?.confidence ?? 0) * 100).toFixed(1)}%
             </Typography>
           </Box>
           <Box>
@@ -160,7 +167,7 @@ export default function VocalResults({ data, audioFile }: Props) {
               Processing Time
             </Typography>
             <Typography variant="h5">
-              {data.processing.processing_time}s
+              {data.processing?.processing_time ?? 0}s
             </Typography>
           </Box>
           <Box>
@@ -168,7 +175,7 @@ export default function VocalResults({ data, audioFile }: Props) {
               Song Duration
             </Typography>
             <Typography variant="h5">
-              {data.timing.song_duration.toFixed(1)}s
+              {(data.timing?.song_duration ?? 0).toFixed(1)}s
             </Typography>
           </Box>
         </Box>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type MissionListItem = {
   id: string;
@@ -16,8 +16,20 @@ type MissionDetail = {
   description: string | null;
   published: boolean;
   updatedAt: string;
-  contentJson: any;
+  contentJson: unknown;
 };
+
+type MissionListResponse = {
+  missions?: MissionListItem[];
+};
+
+type MissionDetailResponse = {
+  mission?: MissionDetail;
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 export default function LaunchPage() {
   const [missions, setMissions] = useState<MissionListItem[]>([]);
@@ -41,10 +53,10 @@ export default function LaunchPage() {
 
         const res = await fetch("/api/missions", { cache: "no-store" });
         if (!res.ok) throw new Error(`Failed to load missions (${res.status})`);
-        const data = await res.json();
+        const data = (await res.json()) as MissionListResponse;
         setMissions(data.missions ?? []);
-      } catch (e: any) {
-        setError(e?.message ?? "Unknown error");
+      } catch (error: unknown) {
+        setError(getErrorMessage(error, "Unknown error"));
       } finally {
         setLoading(false);
       }
@@ -53,7 +65,7 @@ export default function LaunchPage() {
     loadList();
   }, []);
 
-  async function loadMission(id: string) {
+  const loadMission = useCallback(async (id: string) => {
     try {
       setSelectedId(id);
       setSelectedMission(null);
@@ -64,22 +76,21 @@ export default function LaunchPage() {
         const text = await res.text();
         throw new Error(`Failed to load mission (${res.status}): ${text}`);
       }
-      const data = await res.json();
-      setSelectedMission(data.mission);
-    } catch (e: any) {
+      const data = (await res.json()) as MissionDetailResponse;
+      setSelectedMission(data.mission ?? null);
+    } catch (error: unknown) {
       setSelectedMission(null);
-      alert(e?.message ?? "Failed to load mission");
+      alert(getErrorMessage(error, "Failed to load mission"));
     } finally {
       setDetailLoading(false);
     }
-  }
+  }, []);
 
   // Auto-load if missionId exists in URL
   useEffect(() => {
     if (!initialMissionId) return;
     loadMission(initialMissionId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialMissionId]);
+  }, [initialMissionId, loadMission]);
 
   return (
     <div style={{ padding: 16, maxWidth: 1000 }}>

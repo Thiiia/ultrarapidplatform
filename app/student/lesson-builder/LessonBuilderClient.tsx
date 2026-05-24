@@ -595,6 +595,20 @@ function syncSongFileIntoEmbeddedLoader(file: File) {
   }
 }
 
+function readInitialEditorPayload(): LessonBuilderPayload | null {
+  if (typeof window === "undefined") return null;
+
+  const raw = sessionStorage.getItem("ultrarapid_editor_payload");
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as LessonBuilderPayload;
+  } catch (error) {
+    console.error("Failed to parse lesson builder payload", error);
+    return null;
+  }
+}
+
 export default function LessonBuilderClient({
   navBasePath = "/student",
 }: LessonBuilderClientProps) {
@@ -610,10 +624,17 @@ export default function LessonBuilderClient({
 
   const setProject = useEditorStore((s) => s.setProject);
 
-  const [chartFile, setChartFile] = useState("");
-  const [metadata, setMetadata] = useState<LessonBuilderPayload["analysisMetadata"]>();
+  const [initialEditorPayload] = useState(readInitialEditorPayload);
+  const [chartFile, setChartFile] = useState(initialEditorPayload?.chartFile ?? "");
+  const [metadata, setMetadata] = useState<LessonBuilderPayload["analysisMetadata"]>(
+    initialEditorPayload?.analysisMetadata,
+  );
   const [uploadedSongName, setUploadedSongName] = useState("");
-  const [uploadedChartName, setUploadedChartName] = useState("");
+  const [uploadedChartName, setUploadedChartName] = useState(
+    initialEditorPayload?.chartFile
+      ? initialEditorPayload.analysisMetadata?.uploadedFileName ?? "generated.chart"
+      : "",
+  );
   const [isChartVisible, setIsChartVisible] = useState(false);
   const [pendingSongFile, setPendingSongFile] = useState<File | null>(null);
 
@@ -718,30 +739,12 @@ export default function LessonBuilderClient({
   }, [pendingSongFile, chartFile, isChartVisible]);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem("ultrarapid_editor_payload");
-    if (!raw) return;
-
-    try {
-      const payload: LessonBuilderPayload = JSON.parse(raw);
-
-      if (payload?.analysisMetadata) {
-        setMetadata(payload.analysisMetadata);
-      }
-
-      if (payload?.chartFile) {
-        setChartFile(payload.chartFile);
-        if (payload.analysisMetadata?.uploadedFileName) {
-          setUploadedChartName(payload.analysisMetadata.uploadedFileName);
-        }
-        const project = chartToProject(payload);
-        setProject(project);
-      }
-
-      sessionStorage.removeItem("ultrarapid_editor_payload");
-    } catch (error) {
-      console.error("Failed to hydrate lesson builder payload", error);
+    if (initialEditorPayload?.chartFile) {
+      setProject(chartToProject(initialEditorPayload));
     }
-  }, [setProject]);
+
+    sessionStorage.removeItem("ultrarapid_editor_payload");
+  }, [initialEditorPayload, setProject]);
 
   useEffect(() => {
     return normalizeEditorShellDom();
@@ -845,7 +848,10 @@ export default function LessonBuilderClient({
             color: textColor,
           }}
         >
-          <EditorShell chartFile={chartFile} />
+          <EditorShell
+            key={`${uploadedChartName || "chart"}:${chartFile.length}`}
+            chartFile={chartFile}
+          />
         </div>
       </main>
     </div>

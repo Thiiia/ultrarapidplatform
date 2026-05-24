@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { EditorEventMode } from "./EventTypePalette"
 
 export type EquationTokenKind = "circle" | "operator" | "equals"
@@ -248,9 +248,10 @@ export function EventEquationEditor({
   const [tokenCenters, setTokenCenters] = useState<Record<string, { x: number; y: number }>>({})
   const [hoveredTokenId, setHoveredTokenId] = useState<string | null>(null)
 
+  const reactId = useId()
   const gradientId = useMemo(
-    () => `drag-gradient-${Math.random().toString(36).slice(2)}`,
-    []
+    () => `drag-gradient-${reactId.replace(/:/g, "")}`,
+    [reactId]
   )
 
   useEffect(() => {

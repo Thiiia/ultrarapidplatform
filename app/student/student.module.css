@@ -1,4 +1,4 @@
-:root {
+.page {
   --bg: #191919;
   --surface: #ffffff;
   --surface-soft: #f0f2f6;
@@ -768,6 +768,20 @@
   color: #334155;
 }
 
+
+.studentTypography {
+  --bg: #191919;
+  --surface: #ffffff;
+  --surface-soft: #f0f2f6;
+  --border: #cfd6e2;
+  --border-strong: #9eabba;
+  --text: #ffffff;
+  --muted: #95a0af;
+  --muted-2: #6f7a8c;
+  --nav: #687487;
+  --accent: #4a5b77;
+  --shadow: 0 1px 0 rgba(26, 38, 54, 0.02);
+}
 
 .studentTypography,
 .studentTypography * {

@@ -27,9 +27,10 @@ import { motion } from "framer-motion";
 import ChartFileResults from "./ChartFileResults";
 import PercussionResults from "./PercussionResults";
 import VocalResults from "./VocalResults";
+import type { CombinedAnalysisResults, VocalSyllable } from "../types";
 
 type Props = {
-  results: any;
+  results: CombinedAnalysisResults;
   onReset: () => void;
   audioFile?: File | null;
 };
@@ -41,8 +42,10 @@ export default function CombinedResultsSection({
 }: Props) {
   const [activeTab, setActiveTab] = useState(0);
 
-  const vocalSuccess = results?.vocal_analysis?.success;
-  const percSuccess = results?.percussion_analysis?.success;
+  const vocalData = results.vocal_analysis?.data;
+  const percussionData = results.percussion_analysis?.data;
+  const vocalSuccess = Boolean(results.vocal_analysis?.success && vocalData);
+  const percSuccess = Boolean(results.percussion_analysis?.success && percussionData);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
@@ -51,10 +54,10 @@ export default function CombinedResultsSection({
   const handleDownloadCSV = () => {
     if (!vocalSuccess) return;
 
-    const syllables = results.vocal_analysis.data.syllables;
+    const syllables = vocalData?.syllables ?? [];
     const csvContent = [
       ["Syllable", "Word", "Start Time (s)", "End Time (s)", "Duration (s)", "Confidence"],
-      ...syllables.map((syl: any) => [
+      ...syllables.map((syl: VocalSyllable) => [
         syl.syllable,
         syl.word,
         syl.start_time,
@@ -70,7 +73,7 @@ export default function CombinedResultsSection({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${results.filename}_vocal_analysis.csv`;
+    a.download = `${results.filename ?? "analysis"}_vocal_analysis.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -105,7 +108,7 @@ export default function CombinedResultsSection({
               {vocalSuccess ? (
                 <Box>
                   <Typography variant="h3" color="primary.main">
-                    {results.summary.total_syllables}
+                    {results.summary?.total_syllables ?? 0}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Syllables extracted
@@ -116,12 +119,12 @@ export default function CombinedResultsSection({
                     display="block"
                     sx={{ mt: 1 }}
                   >
-                    Processing time: {results.vocal_analysis.data.processing.processing_time}s
+                    Processing time: {vocalData?.processing?.processing_time ?? 0}s
                   </Typography>
                 </Box>
               ) : (
                 <Alert severity="error" sx={{ mt: 2 }}>
-                  {results.vocal_analysis.error}
+                  {results.vocal_analysis?.error}
                 </Alert>
               )}
             </CardContent>
@@ -151,7 +154,7 @@ export default function CombinedResultsSection({
               {percSuccess ? (
                 <Box>
                   <Typography variant="h3" color="secondary.main">
-                    {results.summary.drum_hits}
+                    {results.summary?.drum_hits ?? 0}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Drum hits detected
@@ -162,12 +165,12 @@ export default function CombinedResultsSection({
                     display="block"
                     sx={{ mt: 1 }}
                   >
-                    Session ID: {results.percussion_analysis.data.session_id.slice(0, 8)}...
+                    Session ID: {percussionData?.session_id?.slice(0, 8) ?? "unknown"}...
                   </Typography>
                 </Box>
               ) : (
                 <Alert severity="error" sx={{ mt: 2 }}>
-                  {results.percussion_analysis.error}
+                  {results.percussion_analysis?.error}
                 </Alert>
               )}
             </CardContent>
@@ -216,19 +219,19 @@ export default function CombinedResultsSection({
         </Tabs>
 
         <Box sx={{ p: 3 }}>
-          {activeTab === 0 && vocalSuccess && (
-            <VocalResults data={results.vocal_analysis.data} audioFile={audioFile} />
+          {activeTab === 0 && vocalSuccess && vocalData && (
+            <VocalResults data={vocalData} audioFile={audioFile} />
           )}
-          {activeTab === 1 && percSuccess && (
+          {activeTab === 1 && percSuccess && percussionData && (
             <PercussionResults
-              analysis={results.percussion_analysis.data.analysis}
-              session_id={results.percussion_analysis.data.session_id}
+              analysis={percussionData?.analysis}
+              session_id={percussionData?.session_id ?? ""}
             />
           )}
-          {activeTab === 2 && vocalSuccess && percSuccess && (
+          {activeTab === 2 && vocalSuccess && percSuccess && vocalData && percussionData && (
             <ChartFileResults
-              vocalData={results.vocal_analysis.data}
-              percussionData={results.percussion_analysis.data}
+              vocalData={vocalData}
+              percussionData={percussionData}
               audioFilename={audioFile?.name}
             />
           )}

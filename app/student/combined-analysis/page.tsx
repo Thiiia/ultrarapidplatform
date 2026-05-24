@@ -22,7 +22,7 @@ import { motion } from "framer-motion";
 
 import UploadSection from "./components/UploadSection";
 import ProcessingSection from "./components/ProcessingSection";
-import CombinedResultsSection from "./components/CombinedResultsSection";
+import type { CombinedAnalysisResults } from "./types";
 
 function ScrollTop({ children }: { children: React.ReactNode }) {
   const trigger = useScrollTrigger({
@@ -64,11 +64,11 @@ type EditorAnalysisMetadata = {
 type EditorRedirectPayload = {
   chartFile: string;
   analysisMetadata: EditorAnalysisMetadata;
-  rawResults: any;
+  rawResults: CombinedAnalysisResults;
 };
 
 function getEditorRedirectPayload(
-  nextResults: any,
+  nextResults: CombinedAnalysisResults,
   processingData: ProcessingData
 ): EditorRedirectPayload {
   const chartFile =
@@ -134,16 +134,16 @@ export default function CombinedAnalysisPage() {
     setProcessingData({ file });
   };
 
-const handleProcessingComplete = (nextResults: any) => {
-  const editorPayload = getEditorRedirectPayload(nextResults, processingData);
+  const handleProcessingComplete = (nextResults: CombinedAnalysisResults) => {
+    const editorPayload = getEditorRedirectPayload(nextResults, processingData);
 
-  sessionStorage.setItem(
-    "ultrarapid_editor_payload",
-    JSON.stringify(editorPayload)
-  );
+    sessionStorage.setItem(
+      "ultrarapid_editor_payload",
+      JSON.stringify(editorPayload)
+    );
 
-  router.replace("/editor");
-};
+    router.replace("/editor");
+  };
 
   const handleReset = () => {
     setCurrentStep("upload");
