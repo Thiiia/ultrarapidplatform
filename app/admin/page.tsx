@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAppUser } from "@/lib/current-user";
+import Link from "next/link";
 import type { Role, UserStatus } from "@prisma/client";
 
 type AdminUserRow = {

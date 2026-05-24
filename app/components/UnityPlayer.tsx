@@ -81,6 +81,13 @@ export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
         window.unityInstance = instance;
         setStatus("ready");
 
+        if (launchPayload) {
+          unityRef.current?.SendMessage?.(
+            "GameManager",
+            "ReceiveLaunchPayload",
+            JSON.stringify(launchPayload)
+          );
+        }
       } catch (err: unknown) {
         if (cancelled) return;
 
@@ -124,16 +131,6 @@ export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (status !== "ready" || !launchPayload) return;
-
-    unityRef.current?.SendMessage?.(
-      "GameManager",
-      "ReceiveLaunchPayload",
-      JSON.stringify(launchPayload)
-    );
-  }, [launchPayload, status]);
 
   const startGame = () => {
     unityRef.current?.SendMessage?.("GameManager", "StartGame", "");

@@ -36,7 +36,7 @@ export default function WaveSurferPlayer({
   syllables = [],
 }: Props) {
   const waveformRef = useRef<HTMLDivElement | null>(null);
-  const wavesurfer = useRef<WaveSurfer | null>(null);
+  const wavesurfer = useRef<any>(null);
   const syllablesRef = useRef<Syllable[]>(syllables);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -51,7 +51,7 @@ export default function WaveSurferPlayer({
   useEffect(() => {
     if (waveformRef.current && audioFile) {
       try {
-        const instance = WaveSurfer.create({
+        wavesurfer.current = WaveSurfer.create({
           container: waveformRef.current,
           waveColor: "#3f51b5",
           progressColor: "#1976d2",
@@ -62,18 +62,17 @@ export default function WaveSurferPlayer({
           normalize: true,
           mediaControls: false,
         });
-        wavesurfer.current = instance;
 
         const audioUrl = URL.createObjectURL(audioFile);
-        instance.load(audioUrl);
+        wavesurfer.current.load(audioUrl);
 
-        instance.on("ready", () => {
-          setDuration(instance.getDuration());
-          instance.setVolume(volume);
+        wavesurfer.current.on("ready", () => {
+          setDuration(wavesurfer.current.getDuration());
+          wavesurfer.current.setVolume(volume);
         });
 
-        instance.on("audioprocess", () => {
-          const time = instance.getCurrentTime();
+        wavesurfer.current.on("audioprocess", () => {
+          const time = wavesurfer.current.getCurrentTime();
           setCurrentTime(time);
 
           const current =
@@ -87,8 +86,8 @@ export default function WaveSurferPlayer({
           });
         });
 
-        instance.on("seeking", () => {
-          const time = instance.getCurrentTime();
+        wavesurfer.current.on("seek", () => {
+          const time = wavesurfer.current.getCurrentTime();
           setCurrentTime(time);
 
           const current =
@@ -99,9 +98,9 @@ export default function WaveSurferPlayer({
           setCurrentSyllable(current);
         });
 
-        instance.on("play", () => setIsPlaying(true));
-        instance.on("pause", () => setIsPlaying(false));
-        instance.on("finish", () => setIsPlaying(false));
+        wavesurfer.current.on("play", () => setIsPlaying(true));
+        wavesurfer.current.on("pause", () => setIsPlaying(false));
+        wavesurfer.current.on("finish", () => setIsPlaying(false));
 
         return () => {
           if (wavesurfer.current) {

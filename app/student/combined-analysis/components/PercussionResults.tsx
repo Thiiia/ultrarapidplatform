@@ -1,8 +1,6 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -22,67 +20,61 @@ import {
 } from "@mui/icons-material";
 import API_CONFIG from "../config";
 import styles from "./PercussionResults.module.css";
-import type { PercussionAnalysis } from "../types";
-
-type TrackType = "vocals" | "drums" | "bass" | "other";
 
 type Props = {
-  analysis?: PercussionAnalysis;
+  analysis: any;
   session_id: string;
 };
 
-export default function PercussionResults({ analysis = {}, session_id }: Props) {
+export default function PercussionResults({ analysis, session_id }: Props) {
   const [showTimestamps, setShowTimestamps] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volumes, setVolumes] = useState<Record<TrackType, number>>({
+  const [volumes, setVolumes] = useState<Record<string, number>>({
     vocals: 1,
     drums: 1,
     bass: 1,
     other: 1,
   });
-  const [mutedTracks, setMutedTracks] = useState<Record<TrackType, boolean>>({
+  const [mutedTracks, setMutedTracks] = useState<Record<string, boolean>>({
     vocals: false,
     drums: false,
     bass: false,
     other: false,
   });
   const [isDragging, setIsDragging] = useState(false);
-  const [loadingStates, setLoadingStates] = useState<Record<TrackType, boolean>>({
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({
     vocals: true,
     drums: true,
     bass: true,
     other: true,
   });
 
-  const audioRefs = useRef<Partial<Record<TrackType, HTMLAudioElement | null>>>({});
+  const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
   const progressRef = useRef<HTMLDivElement | null>(null);
 
-  const trackInfo: Record<TrackType, { name: string; color: string; icon: string }> = {
+  const trackInfo: Record<string, { name: string; color: string; icon: string }> = {
     vocals: { name: "Vocals", color: "#e74c3c", icon: "🎤" },
     drums: { name: "Drums", color: "#f39c12", icon: "🥁" },
     bass: { name: "Bass", color: "#9b59b6", icon: "🎸" },
     other: { name: "Other", color: "#2ecc71", icon: "🎹" },
   };
 
-  const tracks = useMemo<Partial<Record<TrackType, string>>>(() => {
-    if (!session_id) return {};
-
-    return {
+  const tracks = session_id
+    ? {
         vocals: `${API_CONFIG.COMBINED_API_URL}/api/download/${session_id}/vocals`,
         drums: `${API_CONFIG.COMBINED_API_URL}/api/download/${session_id}/drums`,
         bass: `${API_CONFIG.COMBINED_API_URL}/api/download/${session_id}/bass`,
         other: `${API_CONFIG.COMBINED_API_URL}/api/download/${session_id}/other`,
-      };
-  }, [session_id]);
+      }
+    : {};
 
   useEffect(() => {
     if (!session_id) return;
 
-    const trackTypes = Object.keys(tracks) as TrackType[];
+    const trackTypes = Object.keys(tracks);
     const primaryTrack = trackTypes[0];
-    const cleanups: Array<() => void> = [];
 
     trackTypes.forEach((trackType) => {
       const audio = audioRefs.current[trackType];
@@ -106,18 +98,14 @@ export default function PercussionResults({ analysis = {}, session_id }: Props) 
         audio.addEventListener("ended", handleEnded);
         audio.volume = volumes[trackType];
 
-        cleanups.push(() => {
+        return () => {
           audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
           audio.removeEventListener("timeupdate", handleTimeUpdate);
           audio.removeEventListener("ended", handleEnded);
           audio.pause();
-        });
+        };
       }
     });
-
-    return () => {
-      cleanups.forEach((cleanup) => cleanup());
-    };
   }, [session_id, tracks, isDragging, volumes]);
 
   const togglePlayPause = async () => {
@@ -225,7 +213,7 @@ export default function PercussionResults({ analysis = {}, session_id }: Props) 
     document.addEventListener("mouseup", handleMouseUp);
   };
 
-  const handleVolumeChange = (trackType: TrackType, volume: number) => {
+  const handleVolumeChange = (trackType: string, volume: number) => {
     setVolumes((prev) => ({ ...prev, [trackType]: volume }));
     const audio = audioRefs.current[trackType];
     if (audio) {
@@ -233,7 +221,7 @@ export default function PercussionResults({ analysis = {}, session_id }: Props) 
     }
   };
 
-  const toggleMute = (trackType: TrackType) => {
+  const toggleMute = (trackType: string) => {
     const newMuted = !mutedTracks[trackType];
     setMutedTracks((prev) => ({ ...prev, [trackType]: newMuted }));
     const audio = audioRefs.current[trackType];
@@ -255,12 +243,9 @@ export default function PercussionResults({ analysis = {}, session_id }: Props) 
     return `${mins}:${secs.padStart(6, "0")}`;
   };
 
-  const downloadTrack = async (trackType: TrackType) => {
-    const trackUrl = tracks[trackType];
-    if (!trackUrl) return;
-
+  const downloadTrack = async (trackType: string) => {
     try {
-      const response = await fetch(trackUrl);
+      const response = await fetch((tracks as any)[trackType]);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -272,7 +257,7 @@ export default function PercussionResults({ analysis = {}, session_id }: Props) 
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error(`Failed to download ${trackType}:`, error);
-      window.open(trackUrl, "_blank");
+      window.open((tracks as any)[trackType], "_blank");
     }
   };
 
@@ -324,11 +309,13 @@ export default function PercussionResults({ analysis = {}, session_id }: Props) 
     URL.revokeObjectURL(url);
   };
 
+  if (!analysis) return null;
+
   const totalDrums = analysis.total_drums || 0;
   const kickCount = (analysis.kicks || []).length;
   const snareCount = (analysis.snares || []).length;
   const avgBpm = Math.round(analysis.timing_analysis?.average_bpm || 0);
-  const drumsByType: Record<string, number[]> = analysis.drums_by_type || {};
+  const drumsByType = analysis.drums_by_type || {};
 
   return (
     <Box className={styles.percussionResults}>
@@ -383,7 +370,7 @@ export default function PercussionResults({ analysis = {}, session_id }: Props) 
           </Box>
 
           <Grid container spacing={2} className={styles.tracksGrid}>
-            {(Object.entries(tracks) as Array<[TrackType, string]>).map(([trackType, trackUrl]) => (
+            {Object.entries(tracks).map(([trackType, trackUrl]) => (
               <Grid key={trackType} size={{ xs: 12, sm: 6, md: 3 }}>
                 <Paper
                   className={`${styles.trackCard} ${trackType === "drums" ? styles.analyzed : ""}`}
@@ -475,11 +462,7 @@ export default function PercussionResults({ analysis = {}, session_id }: Props) 
             <Button
               variant="contained"
               startIcon={<DownloadIcon />}
-              onClick={() =>
-                (Object.keys(tracks) as TrackType[]).forEach(
-                  (trackType) => void downloadTrack(trackType),
-                )
-              }
+              onClick={() => Object.keys(tracks).forEach((trackType) => void downloadTrack(trackType))}
               className={styles.downloadAllButton}
             >
               Download All Tracks
@@ -536,7 +519,7 @@ export default function PercussionResults({ analysis = {}, session_id }: Props) 
               Drum Types Detected
             </Typography>
             <Grid container spacing={1} className={styles.drumTypesGrid}>
-              {Object.entries(drumsByType).map(([type, times]) => (
+              {Object.entries(drumsByType).map(([type, times]: any) => (
                 <Grid key={type} size={{ xs: 4, sm: 3, md: 2 }}>
                   <Paper className={styles.drumTypeCard} elevation={0}>
                     <Typography variant="h5" className={styles.drumTypeCount}>{times.length}</Typography>
@@ -599,7 +582,7 @@ export default function PercussionResults({ analysis = {}, session_id }: Props) 
               All Drum Timestamps
             </Typography>
             <Grid container spacing={2} className={styles.timestampGridAll}>
-              {Object.entries(drumsByType).map(([drumType, times]) => (
+              {Object.entries(drumsByType).map(([drumType, times]: any) => (
                 <Grid key={drumType} size={{ xs: 12, sm: 6, md: 4 }}>
                   <Box className={styles.timestampColumn}>
                     <Typography variant="subtitle1" className={styles.drumTypeHeader}>

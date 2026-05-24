@@ -19,17 +19,12 @@ import {
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import API_CONFIG from "../config";
-import type { PercussionResultsData, VocalResultsData } from "../types";
 
 type Props = {
-  vocalData: VocalResultsData;
-  percussionData: PercussionResultsData;
+  vocalData: any;
+  percussionData: any;
   audioFilename?: string;
 };
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Failed to generate chart";
-}
 
 export default function ChartFileResults({
   vocalData,
@@ -69,18 +64,18 @@ export default function ChartFileResults({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (error: unknown) {
-      console.error("Chart generation error:", error);
-      setError(getErrorMessage(error));
+    } catch (err: any) {
+      console.error("Chart generation error:", err);
+      setError(err.message || "Failed to generate chart");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const totalSyllables = vocalData.processing?.total_syllables || 0;
-  const drumHits = percussionData.analysis?.total_drums || 0;
-  const bpm = percussionData.analysis?.timing_analysis?.average_bpm || 0;
-  const duration = vocalData.timing?.song_duration || 0;
+  const totalSyllables = vocalData?.processing?.total_syllables || 0;
+  const drumHits = percussionData?.analysis?.total_drums || 0;
+  const bpm = percussionData?.analysis?.timing_analysis?.average_bpm || 0;
+  const duration = vocalData?.timing?.song_duration || 0;
 
   return (
     <Box>

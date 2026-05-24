@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import UnityPlayer from './UnityPlayer';
 
 type GameLauncherProps = {
@@ -11,15 +11,20 @@ export default function GameLauncher({
   autoStart = false,
 }: GameLauncherProps) {
   const [launched, setLaunched] = useState(autoStart);
-  const isLaunched = autoStart || launched;
 
-  const launchPayload = useMemo(() => ({
+  useEffect(() => {
+    if (autoStart) {
+      setLaunched(true);
+    }
+  }, [autoStart]);
+
+  const launchPayload = {
     userId: 'user_123',
     sessionToken: 'session_token_here',
     levelId: 'level-1',
-  }), []);
+  };
 
-  if (!isLaunched) {
+  if (!launched) {
     return (
       <div className="max-w-xl rounded-2xl border p-6">
         <h2 className="mb-2 text-xl font-semibold">Launch Game</h2>

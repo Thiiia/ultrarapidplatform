@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { SongLoader } from "./SongLoader"
 import { InspectorPanel } from "./InspectorPanel"
 import { BrowserTimelinePanel } from "./BrowserTimelinePanel"
 import { Timeline } from "./Timeline"
+import { useEditorStore } from "@/lib/editor/editor-store"
 
 type EditorShellProps = {
   chartFile?: string
@@ -36,12 +37,21 @@ ${nextSongBody}}`)
 }
 
 export function EditorShell({ chartFile = "" }: EditorShellProps) {
+  const project = useEditorStore((s) => s.project)
+
   const [songFile, setSongFile] = useState<File | null>(null)
   const [chartText, setChartText] = useState(chartFile)
-  const [chartFileName, setChartFileName] = useState(
-    chartFile.trim() ? "generated.chart" : ""
-  )
+  const [chartFileName, setChartFileName] = useState("")
   const [showChart, setShowChart] = useState(false)
+
+  useEffect(() => {
+    if (chartFile && chartFile.trim()) {
+      setChartText(chartFile)
+      if (!chartFileName) {
+        setChartFileName("generated.chart")
+      }
+    }
+  }, [chartFile, chartFileName])
 
   return (
     <div

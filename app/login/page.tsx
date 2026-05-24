@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 type LoginPageProps = {
   searchParams?: Promise<{
     error?: string;

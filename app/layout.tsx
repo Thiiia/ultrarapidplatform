@@ -1,5 +1,22 @@
 import type { Metadata } from "next";
+import { Geist, Geist_Mono, Grandstander } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+const grandstander = Grandstander({
+  variable: "--font-grandstander",
+  subsets: ["latin"],
+  weight: ["700"],
+});
 
 export const metadata: Metadata = {
   title: "UltraRapidPlatform",
@@ -13,7 +30,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} ${grandstander.variable} antialiased`}
+      >
         {children}
         <Analytics />
       </body>
