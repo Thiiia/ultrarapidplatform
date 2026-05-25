@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { FC, SVGProps } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
 
@@ -21,6 +22,10 @@ import PlayPressedTab from "@/public/header_icons/play_tab_pressed.svg";
 
 /* Utility Icon Imports */
 import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
+
+/* Song Choice Icon Imports */
+import NoteIcon from "@/public/song_choice_icons/Note.svg";
+import PlayIcon from "@/public/song_choice_icons/Play_Icon.svg";
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
 
@@ -96,18 +101,16 @@ const headerStyles = {
   borderBottomColor: "#FFFFFF14",
 };
 
-function formatFileSize(size: number | null) {
-  if (!size) {
-    return "Unknown size";
+function formatDuration(seconds: number | null | undefined) {
+  if (!seconds || !Number.isFinite(seconds)) {
+    return "--:--";
   }
 
-  const megabytes = size / 1024 / 1024;
+  const roundedSeconds = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(roundedSeconds / 60);
+  const remainingSeconds = roundedSeconds % 60;
 
-  if (megabytes < 1) {
-    return `${Math.round(size / 1024)} KB`;
-  }
-
-  return `${megabytes.toFixed(1)} MB`;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
 function HeaderBar({
@@ -287,6 +290,58 @@ function HeaderBar({
   );
 }
 
+function LessonBuilderPanel() {
+  return (
+    <div
+      style={{
+        background: "#2B2B2B",
+        width: "100%",
+        borderBottom: "1px solid #FFFFFF14",
+      }}
+    >
+      <section
+        style={{
+          background: "#2B2B2B",
+          color: "#FFFFFF",
+          width: pagePanelWidth,
+          boxSizing: "border-box",
+          minHeight: 130,
+          border: "none",
+          borderRadius: 0,
+          padding: "24px 0",
+          margin: "0 auto",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+        }}
+      >
+        <h1
+          className={styles.panelTitle}
+          style={{
+            margin: "0 0 8px 0",
+            color: "#FFFFFF",
+            textTransform: "uppercase",
+          }}
+        >
+          LESSON BUILDER
+        </h1>
+
+        <p
+          style={{
+            margin: 0,
+            color: "#D1D5DB",
+            fontSize: 13,
+            fontWeight: 500,
+            lineHeight: "19.5px",
+          }}
+        >
+          Choose a song
+        </p>
+      </section>
+    </div>
+  );
+}
+
 export default function SongChoiceClient({
   songs,
   navBasePath = "/student",
@@ -295,14 +350,73 @@ export default function SongChoiceClient({
   const router = useRouter();
   const topTabs = getTopTabs(navBasePath);
 
-  function handleSelectSong(song: SongChoice) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
+  const [durationsById, setDurationsById] = useState<Record<string, number>>({});
+
+  const filteredSongs = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return songs;
+    }
+
+    return songs.filter((song) => {
+      return (
+        song.name.toLowerCase().includes(normalizedQuery) ||
+        song.path.toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [searchQuery, songs]);
+
+  const selectedSong = useMemo(() => {
+    return songs.find((song) => song.id === selectedSongId) ?? null;
+  }, [selectedSongId, songs]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    songs.forEach((song) => {
+      if (song.durationSeconds || durationsById[song.id]) {
+        return;
+      }
+
+      const audio = new Audio();
+      audio.preload = "metadata";
+      audio.src = song.signedUrl;
+
+      const handleLoadedMetadata = () => {
+        if (cancelled || !Number.isFinite(audio.duration)) {
+          return;
+        }
+
+        setDurationsById((current) => ({
+          ...current,
+          [song.id]: audio.duration,
+        }));
+      };
+
+      audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.load();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [songs, durationsById]);
+
+  function handleContinue() {
+    if (!selectedSong) {
+      return;
+    }
+
     window.sessionStorage.setItem(
       "ultrarapid_selected_song",
       JSON.stringify({
-        name: song.name,
-        path: song.path,
-        signedUrl: song.signedUrl,
-        contentType: song.contentType,
+        name: selectedSong.name,
+        path: selectedSong.path,
+        signedUrl: selectedSong.signedUrl,
+        contentType: selectedSong.contentType,
       }),
     );
 
@@ -323,138 +437,263 @@ export default function SongChoiceClient({
     >
       <HeaderBar pathname={pathname} topTabs={topTabs} />
 
+      <LessonBuilderPanel />
+
       <main
         style={{
           background: pageBackgroundColor,
           width: "100%",
           flex: 1,
+          position: "relative",
         }}
       >
         <section
           style={{
             width: pagePanelWidth,
             margin: "0 auto",
-            padding: "24px 0",
+            padding: "20px 0 96px 0",
             boxSizing: "border-box",
+            position: "relative",
           }}
         >
-          <h1
-            className={styles.panelTitle}
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search for a song"
+            aria-label="Search for a song"
             style={{
-              margin: "0 0 8px 0",
+              width: "100%",
+              height: 44,
+              background: "#2B2B2B",
+              border: "1px solid #FFFFFF14",
+              borderRadius: 12,
               color: "#FFFFFF",
-            }}
-          >
-            Choose a Song
-          </h1>
-
-          <p
-            style={{
-              margin: "0 0 20px 0",
-              color: "#D1D5DB",
+              padding: "0 16px",
+              outline: "none",
               fontSize: 13,
               fontWeight: 500,
               lineHeight: "19.5px",
+              marginBottom: 16,
+            }}
+          />
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              maxHeight: "calc(100vh - 320px)",
+              minHeight: 240,
+              overflowY: "auto",
+              paddingBottom: 82,
             }}
           >
-            Select a song from Supabase Storage to start building a lesson.
-          </p>
+            {filteredSongs.length > 0 ? (
+              filteredSongs.map((song) => {
+                const isSelected = selectedSongId === song.id;
+                const duration = song.durationSeconds ?? durationsById[song.id] ?? null;
 
-          {songs.length > 0 ? (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                gap: 15,
-              }}
-            >
-              {songs.map((song) => (
-                <button
-                  key={song.id}
-                  type="button"
-                  onClick={() => handleSelectSong(song)}
-                  style={{
-                    background: "#2B2B2B",
-                    border: "1px solid #FFFFFF14",
-                    borderRadius: 12,
-                    color: "#FFFFFF",
-                    padding: 16,
-                    minHeight: 116,
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                >
-                  <h2
+                return (
+                  <button
+                    key={song.id}
+                    type="button"
+                    onClick={() => setSelectedSongId(song.id)}
+                    className="songChoiceRow"
+                    data-selected={isSelected ? "true" : "false"}
                     style={{
-                      margin: "0 0 8px 0",
-                      fontSize: 15,
-                      fontWeight: 600,
-                      lineHeight: "21px",
+                      width: "100%",
+                      minHeight: 58,
+                      background: isSelected
+                        ? "rgba(207, 255, 4, 0.12)"
+                        : "#2B2B2B",
+                      border: "1px solid #FFFFFF14",
+                      borderRadius: 12,
                       color: "#FFFFFF",
+                      padding: "0 16px",
+                      cursor: "pointer",
+                      display: "grid",
+                      gridTemplateColumns: "34px minmax(0, 1fr) auto 34px",
+                      alignItems: "center",
+                      gap: 12,
+                      textAlign: "left",
                     }}
                   >
-                    {song.name}
-                  </h2>
+                    <NoteIcon
+                      aria-hidden="true"
+                      style={{
+                        width: 24,
+                        height: 24,
+                        display: "block",
+                      }}
+                    />
 
-                  <p
-                    style={{
-                      margin: "0 0 6px 0",
-                      color: "#FFFFFF",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      lineHeight: "19.5px",
-                    }}
-                  >
-                    {song.path}
-                  </p>
+                    <span
+                      style={{
+                        color: "#FFFFFF",
+                        fontSize: 14,
+                        fontWeight: 500,
+                        lineHeight: "20px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {song.name}
+                    </span>
 
-                  <p
-                    style={{
-                      margin: 0,
-                      color: "#D1D5DB",
-                      fontSize: 12,
-                      fontWeight: 500,
-                      lineHeight: "18px",
-                    }}
-                  >
-                    {formatFileSize(song.size)}
-                  </p>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div
-              style={{
-                background: "#2B2B2B",
-                border: "1px solid #FFFFFF14",
-                borderRadius: 12,
-                padding: 16,
-              }}
-            >
-              <h2
+                    <span
+                      style={{
+                        color: "#D1D5DB",
+                        fontSize: 13,
+                        fontWeight: 500,
+                        lineHeight: "19.5px",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatDuration(duration)}
+                    </span>
+
+                    <PlayIcon
+                      aria-hidden="true"
+                      style={{
+                        width: 24,
+                        height: 24,
+                        display: "block",
+                      }}
+                    />
+                  </button>
+                );
+              })
+            ) : (
+              <div
                 style={{
-                  margin: "0 0 8px 0",
-                  fontSize: 15,
-                  fontWeight: 600,
+                  background: "#2B2B2B",
+                  border: "1px solid #FFFFFF14",
+                  borderRadius: 12,
+                  padding: 16,
                 }}
               >
-                No songs found
-              </h2>
+                <h2
+                  style={{
+                    margin: "0 0 8px 0",
+                    fontSize: 15,
+                    fontWeight: 600,
+                  }}
+                >
+                  No matching songs
+                </h2>
+                <p
+                  style={{
+                    margin: 0,
+                    color: "#D1D5DB",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    lineHeight: "19.5px",
+                  }}
+                >
+                  Try a different search term.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
+              position: "sticky",
+              bottom: 0,
+              marginTop: -74,
+              minHeight: 74,
+              background: "#2B2B2B",
+              border: "1px solid #FFFFFF14",
+              borderRadius: 14,
+              padding: "12px 14px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              boxShadow: "0 -12px 32px rgba(0, 0, 0, 0.28)",
+              zIndex: 5,
+            }}
+          >
+            <div
+              style={{
+                minWidth: 0,
+              }}
+            >
+              <p
+                style={{
+                  margin: "0 0 4px 0",
+                  color: "#D1D5DB",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  lineHeight: "18px",
+                }}
+              >
+                Selected song
+              </p>
               <p
                 style={{
                   margin: 0,
-                  color: "#D1D5DB",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  lineHeight: "19.5px",
+                  color: "#FFFFFF",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  lineHeight: "20px",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
-                Upload audio files to your Supabase Storage bucket, then refresh this page.
+                {selectedSong ? selectedSong.name : "Choose a song to continue"}
               </p>
             </div>
-          )}
+
+            <button
+              type="button"
+              disabled={!selectedSong}
+              onClick={handleContinue}
+              aria-label="Continue to Lesson Builder"
+              style={{
+                width: 46,
+                height: 46,
+                border: "none",
+                borderRadius: 12,
+                background: "transparent",
+                padding: 0,
+                cursor: selectedSong ? "pointer" : "not-allowed",
+                opacity: selectedSong ? 1 : 0.4,
+                flexShrink: 0,
+              }}
+            >
+              <img
+                src="/Next_Button.svg"
+                alt=""
+                aria-hidden="true"
+                style={{
+                  width: 46,
+                  height: 46,
+                  display: "block",
+                }}
+              />
+            </button>
+          </div>
         </section>
       </main>
+
+      <style jsx global>{`
+        .songChoiceRow:hover {
+          background: rgba(207, 255, 4, 0.12) !important;
+        }
+
+        .songChoiceRow[data-selected="true"] {
+          background: rgba(207, 255, 4, 0.12) !important;
+        }
+
+        input[type="search"]::placeholder {
+          color: #d1d5db;
+          opacity: 1;
+        }
+      `}</style>
     </div>
   );
 }
