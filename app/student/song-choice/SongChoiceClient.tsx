@@ -478,19 +478,19 @@ export default function SongChoiceClient({
             }}
           />
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-              maxHeight: "calc(100vh - 320px)",
-              minHeight: 240,
-              overflowY: "auto",
-              paddingBottom: 82,
-            }}
-          >
+<div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    gap: 0,
+    maxHeight: "calc(100vh - 320px)",
+    minHeight: 240,
+    overflowY: "auto",
+    paddingBottom: 92,
+  }}
+>
             {filteredSongs.length > 0 ? (
-              filteredSongs.map((song) => {
+              filteredSongs.map((song, index) => {
                 const isSelected = selectedSongId === song.id;
                 const duration = song.durationSeconds ?? durationsById[song.id] ?? null;
 
@@ -507,8 +507,24 @@ export default function SongChoiceClient({
     background: isSelected
       ? "rgba(207, 255, 4, 0.12)"
       : "#2B2B2B",
-    border: "1px solid #FFFFFF14",
-    borderRadius: 12,
+    borderTop: "none",
+    borderRight: "none",
+    borderBottom:
+      isSelected
+        ? "1px solid #CFFF04"
+        : "1px solid rgba(255, 255, 255, 0.08)",
+    borderLeft:
+      isSelected
+        ? "1px solid #CFFF04"
+        : "1px solid transparent",
+    borderRadius:
+      filteredSongs.length === 1
+        ? 12
+        : index === 0
+          ? "12px 12px 0 0"
+          : index === filteredSongs.length - 1
+            ? "0 0 12px 12px"
+            : 0,
     color: "#FFFFFF",
     padding: "0 24px 0 18px",
     cursor: "pointer",
@@ -527,6 +543,7 @@ export default function SongChoiceClient({
       alignItems: "center",
       justifyContent: "center",
       overflow: "visible",
+      transform: "translateY(-1px)",
     }}
   >
     <NoteIcon
@@ -569,15 +586,26 @@ export default function SongChoiceClient({
     {formatDuration(duration)}
   </span>
 
-  <PlayIcon
-    aria-hidden="true"
+  <span
     style={{
-      width: 22,
-      height: 22,
-      display: "block",
+      width: 28,
+      height: 28,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
       justifySelf: "end",
+      transform: "translateY(1px)",
     }}
-  />
+  >
+    <PlayIcon
+      aria-hidden="true"
+      style={{
+        width: 22,
+        height: 22,
+        display: "block",
+      }}
+    />
+  </span>
 </button>
                 );
               })
@@ -614,24 +642,27 @@ export default function SongChoiceClient({
             )}
           </div>
 
-          <div
-            style={{
-              position: "sticky",
-              bottom: 0,
-              marginTop: -74,
-              minHeight: 74,
-              background: "#2B2B2B",
-              border: "1px solid #FFFFFF14",
-              borderRadius: 14,
-              padding: "12px 14px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-              boxShadow: "0 -12px 32px rgba(0, 0, 0, 0.28)",
-              zIndex: 5,
-            }}
-          >
+<div
+  style={{
+    position: "sticky",
+    bottom: 0,
+    marginTop: -82,
+    minHeight: 82,
+    width: "76%",
+    marginLeft: "auto",
+    marginRight: "auto",
+    background: "#2B2B2B",
+    border: "1px solid #FFFFFF14",
+    borderRadius: 14,
+    padding: "14px 18px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    boxShadow: "0 -12px 32px rgba(0, 0, 0, 0.28)",
+    zIndex: 5,
+  }}
+>
             <div
               style={{
                 minWidth: 0,
@@ -670,8 +701,8 @@ export default function SongChoiceClient({
   onClick={handleContinue}
   aria-label="Continue to Lesson Builder"
   style={{
-    width: 72,
-    height: 42,
+    width: 96,
+    height: 52,
     border: "none",
     borderRadius: 12,
     background: "transparent",
@@ -689,8 +720,8 @@ export default function SongChoiceClient({
     alt=""
     aria-hidden="true"
     style={{
-      width: 72,
-      height: 42,
+      width: 96,
+      height: 52,
       display: "block",
       objectFit: "contain",
     }}
@@ -700,20 +731,28 @@ export default function SongChoiceClient({
         </section>
       </main>
 
-      <style jsx global>{`
-        .songChoiceRow:hover {
-          background: rgba(207, 255, 4, 0.12) !important;
-        }
+<style jsx global>{`
+  .songChoiceRow:hover {
+    background: rgba(207, 255, 4, 0.12) !important;
+    border-bottom-color: #cfff04 !important;
+    border-left-color: #cfff04 !important;
+  }
 
-        .songChoiceRow[data-selected="true"] {
-          background: rgba(207, 255, 4, 0.12) !important;
-        }
+  .songChoiceRow[data-selected="true"] {
+    background: rgba(207, 255, 4, 0.12) !important;
+    border-bottom-color: #cfff04 !important;
+    border-left-color: #cfff04 !important;
+  }
 
-        input[type="search"]::placeholder {
-          color: #d1d5db;
-          opacity: 1;
-        }
-      `}</style>
+  .songChoiceRow[data-selected="false"] {
+    border-left-color: transparent !important;
+  }
+
+  input[type="search"]::placeholder {
+    color: #d1d5db;
+    opacity: 1;
+  }
+`}</style>
     </div>
   );
 }
