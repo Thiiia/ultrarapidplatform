@@ -495,74 +495,90 @@ export default function SongChoiceClient({
                 const duration = song.durationSeconds ?? durationsById[song.id] ?? null;
 
                 return (
-                  <button
-                    key={song.id}
-                    type="button"
-                    onClick={() => setSelectedSongId(song.id)}
-                    className="songChoiceRow"
-                    data-selected={isSelected ? "true" : "false"}
-                    style={{
-                      width: "100%",
-                      minHeight: 58,
-                      background: isSelected
-                        ? "rgba(207, 255, 4, 0.12)"
-                        : "#2B2B2B",
-                      border: "1px solid #FFFFFF14",
-                      borderRadius: 12,
-                      color: "#FFFFFF",
-                      padding: "0 16px",
-                      cursor: "pointer",
-                      display: "grid",
-                      gridTemplateColumns: "34px minmax(0, 1fr) auto 34px",
-                      alignItems: "center",
-                      gap: 12,
-                      textAlign: "left",
-                    }}
-                  >
-                    <NoteIcon
-                      aria-hidden="true"
-                      style={{
-                        width: 24,
-                        height: 24,
-                        display: "block",
-                      }}
-                    />
+<button
+  key={song.id}
+  type="button"
+  onClick={() => setSelectedSongId(song.id)}
+  className="songChoiceRow"
+  data-selected={isSelected ? "true" : "false"}
+  style={{
+    width: "100%",
+    minHeight: 58,
+    background: isSelected
+      ? "rgba(207, 255, 4, 0.12)"
+      : "#2B2B2B",
+    border: "1px solid #FFFFFF14",
+    borderRadius: 12,
+    color: "#FFFFFF",
+    padding: "0 24px 0 18px",
+    cursor: "pointer",
+    display: "grid",
+    gridTemplateColumns: "44px minmax(0, 1fr) 58px 28px",
+    alignItems: "center",
+    gap: 8,
+    textAlign: "left",
+  }}
+>
+  <span
+    style={{
+      width: 32,
+      height: 32,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "visible",
+    }}
+  >
+    <NoteIcon
+      aria-hidden="true"
+      style={{
+        width: 20,
+        height: 20,
+        display: "block",
+        overflow: "visible",
+      }}
+    />
+  </span>
 
-                    <span
-                      style={{
-                        color: "#FFFFFF",
-                        fontSize: 14,
-                        fontWeight: 500,
-                        lineHeight: "20px",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {song.name}
-                    </span>
+  <span
+    style={{
+      color: "#FFFFFF",
+      fontSize: 14,
+      fontWeight: 500,
+      lineHeight: "20px",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      textAlign: "center",
+    }}
+  >
+    {song.name}
+  </span>
 
-                    <span
-                      style={{
-                        color: "#D1D5DB",
-                        fontSize: 13,
-                        fontWeight: 500,
-                        lineHeight: "19.5px",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {formatDuration(duration)}
-                    </span>
+  <span
+    style={{
+      color: "#FFFFFF",
+      fontSize: 13,
+      fontWeight: 500,
+      lineHeight: "19.5px",
+      whiteSpace: "nowrap",
+      textAlign: "right",
+      justifySelf: "end",
+    }}
+  >
+    {formatDuration(duration)}
+  </span>
 
-                    <PlayIcon
-                      aria-hidden="true"
-                      style={{
-                        width: 24,
-                        height: 24,
-                        display: "block",
-                      }}
-                    />
-                  </button>
+  <PlayIcon
+    aria-hidden="true"
+    style={{
+      width: 22,
+      height: 22,
+      display: "block",
+      justifySelf: "end",
+    }}
+  />
+</button>
                 );
               })
             ) : (
@@ -648,34 +664,38 @@ export default function SongChoiceClient({
               </p>
             </div>
 
-            <button
-              type="button"
-              disabled={!selectedSong}
-              onClick={handleContinue}
-              aria-label="Continue to Lesson Builder"
-              style={{
-                width: 46,
-                height: 46,
-                border: "none",
-                borderRadius: 12,
-                background: "transparent",
-                padding: 0,
-                cursor: selectedSong ? "pointer" : "not-allowed",
-                opacity: selectedSong ? 1 : 0.4,
-                flexShrink: 0,
-              }}
-            >
-              <img
-                src="/Next_Button.svg"
-                alt=""
-                aria-hidden="true"
-                style={{
-                  width: 46,
-                  height: 46,
-                  display: "block",
-                }}
-              />
-            </button>
+<button
+  type="button"
+  disabled={!selectedSong}
+  onClick={handleContinue}
+  aria-label="Continue to Lesson Builder"
+  style={{
+    width: 72,
+    height: 42,
+    border: "none",
+    borderRadius: 12,
+    background: "transparent",
+    padding: 0,
+    cursor: selectedSong ? "pointer" : "not-allowed",
+    opacity: selectedSong ? 1 : 0.4,
+    flexShrink: 0,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }}
+>
+  <img
+    src="/Next_Button.svg"
+    alt=""
+    aria-hidden="true"
+    style={{
+      width: 72,
+      height: 42,
+      display: "block",
+      objectFit: "contain",
+    }}
+  />
+</button>
           </div>
         </section>
       </main>
