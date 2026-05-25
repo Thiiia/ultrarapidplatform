@@ -571,7 +571,8 @@ export default function SongChoiceClient({
                       display: "grid",
                       gridTemplateColumns: "44px minmax(0, 1fr) 58px 28px",
                       alignItems: "center",
-                      gap: 8,
+                      columnGap: 18,
+                      rowGap: 0,
                       textAlign: "left",
                     }}
                   >
@@ -583,7 +584,7 @@ export default function SongChoiceClient({
                         alignItems: "center",
                         justifyContent: "center",
                         overflow: "visible",
-                        transform: "translateY(-7px)",
+                        transform: "translateY(-12px)",
                       }}
                     >
                       <NoteIcon
@@ -635,7 +636,7 @@ export default function SongChoiceClient({
                         alignItems: "center",
                         justifyContent: "center",
                         justifySelf: "end",
-                        transform: "translateY(4px)",
+                        transform: "translateY(2px)",
                       }}
                     >
                       <PlayIcon
@@ -687,16 +688,20 @@ export default function SongChoiceClient({
             style={{
               position: "sticky",
               bottom: 0,
-              marginTop: -88,
-              minHeight: 88,
-              width: "100%",
-              maxWidth: 920,
-              marginLeft: "auto",
-              marginRight: "auto",
+              marginTop: -71,
+              height: 71,
+              minHeight: 71,
+              width: "100vw",
+              marginLeft: "calc((85vw - 100vw) / 2)",
+              marginRight: "calc((85vw - 100vw) / 2)",
               background: "#2B2B2B",
-              border: "1px solid #FFFFFF14",
-              borderRadius: 14,
-              padding: "10px 18px",
+              borderTop: "1px solid #FFFFFF14",
+              borderRight: "none",
+              borderBottom: "none",
+              borderLeft: "none",
+              borderRadius: 0,
+              padding: "0 7.5vw",
+              boxSizing: "border-box",
               display: "flex",
               alignItems: "center",
               justifyContent: "flex-end",
