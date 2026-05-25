@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export type SongChoice = {
   id: string;
@@ -34,6 +34,8 @@ function getDisplayName(path: string) {
 }
 
 async function listSongPaths(prefix = ""): Promise<string[]> {
+  const supabaseAdmin = getSupabaseAdmin();
+
   const { data, error } = await supabaseAdmin.storage.from(SONG_BUCKET).list(prefix, {
     limit: 1000,
     offset: 0,
@@ -71,6 +73,8 @@ async function listSongPaths(prefix = ""): Promise<string[]> {
 }
 
 async function getFileMetadata(path: string) {
+  const supabaseAdmin = getSupabaseAdmin();
+
   const folder = path.split("/").slice(0, -1).join("/");
   const fileName = path.split("/").pop();
 
@@ -85,6 +89,7 @@ async function getFileMetadata(path: string) {
 }
 
 export async function getSongChoices(): Promise<SongChoice[]> {
+  const supabaseAdmin = getSupabaseAdmin();
   const paths = await listSongPaths();
 
   const songs = await Promise.all(
