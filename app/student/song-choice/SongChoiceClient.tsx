@@ -313,6 +313,8 @@ function LessonBuilderPanel() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
+          alignItems: "flex-start",
+          textAlign: "left",
         }}
       >
         <h1
@@ -321,6 +323,7 @@ function LessonBuilderPanel() {
             margin: "0 0 8px 0",
             color: "#FFFFFF",
             textTransform: "uppercase",
+            textAlign: "left",
           }}
         >
           LESSON BUILDER
@@ -333,9 +336,11 @@ function LessonBuilderPanel() {
             fontSize: 13,
             fontWeight: 500,
             lineHeight: "19.5px",
+            textAlign: "left",
+            width: "100%",
           }}
         >
-          Choose a song
+          Song select
         </p>
       </section>
     </div>
@@ -584,7 +589,7 @@ export default function SongChoiceClient({
                         alignItems: "center",
                         justifyContent: "center",
                         overflow: "visible",
-                        transform: "translateY(-12px)",
+                        transform: "translateY(-10px)",
                       }}
                     >
                       <NoteIcon
@@ -700,7 +705,7 @@ export default function SongChoiceClient({
               borderBottom: "none",
               borderLeft: "none",
               borderRadius: 0,
-              padding: "0 7.5vw",
+              padding: "0 30px",
               boxSizing: "border-box",
               display: "flex",
               alignItems: "center",
