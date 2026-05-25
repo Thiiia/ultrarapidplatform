@@ -5,7 +5,7 @@ export default async function HomePage() {
   const session = await getAuth0().getSession();
 
   if (!session?.user) {
-    redirect("/login");
+    redirect("/auth/login?returnTo=/api/post-login");
   }
 
   redirect("/api/post-login");
