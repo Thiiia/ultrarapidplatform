@@ -33,6 +33,13 @@ type LessonBuilderPayload = {
   rawResults?: unknown;
 };
 
+type SelectedSongPayload = {
+  name: string;
+  path: string;
+  signedUrl: string;
+  contentType: string | null;
+};
+
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
 
 type HeaderTab = {
@@ -52,6 +59,22 @@ type UtilityTab = {
 type LessonBuilderClientProps = {
   navBasePath?: string;
 };
+
+async function fileFromSelectedSong(song: SelectedSongPayload) {
+  const response = await fetch(song.signedUrl);
+
+  if (!response.ok) {
+    throw new Error(`Unable to load selected song: ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  const extension = song.path.split(".").pop();
+  const fileName = extension ? `${song.name}.${extension}` : song.name;
+
+  return new File([blob], fileName, {
+    type: song.contentType ?? blob.type,
+  });
+}
 
 function getGameHref(navBasePath: string, launch?: string) {
   const href = `${navBasePath}/game`;
@@ -74,7 +97,7 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
     },
     {
       label: "Lesson Builder",
-      href: `${navBasePath}/lesson-builder`,
+      href: `${navBasePath}/song-choice`,
       Icon: LessonBuilderTab,
       width: 159,
     },
@@ -234,16 +257,26 @@ function HeaderBar({
             }}
           >
             {topTabs.map((tab) => {
-              const cleanTabHref = tab.href.split("?")[0];
-              const isHomeTab = tab.label === "Home";
-              const isPlayTab = tab.label === "Play";
+const cleanTabHref = tab.href.split("?")[0];
+const isHomeTab = tab.label === "Home";
+const isPlayTab = tab.label === "Play";
+const isLessonBuilderTab = tab.label === "Lesson Builder";
 
-              const isActive =
-                pathname === cleanTabHref ||
-                (!isHomeTab &&
-                  !isPlayTab &&
-                  cleanTabHref !== "/" &&
-                  pathname.startsWith(`${cleanTabHref}/`));
+const lessonBuilderPath = cleanTabHref.replace(
+  "/song-choice",
+  "/lesson-builder",
+);
+
+const isActive =
+  pathname === cleanTabHref ||
+  (isLessonBuilderTab &&
+    (pathname === lessonBuilderPath ||
+      pathname.startsWith(`${lessonBuilderPath}/`))) ||
+  (!isHomeTab &&
+    !isPlayTab &&
+    !isLessonBuilderTab &&
+    cleanTabHref !== "/" &&
+    pathname.startsWith(`${cleanTabHref}/`));
 
               const Icon = isPlayTab && isActive ? PlayPressedTab : tab.Icon;
 
@@ -688,6 +721,35 @@ export default function LessonBuilderClient({
     reader.readAsText(file);
     event.target.value = "";
   };
+
+  useEffect(() => {
+  const raw = sessionStorage.getItem("ultrarapid_selected_song");
+
+  if (!raw) {
+    return;
+  }
+
+  try {
+    const selectedSong: SelectedSongPayload = JSON.parse(raw);
+
+    setUploadedSongName(selectedSong.name);
+    setMetadata((current) => ({
+      ...current,
+      songTitle: selectedSong.name,
+      uploadedFileName: selectedSong.path,
+    }));
+
+    fileFromSelectedSong(selectedSong)
+      .then((file) => {
+        setPendingSongFile(file);
+      })
+      .catch((error) => {
+        console.error("Failed to load selected song", error);
+      });
+  } catch (error) {
+    console.error("Failed to parse selected song", error);
+  }
+}, []);
 
   useEffect(() => {
     if (!pendingSongFile) return;

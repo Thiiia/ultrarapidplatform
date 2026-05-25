@@ -67,7 +67,7 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
     },
     {
       label: "Lesson Builder",
-      href: `${navBasePath}/lesson-builder`,
+      href: `${navBasePath}/song-choice`,
       Icon: LessonBuilderTab,
       width: 159,
     },
@@ -175,16 +175,26 @@ function HeaderBar({
             }}
           >
             {topTabs.map((tab) => {
-              const cleanTabHref = tab.href.split("?")[0];
-              const isHomeTab = tab.label === "Home";
-              const isPlayTab = tab.label === "Play";
+const cleanTabHref = tab.href.split("?")[0];
+const isHomeTab = tab.label === "Home";
+const isPlayTab = tab.label === "Play";
+const isLessonBuilderTab = tab.label === "Lesson Builder";
 
-              const isActive =
-                pathname === cleanTabHref ||
-                (!isHomeTab &&
-                  !isPlayTab &&
-                  cleanTabHref !== "/" &&
-                  pathname.startsWith(`${cleanTabHref}/`));
+const lessonBuilderPath = cleanTabHref.replace(
+  "/song-choice",
+  "/lesson-builder",
+);
+
+const isActive =
+  pathname === cleanTabHref ||
+  (isLessonBuilderTab &&
+    (pathname === lessonBuilderPath ||
+      pathname.startsWith(`${lessonBuilderPath}/`))) ||
+  (!isHomeTab &&
+    !isPlayTab &&
+    !isLessonBuilderTab &&
+    cleanTabHref !== "/" &&
+    pathname.startsWith(`${cleanTabHref}/`));
 
               const Icon = isPlayTab && isActive ? PlayPressedTab : tab.Icon;
 

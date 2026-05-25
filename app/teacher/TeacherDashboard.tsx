@@ -47,7 +47,7 @@ function getTopTabs(navBasePath = "/teacher"): HeaderTab[] {
     },
     {
       label: "Lesson Builder",
-      href: `${navBasePath}/lesson-builder`,
+      href: `${navBasePath}/song-choice`,
       width: 159,
     },
     {
