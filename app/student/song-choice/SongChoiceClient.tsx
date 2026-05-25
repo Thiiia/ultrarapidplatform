@@ -456,12 +456,7 @@ export default function SongChoiceClient({
             position: "relative",
           }}
         >
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search for a song"
-            aria-label="Search for a song"
+          <div
             style={{
               width: "100%",
               height: 44,
@@ -470,143 +465,189 @@ export default function SongChoiceClient({
               borderRadius: 12,
               color: "#FFFFFF",
               padding: "0 16px",
-              outline: "none",
-              fontSize: 13,
-              fontWeight: 500,
-              lineHeight: "19.5px",
+              boxSizing: "border-box",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
               marginBottom: 16,
             }}
-          />
+          >
+            <svg
+              aria-hidden="true"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              style={{
+                flexShrink: 0,
+                opacity: 0.8,
+              }}
+            >
+              <path
+                d="M10.8 18.1C14.8317 18.1 18.1 14.8317 18.1 10.8C18.1 6.76832 14.8317 3.5 10.8 3.5C6.76832 3.5 3.5 6.76832 3.5 10.8C3.5 14.8317 6.76832 18.1 10.8 18.1Z"
+                stroke="#D1D5DB"
+                strokeWidth="2"
+              />
+              <path
+                d="M16.2 16.2L21 21"
+                stroke="#D1D5DB"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
 
-<div
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    gap: 0,
-    maxHeight: "calc(100vh - 320px)",
-    minHeight: 240,
-    overflowY: "auto",
-    paddingBottom: 92,
-  }}
->
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search for a song"
+              aria-label="Search for a song"
+              style={{
+                width: "100%",
+                height: "100%",
+                background: "transparent",
+                border: "none",
+                color: "#FFFFFF",
+                padding: 0,
+                outline: "none",
+                fontSize: 13,
+                fontWeight: 500,
+                lineHeight: "19.5px",
+                textAlign: "left",
+              }}
+            />
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 0,
+              maxHeight: "calc(100vh - 320px)",
+              minHeight: 240,
+              overflowY: "auto",
+              paddingBottom: 92,
+            }}
+          >
             {filteredSongs.length > 0 ? (
               filteredSongs.map((song, index) => {
                 const isSelected = selectedSongId === song.id;
                 const duration = song.durationSeconds ?? durationsById[song.id] ?? null;
 
                 return (
-<button
-  key={song.id}
-  type="button"
-  onClick={() => setSelectedSongId(song.id)}
-  className="songChoiceRow"
-  data-selected={isSelected ? "true" : "false"}
-  style={{
-    width: "100%",
-    minHeight: 58,
-    background: isSelected
-      ? "rgba(207, 255, 4, 0.12)"
-      : "#2B2B2B",
-    borderTop: "none",
-    borderRight: "none",
-    borderBottom:
-      isSelected
-        ? "1px solid #CFFF04"
-        : "1px solid rgba(255, 255, 255, 0.08)",
-    borderLeft:
-      isSelected
-        ? "1px solid #CFFF04"
-        : "1px solid transparent",
-    borderRadius:
-      filteredSongs.length === 1
-        ? 12
-        : index === 0
-          ? "12px 12px 0 0"
-          : index === filteredSongs.length - 1
-            ? "0 0 12px 12px"
-            : 0,
-    color: "#FFFFFF",
-    padding: "0 24px 0 18px",
-    cursor: "pointer",
-    display: "grid",
-    gridTemplateColumns: "44px minmax(0, 1fr) 58px 28px",
-    alignItems: "center",
-    gap: 8,
-    textAlign: "left",
-  }}
->
-  <span
-    style={{
-      width: 32,
-      height: 32,
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      overflow: "visible",
-      transform: "translateY(-1px)",
-    }}
-  >
-    <NoteIcon
-      aria-hidden="true"
-      style={{
-        width: 20,
-        height: 20,
-        display: "block",
-        overflow: "visible",
-      }}
-    />
-  </span>
+                  <button
+                    key={song.id}
+                    type="button"
+                    onClick={() => setSelectedSongId(song.id)}
+                    className="songChoiceRow"
+                    data-selected={isSelected ? "true" : "false"}
+                    style={{
+                      width: "100%",
+                      minHeight: 58,
+                      background: isSelected
+                        ? "rgba(207, 255, 4, 0.12)"
+                        : "#2B2B2B",
+                      borderTop: "none",
+                      borderRight: "none",
+                      borderBottom:
+                        isSelected
+                          ? "1px solid #CFFF04"
+                          : "1px solid rgba(255, 255, 255, 0.08)",
+                      borderLeft:
+                        isSelected
+                          ? "1px solid #CFFF04"
+                          : "1px solid transparent",
+                      borderRadius:
+                        filteredSongs.length === 1
+                          ? 12
+                          : index === 0
+                            ? "12px 12px 0 0"
+                            : index === filteredSongs.length - 1
+                              ? "0 0 12px 12px"
+                              : 0,
+                      color: "#FFFFFF",
+                      padding: "0 24px 0 18px",
+                      cursor: "pointer",
+                      display: "grid",
+                      gridTemplateColumns: "44px minmax(0, 1fr) 58px 28px",
+                      alignItems: "center",
+                      gap: 8,
+                      textAlign: "left",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 32,
+                        height: 32,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        overflow: "visible",
+                        transform: "translateY(-7px)",
+                      }}
+                    >
+                      <NoteIcon
+                        aria-hidden="true"
+                        style={{
+                          width: 20,
+                          height: 20,
+                          display: "block",
+                          overflow: "visible",
+                        }}
+                      />
+                    </span>
 
-  <span
-    style={{
-      color: "#FFFFFF",
-      fontSize: 14,
-      fontWeight: 500,
-      lineHeight: "20px",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-      textAlign: "center",
-    }}
-  >
-    {song.name}
-  </span>
+                    <span
+                      style={{
+                        color: "#FFFFFF",
+                        fontSize: 14,
+                        fontWeight: 500,
+                        lineHeight: "20px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        textAlign: "left",
+                        justifySelf: "start",
+                      }}
+                    >
+                      {song.name}
+                    </span>
 
-  <span
-    style={{
-      color: "#FFFFFF",
-      fontSize: 13,
-      fontWeight: 500,
-      lineHeight: "19.5px",
-      whiteSpace: "nowrap",
-      textAlign: "right",
-      justifySelf: "end",
-    }}
-  >
-    {formatDuration(duration)}
-  </span>
+                    <span
+                      style={{
+                        color: "#FFFFFF",
+                        fontSize: 13,
+                        fontWeight: 500,
+                        lineHeight: "19.5px",
+                        whiteSpace: "nowrap",
+                        textAlign: "right",
+                        justifySelf: "end",
+                      }}
+                    >
+                      {formatDuration(duration)}
+                    </span>
 
-  <span
-    style={{
-      width: 28,
-      height: 28,
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      justifySelf: "end",
-      transform: "translateY(1px)",
-    }}
-  >
-    <PlayIcon
-      aria-hidden="true"
-      style={{
-        width: 22,
-        height: 22,
-        display: "block",
-      }}
-    />
-  </span>
-</button>
+                    <span
+                      style={{
+                        width: 28,
+                        height: 28,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        justifySelf: "end",
+                        transform: "translateY(4px)",
+                      }}
+                    >
+                      <PlayIcon
+                        aria-hidden="true"
+                        style={{
+                          width: 22,
+                          height: 22,
+                          display: "block",
+                        }}
+                      />
+                    </span>
+                  </button>
                 );
               })
             ) : (
@@ -642,117 +683,90 @@ export default function SongChoiceClient({
             )}
           </div>
 
-<div
-  style={{
-    position: "sticky",
-    bottom: 0,
-    marginTop: -82,
-    minHeight: 82,
-    width: "76%",
-    marginLeft: "auto",
-    marginRight: "auto",
-    background: "#2B2B2B",
-    border: "1px solid #FFFFFF14",
-    borderRadius: 14,
-    padding: "14px 18px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    boxShadow: "0 -12px 32px rgba(0, 0, 0, 0.28)",
-    zIndex: 5,
-  }}
->
-            <div
+          <div
+            style={{
+              position: "sticky",
+              bottom: 0,
+              marginTop: -88,
+              minHeight: 88,
+              width: "100%",
+              maxWidth: 920,
+              marginLeft: "auto",
+              marginRight: "auto",
+              background: "#2B2B2B",
+              border: "1px solid #FFFFFF14",
+              borderRadius: 14,
+              padding: "10px 18px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              gap: 12,
+              boxShadow: "0 -12px 32px rgba(0, 0, 0, 0.28)",
+              zIndex: 5,
+            }}
+          >
+            <button
+              type="button"
+              disabled={!selectedSong}
+              onClick={handleContinue}
+              aria-label="Continue to Lesson Builder"
               style={{
-                minWidth: 0,
+                width: 132,
+                height: 64,
+                border: "none",
+                borderRadius: 12,
+                background: "transparent",
+                padding: 0,
+                cursor: selectedSong ? "pointer" : "not-allowed",
+                opacity: selectedSong ? 1 : 0.4,
+                flexShrink: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              <p
+              <img
+                src="/Next_Button.svg"
+                alt=""
+                aria-hidden="true"
                 style={{
-                  margin: "0 0 4px 0",
-                  color: "#D1D5DB",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  lineHeight: "18px",
+                  width: 132,
+                  height: 64,
+                  display: "block",
+                  objectFit: "contain",
                 }}
-              >
-                Selected song
-              </p>
-              <p
-                style={{
-                  margin: 0,
-                  color: "#FFFFFF",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  lineHeight: "20px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {selectedSong ? selectedSong.name : "Choose a song to continue"}
-              </p>
-            </div>
-
-<button
-  type="button"
-  disabled={!selectedSong}
-  onClick={handleContinue}
-  aria-label="Continue to Lesson Builder"
-  style={{
-    width: 96,
-    height: 52,
-    border: "none",
-    borderRadius: 12,
-    background: "transparent",
-    padding: 0,
-    cursor: selectedSong ? "pointer" : "not-allowed",
-    opacity: selectedSong ? 1 : 0.4,
-    flexShrink: 0,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-  }}
->
-  <img
-    src="/Next_Button.svg"
-    alt=""
-    aria-hidden="true"
-    style={{
-      width: 96,
-      height: 52,
-      display: "block",
-      objectFit: "contain",
-    }}
-  />
-</button>
+              />
+            </button>
           </div>
         </section>
       </main>
 
-<style jsx global>{`
-  .songChoiceRow:hover {
-    background: rgba(207, 255, 4, 0.12) !important;
-    border-bottom-color: #cfff04 !important;
-    border-left-color: #cfff04 !important;
-  }
+      <style jsx global>{`
+        .songChoiceRow:hover {
+          background: rgba(207, 255, 4, 0.12) !important;
+          border-bottom-color: #cfff04 !important;
+          border-left-color: #cfff04 !important;
+        }
 
-  .songChoiceRow[data-selected="true"] {
-    background: rgba(207, 255, 4, 0.12) !important;
-    border-bottom-color: #cfff04 !important;
-    border-left-color: #cfff04 !important;
-  }
+        .songChoiceRow[data-selected="true"] {
+          background: rgba(207, 255, 4, 0.12) !important;
+          border-bottom-color: #cfff04 !important;
+          border-left-color: #cfff04 !important;
+        }
 
-  .songChoiceRow[data-selected="false"] {
-    border-left-color: transparent !important;
-  }
+        .songChoiceRow[data-selected="false"] {
+          border-left-color: transparent !important;
+        }
 
-  input[type="search"]::placeholder {
-    color: #d1d5db;
-    opacity: 1;
-  }
-`}</style>
+        input[type="search"]::placeholder {
+          color: #d1d5db;
+          opacity: 1;
+        }
+
+        input[type="search"]::-webkit-search-cancel-button {
+          filter: invert(1);
+        }
+      `}</style>
     </div>
   );
 }
