@@ -153,6 +153,30 @@ model Progress {
   @@index([status])
 }
 
+model SongAsset {
+  id              String   @id @default(cuid())
+  title           String
+  artist          String?
+  durationSeconds Int?
+
+  songBucket      String   @default("Songs")
+  songPath        String
+
+  chartBucket     String   @default("Charts")
+  chartPath       String
+
+  sidecarBucket   String   @default("SidecarJsons")
+  sidecarPath     String
+
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([title])
+}
+
 enum Role {
   student
   teacher

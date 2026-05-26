@@ -410,23 +410,44 @@ export default function SongChoiceClient({
     };
   }, [songs, durationsById]);
 
-  function handleContinue() {
-    if (!selectedSong) {
-      return;
-    }
-
-    window.sessionStorage.setItem(
-      "ultrarapid_selected_song",
-      JSON.stringify({
-        name: selectedSong.name,
-        path: selectedSong.path,
-        signedUrl: selectedSong.signedUrl,
-        contentType: selectedSong.contentType,
-      }),
-    );
-
-    router.push(`${navBasePath}/lesson-builder`);
+function handleContinue() {
+  if (!selectedSong) {
+    return;
   }
+
+  window.sessionStorage.setItem(
+    "ultrarapid_selected_song",
+    JSON.stringify({
+      id: selectedSong.id,
+      name: selectedSong.name,
+      title: selectedSong.title,
+      artist: selectedSong.artist,
+
+      song: {
+        bucket: selectedSong.song.bucket,
+        path: selectedSong.song.path,
+        signedUrl: selectedSong.song.signedUrl,
+        contentType: selectedSong.song.contentType,
+      },
+
+      chart: {
+        bucket: selectedSong.chart.bucket,
+        path: selectedSong.chart.path,
+        signedUrl: selectedSong.chart.signedUrl,
+        contentType: selectedSong.chart.contentType,
+      },
+
+      sidecar: {
+        bucket: selectedSong.sidecar.bucket,
+        path: selectedSong.sidecar.path,
+        signedUrl: selectedSong.sidecar.signedUrl,
+        contentType: selectedSong.sidecar.contentType,
+      },
+    }),
+  );
+
+  router.push(`${navBasePath}/lesson-builder`);
+}
 
   return (
     <div

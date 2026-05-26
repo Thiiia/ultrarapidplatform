@@ -11,12 +11,16 @@ import styles from "../student.module.css";
 
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
+import HomeIcon from "@/public/header_icons/Home.svg";
+import HomePressedIcon from "@/public/header_icons/Home_pressed.svg";
+import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
+import MyLessonsPressedTab from "@/public/header_icons/my_lessons_tab_pressed.svg";
+import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab.svg";
+import LessonBuilderPressedTab from "@/public/header_icons/lesson_builder_tab_pressed.svg";
+import ProgressTab from "@/public/header_icons/progress_tab.svg";
+import ProgressPressedTab from "@/public/header_icons/progress_tab_pressed.svg";
 import PlayTab from "@/public/header_icons/play_tab.svg";
 import PlayPressedTab from "@/public/header_icons/play_tab_pressed.svg";
-import HomeIcon from "@/public/header_icons/Home.svg";
-import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
-import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab_pressed.svg";
-import ProgressTab from "@/public/header_icons/progress_tab.svg";
 
 /* Utility Icon Imports */
 import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
@@ -34,10 +38,31 @@ type LessonBuilderPayload = {
 };
 
 type SelectedSongPayload = {
+  id: string;
   name: string;
-  path: string;
-  signedUrl: string;
-  contentType: string | null;
+  title?: string;
+  artist?: string | null;
+
+  song: {
+    bucket: string;
+    path: string;
+    signedUrl: string;
+    contentType: string | null;
+  };
+
+  chart: {
+    bucket: string;
+    path: string;
+    signedUrl: string;
+    contentType: string | null;
+  };
+
+  sidecar: {
+    bucket: string;
+    path: string;
+    signedUrl: string;
+    contentType: string | null;
+  };
 };
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
@@ -46,6 +71,7 @@ type HeaderTab = {
   label: string;
   href: string;
   Icon: TabIcon;
+  ActiveIcon: TabIcon;
   width: number;
 };
 
@@ -60,22 +86,6 @@ type LessonBuilderClientProps = {
   navBasePath?: string;
 };
 
-async function fileFromSelectedSong(song: SelectedSongPayload) {
-  const response = await fetch(song.signedUrl);
-
-  if (!response.ok) {
-    throw new Error(`Unable to load selected song: ${response.status}`);
-  }
-
-  const blob = await response.blob();
-  const extension = song.path.split(".").pop();
-  const fileName = extension ? `${song.name}.${extension}` : song.name;
-
-  return new File([blob], fileName, {
-    type: song.contentType ?? blob.type,
-  });
-}
-
 function getGameHref(navBasePath: string, launch?: string) {
   const href = `${navBasePath}/game`;
 
@@ -88,29 +98,39 @@ function getGameHref(navBasePath: string, launch?: string) {
 
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
-    { label: "Home", href: navBasePath, Icon: HomeIcon, width: 99 },
+    {
+      label: "Home",
+      href: navBasePath,
+      Icon: HomeIcon,
+      ActiveIcon: HomePressedIcon,
+      width: 99,
+    },
     {
       label: "My Lessons",
       href: `${navBasePath}/lessons`,
       Icon: MyLessonsTab,
+      ActiveIcon: MyLessonsPressedTab,
       width: 139,
     },
     {
       label: "Lesson Builder",
       href: `${navBasePath}/song-choice`,
       Icon: LessonBuilderTab,
+      ActiveIcon: LessonBuilderPressedTab,
       width: 159,
     },
     {
       label: "Progress",
       href: `${navBasePath}/progress`,
       Icon: ProgressTab,
+      ActiveIcon: ProgressPressedTab,
       width: 120,
     },
-        {
+    {
       label: "Play",
       href: `${navBasePath}/game`,
       Icon: PlayTab,
+      ActiveIcon: PlayPressedTab,
       width: 99,
     },
   ];
@@ -176,6 +196,52 @@ function createBlankChart(songName: string, artist = "Unknown Artist") {
     "}",
     "",
   ].join("\n");
+}
+
+async function fileFromSignedUrl({
+  signedUrl,
+  path,
+  name,
+  contentType,
+}: {
+  signedUrl: string;
+  path: string;
+  name: string;
+  contentType: string | null;
+}) {
+  const response = await fetch(signedUrl);
+
+  if (!response.ok) {
+    throw new Error(`Unable to load file: ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  const extension = path.split(".").pop();
+  const fileName = extension ? `${name}.${extension}` : name;
+
+  return new File([blob], fileName, {
+    type: contentType ?? blob.type,
+  });
+}
+
+async function textFromSignedUrl(signedUrl: string) {
+  const response = await fetch(signedUrl);
+
+  if (!response.ok) {
+    throw new Error(`Unable to load text file: ${response.status}`);
+  }
+
+  return response.text();
+}
+
+async function jsonFromSignedUrl(signedUrl: string) {
+  const response = await fetch(signedUrl);
+
+  if (!response.ok) {
+    throw new Error(`Unable to load JSON file: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 function HeaderBar({
@@ -257,28 +323,28 @@ function HeaderBar({
             }}
           >
             {topTabs.map((tab) => {
-const cleanTabHref = tab.href.split("?")[0];
-const isHomeTab = tab.label === "Home";
-const isPlayTab = tab.label === "Play";
-const isLessonBuilderTab = tab.label === "Lesson Builder";
+              const cleanTabHref = tab.href.split("?")[0];
+              const isHomeTab = tab.label === "Home";
+              const isPlayTab = tab.label === "Play";
+              const isLessonBuilderTab = tab.label === "Lesson Builder";
 
-const lessonBuilderPath = cleanTabHref.replace(
-  "/song-choice",
-  "/lesson-builder",
-);
+              const lessonBuilderPath = cleanTabHref.replace(
+                "/song-choice",
+                "/lesson-builder",
+              );
 
-const isActive =
-  pathname === cleanTabHref ||
-  (isLessonBuilderTab &&
-    (pathname === lessonBuilderPath ||
-      pathname.startsWith(`${lessonBuilderPath}/`))) ||
-  (!isHomeTab &&
-    !isPlayTab &&
-    !isLessonBuilderTab &&
-    cleanTabHref !== "/" &&
-    pathname.startsWith(`${cleanTabHref}/`));
+              const isActive =
+                pathname === cleanTabHref ||
+                (isLessonBuilderTab &&
+                  (pathname === lessonBuilderPath ||
+                    pathname.startsWith(`${lessonBuilderPath}/`))) ||
+                (!isHomeTab &&
+                  !isPlayTab &&
+                  !isLessonBuilderTab &&
+                  cleanTabHref !== "/" &&
+                  pathname.startsWith(`${cleanTabHref}/`));
 
-              const Icon = isPlayTab && isActive ? PlayPressedTab : tab.Icon;
+              const Icon = isActive ? tab.ActiveIcon : tab.Icon;
 
               return (
                 <Link
@@ -723,33 +789,68 @@ export default function LessonBuilderClient({
   };
 
   useEffect(() => {
-  const raw = sessionStorage.getItem("ultrarapid_selected_song");
+    const raw = sessionStorage.getItem("ultrarapid_selected_song");
 
-  if (!raw) {
-    return;
-  }
+    if (!raw) {
+      return;
+    }
 
-  try {
-    const selectedSong: SelectedSongPayload = JSON.parse(raw);
+    try {
+      const selectedSong: SelectedSongPayload = JSON.parse(raw);
 
-    setUploadedSongName(selectedSong.name);
-    setMetadata((current) => ({
-      ...current,
-      songTitle: selectedSong.name,
-      uploadedFileName: selectedSong.path,
-    }));
+      setUploadedSongName(selectedSong.name);
+      setMetadata((current) => ({
+        ...current,
+        songTitle: selectedSong.title ?? selectedSong.name,
+        artist: selectedSong.artist ?? current?.artist,
+        uploadedFileName: selectedSong.song.path,
+      }));
 
-    fileFromSelectedSong(selectedSong)
-      .then((file) => {
-        setPendingSongFile(file);
+      fileFromSignedUrl({
+        signedUrl: selectedSong.song.signedUrl,
+        path: selectedSong.song.path,
+        name: selectedSong.name,
+        contentType: selectedSong.song.contentType,
       })
-      .catch((error) => {
-        console.error("Failed to load selected song", error);
-      });
-  } catch (error) {
-    console.error("Failed to parse selected song", error);
-  }
-}, []);
+        .then((file) => {
+          setPendingSongFile(file);
+        })
+        .catch((error) => {
+          console.error("Failed to load selected song file", error);
+        });
+
+      Promise.all([
+        textFromSignedUrl(selectedSong.chart.signedUrl),
+        jsonFromSignedUrl(selectedSong.sidecar.signedUrl),
+      ])
+        .then(([nextChartFile, sidecarJson]) => {
+          const nextChartName =
+            selectedSong.chart.path.split("/").pop() ?? "selected.chart";
+
+          setChartFile(nextChartFile);
+          setUploadedChartName(nextChartName);
+          setIsChartVisible(false);
+
+          const payload: LessonBuilderPayload = {
+            chartFile: nextChartFile,
+            analysisMetadata: {
+              songTitle: selectedSong.title ?? selectedSong.name,
+              artist: selectedSong.artist ?? undefined,
+              uploadedFileName: selectedSong.song.path,
+            },
+            rawResults: sidecarJson,
+          };
+
+          const project = chartToProject(payload);
+          setProject(project);
+        })
+        .catch((error) => {
+          console.error("Failed to load selected chart or sidecar JSON", error);
+        });
+    } catch (error) {
+      console.error("Failed to parse selected song package", error);
+    }
+  }, [setProject]);
 
   useEffect(() => {
     if (!pendingSongFile) return;
@@ -910,6 +1011,85 @@ export default function LessonBuilderClient({
           <EditorShell chartFile={chartFile} />
         </div>
       </main>
+
+      <style jsx global>{`
+        .editorChartDropdown > summary::-webkit-details-marker {
+          display: none;
+        }
+
+        .editorChartDropdown > summary {
+          height: 38px;
+          box-sizing: border-box;
+        }
+
+        .editorPageShell {
+          color: #ffffff;
+        }
+
+        .editorPageShell * {
+          scrollbar-width: none;
+        }
+
+        .editorPageShell *::-webkit-scrollbar {
+          display: none;
+        }
+
+        .editorPageShell [class*="timeline"],
+        .editorPageShell [data-panel*="timeline"],
+        .editorPageShell [aria-label*="Timeline"] {
+          background-color: #2b2b2b !important;
+        }
+
+        .editorPageShell > div {
+          padding-left: 0 !important;
+          padding-right: 0 !important;
+        }
+
+        .editorPageShell [class~="grid"][class~="grid-cols-12"] {
+          gap: 16px !important;
+        }
+
+        .editorPageShell [class~="grid"][class~="grid-cols-12"] > div:first-child > *:first-child {
+          display: none !important;
+        }
+
+        .editorPageShell [class~="col-span-8"] > *:first-child {
+          display: none !important;
+        }
+
+        .editorPageShell [class*="border"],
+        .editorPageShell [class*="rounded"],
+        .editorPageShell section,
+        .editorPageShell aside {
+          background-color: #2b2b2b !important;
+          border-color: #ffffff14 !important;
+          color: #ffffff !important;
+        }
+
+        .editorPageShell button,
+        .editorPageShell input,
+        .editorPageShell select,
+        .editorPageShell textarea,
+        .editorPageShell [role="button"],
+        .editorPageShell [class*="bg-white"],
+        .editorPageShell [class*="bg-gray"],
+        .editorPageShell [class*="bg-slate"] {
+          background-color: #191919 !important;
+          border-color: #ffffff14 !important;
+          color: #ffffff !important;
+        }
+
+        .editorPageShell p,
+        .editorPageShell span,
+        .editorPageShell h1,
+        .editorPageShell h2,
+        .editorPageShell h3,
+        .editorPageShell h4,
+        .editorPageShell label,
+        .editorPageShell div {
+          color: #ffffff !important;
+        }
+      `}</style>
     </div>
   );
 }
