@@ -59,14 +59,14 @@ export default async function HomePage() {
             style={{
               position: "absolute",
               left: "50%",
-              bottom: "-25%",
+              bottom: "-50%",
               width: "115vw",
               height: "72vh",
               minWidth: "calc(72vh * 1.7778)",
               minHeight: "72vh",
               transform: "translateX(-50%)",
               border: "none",
-              filter: "brightness(1.15) contrast(1.08) saturate(1.05)"
+              filter: "brightness(1.15) contrast(1.08) saturate(1.05)",
             }}
           />
         </div>
@@ -86,9 +86,9 @@ export default async function HomePage() {
         <section
           aria-label="Landing panel"
           style={{
-            width: "35vw",
-            maxWidth: 620,
-            minWidth: 360,
+            width: "30vw",
+            maxWidth: 520,
+            minWidth: 340,
             height: "52vh",
             maxHeight: 500,
             minHeight: 430,
@@ -96,7 +96,7 @@ export default async function HomePage() {
             backdropFilter: "blur(8px)",
             border: "1px solid #FFFFFF14",
             borderRadius: 18,
-            padding: "42px 34px",
+            padding: "42px 28px",
             boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
@@ -109,7 +109,8 @@ export default async function HomePage() {
             src="/Logo.svg"
             alt="UltraRapid"
             style={{
-              width: 380,
+              width: 440,
+              maxWidth: "118%",
               height: "auto",
               display: "block",
               marginBottom: 34,
@@ -127,7 +128,7 @@ export default async function HomePage() {
               letterSpacing: 0,
               textAlign: "center",
               whiteSpace: "nowrap",
-              width: "100%",
+              width: "86%",
             }}
           >
             Making the curriculum stick with beat-matching
@@ -135,10 +136,11 @@ export default async function HomePage() {
 
           <div
             style={{
-              width: "calc(100% - 68px)",
+              width: "86%",
               position: "absolute",
-              left: 34,
+              left: "50%",
               bottom: 34,
+              transform: "translateX(-50%)",
               display: "flex",
               flexDirection: "column",
               gap: 28,
