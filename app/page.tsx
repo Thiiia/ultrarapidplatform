@@ -99,7 +99,7 @@ export default async function HomePage() {
             style={{
               position: "absolute",
               left: "50%",
-              bottom: "-50%",
+              bottom: "-25%",
               width: "115vw",
               height: "72vh",
               minWidth: "calc(72vh * 1.7778)",
@@ -162,14 +162,16 @@ export default async function HomePage() {
               margin: 0,
               color: "#FFFFFF",
               fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: 700,
-              lineHeight: "24px",
+              lineHeight: "20px",
               letterSpacing: 0,
               textAlign: "center",
-              whiteSpace: "normal",
-              width: "78%",
-              maxWidth: 360,
+              whiteSpace: "nowrap",
+              width: "100%",
+              maxWidth: "100%",
+              overflow: "hidden",
+              textOverflow: "clip",
             }}
           >
             Making the curriculum stick with beat-matching
