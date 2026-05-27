@@ -29,8 +29,57 @@ export default async function HomePage() {
         placeItems: "center",
         padding: 24,
         boxSizing: "border-box",
+        position: "relative",
+        overflow: "hidden",
       }}
     >
+      <div
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: "100vw",
+          height: "65vh",
+          overflow: "hidden",
+          zIndex: 0,
+          pointerEvents: "none",
+          background: "#000000",
+        }}
+      >
+        <iframe
+          src="https://player.vimeo.com/video/1154741176?h=bab231ff46&badge=0&autopause=0&player_id=0&app_id=58479&autoplay=1&muted=1&loop=1&background=1"
+          allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
+          referrerPolicy="strict-origin-when-cross-origin"
+          title="UltraRapid landing background video"
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: "100vw",
+            height: "65vh",
+            minWidth: "calc(65vh * 1.7778)",
+            minHeight: "65vh",
+            transform: "translate(-50%, -50%)",
+            border: "none",
+            objectFit: "cover",
+          }}
+        />
+      </div>
+
+      <div
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1,
+          pointerEvents: "none",
+          background:
+            "linear-gradient(180deg, rgba(3, 14, 20, 0.82) 0%, rgba(0, 0, 0, 0.38) 48%, rgba(0, 0, 0, 0.72) 100%)",
+        }}
+      />
+
       <section
         aria-label="Landing panel"
         style={{
@@ -40,7 +89,8 @@ export default async function HomePage() {
           height: "65vh",
           maxHeight: 607,
           minHeight: 520,
-          background: "transparent",
+          background: "rgba(0, 0, 0, 0.28)",
+          backdropFilter: "blur(8px)",
           border: "1px solid #FFFFFF14",
           borderRadius: 18,
           padding: "42px 34px",
@@ -48,6 +98,8 @@ export default async function HomePage() {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
+          position: "relative",
+          zIndex: 2,
         }}
       >
         <img
