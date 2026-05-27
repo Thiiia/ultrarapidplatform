@@ -1,6 +1,32 @@
 import Link from "next/link";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 // import { redirect } from "next/navigation";
 // import { getAuth0 } from "@/lib/auth0";
+
+export const dynamic = "force-dynamic";
+
+async function getLandingAudioUrl() {
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+
+    const { data, error } = await supabaseAdmin.storage
+      .from("Songs")
+      .createSignedUrl("Lofries_New_Orleanz_title.mp3", 60 * 60);
+
+    if (error || !data?.signedUrl) {
+      console.error(
+        "Failed to create signed URL for landing audio:",
+        error?.message ?? "Unknown error",
+      );
+      return null;
+    }
+
+    return data.signedUrl;
+  } catch (error) {
+    console.error("Failed to load landing audio:", error);
+    return null;
+  }
+}
 
 export default async function HomePage() {
   /*
@@ -16,6 +42,8 @@ export default async function HomePage() {
    *
    * redirect("/api/post-login");
    */
+
+  const landingAudioUrl = await getLandingAudioUrl();
 
   return (
     <>
@@ -36,6 +64,18 @@ export default async function HomePage() {
           overflow: "hidden",
         }}
       >
+        {landingAudioUrl ? (
+          <audio
+            src={landingAudioUrl}
+            autoPlay
+            loop
+            preload="auto"
+            style={{
+              display: "none",
+            }}
+          />
+        ) : null}
+
         <div
           aria-hidden="true"
           style={{
@@ -59,14 +99,14 @@ export default async function HomePage() {
             style={{
               position: "absolute",
               left: "50%",
-              bottom: "-25%",
+              bottom: "-50%",
               width: "115vw",
               height: "72vh",
               minWidth: "calc(72vh * 1.7778)",
               minHeight: "72vh",
               transform: "translateX(-50%)",
               border: "none",
-              filter: "brightness(1.2) contrast(1.12) saturate(1.12)",
+              filter: "brightness(1.15) contrast(1.08) saturate(1.05)",
             }}
           />
         </div>
@@ -117,23 +157,23 @@ export default async function HomePage() {
             }}
           />
 
-<p
-  style={{
-    margin: 0,
-    color: "#FFFFFF",
-    fontFamily: "Space Grotesk, sans-serif",
-    fontSize: 16,
-    fontWeight: 700,
-    lineHeight: "24px",
-    letterSpacing: 0,
-    textAlign: "center",
-    whiteSpace: "normal",
-    width: "78%",
-    maxWidth: 360,
-  }}
->
-  Making the curriculum stick with beat-matching
-</p>
+          <p
+            style={{
+              margin: 0,
+              color: "#FFFFFF",
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 16,
+              fontWeight: 700,
+              lineHeight: "24px",
+              letterSpacing: 0,
+              textAlign: "center",
+              whiteSpace: "normal",
+              width: "78%",
+              maxWidth: 360,
+            }}
+          >
+            Making the curriculum stick with beat-matching
+          </p>
 
           <div
             style={{
