@@ -4,9 +4,9 @@ import Link from "next/link";
 
 export default async function HomePage() {
   /*
-   * Auth0 login flow temporarily disabled for demo mode.
+   * Auth0 login flow temporarily disabled.
    *
-   * Restore this block when you want to re-enable Auth0:
+   * Restore this block when you want Auth0 login back:
    *
    * const session = await getAuth0().getSession();
    *
@@ -21,88 +21,91 @@ export default async function HomePage() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#191919",
+        background:
+          "linear-gradient(180deg, #030E14 0%, #000000 100%), linear-gradient(180deg, #082733 0%, #000000 37.5%)",
+        backgroundBlendMode: "normal",
         color: "#FFFFFF",
         display: "grid",
         placeItems: "center",
         padding: 24,
+        boxSizing: "border-box",
       }}
     >
       <section
+        aria-label="Landing panel"
         style={{
-          width: "100%",
-          maxWidth: 760,
-          background: "#2B2B2B",
+          width: "35vw",
+          maxWidth: 620,
+          minWidth: 360,
+          height: "65vh",
+          maxHeight: 607,
+          minHeight: 520,
+          background: "transparent",
           border: "1px solid #FFFFFF14",
           borderRadius: 18,
-          padding: 36,
+          padding: "42px 34px",
           boxSizing: "border-box",
-          textAlign: "center",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
         }}
       >
+        <img
+          src="/Logo.svg"
+          alt="UltraRapid"
+          style={{
+            width: 220,
+            height: "auto",
+            display: "block",
+            marginBottom: 28,
+          }}
+        />
+
         <p
           style={{
-            margin: "0 0 10px 0",
-            color: "#CFFF04",
-            fontSize: 13,
-            fontWeight: 700,
-            letterSpacing: 1.2,
-            textTransform: "uppercase",
-          }}
-        >
-          UltraRapid
-        </p>
-
-        <h1
-          style={{
-            margin: "0 0 14px 0",
+            margin: 0,
             color: "#FFFFFF",
-            fontSize: 42,
-            lineHeight: 1.05,
-            fontWeight: 700,
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 15,
+            fontWeight: 500,
+            lineHeight: "20px",
+            letterSpacing: 0,
+            textAlign: "center",
+            whiteSpace: "nowrap",
+            width: "100%",
           }}
         >
           Making the curriculum stick with beat-matching
-        </h1>
-
-        <p
-          style={{
-            margin: "0 auto 28px auto",
-            color: "#D1D5DB",
-            fontSize: 15,
-            lineHeight: "23px",
-            maxWidth: 560,
-          }}
-        >
-          Demo mode is currently enabled. Choose a dashboard below to preview
-          the student or teacher experience.
         </p>
 
         <div
           style={{
+            width: "100%",
+            marginTop: "auto",
             display: "flex",
-            justifyContent: "center",
+            flexDirection: "column",
             gap: 14,
-            flexWrap: "wrap",
           }}
         >
           <Link
             href="/demo/student"
             style={{
-              minWidth: 220,
-              minHeight: 48,
+              width: "100%",
+              minHeight: 50,
               background: "#CFFF04",
-              color: "#191919",
+              color: "#000000",
               border: "1px solid #CFFF04",
               borderRadius: 12,
-              padding: "13px 18px",
+              padding: "14px 18px",
               boxSizing: "border-box",
               textDecoration: "none",
               fontSize: 14,
               fontWeight: 700,
+              lineHeight: "20px",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
+              textAlign: "center",
             }}
           >
             Demo Student Dashboard
@@ -111,20 +114,22 @@ export default async function HomePage() {
           <Link
             href="/demo/teacher"
             style={{
-              minWidth: 220,
-              minHeight: 48,
-              background: "#191919",
-              color: "#FFFFFF",
-              border: "1px solid #FFFFFF14",
+              width: "100%",
+              minHeight: 50,
+              background: "#CFFF04",
+              color: "#000000",
+              border: "1px solid #CFFF04",
               borderRadius: 12,
-              padding: "13px 18px",
+              padding: "14px 18px",
               boxSizing: "border-box",
               textDecoration: "none",
               fontSize: 14,
               fontWeight: 700,
+              lineHeight: "20px",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
+              textAlign: "center",
             }}
           >
             Demo Teacher Dashboard
