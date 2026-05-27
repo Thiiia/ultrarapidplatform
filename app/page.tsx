@@ -195,21 +195,25 @@ export default async function HomePage() {
         </section>
       </main>
 
-      <style jsx global>{`
-        html,
-        body {
-          margin: 0;
-          padding: 0;
-          width: 100%;
-          min-height: 100%;
-          background: #000000;
-          overflow-x: hidden;
-        }
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            html,
+            body {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              min-height: 100%;
+              background: #000000;
+              overflow-x: hidden;
+            }
 
-        body {
-          overscroll-behavior: none;
-        }
-      `}</style>
+            body {
+              overscroll-behavior: none;
+            }
+          `,
+        }}
+      />
     </>
   );
 }
