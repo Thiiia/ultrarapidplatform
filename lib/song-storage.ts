@@ -35,6 +35,19 @@ export type SongChoice = {
   } | null;
 };
 
+async function createOptionalSignedUrl(bucket: string | null, path: string | null) {
+  if (!bucket || !path) {
+    return null;
+  }
+
+  try {
+    return await createSignedUrl(bucket, path);
+  } catch (error) {
+    console.warn(`Skipping missing optional sidecar ${bucket}/${path}:`, error);
+    return null;
+  }
+}
+
 async function createSignedUrl(bucket: string, path: string) {
   const supabaseAdmin = getSupabaseAdmin();
 
@@ -102,9 +115,7 @@ export async function getSongChoices(): Promise<SongChoice[]> {
       ] = await Promise.all([
         createSignedUrl(songAsset.songBucket, songAsset.songPath),
         createSignedUrl(songAsset.chartBucket, songAsset.chartPath),
-        hasSidecar
-          ? createSignedUrl(songAsset.sidecarBucket!, songAsset.sidecarPath!)
-          : Promise.resolve(null),
+createOptionalSignedUrl(songAsset.sidecarBucket, songAsset.sidecarPath),
         getFileMetadata(songAsset.songBucket, songAsset.songPath),
       ]);
 
