@@ -437,12 +437,14 @@ function handleContinue() {
         contentType: selectedSong.chart.contentType,
       },
 
-      sidecar: {
-        bucket: selectedSong.sidecar.bucket,
-        path: selectedSong.sidecar.path,
-        signedUrl: selectedSong.sidecar.signedUrl,
-        contentType: selectedSong.sidecar.contentType,
-      },
+      sidecar: selectedSong.sidecar
+        ? {
+            bucket: selectedSong.sidecar.bucket,
+            path: selectedSong.sidecar.path,
+            signedUrl: selectedSong.sidecar.signedUrl,
+            contentType: selectedSong.sidecar.contentType,
+          }
+        : null,
     }),
   );
 
