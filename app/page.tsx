@@ -59,7 +59,7 @@ export default async function HomePage() {
             style={{
               position: "absolute",
               left: "50%",
-              bottom: 0,
+              bottom: "-50%",
               width: "115vw",
               height: "72vh",
               minWidth: "calc(72vh * 1.7778)",
@@ -91,7 +91,7 @@ export default async function HomePage() {
             height: "52vh",
             maxHeight: 500,
             minHeight: 430,
-            background: "rgba(0, 0, 0, 0.34)",
+            background: "rgba(255, 255, 255, 0.10)",
             backdropFilter: "blur(8px)",
             border: "1px solid #FFFFFF14",
             borderRadius: 18,
