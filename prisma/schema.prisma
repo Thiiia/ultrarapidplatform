@@ -165,8 +165,8 @@ model SongAsset {
   chartBucket     String   @default("Charts")
   chartPath       String
 
-  sidecarBucket   String   @default("SidecarJsons")
-  sidecarPath     String
+  sidecarBucket   String?  @default("SidecarJsons")
+  sidecarPath     String?
 
   isActive        Boolean  @default(true)
 
