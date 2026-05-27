@@ -59,13 +59,14 @@ export default async function HomePage() {
             style={{
               position: "absolute",
               left: "50%",
-              bottom: "-50%",
+              bottom: "-25%",
               width: "115vw",
               height: "72vh",
               minWidth: "calc(72vh * 1.7778)",
               minHeight: "72vh",
               transform: "translateX(-50%)",
               border: "none",
+              filter: "brightness(1.15) contrast(1.08) saturate(1.05)"
             }}
           />
         </div>
