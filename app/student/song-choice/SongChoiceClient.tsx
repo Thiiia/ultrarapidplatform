@@ -626,21 +626,49 @@ function handleContinue() {
                       />
                     </span>
 
-                    <span
-                      style={{
-                        color: "#FFFFFF",
-                        fontSize: 14,
-                        fontWeight: 500,
-                        lineHeight: "20px",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        textAlign: "left",
-                        justifySelf: "start",
-                      }}
-                    >
-                      {song.name}
-                    </span>
+<div
+  style={{
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    gap: 2,
+    textAlign: "left",
+  }}
+>
+  <span
+    style={{
+      color: "#FFFFFF",
+      fontSize: 14,
+      fontWeight: 500,
+      lineHeight: "20px",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      textAlign: "left",
+      width: "100%",
+    }}
+  >
+    {song.name}
+  </span>
+
+  <span
+    style={{
+      color: "#D1D5DB",
+      fontSize: 11,
+      fontWeight: 500,
+      lineHeight: "15px",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      textAlign: "left",
+      width: "100%",
+    }}
+  >
+    {song.artist ?? "Unknown artist"}
+  </span>
+</div>
 
                     <span
                       style={{
