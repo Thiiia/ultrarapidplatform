@@ -88,9 +88,9 @@ export default async function HomePage() {
             width: "35vw",
             maxWidth: 620,
             minWidth: 360,
-            height: "65vh",
-            maxHeight: 607,
-            minHeight: 520,
+            height: "52vh",
+            maxHeight: 500,
+            minHeight: 430,
             background: "rgba(0, 0, 0, 0.34)",
             backdropFilter: "blur(8px)",
             border: "1px solid #FFFFFF14",
@@ -108,10 +108,10 @@ export default async function HomePage() {
             src="/Logo.svg"
             alt="UltraRapid"
             style={{
-              width: 310,
+              width: 380,
               height: "auto",
               display: "block",
-              marginBottom: 32,
+              marginBottom: 34,
             }}
           />
 
@@ -120,9 +120,9 @@ export default async function HomePage() {
               margin: 0,
               color: "#FFFFFF",
               fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 18,
-              fontWeight: 600,
-              lineHeight: "24px",
+              fontSize: 22,
+              fontWeight: 700,
+              lineHeight: "28px",
               letterSpacing: 0,
               textAlign: "center",
               whiteSpace: "nowrap",
@@ -137,8 +137,7 @@ export default async function HomePage() {
               width: "calc(100% - 68px)",
               position: "absolute",
               left: 34,
-              top: "50%",
-              transform: "translateY(-50%)",
+              bottom: 34,
               display: "flex",
               flexDirection: "column",
               gap: 28,
