@@ -62,7 +62,7 @@ type SelectedSongPayload = {
     path: string;
     signedUrl: string;
     contentType: string | null;
-  };
+  } | null;
 };
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
@@ -819,10 +819,12 @@ export default function LessonBuilderClient({
           console.error("Failed to load selected song file", error);
         });
 
-      Promise.all([
-        textFromSignedUrl(selectedSong.chart.signedUrl),
-        jsonFromSignedUrl(selectedSong.sidecar.signedUrl),
-      ])
+        Promise.all([
+          textFromSignedUrl(selectedSong.chart.signedUrl),
+          selectedSong.sidecar
+            ? jsonFromSignedUrl(selectedSong.sidecar.signedUrl)
+            : Promise.resolve(null),
+        ])
         .then(([nextChartFile, sidecarJson]) => {
           const nextChartName =
             selectedSong.chart.path.split("/").pop() ?? "selected.chart";

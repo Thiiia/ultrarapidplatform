@@ -32,7 +32,7 @@ export type SongChoice = {
     path: string;
     signedUrl: string;
     contentType: string | null;
-  };
+  } | null;
 };
 
 async function createSignedUrl(bucket: string, path: string) {
@@ -92,13 +92,21 @@ export async function getSongChoices(): Promise<SongChoice[]> {
 
   const songs = await Promise.all(
     songAssets.map(async (songAsset) => {
-      const [songSignedUrl, chartSignedUrl, sidecarSignedUrl, songMetadata] =
-        await Promise.all([
-          createSignedUrl(songAsset.songBucket, songAsset.songPath),
-          createSignedUrl(songAsset.chartBucket, songAsset.chartPath),
-          createSignedUrl(songAsset.sidecarBucket, songAsset.sidecarPath),
-          getFileMetadata(songAsset.songBucket, songAsset.songPath),
-        ]);
+      const hasSidecar = Boolean(songAsset.sidecarBucket && songAsset.sidecarPath);
+
+      const [
+        songSignedUrl,
+        chartSignedUrl,
+        sidecarSignedUrl,
+        songMetadata,
+      ] = await Promise.all([
+        createSignedUrl(songAsset.songBucket, songAsset.songPath),
+        createSignedUrl(songAsset.chartBucket, songAsset.chartPath),
+        hasSidecar
+          ? createSignedUrl(songAsset.sidecarBucket!, songAsset.sidecarPath!)
+          : Promise.resolve(null),
+        getFileMetadata(songAsset.songBucket, songAsset.songPath),
+      ]);
 
       const metadata = songMetadata?.metadata as Record<string, unknown> | undefined;
 
@@ -114,10 +122,7 @@ export async function getSongChoices(): Promise<SongChoice[]> {
         artist: songAsset.artist,
         path: songAsset.songPath,
         signedUrl: songSignedUrl,
-        size:
-          typeof metadata?.size === "number"
-            ? metadata.size
-            : null,
+        size: typeof metadata?.size === "number" ? metadata.size : null,
         contentType: songContentType,
         updatedAt: songAsset.updatedAt.toISOString(),
         durationSeconds: songAsset.durationSeconds,
@@ -136,12 +141,15 @@ export async function getSongChoices(): Promise<SongChoice[]> {
           contentType: getContentTypeFromPath(songAsset.chartPath),
         },
 
-        sidecar: {
-          bucket: songAsset.sidecarBucket,
-          path: songAsset.sidecarPath,
-          signedUrl: sidecarSignedUrl,
-          contentType: getContentTypeFromPath(songAsset.sidecarPath),
-        },
+        sidecar:
+          hasSidecar && sidecarSignedUrl
+            ? {
+                bucket: songAsset.sidecarBucket!,
+                path: songAsset.sidecarPath!,
+                signedUrl: sidecarSignedUrl,
+                contentType: getContentTypeFromPath(songAsset.sidecarPath!),
+              }
+            : null,
       };
     }),
   );
