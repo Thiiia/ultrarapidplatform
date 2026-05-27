@@ -122,7 +122,7 @@ export default async function HomePage() {
     margin: 0,
     color: "#FFFFFF",
     fontFamily: "Space Grotesk, sans-serif",
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 700,
     lineHeight: "24px",
     letterSpacing: 0,
