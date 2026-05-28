@@ -420,6 +420,54 @@ function WorkspacePanel({
   );
 }
 
+function CenterEditorPanel() {
+  const subpanels = ["", "Lyrics", "Strings", "Bass", "Drums"];
+
+  return (
+    <section
+      style={{
+        width: "75vw",
+        height: "calc(100vh - 166px)",
+        minHeight: "calc(100vh - 166px)",
+        background: "#191919",
+        color: textColor,
+        boxSizing: "border-box",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-end",
+      }}
+    >
+      {subpanels.map((title, index) => (
+        <div
+          key={`${title}-${index}`}
+          style={{
+            width: "100%",
+            height: "6vh",
+            minHeight: "6vh",
+            background: "#191919",
+            borderTop: index === 0 ? `1px solid ${subtleBorderColor}` : "none",
+            borderBottom: `1px solid ${subtleBorderColor}`,
+            boxSizing: "border-box",
+            display: "flex",
+            alignItems: "center",
+            padding: "0 18px",
+            color: textColor,
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 13,
+            fontWeight: 700,
+            lineHeight: "19.5px",
+            letterSpacing: 0,
+            textAlign: "left",
+          }}
+        >
+          {title}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export default function LessonBuilderClient({
   navBasePath = "/student",
 }: LessonBuilderClientProps) {
@@ -586,15 +634,7 @@ export default function LessonBuilderClient({
           background="#2B2B2B"
         />
 
-        <WorkspacePanel width="75vw" background="#191919">
-          {/*
-            EditorShell display intentionally removed for now.
-
-            When you are ready to render the editor again, this is where the
-            center editor workspace should be rebuilt. The chart/project logic
-            above still hydrates the editor store through chartToProject().
-          */}
-        </WorkspacePanel>
+        <CenterEditorPanel />
 
         <WorkspacePanel
           title="Teacher Feedback"
