@@ -445,7 +445,7 @@ function CenterEditorPanel() {
             width: "100%",
             height: "6vh",
             minHeight: "6vh",
-            background: "#191919",
+            background: "#2B2B2B",
             borderTop: index === 0 ? `1px solid ${subtleBorderColor}` : "none",
             borderBottom: `1px solid ${subtleBorderColor}`,
             boxSizing: "border-box",
