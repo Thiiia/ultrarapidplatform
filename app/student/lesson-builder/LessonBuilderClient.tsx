@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ChangeEvent, FC, SVGProps } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { EditorShell } from "@/components/editor/EditorShell";
+import type { FC, SVGProps } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useEditorStore } from "@/lib/editor/editor-store";
 import { chartToProject } from "@/lib/editor/chart-to-project";
 import styles from "../student.module.css";
@@ -86,16 +85,6 @@ type LessonBuilderClientProps = {
   navBasePath?: string;
 };
 
-function getGameHref(navBasePath: string, launch?: string) {
-  const href = `${navBasePath}/game`;
-
-  if (!launch) {
-    return href;
-  }
-
-  return `${href}?launch=${encodeURIComponent(launch)}`;
-}
-
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
     {
@@ -145,58 +134,6 @@ const headerBackgroundColor = "#2B2B2B";
 const pageBackgroundColor = "#191919";
 const subtleBorderColor = "#FFFFFF14";
 const textColor = "#FFFFFF";
-
-const sharedTextStyle = {
-  fontFamily: "Space Grotesk, sans-serif",
-  fontSize: 13,
-  fontWeight: 500,
-  fontStyle: "normal",
-  lineHeight: "19.5px",
-  letterSpacing: 0,
-} as const;
-
-function createBlankChart(songName: string, artist = "Unknown Artist") {
-  const safeSongName = songName?.trim() || "Untitled Song";
-  const safeArtist = artist?.trim() || "Unknown Artist";
-
-  return [
-    "[Song]",
-    "{",
-    `  Name = "${safeSongName.replace(/"/g, "'")}"`,
-    `  Artist = "${safeArtist.replace(/"/g, "'")}"`,
-    "  Offset = 0",
-    "  Resolution = 240",
-    "  Player2 = bass",
-    "  Difficulty = 0",
-    "  PreviewStart = 0",
-    "  PreviewEnd = 0",
-    '  Genre = "electronic"',
-    '  MediaType = "digital"',
-    "}",
-    "[SyncTrack]",
-    "{",
-    "  0 = TS 4",
-    "  0 = B 120000",
-    "}",
-    "[Events]",
-    "{",
-    '  0 = E "music_start"',
-    "}",
-    "[ExpertSingle]",
-    "{",
-    "}",
-    "[HardSingle]",
-    "{",
-    "}",
-    "[MediumSingle]",
-    "{",
-    "}",
-    "[EasySingle]",
-    "{",
-    "}",
-    "",
-  ].join("\n");
-}
 
 async function fileFromSignedUrl({
   signedUrl,
@@ -421,277 +358,66 @@ function HeaderBar({
   );
 }
 
-function EditorButton({
-  children,
-  disabled = false,
-  onClick,
-  width,
-}: {
-  children: React.ReactNode;
-  disabled?: boolean;
-  onClick?: () => void;
-  width?: number | string;
-}) {
+function EmptyEditorTopPanel() {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
+    <section
+      aria-label="Lesson builder controls"
       style={{
-        ...sharedTextStyle,
-        minHeight: 38,
-        width,
-        border: `1px solid ${subtleBorderColor}`,
-        borderRadius: 8,
-        background: pageBackgroundColor,
-        color: textColor,
-        padding: "8px 14px",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.55 : 1,
-        textAlign: "center",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
+        width: "100%",
+        minHeight: 96,
+        background: headerBackgroundColor,
+        borderBottom: `1px solid ${subtleBorderColor}`,
+        boxSizing: "border-box",
       }}
-      title={typeof children === "string" ? children : undefined}
-    >
-      {children}
-    </button>
+    />
   );
 }
 
-function ChartDropdown({
-  onCreateBlankChart,
-  onUploadChartClick,
+function WorkspacePanel({
+  title,
+  width,
+  background,
+  children,
 }: {
-  onCreateBlankChart: () => void;
-  onUploadChartClick: () => void;
-}) {
-  return (
-    <div style={{ width: 260, position: "relative" }}>
-      <details
-        className="editorChartDropdown"
-        style={{ position: "relative", width: "100%" }}
-      >
-        <summary
-          style={{
-            ...sharedTextStyle,
-            minHeight: 38,
-            border: `1px solid ${subtleBorderColor}`,
-            borderRadius: 8,
-            background: pageBackgroundColor,
-            color: textColor,
-            padding: "8px 12px",
-            cursor: "pointer",
-            listStyle: "none",
-            textAlign: "center",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 10,
-          }}
-        >
-          <span style={{ flex: 1 }}>Select chart</span>
-          <span aria-hidden="true" style={{ fontSize: 12, lineHeight: 1 }}>
-            ▾
-          </span>
-        </summary>
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            left: 0,
-            right: 0,
-            zIndex: 20,
-            background: headerBackgroundColor,
-            border: `1px solid ${subtleBorderColor}`,
-            borderRadius: 10,
-            padding: 8,
-            display: "grid",
-            gap: 8,
-            boxShadow: "0 14px 34px rgba(0, 0, 0, 0.34)",
-          }}
-        >
-          <EditorButton width="100%" onClick={onCreateBlankChart}>
-            Create blank chart
-          </EditorButton>
-          <EditorButton width="100%" onClick={onUploadChartClick}>
-            Upload chart
-          </EditorButton>
-        </div>
-      </details>
-    </div>
-  );
-}
-
-function EditorPanel({
-  songLabel,
-  chartLabel,
-  chartSelected,
-  chartFile,
-  isChartVisible,
-  onToggleChartVisible,
-  onSongUploadClick,
-  onCreateBlankChart,
-  onUploadChartClick,
-  onLaunchGame,
-}: {
-  songLabel: string;
-  chartLabel: string;
-  chartSelected: boolean;
-  chartFile: string;
-  isChartVisible: boolean;
-  onToggleChartVisible: () => void;
-  onSongUploadClick: () => void;
-  onCreateBlankChart: () => void;
-  onUploadChartClick: () => void;
-  onLaunchGame: () => void;
+  title?: string;
+  width: string;
+  background: string;
+  children?: React.ReactNode;
 }) {
   return (
     <section
       style={{
-        width: "100%",
-        background: headerBackgroundColor,
-        borderBottom: `1px solid ${subtleBorderColor}`,
+        width,
+        height: "calc(100vh - 166px)",
+        minHeight: "calc(100vh - 166px)",
+        background,
+        color: textColor,
+        borderRight: `1px solid ${subtleBorderColor}`,
+        boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
-      <div
-        style={{
-          width: pagePanelWidth,
-          minHeight: 96,
-          margin: "0 auto",
-          boxSizing: "border-box",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 20,
-          color: textColor,
-          flexWrap: "wrap",
-          padding: "14px 0",
-        }}
-      >
+      {title ? (
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 16,
-            flexWrap: "wrap",
+            padding: "18px 16px",
+            borderBottom: `1px solid ${subtleBorderColor}`,
+            color: textColor,
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 13,
+            fontWeight: 700,
+            lineHeight: "19.5px",
+            letterSpacing: 0,
+            textAlign: "left",
           }}
         >
-          <div style={{ width: 260 }}>
-            <EditorButton width="100%" onClick={onSongUploadClick}>
-              {songLabel}
-            </EditorButton>
-          </div>
-
-          <div style={{ width: 260 }}>
-            {chartSelected ? (
-              <EditorButton width="100%" disabled>
-                {chartLabel}
-              </EditorButton>
-            ) : (
-              <ChartDropdown
-                onCreateBlankChart={onCreateBlankChart}
-                onUploadChartClick={onUploadChartClick}
-              />
-            )}
-          </div>
+          {title}
         </div>
+      ) : null}
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <EditorButton onClick={onLaunchGame} width={160}>
-            Play Now
-          </EditorButton>
-
-          <EditorButton disabled={!chartFile.trim()} onClick={onToggleChartVisible} width={160}>
-            {isChartVisible ? "Hide chart" : "View chart"}
-          </EditorButton>
-        </div>
-      </div>
+      {children}
     </section>
   );
-}
-
-function normalizeEditorShellDom() {
-  const shell = document.querySelector(".editorPageShell");
-  if (!shell) return undefined;
-
-  const hiddenTextFragments = [
-    "Upload a song to begin",
-    "Inspector",
-    "Select a block to edit it",
-  ];
-
-  const updateDom = () => {
-    const walker = document.createTreeWalker(shell, NodeFilter.SHOW_TEXT);
-    const textNodes: Text[] = [];
-
-    while (walker.nextNode()) {
-      textNodes.push(walker.currentNode as Text);
-    }
-
-    textNodes.forEach((node) => {
-      const value = node.nodeValue ?? "";
-
-      if (value.includes("Timeline Panel")) {
-        node.nodeValue = value.replace(/Timeline Panel/g, "Timeline");
-      }
-
-      if (hiddenTextFragments.some((fragment) => value.includes(fragment))) {
-        const parent = node.parentElement;
-        const container = parent?.closest(
-          "section, aside, [class*='border'], [class*='rounded'], [class*='shadow']",
-        ) as HTMLElement | null;
-        const target = container ?? parent;
-
-        if (target) {
-          target.style.display = "none";
-        }
-      }
-    });
-  };
-
-  updateDom();
-
-  const observer = new MutationObserver(updateDom);
-  observer.observe(shell, {
-    childList: true,
-    characterData: true,
-    subtree: true,
-  });
-
-  return () => observer.disconnect();
-}
-
-function syncSongFileIntoEmbeddedLoader(file: File) {
-  const shell = document.querySelector(".editorPageShell");
-  if (!shell) return false;
-
-  const inputs = Array.from(shell.querySelectorAll('input[type="file"]')) as HTMLInputElement[];
-  const target = inputs.find((input) => {
-    const accept = (input.getAttribute("accept") || "").toLowerCase();
-    return accept.includes(".mp3") || accept.includes(".ogg") || accept.includes("audio/");
-  });
-
-  if (!target) return false;
-
-  try {
-    const dataTransfer = new DataTransfer();
-    dataTransfer.items.add(file);
-    target.files = dataTransfer.files;
-    target.dispatchEvent(new Event("change", { bubbles: true }));
-    return true;
-  } catch (error) {
-    console.error("Failed to sync song file into embedded loader", error);
-    return false;
-  }
 }
 
 export default function LessonBuilderClient({
@@ -699,94 +425,19 @@ export default function LessonBuilderClient({
 }: LessonBuilderClientProps) {
   const pathname = usePathname();
   const topTabs = useMemo(() => getTopTabs(navBasePath), [navBasePath]);
-  const playNowHref = useMemo(
-    () => getGameHref(navBasePath, "play-now"),
-    [navBasePath],
-  );
-
-  const songUploadInputRef = useRef<HTMLInputElement | null>(null);
-  const chartUploadInputRef = useRef<HTMLInputElement | null>(null);
-
   const setProject = useEditorStore((s) => s.setProject);
 
   const [chartFile, setChartFile] = useState("");
   const [metadata, setMetadata] = useState<LessonBuilderPayload["analysisMetadata"]>();
   const [uploadedSongName, setUploadedSongName] = useState("");
   const [uploadedChartName, setUploadedChartName] = useState("");
-  const [isChartVisible, setIsChartVisible] = useState(false);
   const [pendingSongFile, setPendingSongFile] = useState<File | null>(null);
 
-  const songButtonLabel = useMemo(() => {
-    return uploadedSongName.trim() ? uploadedSongName.trim() : "Upload song";
-  }, [uploadedSongName]);
-
-  const chartButtonLabel = useMemo(() => {
-    return uploadedChartName.trim() ? uploadedChartName.trim() : "No chart selected";
-  }, [uploadedChartName]);
-
-  const selectedSongNameForBlankChart = useMemo(() => {
-    if (uploadedSongName.trim()) return uploadedSongName.replace(/\.[^/.]+$/, "");
-    const title = metadata?.songTitle?.trim();
-    if (title) return title;
-    return "Untitled Song";
-  }, [metadata, uploadedSongName]);
-
-  const applyChartFile = (nextChartFile: string, nextChartName?: string) => {
-    setChartFile(nextChartFile);
-    setUploadedChartName(nextChartName ?? "");
-
-    const nextPayload: LessonBuilderPayload = {
-      chartFile: nextChartFile,
-      analysisMetadata: metadata,
-    };
-
-    const project = chartToProject(nextPayload);
-    setProject(project);
-  };
-
-  const handleCreateBlankChart = () => {
-    const blankChart = createBlankChart(
-      selectedSongNameForBlankChart,
-      metadata?.artist,
-    );
-    applyChartFile(blankChart, "blank.chart");
-    setIsChartVisible(false);
-  };
-
-  const handleLaunchGame = () => {
-    window.location.href = playNowHref;
-  };
-
-  const handleSongUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setUploadedSongName(file.name);
-    setMetadata((current) => ({
-      ...current,
-      songTitle: file.name.replace(/\.[^/.]+$/, ""),
-      uploadedFileName: file.name,
-    }));
-    setPendingSongFile(file);
-
-    event.target.value = "";
-  };
-
-  const handleChartUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const nextChartFile = typeof reader.result === "string" ? reader.result : "";
-      if (!nextChartFile.trim()) return;
-
-      applyChartFile(nextChartFile, file.name);
-      setIsChartVisible(false);
-    };
-    reader.readAsText(file);
-    event.target.value = "";
-  };
+  /*
+   * Editor display panels are intentionally hidden for the new layout.
+   * The state above is kept so selected songs/charts can still hydrate
+   * editor data through chartToProject and useEditorStore.
+   */
 
   useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_selected_song");
@@ -819,19 +470,18 @@ export default function LessonBuilderClient({
           console.error("Failed to load selected song file", error);
         });
 
-        Promise.all([
-          textFromSignedUrl(selectedSong.chart.signedUrl),
-          selectedSong.sidecar
-            ? jsonFromSignedUrl(selectedSong.sidecar.signedUrl)
-            : Promise.resolve(null),
-        ])
+      Promise.all([
+        textFromSignedUrl(selectedSong.chart.signedUrl),
+        selectedSong.sidecar
+          ? jsonFromSignedUrl(selectedSong.sidecar.signedUrl)
+          : Promise.resolve(null),
+      ])
         .then(([nextChartFile, sidecarJson]) => {
           const nextChartName =
             selectedSong.chart.path.split("/").pop() ?? "selected.chart";
 
           setChartFile(nextChartFile);
           setUploadedChartName(nextChartName);
-          setIsChartVisible(false);
 
           const payload: LessonBuilderPayload = {
             chartFile: nextChartFile,
@@ -855,34 +505,6 @@ export default function LessonBuilderClient({
   }, [setProject]);
 
   useEffect(() => {
-    if (!pendingSongFile) return;
-
-    let cancelled = false;
-    let attempts = 0;
-
-    const trySync = () => {
-      if (cancelled) return;
-
-      const synced = syncSongFileIntoEmbeddedLoader(pendingSongFile);
-      if (synced) {
-        setPendingSongFile(null);
-        return;
-      }
-
-      attempts += 1;
-      if (attempts < 10) {
-        window.requestAnimationFrame(trySync);
-      }
-    };
-
-    trySync();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [pendingSongFile, chartFile, isChartVisible]);
-
-  useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_editor_payload");
     if (!raw) return;
 
@@ -895,9 +517,11 @@ export default function LessonBuilderClient({
 
       if (payload?.chartFile) {
         setChartFile(payload.chartFile);
+
         if (payload.analysisMetadata?.uploadedFileName) {
           setUploadedChartName(payload.analysisMetadata.uploadedFileName);
         }
+
         const project = chartToProject(payload);
         setProject(project);
       }
@@ -909,15 +533,32 @@ export default function LessonBuilderClient({
   }, [setProject]);
 
   useEffect(() => {
-    return normalizeEditorShellDom();
-  }, [chartFile, isChartVisible]);
+    if (!pendingSongFile) return;
+
+    /*
+     * Song file is loaded and kept in state for editor logic.
+     * The previous visible EditorShell file input syncing is disabled
+     * while the editor display is being rebuilt.
+     */
+    console.info("Selected song file loaded for editor:", pendingSongFile.name);
+  }, [pendingSongFile]);
+
+  useEffect(() => {
+    if (!chartFile.trim()) return;
+
+    console.info("Chart file loaded for editor:", {
+      chartName: uploadedChartName,
+      songName: uploadedSongName,
+      metadata,
+    });
+  }, [chartFile, uploadedChartName, uploadedSongName, metadata]);
 
   return (
     <div
       className={styles.studentTypography}
       style={{
         minHeight: "100vh",
-        background: headerBackgroundColor,
+        background: pageBackgroundColor,
         color: textColor,
         display: "flex",
         flexDirection: "column",
@@ -926,172 +567,41 @@ export default function LessonBuilderClient({
     >
       <HeaderBar pathname={pathname} topTabs={topTabs} />
 
-      <input
-        ref={songUploadInputRef}
-        type="file"
-        accept="audio/*,.mp3,.wav,.m4a,.ogg"
-        onChange={handleSongUpload}
-        style={{ display: "none" }}
-      />
-      <input
-        ref={chartUploadInputRef}
-        type="file"
-        accept=".chart,text/plain"
-        onChange={handleChartUpload}
-        style={{ display: "none" }}
-      />
-
-      <EditorPanel
-        songLabel={songButtonLabel}
-        chartLabel={chartButtonLabel}
-        chartSelected={!!uploadedChartName.trim()}
-        chartFile={chartFile}
-        isChartVisible={isChartVisible}
-        onToggleChartVisible={() => setIsChartVisible((current) => !current)}
-        onSongUploadClick={() => songUploadInputRef.current?.click()}
-        onCreateBlankChart={handleCreateBlankChart}
-        onUploadChartClick={() => chartUploadInputRef.current?.click()}
-        onLaunchGame={handleLaunchGame}
-      />
-
-      {isChartVisible && (
-        <section
-          style={{
-            width: "100%",
-            background: headerBackgroundColor,
-            borderBottom: `1px solid ${subtleBorderColor}`,
-          }}
-        >
-          <div
-            style={{
-              width: pagePanelWidth,
-              margin: "0 auto",
-              padding: "16px 0",
-              boxSizing: "border-box",
-            }}
-          >
-            <textarea
-              readOnly
-              value={chartFile}
-              style={{
-                ...sharedTextStyle,
-                width: "100%",
-                minHeight: 220,
-                boxSizing: "border-box",
-                background: pageBackgroundColor,
-                border: `1px solid ${subtleBorderColor}`,
-                borderRadius: 12,
-                color: textColor,
-                padding: 16,
-                resize: "vertical",
-                textAlign: "left",
-                fontFamily: "Space Grotesk, monospace",
-              }}
-            />
-          </div>
-        </section>
-      )}
+      <EmptyEditorTopPanel />
 
       <main
         style={{
           width: "100%",
-          background: headerBackgroundColor,
+          height: "calc(100vh - 166px)",
+          display: "flex",
+          alignItems: "stretch",
+          background: pageBackgroundColor,
           color: textColor,
-          overflowX: "hidden",
+          overflow: "hidden",
         }}
       >
-        <div
-          className="editorPageShell"
-          style={{
-            width: pagePanelWidth,
-            margin: "0 auto",
-            boxSizing: "border-box",
-            background: pageBackgroundColor,
-            color: textColor,
-          }}
-        >
-          <EditorShell chartFile={chartFile} />
-        </div>
+        <WorkspacePanel
+          title="Equation Blocks"
+          width="12.5vw"
+          background="#2B2B2B"
+        />
+
+        <WorkspacePanel width="75vw" background="#191919">
+          {/*
+            EditorShell display intentionally removed for now.
+
+            When you are ready to render the editor again, this is where the
+            center editor workspace should be rebuilt. The chart/project logic
+            above still hydrates the editor store through chartToProject().
+          */}
+        </WorkspacePanel>
+
+        <WorkspacePanel
+          title="Teacher Feedback"
+          width="12.5vw"
+          background="#2B2B2B"
+        />
       </main>
-
-      <style jsx global>{`
-        .editorChartDropdown > summary::-webkit-details-marker {
-          display: none;
-        }
-
-        .editorChartDropdown > summary {
-          height: 38px;
-          box-sizing: border-box;
-        }
-
-        .editorPageShell {
-          color: #ffffff;
-        }
-
-        .editorPageShell * {
-          scrollbar-width: none;
-        }
-
-        .editorPageShell *::-webkit-scrollbar {
-          display: none;
-        }
-
-        .editorPageShell [class*="timeline"],
-        .editorPageShell [data-panel*="timeline"],
-        .editorPageShell [aria-label*="Timeline"] {
-          background-color: #2b2b2b !important;
-        }
-
-        .editorPageShell > div {
-          padding-left: 0 !important;
-          padding-right: 0 !important;
-        }
-
-        .editorPageShell [class~="grid"][class~="grid-cols-12"] {
-          gap: 16px !important;
-        }
-
-        .editorPageShell [class~="grid"][class~="grid-cols-12"] > div:first-child > *:first-child {
-          display: none !important;
-        }
-
-        .editorPageShell [class~="col-span-8"] > *:first-child {
-          display: none !important;
-        }
-
-        .editorPageShell [class*="border"],
-        .editorPageShell [class*="rounded"],
-        .editorPageShell section,
-        .editorPageShell aside {
-          background-color: #2b2b2b !important;
-          border-color: #ffffff14 !important;
-          color: #ffffff !important;
-        }
-
-        .editorPageShell button,
-        .editorPageShell input,
-        .editorPageShell select,
-        .editorPageShell textarea,
-        .editorPageShell [role="button"],
-        .editorPageShell [class*="bg-white"],
-        .editorPageShell [class*="bg-gray"],
-        .editorPageShell [class*="bg-slate"] {
-          background-color: #191919 !important;
-          border-color: #ffffff14 !important;
-          color: #ffffff !important;
-        }
-
-        .editorPageShell p,
-        .editorPageShell span,
-        .editorPageShell h1,
-        .editorPageShell h2,
-        .editorPageShell h3,
-        .editorPageShell h4,
-        .editorPageShell label,
-        .editorPageShell div {
-          color: #ffffff !important;
-        }
-      `}</style>
     </div>
   );
 }
