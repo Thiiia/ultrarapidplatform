@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { FC, SVGProps } from "react";
+import type { DragEvent, FC, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useEditorStore } from "@/lib/editor/editor-store";
 import { chartToProject } from "@/lib/editor/chart-to-project";
@@ -62,6 +62,16 @@ type SelectedSongPayload = {
     signedUrl: string;
     contentType: string | null;
   } | null;
+};
+
+type EquationToken = {
+  id: string;
+  label: string;
+};
+
+type SavedEquation = {
+  id: string;
+  tokens: EquationToken[];
 };
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
@@ -134,6 +144,28 @@ const headerBackgroundColor = "#2B2B2B";
 const pageBackgroundColor = "#191919";
 const subtleBorderColor = "#FFFFFF14";
 const textColor = "#FFFFFF";
+
+const equationPalette = [
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "x",
+  "y",
+  "+",
+  "-",
+  "×",
+  "÷",
+  "=",
+  "(",
+  ")",
+];
+
+function makeId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 async function fileFromSignedUrl({
   signedUrl,
@@ -373,6 +405,194 @@ function EmptyEditorTopPanel() {
   );
 }
 
+function EquationCircle({
+  label,
+  draggable = true,
+}: {
+  label: string;
+  draggable?: boolean;
+}) {
+  return (
+    <div
+      draggable={draggable}
+      onDragStart={(event) => {
+        if (!draggable) return;
+
+        event.dataTransfer.setData(
+          "application/x-equation-token",
+          JSON.stringify({ label }),
+        );
+        event.dataTransfer.effectAllowed = "copy";
+      }}
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: "999px",
+        background: "#191919",
+        border: `1px solid ${subtleBorderColor}`,
+        color: textColor,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "Space Grotesk, sans-serif",
+        fontSize: 13,
+        fontWeight: 700,
+        lineHeight: 1,
+        cursor: draggable ? "grab" : "default",
+        userSelect: "none",
+        flexShrink: 0,
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
+function EquationBlocksPanel({
+  savedEquations,
+  onCreateEquation,
+}: {
+  savedEquations: SavedEquation[];
+  onCreateEquation: () => void;
+}) {
+  return (
+    <section
+      style={{
+        width: "12.5vw",
+        height: "calc(100vh - 166px)",
+        minHeight: "calc(100vh - 166px)",
+        background: "#2B2B2B",
+        color: textColor,
+        borderRight: `1px solid ${subtleBorderColor}`,
+        boxSizing: "border-box",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div
+        style={{
+          padding: "18px 12px",
+          borderBottom: `1px solid ${subtleBorderColor}`,
+          color: textColor,
+          fontFamily: "Space Grotesk, sans-serif",
+          fontSize: 13,
+          fontWeight: 700,
+          lineHeight: "19.5px",
+          letterSpacing: 0,
+          textAlign: "center",
+        }}
+      >
+        Equation Blocks
+      </div>
+
+      <div
+        style={{
+          padding: 12,
+          borderBottom: `1px solid ${subtleBorderColor}`,
+        }}
+      >
+        <button
+          type="button"
+          onClick={onCreateEquation}
+          style={{
+            width: "100%",
+            minHeight: 38,
+            background: "#CFFF04",
+            color: "#000000",
+            border: "1px solid #CFFF04",
+            borderRadius: 10,
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 12,
+            fontWeight: 700,
+            lineHeight: "18px",
+            cursor: "pointer",
+          }}
+        >
+          Create Equation
+        </button>
+      </div>
+
+      <div
+        style={{
+          padding: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+          overflowY: "auto",
+        }}
+      >
+        {savedEquations.map((equation) => (
+          <div
+            key={equation.id}
+            draggable
+            onDragStart={(event) => {
+              event.dataTransfer.setData(
+                "application/x-saved-equation",
+                JSON.stringify(equation),
+              );
+              event.dataTransfer.effectAllowed = "copy";
+            }}
+            style={{
+              width: "100%",
+              minHeight: 38,
+              background: "#191919",
+              border: `1px solid ${subtleBorderColor}`,
+              borderRadius: 10,
+              padding: "7px 8px",
+              boxSizing: "border-box",
+              color: textColor,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              overflow: "hidden",
+              cursor: "grab",
+            }}
+            title={equation.tokens.map((token) => token.label).join(" ")}
+          >
+            {equation.tokens.slice(0, 6).map((token) => (
+              <span
+                key={token.id}
+                style={{
+                  minWidth: 20,
+                  height: 20,
+                  borderRadius: "999px",
+                  background: "#2B2B2B",
+                  border: `1px solid ${subtleBorderColor}`,
+                  color: textColor,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: "Space Grotesk, sans-serif",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                {token.label}
+              </span>
+            ))}
+
+            {equation.tokens.length > 6 ? (
+              <span
+                style={{
+                  color: "#FFFFFF99",
+                  fontFamily: "Space Grotesk, sans-serif",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                +{equation.tokens.length - 6}
+              </span>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function WorkspacePanel({
   title,
   width,
@@ -420,7 +640,189 @@ function WorkspacePanel({
   );
 }
 
-function CenterEditorPanel() {
+function EquationBuilderArea({
+  isCreatingEquation,
+  draftTokens,
+  onAddToken,
+  onRemoveToken,
+  onSaveEquation,
+}: {
+  isCreatingEquation: boolean;
+  draftTokens: EquationToken[];
+  onAddToken: (label: string) => void;
+  onRemoveToken: (id: string) => void;
+  onSaveEquation: () => void;
+}) {
+  if (!isCreatingEquation) {
+    return (
+      <div
+        style={{
+          flex: 1,
+          background: "#191919",
+        }}
+      />
+    );
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+
+    const rawToken = event.dataTransfer.getData("application/x-equation-token");
+
+    if (!rawToken) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawToken) as { label?: string };
+
+      if (parsed.label) {
+        onAddToken(parsed.label);
+      }
+    } catch (error) {
+      console.error("Failed to drop equation token", error);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        flex: 1,
+        background: "#191919",
+        boxSizing: "border-box",
+        display: "grid",
+        gridTemplateRows: "auto 1fr auto",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          minHeight: 70,
+          borderBottom: `1px solid ${subtleBorderColor}`,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "0 18px",
+          boxSizing: "border-box",
+          overflowX: "auto",
+        }}
+      >
+        {equationPalette.map((label) => (
+          <EquationCircle key={label} label={label} />
+        ))}
+      </div>
+
+      <div
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+        }}
+        onDrop={handleDrop}
+        style={{
+          margin: 18,
+          border: `1px dashed ${subtleBorderColor}`,
+          borderRadius: 18,
+          background: "#191919",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxSizing: "border-box",
+          overflow: "hidden",
+        }}
+      >
+        {draftTokens.length > 0 ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 12,
+              flexWrap: "wrap",
+              padding: 24,
+            }}
+          >
+            {draftTokens.map((token) => (
+              <button
+                key={token.id}
+                type="button"
+                onClick={() => onRemoveToken(token.id)}
+                title="Click to remove"
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
+              >
+                <EquationCircle label={token.label} draggable={false} />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p
+            style={{
+              margin: 0,
+              color: "#FFFFFF80",
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 13,
+              fontWeight: 500,
+              lineHeight: "19.5px",
+              textAlign: "center",
+            }}
+          >
+            Drag circle blocks here to build an equation
+          </p>
+        )}
+      </div>
+
+      <div
+        style={{
+          minHeight: 70,
+          borderTop: `1px solid ${subtleBorderColor}`,
+          padding: "14px 18px",
+          boxSizing: "border-box",
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
+        }}
+      >
+        <button
+          type="button"
+          disabled={draftTokens.length === 0}
+          onClick={onSaveEquation}
+          style={{
+            minWidth: 150,
+            minHeight: 40,
+            background: draftTokens.length > 0 ? "#CFFF04" : "#2B2B2B",
+            color: draftTokens.length > 0 ? "#000000" : "#FFFFFF80",
+            border: `1px solid ${draftTokens.length > 0 ? "#CFFF04" : subtleBorderColor}`,
+            borderRadius: 10,
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: draftTokens.length > 0 ? "pointer" : "not-allowed",
+          }}
+        >
+          Save Equation
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CenterEditorPanel({
+  isCreatingEquation,
+  draftTokens,
+  onAddToken,
+  onRemoveToken,
+  onSaveEquation,
+}: {
+  isCreatingEquation: boolean;
+  draftTokens: EquationToken[];
+  onAddToken: (label: string) => void;
+  onRemoveToken: (id: string) => void;
+  onSaveEquation: () => void;
+}) {
   const subpanels = ["", "Lyrics", "Strings", "Bass", "Drums"];
 
   return (
@@ -435,35 +837,54 @@ function CenterEditorPanel() {
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "flex-end",
       }}
     >
-      {subpanels.map((title, index) => (
-        <div
-          key={`${title}-${index}`}
-          style={{
-            width: "100%",
-            height: "6vh",
-            minHeight: "6vh",
-            background: "#2B2B2B",
-            borderTop: index === 0 ? `1px solid ${subtleBorderColor}` : "none",
-            borderBottom: `1px solid ${subtleBorderColor}`,
-            boxSizing: "border-box",
-            display: "flex",
-            alignItems: "center",
-            padding: "0 18px",
-            color: textColor,
-            fontFamily: "Space Grotesk, sans-serif",
-            fontSize: 13,
-            fontWeight: 700,
-            lineHeight: "19.5px",
-            letterSpacing: 0,
-            textAlign: "left",
-          }}
-        >
-          {title}
-        </div>
-      ))}
+      <EquationBuilderArea
+        isCreatingEquation={isCreatingEquation}
+        draftTokens={draftTokens}
+        onAddToken={onAddToken}
+        onRemoveToken={onRemoveToken}
+        onSaveEquation={onSaveEquation}
+      />
+
+      <div
+        style={{
+          width: "100%",
+          height: "30vh",
+          minHeight: "30vh",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "flex-end",
+          flexShrink: 0,
+        }}
+      >
+        {subpanels.map((title, index) => (
+          <div
+            key={`${title}-${index}`}
+            style={{
+              width: "100%",
+              height: "6vh",
+              minHeight: "6vh",
+              background: "#191919",
+              borderTop: index === 0 ? `1px solid ${subtleBorderColor}` : "none",
+              borderBottom: `1px solid ${subtleBorderColor}`,
+              boxSizing: "border-box",
+              display: "flex",
+              alignItems: "center",
+              padding: "0 18px",
+              color: textColor,
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 13,
+              fontWeight: 700,
+              lineHeight: "19.5px",
+              letterSpacing: 0,
+              textAlign: "left",
+            }}
+          >
+            {title}
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
@@ -481,11 +902,46 @@ export default function LessonBuilderClient({
   const [uploadedChartName, setUploadedChartName] = useState("");
   const [pendingSongFile, setPendingSongFile] = useState<File | null>(null);
 
+  const [isCreatingEquation, setIsCreatingEquation] = useState(false);
+  const [draftTokens, setDraftTokens] = useState<EquationToken[]>([]);
+  const [savedEquations, setSavedEquations] = useState<SavedEquation[]>([]);
+
   /*
    * Editor display panels are intentionally hidden for the new layout.
    * The state above is kept so selected songs/charts can still hydrate
    * editor data through chartToProject and useEditorStore.
    */
+
+  function handleAddEquationToken(label: string) {
+    setDraftTokens((current) => [
+      ...current,
+      {
+        id: makeId("token"),
+        label,
+      },
+    ]);
+  }
+
+  function handleRemoveEquationToken(id: string) {
+    setDraftTokens((current) => current.filter((token) => token.id !== id));
+  }
+
+  function handleSaveEquation() {
+    if (draftTokens.length === 0) {
+      return;
+    }
+
+    setSavedEquations((current) => [
+      ...current,
+      {
+        id: makeId("equation"),
+        tokens: draftTokens,
+      },
+    ]);
+
+    setDraftTokens([]);
+    setIsCreatingEquation(false);
+  }
 
   useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_selected_song");
@@ -628,13 +1084,21 @@ export default function LessonBuilderClient({
           overflow: "hidden",
         }}
       >
-        <WorkspacePanel
-          title="Equation Blocks"
-          width="12.5vw"
-          background="#2B2B2B"
+        <EquationBlocksPanel
+          savedEquations={savedEquations}
+          onCreateEquation={() => {
+            setDraftTokens([]);
+            setIsCreatingEquation(true);
+          }}
         />
 
-        <CenterEditorPanel />
+        <CenterEditorPanel
+          isCreatingEquation={isCreatingEquation}
+          draftTokens={draftTokens}
+          onAddToken={handleAddEquationToken}
+          onRemoveToken={handleRemoveEquationToken}
+          onSaveEquation={handleSaveEquation}
+        />
 
         <WorkspacePanel
           title="Teacher Feedback"
