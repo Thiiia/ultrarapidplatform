@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { DragEvent, FC, SVGProps } from "react";
+import type { ChangeEvent, DragEvent, FC, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useEditorStore } from "@/lib/editor/editor-store";
 import { chartToProject } from "@/lib/editor/chart-to-project";
@@ -145,23 +145,7 @@ const pageBackgroundColor = "#191919";
 const subtleBorderColor = "#FFFFFF14";
 const textColor = "#FFFFFF";
 
-const equationPalette = [
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "x",
-  "y",
-  "+",
-  "-",
-  "×",
-  "÷",
-  "=",
-  "(",
-  ")",
-];
+const equationPalette = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X", "Y"];
 
 function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -408,9 +392,11 @@ function EmptyEditorTopPanel() {
 function EquationCircle({
   label,
   draggable = true,
+  size = 34,
 }: {
   label: string;
   draggable?: boolean;
+  size?: number;
 }) {
   return (
     <div
@@ -425,8 +411,8 @@ function EquationCircle({
         event.dataTransfer.effectAllowed = "copy";
       }}
       style={{
-        width: 34,
-        height: 34,
+        width: size,
+        height: size,
         borderRadius: "999px",
         background: "#191919",
         border: `1px solid ${subtleBorderColor}`,
@@ -435,7 +421,7 @@ function EquationCircle({
         alignItems: "center",
         justifyContent: "center",
         fontFamily: "Space Grotesk, sans-serif",
-        fontSize: 13,
+        fontSize: size >= 60 ? 22 : 13,
         fontWeight: 700,
         lineHeight: 1,
         cursor: draggable ? "grab" : "default",
@@ -444,6 +430,72 @@ function EquationCircle({
       }}
     >
       {label}
+    </div>
+  );
+}
+
+function CustomEquationCircle({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const draggable = value.trim().length > 0;
+
+  return (
+    <div
+      draggable={draggable}
+      onDragStart={(event) => {
+        const label = value.trim();
+
+        if (!label) {
+          event.preventDefault();
+          return;
+        }
+
+        event.dataTransfer.setData(
+          "application/x-equation-token",
+          JSON.stringify({ label }),
+        );
+        event.dataTransfer.effectAllowed = "copy";
+      }}
+      style={{
+        width: 68,
+        height: 68,
+        borderRadius: "999px",
+        background: "#191919",
+        border: `1px dashed ${subtleBorderColor}`,
+        color: textColor,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: draggable ? "grab" : "text",
+        flexShrink: 0,
+      }}
+      title="Click to type a custom number or symbol"
+    >
+      <input
+        value={value}
+        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+          onChange(event.target.value.slice(0, 3));
+        }}
+        placeholder=""
+        aria-label="Custom equation symbol"
+        style={{
+          width: 48,
+          height: 48,
+          border: "none",
+          outline: "none",
+          background: "transparent",
+          color: textColor,
+          textAlign: "center",
+          fontFamily: "Space Grotesk, sans-serif",
+          fontSize: 22,
+          fontWeight: 700,
+          lineHeight: 1,
+        }}
+      />
     </div>
   );
 }
@@ -544,6 +596,7 @@ function EquationBlocksPanel({
               color: textColor,
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 4,
               overflow: "hidden",
               cursor: "grab",
@@ -643,12 +696,16 @@ function WorkspacePanel({
 function EquationBuilderArea({
   isCreatingEquation,
   draftTokens,
+  customTokenLabel,
+  onCustomTokenLabelChange,
   onAddToken,
   onRemoveToken,
   onSaveEquation,
 }: {
   isCreatingEquation: boolean;
   draftTokens: EquationToken[];
+  customTokenLabel: string;
+  onCustomTokenLabelChange: (value: string) => void;
   onAddToken: (label: string) => void;
   onRemoveToken: (id: string) => void;
   onSaveEquation: () => void;
@@ -697,19 +754,24 @@ function EquationBuilderArea({
     >
       <div
         style={{
-          minHeight: 70,
+          minHeight: 100,
           borderBottom: `1px solid ${subtleBorderColor}`,
           display: "flex",
           alignItems: "center",
-          gap: 10,
+          gap: 14,
           padding: "0 18px",
           boxSizing: "border-box",
           overflowX: "auto",
         }}
       >
         {equationPalette.map((label) => (
-          <EquationCircle key={label} label={label} />
+          <EquationCircle key={label} label={label} size={68} />
         ))}
+
+        <CustomEquationCircle
+          value={customTokenLabel}
+          onChange={onCustomTokenLabelChange}
+        />
       </div>
 
       <div
@@ -736,7 +798,7 @@ function EquationBuilderArea({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 12,
+              gap: 16,
               flexWrap: "wrap",
               padding: 24,
             }}
@@ -754,7 +816,7 @@ function EquationBuilderArea({
                   cursor: "pointer",
                 }}
               >
-                <EquationCircle label={token.label} draggable={false} />
+                <EquationCircle label={token.label} draggable={false} size={68} />
               </button>
             ))}
           </div>
@@ -795,7 +857,9 @@ function EquationBuilderArea({
             minHeight: 40,
             background: draftTokens.length > 0 ? "#CFFF04" : "#2B2B2B",
             color: draftTokens.length > 0 ? "#000000" : "#FFFFFF80",
-            border: `1px solid ${draftTokens.length > 0 ? "#CFFF04" : subtleBorderColor}`,
+            border: `1px solid ${
+              draftTokens.length > 0 ? "#CFFF04" : subtleBorderColor
+            }`,
             borderRadius: 10,
             fontFamily: "Space Grotesk, sans-serif",
             fontSize: 13,
@@ -813,12 +877,16 @@ function EquationBuilderArea({
 function CenterEditorPanel({
   isCreatingEquation,
   draftTokens,
+  customTokenLabel,
+  onCustomTokenLabelChange,
   onAddToken,
   onRemoveToken,
   onSaveEquation,
 }: {
   isCreatingEquation: boolean;
   draftTokens: EquationToken[];
+  customTokenLabel: string;
+  onCustomTokenLabelChange: (value: string) => void;
   onAddToken: (label: string) => void;
   onRemoveToken: (id: string) => void;
   onSaveEquation: () => void;
@@ -842,6 +910,8 @@ function CenterEditorPanel({
       <EquationBuilderArea
         isCreatingEquation={isCreatingEquation}
         draftTokens={draftTokens}
+        customTokenLabel={customTokenLabel}
+        onCustomTokenLabelChange={onCustomTokenLabelChange}
         onAddToken={onAddToken}
         onRemoveToken={onRemoveToken}
         onSaveEquation={onSaveEquation}
@@ -905,6 +975,7 @@ export default function LessonBuilderClient({
   const [isCreatingEquation, setIsCreatingEquation] = useState(false);
   const [draftTokens, setDraftTokens] = useState<EquationToken[]>([]);
   const [savedEquations, setSavedEquations] = useState<SavedEquation[]>([]);
+  const [customTokenLabel, setCustomTokenLabel] = useState("");
 
   /*
    * Editor display panels are intentionally hidden for the new layout.
@@ -940,6 +1011,7 @@ export default function LessonBuilderClient({
     ]);
 
     setDraftTokens([]);
+    setCustomTokenLabel("");
     setIsCreatingEquation(false);
   }
 
@@ -1088,6 +1160,7 @@ export default function LessonBuilderClient({
           savedEquations={savedEquations}
           onCreateEquation={() => {
             setDraftTokens([]);
+            setCustomTokenLabel("");
             setIsCreatingEquation(true);
           }}
         />
@@ -1095,6 +1168,8 @@ export default function LessonBuilderClient({
         <CenterEditorPanel
           isCreatingEquation={isCreatingEquation}
           draftTokens={draftTokens}
+          customTokenLabel={customTokenLabel}
+          onCustomTokenLabelChange={setCustomTokenLabel}
           onAddToken={handleAddEquationToken}
           onRemoveToken={handleRemoveEquationToken}
           onSaveEquation={handleSaveEquation}
