@@ -145,7 +145,24 @@ const pageBackgroundColor = "#191919";
 const subtleBorderColor = "#FFFFFF14";
 const textColor = "#FFFFFF";
 
-const equationPalette = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "X", "Y"];
+const equationPalette = [
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "X",
+  "+",
+  "-",
+  "×",
+  "÷",
+  "=",
+];
 
 function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -434,6 +451,56 @@ function EquationCircle({
   );
 }
 
+function EquationDropSlot({
+  index,
+  onInsertToken,
+}: {
+  index: number;
+  onInsertToken: (index: number, label: string) => void;
+}) {
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+
+    const rawToken = event.dataTransfer.getData("application/x-equation-token");
+
+    if (!rawToken) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawToken) as { label?: string };
+
+      if (parsed.label) {
+        onInsertToken(index, parsed.label);
+      }
+    } catch (error) {
+      console.error("Failed to drop equation token", error);
+    }
+  }
+
+  return (
+    <div
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      }}
+      onDrop={handleDrop}
+      title="Drop here"
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: "999px",
+        background: "#191919",
+        border: `1px dashed ${subtleBorderColor}`,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
 function CustomEquationCircle({
   value,
   onChange,
@@ -610,7 +677,7 @@ function EquationBlocksPanel({
                   minWidth: 20,
                   height: 20,
                   borderRadius: "999px",
-                  background: "#2B2B2B",
+                  background: "#191919",
                   border: `1px solid ${subtleBorderColor}`,
                   color: textColor,
                   display: "inline-flex",
@@ -698,7 +765,7 @@ function EquationBuilderArea({
   draftTokens,
   customTokenLabel,
   onCustomTokenLabelChange,
-  onAddToken,
+  onInsertToken,
   onRemoveToken,
   onSaveEquation,
 }: {
@@ -706,7 +773,7 @@ function EquationBuilderArea({
   draftTokens: EquationToken[];
   customTokenLabel: string;
   onCustomTokenLabelChange: (value: string) => void;
-  onAddToken: (label: string) => void;
+  onInsertToken: (index: number, label: string) => void;
   onRemoveToken: (id: string) => void;
   onSaveEquation: () => void;
 }) {
@@ -719,26 +786,6 @@ function EquationBuilderArea({
         }}
       />
     );
-  }
-
-  function handleDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-
-    const rawToken = event.dataTransfer.getData("application/x-equation-token");
-
-    if (!rawToken) {
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(rawToken) as { label?: string };
-
-      if (parsed.label) {
-        onAddToken(parsed.label);
-      }
-    } catch (error) {
-      console.error("Failed to drop equation token", error);
-    }
   }
 
   return (
@@ -762,6 +809,7 @@ function EquationBuilderArea({
           padding: "0 18px",
           boxSizing: "border-box",
           overflowX: "auto",
+          fontFamily: "Space Grotesk, sans-serif",
         }}
       >
         {equationPalette.map((label) => (
@@ -775,11 +823,6 @@ function EquationBuilderArea({
       </div>
 
       <div
-        onDragOver={(event) => {
-          event.preventDefault();
-          event.dataTransfer.dropEffect = "copy";
-        }}
-        onDrop={handleDrop}
         style={{
           margin: 18,
           border: `1px dashed ${subtleBorderColor}`,
@@ -790,51 +833,57 @@ function EquationBuilderArea({
           justifyContent: "center",
           boxSizing: "border-box",
           overflow: "hidden",
+          fontFamily: "Space Grotesk, sans-serif",
         }}
       >
-        {draftTokens.length > 0 ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 16,
-              flexWrap: "wrap",
-              padding: 24,
-            }}
-          >
-            {draftTokens.map((token) => (
-              <button
-                key={token.id}
-                type="button"
-                onClick={() => onRemoveToken(token.id)}
-                title="Click to remove"
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  cursor: "pointer",
-                }}
-              >
-                <EquationCircle label={token.label} draggable={false} size={68} />
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p
-            style={{
-              margin: 0,
-              color: "#FFFFFF80",
-              fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 13,
-              fontWeight: 500,
-              lineHeight: "19.5px",
-              textAlign: "center",
-            }}
-          >
-            Drag circle blocks here to build an equation
-          </p>
-        )}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            padding: 24,
+          }}
+        >
+          {draftTokens.length === 0 ? (
+            <EquationDropSlot index={0} onInsertToken={onInsertToken} />
+          ) : (
+            <>
+              <EquationDropSlot index={0} onInsertToken={onInsertToken} />
+
+              {draftTokens.map((token, index) => (
+                <span
+                  key={token.id}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => onRemoveToken(token.id)}
+                    title="Click to remove"
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      padding: 0,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <EquationCircle label={token.label} draggable={false} size={68} />
+                  </button>
+
+                  <EquationDropSlot
+                    index={index + 1}
+                    onInsertToken={onInsertToken}
+                  />
+                </span>
+              ))}
+            </>
+          )}
+        </div>
       </div>
 
       <div
@@ -846,6 +895,7 @@ function EquationBuilderArea({
           display: "flex",
           justifyContent: "flex-end",
           alignItems: "center",
+          fontFamily: "Space Grotesk, sans-serif",
         }}
       >
         <button
@@ -879,7 +929,7 @@ function CenterEditorPanel({
   draftTokens,
   customTokenLabel,
   onCustomTokenLabelChange,
-  onAddToken,
+  onInsertToken,
   onRemoveToken,
   onSaveEquation,
 }: {
@@ -887,7 +937,7 @@ function CenterEditorPanel({
   draftTokens: EquationToken[];
   customTokenLabel: string;
   onCustomTokenLabelChange: (value: string) => void;
-  onAddToken: (label: string) => void;
+  onInsertToken: (index: number, label: string) => void;
   onRemoveToken: (id: string) => void;
   onSaveEquation: () => void;
 }) {
@@ -912,7 +962,7 @@ function CenterEditorPanel({
         draftTokens={draftTokens}
         customTokenLabel={customTokenLabel}
         onCustomTokenLabelChange={onCustomTokenLabelChange}
-        onAddToken={onAddToken}
+        onInsertToken={onInsertToken}
         onRemoveToken={onRemoveToken}
         onSaveEquation={onSaveEquation}
       />
@@ -935,7 +985,7 @@ function CenterEditorPanel({
               width: "100%",
               height: "6vh",
               minHeight: "6vh",
-              background: "#191919",
+              background: "#2B2B2B",
               borderTop: index === 0 ? `1px solid ${subtleBorderColor}` : "none",
               borderBottom: `1px solid ${subtleBorderColor}`,
               boxSizing: "border-box",
@@ -983,14 +1033,21 @@ export default function LessonBuilderClient({
    * editor data through chartToProject and useEditorStore.
    */
 
-  function handleAddEquationToken(label: string) {
-    setDraftTokens((current) => [
-      ...current,
-      {
+  function handleInsertEquationToken(index: number, label: string) {
+    setDraftTokens((current) => {
+      const nextToken = {
         id: makeId("token"),
         label,
-      },
-    ]);
+      };
+
+      const safeIndex = Math.max(0, Math.min(index, current.length));
+
+      return [
+        ...current.slice(0, safeIndex),
+        nextToken,
+        ...current.slice(safeIndex),
+      ];
+    });
   }
 
   function handleRemoveEquationToken(id: string) {
@@ -1170,7 +1227,7 @@ export default function LessonBuilderClient({
           draftTokens={draftTokens}
           customTokenLabel={customTokenLabel}
           onCustomTokenLabelChange={setCustomTokenLabel}
-          onAddToken={handleAddEquationToken}
+          onInsertToken={handleInsertEquationToken}
           onRemoveToken={handleRemoveEquationToken}
           onSaveEquation={handleSaveEquation}
         />
