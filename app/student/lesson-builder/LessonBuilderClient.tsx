@@ -432,18 +432,19 @@ function EquationCircle({
         height: size,
         borderRadius: "999px",
         background: "#191919",
-        border: `1px solid ${subtleBorderColor}`,
-        color: textColor,
+        border: "2px solid rgba(255, 255, 255, 0.72)",
+        color: "#FFFFFF",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        fontFamily: "Space Grotesk, sans-serif",
-        fontSize: size >= 60 ? 22 : 13,
+        fontFamily: "Grandstander, Space Grotesk, sans-serif",
+        fontSize: size >= 60 ? 32 : 16,
         fontWeight: 700,
         lineHeight: 1,
         cursor: draggable ? "grab" : "default",
         userSelect: "none",
         flexShrink: 0,
+        textShadow: "0 0 10px rgba(255, 255, 255, 0.25)",
       }}
     >
       {label}
@@ -491,7 +492,7 @@ function EquationDropSlot({
         height: 34,
         borderRadius: "999px",
         background: "#191919",
-        border: `1px dashed ${subtleBorderColor}`,
+        border: "2px dashed rgba(255, 255, 255, 0.58)",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
@@ -532,8 +533,8 @@ function CustomEquationCircle({
         height: 68,
         borderRadius: "999px",
         background: "#191919",
-        border: `1px dashed ${subtleBorderColor}`,
-        color: textColor,
+        border: "2px dashed rgba(255, 255, 255, 0.72)",
+        color: "#FFFFFF",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
@@ -555,12 +556,13 @@ function CustomEquationCircle({
           border: "none",
           outline: "none",
           background: "transparent",
-          color: textColor,
+          color: "#FFFFFF",
           textAlign: "center",
-          fontFamily: "Space Grotesk, sans-serif",
-          fontSize: 22,
+          fontFamily: "Grandstander, Space Grotesk, sans-serif",
+          fontSize: 32,
           fontWeight: 700,
           lineHeight: 1,
+          textShadow: "0 0 10px rgba(255, 255, 255, 0.25)",
         }}
       />
     </div>
@@ -674,19 +676,20 @@ function EquationBlocksPanel({
               <span
                 key={token.id}
                 style={{
-                  minWidth: 20,
-                  height: 20,
+                  minWidth: 22,
+                  height: 22,
                   borderRadius: "999px",
                   background: "#191919",
-                  border: `1px solid ${subtleBorderColor}`,
-                  color: textColor,
+                  border: "1.5px solid rgba(255, 255, 255, 0.72)",
+                  color: "#FFFFFF",
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontFamily: "Space Grotesk, sans-serif",
-                  fontSize: 10,
+                  fontFamily: "Grandstander, Space Grotesk, sans-serif",
+                  fontSize: 13,
                   fontWeight: 700,
                   flexShrink: 0,
+                  textShadow: "0 0 8px rgba(255, 255, 255, 0.25)",
                 }}
               >
                 {token.label}
