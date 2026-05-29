@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import LandingSoundButton from "./LandingSoundButton";
 // import { redirect } from "next/navigation";
 // import { getAuth0 } from "@/lib/auth0";
 
@@ -64,18 +65,6 @@ export default async function HomePage() {
           overflow: "hidden",
         }}
       >
-        {landingAudioUrl ? (
-          <audio
-            src={landingAudioUrl}
-            autoPlay
-            loop
-            preload="auto"
-            style={{
-              display: "none",
-            }}
-          />
-        ) : null}
-
         <div
           aria-hidden="true"
           style={{
@@ -145,6 +134,8 @@ export default async function HomePage() {
             zIndex: 2,
           }}
         >
+          <LandingSoundButton src={landingAudioUrl} />
+
           <img
             src="/Logo.svg"
             alt="UltraRapid"
