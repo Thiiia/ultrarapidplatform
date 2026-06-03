@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import type { TeacherDashboardData } from "@/lib/teacher-dashboard";
-import DemoTutorialOverlay from "@/components/demo/DemoTutorialOverlay";
+import DemoTutorialOverlay from "@/app/components/demo/DemoTutorialOverlay";
 import styles from "../student/student.module.css";
 
 import URIcon from "@/public/header_icons/URIcon.svg";
