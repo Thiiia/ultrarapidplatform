@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import type { TeacherDashboardData } from "@/lib/teacher-dashboard";
+import DemoTutorialOverlay from "@/components/demo/DemoTutorialOverlay";
 import styles from "../student/student.module.css";
 
 import URIcon from "@/public/header_icons/URIcon.svg";
@@ -21,6 +22,7 @@ type TeacherDashboardProps = {
   adminViewing?: boolean;
   viewedUserName?: string | null;
   viewedUserEmail?: string;
+  demoTutorial?: boolean;
 };
 
 function getTopTabs(navBasePath = "/teacher"): HeaderTab[] {
@@ -98,6 +100,7 @@ function HeaderTabButton({
   pathname: string;
 }) {
   const isHomeTab = tab.label === "Home";
+  const isClassesTab = tab.label === "Classes";
 
   const isActive =
     pathname === tab.href ||
@@ -107,6 +110,8 @@ function HeaderTabButton({
     <Link
       href={tab.href}
       aria-label={tab.label}
+      data-demo-target={isClassesTab ? "teacher-classes-tab" : undefined}
+      data-demo-allowed={isClassesTab ? "teacher-classes-tab" : undefined}
       className={`${styles.headerTabButton} ${
         isActive ? styles.headerTabButtonActive : ""
       }`}
@@ -124,6 +129,8 @@ function HeaderTabButton({
         fontSize: 13,
         fontWeight: 500,
         lineHeight: "19.5px",
+        position: isClassesTab ? "relative" : undefined,
+        zIndex: isClassesTab ? 9001 : undefined,
       }}
     >
       {tab.label}
@@ -368,6 +375,7 @@ export default function TeacherDashboard({
   adminViewing = false,
   viewedUserName,
   viewedUserEmail,
+  demoTutorial = false,
 }: TeacherDashboardProps) {
   const pathname = usePathname();
   const topTabs = getTopTabs(navBasePath);
@@ -513,6 +521,17 @@ export default function TeacherDashboard({
           />
         )}
       </DashboardSection>
+
+      {demoTutorial ? (
+        <DemoTutorialOverlay
+          active
+          targetSelector='[data-demo-target="teacher-classes-tab"]'
+          allowedSelector='[data-demo-allowed="teacher-classes-tab"]'
+          title="Teacher dashboard"
+          body="This is the dashboard for teacher Ash Phillips. Click Classes to see all of his students."
+          blockedMessage="Please click Classes to continue the demo."
+        />
+      ) : null}
     </div>
   );
 }

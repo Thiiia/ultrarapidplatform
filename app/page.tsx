@@ -177,33 +177,8 @@ export default async function HomePage() {
               transform: "translateX(-50%)",
               display: "flex",
               flexDirection: "column",
-              gap: 28,
             }}
           >
-            <Link
-              href="/demo/student"
-              style={{
-                width: "100%",
-                minHeight: 58,
-                background: "#CFFF04",
-                color: "#000000",
-                border: "1px solid #CFFF04",
-                borderRadius: 12,
-                padding: "16px 18px",
-                boxSizing: "border-box",
-                textDecoration: "none",
-                fontSize: 15,
-                fontWeight: 700,
-                lineHeight: "22px",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                textAlign: "center",
-              }}
-            >
-              Demo Student Dashboard
-            </Link>
-
             <Link
               href="/demo/teacher"
               style={{
@@ -225,7 +200,7 @@ export default async function HomePage() {
                 textAlign: "center",
               }}
             >
-              Demo Teacher Dashboard
+              UltraRapid Platform Demo
             </Link>
           </div>
         </section>

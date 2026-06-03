@@ -48,9 +48,10 @@ export default async function DemoTeacherPage() {
   }
 
   return (
-    <TeacherDashboard
-      dashboardData={dashboardData}
-      navBasePath="/demo/teacher"
-    />
+<TeacherDashboard
+  dashboardData={dashboardData}
+  navBasePath="/demo/teacher"
+  demoTutorial
+/>
   );
 }
