@@ -118,6 +118,8 @@ function HeaderBar({
   pathname: string;
   topTabs: HeaderTab[];
 }) {
+  const profileHref = `${topTabs[0].href}/profile`;
+
   return (
     <header
       style={{
@@ -207,7 +209,7 @@ function HeaderBar({
           }}
         >
           <Link
-            href="/teacher/profile"
+            href={profileHref}
             aria-label="Profile"
             className={styles.utilityButton}
             style={{
