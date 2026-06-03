@@ -1,10 +1,16 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getTeacherClasses } from "@/lib/teacher-classes";
+import { getTeacherClassStudents } from "@/lib/teacher-classes";
 import TeacherSubpageShell from "@/app/teacher/TeacherSubpageShell";
-import TeacherClassesClient from "@/app/teacher/classes/TeacherClassesClient";
+import TeacherClassStudentsClient from "@/app/teacher/classes/[classId]/TeacherClassStudentsClient";
 
 export const dynamic = "force-dynamic";
+
+type DemoTeacherClassStudentsPageProps = {
+  params: Promise<{
+    classId: string;
+  }>;
+};
 
 async function getDemoTeacherUserId() {
   const demoTeacherUserId = process.env.DEMO_TEACHER_USER_ID;
@@ -35,14 +41,25 @@ async function getDemoTeacherUserId() {
   return user.id;
 }
 
-export default async function DemoTeacherClassesPage() {
+export default async function DemoTeacherClassStudentsPage({
+  params,
+}: DemoTeacherClassStudentsPageProps) {
   const demoTeacherUserId = await getDemoTeacherUserId();
 
   if (!demoTeacherUserId) {
     notFound();
   }
 
-  const classes = await getTeacherClasses(demoTeacherUserId);
+  const { classId } = await params;
+
+  const classData = await getTeacherClassStudents({
+    teacherId: demoTeacherUserId,
+    classId,
+  });
+
+  if (!classData) {
+    notFound();
+  }
 
   return (
     <TeacherSubpageShell
@@ -50,7 +67,10 @@ export default async function DemoTeacherClassesPage() {
       cards={[]}
       navBasePath="/demo/teacher"
     >
-      <TeacherClassesClient classes={classes} navBasePath="/demo/teacher" />
+      <TeacherClassStudentsClient
+        className={classData.name}
+        students={classData.students}
+      />
     </TeacherSubpageShell>
   );
 }

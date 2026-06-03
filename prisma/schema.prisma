@@ -8,26 +8,30 @@ datasource db {
 }
 
 model School {
-  id        String   @id @default(cuid())
-  name      String
+  id      String  @id @default(cuid())
+  name    String
+  city    String?
+  country String? @default("England")
 
-  users     User[]
-  classes   Class[]
+  users   User[]
+  classes Class[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([name])
 }
 
 model User {
-  id        String     @id @default(cuid())
-  auth0Sub  String     @unique
-  email     String     @unique
-  name      String?
-  role      Role       @default(student)
-  status    UserStatus @default(active)
+  id       String     @id @default(cuid())
+  auth0Sub String     @unique
+  email    String     @unique
+  name     String?
+  role     Role       @default(student)
+  status   UserStatus @default(active)
 
-  schoolId  String?
-  school    School?    @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  schoolId String?
+  school   School?    @relation(fields: [schoolId], references: [id], onDelete: SetNull)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -36,7 +40,23 @@ model User {
   authoredMissions Mission[] @relation("MissionAuthor")
   progressRecords  Progress[]
 
-  classesTaught    Class[]        @relation("ClassTeacher")
+  /*
+   * Existing one-to-many teacher/class relationship.
+   * This can be treated as the primary teacher relationship.
+   */
+  classesTaught Class[] @relation("ClassTeacher")
+
+  /*
+   * New many-to-many teacher/class assignments.
+   * Use this when a teacher needs to be assigned to multiple classes,
+   * and when a class may eventually support multiple teachers.
+   */
+  teacherClassAssignments TeacherClass[]
+
+  /*
+   * Existing student/class assignments.
+   * This allows students to be assigned to multiple classes.
+   */
   classMemberships ClassStudent[]
 
   studentAssignments Assignment[] @relation("AssignmentStudent")
@@ -54,29 +74,57 @@ model Class {
   term        String?
   isArchived  Boolean @default(false)
 
-  schoolId    String?
-  school      School? @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  schoolId String?
+  school   School? @relation(fields: [schoolId], references: [id], onDelete: SetNull)
 
-  teacherId   String
-  teacher     User    @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  /*
+   * Existing primary teacher field.
+   * Keep this for compatibility with your current dashboard/data code.
+   */
+  teacherId String
+  teacher   User   @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
 
-  students    ClassStudent[]
+  /*
+   * New assigned-teachers relationship.
+   */
+  teacherAssignments TeacherClass[]
+
+  /*
+   * Existing assigned-students relationship.
+   */
+  students ClassStudent[]
+
   assignments Assignment[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([schoolId])
   @@index([teacherId])
   @@index([isArchived])
+  @@unique([schoolId, name])
+}
+
+model TeacherClass {
+  teacherId String
+  classId   String
+
+  teacher User  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([teacherId, classId])
+  @@index([teacherId])
+  @@index([classId])
 }
 
 model ClassStudent {
   classId   String
   studentId String
 
-  class     Class @relation(fields: [classId], references: [id], onDelete: Cascade)
-  student   User  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student User  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
@@ -103,30 +151,30 @@ model Mission {
 }
 
 model Assignment {
-  id          String           @id @default(cuid())
+  id          String  @id @default(cuid())
   title       String
   description String?
 
-  missionId   String
-  mission     Mission          @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  missionId String
+  mission   Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
-  classId     String?
-  class       Class?           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classId String?
+  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)
 
-  studentId   String?
-  student     User?            @relation("AssignmentStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  studentId String?
+  student   User?   @relation("AssignmentStudent", fields: [studentId], references: [id], onDelete: Cascade)
 
   createdByUserId String
-  createdBy       User         @relation("AssignmentCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdBy       User   @relation("AssignmentCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
 
-  status      AssignmentStatus @default(assigned)
+  status AssignmentStatus @default(assigned)
 
-  dueAt       DateTime?
+  dueAt          DateTime?
   availableFrom DateTime?
   availableUntil DateTime?
 
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([missionId])
   @@index([classId])
@@ -136,16 +184,16 @@ model Assignment {
 }
 
 model Progress {
-  id         String         @id @default(cuid())
-  userId     String
-  missionId  String
-  status     ProgressStatus @default(not_started)
-  score      Float          @default(0)
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  id        String         @id @default(cuid())
+  userId    String
+  missionId String
+  status    ProgressStatus @default(not_started)
+  score     Float          @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
-  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mission    Mission        @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
   @@unique([userId, missionId], name: "userId_missionId")
   @@index([userId])
@@ -154,24 +202,24 @@ model Progress {
 }
 
 model SongAsset {
-  id              String   @id @default(cuid())
+  id              String @id @default(cuid())
   title           String
   artist          String?
   durationSeconds Int?
 
-  songBucket      String   @default("Songs")
-  songPath        String
+  songBucket String @default("Songs")
+  songPath   String
 
-  chartBucket     String   @default("Charts")
-  chartPath       String
+  chartBucket String @default("Charts")
+  chartPath   String
 
-  sidecarBucket   String?  @default("SidecarJsons")
-  sidecarPath     String?
+  sidecarBucket String? @default("SidecarJsons")
+  sidecarPath   String?
 
-  isActive        Boolean  @default(true)
+  isActive Boolean @default(true)
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([isActive])
   @@index([title])
