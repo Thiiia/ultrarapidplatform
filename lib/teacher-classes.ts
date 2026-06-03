@@ -15,22 +15,13 @@ export type TeacherClassStudentListItem = {
   schoolName: string | null;
 };
 
-export async function getTeacherClasses(teacherId: string): Promise<TeacherClassListItem[]> {
+export async function getTeacherClasses(
+  teacherId: string,
+): Promise<TeacherClassListItem[]> {
   const classes = await prisma.class.findMany({
     where: {
       isArchived: false,
-      OR: [
-        {
-          teacherId,
-        },
-        {
-          teacherAssignments: {
-            some: {
-              teacherId,
-            },
-          },
-        },
-      ],
+      teacherId,
     },
     include: {
       students: true,
@@ -61,18 +52,7 @@ export async function getTeacherClassStudents({
     where: {
       id: classId,
       isArchived: false,
-      OR: [
-        {
-          teacherId,
-        },
-        {
-          teacherAssignments: {
-            some: {
-              teacherId,
-            },
-          },
-        },
-      ],
+      teacherId,
     },
     include: {
       students: {
@@ -83,11 +63,6 @@ export async function getTeacherClassStudents({
             },
           },
         },
-        orderBy: {
-          student: {
-            name: "asc",
-          },
-        },
       },
     },
   });
@@ -96,15 +71,19 @@ export async function getTeacherClassStudents({
     return null;
   }
 
-  return {
-    id: classItem.id,
-    name: classItem.name,
-    description: classItem.description,
-    students: classItem.students.map((membership) => ({
+  const students = classItem.students
+    .map((membership) => ({
       id: membership.student.id,
       name: membership.student.name ?? membership.student.email,
       email: membership.student.email,
       schoolName: membership.student.school?.name ?? null,
-    })),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return {
+    id: classItem.id,
+    name: classItem.name,
+    description: classItem.description,
+    students,
   };
 }
