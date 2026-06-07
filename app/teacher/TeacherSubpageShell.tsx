@@ -40,11 +40,6 @@ function getTopTabs(navBasePath = "/teacher"): HeaderTab[] {
       width: 120,
     },
     {
-      label: "Students",
-      href: `${navBasePath}/students`,
-      width: 120,
-    },
-    {
       label: "Lessons",
       href: `${navBasePath}/lessons`,
       width: 120,

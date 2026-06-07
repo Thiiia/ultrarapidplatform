@@ -1,15 +1,138 @@
 import { create } from "zustand"
-import { ChartProject, GameplayBlock } from "./types"
+import type { ChartProject, GameplayBlock } from "./types"
+
+export type GameplayMechanic = "spin" | "drag" | "hit"
+
+export type SidecarMechanicEvent = {
+  tick: number
+  type: "ALG_MECHANIC"
+  mechanic: GameplayMechanic
+  hits?: number
+}
+
+export type SidecarEquationStateEvent = {
+  tick: number
+  type: "ALG_EQUATION_STATE"
+  equationId: string
+  state: string
+}
+
+export type SidecarEvent = SidecarMechanicEvent | SidecarEquationStateEvent
+
+export type SidecarPayload = {
+  version: 1
+  events: SidecarEvent[]
+}
+
+export const emptySidecar: SidecarPayload = {
+  version: 1,
+  events: [],
+}
 
 function cloneProject(project: ChartProject): ChartProject {
   return JSON.parse(JSON.stringify(project))
 }
 
+function cloneSidecar(sidecar: SidecarPayload): SidecarPayload {
+  return JSON.parse(JSON.stringify(sidecar))
+}
+
+function normalizeTick(value: unknown) {
+  const tick = Number(value)
+
+  if (!Number.isFinite(tick)) {
+    return 0
+  }
+
+  return Math.max(0, Math.round(tick))
+}
+
+function normalizeMechanic(value: unknown): GameplayMechanic | null {
+  if (value === "spin" || value === "drag" || value === "hit") {
+    return value
+  }
+
+  return null
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+export function normalizeSidecar(value: unknown): SidecarPayload {
+  if (!isObject(value) || !Array.isArray(value.events)) {
+    return emptySidecar
+  }
+
+  const events = value.events.flatMap((event): SidecarEvent[] => {
+    if (!isObject(event)) {
+      return []
+    }
+
+    if (event.type === "ALG_MECHANIC") {
+      const mechanic = normalizeMechanic(event.mechanic)
+
+      if (!mechanic) {
+        return []
+      }
+
+      const hits = Number(event.hits)
+
+      return [
+        {
+          tick: normalizeTick(event.tick),
+          type: "ALG_MECHANIC",
+          mechanic,
+          ...(Number.isFinite(hits) && hits > 0
+            ? { hits: Math.max(1, Math.round(hits)) }
+            : {}),
+        },
+      ]
+    }
+
+    if (event.type === "ALG_EQUATION_STATE") {
+      const equationId = typeof event.equationId === "string" ? event.equationId : ""
+      const state = typeof event.state === "string" ? event.state : ""
+
+      if (!equationId.trim() || !state.trim()) {
+        return []
+      }
+
+      return [
+        {
+          tick: normalizeTick(event.tick),
+          type: "ALG_EQUATION_STATE",
+          equationId,
+          state,
+        },
+      ]
+    }
+
+    return []
+  })
+
+  return {
+    version: 1,
+    events: events.sort((left, right) => {
+      if (left.tick !== right.tick) {
+        return left.tick - right.tick
+      }
+
+      return left.type.localeCompare(right.type)
+    }),
+  }
+}
+
 type EditorStore = {
   project: ChartProject | null
+  sidecar: SidecarPayload
   selectedIds: string[]
   setProject: (project: ChartProject) => void
   updateProject: (updater: (project: ChartProject) => ChartProject) => void
+  setSidecar: (sidecar: SidecarPayload) => void
+  updateSidecar: (updater: (sidecar: SidecarPayload) => SidecarPayload) => void
+  addSidecarEvent: (event: SidecarEvent) => void
+  removeSidecarEventAtIndex: (index: number) => void
   setSelectedIds: (ids: string[]) => void
   addBlock: (block: GameplayBlock) => void
   updateBlock: (id: string, updater: (block: GameplayBlock) => GameplayBlock) => void
@@ -18,11 +141,34 @@ type EditorStore = {
 
 export const useEditorStore = create<EditorStore>((set) => ({
   project: null,
+  sidecar: emptySidecar,
   selectedIds: [],
   setProject: (project) => set({ project, selectedIds: [] }),
   updateProject: (updater) =>
     set((state) => ({
       project: state.project ? updater(cloneProject(state.project)) : null,
+    })),
+  setSidecar: (sidecar) =>
+    set({
+      sidecar: normalizeSidecar(sidecar),
+    }),
+  updateSidecar: (updater) =>
+    set((state) => ({
+      sidecar: normalizeSidecar(updater(cloneSidecar(state.sidecar))),
+    })),
+  addSidecarEvent: (event) =>
+    set((state) => ({
+      sidecar: normalizeSidecar({
+        version: 1,
+        events: [...state.sidecar.events, event],
+      }),
+    })),
+  removeSidecarEventAtIndex: (index) =>
+    set((state) => ({
+      sidecar: normalizeSidecar({
+        version: 1,
+        events: state.sidecar.events.filter((_, eventIndex) => eventIndex !== index),
+      }),
     })),
   setSelectedIds: (ids) => set({ selectedIds: ids }),
   addBlock: (block) =>

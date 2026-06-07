@@ -74,6 +74,29 @@ type SavedEquation = {
   tokens: EquationToken[];
 };
 
+type GameplayMechanic = "spin" | "drag" | "hit";
+
+type SidecarMechanicEvent = {
+  tick: number;
+  type: "ALG_MECHANIC";
+  mechanic: GameplayMechanic;
+  hits?: number;
+};
+
+type SidecarEquationStateEvent = {
+  tick: number;
+  type: "ALG_EQUATION_STATE";
+  equationId: string;
+  state: string;
+};
+
+type SidecarEvent = SidecarMechanicEvent | SidecarEquationStateEvent;
+
+type SidecarPayload = {
+  version: 1;
+  events: SidecarEvent[];
+};
+
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
 
 type HeaderTab = {
@@ -145,6 +168,13 @@ const pageBackgroundColor = "#191919";
 const subtleBorderColor = "#FFFFFF14";
 const textColor = "#FFFFFF";
 
+const emptySidecar: SidecarPayload = {
+  version: 1,
+  events: [],
+};
+
+const gameplayMechanics: GameplayMechanic[] = ["spin", "drag", "hit"];
+
 const equationPalette = [
   "0",
   "1",
@@ -166,6 +196,132 @@ const equationPalette = [
 
 function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeTick(value: unknown) {
+  const nextTick = Number(value);
+
+  if (!Number.isFinite(nextTick)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.round(nextTick));
+}
+
+function normalizeMechanic(value: unknown): GameplayMechanic | null {
+  if (value === "spin" || value === "drag" || value === "hit") {
+    return value;
+  }
+
+  return null;
+}
+
+function sortEvents(events: SidecarEvent[]) {
+  return [...events].sort((left, right) => {
+    if (left.tick !== right.tick) {
+      return left.tick - right.tick;
+    }
+
+    return left.type.localeCompare(right.type);
+  });
+}
+
+function normalizeSidecar(value: unknown): SidecarPayload {
+  if (!isObject(value) || !Array.isArray(value.events)) {
+    return emptySidecar;
+  }
+
+  const events = value.events.flatMap((event): SidecarEvent[] => {
+    if (!isObject(event)) {
+      return [];
+    }
+
+    if (event.type === "ALG_MECHANIC") {
+      const mechanic = normalizeMechanic(event.mechanic);
+
+      if (!mechanic) {
+        return [];
+      }
+
+      const hits = Number(event.hits);
+
+      return [
+        {
+          tick: normalizeTick(event.tick),
+          type: "ALG_MECHANIC",
+          mechanic,
+          ...(Number.isFinite(hits) && hits > 0
+            ? { hits: Math.max(1, Math.round(hits)) }
+            : {}),
+        },
+      ];
+    }
+
+    if (event.type === "ALG_EQUATION_STATE") {
+      const equationId = typeof event.equationId === "string" ? event.equationId : "";
+      const state = typeof event.state === "string" ? event.state : "";
+
+      if (!equationId.trim() || !state.trim()) {
+        return [];
+      }
+
+      return [
+        {
+          tick: normalizeTick(event.tick),
+          type: "ALG_EQUATION_STATE",
+          equationId,
+          state,
+        },
+      ];
+    }
+
+    return [];
+  });
+
+  return {
+    version: 1,
+    events: sortEvents(events),
+  };
+}
+
+function sidecarToJson(sidecar: SidecarPayload) {
+  return JSON.stringify(normalizeSidecar(sidecar), null, 2);
+}
+
+function tokensToEquationState(tokens: EquationToken[]) {
+  return tokens.map((token) => token.label).join(" ");
+}
+
+function getSidecarFileName(chartName?: string) {
+  const baseName = chartName?.trim()?.replace(/\.chart$/i, "") || "ultrarapid-chart";
+  return `${baseName}.json`;
+}
+
+async function readFileAsText(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(reader.error ?? new Error("Unable to read file"));
+    reader.readAsText(file);
+  });
+}
+
+function downloadTextFile(fileName: string, text: string, contentType: string) {
+  const blob = new Blob([text], { type: contentType });
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = href;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(href);
 }
 
 async function fileFromSignedUrl({
@@ -391,7 +547,31 @@ function HeaderBar({
   );
 }
 
-function EmptyEditorTopPanel() {
+function EditorTopPanel({
+  currentTick,
+  hits,
+  sidecarError,
+  chartName,
+  onCurrentTickChange,
+  onHitsChange,
+  onAddMechanic,
+  onChartUpload,
+  onSidecarUpload,
+  onDownloadChart,
+  onDownloadSidecar,
+}: {
+  currentTick: number;
+  hits: number;
+  sidecarError: string;
+  chartName: string;
+  onCurrentTickChange: (tick: number) => void;
+  onHitsChange: (hits: number) => void;
+  onAddMechanic: (mechanic: GameplayMechanic) => void;
+  onChartUpload: (file: File) => void;
+  onSidecarUpload: (file: File) => void;
+  onDownloadChart: () => void;
+  onDownloadSidecar: () => void;
+}) {
   return (
     <section
       aria-label="Lesson builder controls"
@@ -401,8 +581,167 @@ function EmptyEditorTopPanel() {
         background: headerBackgroundColor,
         borderBottom: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
+        color: textColor,
+        display: "flex",
+        alignItems: "center",
       }}
-    />
+    >
+      <div
+        style={{
+          width: pagePanelWidth,
+          margin: "0 auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          fontFamily: "Space Grotesk, sans-serif",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <label style={{ fontSize: 12, fontWeight: 700 }}>
+            Load .chart
+            <input
+              type="file"
+              accept=".chart,text/plain"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onChartUpload(file);
+                event.currentTarget.value = "";
+              }}
+              style={{ display: "block", marginTop: 6, maxWidth: 190 }}
+            />
+          </label>
+
+          <label style={{ fontSize: 12, fontWeight: 700 }}>
+            Load sidecar JSON
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onSidecarUpload(file);
+                event.currentTarget.value = "";
+              }}
+              style={{ display: "block", marginTop: 6, maxWidth: 190 }}
+            />
+          </label>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <label style={{ fontSize: 12, fontWeight: 700 }}>
+            Tick
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={currentTick}
+              onChange={(event) => onCurrentTickChange(normalizeTick(event.target.value))}
+              style={{
+                width: 100,
+                marginLeft: 8,
+                background: "#191919",
+                color: textColor,
+                border: `1px solid ${subtleBorderColor}`,
+                borderRadius: 8,
+                padding: "8px 10px",
+                fontWeight: 700,
+              }}
+            />
+          </label>
+
+          <label style={{ fontSize: 12, fontWeight: 700 }}>
+            Hits
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={hits}
+              onChange={(event) => onHitsChange(Math.max(1, normalizeTick(event.target.value)))}
+              style={{
+                width: 70,
+                marginLeft: 8,
+                background: "#191919",
+                color: textColor,
+                border: `1px solid ${subtleBorderColor}`,
+                borderRadius: 8,
+                padding: "8px 10px",
+                fontWeight: 700,
+              }}
+            />
+          </label>
+
+          {gameplayMechanics.map((mechanic) => (
+            <button
+              key={mechanic}
+              type="button"
+              onClick={() => onAddMechanic(mechanic)}
+              style={{
+                minHeight: 36,
+                background: "#CFFF04",
+                color: "#000000",
+                border: "1px solid #CFFF04",
+                borderRadius: 10,
+                padding: "0 14px",
+                fontFamily: "Space Grotesk, sans-serif",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+                textTransform: "capitalize",
+              }}
+            >
+              Add {mechanic}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            disabled={!chartName.trim()}
+            onClick={onDownloadChart}
+            style={{
+              minHeight: 36,
+              background: "#191919",
+              color: textColor,
+              border: `1px solid ${subtleBorderColor}`,
+              borderRadius: 10,
+              padding: "0 12px",
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: chartName.trim() ? "pointer" : "not-allowed",
+            }}
+          >
+            Download .chart
+          </button>
+
+          <button
+            type="button"
+            onClick={onDownloadSidecar}
+            style={{
+              minHeight: 36,
+              background: "#191919",
+              color: textColor,
+              border: `1px solid ${sidecarError ? "#FF7777" : subtleBorderColor}`,
+              borderRadius: 10,
+              padding: "0 12px",
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Download JSON
+          </button>
+
+          {sidecarError ? (
+            <span style={{ color: "#FF8C8C", fontSize: 11, fontWeight: 700, maxWidth: 220 }}>
+              {sidecarError}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -572,9 +911,11 @@ function CustomEquationCircle({
 function EquationBlocksPanel({
   savedEquations,
   onCreateEquation,
+  onAddEquationEvent,
 }: {
   savedEquations: SavedEquation[];
   onCreateEquation: () => void;
+  onAddEquationEvent: (equation: SavedEquation) => void;
 }) {
   return (
     <section
@@ -643,122 +984,109 @@ function EquationBlocksPanel({
           overflowY: "auto",
         }}
       >
-        {savedEquations.map((equation) => (
-          <div
-            key={equation.id}
-            draggable
-            onDragStart={(event) => {
-              event.dataTransfer.setData(
-                "application/x-saved-equation",
-                JSON.stringify(equation),
-              );
-              event.dataTransfer.effectAllowed = "copy";
-            }}
-            style={{
-              width: "100%",
-              minHeight: 38,
-              background: "#191919",
-              border: `1px solid ${subtleBorderColor}`,
-              borderRadius: 10,
-              padding: "7px 8px",
-              boxSizing: "border-box",
-              color: textColor,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 4,
-              overflow: "hidden",
-              cursor: "grab",
-            }}
-            title={equation.tokens.map((token) => token.label).join(" ")}
-          >
-            {equation.tokens.slice(0, 6).map((token) => (
-              <span
-                key={token.id}
+        {savedEquations.map((equation) => {
+          const equationState = tokensToEquationState(equation.tokens);
+
+          return (
+            <div
+              key={equation.id}
+              draggable
+              onDragStart={(event) => {
+                event.dataTransfer.setData(
+                  "application/x-saved-equation",
+                  JSON.stringify(equation),
+                );
+                event.dataTransfer.effectAllowed = "copy";
+              }}
+              style={{
+                width: "100%",
+                minHeight: 70,
+                background: "#191919",
+                border: `1px solid ${subtleBorderColor}`,
+                borderRadius: 10,
+                padding: "7px 8px",
+                boxSizing: "border-box",
+                color: textColor,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "stretch",
+                justifyContent: "center",
+                gap: 8,
+                overflow: "hidden",
+                cursor: "grab",
+              }}
+              title={equationState}
+            >
+              <div
                 style={{
-                  minWidth: 22,
-                  height: 22,
-                  borderRadius: "999px",
-                  background: "#191919",
-                  border: "1.5px solid rgba(255, 255, 255, 0.72)",
-                  color: "#FFFFFF",
-                  display: "inline-flex",
+                  display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontFamily: "Grandstander, Space Grotesk, sans-serif",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  flexShrink: 0,
-                  textShadow: "0 0 8px rgba(255, 255, 255, 0.25)",
+                  gap: 4,
+                  overflow: "hidden",
                 }}
               >
-                {token.label}
-              </span>
-            ))}
+                {equation.tokens.slice(0, 6).map((token) => (
+                  <span
+                    key={token.id}
+                    style={{
+                      minWidth: 22,
+                      height: 22,
+                      borderRadius: "999px",
+                      background: "#191919",
+                      border: "1.5px solid rgba(255, 255, 255, 0.72)",
+                      color: "#FFFFFF",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontFamily: "Grandstander, Space Grotesk, sans-serif",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                      textShadow: "0 0 8px rgba(255, 255, 255, 0.25)",
+                    }}
+                  >
+                    {token.label}
+                  </span>
+                ))}
 
-            {equation.tokens.length > 6 ? (
-              <span
+                {equation.tokens.length > 6 ? (
+                  <span
+                    style={{
+                      color: "#FFFFFF99",
+                      fontFamily: "Space Grotesk, sans-serif",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    +{equation.tokens.length - 6}
+                  </span>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onAddEquationEvent(equation)}
                 style={{
-                  color: "#FFFFFF99",
+                  width: "100%",
+                  minHeight: 28,
+                  background: "#2B2B2B",
+                  color: textColor,
+                  border: `1px solid ${subtleBorderColor}`,
+                  borderRadius: 8,
                   fontFamily: "Space Grotesk, sans-serif",
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 700,
-                  flexShrink: 0,
+                  cursor: "pointer",
                 }}
               >
-                +{equation.tokens.length - 6}
-              </span>
-            ) : null}
-          </div>
-        ))}
+                Add at tick
+              </button>
+            </div>
+          );
+        })}
       </div>
-    </section>
-  );
-}
-
-function WorkspacePanel({
-  title,
-  width,
-  background,
-  children,
-}: {
-  title?: string;
-  width: string;
-  background: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <section
-      style={{
-        width,
-        height: "calc(100vh - 166px)",
-        minHeight: "calc(100vh - 166px)",
-        background,
-        color: textColor,
-        borderRight: `1px solid ${subtleBorderColor}`,
-        boxSizing: "border-box",
-        overflow: "hidden",
-      }}
-    >
-      {title ? (
-        <div
-          style={{
-            padding: "18px 16px",
-            borderBottom: `1px solid ${subtleBorderColor}`,
-            color: textColor,
-            fontFamily: "Space Grotesk, sans-serif",
-            fontSize: 13,
-            fontWeight: 700,
-            lineHeight: "19.5px",
-            letterSpacing: 0,
-            textAlign: "left",
-          }}
-        >
-          {title}
-        </div>
-      ) : null}
-
-      {children}
     </section>
   );
 }
@@ -785,9 +1113,19 @@ function EquationBuilderArea({
       <div
         style={{
           flex: 1,
+          minHeight: 260,
           background: "#191919",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#FFFFFF80",
+          fontFamily: "Space Grotesk, sans-serif",
+          fontSize: 13,
+          fontWeight: 700,
         }}
-      />
+      >
+        Create an equation block, then add it to the current tick.
+      </div>
     );
   }
 
@@ -795,6 +1133,7 @@ function EquationBuilderArea({
     <div
       style={{
         flex: 1,
+        minHeight: 260,
         background: "#191919",
         boxSizing: "border-box",
         display: "grid",
@@ -928,6 +1267,7 @@ function EquationBuilderArea({
 }
 
 function CenterEditorPanel({
+  chartFile,
   isCreatingEquation,
   draftTokens,
   customTokenLabel,
@@ -935,7 +1275,10 @@ function CenterEditorPanel({
   onInsertToken,
   onRemoveToken,
   onSaveEquation,
+  onChartFileChange,
+  onDropEquationAtCurrentTick,
 }: {
+  chartFile: string;
   isCreatingEquation: boolean;
   draftTokens: EquationToken[];
   customTokenLabel: string;
@@ -943,13 +1286,33 @@ function CenterEditorPanel({
   onInsertToken: (index: number, label: string) => void;
   onRemoveToken: (id: string) => void;
   onSaveEquation: () => void;
+  onChartFileChange: (chartFile: string) => void;
+  onDropEquationAtCurrentTick: (equation: SavedEquation) => void;
 }) {
-  const subpanels = ["", "Lyrics", "Strings", "Bass", "Drums"];
+  function handleEquationDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+
+    const rawEquation = event.dataTransfer.getData("application/x-saved-equation");
+
+    if (!rawEquation) {
+      return;
+    }
+
+    try {
+      const equation = JSON.parse(rawEquation) as SavedEquation;
+
+      if (equation?.id && Array.isArray(equation.tokens)) {
+        onDropEquationAtCurrentTick(equation);
+      }
+    } catch (error) {
+      console.error("Failed to drop saved equation", error);
+    }
+  }
 
   return (
     <section
       style={{
-        width: "75vw",
+        width: "60vw",
         height: "calc(100vh - 166px)",
         minHeight: "calc(100vh - 166px)",
         background: "#191919",
@@ -971,42 +1334,221 @@ function CenterEditorPanel({
       />
 
       <div
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+        }}
+        onDrop={handleEquationDrop}
         style={{
           width: "100%",
-          height: "30vh",
-          minHeight: "30vh",
+          height: "34vh",
+          minHeight: "34vh",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "flex-end",
           flexShrink: 0,
+          borderTop: `1px solid ${subtleBorderColor}`,
         }}
       >
-        {subpanels.map((title, index) => (
+        <div
+          style={{
+            minHeight: 42,
+            background: "#2B2B2B",
+            borderBottom: `1px solid ${subtleBorderColor}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 18px",
+            boxSizing: "border-box",
+            color: textColor,
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 13,
+            fontWeight: 700,
+          }}
+        >
+          <span>.chart File</span>
+          <span style={{ color: "#FFFFFF80", fontSize: 11 }}>
+            Drop a saved equation here to create an equation event at the current tick.
+          </span>
+        </div>
+
+        <textarea
+          value={chartFile}
+          onChange={(event) => onChartFileChange(event.target.value)}
+          spellCheck={false}
+          placeholder="Paste or upload a .chart file here."
+          style={{
+            flex: 1,
+            width: "100%",
+            resize: "none",
+            border: "none",
+            outline: "none",
+            background: "#111111",
+            color: textColor,
+            padding: 16,
+            boxSizing: "border-box",
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontSize: 12,
+            lineHeight: 1.5,
+          }}
+        />
+      </div>
+    </section>
+  );
+}
+
+function SidecarPanel({
+  sidecar,
+  sidecarText,
+  sidecarError,
+  onSidecarTextChange,
+  onRemoveEvent,
+}: {
+  sidecar: SidecarPayload;
+  sidecarText: string;
+  sidecarError: string;
+  onSidecarTextChange: (value: string) => void;
+  onRemoveEvent: (index: number) => void;
+}) {
+  return (
+    <section
+      style={{
+        width: "27.5vw",
+        height: "calc(100vh - 166px)",
+        minHeight: "calc(100vh - 166px)",
+        background: "#2B2B2B",
+        color: textColor,
+        borderLeft: `1px solid ${subtleBorderColor}`,
+        boxSizing: "border-box",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div
+        style={{
+          padding: "18px 16px",
+          borderBottom: `1px solid ${subtleBorderColor}`,
+          color: textColor,
+          fontFamily: "Space Grotesk, sans-serif",
+          fontSize: 13,
+          fontWeight: 700,
+          lineHeight: "19.5px",
+          letterSpacing: 0,
+          textAlign: "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <span>Sidecar JSON</span>
+        <span style={{ color: sidecarError ? "#FF8C8C" : "#CFFF04", fontSize: 11 }}>
+          {sidecarError ? "Invalid" : `${sidecar.events.length} event${sidecar.events.length === 1 ? "" : "s"}`}
+        </span>
+      </div>
+
+      <div style={{ padding: 12, borderBottom: `1px solid ${subtleBorderColor}` }}>
+        <div
+          style={{
+            color: "#FFFFFFA8",
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 11,
+            lineHeight: 1.45,
+          }}
+        >
+          Expected format: <strong>version: 1</strong> plus an <strong>events</strong> array.
+          Mechanics use <strong>ALG_MECHANIC</strong>; equations use <strong>ALG_EQUATION_STATE</strong>.
+        </div>
+      </div>
+
+      <textarea
+        value={sidecarText}
+        onChange={(event) => onSidecarTextChange(event.target.value)}
+        spellCheck={false}
+        style={{
+          width: "100%",
+          minHeight: "46%",
+          resize: "none",
+          border: "none",
+          outline: "none",
+          background: "#111111",
+          color: textColor,
+          padding: 14,
+          boxSizing: "border-box",
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          fontSize: 12,
+          lineHeight: 1.45,
+        }}
+      />
+
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          borderTop: `1px solid ${subtleBorderColor}`,
+        }}
+      >
+        {sidecar.events.length === 0 ? (
           <div
-            key={`${title}-${index}`}
             style={{
-              width: "100%",
-              height: "6vh",
-              minHeight: "6vh",
-              background: "#2B2B2B",
-              borderTop: index === 0 ? `1px solid ${subtleBorderColor}` : "none",
-              borderBottom: `1px solid ${subtleBorderColor}`,
-              boxSizing: "border-box",
-              display: "flex",
-              alignItems: "center",
-              padding: "0 18px",
-              color: textColor,
+              color: "#FFFFFF70",
               fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 13,
-              fontWeight: 700,
-              lineHeight: "19.5px",
-              letterSpacing: 0,
-              textAlign: "left",
+              fontSize: 12,
+              textAlign: "center",
+              padding: "24px 8px",
             }}
           >
-            {title}
+            Add spin, drag, hit, or equation events to populate this file.
           </div>
-        ))}
+        ) : (
+          sidecar.events.map((event, index) => (
+            <div
+              key={`${event.tick}-${event.type}-${index}`}
+              style={{
+                background: "#191919",
+                border: `1px solid ${subtleBorderColor}`,
+                borderRadius: 10,
+                padding: 10,
+                fontFamily: "Space Grotesk, sans-serif",
+                fontSize: 12,
+                lineHeight: 1.45,
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <strong>{event.type}</strong>
+                <button
+                  type="button"
+                  onClick={() => onRemoveEvent(index)}
+                  style={{
+                    background: "transparent",
+                    color: "#FF8C8C",
+                    border: "none",
+                    cursor: "pointer",
+                    fontWeight: 800,
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+              <div>Tick: {event.tick}</div>
+              {event.type === "ALG_MECHANIC" ? (
+                <div>
+                  Mechanic: {event.mechanic}
+                  {event.hits ? `, hits: ${event.hits}` : ""}
+                </div>
+              ) : (
+                <div>
+                  Equation: {event.equationId}
+                  <br />
+                  State: {event.state}
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
     </section>
   );
@@ -1025,16 +1567,82 @@ export default function LessonBuilderClient({
   const [uploadedChartName, setUploadedChartName] = useState("");
   const [pendingSongFile, setPendingSongFile] = useState<File | null>(null);
 
+  const [currentTick, setCurrentTick] = useState(0);
+  const [hits, setHits] = useState(1);
+  const [sidecar, setSidecar] = useState<SidecarPayload>(emptySidecar);
+  const [sidecarText, setSidecarText] = useState(sidecarToJson(emptySidecar));
+  const [sidecarError, setSidecarError] = useState("");
+
   const [isCreatingEquation, setIsCreatingEquation] = useState(false);
   const [draftTokens, setDraftTokens] = useState<EquationToken[]>([]);
   const [savedEquations, setSavedEquations] = useState<SavedEquation[]>([]);
   const [customTokenLabel, setCustomTokenLabel] = useState("");
 
-  /*
-   * Editor display panels are intentionally hidden for the new layout.
-   * The state above is kept so selected songs/charts can still hydrate
-   * editor data through chartToProject and useEditorStore.
-   */
+  const editorPayload = useMemo<LessonBuilderPayload>(
+    () => ({
+      chartFile,
+      analysisMetadata: metadata,
+      rawResults: sidecar,
+    }),
+    [chartFile, metadata, sidecar],
+  );
+
+  function replaceSidecar(nextSidecar: SidecarPayload) {
+    const normalized = normalizeSidecar(nextSidecar);
+
+    setSidecar(normalized);
+    setSidecarText(sidecarToJson(normalized));
+    setSidecarError("");
+  }
+
+  function patchSidecarEvents(updater: (events: SidecarEvent[]) => SidecarEvent[]) {
+    setSidecar((current) => {
+      const nextSidecar = normalizeSidecar({
+        version: 1,
+        events: updater(current.events),
+      });
+
+      setSidecarText(sidecarToJson(nextSidecar));
+      setSidecarError("");
+      return nextSidecar;
+    });
+  }
+
+  function addSidecarEvent(event: SidecarEvent) {
+    patchSidecarEvents((events) => [...events, event]);
+  }
+
+  function addEquationEvent(equation: SavedEquation) {
+    addSidecarEvent({
+      tick: currentTick,
+      type: "ALG_EQUATION_STATE",
+      equationId: equation.id,
+      state: tokensToEquationState(equation.tokens),
+    });
+  }
+
+  function handleAddMechanic(mechanic: GameplayMechanic) {
+    addSidecarEvent({
+      tick: currentTick,
+      type: "ALG_MECHANIC",
+      mechanic,
+      hits,
+    });
+  }
+
+  function handleSidecarTextChange(value: string) {
+    setSidecarText(value);
+
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      const normalized = normalizeSidecar(parsed);
+
+      setSidecar(normalized);
+      setSidecarError("");
+    } catch (error) {
+      setSidecarError(error instanceof Error ? error.message : "Invalid JSON");
+    }
+  }
 
   function handleInsertEquationToken(index: number, label: string) {
     setDraftTokens((current) => {
@@ -1073,6 +1681,51 @@ export default function LessonBuilderClient({
     setDraftTokens([]);
     setCustomTokenLabel("");
     setIsCreatingEquation(false);
+  }
+
+  async function handleChartUpload(file: File) {
+    try {
+      const text = await readFileAsText(file);
+
+      setChartFile(text);
+      setUploadedChartName(file.name);
+      setMetadata((current) => ({
+        ...current,
+        uploadedFileName: file.name,
+      }));
+    } catch (error) {
+      console.error("Failed to load uploaded chart file", error);
+    }
+  }
+
+  async function handleSidecarUpload(file: File) {
+    try {
+      const text = await readFileAsText(file);
+      const parsed = JSON.parse(text) as unknown;
+
+      replaceSidecar(normalizeSidecar(parsed));
+    } catch (error) {
+      setSidecarText(await readFileAsText(file).catch(() => ""));
+      setSidecarError(error instanceof Error ? error.message : "Invalid JSON");
+    }
+  }
+
+  function handleDownloadChart() {
+    if (!uploadedChartName.trim()) {
+      return;
+    }
+
+    downloadTextFile(uploadedChartName, chartFile, "text/plain;charset=utf-8");
+  }
+
+  function handleDownloadSidecar() {
+    const normalized = normalizeSidecar(sidecar);
+
+    downloadTextFile(
+      getSidecarFileName(uploadedChartName),
+      sidecarToJson(normalized),
+      "application/json;charset=utf-8",
+    );
   }
 
   useEffect(() => {
@@ -1115,22 +1768,11 @@ export default function LessonBuilderClient({
         .then(([nextChartFile, sidecarJson]) => {
           const nextChartName =
             selectedSong.chart.path.split("/").pop() ?? "selected.chart";
+          const nextSidecar = normalizeSidecar(sidecarJson ?? emptySidecar);
 
           setChartFile(nextChartFile);
           setUploadedChartName(nextChartName);
-
-          const payload: LessonBuilderPayload = {
-            chartFile: nextChartFile,
-            analysisMetadata: {
-              songTitle: selectedSong.title ?? selectedSong.name,
-              artist: selectedSong.artist ?? undefined,
-              uploadedFileName: selectedSong.song.path,
-            },
-            rawResults: sidecarJson,
-          };
-
-          const project = chartToProject(payload);
-          setProject(project);
+          replaceSidecar(nextSidecar);
         })
         .catch((error) => {
           console.error("Failed to load selected chart or sidecar JSON", error);
@@ -1138,7 +1780,7 @@ export default function LessonBuilderClient({
     } catch (error) {
       console.error("Failed to parse selected song package", error);
     }
-  }, [setProject]);
+  }, []);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_editor_payload");
@@ -1157,27 +1799,26 @@ export default function LessonBuilderClient({
         if (payload.analysisMetadata?.uploadedFileName) {
           setUploadedChartName(payload.analysisMetadata.uploadedFileName);
         }
-
-        const project = chartToProject(payload);
-        setProject(project);
       }
 
+      replaceSidecar(normalizeSidecar(payload.rawResults ?? emptySidecar));
       sessionStorage.removeItem("ultrarapid_editor_payload");
     } catch (error) {
       console.error("Failed to hydrate lesson builder payload", error);
     }
-  }, [setProject]);
+  }, []);
 
   useEffect(() => {
     if (!pendingSongFile) return;
 
-    /*
-     * Song file is loaded and kept in state for editor logic.
-     * The previous visible EditorShell file input syncing is disabled
-     * while the editor display is being rebuilt.
-     */
     console.info("Selected song file loaded for editor:", pendingSongFile.name);
   }, [pendingSongFile]);
+
+  useEffect(() => {
+    if (!chartFile.trim()) return;
+
+    setProject(chartToProject(editorPayload));
+  }, [chartFile, editorPayload, setProject]);
 
   useEffect(() => {
     if (!chartFile.trim()) return;
@@ -1186,8 +1827,9 @@ export default function LessonBuilderClient({
       chartName: uploadedChartName,
       songName: uploadedSongName,
       metadata,
+      sidecar,
     });
-  }, [chartFile, uploadedChartName, uploadedSongName, metadata]);
+  }, [chartFile, uploadedChartName, uploadedSongName, metadata, sidecar]);
 
   return (
     <div
@@ -1203,7 +1845,19 @@ export default function LessonBuilderClient({
     >
       <HeaderBar pathname={pathname} topTabs={topTabs} />
 
-      <EmptyEditorTopPanel />
+      <EditorTopPanel
+        currentTick={currentTick}
+        hits={hits}
+        sidecarError={sidecarError}
+        chartName={uploadedChartName}
+        onCurrentTickChange={setCurrentTick}
+        onHitsChange={setHits}
+        onAddMechanic={handleAddMechanic}
+        onChartUpload={handleChartUpload}
+        onSidecarUpload={handleSidecarUpload}
+        onDownloadChart={handleDownloadChart}
+        onDownloadSidecar={handleDownloadSidecar}
+      />
 
       <main
         style={{
@@ -1223,9 +1877,11 @@ export default function LessonBuilderClient({
             setCustomTokenLabel("");
             setIsCreatingEquation(true);
           }}
+          onAddEquationEvent={addEquationEvent}
         />
 
         <CenterEditorPanel
+          chartFile={chartFile}
           isCreatingEquation={isCreatingEquation}
           draftTokens={draftTokens}
           customTokenLabel={customTokenLabel}
@@ -1233,12 +1889,18 @@ export default function LessonBuilderClient({
           onInsertToken={handleInsertEquationToken}
           onRemoveToken={handleRemoveEquationToken}
           onSaveEquation={handleSaveEquation}
+          onChartFileChange={setChartFile}
+          onDropEquationAtCurrentTick={addEquationEvent}
         />
 
-        <WorkspacePanel
-          title="Teacher Feedback"
-          width="12.5vw"
-          background="#2B2B2B"
+        <SidecarPanel
+          sidecar={sidecar}
+          sidecarText={sidecarText}
+          sidecarError={sidecarError}
+          onSidecarTextChange={handleSidecarTextChange}
+          onRemoveEvent={(index) => {
+            patchSidecarEvents((events) => events.filter((_, eventIndex) => eventIndex !== index));
+          }}
         />
       </main>
     </div>
