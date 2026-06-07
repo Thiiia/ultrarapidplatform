@@ -37,13 +37,6 @@ type HeaderTab = {
   width: number;
 };
 
-type UtilityTab = {
-  label: string;
-  href: string;
-  Icon: TabIcon;
-  width: number;
-};
-
 type SongChoiceClientProps = {
   songs: SongChoice[];
   navBasePath?: string;
@@ -89,10 +82,6 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   ];
 }
 
-const utilityTabs: UtilityTab[] = [
-  { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 134.45 },
-];
-
 const pagePanelWidth = "85vw";
 const pageBackgroundColor = "#191919";
 
@@ -120,6 +109,8 @@ function HeaderBar({
   pathname: string;
   topTabs: HeaderTab[];
 }) {
+  const profileHref = `${topTabs[0].href}/profile`;
+
   return (
     <header
       style={{
@@ -256,26 +247,23 @@ function HeaderBar({
             overflow: "visible",
           }}
         >
-          {utilityTabs.map((tab) => (
-            <Link
-              key={tab.label}
-              href={tab.href}
-              aria-label={tab.label}
-              className={styles.utilityButton}
+          <Link
+            href={profileHref}
+            aria-label="Profile"
+            className={styles.utilityButton}
+            style={{
+              width: 134.45,
+              height: 38,
+            }}
+          >
+            <ProfileIcon
               style={{
-                width: tab.width,
+                width: 134.45,
                 height: 38,
+                display: "block",
               }}
-            >
-              <tab.Icon
-                style={{
-                  width: tab.width,
-                  height: 38,
-                  display: "block",
-                }}
-              />
-            </Link>
-          ))}
+            />
+          </Link>
 
           <a
             href="/auth/logout"
@@ -369,7 +357,8 @@ export default function SongChoiceClient({
     return songs.filter((song) => {
       return (
         song.name.toLowerCase().includes(normalizedQuery) ||
-        song.path.toLowerCase().includes(normalizedQuery)
+        song.path.toLowerCase().includes(normalizedQuery) ||
+        song.artist?.toLowerCase().includes(normalizedQuery)
       );
     });
   }, [searchQuery, songs]);
@@ -410,46 +399,46 @@ export default function SongChoiceClient({
     };
   }, [songs, durationsById]);
 
-function handleContinue() {
-  if (!selectedSong) {
-    return;
+  function handleContinue() {
+    if (!selectedSong) {
+      return;
+    }
+
+    window.sessionStorage.setItem(
+      "ultrarapid_selected_song",
+      JSON.stringify({
+        id: selectedSong.id,
+        name: selectedSong.name,
+        title: selectedSong.title,
+        artist: selectedSong.artist,
+
+        song: {
+          bucket: selectedSong.song.bucket,
+          path: selectedSong.song.path,
+          signedUrl: selectedSong.song.signedUrl,
+          contentType: selectedSong.song.contentType,
+        },
+
+        chart: {
+          bucket: selectedSong.chart.bucket,
+          path: selectedSong.chart.path,
+          signedUrl: selectedSong.chart.signedUrl,
+          contentType: selectedSong.chart.contentType,
+        },
+
+        sidecar: selectedSong.sidecar
+          ? {
+              bucket: selectedSong.sidecar.bucket,
+              path: selectedSong.sidecar.path,
+              signedUrl: selectedSong.sidecar.signedUrl,
+              contentType: selectedSong.sidecar.contentType,
+            }
+          : null,
+      }),
+    );
+
+    router.push(`${navBasePath}/lesson-builder`);
   }
-
-  window.sessionStorage.setItem(
-    "ultrarapid_selected_song",
-    JSON.stringify({
-      id: selectedSong.id,
-      name: selectedSong.name,
-      title: selectedSong.title,
-      artist: selectedSong.artist,
-
-      song: {
-        bucket: selectedSong.song.bucket,
-        path: selectedSong.song.path,
-        signedUrl: selectedSong.song.signedUrl,
-        contentType: selectedSong.song.contentType,
-      },
-
-      chart: {
-        bucket: selectedSong.chart.bucket,
-        path: selectedSong.chart.path,
-        signedUrl: selectedSong.chart.signedUrl,
-        contentType: selectedSong.chart.contentType,
-      },
-
-      sidecar: selectedSong.sidecar
-        ? {
-            bucket: selectedSong.sidecar.bucket,
-            path: selectedSong.sidecar.path,
-            signedUrl: selectedSong.sidecar.signedUrl,
-            contentType: selectedSong.sidecar.contentType,
-          }
-        : null,
-    }),
-  );
-
-  router.push(`${navBasePath}/lesson-builder`);
-}
 
   return (
     <div
@@ -473,13 +462,15 @@ function handleContinue() {
           width: "100%",
           flex: 1,
           position: "relative",
+          paddingBottom: 71,
+          boxSizing: "border-box",
         }}
       >
         <section
           style={{
             width: pagePanelWidth,
             margin: "0 auto",
-            padding: "20px 0 96px 0",
+            padding: "20px 0 24px 0",
             boxSizing: "border-box",
             position: "relative",
           }}
@@ -554,13 +545,14 @@ function handleContinue() {
               maxHeight: "calc(100vh - 320px)",
               minHeight: 240,
               overflowY: "auto",
-              paddingBottom: 92,
+              paddingBottom: 24,
             }}
           >
             {filteredSongs.length > 0 ? (
               filteredSongs.map((song, index) => {
                 const isSelected = selectedSongId === song.id;
-                const duration = song.durationSeconds ?? durationsById[song.id] ?? null;
+                const duration =
+                  song.durationSeconds ?? durationsById[song.id] ?? null;
 
                 return (
                   <button
@@ -577,14 +569,12 @@ function handleContinue() {
                         : "#2B2B2B",
                       borderTop: "none",
                       borderRight: "none",
-                      borderBottom:
-                        isSelected
-                          ? "1px solid #CFFF04"
-                          : "1px solid rgba(255, 255, 255, 0.08)",
-                      borderLeft:
-                        isSelected
-                          ? "1px solid #CFFF04"
-                          : "1px solid transparent",
+                      borderBottom: isSelected
+                        ? "1px solid #CFFF04"
+                        : "1px solid rgba(255, 255, 255, 0.08)",
+                      borderLeft: isSelected
+                        ? "1px solid #CFFF04"
+                        : "1px solid transparent",
                       borderRadius:
                         filteredSongs.length === 1
                           ? 12
@@ -626,49 +616,49 @@ function handleContinue() {
                       />
                     </span>
 
-<div
-  style={{
-    minWidth: 0,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-start",
-    justifyContent: "center",
-    gap: 2,
-    textAlign: "left",
-  }}
->
-  <span
-    style={{
-      color: "#FFFFFF",
-      fontSize: 14,
-      fontWeight: 500,
-      lineHeight: "20px",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-      textAlign: "left",
-      width: "100%",
-    }}
-  >
-    {song.name}
-  </span>
+                    <div
+                      style={{
+                        minWidth: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                        justifyContent: "center",
+                        gap: 2,
+                        textAlign: "left",
+                      }}
+                    >
+                      <span
+                        style={{
+                          color: "#FFFFFF",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          lineHeight: "20px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          textAlign: "left",
+                          width: "100%",
+                        }}
+                      >
+                        {song.name}
+                      </span>
 
-  <span
-    style={{
-      color: "#D1D5DB",
-      fontSize: 11,
-      fontWeight: 500,
-      lineHeight: "15px",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-      textAlign: "left",
-      width: "100%",
-    }}
-  >
-    {song.artist ?? "Unknown artist"}
-  </span>
-</div>
+                      <span
+                        style={{
+                          color: "#D1D5DB",
+                          fontSize: 11,
+                          fontWeight: 500,
+                          lineHeight: "15px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          textAlign: "left",
+                          width: "100%",
+                        }}
+                      >
+                        {song.artist ?? "Unknown artist"}
+                      </span>
+                    </div>
 
                     <span
                       style={{
@@ -739,68 +729,71 @@ function handleContinue() {
               </div>
             )}
           </div>
-
-          <div
-            style={{
-              position: "sticky",
-              bottom: 0,
-              marginTop: -71,
-              height: 71,
-              minHeight: 71,
-              width: "100vw",
-              marginLeft: "calc((85vw - 100vw) / 2)",
-              marginRight: "calc((85vw - 100vw) / 2)",
-              background: "#2B2B2B",
-              borderTop: "1px solid #FFFFFF14",
-              borderRight: "none",
-              borderBottom: "none",
-              borderLeft: "none",
-              borderRadius: 0,
-              padding: "0 30px",
-              boxSizing: "border-box",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              gap: 12,
-              boxShadow: "0 -12px 32px rgba(0, 0, 0, 0.28)",
-              zIndex: 5,
-            }}
-          >
-            <button
-              type="button"
-              disabled={!selectedSong}
-              onClick={handleContinue}
-              aria-label="Continue to Lesson Builder"
-              style={{
-                width: 132,
-                height: 64,
-                border: "none",
-                borderRadius: 12,
-                background: "transparent",
-                padding: 0,
-                cursor: selectedSong ? "pointer" : "not-allowed",
-                opacity: selectedSong ? 1 : 0.4,
-                flexShrink: 0,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <img
-                src="/Next_Button.svg"
-                alt=""
-                aria-hidden="true"
-                style={{
-                  width: 132,
-                  height: 64,
-                  display: "block",
-                  objectFit: "contain",
-                }}
-              />
-            </button>
-          </div>
         </section>
       </main>
+
+      <div
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 71,
+          minHeight: 71,
+          width: "100vw",
+          background: "#2B2B2B",
+          borderTop: "1px solid #FFFFFF14",
+          borderRight: "none",
+          borderBottom: "none",
+          borderLeft: "none",
+          borderRadius: 0,
+          padding: "0 30px",
+          boxSizing: "border-box",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          gap: 12,
+          boxShadow: "0 -12px 32px rgba(0, 0, 0, 0.28)",
+          zIndex: 100,
+          pointerEvents: "auto",
+        }}
+      >
+        <button
+          type="button"
+          disabled={!selectedSong}
+          onClick={handleContinue}
+          aria-label="Continue to Lesson Builder"
+          style={{
+            width: 132,
+            height: 64,
+            border: "none",
+            borderRadius: 12,
+            background: "transparent",
+            padding: 0,
+            cursor: selectedSong ? "pointer" : "not-allowed",
+            opacity: selectedSong ? 1 : 0.4,
+            flexShrink: 0,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "auto",
+          }}
+        >
+          <img
+            src="/Next_Button.svg"
+            alt=""
+            aria-hidden="true"
+            style={{
+              width: 132,
+              height: 64,
+              display: "block",
+              objectFit: "contain",
+              pointerEvents: "none",
+              userSelect: "none",
+            }}
+          />
+        </button>
+      </div>
 
       <style jsx global>{`
         .songChoiceRow:hover {
