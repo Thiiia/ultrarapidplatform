@@ -1,44 +1,15 @@
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { getTeacherClasses } from "@/lib/teacher-classes";
 import TeacherSubpageShell from "@/app/teacher/TeacherSubpageShell";
 import TeacherClassesClient from "@/app/teacher/classes/TeacherClassesClient";
 
 export const dynamic = "force-dynamic";
 
-async function getDemoTeacherUserId() {
-  const demoTeacherUserId = process.env.DEMO_TEACHER_USER_ID;
-  const demoTeacherEmail = process.env.DEMO_TEACHER_EMAIL;
-
-  if (demoTeacherUserId) {
-    return demoTeacherUserId;
-  }
-
-  if (!demoTeacherEmail) {
-    return null;
-  }
-
-  const user = await prisma.user.findUnique({
-    where: {
-      email: demoTeacherEmail,
-    },
-    select: {
-      id: true,
-      role: true,
-    },
-  });
-
-  if (!user || user.role !== "teacher") {
-    return null;
-  }
-
-  return user.id;
-}
-
 export default async function DemoTeacherClassesPage() {
-  const demoTeacherUserId = await getDemoTeacherUserId();
+  const demoTeacherUserId = process.env.DEMO_TEACHER_USER_ID;
 
   if (!demoTeacherUserId) {
+    console.error("Missing DEMO_TEACHER_USER_ID environment variable.");
     notFound();
   }
 
