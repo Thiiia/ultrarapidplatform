@@ -6,7 +6,10 @@ import type { ChangeEvent, DragEvent, FC, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useEditorStore } from "@/lib/editor/editor-store";
 import { chartToProject } from "@/lib/editor/chart-to-project";
-import { projectToChart, projectToSidecarJson } from "@/lib/editor/project-to-chart";
+import {
+  projectToChart,
+  projectToSidecarJson,
+} from "@/lib/editor/project-to-chart";
 import styles from "../student.module.css";
 
 /* Header Icon imports */
@@ -49,10 +52,6 @@ type SelectedSongPayload = {
   name: string;
   title?: string;
   artist?: string | null;
-  /**
-   * Supabase SongAsset equation slot count.
-   * Accept both camelCase from app code and snake_case directly from Supabase rows.
-   */
   equationSlots?: number | null;
   equation_slots?: number | null;
   songAsset?: {
@@ -69,14 +68,18 @@ type EquationToken = {
   label: string;
 };
 
-type EquationTimelineSlot = {
+type SavedEquation = {
   id: string;
-  equationId: string;
-  tick: number;
   tokens: EquationToken[];
 };
 
-type GameplayMechanic = "spin" | "drag" | "hit";
+type GameplayMechanic = "hit" | "spin" | "drag";
+
+type TimelineEventSlot = {
+  id: string;
+  tick: number;
+  assignments: Record<GameplayMechanic, SavedEquation | null>;
+};
 
 type SidecarMechanicEvent = {
   tick: number;
@@ -123,6 +126,7 @@ type LessonBuilderClientProps = {
 const pagePanelWidth = "92vw";
 const headerBackgroundColor = "#2B2B2B";
 const pageBackgroundColor = "#191919";
+const panelBackgroundColor = "#2B2B2B";
 const subtleBorderColor = "#FFFFFF14";
 const textColor = "#FFFFFF";
 
@@ -131,7 +135,7 @@ const emptySidecar: SidecarPayload = {
   events: [],
 };
 
-const gameplayMechanics: GameplayMechanic[] = ["spin", "drag", "hit"];
+const gameplayMechanics: GameplayMechanic[] = ["hit", "spin", "drag"];
 
 const equationPalette = [
   "0",
@@ -153,7 +157,12 @@ const equationPalette = [
 ];
 
 const utilityTabs: UtilityTab[] = [
-  { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 134.45 },
+  {
+    label: "Profile",
+    href: "/student/profile",
+    Icon: ProfileIcon,
+    width: 134.45,
+  },
 ];
 
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
@@ -215,21 +224,11 @@ function normalizeTick(value: unknown) {
 }
 
 function normalizeMechanic(value: unknown): GameplayMechanic | null {
-  if (value === "spin" || value === "drag" || value === "hit") {
+  if (value === "hit" || value === "spin" || value === "drag") {
     return value;
   }
 
   return null;
-}
-
-function sortEvents(events: SidecarEvent[]) {
-  return [...events].sort((left, right) => {
-    if (left.tick !== right.tick) {
-      return left.tick - right.tick;
-    }
-
-    return left.type.localeCompare(right.type);
-  });
 }
 
 function normalizeSidecar(value: unknown): SidecarPayload {
@@ -264,7 +263,8 @@ function normalizeSidecar(value: unknown): SidecarPayload {
     }
 
     if (event.type === "ALG_EQUATION_STATE") {
-      const equationId = typeof event.equationId === "string" ? event.equationId : "";
+      const equationId =
+        typeof event.equationId === "string" ? event.equationId : "";
       const state = typeof event.state === "string" ? event.state : "";
 
       if (!equationId.trim()) {
@@ -290,6 +290,27 @@ function normalizeSidecar(value: unknown): SidecarPayload {
   };
 }
 
+function sortEvents(events: SidecarEvent[]) {
+  return [...events].sort((left, right) => {
+    if (left.tick !== right.tick) {
+      return left.tick - right.tick;
+    }
+
+    if (left.type !== right.type) {
+      return left.type.localeCompare(right.type);
+    }
+
+    const leftMechanic = left.type === "ALG_MECHANIC" ? left.mechanic : "";
+    const rightMechanic = right.type === "ALG_MECHANIC" ? right.mechanic : "";
+
+    return leftMechanic.localeCompare(rightMechanic);
+  });
+}
+
+function cloneTokens(tokens: EquationToken[]) {
+  return tokens.map((token) => ({ ...token, id: makeId("token") }));
+}
+
 function tokensToEquationState(tokens: EquationToken[]) {
   return tokens.map((token) => token.label).join(" ");
 }
@@ -305,16 +326,23 @@ function equationStateToTokens(state: string): EquationToken[] {
     }));
 }
 
-function slotsFromSidecar(sidecar: SidecarPayload): EquationTimelineSlot[] {
-  return sidecar.events
-    .filter((event): event is SidecarEquationStateEvent => event.type === "ALG_EQUATION_STATE")
-    .sort((left, right) => left.tick - right.tick)
-    .map((event, index) => ({
-      id: makeId(`slot-${index + 1}`),
-      equationId: event.equationId,
-      tick: event.tick,
-      tokens: equationStateToTokens(event.state),
-    }));
+function makeEmptyAssignments(): Record<
+  GameplayMechanic,
+  SavedEquation | null
+> {
+  return {
+    hit: null,
+    spin: null,
+    drag: null,
+  };
+}
+
+function makeTimelineEvent(index: number, tick = 0): TimelineEventSlot {
+  return {
+    id: makeId("event"),
+    tick,
+    assignments: makeEmptyAssignments(),
+  };
 }
 
 function normalizeEquationSlotCount(value: unknown): number | null {
@@ -327,7 +355,9 @@ function normalizeEquationSlotCount(value: unknown): number | null {
   return Math.round(count);
 }
 
-function getSelectedSongEquationSlotCount(selectedSong: SelectedSongPayload): number | null {
+function getSelectedSongEquationSlotCount(
+  selectedSong: SelectedSongPayload,
+): number | null {
   return (
     normalizeEquationSlotCount(selectedSong.equationSlots) ??
     normalizeEquationSlotCount(selectedSong.equation_slots) ??
@@ -336,77 +366,177 @@ function getSelectedSongEquationSlotCount(selectedSong: SelectedSongPayload): nu
   );
 }
 
-function resizeEquationSlots(
-  slots: EquationTimelineSlot[],
+function resizeTimelineEvents(
+  events: TimelineEventSlot[],
   targetCount: number,
-  defaultTick: number,
-): EquationTimelineSlot[] {
+): TimelineEventSlot[] {
   const safeCount = Math.max(0, Math.round(targetCount));
-  const nextSlots = slots.slice(0, safeCount);
+  const nextEvents = events.slice(0, safeCount);
 
-  for (let index = nextSlots.length; index < safeCount; index += 1) {
-    nextSlots.push({
-      id: makeId("slot"),
-      equationId: `eq_${String(index + 1).padStart(3, "0")}`,
-      tick: defaultTick,
-      tokens: [],
-    });
+  for (let index = nextEvents.length; index < safeCount; index += 1) {
+    nextEvents.push(makeTimelineEvent(index));
   }
 
-  return nextSlots.map((slot, index) => ({
-    ...slot,
-    equationId: slot.equationId.trim() || `eq_${String(index + 1).padStart(3, "0")}`,
-  }));
+  return nextEvents;
 }
 
-function sidecarFromSlots(
-  slots: EquationTimelineSlot[],
-  mechanicEvents: SidecarMechanicEvent[],
+function inferMechanicFromEquationId(
+  equationId: string,
+): GameplayMechanic | null {
+  const normalizedId = equationId.toLowerCase();
+
+  return (
+    gameplayMechanics.find((mechanic) => normalizedId.includes(mechanic)) ??
+    null
+  );
+}
+
+function savedEquationFromState(
+  equationId: string,
+  state: string,
+): SavedEquation {
+  return {
+    id: equationId || makeId("equation"),
+    tokens: equationStateToTokens(state),
+  };
+}
+
+function timelineEventsFromSidecar(
+  sidecar: SidecarPayload,
+  targetCount: number | null,
+): TimelineEventSlot[] {
+  const normalized = normalizeSidecar(sidecar);
+  const equationEvents = normalized.events.filter(
+    (event): event is SidecarEquationStateEvent =>
+      event.type === "ALG_EQUATION_STATE",
+  );
+  const mechanicEvents = normalized.events.filter(
+    (event): event is SidecarMechanicEvent => event.type === "ALG_MECHANIC",
+  );
+
+  const ticks = Array.from(
+    new Set([
+      ...mechanicEvents.map((event) => event.tick),
+      ...equationEvents.map((event) => event.tick),
+    ]),
+  ).sort((left, right) => left - right);
+
+  const slots = ticks.map((tick, index) => {
+    const slot = makeTimelineEvent(index, tick);
+    const equationsAtTick = equationEvents.filter(
+      (event) => event.tick === tick,
+    );
+    const mechanicsAtTick = mechanicEvents.filter(
+      (event) => event.tick === tick,
+    );
+    const usedEquationIds = new Set<string>();
+
+    mechanicsAtTick.forEach((mechanicEvent) => {
+      const matchingEquation =
+        equationsAtTick.find(
+          (equationEvent) =>
+            !usedEquationIds.has(equationEvent.equationId) &&
+            inferMechanicFromEquationId(equationEvent.equationId) ===
+              mechanicEvent.mechanic,
+        ) ??
+        equationsAtTick.find(
+          (equationEvent) => !usedEquationIds.has(equationEvent.equationId),
+        );
+
+      if (matchingEquation) {
+        usedEquationIds.add(matchingEquation.equationId);
+        slot.assignments[mechanicEvent.mechanic] = savedEquationFromState(
+          matchingEquation.equationId,
+          matchingEquation.state,
+        );
+      }
+    });
+
+    equationsAtTick.forEach((equationEvent, equationIndex) => {
+      if (usedEquationIds.has(equationEvent.equationId)) {
+        return;
+      }
+
+      const inferredMechanic = inferMechanicFromEquationId(
+        equationEvent.equationId,
+      );
+      const fallbackMechanic =
+        gameplayMechanics[equationIndex % gameplayMechanics.length];
+      const mechanic = inferredMechanic ?? fallbackMechanic;
+
+      slot.assignments[mechanic] = savedEquationFromState(
+        equationEvent.equationId,
+        equationEvent.state,
+      );
+      usedEquationIds.add(equationEvent.equationId);
+    });
+
+    return slot;
+  });
+
+  if (typeof targetCount === "number") {
+    return resizeTimelineEvents(slots, targetCount);
+  }
+
+  return slots;
+}
+
+function savedEquationsFromTimelineEvents(events: TimelineEventSlot[]) {
+  const byState = new Map<string, SavedEquation>();
+
+  events.forEach((event) => {
+    gameplayMechanics.forEach((mechanic) => {
+      const equation = event.assignments[mechanic];
+      const state = equation ? tokensToEquationState(equation.tokens) : "";
+
+      if (!equation || !state || byState.has(state)) {
+        return;
+      }
+
+      byState.set(state, {
+        id: equation.id || makeId("equation"),
+        tokens: cloneTokens(equation.tokens),
+      });
+    });
+  });
+
+  return Array.from(byState.values());
+}
+
+function sidecarFromTimelineEvents(
+  events: TimelineEventSlot[],
 ): SidecarPayload {
-  return normalizeSidecar({
+  const sidecarEvents = events.flatMap((event, eventIndex): SidecarEvent[] => {
+    return gameplayMechanics.flatMap((mechanic): SidecarEvent[] => {
+      const equation = event.assignments[mechanic];
+
+      if (!equation || equation.tokens.length === 0) {
+        return [];
+      }
+
+      const equationId = `eq_${String(eventIndex + 1).padStart(3, "0")}_${mechanic}`;
+
+      return [
+        {
+          tick: event.tick,
+          type: "ALG_MECHANIC",
+          mechanic,
+          hits: mechanic === "hit" ? 1 : undefined,
+        },
+        {
+          tick: event.tick,
+          type: "ALG_EQUATION_STATE",
+          equationId,
+          state: tokensToEquationState(equation.tokens),
+        },
+      ];
+    });
+  });
+
+  return {
     version: 1,
-    events: [
-      ...mechanicEvents,
-      ...slots.map((slot): SidecarEquationStateEvent => ({
-        tick: slot.tick,
-        type: "ALG_EQUATION_STATE",
-        equationId: slot.equationId,
-        state: tokensToEquationState(slot.tokens),
-      })),
-    ],
-  });
-}
-
-function getChartFileName(chartName?: string) {
-  return chartName?.trim() || "ultrarapid-chart.chart";
-}
-
-function getSidecarFileName(chartName?: string) {
-  const baseName = chartName?.trim()?.replace(/\.chart$/i, "") || "ultrarapid-chart";
-  return `${baseName}.json`;
-}
-
-async function readFileAsText(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-    reader.onerror = () => reject(reader.error ?? new Error("Unable to read file"));
-    reader.readAsText(file);
-  });
-}
-
-function downloadTextFile(fileName: string, text: string, contentType: string) {
-  const blob = new Blob([text], { type: contentType });
-  const href = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-
-  link.href = href;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(href);
+    events: sortEvents(sidecarEvents),
+  };
 }
 
 async function fileFromSignedUrl({
@@ -532,12 +662,16 @@ function HeaderBar({
               const isHomeTab = tab.label === "Home";
               const isPlayTab = tab.label === "Play";
               const isLessonBuilderTab = tab.label === "Lesson Builder";
-              const lessonBuilderPath = cleanTabHref.replace("/song-choice", "/lesson-builder");
+              const lessonBuilderPath = cleanTabHref.replace(
+                "/song-choice",
+                "/lesson-builder",
+              );
 
               const isActive =
                 pathname === cleanTabHref ||
                 (isLessonBuilderTab &&
-                  (pathname === lessonBuilderPath || pathname.startsWith(`${lessonBuilderPath}/`))) ||
+                  (pathname === lessonBuilderPath ||
+                    pathname.startsWith(`${lessonBuilderPath}/`))) ||
                 (!isHomeTab &&
                   !isPlayTab &&
                   !isLessonBuilderTab &&
@@ -560,7 +694,9 @@ function HeaderBar({
                     justifyContent: "center",
                   }}
                 >
-                  <Icon style={{ width: tab.width, height: 45.5, display: "block" }} />
+                  <Icon
+                    style={{ width: tab.width, height: 45.5, display: "block" }}
+                  />
                 </Link>
               );
             })}
@@ -585,7 +721,9 @@ function HeaderBar({
               className={styles.utilityButton}
               style={{ width: tab.width, height: 38 }}
             >
-              <tab.Icon style={{ width: tab.width, height: 38, display: "block" }} />
+              <tab.Icon
+                style={{ width: tab.width, height: 38, display: "block" }}
+              />
             </Link>
           ))}
 
@@ -644,7 +782,7 @@ function EditorActionBar({
           style={{
             minWidth: 96,
             height: 42,
-            background: "#2B2B2B",
+            background: panelBackgroundColor,
             color: "#FFFFFF",
             border: `1px solid ${subtleBorderColor}`,
             borderRadius: 12,
@@ -694,7 +832,6 @@ function EditorActionBar({
             justifyContent: "center",
           }}
         >
-          {/* Replace /Save_Button.svg with the attached SVG asset path if its filename differs. */}
           <img
             src="/Save_Button.svg"
             alt=""
@@ -727,7 +864,10 @@ function EquationCircle({
       onDragStart={(event) => {
         if (!draggable) return;
 
-        event.dataTransfer.setData("application/x-equation-token", JSON.stringify({ label }));
+        event.dataTransfer.setData(
+          "application/x-equation-token",
+          JSON.stringify({ label }),
+        );
         event.dataTransfer.effectAllowed = "copy";
       }}
       style={{
@@ -763,7 +903,11 @@ function EquationPreview({
   circleSize?: number;
 }) {
   if (tokens.length === 0) {
-    return <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>Empty equation</span>;
+    return (
+      <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>
+        Empty
+      </span>
+    );
   }
 
   return (
@@ -777,7 +921,12 @@ function EquationPreview({
       }}
     >
       {tokens.map((token) => (
-        <EquationCircle key={token.id} label={token.label} draggable={false} size={circleSize} />
+        <EquationCircle
+          key={token.id}
+          label={token.label}
+          draggable={false}
+          size={circleSize}
+        />
       ))}
     </div>
   );
@@ -853,7 +1002,10 @@ function CustomEquationCircle({
           return;
         }
 
-        event.dataTransfer.setData("application/x-equation-token", JSON.stringify({ label }));
+        event.dataTransfer.setData(
+          "application/x-equation-token",
+          JSON.stringify({ label }),
+        );
         event.dataTransfer.effectAllowed = "copy";
       }}
       style={{
@@ -898,19 +1050,19 @@ function CustomEquationCircle({
 }
 
 function EquationBuilderArea({
-  activeSlot,
+  draftTokens,
   customTokenLabel,
   onCustomTokenLabelChange,
   onInsertToken,
   onRemoveToken,
-  onClearSlot,
+  onSaveEquation,
 }: {
-  activeSlot: EquationTimelineSlot | null;
+  draftTokens: EquationToken[];
   customTokenLabel: string;
   onCustomTokenLabelChange: (value: string) => void;
   onInsertToken: (index: number, label: string) => void;
   onRemoveToken: (id: string) => void;
-  onClearSlot: () => void;
+  onSaveEquation: () => void;
 }) {
   return (
     <div
@@ -938,10 +1090,13 @@ function EquationBuilderArea({
         }}
       >
         {equationPalette.map((label) => (
-          <EquationCircle key={label} label={label} size={68} draggable={Boolean(activeSlot)} />
+          <EquationCircle key={label} label={label} size={68} />
         ))}
 
-        <CustomEquationCircle value={customTokenLabel} onChange={onCustomTokenLabelChange} />
+        <CustomEquationCircle
+          value={customTokenLabel}
+          onChange={onCustomTokenLabelChange}
+        />
       </div>
 
       <div
@@ -958,58 +1113,59 @@ function EquationBuilderArea({
           fontFamily: "Space Grotesk, sans-serif",
         }}
       >
-        {!activeSlot ? (
-          <div style={{ color: "#FFFFFF80", fontWeight: 700 }}>
-            Create or select an equation slot to start editing.
-          </div>
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 12,
-              flexWrap: "wrap",
-              padding: 24,
-              minHeight: 120,
-            }}
-          >
-            {activeSlot.tokens.length === 0 ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            padding: 24,
+            minHeight: 120,
+          }}
+        >
+          {draftTokens.length === 0 ? (
+            <EquationDropSlot index={0} onInsertToken={onInsertToken} />
+          ) : (
+            <>
               <EquationDropSlot index={0} onInsertToken={onInsertToken} />
-            ) : (
-              <>
-                <EquationDropSlot index={0} onInsertToken={onInsertToken} />
 
-                {activeSlot.tokens.map((token, index) => (
-                  <span
-                    key={token.id}
+              {draftTokens.map((token, index) => (
+                <span
+                  key={token.id}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => onRemoveToken(token.id)}
+                    title="Click to remove"
                     style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 12,
+                      border: "none",
+                      background: "transparent",
+                      padding: 0,
+                      cursor: "pointer",
                     }}
                   >
-                    <button
-                      type="button"
-                      onClick={() => onRemoveToken(token.id)}
-                      title="Click to remove"
-                      style={{
-                        border: "none",
-                        background: "transparent",
-                        padding: 0,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <EquationCircle label={token.label} draggable={false} size={68} />
-                    </button>
+                    <EquationCircle
+                      label={token.label}
+                      draggable={false}
+                      size={68}
+                    />
+                  </button>
 
-                    <EquationDropSlot index={index + 1} onInsertToken={onInsertToken} />
-                  </span>
-                ))}
-              </>
-            )}
-          </div>
-        )}
+                  <EquationDropSlot
+                    index={index + 1}
+                    onInsertToken={onInsertToken}
+                  />
+                </span>
+              ))}
+            </>
+          )}
+        </div>
       </div>
 
       <div
@@ -1019,91 +1175,216 @@ function EquationBuilderArea({
           padding: "14px 18px",
           boxSizing: "border-box",
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent: "flex-end",
           alignItems: "center",
-          gap: 16,
           fontFamily: "Space Grotesk, sans-serif",
         }}
       >
-        <div style={{ color: "#FFFFFF99", fontSize: 12, fontWeight: 700 }}>
-          {activeSlot
-            ? `Editing ${activeSlot.equationId} at tick ${activeSlot.tick}`
-            : "No active equation slot"}
-        </div>
-
         <button
           type="button"
-          disabled={!activeSlot || activeSlot.tokens.length === 0}
-          onClick={onClearSlot}
+          disabled={draftTokens.length === 0}
+          onClick={onSaveEquation}
           style={{
-            minWidth: 130,
+            minWidth: 150,
             minHeight: 40,
-            background: "#2B2B2B",
-            color: activeSlot && activeSlot.tokens.length > 0 ? textColor : "#FFFFFF80",
-            border: `1px solid ${subtleBorderColor}`,
+            background: draftTokens.length > 0 ? "#CFFF04" : "#2B2B2B",
+            color: draftTokens.length > 0 ? "#000000" : "#FFFFFF80",
+            border: `1px solid ${draftTokens.length > 0 ? "#CFFF04" : subtleBorderColor}`,
             borderRadius: 10,
             fontFamily: "Space Grotesk, sans-serif",
             fontSize: 13,
             fontWeight: 700,
-            cursor: activeSlot && activeSlot.tokens.length > 0 ? "pointer" : "not-allowed",
+            cursor: draftTokens.length > 0 ? "pointer" : "not-allowed",
           }}
         >
-          Clear slot
+          Save Equation
         </button>
       </div>
     </div>
   );
 }
 
-function EquationTimeline({
-  slots,
-  activeSlotId,
-  onSelectSlot,
+function EventMechanicColumn({
+  mechanic,
+  equation,
+  onDropEquation,
 }: {
-  slots: EquationTimelineSlot[];
-  activeSlotId: string | null;
-  onSelectSlot: (slotId: string) => void;
+  mechanic: GameplayMechanic;
+  equation: SavedEquation | null;
+  onDropEquation: (mechanic: GameplayMechanic, equation: SavedEquation) => void;
+}) {
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+
+    const rawEquation = event.dataTransfer.getData(
+      "application/x-saved-equation",
+    );
+
+    if (!rawEquation) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawEquation) as SavedEquation;
+
+      if (parsed.id && Array.isArray(parsed.tokens)) {
+        onDropEquation(mechanic, {
+          id: parsed.id,
+          tokens: cloneTokens(parsed.tokens),
+        });
+      }
+    } catch (error) {
+      console.error("Failed to drop saved equation", error);
+    }
+  }
+
+  return (
+    <div
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      }}
+      onDrop={handleDrop}
+      style={{
+        background: "#191919",
+        border: `1px dashed ${subtleBorderColor}`,
+        borderRadius: 18,
+        minHeight: 0,
+        display: "grid",
+        gridTemplateRows: "auto 1fr",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          minHeight: 54,
+          borderBottom: `1px solid ${subtleBorderColor}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: textColor,
+          fontFamily: "Space Grotesk, sans-serif",
+          fontSize: 14,
+          fontWeight: 900,
+          textTransform: "uppercase",
+        }}
+      >
+        {mechanic}
+      </div>
+
+      <div
+        style={{
+          padding: 18,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "auto",
+        }}
+      >
+        {equation ? (
+          <EquationPreview tokens={equation.tokens} circleSize={46} />
+        ) : (
+          <div
+            style={{
+              maxWidth: 220,
+              color: "#FFFFFF80",
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 13,
+              fontWeight: 700,
+              lineHeight: 1.4,
+              textAlign: "center",
+            }}
+          >
+            Drag an equation here.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EventBuilderArea({
+  eventSlot,
+  onDropEquation,
+}: {
+  eventSlot: TimelineEventSlot | null;
+  onDropEquation: (mechanic: GameplayMechanic, equation: SavedEquation) => void;
+}) {
+  if (!eventSlot) {
+    return (
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          background: "#191919",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#FFFFFF80",
+          fontFamily: "Space Grotesk, sans-serif",
+          fontSize: 14,
+          fontWeight: 800,
+        }}
+      >
+        Select an event from the timeline to start assigning equations.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+        height: "60vh",
+        maxHeight: "60vh",
+        background: "#191919",
+        padding: 18,
+        boxSizing: "border-box",
+        display: "grid",
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        gap: 18,
+        overflow: "hidden",
+      }}
+    >
+      {gameplayMechanics.map((mechanic) => (
+        <EventMechanicColumn
+          key={mechanic}
+          mechanic={mechanic}
+          equation={eventSlot.assignments[mechanic]}
+          onDropEquation={onDropEquation}
+        />
+      ))}
+    </div>
+  );
+}
+
+function EquationTimeline({
+  events,
+  activeEventId,
+  onSelectEvent,
+}: {
+  events: TimelineEventSlot[];
+  activeEventId: string | null;
+  onSelectEvent: (eventId: string) => void;
 }) {
   return (
     <section
-      aria-label="Equation timeline"
+      aria-label="Timeline"
       style={{
         width: "100%",
-        height: "28vh",
-        minHeight: 210,
-        background: "#2B2B2B",
+        height: "calc(40vh - 142px)",
+        minHeight: 180,
+        background: panelBackgroundColor,
         borderTop: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
-        display: "flex",
-        flexDirection: "column",
         overflow: "hidden",
         fontFamily: "Space Grotesk, sans-serif",
       }}
     >
       <div
         style={{
-          minHeight: 44,
-          borderBottom: `1px solid ${subtleBorderColor}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 18px",
-          boxSizing: "border-box",
-        }}
-      >
-        <div style={{ color: textColor, fontSize: 13, fontWeight: 800 }}>
-          Equation Timeline
-        </div>
-
-        <div style={{ color: "#FFFFFF80", fontSize: 12, fontWeight: 700 }}>
-          Slots are set on the SongAsset in Supabase
-        </div>
-      </div>
-
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
+          height: "100%",
           display: "flex",
           gap: 14,
           padding: 16,
@@ -1111,7 +1392,7 @@ function EquationTimeline({
           overflowX: "auto",
         }}
       >
-        {slots.length === 0 ? (
+        {events.length === 0 ? (
           <div
             style={{
               color: "#FFFFFF80",
@@ -1121,17 +1402,17 @@ function EquationTimeline({
               alignItems: "center",
             }}
           >
-            No equation slots yet. The selected song payload did not include equation_slots, or the sidecar has no equation states.
+            This song does not have any event slots yet.
           </div>
         ) : (
-          slots.map((slot, index) => {
-            const isActive = slot.id === activeSlotId;
+          events.map((eventSlot, index) => {
+            const isActive = eventSlot.id === activeEventId;
 
             return (
               <button
-                key={slot.id}
+                key={eventSlot.id}
                 type="button"
-                onClick={() => onSelectSlot(slot.id)}
+                onClick={() => onSelectEvent(eventSlot.id)}
                 style={{
                   width: 240,
                   minWidth: 240,
@@ -1144,22 +1425,13 @@ function EquationTimeline({
                   boxSizing: "border-box",
                   cursor: "pointer",
                   display: "grid",
-                  gridTemplateRows: "auto 1fr auto",
-                  gap: 8,
+                  gridTemplateRows: "auto 1fr",
+                  gap: 10,
                   textAlign: "left",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 8,
-                    fontSize: 12,
-                    fontWeight: 800,
-                  }}
-                >
-                  <span>Equation {index + 1}</span>
-                  <span style={{ color: "#FFFFFF99" }}>Tick {slot.tick}</span>
+                <div style={{ fontSize: 13, fontWeight: 900 }}>
+                  Event {index + 1}
                 </div>
 
                 <div
@@ -1167,26 +1439,39 @@ function EquationTimeline({
                     border: `1px dashed ${subtleBorderColor}`,
                     borderRadius: 12,
                     padding: 10,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    display: "grid",
+                    gap: 8,
                     overflow: "hidden",
                   }}
                 >
-                  <EquationPreview tokens={slot.tokens} circleSize={30} />
-                </div>
-
-                <div
-                  style={{
-                    color: "#FFFFFF80",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {slot.equationId}
+                  {gameplayMechanics.map((mechanic) => (
+                    <div
+                      key={mechanic}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "42px minmax(0, 1fr)",
+                        alignItems: "center",
+                        gap: 8,
+                        minHeight: 28,
+                      }}
+                    >
+                      <span
+                        style={{
+                          color: "#FFFFFF99",
+                          fontSize: 10,
+                          fontWeight: 900,
+                        }}
+                      >
+                        {mechanic.toUpperCase()}
+                      </span>
+                      <div style={{ minWidth: 0, overflow: "hidden" }}>
+                        <EquationPreview
+                          tokens={eventSlot.assignments[mechanic]?.tokens ?? []}
+                          circleSize={20}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </button>
             );
@@ -1197,113 +1482,12 @@ function EquationTimeline({
   );
 }
 
-function CenterEditorPanel({
-  slots,
-  activeSlotId,
-  customTokenLabel,
-  onCustomTokenLabelChange,
-  onSelectSlot,
-  onInsertToken,
-  onRemoveToken,
-  onClearSlot,
+function EquationsPanel({
+  savedEquations,
+  onNewEquation,
 }: {
-  slots: EquationTimelineSlot[];
-  activeSlotId: string | null;
-  customTokenLabel: string;
-  onCustomTokenLabelChange: (value: string) => void;
-  onSelectSlot: (slotId: string) => void;
-  onInsertToken: (index: number, label: string) => void;
-  onRemoveToken: (id: string) => void;
-  onClearSlot: () => void;
-}) {
-  const activeSlot = slots.find((slot) => slot.id === activeSlotId) ?? null;
-
-  return (
-    <section
-      style={{
-        width: "100%",
-        height: "calc(100vh - 142px)",
-        minHeight: "calc(100vh - 142px)",
-        background: "#191919",
-        color: textColor,
-        boxSizing: "border-box",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <EquationBuilderArea
-        activeSlot={activeSlot}
-        customTokenLabel={customTokenLabel}
-        onCustomTokenLabelChange={onCustomTokenLabelChange}
-        onInsertToken={onInsertToken}
-        onRemoveToken={onRemoveToken}
-        onClearSlot={onClearSlot}
-      />
-
-      <EquationTimeline
-        slots={slots}
-        activeSlotId={activeSlotId}
-        onSelectSlot={onSelectSlot}
-      />
-    </section>
-  );
-}
-
-function WorkspacePanel({
-  title,
-  width,
-  background,
-  children,
-}: {
-  title?: string;
-  width: string;
-  background: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <section
-      style={{
-        width,
-        height: "calc(100vh - 142px)",
-        minHeight: "calc(100vh - 142px)",
-        background,
-        color: textColor,
-        borderRight: `1px solid ${subtleBorderColor}`,
-        boxSizing: "border-box",
-        overflow: "hidden",
-      }}
-    >
-      {title ? (
-        <div
-          style={{
-            padding: "18px 16px",
-            borderBottom: `1px solid ${subtleBorderColor}`,
-            color: textColor,
-            fontFamily: "Space Grotesk, sans-serif",
-            fontSize: 13,
-            fontWeight: 700,
-            lineHeight: "19.5px",
-            textAlign: "left",
-          }}
-        >
-          {title}
-        </div>
-      ) : null}
-
-      {children}
-    </section>
-  );
-}
-
-function TimelineOverviewPanel({
-  slots,
-  activeSlotId,
-  onSelectSlot,
-}: {
-  slots: EquationTimelineSlot[];
-  activeSlotId: string | null;
-  onSelectSlot: (slotId: string) => void;
+  savedEquations: SavedEquation[];
+  onNewEquation: () => void;
 }) {
   return (
     <section
@@ -1311,7 +1495,7 @@ function TimelineOverviewPanel({
         width: "12.5vw",
         height: "calc(100vh - 142px)",
         minHeight: "calc(100vh - 142px)",
-        background: "#2B2B2B",
+        background: panelBackgroundColor,
         color: textColor,
         borderRight: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
@@ -1332,7 +1516,34 @@ function TimelineOverviewPanel({
           textAlign: "center",
         }}
       >
-        Song Equations
+        Equations
+      </div>
+
+      <div
+        style={{
+          padding: 12,
+          borderBottom: `1px solid ${subtleBorderColor}`,
+        }}
+      >
+        <button
+          type="button"
+          onClick={onNewEquation}
+          style={{
+            width: "100%",
+            minHeight: 38,
+            background: "#CFFF04",
+            color: "#000000",
+            border: "1px solid #CFFF04",
+            borderRadius: 10,
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 12,
+            fontWeight: 800,
+            lineHeight: "18px",
+            cursor: "pointer",
+          }}
+        >
+          New Equation
+        </button>
       </div>
 
       <div
@@ -1345,41 +1556,153 @@ function TimelineOverviewPanel({
           fontFamily: "Space Grotesk, sans-serif",
         }}
       >
-        {slots.length === 0 ? (
-          <div style={{ color: "#FFFFFF80", fontSize: 12, fontWeight: 700, lineHeight: 1.4 }}>
-            The selected song payload did not include equation_slots, or the sidecar has no equation states.
+        {savedEquations.length === 0 ? (
+          <div
+            style={{
+              color: "#FFFFFF80",
+              fontSize: 12,
+              fontWeight: 700,
+              lineHeight: 1.4,
+            }}
+          >
+            Build equations here, then drag them into an event.
           </div>
         ) : (
-          slots.map((slot, index) => {
-            const isActive = slot.id === activeSlotId;
-
-            return (
-              <button
-                key={slot.id}
-                type="button"
-                onClick={() => onSelectSlot(slot.id)}
-                style={{
-                  width: "100%",
-                  minHeight: 48,
-                  background: isActive ? "#191919" : "#252525",
-                  border: `1px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
-                  borderRadius: 10,
-                  padding: "8px 10px",
-                  boxSizing: "border-box",
-                  color: textColor,
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
+          savedEquations.map((equation, index) => (
+            <div
+              key={equation.id}
+              draggable
+              onDragStart={(event) => {
+                event.dataTransfer.setData(
+                  "application/x-saved-equation",
+                  JSON.stringify(equation),
+                );
+                event.dataTransfer.effectAllowed = "copy";
+              }}
+              style={{
+                width: "100%",
+                minHeight: 58,
+                background: "#191919",
+                border: `1px solid ${subtleBorderColor}`,
+                borderRadius: 10,
+                padding: "8px",
+                boxSizing: "border-box",
+                color: textColor,
+                display: "grid",
+                gap: 8,
+                cursor: "grab",
+              }}
+              title={tokensToEquationState(equation.tokens)}
+            >
+              <div
+                style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 900 }}
               >
-                <div style={{ fontSize: 12, fontWeight: 800 }}>Equation {index + 1}</div>
-                <div style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700 }}>
-                  Tick {slot.tick}
-                </div>
-              </button>
-            );
-          })
+                Equation {index + 1}
+              </div>
+              <EquationPreview tokens={equation.tokens} circleSize={24} />
+            </div>
+          ))
         )}
       </div>
+    </section>
+  );
+}
+
+function RightLessonPanel() {
+  return (
+    <section
+      style={{
+        width: "12.5vw",
+        height: "calc(100vh - 142px)",
+        minHeight: "calc(100vh - 142px)",
+        background: panelBackgroundColor,
+        color: textColor,
+        borderLeft: `1px solid ${subtleBorderColor}`,
+        boxSizing: "border-box",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          padding: "18px 12px",
+          borderBottom: `1px solid ${subtleBorderColor}`,
+          color: textColor,
+          fontFamily: "Space Grotesk, sans-serif",
+          fontSize: 13,
+          fontWeight: 700,
+          lineHeight: "19.5px",
+          textAlign: "center",
+        }}
+      >
+        Start Building Your Lesson
+      </div>
+    </section>
+  );
+}
+
+function CenterEditorPanel({
+  mode,
+  timelineEvents,
+  activeEventId,
+  draftTokens,
+  customTokenLabel,
+  onCustomTokenLabelChange,
+  onSelectEvent,
+  onInsertToken,
+  onRemoveToken,
+  onSaveEquation,
+  onDropEquation,
+}: {
+  mode: "event" | "equation";
+  timelineEvents: TimelineEventSlot[];
+  activeEventId: string | null;
+  draftTokens: EquationToken[];
+  customTokenLabel: string;
+  onCustomTokenLabelChange: (value: string) => void;
+  onSelectEvent: (eventId: string) => void;
+  onInsertToken: (index: number, label: string) => void;
+  onRemoveToken: (id: string) => void;
+  onSaveEquation: () => void;
+  onDropEquation: (mechanic: GameplayMechanic, equation: SavedEquation) => void;
+}) {
+  const activeEvent =
+    timelineEvents.find((eventSlot) => eventSlot.id === activeEventId) ?? null;
+
+  return (
+    <section
+      style={{
+        width: "75vw",
+        height: "calc(100vh - 142px)",
+        minHeight: "calc(100vh - 142px)",
+        background: "#191919",
+        color: textColor,
+        boxSizing: "border-box",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {mode === "equation" ? (
+        <EquationBuilderArea
+          draftTokens={draftTokens}
+          customTokenLabel={customTokenLabel}
+          onCustomTokenLabelChange={onCustomTokenLabelChange}
+          onInsertToken={onInsertToken}
+          onRemoveToken={onRemoveToken}
+          onSaveEquation={onSaveEquation}
+        />
+      ) : (
+        <EventBuilderArea
+          eventSlot={activeEvent}
+          onDropEquation={onDropEquation}
+        />
+      )}
+
+      <EquationTimeline
+        events={timelineEvents}
+        activeEventId={activeEventId}
+        onSelectEvent={onSelectEvent}
+      />
     </section>
   );
 }
@@ -1395,18 +1718,18 @@ export default function LessonBuilderClient({
   const setStoreSidecar = useEditorStore((s) => s.setSidecar);
 
   const [chartFile, setChartFile] = useState("");
-  const [metadata, setMetadata] = useState<LessonBuilderPayload["analysisMetadata"]>();
+  const [metadata, setMetadata] =
+    useState<LessonBuilderPayload["analysisMetadata"]>();
   const [uploadedSongName, setUploadedSongName] = useState("");
   const [uploadedChartName, setUploadedChartName] = useState("");
   const [pendingSongFile, setPendingSongFile] = useState<File | null>(null);
 
-  const [mechanicEvents, setMechanicEvents] = useState<SidecarMechanicEvent[]>([]);
-  const [equationSlots, setEquationSlots] = useState<EquationTimelineSlot[]>([]);
-  const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
-  const [requiredEquationSlots, setRequiredEquationSlots] = useState<number | null>(null);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEventSlot[]>([]);
+  const [activeEventId, setActiveEventId] = useState<string | null>(null);
+  const [savedEquations, setSavedEquations] = useState<SavedEquation[]>([]);
+  const [mode, setMode] = useState<"event" | "equation">("event");
+  const [draftTokens, setDraftTokens] = useState<EquationToken[]>([]);
   const [customTokenLabel, setCustomTokenLabel] = useState("");
-  const [currentTick, setCurrentTick] = useState(0);
-  const [hits, setHits] = useState(1);
   const [loadError, setLoadError] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -1417,8 +1740,8 @@ export default function LessonBuilderClient({
   } | null>(null);
 
   const sidecar = useMemo(
-    () => sidecarFromSlots(equationSlots, mechanicEvents),
-    [equationSlots, mechanicEvents],
+    () => sidecarFromTimelineEvents(timelineEvents),
+    [timelineEvents],
   );
 
   const payloadForProject: LessonBuilderPayload = useMemo(
@@ -1430,151 +1753,136 @@ export default function LessonBuilderClient({
     [chartFile, metadata, sidecar],
   );
 
-  const activeSlot = useMemo(
-    () => equationSlots.find((slot) => slot.id === activeSlotId) ?? null,
-    [activeSlotId, equationSlots],
-  );
-
-  function loadSidecarIntoTimeline(nextSidecar: SidecarPayload, equationSlotCount = requiredEquationSlots) {
-    const normalized = normalizeSidecar(nextSidecar);
-    const nextMechanics = normalized.events.filter(
-      (event): event is SidecarMechanicEvent => event.type === "ALG_MECHANIC",
+  function loadSidecarIntoTimeline(
+    nextSidecar: SidecarPayload,
+    equationSlotCount: number | null,
+  ) {
+    const nextEvents = timelineEventsFromSidecar(
+      nextSidecar,
+      equationSlotCount,
     );
-    const importedSlots = slotsFromSidecar(normalized);
-    const nextSlots =
-      typeof equationSlotCount === "number"
-        ? resizeEquationSlots(importedSlots, equationSlotCount, importedSlots[0]?.tick ?? currentTick)
-        : importedSlots;
 
-    setMechanicEvents(nextMechanics);
-    setEquationSlots(nextSlots);
-    setActiveSlotId(nextSlots[0]?.id ?? null);
-    setCurrentTick(nextSlots[0]?.tick ?? 0);
-    setStoreSidecar(sidecarFromSlots(nextSlots, nextMechanics));
+    setTimelineEvents(nextEvents);
+    setSavedEquations((current) => {
+      const importedEquations = savedEquationsFromTimelineEvents(nextEvents);
+      const existingStates = new Set(
+        current.map((equation) => tokensToEquationState(equation.tokens)),
+      );
+      const merged = [...current];
+
+      importedEquations.forEach((equation) => {
+        const state = tokensToEquationState(equation.tokens);
+
+        if (!existingStates.has(state)) {
+          merged.push(equation);
+          existingStates.add(state);
+        }
+      });
+
+      return merged;
+    });
+    setActiveEventId(nextEvents[0]?.id ?? null);
+    setMode("event");
+    setStoreSidecar(sidecarFromTimelineEvents(nextEvents));
   }
 
   function applySongAssetEquationSlotCount(count: number | null) {
-    setRequiredEquationSlots(count);
-
     if (typeof count !== "number") {
       return;
     }
 
-    setEquationSlots((current) => {
-      const nextSlots = resizeEquationSlots(current, count, current[0]?.tick ?? currentTick);
+    setTimelineEvents((current) => {
+      const nextEvents = resizeTimelineEvents(current, count);
 
-      setActiveSlotId((currentId) => {
-        if (currentId && nextSlots.some((slot) => slot.id === currentId)) {
+      setActiveEventId((currentId) => {
+        if (
+          currentId &&
+          nextEvents.some((eventSlot) => eventSlot.id === currentId)
+        ) {
           return currentId;
         }
 
-        return nextSlots[0]?.id ?? null;
+        return nextEvents[0]?.id ?? null;
       });
 
-      return nextSlots;
+      return nextEvents;
     });
   }
 
-  function handleSelectSlot(slotId: string) {
-    setActiveSlotId(slotId);
-
-    const slot = equationSlots.find((candidate) => candidate.id === slotId);
-
-    if (slot) {
-      setCurrentTick(slot.tick);
-    }
-  }
-
-  function patchActiveSlot(updater: (slot: EquationTimelineSlot) => EquationTimelineSlot) {
-    setEquationSlots((current) =>
-      current.map((slot) => (slot.id === activeSlotId ? updater(slot) : slot)),
-    );
-  }
-
-  function handleCurrentTickChange(nextTick: number) {
-    setCurrentTick(nextTick);
-
-    if (activeSlotId) {
-      patchActiveSlot((slot) => ({
-        ...slot,
-        tick: nextTick,
-      }));
-    }
+  function handleNewEquation() {
+    setDraftTokens([]);
+    setCustomTokenLabel("");
+    setMode("equation");
   }
 
   function handleInsertEquationToken(index: number, label: string) {
-    if (!activeSlotId) {
-      return;
-    }
-
-    patchActiveSlot((slot) => {
+    setDraftTokens((current) => {
       const nextToken = {
         id: makeId("token"),
         label,
       };
-      const safeIndex = Math.max(0, Math.min(index, slot.tokens.length));
+      const safeIndex = Math.max(0, Math.min(index, current.length));
 
-      return {
-        ...slot,
-        tokens: [...slot.tokens.slice(0, safeIndex), nextToken, ...slot.tokens.slice(safeIndex)],
-      };
+      return [
+        ...current.slice(0, safeIndex),
+        nextToken,
+        ...current.slice(safeIndex),
+      ];
     });
   }
 
   function handleRemoveEquationToken(id: string) {
-    patchActiveSlot((slot) => ({
-      ...slot,
-      tokens: slot.tokens.filter((token) => token.id !== id),
-    }));
+    setDraftTokens((current) => current.filter((token) => token.id !== id));
   }
 
-  function handleClearSlot() {
-    patchActiveSlot((slot) => ({
-      ...slot,
-      tokens: [],
-    }));
+  function handleSaveEquation() {
+    if (draftTokens.length === 0) {
+      return;
+    }
+
+    setSavedEquations((current) => [
+      ...current,
+      {
+        id: makeId("equation"),
+        tokens: cloneTokens(draftTokens),
+      },
+    ]);
+    setDraftTokens([]);
+    setCustomTokenLabel("");
+    setMode("event");
   }
 
-  function handleAddMechanic(mechanic: GameplayMechanic) {
-    setMechanicEvents((current) =>
-      sortEvents([
-        ...current,
-        {
-          tick: currentTick,
-          type: "ALG_MECHANIC",
-          mechanic,
-          hits,
-        },
-      ]) as SidecarMechanicEvent[],
+  function handleSelectEvent(eventId: string) {
+    setActiveEventId(eventId);
+    setMode("event");
+  }
+
+  function handleDropEquation(
+    mechanic: GameplayMechanic,
+    equation: SavedEquation,
+  ) {
+    if (!activeEventId) {
+      return;
+    }
+
+    setTimelineEvents((current) =>
+      current.map((eventSlot) => {
+        if (eventSlot.id !== activeEventId) {
+          return eventSlot;
+        }
+
+        return {
+          ...eventSlot,
+          assignments: {
+            ...eventSlot.assignments,
+            [mechanic]: {
+              ...equation,
+              tokens: cloneTokens(equation.tokens),
+            },
+          },
+        };
+      }),
     );
-  }
-
-  async function handleChartUpload(file: File) {
-    try {
-      const text = await readFileAsText(file);
-      setChartFile(text);
-      setUploadedChartName(file.name);
-      setMetadata((current) => ({
-        ...current,
-        uploadedFileName: file.name,
-      }));
-      setProject(chartToProject({ ...payloadForProject, chartFile: text }));
-      setLoadError("");
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Unable to read chart file");
-    }
-  }
-
-  async function handleSidecarUpload(file: File) {
-    try {
-      const text = await readFileAsText(file);
-      const parsed = JSON.parse(text) as unknown;
-      const normalized = normalizeSidecar(parsed);
-      loadSidecarIntoTimeline(normalized);
-      setLoadError("");
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Unable to read sidecar JSON");
-    }
   }
 
   function handleBackToSongChoice() {
@@ -1604,21 +1912,30 @@ export default function LessonBuilderClient({
           chart: {
             ...selectedSongStorage.chart,
             content: chartText,
-            contentType: selectedSongStorage.chart.contentType ?? "text/plain;charset=utf-8",
+            contentType:
+              selectedSongStorage.chart.contentType ??
+              "text/plain;charset=utf-8",
           },
           sidecar: {
             ...(selectedSongStorage.sidecar ?? {
               bucket: selectedSongStorage.chart.bucket,
-              path: selectedSongStorage.chart.path.replace(/\.chart$/i, ".json"),
+              path: selectedSongStorage.chart.path.replace(
+                /\.chart$/i,
+                ".json",
+              ),
               contentType: "application/json;charset=utf-8",
             }),
             content: sidecarJson,
-            contentType: selectedSongStorage.sidecar?.contentType ?? "application/json;charset=utf-8",
+            contentType:
+              selectedSongStorage.sidecar?.contentType ??
+              "application/json;charset=utf-8",
           },
         }),
       });
 
-      const result = (await response.json().catch(() => null)) as { error?: string } | null;
+      const result = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
 
       if (!response.ok) {
         throw new Error(result?.error ?? "Unable to save lesson files");
@@ -1626,29 +1943,12 @@ export default function LessonBuilderClient({
 
       setSaveStatus("Saved");
     } catch (error) {
-      setSaveStatus(error instanceof Error ? error.message : "Unable to save lesson files");
+      setSaveStatus(
+        error instanceof Error ? error.message : "Unable to save lesson files",
+      );
     } finally {
       setIsSaving(false);
     }
-  }
-
-  function handleDownloadChart() {
-    if (!project) {
-      if (chartFile.trim()) {
-        downloadTextFile(getChartFileName(uploadedChartName), chartFile, "text/plain;charset=utf-8");
-      }
-      return;
-    }
-
-    downloadTextFile(getChartFileName(uploadedChartName), projectToChart(project), "text/plain;charset=utf-8");
-  }
-
-  function handleDownloadSidecar() {
-    downloadTextFile(
-      getSidecarFileName(uploadedChartName),
-      projectToSidecarJson(sidecar),
-      "application/json;charset=utf-8",
-    );
   }
 
   useEffect(() => {
@@ -1674,7 +1974,8 @@ export default function LessonBuilderClient({
 
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
-      const selectedSongEquationSlots = getSelectedSongEquationSlotCount(selectedSong);
+      const selectedSongEquationSlots =
+        getSelectedSongEquationSlotCount(selectedSong);
 
       setSelectedSongStorage({
         id: selectedSong.id,
@@ -1716,11 +2017,16 @@ export default function LessonBuilderClient({
 
       Promise.all([
         textFromSignedUrl(selectedSong.chart.signedUrl),
-        selectedSong.sidecar ? jsonFromSignedUrl(selectedSong.sidecar.signedUrl) : Promise.resolve(null),
+        selectedSong.sidecar
+          ? jsonFromSignedUrl(selectedSong.sidecar.signedUrl)
+          : Promise.resolve(null),
       ])
         .then(([nextChartFile, sidecarJson]) => {
-          const nextChartName = selectedSong.chart.path.split("/").pop() ?? "selected.chart";
-          const normalizedSidecar = normalizeSidecar(sidecarJson ?? emptySidecar);
+          const nextChartName =
+            selectedSong.chart.path.split("/").pop() ?? "selected.chart";
+          const normalizedSidecar = normalizeSidecar(
+            sidecarJson ?? emptySidecar,
+          );
 
           setChartFile(nextChartFile);
           setUploadedChartName(nextChartName);
@@ -1740,11 +2046,19 @@ export default function LessonBuilderClient({
         })
         .catch((error) => {
           console.error("Failed to load selected chart or sidecar JSON", error);
-          setLoadError(error instanceof Error ? error.message : "Failed to load selected song package");
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "Failed to load selected song package",
+          );
         });
     } catch (error) {
       console.error("Failed to parse selected song package", error);
-      setLoadError(error instanceof Error ? error.message : "Failed to parse selected song package");
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Failed to parse selected song package",
+      );
     }
   }, [setProject]);
 
@@ -1754,8 +2068,9 @@ export default function LessonBuilderClient({
 
     try {
       const payload: LessonBuilderPayload = JSON.parse(raw);
-      const normalizedSidecar = normalizeSidecar(payload.rawResults ?? emptySidecar);
-      setRequiredEquationSlots(null);
+      const normalizedSidecar = normalizeSidecar(
+        payload.rawResults ?? emptySidecar,
+      );
 
       if (payload?.analysisMetadata) {
         setMetadata(payload.analysisMetadata);
@@ -1768,16 +2083,22 @@ export default function LessonBuilderClient({
           setUploadedChartName(payload.analysisMetadata.uploadedFileName);
         }
 
-        loadSidecarIntoTimeline(normalizedSidecar);
-        setProject(chartToProject({ ...payload, rawResults: normalizedSidecar }));
+        loadSidecarIntoTimeline(normalizedSidecar, null);
+        setProject(
+          chartToProject({ ...payload, rawResults: normalizedSidecar }),
+        );
       } else {
-        loadSidecarIntoTimeline(normalizedSidecar);
+        loadSidecarIntoTimeline(normalizedSidecar, null);
       }
 
       sessionStorage.removeItem("ultrarapid_editor_payload");
     } catch (error) {
       console.error("Failed to hydrate lesson builder payload", error);
-      setLoadError(error instanceof Error ? error.message : "Failed to hydrate lesson builder payload");
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Failed to hydrate lesson builder payload",
+      );
     }
   }, [setProject]);
 
@@ -1794,15 +2115,21 @@ export default function LessonBuilderClient({
       chartName: uploadedChartName,
       songName: uploadedSongName,
       metadata,
-      equationSlots: equationSlots.length,
+      timelineEvents: timelineEvents.length,
     });
-  }, [chartFile, uploadedChartName, uploadedSongName, metadata, equationSlots.length]);
+  }, [
+    chartFile,
+    uploadedChartName,
+    uploadedSongName,
+    metadata,
+    timelineEvents.length,
+  ]);
 
   useEffect(() => {
-    if (!activeSlot && equationSlots.length > 0) {
-      setActiveSlotId(equationSlots[0].id);
+    if (!activeEventId && timelineEvents.length > 0) {
+      setActiveEventId(timelineEvents[0].id);
     }
-  }, [activeSlot, equationSlots]);
+  }, [activeEventId, timelineEvents]);
 
   return (
     <div
@@ -1836,16 +2163,26 @@ export default function LessonBuilderClient({
           overflow: "hidden",
         }}
       >
+        <EquationsPanel
+          savedEquations={savedEquations}
+          onNewEquation={handleNewEquation}
+        />
+
         <CenterEditorPanel
-          slots={equationSlots}
-          activeSlotId={activeSlotId}
+          mode={mode}
+          timelineEvents={timelineEvents}
+          activeEventId={activeEventId}
+          draftTokens={draftTokens}
           customTokenLabel={customTokenLabel}
           onCustomTokenLabelChange={setCustomTokenLabel}
-          onSelectSlot={handleSelectSlot}
+          onSelectEvent={handleSelectEvent}
           onInsertToken={handleInsertEquationToken}
           onRemoveToken={handleRemoveEquationToken}
-          onClearSlot={handleClearSlot}
+          onSaveEquation={handleSaveEquation}
+          onDropEquation={handleDropEquation}
         />
+
+        <RightLessonPanel />
       </main>
     </div>
   );
