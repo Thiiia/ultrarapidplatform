@@ -207,9 +207,9 @@ model SongAsset {
   artist          String?
   durationSeconds Int?
   equationSlots   Int   @default(0) @map("equation_slots")
-  hitCounts       Int[] @default([]) @map("hit_counts")
-  spinCounts      Int[] @default([]) @map("spin_counts")
-  dragCounts      Int[] @default([]) @map("drag_counts")
+  hitCounts       Int[] @default([]) @map("hit_count")
+  spinCounts      Int[] @default([]) @map("spin_count")
+  dragCounts      Int[] @default([]) @map("drag_count")
 
   songBucket String @default("Songs")
   songPath   String
