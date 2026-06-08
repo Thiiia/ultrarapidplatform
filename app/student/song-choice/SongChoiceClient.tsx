@@ -169,7 +169,7 @@ function getEquationSlots(song: SongChoiceWithEquationSlots) {
     song.song_asset?.equationSlots ??
     null;
 
-  if (rawSlots === null || rawSlots === undefined ) {
+  if (rawSlots === null || rawSlots === undefined || rawSlots === "") {
     return null;
   }
 
@@ -388,6 +388,7 @@ function HeaderBar({
                 <Link
                   key={tab.label}
                   href={tab.href}
+                  prefetch={false}
                   aria-label={tab.label}
                   className={`${styles.headerTabButton} ${
                     isActive ? styles.headerTabButtonActive : ""
@@ -883,8 +884,7 @@ export default function SongChoiceClient({
                           width: "100%",
                         }}
                       >
-                        {song.artist ?? "Unknown artist"} ·{" "}
-                        {getEquationSlots(song) ?? "—"} equation slots
+                        {song.artist ?? "Unknown artist"}
                       </span>
                     </div>
 
