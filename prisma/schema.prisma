@@ -221,6 +221,8 @@ model SongAsset {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  equationSlots   Int    @default(0) @map("equation_slots")
+
   @@index([isActive])
   @@index([title])
 }
