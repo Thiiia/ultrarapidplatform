@@ -40,8 +40,10 @@ type HeaderTab = {
 };
 
 type SongChoiceWithEquationSlots = SongChoice & {
-  equation_slots?: number | null;
-  equationSlots?: number | null;
+  equation_slots?: number | string | null;
+  equationSlots?: number | string | null;
+  songAsset?: { equation_slots?: number | string | null; equationSlots?: number | string | null } | null;
+  song_asset?: { equation_slots?: number | string | null; equationSlots?: number | string | null } | null;
 };
 
 type SongChoiceClientProps = {
@@ -134,12 +136,24 @@ const headerStyles = {
 };
 
 function getEquationSlots(song: SongChoiceWithEquationSlots) {
-  const rawSlots = song.equation_slots ?? song.equationSlots ?? 0;
+  const rawSlots =
+    song.equation_slots ??
+    song.equationSlots ??
+    song.songAsset?.equation_slots ??
+    song.songAsset?.equationSlots ??
+    song.song_asset?.equation_slots ??
+    song.song_asset?.equationSlots ??
+    null;
+
+  if (rawSlots === null || rawSlots === undefined ) {
+    return null;
+  }
+
   const parsedSlots =
     typeof rawSlots === "number" ? rawSlots : Number.parseInt(String(rawSlots), 10);
 
   if (!Number.isFinite(parsedSlots)) {
-    return 0;
+    return null;
   }
 
   return Math.max(0, Math.floor(parsedSlots));
@@ -488,6 +502,8 @@ export default function SongChoiceClient({
       return;
     }
 
+    const equationSlots = getEquationSlots(selectedSong);
+
     window.sessionStorage.setItem(
       "ultrarapid_selected_song",
       JSON.stringify({
@@ -495,8 +511,12 @@ export default function SongChoiceClient({
         name: selectedSong.name,
         title: selectedSong.title,
         artist: selectedSong.artist,
-        equation_slots: getEquationSlots(selectedSong),
-        equationSlots: getEquationSlots(selectedSong),
+        equation_slots: equationSlots,
+        equationSlots,
+        songAsset: {
+          equation_slots: equationSlots,
+          equationSlots,
+        },
 
         song: {
           bucket: selectedSong.song.bucket,
@@ -745,7 +765,7 @@ export default function SongChoiceClient({
                           width: "100%",
                         }}
                       >
-                        {song.artist ?? "Unknown artist"} · {getEquationSlots(song)} equation slots
+                        {song.artist ?? "Unknown artist"} · {getEquationSlots(song) ?? "—"} equation slots
                       </span>
                     </div>
 

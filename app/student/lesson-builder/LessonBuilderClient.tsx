@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ChangeEvent, DragEvent, FC, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useEditorStore } from "@/lib/editor/editor-store";
@@ -37,6 +37,13 @@ type LessonBuilderPayload = {
   rawResults?: unknown;
 };
 
+type StorageFileRef = {
+  bucket: string;
+  path: string;
+  signedUrl?: string;
+  contentType: string | null;
+};
+
 type SelectedSongPayload = {
   id: string;
   name: string;
@@ -52,24 +59,9 @@ type SelectedSongPayload = {
     equationSlots?: number | null;
     equation_slots?: number | null;
   } | null;
-  song: {
-    bucket: string;
-    path: string;
-    signedUrl: string;
-    contentType: string | null;
-  };
-  chart: {
-    bucket: string;
-    path: string;
-    signedUrl: string;
-    contentType: string | null;
-  };
-  sidecar: {
-    bucket: string;
-    path: string;
-    signedUrl: string;
-    contentType: string | null;
-  } | null;
+  song: StorageFileRef & { signedUrl: string };
+  chart: StorageFileRef & { signedUrl: string };
+  sidecar: (StorageFileRef & { signedUrl: string }) | null;
 };
 
 type EquationToken = {
@@ -610,43 +602,25 @@ function HeaderBar({
   );
 }
 
-function EditorTopPanel({
-  chartName,
-  currentTick,
-  hits,
-  requiredEquationSlots,
-  actualEquationSlots,
-  loadError,
-  onChartUpload,
-  onSidecarUpload,
-  onCurrentTickChange,
-  onHitsChange,
-  onAddMechanic,
-
-  onDownloadChart,
-  onDownloadSidecar,
+function EditorActionBar({
+  saveStatus,
+  isSaving,
+  onBack,
+  onSave,
 }: {
-  chartName: string;
-  currentTick: number;
-  hits: number;
-  requiredEquationSlots: number | null;
-  actualEquationSlots: number;
-  loadError: string;
-  onChartUpload: (file: File) => void;
-  onSidecarUpload: (file: File) => void;
-  onCurrentTickChange: (tick: number) => void;
-  onHitsChange: (hits: number) => void;
-  onAddMechanic: (mechanic: GameplayMechanic) => void;
-  onDownloadChart: () => void;
-  onDownloadSidecar: () => void;
+  saveStatus: string;
+  isSaving: boolean;
+  onBack: () => void;
+  onSave: () => void;
 }) {
   return (
     <section
-      aria-label="Lesson builder controls"
+      aria-label="Lesson builder actions"
       style={{
         width: "100%",
-        minHeight: 96,
-        background: headerBackgroundColor,
+        height: 72,
+        minHeight: 72,
+        background: pageBackgroundColor,
         borderBottom: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
         color: textColor,
@@ -656,187 +630,83 @@ function EditorTopPanel({
       <div
         style={{
           width: pagePanelWidth,
-          minHeight: 96,
+          height: "100%",
           margin: "0 auto",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 20,
-          flexWrap: "wrap",
-          padding: "14px 0",
-          boxSizing: "border-box",
+          gap: 16,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <label style={{ fontSize: 12, fontWeight: 700 }}>
-            Load .chart
-            <input
-              type="file"
-              accept=".chart,text/plain"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) onChartUpload(file);
-                event.currentTarget.value = "";
-              }}
-              style={{ display: "block", marginTop: 6, maxWidth: 190 }}
-            />
-          </label>
+        <button
+          type="button"
+          onClick={onBack}
+          style={{
+            minWidth: 96,
+            height: 42,
+            background: "#2B2B2B",
+            color: "#FFFFFF",
+            border: `1px solid ${subtleBorderColor}`,
+            borderRadius: 12,
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 14,
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          Back
+        </button>
 
-          <label style={{ fontSize: 12, fontWeight: 700 }}>
-            Load sidecar JSON
-            <input
-              type="file"
-              accept=".json,application/json"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) onSidecarUpload(file);
-                event.currentTarget.value = "";
-              }}
-              style={{ display: "block", marginTop: 6, maxWidth: 190 }}
-            />
-          </label>
-
-          <div style={{ fontSize: 12, color: "#FFFFFF99", fontWeight: 700 }}>
-            {chartName ? `Loaded: ${chartName}` : "No chart loaded"}
-          </div>
+        <div
+          aria-live="polite"
+          style={{
+            minWidth: 0,
+            color: saveStatus === "Saved" ? "#CFFF04" : "#FFFFFF99",
+            fontSize: 12,
+            fontWeight: 700,
+            textAlign: "right",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {saveStatus}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <label style={{ fontSize: 12, fontWeight: 700 }}>
-            Selected tick
-            <input
-              type="number"
-              min={0}
-              step={1}
-              value={currentTick}
-              onChange={(event) => onCurrentTickChange(normalizeTick(event.target.value))}
-              style={{
-                width: 100,
-                marginLeft: 8,
-                background: "#191919",
-                color: textColor,
-                border: `1px solid ${subtleBorderColor}`,
-                borderRadius: 8,
-                padding: "8px 10px",
-                fontWeight: 700,
-              }}
-            />
-          </label>
-
-          <div style={{ fontSize: 12, fontWeight: 700 }}>
-            Equation slots
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                minHeight: 34,
-                marginLeft: 8,
-                background: "#191919",
-                color: textColor,
-                border: `1px solid ${subtleBorderColor}`,
-                borderRadius: 8,
-                padding: "0 12px",
-                fontWeight: 800,
-              }}
-              title="This comes from the SongAsset.equation_slots value in Supabase."
-            >
-              {requiredEquationSlots ?? actualEquationSlots}
-            </span>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <label style={{ fontSize: 12, fontWeight: 700 }}>
-            Hits
-            <input
-              type="number"
-              min={1}
-              step={1}
-              value={hits}
-              onChange={(event) => onHitsChange(Math.max(1, normalizeTick(event.target.value)))}
-              style={{
-                width: 70,
-                marginLeft: 8,
-                background: "#191919",
-                color: textColor,
-                border: `1px solid ${subtleBorderColor}`,
-                borderRadius: 8,
-                padding: "8px 10px",
-                fontWeight: 700,
-              }}
-            />
-          </label>
-
-          {gameplayMechanics.map((mechanic) => (
-            <button
-              key={mechanic}
-              type="button"
-              onClick={() => onAddMechanic(mechanic)}
-              style={{
-                minHeight: 36,
-                background: "#CFFF04",
-                color: "#000000",
-                border: "1px solid #CFFF04",
-                borderRadius: 10,
-                padding: "0 12px",
-                fontFamily: "Space Grotesk, sans-serif",
-                fontSize: 12,
-                fontWeight: 800,
-                cursor: "pointer",
-                textTransform: "capitalize",
-              }}
-            >
-              Add {mechanic}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            disabled={!chartName.trim()}
-            onClick={onDownloadChart}
+        <button
+          type="button"
+          disabled={isSaving}
+          onClick={onSave}
+          aria-label="Save lesson to Supabase"
+          title="Save lesson"
+          style={{
+            width: 132,
+            height: 64,
+            border: "none",
+            borderRadius: 12,
+            background: "transparent",
+            padding: 0,
+            cursor: isSaving ? "not-allowed" : "pointer",
+            opacity: isSaving ? 0.55 : 1,
+            flexShrink: 0,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {/* Replace /Save_Button.svg with the attached SVG asset path if its filename differs. */}
+          <img
+            src="/Save_Button.svg"
+            alt=""
+            aria-hidden="true"
             style={{
-              minHeight: 36,
-              background: "#191919",
-              color: textColor,
-              border: `1px solid ${subtleBorderColor}`,
-              borderRadius: 10,
-              padding: "0 12px",
-              fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: chartName.trim() ? "pointer" : "not-allowed",
+              width: 132,
+              height: 64,
+              display: "block",
+              objectFit: "contain",
             }}
-          >
-            Download .chart
-          </button>
-
-          <button
-            type="button"
-            onClick={onDownloadSidecar}
-            style={{
-              minHeight: 36,
-              background: "#191919",
-              color: textColor,
-              border: `1px solid ${subtleBorderColor}`,
-              borderRadius: 10,
-              padding: "0 12px",
-              fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Download JSON
-          </button>
-
-          {loadError ? (
-            <span style={{ color: "#FF8C8C", fontSize: 11, fontWeight: 700, maxWidth: 220 }}>
-              {loadError}
-            </span>
-          ) : null}
-        </div>
+          />
+        </button>
       </div>
     </section>
   );
@@ -1251,7 +1121,7 @@ function EquationTimeline({
               alignItems: "center",
             }}
           >
-            No equation slots yet. Set SongAsset.equation_slots in Supabase or load a sidecar JSON.
+            No equation slots yet. The selected song payload did not include equation_slots, or the sidecar has no equation states.
           </div>
         ) : (
           slots.map((slot, index) => {
@@ -1351,9 +1221,9 @@ function CenterEditorPanel({
   return (
     <section
       style={{
-        width: "75vw",
-        height: "calc(100vh - 166px)",
-        minHeight: "calc(100vh - 166px)",
+        width: "100%",
+        height: "calc(100vh - 142px)",
+        minHeight: "calc(100vh - 142px)",
         background: "#191919",
         color: textColor,
         boxSizing: "border-box",
@@ -1395,8 +1265,8 @@ function WorkspacePanel({
     <section
       style={{
         width,
-        height: "calc(100vh - 166px)",
-        minHeight: "calc(100vh - 166px)",
+        height: "calc(100vh - 142px)",
+        minHeight: "calc(100vh - 142px)",
         background,
         color: textColor,
         borderRight: `1px solid ${subtleBorderColor}`,
@@ -1439,8 +1309,8 @@ function TimelineOverviewPanel({
     <section
       style={{
         width: "12.5vw",
-        height: "calc(100vh - 166px)",
-        minHeight: "calc(100vh - 166px)",
+        height: "calc(100vh - 142px)",
+        minHeight: "calc(100vh - 142px)",
         background: "#2B2B2B",
         color: textColor,
         borderRight: `1px solid ${subtleBorderColor}`,
@@ -1477,7 +1347,7 @@ function TimelineOverviewPanel({
       >
         {slots.length === 0 ? (
           <div style={{ color: "#FFFFFF80", fontSize: 12, fontWeight: 700, lineHeight: 1.4 }}>
-            Set SongAsset.equation_slots in Supabase or load a sidecar JSON.
+            The selected song payload did not include equation_slots, or the sidecar has no equation states.
           </div>
         ) : (
           slots.map((slot, index) => {
@@ -1518,6 +1388,7 @@ export default function LessonBuilderClient({
   navBasePath = "/student",
 }: LessonBuilderClientProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const topTabs = useMemo(() => getTopTabs(navBasePath), [navBasePath]);
   const project = useEditorStore((s) => s.project);
   const setProject = useEditorStore((s) => s.setProject);
@@ -1537,6 +1408,13 @@ export default function LessonBuilderClient({
   const [currentTick, setCurrentTick] = useState(0);
   const [hits, setHits] = useState(1);
   const [loadError, setLoadError] = useState("");
+  const [saveStatus, setSaveStatus] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [selectedSongStorage, setSelectedSongStorage] = useState<{
+    id: string;
+    chart: StorageFileRef;
+    sidecar: StorageFileRef | null;
+  } | null>(null);
 
   const sidecar = useMemo(
     () => sidecarFromSlots(equationSlots, mechanicEvents),
@@ -1699,6 +1577,61 @@ export default function LessonBuilderClient({
     }
   }
 
+  function handleBackToSongChoice() {
+    router.push(`${navBasePath}/song-choice`);
+  }
+
+  async function handleSaveToSupabase() {
+    if (!selectedSongStorage) {
+      setSaveStatus("No selected song asset is loaded.");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveStatus("Saving...");
+
+    try {
+      const chartText = project ? projectToChart(project) : chartFile;
+      const sidecarJson = projectToSidecarJson(sidecar);
+
+      const response = await fetch("/api/lesson-builder/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          songAssetId: selectedSongStorage.id,
+          chart: {
+            ...selectedSongStorage.chart,
+            content: chartText,
+            contentType: selectedSongStorage.chart.contentType ?? "text/plain;charset=utf-8",
+          },
+          sidecar: {
+            ...(selectedSongStorage.sidecar ?? {
+              bucket: selectedSongStorage.chart.bucket,
+              path: selectedSongStorage.chart.path.replace(/\.chart$/i, ".json"),
+              contentType: "application/json;charset=utf-8",
+            }),
+            content: sidecarJson,
+            contentType: selectedSongStorage.sidecar?.contentType ?? "application/json;charset=utf-8",
+          },
+        }),
+      });
+
+      const result = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(result?.error ?? "Unable to save lesson files");
+      }
+
+      setSaveStatus("Saved");
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : "Unable to save lesson files");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   function handleDownloadChart() {
     if (!project) {
       if (chartFile.trim()) {
@@ -1742,6 +1675,22 @@ export default function LessonBuilderClient({
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
       const selectedSongEquationSlots = getSelectedSongEquationSlotCount(selectedSong);
+
+      setSelectedSongStorage({
+        id: selectedSong.id,
+        chart: {
+          bucket: selectedSong.chart.bucket,
+          path: selectedSong.chart.path,
+          contentType: selectedSong.chart.contentType,
+        },
+        sidecar: selectedSong.sidecar
+          ? {
+              bucket: selectedSong.sidecar.bucket,
+              path: selectedSong.sidecar.path,
+              contentType: selectedSong.sidecar.contentType,
+            }
+          : null,
+      });
 
       applySongAssetEquationSlotCount(selectedSongEquationSlots);
       setUploadedSongName(selectedSong.name);
@@ -1869,27 +1818,17 @@ export default function LessonBuilderClient({
     >
       <HeaderBar pathname={pathname} topTabs={topTabs} />
 
-      <EditorTopPanel
-        chartName={uploadedChartName}
-        currentTick={currentTick}
-        hits={hits}
-        requiredEquationSlots={requiredEquationSlots}
-        actualEquationSlots={equationSlots.length}
-        loadError={loadError}
-        onChartUpload={handleChartUpload}
-        onSidecarUpload={handleSidecarUpload}
-        onCurrentTickChange={handleCurrentTickChange}
-        onHitsChange={setHits}
-        onAddMechanic={handleAddMechanic}
-
-        onDownloadChart={handleDownloadChart}
-        onDownloadSidecar={handleDownloadSidecar}
+      <EditorActionBar
+        saveStatus={loadError || saveStatus}
+        isSaving={isSaving}
+        onBack={handleBackToSongChoice}
+        onSave={handleSaveToSupabase}
       />
 
       <main
         style={{
           width: "100%",
-          height: "calc(100vh - 166px)",
+          height: "calc(100vh - 142px)",
           display: "flex",
           alignItems: "stretch",
           background: pageBackgroundColor,
@@ -1897,12 +1836,6 @@ export default function LessonBuilderClient({
           overflow: "hidden",
         }}
       >
-        <TimelineOverviewPanel
-          slots={equationSlots}
-          activeSlotId={activeSlotId}
-          onSelectSlot={handleSelectSlot}
-        />
-
         <CenterEditorPanel
           slots={equationSlots}
           activeSlotId={activeSlotId}
@@ -1913,8 +1846,6 @@ export default function LessonBuilderClient({
           onRemoveToken={handleRemoveEquationToken}
           onClearSlot={handleClearSlot}
         />
-
-        <WorkspacePanel title="Teacher Feedback" width="12.5vw" background="#2B2B2B" />
       </main>
     </div>
   );

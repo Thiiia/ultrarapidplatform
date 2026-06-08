@@ -12,6 +12,8 @@ export type SongChoice = {
   contentType: string | null;
   updatedAt: string | null;
   durationSeconds: number | null;
+  equationSlots: number;
+  equation_slots: number;
 
   song: {
     bucket: string;
@@ -93,6 +95,31 @@ function getContentTypeFromPath(path: string) {
   return null;
 }
 
+function coerceEquationSlots(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.floor(value));
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, Math.floor(parsed));
+    }
+  }
+
+  return 0;
+}
+
+function getSongAssetEquationSlots(songAsset: unknown) {
+  const record = songAsset as {
+    equationSlots?: unknown;
+    equation_slots?: unknown;
+  };
+
+  return coerceEquationSlots(record.equationSlots ?? record.equation_slots);
+}
+
 export async function getSongChoices(): Promise<SongChoice[]> {
   const songAssets = await prisma.songAsset.findMany({
     where: {
@@ -106,6 +133,7 @@ export async function getSongChoices(): Promise<SongChoice[]> {
   const songs = await Promise.all(
     songAssets.map(async (songAsset) => {
       const hasSidecar = Boolean(songAsset.sidecarBucket && songAsset.sidecarPath);
+      const equationSlots = getSongAssetEquationSlots(songAsset);
 
       const [
         songSignedUrl,
@@ -115,7 +143,7 @@ export async function getSongChoices(): Promise<SongChoice[]> {
       ] = await Promise.all([
         createSignedUrl(songAsset.songBucket, songAsset.songPath),
         createSignedUrl(songAsset.chartBucket, songAsset.chartPath),
-createOptionalSignedUrl(songAsset.sidecarBucket, songAsset.sidecarPath),
+        createOptionalSignedUrl(songAsset.sidecarBucket, songAsset.sidecarPath),
         getFileMetadata(songAsset.songBucket, songAsset.songPath),
       ]);
 
@@ -137,6 +165,8 @@ createOptionalSignedUrl(songAsset.sidecarBucket, songAsset.sidecarPath),
         contentType: songContentType,
         updatedAt: songAsset.updatedAt.toISOString(),
         durationSeconds: songAsset.durationSeconds,
+        equationSlots,
+        equation_slots: equationSlots,
 
         song: {
           bucket: songAsset.songBucket,
