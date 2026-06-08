@@ -169,7 +169,7 @@ function getEquationSlots(song: SongChoiceWithEquationSlots) {
     song.song_asset?.equationSlots ??
     null;
 
-  if (rawSlots === null || rawSlots === undefined || rawSlots === "") {
+  if (rawSlots === null || rawSlots === undefined) {
     return null;
   }
 
