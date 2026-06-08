@@ -75,17 +75,47 @@ type SavedEquation = {
 
 type GameplayMechanic = "hit" | "spin" | "drag";
 
+type HitBubblePosition =
+  | "topLeft"
+  | "topRight"
+  | "left"
+  | "right"
+  | "bottomLeft"
+  | "bottomRight";
+
+type HitBubblePlacement = {
+  tokenIndex: number;
+  positions: HitBubblePosition[];
+};
+
+type SpinTarget = {
+  tokenIndex: number;
+};
+
+type DragTarget = {
+  tokenIndex: number;
+};
+
+type HitBubblePair = "topLeftBottomRight" | "topRightBottomLeft" | "leftRight";
+
 type TimelineEventSlot = {
   id: string;
   tick: number;
   assignments: Record<GameplayMechanic, SavedEquation | null>;
+  hitBubbles: HitBubblePlacement[];
+  spinTargets: SpinTarget[];
+  dragTargets: DragTarget[];
 };
 
 type SidecarMechanicEvent = {
   tick: number;
   type: "ALG_MECHANIC";
   mechanic: GameplayMechanic;
+  equationId?: string;
   hits?: number;
+  hitBubbles?: HitBubblePlacement[];
+  spinTargets?: SpinTarget[];
+  dragTargets?: DragTarget[];
 };
 
 type SidecarEquationStateEvent = {
@@ -136,6 +166,20 @@ const emptySidecar: SidecarPayload = {
 };
 
 const gameplayMechanics: GameplayMechanic[] = ["hit", "spin", "drag"];
+const hitBubblePositions: HitBubblePosition[] = [
+  "topLeft",
+  "topRight",
+  "left",
+  "right",
+  "bottomLeft",
+  "bottomRight",
+];
+
+const hitBubblePairPositions: Record<HitBubblePair, HitBubblePosition[]> = {
+  topLeftBottomRight: ["topLeft", "bottomRight"],
+  topRightBottomLeft: ["topRight", "bottomLeft"],
+  leftRight: ["left", "right"],
+};
 
 const equationPalette = [
   "0",
@@ -231,6 +275,71 @@ function normalizeMechanic(value: unknown): GameplayMechanic | null {
   return null;
 }
 
+function normalizeHitBubblePosition(value: unknown): HitBubblePosition | null {
+  return hitBubblePositions.includes(value as HitBubblePosition)
+    ? (value as HitBubblePosition)
+    : null;
+}
+
+function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((placement): HitBubblePlacement[] => {
+    if (!isObject(placement) || !Array.isArray(placement.positions)) {
+      return [];
+    }
+
+    const tokenIndex = Number(placement.tokenIndex);
+
+    if (!Number.isFinite(tokenIndex) || tokenIndex < 0) {
+      return [];
+    }
+
+    const positions = Array.from(
+      new Set(
+        placement.positions
+          .map((position) => normalizeHitBubblePosition(position))
+          .filter((position): position is HitBubblePosition => Boolean(position)),
+      ),
+    );
+
+    if (positions.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        tokenIndex: Math.round(tokenIndex),
+        positions,
+      },
+    ];
+  });
+}
+
+function normalizeTokenTargets<T extends SpinTarget | DragTarget>(
+  value: unknown,
+): T[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((target): T[] => {
+    if (!isObject(target)) {
+      return [];
+    }
+
+    const tokenIndex = Number(target.tokenIndex);
+
+    if (!Number.isFinite(tokenIndex) || tokenIndex < 0) {
+      return [];
+    }
+
+    return [{ tokenIndex: Math.round(tokenIndex) } as T];
+  });
+}
+
 function normalizeSidecar(value: unknown): SidecarPayload {
   if (!isObject(value) || !Array.isArray(value.events)) {
     return emptySidecar;
@@ -249,15 +358,32 @@ function normalizeSidecar(value: unknown): SidecarPayload {
       }
 
       const hits = Number(event.hits);
+      const equationId =
+        typeof event.equationId === "string" ? event.equationId : undefined;
+
+      const hitBubbles =
+        mechanic === "hit" ? normalizeHitBubblePlacements(event.hitBubbles) : [];
+      const spinTargets =
+        mechanic === "spin"
+          ? normalizeTokenTargets<SpinTarget>(event.spinTargets)
+          : [];
+      const dragTargets =
+        mechanic === "drag"
+          ? normalizeTokenTargets<DragTarget>(event.dragTargets)
+          : [];
 
       return [
         {
           tick: normalizeTick(event.tick),
           type: "ALG_MECHANIC",
           mechanic,
+          ...(equationId ? { equationId } : {}),
           ...(Number.isFinite(hits) && hits > 0
             ? { hits: Math.max(1, Math.round(hits)) }
             : {}),
+          ...(hitBubbles.length > 0 ? { hitBubbles } : {}),
+          ...(spinTargets.length > 0 ? { spinTargets } : {}),
+          ...(dragTargets.length > 0 ? { dragTargets } : {}),
         },
       ];
     }
@@ -326,10 +452,7 @@ function equationStateToTokens(state: string): EquationToken[] {
     }));
 }
 
-function makeEmptyAssignments(): Record<
-  GameplayMechanic,
-  SavedEquation | null
-> {
+function makeEmptyAssignments(): Record<GameplayMechanic, SavedEquation | null> {
   return {
     hit: null,
     spin: null,
@@ -342,6 +465,9 @@ function makeTimelineEvent(index: number, tick = 0): TimelineEventSlot {
     id: makeId("event"),
     tick,
     assignments: makeEmptyAssignments(),
+    hitBubbles: [],
+    spinTargets: [],
+    dragTargets: [],
   };
 }
 
@@ -380,17 +506,6 @@ function resizeTimelineEvents(
   return nextEvents;
 }
 
-function inferMechanicFromEquationId(
-  equationId: string,
-): GameplayMechanic | null {
-  const normalizedId = equationId.toLowerCase();
-
-  return (
-    gameplayMechanics.find((mechanic) => normalizedId.includes(mechanic)) ??
-    null
-  );
-}
-
 function savedEquationFromState(
   equationId: string,
   state: string,
@@ -398,6 +513,27 @@ function savedEquationFromState(
   return {
     id: equationId || makeId("equation"),
     tokens: equationStateToTokens(state),
+  };
+}
+
+function cloneSavedEquation(equation: SavedEquation): SavedEquation {
+  return {
+    id: equation.id || makeId("equation"),
+    tokens: cloneTokens(equation.tokens),
+  };
+}
+
+function assignEquationToAllMechanics(
+  eventSlot: TimelineEventSlot,
+  equation: SavedEquation,
+): TimelineEventSlot {
+  return {
+    ...eventSlot,
+    assignments: {
+      hit: cloneSavedEquation(equation),
+      spin: cloneSavedEquation(equation),
+      drag: cloneSavedEquation(equation),
+    },
   };
 }
 
@@ -422,54 +558,42 @@ function timelineEventsFromSidecar(
   ).sort((left, right) => left - right);
 
   const slots = ticks.map((tick, index) => {
-    const slot = makeTimelineEvent(index, tick);
+    let slot = makeTimelineEvent(index, tick);
     const equationsAtTick = equationEvents.filter(
       (event) => event.tick === tick,
     );
     const mechanicsAtTick = mechanicEvents.filter(
       (event) => event.tick === tick,
     );
-    const usedEquationIds = new Set<string>();
 
-    mechanicsAtTick.forEach((mechanicEvent) => {
-      const matchingEquation =
-        equationsAtTick.find(
-          (equationEvent) =>
-            !usedEquationIds.has(equationEvent.equationId) &&
-            inferMechanicFromEquationId(equationEvent.equationId) ===
-              mechanicEvent.mechanic,
-        ) ??
-        equationsAtTick.find(
-          (equationEvent) => !usedEquationIds.has(equationEvent.equationId),
-        );
+    const hitMechanicEvent = mechanicsAtTick.find(
+      (event) => event.mechanic === "hit",
+    );
+    const spinMechanicEvent = mechanicsAtTick.find(
+      (event) => event.mechanic === "spin",
+    );
+    const dragMechanicEvent = mechanicsAtTick.find(
+      (event) => event.mechanic === "drag",
+    );
 
-      if (matchingEquation) {
-        usedEquationIds.add(matchingEquation.equationId);
-        slot.assignments[mechanicEvent.mechanic] = savedEquationFromState(
-          matchingEquation.equationId,
-          matchingEquation.state,
-        );
-      }
-    });
+    slot.hitBubbles = hitMechanicEvent?.hitBubbles ?? [];
+    slot.spinTargets = spinMechanicEvent?.spinTargets ?? [];
+    slot.dragTargets = dragMechanicEvent?.dragTargets ?? [];
 
-    equationsAtTick.forEach((equationEvent, equationIndex) => {
-      if (usedEquationIds.has(equationEvent.equationId)) {
-        return;
-      }
+    const referencedEquationId = mechanicsAtTick
+      .map((event) => event.equationId)
+      .find((equationId): equationId is string => Boolean(equationId));
+    const matchingEquation =
+      equationsAtTick.find(
+        (equationEvent) => equationEvent.equationId === referencedEquationId,
+      ) ?? equationsAtTick[0];
 
-      const inferredMechanic = inferMechanicFromEquationId(
-        equationEvent.equationId,
+    if (matchingEquation) {
+      slot = assignEquationToAllMechanics(
+        slot,
+        savedEquationFromState(matchingEquation.equationId, matchingEquation.state),
       );
-      const fallbackMechanic =
-        gameplayMechanics[equationIndex % gameplayMechanics.length];
-      const mechanic = inferredMechanic ?? fallbackMechanic;
-
-      slot.assignments[mechanic] = savedEquationFromState(
-        equationEvent.equationId,
-        equationEvent.state,
-      );
-      usedEquationIds.add(equationEvent.equationId);
-    });
+    }
 
     return slot;
   });
@@ -503,34 +627,55 @@ function savedEquationsFromTimelineEvents(events: TimelineEventSlot[]) {
   return Array.from(byState.values());
 }
 
-function sidecarFromTimelineEvents(
-  events: TimelineEventSlot[],
-): SidecarPayload {
+function sidecarFromTimelineEvents(events: TimelineEventSlot[]): SidecarPayload {
   const sidecarEvents = events.flatMap((event, eventIndex): SidecarEvent[] => {
-    return gameplayMechanics.flatMap((mechanic): SidecarEvent[] => {
-      const equation = event.assignments[mechanic];
+    const equation =
+      event.assignments.hit ?? event.assignments.spin ?? event.assignments.drag;
 
-      if (!equation || equation.tokens.length === 0) {
-        return [];
-      }
+    if (!equation || equation.tokens.length === 0) {
+      return [];
+    }
 
-      const equationId = `eq_${String(eventIndex + 1).padStart(3, "0")}_${mechanic}`;
+    const equationId = `eq_${String(eventIndex + 1).padStart(3, "0")}`;
+    const hitBubbleCount = event.hitBubbles.reduce(
+      (total, placement) => total + placement.positions.length,
+      0,
+    );
 
-      return [
-        {
-          tick: event.tick,
-          type: "ALG_MECHANIC",
-          mechanic,
-          hits: mechanic === "hit" ? 1 : undefined,
-        },
-        {
-          tick: event.tick,
-          type: "ALG_EQUATION_STATE",
-          equationId,
-          state: tokensToEquationState(equation.tokens),
-        },
-      ];
-    });
+    return [
+      {
+        tick: event.tick,
+        type: "ALG_MECHANIC",
+        mechanic: "hit",
+        equationId,
+        hits: Math.max(1, hitBubbleCount || 1),
+        ...(event.hitBubbles.length > 0 ? { hitBubbles: event.hitBubbles } : {}),
+      },
+      {
+        tick: event.tick,
+        type: "ALG_MECHANIC",
+        mechanic: "spin",
+        equationId,
+        ...(event.spinTargets.length > 0
+          ? { spinTargets: event.spinTargets }
+          : {}),
+      },
+      {
+        tick: event.tick,
+        type: "ALG_MECHANIC",
+        mechanic: "drag",
+        equationId,
+        ...(event.dragTargets.length > 0
+          ? { dragTargets: event.dragTargets }
+          : {}),
+      },
+      {
+        tick: event.tick,
+        type: "ALG_EQUATION_STATE",
+        equationId,
+        state: tokensToEquationState(equation.tokens),
+      },
+    ];
   });
 
   return {
@@ -685,7 +830,9 @@ function HeaderBar({
                   key={tab.label}
                   href={tab.href}
                   aria-label={tab.label}
-                  className={`${styles.headerTabButton} ${isActive ? styles.headerTabButtonActive : ""}`}
+                  className={`${styles.headerTabButton} ${
+                    isActive ? styles.headerTabButtonActive : ""
+                  }`}
                   style={{
                     width: tab.width,
                     height: 45.5,
@@ -1189,7 +1336,9 @@ function EquationBuilderArea({
             minHeight: 40,
             background: draftTokens.length > 0 ? "#CFFF04" : "#2B2B2B",
             color: draftTokens.length > 0 ? "#000000" : "#FFFFFF80",
-            border: `1px solid ${draftTokens.length > 0 ? "#CFFF04" : subtleBorderColor}`,
+            border: `1px solid ${
+              draftTokens.length > 0 ? "#CFFF04" : subtleBorderColor
+            }`,
             borderRadius: 10,
             fontFamily: "Space Grotesk, sans-serif",
             fontSize: 13,
@@ -1204,14 +1353,507 @@ function EquationBuilderArea({
   );
 }
 
+function getHitBubblePairFromPosition(
+  position: HitBubblePosition,
+): HitBubblePair {
+  if (position === "topLeft" || position === "bottomRight") {
+    return "topLeftBottomRight";
+  }
+
+  if (position === "topRight" || position === "bottomLeft") {
+    return "topRightBottomLeft";
+  }
+
+  return "leftRight";
+}
+
+function getHitBubblePositionStyle(position: HitBubblePosition) {
+  const offset = 34;
+  const cornerOffset = 28;
+
+  switch (position) {
+    case "topLeft":
+      return {
+        left: -cornerOffset,
+        top: -cornerOffset,
+      };
+    case "topRight":
+      return {
+        right: -cornerOffset,
+        top: -cornerOffset,
+      };
+    case "left":
+      return {
+        left: -offset,
+        top: "50%",
+        transform: "translateY(-50%)",
+      };
+    case "right":
+      return {
+        right: -offset,
+        top: "50%",
+        transform: "translateY(-50%)",
+      };
+    case "bottomLeft":
+      return {
+        left: -cornerOffset,
+        bottom: -cornerOffset,
+      };
+    case "bottomRight":
+      return {
+        right: -cornerOffset,
+        bottom: -cornerOffset,
+      };
+  }
+}
+
+function EmptyEquationBubble({ size = 34 }: { size?: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "999px",
+        background: "#191919",
+        border: "2px dashed rgba(255, 255, 255, 0.58)",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        boxSizing: "border-box",
+      }}
+    />
+  );
+}
+
+function HitOptionBubble({
+  position,
+  onSelect,
+}: {
+  position: HitBubblePosition;
+  onSelect: (position: HitBubblePosition) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={`Add hit bubbles at ${position}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect(position);
+      }}
+      style={{
+        position: "absolute",
+        ...getHitBubblePositionStyle(position),
+        width: 22,
+        height: 22,
+        borderRadius: "999px",
+        background: "#191919",
+        border: "2px dashed rgba(207, 255, 4, 0.85)",
+        cursor: "pointer",
+        padding: 0,
+        zIndex: 4,
+        boxShadow: "0 0 12px rgba(207, 255, 4, 0.25)",
+      }}
+    />
+  );
+}
+
+function HitPlacedBubble({ position }: { position: HitBubblePosition }) {
+  return (
+    <span
+      style={{
+        position: "absolute",
+        ...getHitBubblePositionStyle(position),
+        width: 34,
+        height: 34,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        pointerEvents: "none",
+        zIndex: 3,
+      }}
+    >
+      <EmptyEquationBubble size={34} />
+    </span>
+  );
+}
+
+function HitEquationPreview({
+  tokens,
+  hitBubbles,
+  onAddHitBubblePair,
+}: {
+  tokens: EquationToken[];
+  hitBubbles: HitBubblePlacement[];
+  onAddHitBubblePair: (tokenIndex: number, pair: HitBubblePair) => void;
+}) {
+  const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(
+    null,
+  );
+
+  if (tokens.length === 0) {
+    return (
+      <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>
+        Empty
+      </span>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 34,
+        flexWrap: "wrap",
+        padding: 36,
+      }}
+    >
+      {tokens.map((token, tokenIndex) => {
+        const placements = hitBubbles.filter(
+          (placement) => placement.tokenIndex === tokenIndex,
+        );
+        const placedPositions = Array.from(
+          new Set(placements.flatMap((placement) => placement.positions)),
+        );
+        const isSelected = selectedTokenIndex === tokenIndex;
+
+        return (
+          <span
+            key={token.id}
+            style={{
+              position: "relative",
+              width: 46,
+              height: 46,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            {placedPositions.map((position) => (
+              <HitPlacedBubble key={position} position={position} />
+            ))}
+
+            {isSelected
+              ? hitBubblePositions.map((position) => (
+                  <HitOptionBubble
+                    key={position}
+                    position={position}
+                    onSelect={(nextPosition) => {
+                      onAddHitBubblePair(
+                        tokenIndex,
+                        getHitBubblePairFromPosition(nextPosition),
+                      );
+                      setSelectedTokenIndex(null);
+                    }}
+                  />
+                ))
+              : null}
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setSelectedTokenIndex((current) =>
+                  current === tokenIndex ? null : tokenIndex,
+                );
+              }}
+              style={{
+                position: "relative",
+                zIndex: 5,
+                border: "none",
+                background: "transparent",
+                padding: 0,
+                cursor: "pointer",
+              }}
+              title="Click to add hit bubbles"
+            >
+              <EquationCircle label={token.label} draggable={false} size={46} />
+            </button>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function SpinOverlay() {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        left: "50%",
+        top: "50%",
+        width: 150,
+        height: 150,
+        borderRadius: "999px",
+        borderRight: "34px solid rgba(255, 255, 255, 0.16)",
+        borderTop: "34px solid rgba(255, 255, 255, 0.1)",
+        borderBottom: "34px solid rgba(255, 255, 255, 0.12)",
+        borderLeft: "34px solid transparent",
+        transform: "translate(-50%, -50%) rotate(-16deg)",
+        pointerEvents: "none",
+        zIndex: 1,
+        boxSizing: "border-box",
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: -58,
+          width: 48,
+          height: 48,
+          borderRadius: "999px",
+          background: "rgba(255, 255, 255, 0.18)",
+          transform: "translateX(-50%)",
+        }}
+      />
+      <span
+        style={{
+          position: "absolute",
+          left: "50%",
+          bottom: -58,
+          width: 48,
+          height: 48,
+          borderRadius: "999px",
+          background: "rgba(255, 255, 255, 0.18)",
+          transform: "translateX(-50%)",
+        }}
+      />
+    </span>
+  );
+}
+
+function SpinEquationPreview({
+  tokens,
+  spinTargets,
+  onToggleSpinTarget,
+}: {
+  tokens: EquationToken[];
+  spinTargets: SpinTarget[];
+  onToggleSpinTarget: (tokenIndex: number) => void;
+}) {
+  if (tokens.length === 0) {
+    return (
+      <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>
+        Empty
+      </span>
+    );
+  }
+
+  const targetIndexes = new Set(spinTargets.map((target) => target.tokenIndex));
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 34,
+        flexWrap: "wrap",
+        padding: 44,
+      }}
+    >
+      {tokens.map((token, tokenIndex) => {
+        const isSpinTarget = targetIndexes.has(tokenIndex);
+
+        return (
+          <span
+            key={token.id}
+            style={{
+              position: "relative",
+              width: 58,
+              height: 58,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            {isSpinTarget ? <SpinOverlay /> : null}
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleSpinTarget(tokenIndex);
+              }}
+              style={{
+                position: "relative",
+                zIndex: 5,
+                border: "none",
+                background: "transparent",
+                padding: 0,
+                cursor: "pointer",
+              }}
+              title="Click to add or remove spin behavior"
+            >
+              <EquationCircle label={token.label} draggable={false} size={58} />
+            </button>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function findEqualsIndex(tokens: EquationToken[]) {
+  const index = tokens.findIndex((token) => token.label === "=");
+
+  return index >= 0 ? index : Math.floor(tokens.length / 2);
+}
+
+function DragArcOverlay({ side }: { side: "left" | "right" }) {
+  const isRight = side === "right";
+
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        top: "50%",
+        [isRight ? "left" : "right"]: 36,
+        width: 190,
+        height: 140,
+        transform: `translateY(-10%) ${isRight ? "" : "scaleX(-1)"}`,
+        pointerEvents: "none",
+        zIndex: 1,
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 8,
+          width: 170,
+          height: 118,
+          borderRadius: "0 0 120px 120px",
+          borderBottom: "34px solid rgba(207, 255, 4, 0.24)",
+          borderLeft: "34px solid rgba(255, 72, 72, 0.32)",
+          borderRight: "34px solid rgba(255, 255, 255, 0.13)",
+          borderTop: "0 solid transparent",
+          boxSizing: "border-box",
+        }}
+      />
+      <span
+        style={{
+          position: "absolute",
+          right: -6,
+          top: 0,
+          width: 44,
+          height: 44,
+          borderRadius: "999px",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <EmptyEquationBubble size={44} />
+      </span>
+    </span>
+  );
+}
+
+function DragEquationPreview({
+  tokens,
+  dragTargets,
+  onToggleDragTarget,
+}: {
+  tokens: EquationToken[];
+  dragTargets: DragTarget[];
+  onToggleDragTarget: (tokenIndex: number) => void;
+}) {
+  if (tokens.length === 0) {
+    return (
+      <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>
+        Empty
+      </span>
+    );
+  }
+
+  const targetIndexes = new Set(dragTargets.map((target) => target.tokenIndex));
+  const equalsIndex = findEqualsIndex(tokens);
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 34,
+        flexWrap: "wrap",
+        padding: 44,
+      }}
+    >
+      {tokens.map((token, tokenIndex) => {
+        const isDragTarget = targetIndexes.has(tokenIndex);
+        const targetSide = tokenIndex < equalsIndex ? "right" : "left";
+
+        return (
+          <span
+            key={token.id}
+            style={{
+              position: "relative",
+              width: 58,
+              height: 58,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            {isDragTarget ? <DragArcOverlay side={targetSide} /> : null}
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleDragTarget(tokenIndex);
+              }}
+              style={{
+                position: "relative",
+                zIndex: 5,
+                border: "none",
+                background: "transparent",
+                padding: 0,
+                cursor: "pointer",
+              }}
+              title="Click to add or remove drag behavior"
+            >
+              <EquationCircle label={token.label} draggable={false} size={58} />
+            </button>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function EventMechanicColumn({
   mechanic,
   equation,
+  hitBubbles = [],
+  spinTargets = [],
+  dragTargets = [],
   onDropEquation,
+  onAddHitBubblePair,
+  onToggleSpinTarget,
+  onToggleDragTarget,
 }: {
   mechanic: GameplayMechanic;
   equation: SavedEquation | null;
-  onDropEquation: (mechanic: GameplayMechanic, equation: SavedEquation) => void;
+  hitBubbles?: HitBubblePlacement[];
+  spinTargets?: SpinTarget[];
+  dragTargets?: DragTarget[];
+  onDropEquation: (equation: SavedEquation) => void;
+  onAddHitBubblePair?: (tokenIndex: number, pair: HitBubblePair) => void;
+  onToggleSpinTarget?: (tokenIndex: number) => void;
+  onToggleDragTarget?: (tokenIndex: number) => void;
 }) {
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -1228,7 +1870,7 @@ function EventMechanicColumn({
       const parsed = JSON.parse(rawEquation) as SavedEquation;
 
       if (parsed.id && Array.isArray(parsed.tokens)) {
-        onDropEquation(mechanic, {
+        onDropEquation({
           id: parsed.id,
           tokens: cloneTokens(parsed.tokens),
         });
@@ -1282,7 +1924,27 @@ function EventMechanicColumn({
         }}
       >
         {equation ? (
-          <EquationPreview tokens={equation.tokens} circleSize={46} />
+          mechanic === "hit" && onAddHitBubblePair ? (
+            <HitEquationPreview
+              tokens={equation.tokens}
+              hitBubbles={hitBubbles}
+              onAddHitBubblePair={onAddHitBubblePair}
+            />
+          ) : mechanic === "spin" && onToggleSpinTarget ? (
+            <SpinEquationPreview
+              tokens={equation.tokens}
+              spinTargets={spinTargets}
+              onToggleSpinTarget={onToggleSpinTarget}
+            />
+          ) : mechanic === "drag" && onToggleDragTarget ? (
+            <DragEquationPreview
+              tokens={equation.tokens}
+              dragTargets={dragTargets}
+              onToggleDragTarget={onToggleDragTarget}
+            />
+          ) : (
+            <EquationPreview tokens={equation.tokens} circleSize={46} />
+          )
         ) : (
           <div
             style={{
@@ -1295,7 +1957,7 @@ function EventMechanicColumn({
               textAlign: "center",
             }}
           >
-            Drag an equation here.
+            Drag one equation into the viewer to populate Hit, Spin, and Drag.
           </div>
         )}
       </div>
@@ -1306,10 +1968,41 @@ function EventMechanicColumn({
 function EventBuilderArea({
   eventSlot,
   onDropEquation,
+  onAddHitBubblePair,
+  onToggleSpinTarget,
+  onToggleDragTarget,
 }: {
   eventSlot: TimelineEventSlot | null;
-  onDropEquation: (mechanic: GameplayMechanic, equation: SavedEquation) => void;
+  onDropEquation: (equation: SavedEquation) => void;
+  onAddHitBubblePair: (tokenIndex: number, pair: HitBubblePair) => void;
+  onToggleSpinTarget: (tokenIndex: number) => void;
+  onToggleDragTarget: (tokenIndex: number) => void;
 }) {
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+
+    const rawEquation = event.dataTransfer.getData(
+      "application/x-saved-equation",
+    );
+
+    if (!rawEquation) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawEquation) as SavedEquation;
+
+      if (parsed.id && Array.isArray(parsed.tokens)) {
+        onDropEquation({
+          id: parsed.id,
+          tokens: cloneTokens(parsed.tokens),
+        });
+      }
+    } catch (error) {
+      console.error("Failed to drop saved equation", error);
+    }
+  }
+
   if (!eventSlot) {
     return (
       <div
@@ -1333,6 +2026,11 @@ function EventBuilderArea({
 
   return (
     <div
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      }}
+      onDrop={handleDrop}
       style={{
         flex: 1,
         minHeight: 0,
@@ -1352,7 +2050,19 @@ function EventBuilderArea({
           key={mechanic}
           mechanic={mechanic}
           equation={eventSlot.assignments[mechanic]}
+          hitBubbles={mechanic === "hit" ? eventSlot.hitBubbles : []}
+          spinTargets={mechanic === "spin" ? eventSlot.spinTargets : []}
+          dragTargets={mechanic === "drag" ? eventSlot.dragTargets : []}
           onDropEquation={onDropEquation}
+          onAddHitBubblePair={
+            mechanic === "hit" ? onAddHitBubblePair : undefined
+          }
+          onToggleSpinTarget={
+            mechanic === "spin" ? onToggleSpinTarget : undefined
+          }
+          onToggleDragTarget={
+            mechanic === "drag" ? onToggleDragTarget : undefined
+          }
         />
       ))}
     </div>
@@ -1419,7 +2129,9 @@ function EquationTimeline({
                   height: "100%",
                   background: isActive ? "#191919" : "#252525",
                   color: textColor,
-                  border: `2px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
+                  border: `2px solid ${
+                    isActive ? "#CFFF04" : subtleBorderColor
+                  }`,
                   borderRadius: 16,
                   padding: 12,
                   boxSizing: "border-box",
@@ -1652,6 +2364,9 @@ function CenterEditorPanel({
   onRemoveToken,
   onSaveEquation,
   onDropEquation,
+  onAddHitBubblePair,
+  onToggleSpinTarget,
+  onToggleDragTarget,
 }: {
   mode: "event" | "equation";
   timelineEvents: TimelineEventSlot[];
@@ -1663,7 +2378,10 @@ function CenterEditorPanel({
   onInsertToken: (index: number, label: string) => void;
   onRemoveToken: (id: string) => void;
   onSaveEquation: () => void;
-  onDropEquation: (mechanic: GameplayMechanic, equation: SavedEquation) => void;
+  onDropEquation: (equation: SavedEquation) => void;
+  onAddHitBubblePair: (tokenIndex: number, pair: HitBubblePair) => void;
+  onToggleSpinTarget: (tokenIndex: number) => void;
+  onToggleDragTarget: (tokenIndex: number) => void;
 }) {
   const activeEvent =
     timelineEvents.find((eventSlot) => eventSlot.id === activeEventId) ?? null;
@@ -1695,6 +2413,9 @@ function CenterEditorPanel({
         <EventBuilderArea
           eventSlot={activeEvent}
           onDropEquation={onDropEquation}
+          onAddHitBubblePair={onAddHitBubblePair}
+          onToggleSpinTarget={onToggleSpinTarget}
+          onToggleDragTarget={onToggleDragTarget}
         />
       )}
 
@@ -1857,10 +2578,7 @@ export default function LessonBuilderClient({
     setMode("event");
   }
 
-  function handleDropEquation(
-    mechanic: GameplayMechanic,
-    equation: SavedEquation,
-  ) {
+  function handleDropEquation(equation: SavedEquation) {
     if (!activeEventId) {
       return;
     }
@@ -1871,15 +2589,118 @@ export default function LessonBuilderClient({
           return eventSlot;
         }
 
+        return assignEquationToAllMechanics(
+          {
+            ...eventSlot,
+            hitBubbles: [],
+            spinTargets: [],
+            dragTargets: [],
+          },
+          equation,
+        );
+      }),
+    );
+  }
+
+  function handleAddHitBubblePair(tokenIndex: number, pair: HitBubblePair) {
+    if (!activeEventId) {
+      return;
+    }
+
+    const pairPositions = hitBubblePairPositions[pair];
+
+    setTimelineEvents((current) =>
+      current.map((eventSlot) => {
+        if (eventSlot.id !== activeEventId) {
+          return eventSlot;
+        }
+
+        const existingPlacement = eventSlot.hitBubbles.find(
+          (placement) => placement.tokenIndex === tokenIndex,
+        );
+
+        if (!existingPlacement) {
+          return {
+            ...eventSlot,
+            hitBubbles: [
+              ...eventSlot.hitBubbles,
+              {
+                tokenIndex,
+                positions: pairPositions,
+              },
+            ],
+          };
+        }
+
+        const existingPositions = new Set(existingPlacement.positions);
+        pairPositions.forEach((position) => existingPositions.add(position));
+
         return {
           ...eventSlot,
-          assignments: {
-            ...eventSlot.assignments,
-            [mechanic]: {
-              ...equation,
-              tokens: cloneTokens(equation.tokens),
-            },
-          },
+          hitBubbles: eventSlot.hitBubbles.map((placement) =>
+            placement.tokenIndex === tokenIndex
+              ? {
+                  ...placement,
+                  positions: hitBubblePositions.filter((position) =>
+                    existingPositions.has(position),
+                  ),
+                }
+              : placement,
+          ),
+        };
+      }),
+    );
+  }
+
+  function handleToggleSpinTarget(tokenIndex: number) {
+    if (!activeEventId) {
+      return;
+    }
+
+    setTimelineEvents((current) =>
+      current.map((eventSlot) => {
+        if (eventSlot.id !== activeEventId) {
+          return eventSlot;
+        }
+
+        const exists = eventSlot.spinTargets.some(
+          (target) => target.tokenIndex === tokenIndex,
+        );
+
+        return {
+          ...eventSlot,
+          spinTargets: exists
+            ? eventSlot.spinTargets.filter(
+                (target) => target.tokenIndex !== tokenIndex,
+              )
+            : [...eventSlot.spinTargets, { tokenIndex }],
+        };
+      }),
+    );
+  }
+
+  function handleToggleDragTarget(tokenIndex: number) {
+    if (!activeEventId) {
+      return;
+    }
+
+    setTimelineEvents((current) =>
+      current.map((eventSlot) => {
+        if (eventSlot.id !== activeEventId) {
+          return eventSlot;
+        }
+
+        const exists = eventSlot.dragTargets.some(
+          (target) => target.tokenIndex === tokenIndex,
+        );
+
+        return {
+          ...eventSlot,
+          dragTargets: exists
+            ? eventSlot.dragTargets.filter(
+                (target) => target.tokenIndex !== tokenIndex,
+              )
+            : [...eventSlot.dragTargets, { tokenIndex }],
         };
       }),
     );
@@ -2180,6 +3001,9 @@ export default function LessonBuilderClient({
           onRemoveToken={handleRemoveEquationToken}
           onSaveEquation={handleSaveEquation}
           onDropEquation={handleDropEquation}
+          onAddHitBubblePair={handleAddHitBubblePair}
+          onToggleSpinTarget={handleToggleSpinTarget}
+          onToggleDragTarget={handleToggleDragTarget}
         />
 
         <RightLessonPanel />
