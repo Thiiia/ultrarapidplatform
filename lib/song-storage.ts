@@ -148,10 +148,10 @@ async function getSongAssetMechanicCounts(songAssetIds: string[]) {
     .select("id,equation_slots,hit_counts,spin_counts,drag_counts")
     .in("id", songAssetIds);
 
-if (error) {
-  console.error("Unable to load song asset mechanic counts:", error);
-  throw new Error(`Unable to load song asset mechanic counts: ${error.message}`);
-}
+  if (error) {
+    console.warn("Unable to load song asset mechanic counts:", error);
+    return new Map<string, SongAssetMechanicCounts>();
+  }
 
   return new Map(
     (data ?? []).map((row) => [
