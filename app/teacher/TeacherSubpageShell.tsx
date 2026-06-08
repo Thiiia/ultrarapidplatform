@@ -203,23 +203,30 @@ function HeaderBar({
             overflow: "visible",
           }}
         >
-          <Link
-            href={profileHref}
-            aria-label="Profile"
-            className={styles.utilityButton}
-            style={{
-              width: 134.45,
-              height: 38,
-            }}
-          >
-            <ProfileIcon
-              style={{
-                width: 134.45,
-                height: 38,
-                display: "block",
-              }}
-            />
-          </Link>
+<button
+  type="button"
+  aria-label="Profile"
+  className={styles.utilityButton}
+  onClick={() => {
+    console.info("Profile page is not enabled yet.");
+  }}
+  style={{
+    width: 134.45,
+    height: 38,
+    border: "none",
+    background: "transparent",
+    padding: 0,
+    cursor: "default",
+  }}
+>
+  <ProfileIcon
+    style={{
+      width: 134.45,
+      height: 38,
+      display: "block",
+    }}
+  />
+</button>
 
           <a
             href="/auth/logout"
