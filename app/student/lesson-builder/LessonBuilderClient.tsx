@@ -6,6 +6,7 @@ import type { ChangeEvent, DragEvent, FC, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useEditorStore } from "@/lib/editor/editor-store";
 import { chartToProject } from "@/lib/editor/chart-to-project";
+import { projectToChart, projectToSidecarJson } from "@/lib/editor/project-to-chart";
 import styles from "../student.module.css";
 
 /* Header Icon imports */
@@ -41,21 +42,28 @@ type SelectedSongPayload = {
   name: string;
   title?: string;
   artist?: string | null;
-
+  /**
+   * Supabase SongAsset equation slot count.
+   * Accept both camelCase from app code and snake_case directly from Supabase rows.
+   */
+  equationSlots?: number | null;
+  equation_slots?: number | null;
+  songAsset?: {
+    equationSlots?: number | null;
+    equation_slots?: number | null;
+  } | null;
   song: {
     bucket: string;
     path: string;
     signedUrl: string;
     contentType: string | null;
   };
-
   chart: {
     bucket: string;
     path: string;
     signedUrl: string;
     contentType: string | null;
   };
-
   sidecar: {
     bucket: string;
     path: string;
@@ -69,8 +77,10 @@ type EquationToken = {
   label: string;
 };
 
-type SavedEquation = {
+type EquationTimelineSlot = {
   id: string;
+  equationId: string;
+  tick: number;
   tokens: EquationToken[];
 };
 
@@ -118,6 +128,42 @@ type LessonBuilderClientProps = {
   navBasePath?: string;
 };
 
+const pagePanelWidth = "92vw";
+const headerBackgroundColor = "#2B2B2B";
+const pageBackgroundColor = "#191919";
+const subtleBorderColor = "#FFFFFF14";
+const textColor = "#FFFFFF";
+
+const emptySidecar: SidecarPayload = {
+  version: 1,
+  events: [],
+};
+
+const gameplayMechanics: GameplayMechanic[] = ["spin", "drag", "hit"];
+
+const equationPalette = [
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "x",
+  "+",
+  "-",
+  "×",
+  "÷",
+  "=",
+];
+
+const utilityTabs: UtilityTab[] = [
+  { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 134.45 },
+];
+
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
     {
@@ -157,42 +203,6 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
     },
   ];
 }
-
-const utilityTabs: UtilityTab[] = [
-  { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 134.45 },
-];
-
-const pagePanelWidth = "92vw";
-const headerBackgroundColor = "#2B2B2B";
-const pageBackgroundColor = "#191919";
-const subtleBorderColor = "#FFFFFF14";
-const textColor = "#FFFFFF";
-
-const emptySidecar: SidecarPayload = {
-  version: 1,
-  events: [],
-};
-
-const gameplayMechanics: GameplayMechanic[] = ["spin", "drag", "hit"];
-
-const equationPalette = [
-  "0",
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-  "9",
-  "X",
-  "+",
-  "-",
-  "×",
-  "÷",
-  "=",
-];
 
 function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -265,7 +275,7 @@ function normalizeSidecar(value: unknown): SidecarPayload {
       const equationId = typeof event.equationId === "string" ? event.equationId : "";
       const state = typeof event.state === "string" ? event.state : "";
 
-      if (!equationId.trim() || !state.trim()) {
+      if (!equationId.trim()) {
         return [];
       }
 
@@ -288,12 +298,95 @@ function normalizeSidecar(value: unknown): SidecarPayload {
   };
 }
 
-function sidecarToJson(sidecar: SidecarPayload) {
-  return JSON.stringify(normalizeSidecar(sidecar), null, 2);
-}
-
 function tokensToEquationState(tokens: EquationToken[]) {
   return tokens.map((token) => token.label).join(" ");
+}
+
+function equationStateToTokens(state: string): EquationToken[] {
+  return state
+    .split(/\s+/)
+    .map((label) => label.trim())
+    .filter(Boolean)
+    .map((label) => ({
+      id: makeId("token"),
+      label,
+    }));
+}
+
+function slotsFromSidecar(sidecar: SidecarPayload): EquationTimelineSlot[] {
+  return sidecar.events
+    .filter((event): event is SidecarEquationStateEvent => event.type === "ALG_EQUATION_STATE")
+    .sort((left, right) => left.tick - right.tick)
+    .map((event, index) => ({
+      id: makeId(`slot-${index + 1}`),
+      equationId: event.equationId,
+      tick: event.tick,
+      tokens: equationStateToTokens(event.state),
+    }));
+}
+
+function normalizeEquationSlotCount(value: unknown): number | null {
+  const count = Number(value);
+
+  if (!Number.isFinite(count) || count < 0) {
+    return null;
+  }
+
+  return Math.round(count);
+}
+
+function getSelectedSongEquationSlotCount(selectedSong: SelectedSongPayload): number | null {
+  return (
+    normalizeEquationSlotCount(selectedSong.equationSlots) ??
+    normalizeEquationSlotCount(selectedSong.equation_slots) ??
+    normalizeEquationSlotCount(selectedSong.songAsset?.equationSlots) ??
+    normalizeEquationSlotCount(selectedSong.songAsset?.equation_slots)
+  );
+}
+
+function resizeEquationSlots(
+  slots: EquationTimelineSlot[],
+  targetCount: number,
+  defaultTick: number,
+): EquationTimelineSlot[] {
+  const safeCount = Math.max(0, Math.round(targetCount));
+  const nextSlots = slots.slice(0, safeCount);
+
+  for (let index = nextSlots.length; index < safeCount; index += 1) {
+    nextSlots.push({
+      id: makeId("slot"),
+      equationId: `eq_${String(index + 1).padStart(3, "0")}`,
+      tick: defaultTick,
+      tokens: [],
+    });
+  }
+
+  return nextSlots.map((slot, index) => ({
+    ...slot,
+    equationId: slot.equationId.trim() || `eq_${String(index + 1).padStart(3, "0")}`,
+  }));
+}
+
+function sidecarFromSlots(
+  slots: EquationTimelineSlot[],
+  mechanicEvents: SidecarMechanicEvent[],
+): SidecarPayload {
+  return normalizeSidecar({
+    version: 1,
+    events: [
+      ...mechanicEvents,
+      ...slots.map((slot): SidecarEquationStateEvent => ({
+        tick: slot.tick,
+        type: "ALG_EQUATION_STATE",
+        equationId: slot.equationId,
+        state: tokensToEquationState(slot.tokens),
+      })),
+    ],
+  });
+}
+
+function getChartFileName(chartName?: string) {
+  return chartName?.trim() || "ultrarapid-chart.chart";
 }
 
 function getSidecarFileName(chartName?: string) {
@@ -384,12 +477,9 @@ function HeaderBar({
         width: "100%",
         boxSizing: "border-box",
         height: 70,
-        border: "none",
         borderBottom: `1px solid ${subtleBorderColor}`,
-        borderRadius: 0,
         display: "flex",
         alignItems: "center",
-        overflow: "visible",
       }}
     >
       <div
@@ -401,7 +491,6 @@ function HeaderBar({
           justifyContent: "space-between",
           alignItems: "center",
           gap: 24,
-          flexWrap: "nowrap",
           overflow: "visible",
         }}
       >
@@ -410,7 +499,6 @@ function HeaderBar({
             display: "flex",
             alignItems: "center",
             gap: 28,
-            flexWrap: "nowrap",
             minWidth: 0,
             overflow: "visible",
           }}
@@ -443,7 +531,6 @@ function HeaderBar({
               display: "flex",
               alignItems: "center",
               gap: 12,
-              flexWrap: "nowrap",
               minWidth: 0,
               overflow: "visible",
             }}
@@ -453,17 +540,12 @@ function HeaderBar({
               const isHomeTab = tab.label === "Home";
               const isPlayTab = tab.label === "Play";
               const isLessonBuilderTab = tab.label === "Lesson Builder";
-
-              const lessonBuilderPath = cleanTabHref.replace(
-                "/song-choice",
-                "/lesson-builder",
-              );
+              const lessonBuilderPath = cleanTabHref.replace("/song-choice", "/lesson-builder");
 
               const isActive =
                 pathname === cleanTabHref ||
                 (isLessonBuilderTab &&
-                  (pathname === lessonBuilderPath ||
-                    pathname.startsWith(`${lessonBuilderPath}/`))) ||
+                  (pathname === lessonBuilderPath || pathname.startsWith(`${lessonBuilderPath}/`))) ||
                 (!isHomeTab &&
                   !isPlayTab &&
                   !isLessonBuilderTab &&
@@ -477,25 +559,16 @@ function HeaderBar({
                   key={tab.label}
                   href={tab.href}
                   aria-label={tab.label}
-                  className={`${styles.headerTabButton} ${
-                    isActive ? styles.headerTabButtonActive : ""
-                  }`}
+                  className={`${styles.headerTabButton} ${isActive ? styles.headerTabButtonActive : ""}`}
                   style={{
                     width: tab.width,
                     height: 45.5,
-                    opacity: 1,
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
-                  <Icon
-                    style={{
-                      width: tab.width,
-                      height: 45.5,
-                      display: "block",
-                    }}
-                  />
+                  <Icon style={{ width: tab.width, height: 45.5, display: "block" }} />
                 </Link>
               );
             })}
@@ -506,7 +579,6 @@ function HeaderBar({
           style={{
             display: "flex",
             gap: 6,
-            flexWrap: "nowrap",
             marginLeft: "auto",
             alignItems: "center",
             flexShrink: 0,
@@ -519,18 +591,9 @@ function HeaderBar({
               href={tab.href}
               aria-label={tab.label}
               className={styles.utilityButton}
-              style={{
-                width: tab.width,
-                height: 38,
-              }}
+              style={{ width: tab.width, height: 38 }}
             >
-              <tab.Icon
-                style={{
-                  width: tab.width,
-                  height: 38,
-                  display: "block",
-                }}
-              />
+              <tab.Icon style={{ width: tab.width, height: 38, display: "block" }} />
             </Link>
           ))}
 
@@ -548,27 +611,32 @@ function HeaderBar({
 }
 
 function EditorTopPanel({
+  chartName,
   currentTick,
   hits,
-  sidecarError,
-  chartName,
+  requiredEquationSlots,
+  actualEquationSlots,
+  loadError,
+  onChartUpload,
+  onSidecarUpload,
   onCurrentTickChange,
   onHitsChange,
   onAddMechanic,
-  onChartUpload,
-  onSidecarUpload,
+
   onDownloadChart,
   onDownloadSidecar,
 }: {
+  chartName: string;
   currentTick: number;
   hits: number;
-  sidecarError: string;
-  chartName: string;
+  requiredEquationSlots: number | null;
+  actualEquationSlots: number;
+  loadError: string;
+  onChartUpload: (file: File) => void;
+  onSidecarUpload: (file: File) => void;
   onCurrentTickChange: (tick: number) => void;
   onHitsChange: (hits: number) => void;
   onAddMechanic: (mechanic: GameplayMechanic) => void;
-  onChartUpload: (file: File) => void;
-  onSidecarUpload: (file: File) => void;
   onDownloadChart: () => void;
   onDownloadSidecar: () => void;
 }) {
@@ -582,22 +650,24 @@ function EditorTopPanel({
         borderBottom: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
         color: textColor,
-        display: "flex",
-        alignItems: "center",
+        fontFamily: "Space Grotesk, sans-serif",
       }}
     >
       <div
         style={{
           width: pagePanelWidth,
+          minHeight: 96,
           margin: "0 auto",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 16,
-          fontFamily: "Space Grotesk, sans-serif",
+          gap: 20,
+          flexWrap: "wrap",
+          padding: "14px 0",
+          boxSizing: "border-box",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
           <label style={{ fontSize: 12, fontWeight: 700 }}>
             Load .chart
             <input
@@ -625,11 +695,15 @@ function EditorTopPanel({
               style={{ display: "block", marginTop: 6, maxWidth: 190 }}
             />
           </label>
+
+          <div style={{ fontSize: 12, color: "#FFFFFF99", fontWeight: 700 }}>
+            {chartName ? `Loaded: ${chartName}` : "No chart loaded"}
+          </div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <label style={{ fontSize: 12, fontWeight: 700 }}>
-            Tick
+            Selected tick
             <input
               type="number"
               min={0}
@@ -649,6 +723,29 @@ function EditorTopPanel({
             />
           </label>
 
+          <div style={{ fontSize: 12, fontWeight: 700 }}>
+            Equation slots
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                minHeight: 34,
+                marginLeft: 8,
+                background: "#191919",
+                color: textColor,
+                border: `1px solid ${subtleBorderColor}`,
+                borderRadius: 8,
+                padding: "0 12px",
+                fontWeight: 800,
+              }}
+              title="This comes from the SongAsset.equation_slots value in Supabase."
+            >
+              {requiredEquationSlots ?? actualEquationSlots}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <label style={{ fontSize: 12, fontWeight: 700 }}>
             Hits
             <input
@@ -681,7 +778,7 @@ function EditorTopPanel({
                 color: "#000000",
                 border: "1px solid #CFFF04",
                 borderRadius: 10,
-                padding: "0 14px",
+                padding: "0 12px",
                 fontFamily: "Space Grotesk, sans-serif",
                 fontSize: 12,
                 fontWeight: 800,
@@ -722,7 +819,7 @@ function EditorTopPanel({
               minHeight: 36,
               background: "#191919",
               color: textColor,
-              border: `1px solid ${sidecarError ? "#FF7777" : subtleBorderColor}`,
+              border: `1px solid ${subtleBorderColor}`,
               borderRadius: 10,
               padding: "0 12px",
               fontFamily: "Space Grotesk, sans-serif",
@@ -734,9 +831,9 @@ function EditorTopPanel({
             Download JSON
           </button>
 
-          {sidecarError ? (
+          {loadError ? (
             <span style={{ color: "#FF8C8C", fontSize: 11, fontWeight: 700, maxWidth: 220 }}>
-              {sidecarError}
+              {loadError}
             </span>
           ) : null}
         </div>
@@ -760,10 +857,7 @@ function EquationCircle({
       onDragStart={(event) => {
         if (!draggable) return;
 
-        event.dataTransfer.setData(
-          "application/x-equation-token",
-          JSON.stringify({ label }),
-        );
+        event.dataTransfer.setData("application/x-equation-token", JSON.stringify({ label }));
         event.dataTransfer.effectAllowed = "copy";
       }}
       style={{
@@ -787,6 +881,34 @@ function EquationCircle({
       }}
     >
       {label}
+    </div>
+  );
+}
+
+function EquationPreview({
+  tokens,
+  circleSize = 34,
+}: {
+  tokens: EquationToken[];
+  circleSize?: number;
+}) {
+  if (tokens.length === 0) {
+    return <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>Empty equation</span>;
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: Math.max(4, circleSize / 7),
+        flexWrap: "wrap",
+      }}
+    >
+      {tokens.map((token) => (
+        <EquationCircle key={token.id} label={token.label} draggable={false} size={circleSize} />
+      ))}
     </div>
   );
 }
@@ -861,10 +983,7 @@ function CustomEquationCircle({
           return;
         }
 
-        event.dataTransfer.setData(
-          "application/x-equation-token",
-          JSON.stringify({ label }),
-        );
+        event.dataTransfer.setData("application/x-equation-token", JSON.stringify({ label }));
         event.dataTransfer.effectAllowed = "copy";
       }}
       style={{
@@ -908,14 +1027,413 @@ function CustomEquationCircle({
   );
 }
 
-function EquationBlocksPanel({
-  savedEquations,
-  onCreateEquation,
-  onAddEquationEvent,
+function EquationBuilderArea({
+  activeSlot,
+  customTokenLabel,
+  onCustomTokenLabelChange,
+  onInsertToken,
+  onRemoveToken,
+  onClearSlot,
 }: {
-  savedEquations: SavedEquation[];
-  onCreateEquation: () => void;
-  onAddEquationEvent: (equation: SavedEquation) => void;
+  activeSlot: EquationTimelineSlot | null;
+  customTokenLabel: string;
+  onCustomTokenLabelChange: (value: string) => void;
+  onInsertToken: (index: number, label: string) => void;
+  onRemoveToken: (id: string) => void;
+  onClearSlot: () => void;
+}) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+        background: "#191919",
+        boxSizing: "border-box",
+        display: "grid",
+        gridTemplateRows: "auto 1fr auto",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          minHeight: 100,
+          borderBottom: `1px solid ${subtleBorderColor}`,
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          padding: "0 18px",
+          boxSizing: "border-box",
+          overflowX: "auto",
+          fontFamily: "Space Grotesk, sans-serif",
+        }}
+      >
+        {equationPalette.map((label) => (
+          <EquationCircle key={label} label={label} size={68} draggable={Boolean(activeSlot)} />
+        ))}
+
+        <CustomEquationCircle value={customTokenLabel} onChange={onCustomTokenLabelChange} />
+      </div>
+
+      <div
+        style={{
+          margin: 18,
+          border: `1px dashed ${subtleBorderColor}`,
+          borderRadius: 18,
+          background: "#191919",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxSizing: "border-box",
+          overflow: "auto",
+          fontFamily: "Space Grotesk, sans-serif",
+        }}
+      >
+        {!activeSlot ? (
+          <div style={{ color: "#FFFFFF80", fontWeight: 700 }}>
+            Create or select an equation slot to start editing.
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 12,
+              flexWrap: "wrap",
+              padding: 24,
+              minHeight: 120,
+            }}
+          >
+            {activeSlot.tokens.length === 0 ? (
+              <EquationDropSlot index={0} onInsertToken={onInsertToken} />
+            ) : (
+              <>
+                <EquationDropSlot index={0} onInsertToken={onInsertToken} />
+
+                {activeSlot.tokens.map((token, index) => (
+                  <span
+                    key={token.id}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onRemoveToken(token.id)}
+                      title="Click to remove"
+                      style={{
+                        border: "none",
+                        background: "transparent",
+                        padding: 0,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <EquationCircle label={token.label} draggable={false} size={68} />
+                    </button>
+
+                    <EquationDropSlot index={index + 1} onInsertToken={onInsertToken} />
+                  </span>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div
+        style={{
+          minHeight: 70,
+          borderTop: `1px solid ${subtleBorderColor}`,
+          padding: "14px 18px",
+          boxSizing: "border-box",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 16,
+          fontFamily: "Space Grotesk, sans-serif",
+        }}
+      >
+        <div style={{ color: "#FFFFFF99", fontSize: 12, fontWeight: 700 }}>
+          {activeSlot
+            ? `Editing ${activeSlot.equationId} at tick ${activeSlot.tick}`
+            : "No active equation slot"}
+        </div>
+
+        <button
+          type="button"
+          disabled={!activeSlot || activeSlot.tokens.length === 0}
+          onClick={onClearSlot}
+          style={{
+            minWidth: 130,
+            minHeight: 40,
+            background: "#2B2B2B",
+            color: activeSlot && activeSlot.tokens.length > 0 ? textColor : "#FFFFFF80",
+            border: `1px solid ${subtleBorderColor}`,
+            borderRadius: 10,
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: activeSlot && activeSlot.tokens.length > 0 ? "pointer" : "not-allowed",
+          }}
+        >
+          Clear slot
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EquationTimeline({
+  slots,
+  activeSlotId,
+  onSelectSlot,
+}: {
+  slots: EquationTimelineSlot[];
+  activeSlotId: string | null;
+  onSelectSlot: (slotId: string) => void;
+}) {
+  return (
+    <section
+      aria-label="Equation timeline"
+      style={{
+        width: "100%",
+        height: "28vh",
+        minHeight: 210,
+        background: "#2B2B2B",
+        borderTop: `1px solid ${subtleBorderColor}`,
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        fontFamily: "Space Grotesk, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          minHeight: 44,
+          borderBottom: `1px solid ${subtleBorderColor}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 18px",
+          boxSizing: "border-box",
+        }}
+      >
+        <div style={{ color: textColor, fontSize: 13, fontWeight: 800 }}>
+          Equation Timeline
+        </div>
+
+        <div style={{ color: "#FFFFFF80", fontSize: 12, fontWeight: 700 }}>
+          Slots are set on the SongAsset in Supabase
+        </div>
+      </div>
+
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          gap: 14,
+          padding: 16,
+          boxSizing: "border-box",
+          overflowX: "auto",
+        }}
+      >
+        {slots.length === 0 ? (
+          <div
+            style={{
+              color: "#FFFFFF80",
+              fontSize: 13,
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            No equation slots yet. Set SongAsset.equation_slots in Supabase or load a sidecar JSON.
+          </div>
+        ) : (
+          slots.map((slot, index) => {
+            const isActive = slot.id === activeSlotId;
+
+            return (
+              <button
+                key={slot.id}
+                type="button"
+                onClick={() => onSelectSlot(slot.id)}
+                style={{
+                  width: 240,
+                  minWidth: 240,
+                  height: "100%",
+                  background: isActive ? "#191919" : "#252525",
+                  color: textColor,
+                  border: `2px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
+                  borderRadius: 16,
+                  padding: 12,
+                  boxSizing: "border-box",
+                  cursor: "pointer",
+                  display: "grid",
+                  gridTemplateRows: "auto 1fr auto",
+                  gap: 8,
+                  textAlign: "left",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 8,
+                    fontSize: 12,
+                    fontWeight: 800,
+                  }}
+                >
+                  <span>Equation {index + 1}</span>
+                  <span style={{ color: "#FFFFFF99" }}>Tick {slot.tick}</span>
+                </div>
+
+                <div
+                  style={{
+                    border: `1px dashed ${subtleBorderColor}`,
+                    borderRadius: 12,
+                    padding: 10,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                  }}
+                >
+                  <EquationPreview tokens={slot.tokens} circleSize={30} />
+                </div>
+
+                <div
+                  style={{
+                    color: "#FFFFFF80",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {slot.equationId}
+                </div>
+              </button>
+            );
+          })
+        )}
+      </div>
+    </section>
+  );
+}
+
+function CenterEditorPanel({
+  slots,
+  activeSlotId,
+  customTokenLabel,
+  onCustomTokenLabelChange,
+  onSelectSlot,
+  onInsertToken,
+  onRemoveToken,
+  onClearSlot,
+}: {
+  slots: EquationTimelineSlot[];
+  activeSlotId: string | null;
+  customTokenLabel: string;
+  onCustomTokenLabelChange: (value: string) => void;
+  onSelectSlot: (slotId: string) => void;
+  onInsertToken: (index: number, label: string) => void;
+  onRemoveToken: (id: string) => void;
+  onClearSlot: () => void;
+}) {
+  const activeSlot = slots.find((slot) => slot.id === activeSlotId) ?? null;
+
+  return (
+    <section
+      style={{
+        width: "75vw",
+        height: "calc(100vh - 166px)",
+        minHeight: "calc(100vh - 166px)",
+        background: "#191919",
+        color: textColor,
+        boxSizing: "border-box",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <EquationBuilderArea
+        activeSlot={activeSlot}
+        customTokenLabel={customTokenLabel}
+        onCustomTokenLabelChange={onCustomTokenLabelChange}
+        onInsertToken={onInsertToken}
+        onRemoveToken={onRemoveToken}
+        onClearSlot={onClearSlot}
+      />
+
+      <EquationTimeline
+        slots={slots}
+        activeSlotId={activeSlotId}
+        onSelectSlot={onSelectSlot}
+      />
+    </section>
+  );
+}
+
+function WorkspacePanel({
+  title,
+  width,
+  background,
+  children,
+}: {
+  title?: string;
+  width: string;
+  background: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <section
+      style={{
+        width,
+        height: "calc(100vh - 166px)",
+        minHeight: "calc(100vh - 166px)",
+        background,
+        color: textColor,
+        borderRight: `1px solid ${subtleBorderColor}`,
+        boxSizing: "border-box",
+        overflow: "hidden",
+      }}
+    >
+      {title ? (
+        <div
+          style={{
+            padding: "18px 16px",
+            borderBottom: `1px solid ${subtleBorderColor}`,
+            color: textColor,
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 13,
+            fontWeight: 700,
+            lineHeight: "19.5px",
+            textAlign: "left",
+          }}
+        >
+          {title}
+        </div>
+      ) : null}
+
+      {children}
+    </section>
+  );
+}
+
+function TimelineOverviewPanel({
+  slots,
+  activeSlotId,
+  onSelectSlot,
+}: {
+  slots: EquationTimelineSlot[];
+  activeSlotId: string | null;
+  onSelectSlot: (slotId: string) => void;
 }) {
   return (
     <section
@@ -941,38 +1459,10 @@ function EquationBlocksPanel({
           fontSize: 13,
           fontWeight: 700,
           lineHeight: "19.5px",
-          letterSpacing: 0,
           textAlign: "center",
         }}
       >
-        Equation Blocks
-      </div>
-
-      <div
-        style={{
-          padding: 12,
-          borderBottom: `1px solid ${subtleBorderColor}`,
-        }}
-      >
-        <button
-          type="button"
-          onClick={onCreateEquation}
-          style={{
-            width: "100%",
-            minHeight: 38,
-            background: "#CFFF04",
-            color: "#000000",
-            border: "1px solid #CFFF04",
-            borderRadius: 10,
-            fontFamily: "Space Grotesk, sans-serif",
-            fontSize: 12,
-            fontWeight: 700,
-            lineHeight: "18px",
-            cursor: "pointer",
-          }}
-        >
-          Create Equation
-        </button>
+        Song Equations
       </div>
 
       <div
@@ -982,572 +1472,42 @@ function EquationBlocksPanel({
           flexDirection: "column",
           gap: 10,
           overflowY: "auto",
-        }}
-      >
-        {savedEquations.map((equation) => {
-          const equationState = tokensToEquationState(equation.tokens);
-
-          return (
-            <div
-              key={equation.id}
-              draggable
-              onDragStart={(event) => {
-                event.dataTransfer.setData(
-                  "application/x-saved-equation",
-                  JSON.stringify(equation),
-                );
-                event.dataTransfer.effectAllowed = "copy";
-              }}
-              style={{
-                width: "100%",
-                minHeight: 70,
-                background: "#191919",
-                border: `1px solid ${subtleBorderColor}`,
-                borderRadius: 10,
-                padding: "7px 8px",
-                boxSizing: "border-box",
-                color: textColor,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "stretch",
-                justifyContent: "center",
-                gap: 8,
-                overflow: "hidden",
-                cursor: "grab",
-              }}
-              title={equationState}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 4,
-                  overflow: "hidden",
-                }}
-              >
-                {equation.tokens.slice(0, 6).map((token) => (
-                  <span
-                    key={token.id}
-                    style={{
-                      minWidth: 22,
-                      height: 22,
-                      borderRadius: "999px",
-                      background: "#191919",
-                      border: "1.5px solid rgba(255, 255, 255, 0.72)",
-                      color: "#FFFFFF",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontFamily: "Grandstander, Space Grotesk, sans-serif",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                      textShadow: "0 0 8px rgba(255, 255, 255, 0.25)",
-                    }}
-                  >
-                    {token.label}
-                  </span>
-                ))}
-
-                {equation.tokens.length > 6 ? (
-                  <span
-                    style={{
-                      color: "#FFFFFF99",
-                      fontFamily: "Space Grotesk, sans-serif",
-                      fontSize: 10,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
-                    +{equation.tokens.length - 6}
-                  </span>
-                ) : null}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => onAddEquationEvent(equation)}
-                style={{
-                  width: "100%",
-                  minHeight: 28,
-                  background: "#2B2B2B",
-                  color: textColor,
-                  border: `1px solid ${subtleBorderColor}`,
-                  borderRadius: 8,
-                  fontFamily: "Space Grotesk, sans-serif",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Add at tick
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function EquationBuilderArea({
-  isCreatingEquation,
-  draftTokens,
-  customTokenLabel,
-  onCustomTokenLabelChange,
-  onInsertToken,
-  onRemoveToken,
-  onSaveEquation,
-}: {
-  isCreatingEquation: boolean;
-  draftTokens: EquationToken[];
-  customTokenLabel: string;
-  onCustomTokenLabelChange: (value: string) => void;
-  onInsertToken: (index: number, label: string) => void;
-  onRemoveToken: (id: string) => void;
-  onSaveEquation: () => void;
-}) {
-  if (!isCreatingEquation) {
-    return (
-      <div
-        style={{
-          flex: 1,
-          minHeight: 260,
-          background: "#191919",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#FFFFFF80",
-          fontFamily: "Space Grotesk, sans-serif",
-          fontSize: 13,
-          fontWeight: 700,
-        }}
-      >
-        Create an equation block, then add it to the current tick.
-      </div>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        flex: 1,
-        minHeight: 260,
-        background: "#191919",
-        boxSizing: "border-box",
-        display: "grid",
-        gridTemplateRows: "auto 1fr auto",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          minHeight: 100,
-          borderBottom: `1px solid ${subtleBorderColor}`,
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          padding: "0 18px",
-          boxSizing: "border-box",
-          overflowX: "auto",
           fontFamily: "Space Grotesk, sans-serif",
         }}
       >
-        {equationPalette.map((label) => (
-          <EquationCircle key={label} label={label} size={68} />
-        ))}
-
-        <CustomEquationCircle
-          value={customTokenLabel}
-          onChange={onCustomTokenLabelChange}
-        />
-      </div>
-
-      <div
-        style={{
-          margin: 18,
-          border: `1px dashed ${subtleBorderColor}`,
-          borderRadius: 18,
-          background: "#191919",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxSizing: "border-box",
-          overflow: "hidden",
-          fontFamily: "Space Grotesk, sans-serif",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 12,
-            flexWrap: "wrap",
-            padding: 24,
-          }}
-        >
-          {draftTokens.length === 0 ? (
-            <EquationDropSlot index={0} onInsertToken={onInsertToken} />
-          ) : (
-            <>
-              <EquationDropSlot index={0} onInsertToken={onInsertToken} />
-
-              {draftTokens.map((token, index) => (
-                <span
-                  key={token.id}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => onRemoveToken(token.id)}
-                    title="Click to remove"
-                    style={{
-                      border: "none",
-                      background: "transparent",
-                      padding: 0,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <EquationCircle label={token.label} draggable={false} size={68} />
-                  </button>
-
-                  <EquationDropSlot
-                    index={index + 1}
-                    onInsertToken={onInsertToken}
-                  />
-                </span>
-              ))}
-            </>
-          )}
-        </div>
-      </div>
-
-      <div
-        style={{
-          minHeight: 70,
-          borderTop: `1px solid ${subtleBorderColor}`,
-          padding: "14px 18px",
-          boxSizing: "border-box",
-          display: "flex",
-          justifyContent: "flex-end",
-          alignItems: "center",
-          fontFamily: "Space Grotesk, sans-serif",
-        }}
-      >
-        <button
-          type="button"
-          disabled={draftTokens.length === 0}
-          onClick={onSaveEquation}
-          style={{
-            minWidth: 150,
-            minHeight: 40,
-            background: draftTokens.length > 0 ? "#CFFF04" : "#2B2B2B",
-            color: draftTokens.length > 0 ? "#000000" : "#FFFFFF80",
-            border: `1px solid ${
-              draftTokens.length > 0 ? "#CFFF04" : subtleBorderColor
-            }`,
-            borderRadius: 10,
-            fontFamily: "Space Grotesk, sans-serif",
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: draftTokens.length > 0 ? "pointer" : "not-allowed",
-          }}
-        >
-          Save Equation
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function CenterEditorPanel({
-  chartFile,
-  isCreatingEquation,
-  draftTokens,
-  customTokenLabel,
-  onCustomTokenLabelChange,
-  onInsertToken,
-  onRemoveToken,
-  onSaveEquation,
-  onChartFileChange,
-  onDropEquationAtCurrentTick,
-}: {
-  chartFile: string;
-  isCreatingEquation: boolean;
-  draftTokens: EquationToken[];
-  customTokenLabel: string;
-  onCustomTokenLabelChange: (value: string) => void;
-  onInsertToken: (index: number, label: string) => void;
-  onRemoveToken: (id: string) => void;
-  onSaveEquation: () => void;
-  onChartFileChange: (chartFile: string) => void;
-  onDropEquationAtCurrentTick: (equation: SavedEquation) => void;
-}) {
-  function handleEquationDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-
-    const rawEquation = event.dataTransfer.getData("application/x-saved-equation");
-
-    if (!rawEquation) {
-      return;
-    }
-
-    try {
-      const equation = JSON.parse(rawEquation) as SavedEquation;
-
-      if (equation?.id && Array.isArray(equation.tokens)) {
-        onDropEquationAtCurrentTick(equation);
-      }
-    } catch (error) {
-      console.error("Failed to drop saved equation", error);
-    }
-  }
-
-  return (
-    <section
-      style={{
-        width: "60vw",
-        height: "calc(100vh - 166px)",
-        minHeight: "calc(100vh - 166px)",
-        background: "#191919",
-        color: textColor,
-        boxSizing: "border-box",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <EquationBuilderArea
-        isCreatingEquation={isCreatingEquation}
-        draftTokens={draftTokens}
-        customTokenLabel={customTokenLabel}
-        onCustomTokenLabelChange={onCustomTokenLabelChange}
-        onInsertToken={onInsertToken}
-        onRemoveToken={onRemoveToken}
-        onSaveEquation={onSaveEquation}
-      />
-
-      <div
-        onDragOver={(event) => {
-          event.preventDefault();
-          event.dataTransfer.dropEffect = "copy";
-        }}
-        onDrop={handleEquationDrop}
-        style={{
-          width: "100%",
-          height: "34vh",
-          minHeight: "34vh",
-          display: "flex",
-          flexDirection: "column",
-          flexShrink: 0,
-          borderTop: `1px solid ${subtleBorderColor}`,
-        }}
-      >
-        <div
-          style={{
-            minHeight: 42,
-            background: "#2B2B2B",
-            borderBottom: `1px solid ${subtleBorderColor}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 18px",
-            boxSizing: "border-box",
-            color: textColor,
-            fontFamily: "Space Grotesk, sans-serif",
-            fontSize: 13,
-            fontWeight: 700,
-          }}
-        >
-          <span>.chart File</span>
-          <span style={{ color: "#FFFFFF80", fontSize: 11 }}>
-            Drop a saved equation here to create an equation event at the current tick.
-          </span>
-        </div>
-
-        <textarea
-          value={chartFile}
-          onChange={(event) => onChartFileChange(event.target.value)}
-          spellCheck={false}
-          placeholder="Paste or upload a .chart file here."
-          style={{
-            flex: 1,
-            width: "100%",
-            resize: "none",
-            border: "none",
-            outline: "none",
-            background: "#111111",
-            color: textColor,
-            padding: 16,
-            boxSizing: "border-box",
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            fontSize: 12,
-            lineHeight: 1.5,
-          }}
-        />
-      </div>
-    </section>
-  );
-}
-
-function SidecarPanel({
-  sidecar,
-  sidecarText,
-  sidecarError,
-  onSidecarTextChange,
-  onRemoveEvent,
-}: {
-  sidecar: SidecarPayload;
-  sidecarText: string;
-  sidecarError: string;
-  onSidecarTextChange: (value: string) => void;
-  onRemoveEvent: (index: number) => void;
-}) {
-  return (
-    <section
-      style={{
-        width: "27.5vw",
-        height: "calc(100vh - 166px)",
-        minHeight: "calc(100vh - 166px)",
-        background: "#2B2B2B",
-        color: textColor,
-        borderLeft: `1px solid ${subtleBorderColor}`,
-        boxSizing: "border-box",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div
-        style={{
-          padding: "18px 16px",
-          borderBottom: `1px solid ${subtleBorderColor}`,
-          color: textColor,
-          fontFamily: "Space Grotesk, sans-serif",
-          fontSize: 13,
-          fontWeight: 700,
-          lineHeight: "19.5px",
-          letterSpacing: 0,
-          textAlign: "left",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <span>Sidecar JSON</span>
-        <span style={{ color: sidecarError ? "#FF8C8C" : "#CFFF04", fontSize: 11 }}>
-          {sidecarError ? "Invalid" : `${sidecar.events.length} event${sidecar.events.length === 1 ? "" : "s"}`}
-        </span>
-      </div>
-
-      <div style={{ padding: 12, borderBottom: `1px solid ${subtleBorderColor}` }}>
-        <div
-          style={{
-            color: "#FFFFFFA8",
-            fontFamily: "Space Grotesk, sans-serif",
-            fontSize: 11,
-            lineHeight: 1.45,
-          }}
-        >
-          Expected format: <strong>version: 1</strong> plus an <strong>events</strong> array.
-          Mechanics use <strong>ALG_MECHANIC</strong>; equations use <strong>ALG_EQUATION_STATE</strong>.
-        </div>
-      </div>
-
-      <textarea
-        value={sidecarText}
-        onChange={(event) => onSidecarTextChange(event.target.value)}
-        spellCheck={false}
-        style={{
-          width: "100%",
-          minHeight: "46%",
-          resize: "none",
-          border: "none",
-          outline: "none",
-          background: "#111111",
-          color: textColor,
-          padding: 14,
-          boxSizing: "border-box",
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-          fontSize: 12,
-          lineHeight: 1.45,
-        }}
-      />
-
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: 12,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          borderTop: `1px solid ${subtleBorderColor}`,
-        }}
-      >
-        {sidecar.events.length === 0 ? (
-          <div
-            style={{
-              color: "#FFFFFF70",
-              fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 12,
-              textAlign: "center",
-              padding: "24px 8px",
-            }}
-          >
-            Add spin, drag, hit, or equation events to populate this file.
+        {slots.length === 0 ? (
+          <div style={{ color: "#FFFFFF80", fontSize: 12, fontWeight: 700, lineHeight: 1.4 }}>
+            Set SongAsset.equation_slots in Supabase or load a sidecar JSON.
           </div>
         ) : (
-          sidecar.events.map((event, index) => (
-            <div
-              key={`${event.tick}-${event.type}-${index}`}
-              style={{
-                background: "#191919",
-                border: `1px solid ${subtleBorderColor}`,
-                borderRadius: 10,
-                padding: 10,
-                fontFamily: "Space Grotesk, sans-serif",
-                fontSize: 12,
-                lineHeight: 1.45,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <strong>{event.type}</strong>
-                <button
-                  type="button"
-                  onClick={() => onRemoveEvent(index)}
-                  style={{
-                    background: "transparent",
-                    color: "#FF8C8C",
-                    border: "none",
-                    cursor: "pointer",
-                    fontWeight: 800,
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-              <div>Tick: {event.tick}</div>
-              {event.type === "ALG_MECHANIC" ? (
-                <div>
-                  Mechanic: {event.mechanic}
-                  {event.hits ? `, hits: ${event.hits}` : ""}
+          slots.map((slot, index) => {
+            const isActive = slot.id === activeSlotId;
+
+            return (
+              <button
+                key={slot.id}
+                type="button"
+                onClick={() => onSelectSlot(slot.id)}
+                style={{
+                  width: "100%",
+                  minHeight: 48,
+                  background: isActive ? "#191919" : "#252525",
+                  border: `1px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
+                  borderRadius: 10,
+                  padding: "8px 10px",
+                  boxSizing: "border-box",
+                  color: textColor,
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 800 }}>Equation {index + 1}</div>
+                <div style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700 }}>
+                  Tick {slot.tick}
                 </div>
-              ) : (
-                <div>
-                  Equation: {event.equationId}
-                  <br />
-                  State: {event.state}
-                </div>
-              )}
-            </div>
-          ))
+              </button>
+            );
+          })
         )}
       </div>
     </section>
@@ -1559,7 +1519,9 @@ export default function LessonBuilderClient({
 }: LessonBuilderClientProps) {
   const pathname = usePathname();
   const topTabs = useMemo(() => getTopTabs(navBasePath), [navBasePath]);
+  const project = useEditorStore((s) => s.project);
   const setProject = useEditorStore((s) => s.setProject);
+  const setStoreSidecar = useEditorStore((s) => s.setSidecar);
 
   const [chartFile, setChartFile] = useState("");
   const [metadata, setMetadata] = useState<LessonBuilderPayload["analysisMetadata"]>();
@@ -1567,18 +1529,21 @@ export default function LessonBuilderClient({
   const [uploadedChartName, setUploadedChartName] = useState("");
   const [pendingSongFile, setPendingSongFile] = useState<File | null>(null);
 
+  const [mechanicEvents, setMechanicEvents] = useState<SidecarMechanicEvent[]>([]);
+  const [equationSlots, setEquationSlots] = useState<EquationTimelineSlot[]>([]);
+  const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
+  const [requiredEquationSlots, setRequiredEquationSlots] = useState<number | null>(null);
+  const [customTokenLabel, setCustomTokenLabel] = useState("");
   const [currentTick, setCurrentTick] = useState(0);
   const [hits, setHits] = useState(1);
-  const [sidecar, setSidecar] = useState<SidecarPayload>(emptySidecar);
-  const [sidecarText, setSidecarText] = useState(sidecarToJson(emptySidecar));
-  const [sidecarError, setSidecarError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
-  const [isCreatingEquation, setIsCreatingEquation] = useState(false);
-  const [draftTokens, setDraftTokens] = useState<EquationToken[]>([]);
-  const [savedEquations, setSavedEquations] = useState<SavedEquation[]>([]);
-  const [customTokenLabel, setCustomTokenLabel] = useState("");
+  const sidecar = useMemo(
+    () => sidecarFromSlots(equationSlots, mechanicEvents),
+    [equationSlots, mechanicEvents],
+  );
 
-  const editorPayload = useMemo<LessonBuilderPayload>(
+  const payloadForProject: LessonBuilderPayload = useMemo(
     () => ({
       chartFile,
       analysisMetadata: metadata,
@@ -1587,114 +1552,138 @@ export default function LessonBuilderClient({
     [chartFile, metadata, sidecar],
   );
 
-  function replaceSidecar(nextSidecar: SidecarPayload) {
-    const normalized = normalizeSidecar(nextSidecar);
+  const activeSlot = useMemo(
+    () => equationSlots.find((slot) => slot.id === activeSlotId) ?? null,
+    [activeSlotId, equationSlots],
+  );
 
-    setSidecar(normalized);
-    setSidecarText(sidecarToJson(normalized));
-    setSidecarError("");
+  function loadSidecarIntoTimeline(nextSidecar: SidecarPayload, equationSlotCount = requiredEquationSlots) {
+    const normalized = normalizeSidecar(nextSidecar);
+    const nextMechanics = normalized.events.filter(
+      (event): event is SidecarMechanicEvent => event.type === "ALG_MECHANIC",
+    );
+    const importedSlots = slotsFromSidecar(normalized);
+    const nextSlots =
+      typeof equationSlotCount === "number"
+        ? resizeEquationSlots(importedSlots, equationSlotCount, importedSlots[0]?.tick ?? currentTick)
+        : importedSlots;
+
+    setMechanicEvents(nextMechanics);
+    setEquationSlots(nextSlots);
+    setActiveSlotId(nextSlots[0]?.id ?? null);
+    setCurrentTick(nextSlots[0]?.tick ?? 0);
+    setStoreSidecar(sidecarFromSlots(nextSlots, nextMechanics));
   }
 
-  function patchSidecarEvents(updater: (events: SidecarEvent[]) => SidecarEvent[]) {
-    setSidecar((current) => {
-      const nextSidecar = normalizeSidecar({
-        version: 1,
-        events: updater(current.events),
+  function applySongAssetEquationSlotCount(count: number | null) {
+    setRequiredEquationSlots(count);
+
+    if (typeof count !== "number") {
+      return;
+    }
+
+    setEquationSlots((current) => {
+      const nextSlots = resizeEquationSlots(current, count, current[0]?.tick ?? currentTick);
+
+      setActiveSlotId((currentId) => {
+        if (currentId && nextSlots.some((slot) => slot.id === currentId)) {
+          return currentId;
+        }
+
+        return nextSlots[0]?.id ?? null;
       });
 
-      setSidecarText(sidecarToJson(nextSidecar));
-      setSidecarError("");
-      return nextSidecar;
+      return nextSlots;
     });
   }
 
-  function addSidecarEvent(event: SidecarEvent) {
-    patchSidecarEvents((events) => [...events, event]);
+  function handleSelectSlot(slotId: string) {
+    setActiveSlotId(slotId);
+
+    const slot = equationSlots.find((candidate) => candidate.id === slotId);
+
+    if (slot) {
+      setCurrentTick(slot.tick);
+    }
   }
 
-  function addEquationEvent(equation: SavedEquation) {
-    addSidecarEvent({
-      tick: currentTick,
-      type: "ALG_EQUATION_STATE",
-      equationId: equation.id,
-      state: tokensToEquationState(equation.tokens),
-    });
+  function patchActiveSlot(updater: (slot: EquationTimelineSlot) => EquationTimelineSlot) {
+    setEquationSlots((current) =>
+      current.map((slot) => (slot.id === activeSlotId ? updater(slot) : slot)),
+    );
   }
 
-  function handleAddMechanic(mechanic: GameplayMechanic) {
-    addSidecarEvent({
-      tick: currentTick,
-      type: "ALG_MECHANIC",
-      mechanic,
-      hits,
-    });
-  }
+  function handleCurrentTickChange(nextTick: number) {
+    setCurrentTick(nextTick);
 
-  function handleSidecarTextChange(value: string) {
-    setSidecarText(value);
-
-    try {
-      const parsed = JSON.parse(value) as unknown;
-      const normalized = normalizeSidecar(parsed);
-
-      setSidecar(normalized);
-      setSidecarError("");
-    } catch (error) {
-      setSidecarError(error instanceof Error ? error.message : "Invalid JSON");
+    if (activeSlotId) {
+      patchActiveSlot((slot) => ({
+        ...slot,
+        tick: nextTick,
+      }));
     }
   }
 
   function handleInsertEquationToken(index: number, label: string) {
-    setDraftTokens((current) => {
+    if (!activeSlotId) {
+      return;
+    }
+
+    patchActiveSlot((slot) => {
       const nextToken = {
         id: makeId("token"),
         label,
       };
+      const safeIndex = Math.max(0, Math.min(index, slot.tokens.length));
 
-      const safeIndex = Math.max(0, Math.min(index, current.length));
-
-      return [
-        ...current.slice(0, safeIndex),
-        nextToken,
-        ...current.slice(safeIndex),
-      ];
+      return {
+        ...slot,
+        tokens: [...slot.tokens.slice(0, safeIndex), nextToken, ...slot.tokens.slice(safeIndex)],
+      };
     });
   }
 
   function handleRemoveEquationToken(id: string) {
-    setDraftTokens((current) => current.filter((token) => token.id !== id));
+    patchActiveSlot((slot) => ({
+      ...slot,
+      tokens: slot.tokens.filter((token) => token.id !== id),
+    }));
   }
 
-  function handleSaveEquation() {
-    if (draftTokens.length === 0) {
-      return;
-    }
+  function handleClearSlot() {
+    patchActiveSlot((slot) => ({
+      ...slot,
+      tokens: [],
+    }));
+  }
 
-    setSavedEquations((current) => [
-      ...current,
-      {
-        id: makeId("equation"),
-        tokens: draftTokens,
-      },
-    ]);
-
-    setDraftTokens([]);
-    setCustomTokenLabel("");
-    setIsCreatingEquation(false);
+  function handleAddMechanic(mechanic: GameplayMechanic) {
+    setMechanicEvents((current) =>
+      sortEvents([
+        ...current,
+        {
+          tick: currentTick,
+          type: "ALG_MECHANIC",
+          mechanic,
+          hits,
+        },
+      ]) as SidecarMechanicEvent[],
+    );
   }
 
   async function handleChartUpload(file: File) {
     try {
       const text = await readFileAsText(file);
-
       setChartFile(text);
       setUploadedChartName(file.name);
       setMetadata((current) => ({
         ...current,
         uploadedFileName: file.name,
       }));
+      setProject(chartToProject({ ...payloadForProject, chartFile: text }));
+      setLoadError("");
     } catch (error) {
-      console.error("Failed to load uploaded chart file", error);
+      setLoadError(error instanceof Error ? error.message : "Unable to read chart file");
     }
   }
 
@@ -1702,31 +1691,46 @@ export default function LessonBuilderClient({
     try {
       const text = await readFileAsText(file);
       const parsed = JSON.parse(text) as unknown;
-
-      replaceSidecar(normalizeSidecar(parsed));
+      const normalized = normalizeSidecar(parsed);
+      loadSidecarIntoTimeline(normalized);
+      setLoadError("");
     } catch (error) {
-      setSidecarText(await readFileAsText(file).catch(() => ""));
-      setSidecarError(error instanceof Error ? error.message : "Invalid JSON");
+      setLoadError(error instanceof Error ? error.message : "Unable to read sidecar JSON");
     }
   }
 
   function handleDownloadChart() {
-    if (!uploadedChartName.trim()) {
+    if (!project) {
+      if (chartFile.trim()) {
+        downloadTextFile(getChartFileName(uploadedChartName), chartFile, "text/plain;charset=utf-8");
+      }
       return;
     }
 
-    downloadTextFile(uploadedChartName, chartFile, "text/plain;charset=utf-8");
+    downloadTextFile(getChartFileName(uploadedChartName), projectToChart(project), "text/plain;charset=utf-8");
   }
 
   function handleDownloadSidecar() {
-    const normalized = normalizeSidecar(sidecar);
-
     downloadTextFile(
       getSidecarFileName(uploadedChartName),
-      sidecarToJson(normalized),
+      projectToSidecarJson(sidecar),
       "application/json;charset=utf-8",
     );
   }
+
+  useEffect(() => {
+    setStoreSidecar(sidecar);
+  }, [setStoreSidecar, sidecar]);
+
+  useEffect(() => {
+    if (!chartFile.trim()) return;
+
+    try {
+      setProject(chartToProject(payloadForProject));
+    } catch (error) {
+      console.error("Failed to rebuild project after sidecar update", error);
+    }
+  }, [chartFile, payloadForProject, setProject]);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_selected_song");
@@ -1737,7 +1741,9 @@ export default function LessonBuilderClient({
 
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
+      const selectedSongEquationSlots = getSelectedSongEquationSlotCount(selectedSong);
 
+      applySongAssetEquationSlotCount(selectedSongEquationSlots);
       setUploadedSongName(selectedSong.name);
       setMetadata((current) => ({
         ...current,
@@ -1761,26 +1767,37 @@ export default function LessonBuilderClient({
 
       Promise.all([
         textFromSignedUrl(selectedSong.chart.signedUrl),
-        selectedSong.sidecar
-          ? jsonFromSignedUrl(selectedSong.sidecar.signedUrl)
-          : Promise.resolve(null),
+        selectedSong.sidecar ? jsonFromSignedUrl(selectedSong.sidecar.signedUrl) : Promise.resolve(null),
       ])
         .then(([nextChartFile, sidecarJson]) => {
-          const nextChartName =
-            selectedSong.chart.path.split("/").pop() ?? "selected.chart";
-          const nextSidecar = normalizeSidecar(sidecarJson ?? emptySidecar);
+          const nextChartName = selectedSong.chart.path.split("/").pop() ?? "selected.chart";
+          const normalizedSidecar = normalizeSidecar(sidecarJson ?? emptySidecar);
 
           setChartFile(nextChartFile);
           setUploadedChartName(nextChartName);
-          replaceSidecar(nextSidecar);
+          loadSidecarIntoTimeline(normalizedSidecar, selectedSongEquationSlots);
+
+          const payload: LessonBuilderPayload = {
+            chartFile: nextChartFile,
+            analysisMetadata: {
+              songTitle: selectedSong.title ?? selectedSong.name,
+              artist: selectedSong.artist ?? undefined,
+              uploadedFileName: selectedSong.song.path,
+            },
+            rawResults: normalizedSidecar,
+          };
+
+          setProject(chartToProject(payload));
         })
         .catch((error) => {
           console.error("Failed to load selected chart or sidecar JSON", error);
+          setLoadError(error instanceof Error ? error.message : "Failed to load selected song package");
         });
     } catch (error) {
       console.error("Failed to parse selected song package", error);
+      setLoadError(error instanceof Error ? error.message : "Failed to parse selected song package");
     }
-  }, []);
+  }, [setProject]);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_editor_payload");
@@ -1788,6 +1805,8 @@ export default function LessonBuilderClient({
 
     try {
       const payload: LessonBuilderPayload = JSON.parse(raw);
+      const normalizedSidecar = normalizeSidecar(payload.rawResults ?? emptySidecar);
+      setRequiredEquationSlots(null);
 
       if (payload?.analysisMetadata) {
         setMetadata(payload.analysisMetadata);
@@ -1799,14 +1818,19 @@ export default function LessonBuilderClient({
         if (payload.analysisMetadata?.uploadedFileName) {
           setUploadedChartName(payload.analysisMetadata.uploadedFileName);
         }
+
+        loadSidecarIntoTimeline(normalizedSidecar);
+        setProject(chartToProject({ ...payload, rawResults: normalizedSidecar }));
+      } else {
+        loadSidecarIntoTimeline(normalizedSidecar);
       }
 
-      replaceSidecar(normalizeSidecar(payload.rawResults ?? emptySidecar));
       sessionStorage.removeItem("ultrarapid_editor_payload");
     } catch (error) {
       console.error("Failed to hydrate lesson builder payload", error);
+      setLoadError(error instanceof Error ? error.message : "Failed to hydrate lesson builder payload");
     }
-  }, []);
+  }, [setProject]);
 
   useEffect(() => {
     if (!pendingSongFile) return;
@@ -1817,19 +1841,19 @@ export default function LessonBuilderClient({
   useEffect(() => {
     if (!chartFile.trim()) return;
 
-    setProject(chartToProject(editorPayload));
-  }, [chartFile, editorPayload, setProject]);
-
-  useEffect(() => {
-    if (!chartFile.trim()) return;
-
     console.info("Chart file loaded for editor:", {
       chartName: uploadedChartName,
       songName: uploadedSongName,
       metadata,
-      sidecar,
+      equationSlots: equationSlots.length,
     });
-  }, [chartFile, uploadedChartName, uploadedSongName, metadata, sidecar]);
+  }, [chartFile, uploadedChartName, uploadedSongName, metadata, equationSlots.length]);
+
+  useEffect(() => {
+    if (!activeSlot && equationSlots.length > 0) {
+      setActiveSlotId(equationSlots[0].id);
+    }
+  }, [activeSlot, equationSlots]);
 
   return (
     <div
@@ -1846,15 +1870,18 @@ export default function LessonBuilderClient({
       <HeaderBar pathname={pathname} topTabs={topTabs} />
 
       <EditorTopPanel
+        chartName={uploadedChartName}
         currentTick={currentTick}
         hits={hits}
-        sidecarError={sidecarError}
-        chartName={uploadedChartName}
-        onCurrentTickChange={setCurrentTick}
-        onHitsChange={setHits}
-        onAddMechanic={handleAddMechanic}
+        requiredEquationSlots={requiredEquationSlots}
+        actualEquationSlots={equationSlots.length}
+        loadError={loadError}
         onChartUpload={handleChartUpload}
         onSidecarUpload={handleSidecarUpload}
+        onCurrentTickChange={handleCurrentTickChange}
+        onHitsChange={setHits}
+        onAddMechanic={handleAddMechanic}
+
         onDownloadChart={handleDownloadChart}
         onDownloadSidecar={handleDownloadSidecar}
       />
@@ -1870,38 +1897,24 @@ export default function LessonBuilderClient({
           overflow: "hidden",
         }}
       >
-        <EquationBlocksPanel
-          savedEquations={savedEquations}
-          onCreateEquation={() => {
-            setDraftTokens([]);
-            setCustomTokenLabel("");
-            setIsCreatingEquation(true);
-          }}
-          onAddEquationEvent={addEquationEvent}
+        <TimelineOverviewPanel
+          slots={equationSlots}
+          activeSlotId={activeSlotId}
+          onSelectSlot={handleSelectSlot}
         />
 
         <CenterEditorPanel
-          chartFile={chartFile}
-          isCreatingEquation={isCreatingEquation}
-          draftTokens={draftTokens}
+          slots={equationSlots}
+          activeSlotId={activeSlotId}
           customTokenLabel={customTokenLabel}
           onCustomTokenLabelChange={setCustomTokenLabel}
+          onSelectSlot={handleSelectSlot}
           onInsertToken={handleInsertEquationToken}
           onRemoveToken={handleRemoveEquationToken}
-          onSaveEquation={handleSaveEquation}
-          onChartFileChange={setChartFile}
-          onDropEquationAtCurrentTick={addEquationEvent}
+          onClearSlot={handleClearSlot}
         />
 
-        <SidecarPanel
-          sidecar={sidecar}
-          sidecarText={sidecarText}
-          sidecarError={sidecarError}
-          onSidecarTextChange={handleSidecarTextChange}
-          onRemoveEvent={(index) => {
-            patchSidecarEvents((events) => events.filter((_, eventIndex) => eventIndex !== index));
-          }}
-        />
+        <WorkspacePanel title="Teacher Feedback" width="12.5vw" background="#2B2B2B" />
       </main>
     </div>
   );

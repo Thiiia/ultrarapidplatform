@@ -39,8 +39,13 @@ type HeaderTab = {
   ActiveIcon?: TabIcon;
 };
 
+type SongChoiceWithEquationSlots = SongChoice & {
+  equation_slots?: number | null;
+  equationSlots?: number | null;
+};
+
 type SongChoiceClientProps = {
-  songs: SongChoice[];
+  songs: SongChoiceWithEquationSlots[];
   navBasePath?: string;
   dashboardType?: DashboardType;
 };
@@ -127,6 +132,18 @@ const headerStyles = {
   backgroundColor: "#2B2B2B",
   borderBottomColor: "#FFFFFF14",
 };
+
+function getEquationSlots(song: SongChoiceWithEquationSlots) {
+  const rawSlots = song.equation_slots ?? song.equationSlots ?? 0;
+  const parsedSlots =
+    typeof rawSlots === "number" ? rawSlots : Number.parseInt(String(rawSlots), 10);
+
+  if (!Number.isFinite(parsedSlots)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.floor(parsedSlots));
+}
 
 function formatDuration(seconds: number | null | undefined) {
   if (!seconds || !Number.isFinite(seconds)) {
@@ -478,6 +495,8 @@ export default function SongChoiceClient({
         name: selectedSong.name,
         title: selectedSong.title,
         artist: selectedSong.artist,
+        equation_slots: getEquationSlots(selectedSong),
+        equationSlots: getEquationSlots(selectedSong),
 
         song: {
           bucket: selectedSong.song.bucket,
@@ -726,7 +745,7 @@ export default function SongChoiceClient({
                           width: "100%",
                         }}
                       >
-                        {song.artist ?? "Unknown artist"}
+                        {song.artist ?? "Unknown artist"} · {getEquationSlots(song)} equation slots
                       </span>
                     </div>
 

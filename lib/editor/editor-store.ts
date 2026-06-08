@@ -94,7 +94,7 @@ export function normalizeSidecar(value: unknown): SidecarPayload {
       const equationId = typeof event.equationId === "string" ? event.equationId : ""
       const state = typeof event.state === "string" ? event.state : ""
 
-      if (!equationId.trim() || !state.trim()) {
+      if (!equationId.trim()) {
         return []
       }
 
