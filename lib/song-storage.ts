@@ -142,6 +142,7 @@ async function getSongAssetMechanicCounts(songAssetIds: string[]) {
   }
 
   const supabaseAdmin = getSupabaseAdmin();
+
   const { data, error } = await supabaseAdmin
     .from("song_assets")
     .select("id,equation_slots,hit_counts,spin_counts,drag_counts")
@@ -179,6 +180,19 @@ export async function getSongChoices(): Promise<SongChoice[]> {
     orderBy: {
       title: "asc",
     },
+    select: {
+      id: true,
+      title: true,
+      artist: true,
+      songBucket: true,
+      songPath: true,
+      chartBucket: true,
+      chartPath: true,
+      sidecarBucket: true,
+      sidecarPath: true,
+      durationSeconds: true,
+      updatedAt: true,
+    },
   });
 
   const mechanicCountsById = await getSongAssetMechanicCounts(
@@ -190,16 +204,20 @@ export async function getSongChoices(): Promise<SongChoice[]> {
       const hasSidecar = Boolean(
         songAsset.sidecarBucket && songAsset.sidecarPath,
       );
+
       const mechanicCounts = mechanicCountsById.get(songAsset.id);
       const equationSlots = normalizeCount(mechanicCounts?.equation_slots);
+
       const hitCounts = normalizeCountArray(
         mechanicCounts?.hit_counts,
         equationSlots,
       );
+
       const spinCounts = normalizeCountArray(
         mechanicCounts?.spin_counts,
         equationSlots,
       );
+
       const dragCounts = normalizeCountArray(
         mechanicCounts?.drag_counts,
         equationSlots,
@@ -236,12 +254,16 @@ export async function getSongChoices(): Promise<SongChoice[]> {
         contentType: songContentType,
         updatedAt: songAsset.updatedAt.toISOString(),
         durationSeconds: songAsset.durationSeconds,
+
         equationSlots,
         equation_slots: equationSlots,
+
         hitCounts,
         hit_counts: hitCounts,
+
         spinCounts,
         spin_counts: spinCounts,
+
         dragCounts,
         drag_counts: dragCounts,
 
