@@ -29,20 +29,23 @@ import PlayIcon from "@/public/song_choice_icons/Play_Icon.svg";
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
 
+type DashboardType = "student" | "teacher";
+
 type HeaderTab = {
   label: string;
   href: string;
-  Icon: TabIcon;
-  ActiveIcon: TabIcon;
   width: number;
+  Icon?: TabIcon;
+  ActiveIcon?: TabIcon;
 };
 
 type SongChoiceClientProps = {
   songs: SongChoice[];
   navBasePath?: string;
+  dashboardType?: DashboardType;
 };
 
-function getTopTabs(navBasePath = "/student"): HeaderTab[] {
+function getStudentTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
     {
       label: "Home",
@@ -82,6 +85,41 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   ];
 }
 
+function getTeacherTopTabs(navBasePath = "/teacher"): HeaderTab[] {
+  return [
+    {
+      label: "Home",
+      href: navBasePath,
+      width: 99,
+    },
+    {
+      label: "Classes",
+      href: `${navBasePath}/classes`,
+      width: 120,
+    },
+    {
+      label: "Students",
+      href: `${navBasePath}/students`,
+      width: 120,
+    },
+    {
+      label: "Lessons",
+      href: `${navBasePath}/lessons`,
+      width: 120,
+    },
+    {
+      label: "Lesson Builder",
+      href: `${navBasePath}/song-choice`,
+      width: 159,
+    },
+    {
+      label: "Progress",
+      href: `${navBasePath}/progress`,
+      width: 120,
+    },
+  ];
+}
+
 const pagePanelWidth = "85vw";
 const pageBackgroundColor = "#191919";
 
@@ -105,11 +143,15 @@ function formatDuration(seconds: number | null | undefined) {
 function HeaderBar({
   pathname,
   topTabs,
+  navBasePath,
+  dashboardType,
 }: {
   pathname: string;
   topTabs: HeaderTab[];
+  navBasePath: string;
+  dashboardType: DashboardType;
 }) {
-  const profileHref = `${topTabs[0].href}/profile`;
+  const profileHref = `${navBasePath}/profile`;
 
   return (
     <header
@@ -172,7 +214,7 @@ function HeaderBar({
           </div>
 
           <nav
-            aria-label="Student navigation"
+            aria-label="Dashboard navigation"
             style={{
               display: "flex",
               alignItems: "center",
@@ -221,15 +263,32 @@ function HeaderBar({
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    textDecoration: "none",
+                    background: "#2B2B2B",
+                    borderBottom:
+                      dashboardType === "teacher"
+                        ? isActive
+                          ? "3px solid #CFFF04"
+                          : "3px solid transparent"
+                        : undefined,
+                    color: "#FFFFFF",
+                    fontSize: dashboardType === "teacher" ? 13 : undefined,
+                    fontWeight: dashboardType === "teacher" ? 500 : undefined,
+                    lineHeight:
+                      dashboardType === "teacher" ? "19.5px" : undefined,
                   }}
                 >
-                  <Icon
-                    style={{
-                      width: tab.width,
-                      height: 45.5,
-                      display: "block",
-                    }}
-                  />
+                  {Icon ? (
+                    <Icon
+                      style={{
+                        width: tab.width,
+                        height: 45.5,
+                        display: "block",
+                      }}
+                    />
+                  ) : (
+                    tab.label
+                  )}
                 </Link>
               );
             })}
@@ -247,30 +306,24 @@ function HeaderBar({
             overflow: "visible",
           }}
         >
-<button
-  type="button"
-  aria-label="Profile"
-  className={styles.utilityButton}
-  onClick={() => {
-    console.info("Profile page is not enabled yet.");
-  }}
-  style={{
-    width: 134.45,
-    height: 38,
-    border: "none",
-    background: "transparent",
-    padding: 0,
-    cursor: "default",
-  }}
->
-  <ProfileIcon
-    style={{
-      width: 134.45,
-      height: 38,
-      display: "block",
-    }}
-  />
-</button>
+          <Link
+            href={profileHref}
+            prefetch={false}
+            aria-label="Profile"
+            className={styles.utilityButton}
+            style={{
+              width: 134.45,
+              height: 38,
+            }}
+          >
+            <ProfileIcon
+              style={{
+                width: 134.45,
+                height: 38,
+                display: "block",
+              }}
+            />
+          </Link>
 
           <a
             href="/auth/logout"
@@ -345,14 +398,21 @@ function LessonBuilderPanel() {
 export default function SongChoiceClient({
   songs,
   navBasePath = "/student",
+  dashboardType = "student",
 }: SongChoiceClientProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const topTabs = getTopTabs(navBasePath);
+
+  const topTabs =
+    dashboardType === "teacher"
+      ? getTeacherTopTabs(navBasePath)
+      : getStudentTopTabs(navBasePath);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
-  const [durationsById, setDurationsById] = useState<Record<string, number>>({});
+  const [durationsById, setDurationsById] = useState<Record<string, number>>(
+    {},
+  );
 
   const filteredSongs = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -459,7 +519,12 @@ export default function SongChoiceClient({
         overflowX: "hidden",
       }}
     >
-      <HeaderBar pathname={pathname} topTabs={topTabs} />
+      <HeaderBar
+        pathname={pathname}
+        topTabs={topTabs}
+        navBasePath={navBasePath}
+        dashboardType={dashboardType}
+      />
 
       <LessonBuilderPanel />
 
@@ -469,15 +534,13 @@ export default function SongChoiceClient({
           width: "100%",
           flex: 1,
           position: "relative",
-          paddingBottom: 71,
-          boxSizing: "border-box",
         }}
       >
         <section
           style={{
             width: pagePanelWidth,
             margin: "0 auto",
-            padding: "20px 0 24px 0",
+            padding: "20px 0 96px 0",
             boxSizing: "border-box",
             position: "relative",
           }}
@@ -552,7 +615,7 @@ export default function SongChoiceClient({
               maxHeight: "calc(100vh - 320px)",
               minHeight: 240,
               overflowY: "auto",
-              paddingBottom: 24,
+              paddingBottom: 92,
             }}
           >
             {filteredSongs.length > 0 ? (
@@ -736,71 +799,68 @@ export default function SongChoiceClient({
               </div>
             )}
           </div>
+
+          <div
+            style={{
+              position: "sticky",
+              bottom: 0,
+              marginTop: -71,
+              height: 71,
+              minHeight: 71,
+              width: "100vw",
+              marginLeft: "calc((85vw - 100vw) / 2)",
+              marginRight: "calc((85vw - 100vw) / 2)",
+              background: "#2B2B2B",
+              borderTop: "1px solid #FFFFFF14",
+              borderRight: "none",
+              borderBottom: "none",
+              borderLeft: "none",
+              borderRadius: 0,
+              padding: "0 30px",
+              boxSizing: "border-box",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              gap: 12,
+              boxShadow: "0 -12px 32px rgba(0, 0, 0, 0.28)",
+              zIndex: 5,
+            }}
+          >
+            <button
+              type="button"
+              disabled={!selectedSong}
+              onClick={handleContinue}
+              aria-label="Continue to Lesson Builder"
+              style={{
+                width: 132,
+                height: 64,
+                border: "none",
+                borderRadius: 12,
+                background: "transparent",
+                padding: 0,
+                cursor: selectedSong ? "pointer" : "not-allowed",
+                opacity: selectedSong ? 1 : 0.4,
+                flexShrink: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <img
+                src="/Next_Button.svg"
+                alt=""
+                aria-hidden="true"
+                style={{
+                  width: 132,
+                  height: 64,
+                  display: "block",
+                  objectFit: "contain",
+                }}
+              />
+            </button>
+          </div>
         </section>
       </main>
-
-      <div
-        style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: 71,
-          minHeight: 71,
-          width: "100vw",
-          background: "#2B2B2B",
-          borderTop: "1px solid #FFFFFF14",
-          borderRight: "none",
-          borderBottom: "none",
-          borderLeft: "none",
-          borderRadius: 0,
-          padding: "0 30px",
-          boxSizing: "border-box",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          gap: 12,
-          boxShadow: "0 -12px 32px rgba(0, 0, 0, 0.28)",
-          zIndex: 100,
-          pointerEvents: "auto",
-        }}
-      >
-        <button
-          type="button"
-          disabled={!selectedSong}
-          onClick={handleContinue}
-          aria-label="Continue to Lesson Builder"
-          style={{
-            width: 132,
-            height: 64,
-            border: "none",
-            borderRadius: 12,
-            background: "transparent",
-            padding: 0,
-            cursor: selectedSong ? "pointer" : "not-allowed",
-            opacity: selectedSong ? 1 : 0.4,
-            flexShrink: 0,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            pointerEvents: "auto",
-          }}
-        >
-          <img
-            src="/Next_Button.svg"
-            alt=""
-            aria-hidden="true"
-            style={{
-              width: 132,
-              height: 64,
-              display: "block",
-              objectFit: "contain",
-              pointerEvents: "none",
-              userSelect: "none",
-            }}
-          />
-        </button>
-      </div>
 
       <style jsx global>{`
         .songChoiceRow:hover {

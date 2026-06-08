@@ -6,5 +6,11 @@ export const dynamic = "force-dynamic";
 export default async function DemoTeacherSongChoicePage() {
   const songs = await getSongChoices();
 
-  return <SongChoiceClient songs={songs} navBasePath="/demo/teacher" />;
+  return (
+    <SongChoiceClient
+      songs={songs}
+      navBasePath="/demo/teacher"
+      dashboardType="teacher"
+    />
+  );
 }

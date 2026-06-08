@@ -3,6 +3,8 @@ import { getCurrentAppUser } from "@/lib/current-user";
 import { getSongChoices } from "@/lib/song-storage";
 import SongChoiceClient from "./SongChoiceClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function StudentSongChoicePage() {
   const user = await getCurrentAppUser();
 
@@ -20,5 +22,11 @@ export default async function StudentSongChoicePage() {
 
   const songs = await getSongChoices();
 
-  return <SongChoiceClient songs={songs} navBasePath="/student" />;
+  return (
+    <SongChoiceClient
+      songs={songs}
+      navBasePath="/student"
+      dashboardType="student"
+    />
+  );
 }
