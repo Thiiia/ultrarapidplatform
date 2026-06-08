@@ -42,8 +42,32 @@ type HeaderTab = {
 type SongChoiceWithEquationSlots = SongChoice & {
   equation_slots?: number | string | null;
   equationSlots?: number | string | null;
-  songAsset?: { equation_slots?: number | string | null; equationSlots?: number | string | null } | null;
-  song_asset?: { equation_slots?: number | string | null; equationSlots?: number | string | null } | null;
+  hit_counts?: unknown;
+  hitCounts?: unknown;
+  spin_counts?: unknown;
+  spinCounts?: unknown;
+  drag_counts?: unknown;
+  dragCounts?: unknown;
+  songAsset?: {
+    equation_slots?: number | string | null;
+    equationSlots?: number | string | null;
+    hit_counts?: unknown;
+    hitCounts?: unknown;
+    spin_counts?: unknown;
+    spinCounts?: unknown;
+    drag_counts?: unknown;
+    dragCounts?: unknown;
+  } | null;
+  song_asset?: {
+    equation_slots?: number | string | null;
+    equationSlots?: number | string | null;
+    hit_counts?: unknown;
+    hitCounts?: unknown;
+    spin_counts?: unknown;
+    spinCounts?: unknown;
+    drag_counts?: unknown;
+    dragCounts?: unknown;
+  } | null;
 };
 
 type SongChoiceClientProps = {
@@ -145,18 +169,99 @@ function getEquationSlots(song: SongChoiceWithEquationSlots) {
     song.song_asset?.equationSlots ??
     null;
 
-  if (rawSlots === null || rawSlots === undefined ) {
+  if (rawSlots === null || rawSlots === undefined || rawSlots === "") {
     return null;
   }
 
   const parsedSlots =
-    typeof rawSlots === "number" ? rawSlots : Number.parseInt(String(rawSlots), 10);
+    typeof rawSlots === "number"
+      ? rawSlots
+      : Number.parseInt(String(rawSlots), 10);
 
   if (!Number.isFinite(parsedSlots)) {
     return null;
   }
 
   return Math.max(0, Math.floor(parsedSlots));
+}
+
+function normalizeCountArray(value: unknown, equationSlots: number) {
+  const raw = Array.isArray(value) ? value : [];
+  const counts = raw
+    .map((item) => {
+      const count = Number(item);
+      return Number.isFinite(count) && count > 0 ? Math.round(count) : 0;
+    })
+    .slice(0, equationSlots);
+
+  while (counts.length < equationSlots) {
+    counts.push(0);
+  }
+
+  return counts;
+}
+
+function firstCountArray(
+  song: SongChoiceWithEquationSlots,
+  keys: Array<"hit" | "spin" | "drag">,
+) {
+  for (const key of keys) {
+    const camelKey = `${key}Counts` as
+      | "hitCounts"
+      | "spinCounts"
+      | "dragCounts";
+    const snakeKey = `${key}_counts` as
+      | "hit_counts"
+      | "spin_counts"
+      | "drag_counts";
+    const candidates = [
+      song[camelKey],
+      song[snakeKey],
+      song.songAsset?.[camelKey],
+      song.songAsset?.[snakeKey],
+      song.song_asset?.[camelKey],
+      song.song_asset?.[snakeKey],
+    ];
+
+    for (const candidate of candidates) {
+      if (Array.isArray(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return [];
+}
+
+function getMechanicCounts(song: SongChoiceWithEquationSlots) {
+  const equationSlots = getEquationSlots(song) ?? 0;
+
+  return {
+    hit_counts: normalizeCountArray(
+      firstCountArray(song, ["hit"]),
+      equationSlots,
+    ),
+    hitCounts: normalizeCountArray(
+      firstCountArray(song, ["hit"]),
+      equationSlots,
+    ),
+    spin_counts: normalizeCountArray(
+      firstCountArray(song, ["spin"]),
+      equationSlots,
+    ),
+    spinCounts: normalizeCountArray(
+      firstCountArray(song, ["spin"]),
+      equationSlots,
+    ),
+    drag_counts: normalizeCountArray(
+      firstCountArray(song, ["drag"]),
+      equationSlots,
+    ),
+    dragCounts: normalizeCountArray(
+      firstCountArray(song, ["drag"]),
+      equationSlots,
+    ),
+  };
 }
 
 function formatDuration(seconds: number | null | undefined) {
@@ -503,6 +608,7 @@ export default function SongChoiceClient({
     }
 
     const equationSlots = getEquationSlots(selectedSong);
+    const mechanicCounts = getMechanicCounts(selectedSong);
 
     window.sessionStorage.setItem(
       "ultrarapid_selected_song",
@@ -513,9 +619,21 @@ export default function SongChoiceClient({
         artist: selectedSong.artist,
         equation_slots: equationSlots,
         equationSlots,
+        hit_counts: mechanicCounts.hit_counts,
+        hitCounts: mechanicCounts.hitCounts,
+        spin_counts: mechanicCounts.spin_counts,
+        spinCounts: mechanicCounts.spinCounts,
+        drag_counts: mechanicCounts.drag_counts,
+        dragCounts: mechanicCounts.dragCounts,
         songAsset: {
           equation_slots: equationSlots,
           equationSlots,
+          hit_counts: mechanicCounts.hit_counts,
+          hitCounts: mechanicCounts.hitCounts,
+          spin_counts: mechanicCounts.spin_counts,
+          spinCounts: mechanicCounts.spinCounts,
+          drag_counts: mechanicCounts.drag_counts,
+          dragCounts: mechanicCounts.dragCounts,
         },
 
         song: {
@@ -765,7 +883,8 @@ export default function SongChoiceClient({
                           width: "100%",
                         }}
                       >
-                        {song.artist ?? "Unknown artist"} · {getEquationSlots(song) ?? "—"} equation slots
+                        {song.artist ?? "Unknown artist"} ·{" "}
+                        {getEquationSlots(song) ?? "—"} equation slots
                       </span>
                     </div>
 

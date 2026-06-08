@@ -111,7 +111,37 @@ function coerceEquationSlots(value: unknown) {
   return 0;
 }
 
-function getSongAssetEquationSlots(songAsset: unknown) {
+async function getEquationSlotsBySongAssetId(songAssetIds: string[]) {
+  const slotsById = new Map<string, number>();
+
+  if (songAssetIds.length === 0) {
+    return slotsById;
+  }
+
+  const supabaseAdmin = getSupabaseAdmin();
+
+  const { data, error } = await supabaseAdmin
+    .from("song_assets")
+    .select("id,equation_slots")
+    .in("id", songAssetIds);
+
+  if (error) {
+    console.warn("Unable to load song asset equation_slots from Supabase:", error);
+    return slotsById;
+  }
+
+  data?.forEach((row) => {
+    const record = row as { id?: unknown; equation_slots?: unknown };
+
+    if (typeof record.id === "string") {
+      slotsById.set(record.id, coerceEquationSlots(record.equation_slots));
+    }
+  });
+
+  return slotsById;
+}
+
+function getPrismaSongAssetEquationSlots(songAsset: unknown) {
   const record = songAsset as {
     equationSlots?: unknown;
     equation_slots?: unknown;
@@ -130,10 +160,15 @@ export async function getSongChoices(): Promise<SongChoice[]> {
     },
   });
 
+  const slotsById = await getEquationSlotsBySongAssetId(
+    songAssets.map((songAsset) => songAsset.id),
+  );
+
   const songs = await Promise.all(
     songAssets.map(async (songAsset) => {
       const hasSidecar = Boolean(songAsset.sidecarBucket && songAsset.sidecarPath);
-      const equationSlots = getSongAssetEquationSlots(songAsset);
+      const equationSlots =
+        slotsById.get(songAsset.id) ?? getPrismaSongAssetEquationSlots(songAsset);
 
       const [
         songSignedUrl,
