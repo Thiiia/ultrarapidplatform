@@ -14,6 +14,12 @@ export type SongChoice = {
   durationSeconds: number | null;
   equationSlots: number;
   equation_slots: number;
+  hitCounts: number[];
+  hit_counts: number[];
+  spinCounts: number[];
+  spin_counts: number[];
+  dragCounts: number[];
+  drag_counts: number[];
 
   song: {
     bucket: string;
@@ -37,7 +43,17 @@ export type SongChoice = {
   } | null;
 };
 
-async function createOptionalSignedUrl(bucket: string | null, path: string | null) {
+type SongAssetMechanicCounts = {
+  equation_slots: number | null;
+  hit_counts: number[] | null;
+  spin_counts: number[] | null;
+  drag_counts: number[] | null;
+};
+
+async function createOptionalSignedUrl(
+  bucket: string | null,
+  path: string | null,
+) {
   if (!bucket || !path) {
     return null;
   }
@@ -74,10 +90,12 @@ async function getFileMetadata(bucket: string, path: string) {
   const folder = path.split("/").slice(0, -1).join("/");
   const fileName = path.split("/").pop();
 
-  const { data } = await supabaseAdmin.storage.from(bucket).list(folder || undefined, {
-    search: fileName,
-    limit: 1,
-  });
+  const { data } = await supabaseAdmin.storage
+    .from(bucket)
+    .list(folder || undefined, {
+      search: fileName,
+      limit: 1,
+    });
 
   return data?.[0] ?? null;
 }
@@ -95,59 +113,62 @@ function getContentTypeFromPath(path: string) {
   return null;
 }
 
-function coerceEquationSlots(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.max(0, Math.floor(value));
+function normalizeCount(value: unknown) {
+  const count = Number(value);
+
+  if (!Number.isFinite(count) || count < 0) {
+    return 0;
   }
 
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
-
-    if (Number.isFinite(parsed)) {
-      return Math.max(0, Math.floor(parsed));
-    }
-  }
-
-  return 0;
+  return Math.round(count);
 }
 
-async function getEquationSlotsBySongAssetId(songAssetIds: string[]) {
-  const slotsById = new Map<string, number>();
+function normalizeCountArray(value: unknown, equationSlots: number) {
+  const raw = Array.isArray(value) ? value : [];
+  const normalized = raw
+    .map((item) => normalizeCount(item))
+    .slice(0, equationSlots);
 
+  while (normalized.length < equationSlots) {
+    normalized.push(0);
+  }
+
+  return normalized;
+}
+
+async function getSongAssetMechanicCounts(songAssetIds: string[]) {
   if (songAssetIds.length === 0) {
-    return slotsById;
+    return new Map<string, SongAssetMechanicCounts>();
   }
 
   const supabaseAdmin = getSupabaseAdmin();
-
   const { data, error } = await supabaseAdmin
     .from("song_assets")
-    .select("id,equation_slots")
+    .select("id,equation_slots,hit_counts,spin_counts,drag_counts")
     .in("id", songAssetIds);
 
   if (error) {
-    console.warn("Unable to load song asset equation_slots from Supabase:", error);
-    return slotsById;
+    console.warn("Unable to load song asset mechanic counts:", error);
+    return new Map<string, SongAssetMechanicCounts>();
   }
 
-  data?.forEach((row) => {
-    const record = row as { id?: unknown; equation_slots?: unknown };
-
-    if (typeof record.id === "string") {
-      slotsById.set(record.id, coerceEquationSlots(record.equation_slots));
-    }
-  });
-
-  return slotsById;
-}
-
-function getPrismaSongAssetEquationSlots(songAsset: unknown) {
-  const record = songAsset as {
-    equationSlots?: unknown;
-    equation_slots?: unknown;
-  };
-
-  return coerceEquationSlots(record.equationSlots ?? record.equation_slots);
+  return new Map(
+    (data ?? []).map((row) => [
+      row.id as string,
+      {
+        equation_slots: normalizeCount(row.equation_slots),
+        hit_counts: Array.isArray(row.hit_counts)
+          ? row.hit_counts.map(normalizeCount)
+          : [],
+        spin_counts: Array.isArray(row.spin_counts)
+          ? row.spin_counts.map(normalizeCount)
+          : [],
+        drag_counts: Array.isArray(row.drag_counts)
+          ? row.drag_counts.map(normalizeCount)
+          : [],
+      },
+    ]),
+  );
 }
 
 export async function getSongChoices(): Promise<SongChoice[]> {
@@ -160,29 +181,44 @@ export async function getSongChoices(): Promise<SongChoice[]> {
     },
   });
 
-  const slotsById = await getEquationSlotsBySongAssetId(
+  const mechanicCountsById = await getSongAssetMechanicCounts(
     songAssets.map((songAsset) => songAsset.id),
   );
 
   const songs = await Promise.all(
     songAssets.map(async (songAsset) => {
-      const hasSidecar = Boolean(songAsset.sidecarBucket && songAsset.sidecarPath);
-      const equationSlots =
-        slotsById.get(songAsset.id) ?? getPrismaSongAssetEquationSlots(songAsset);
+      const hasSidecar = Boolean(
+        songAsset.sidecarBucket && songAsset.sidecarPath,
+      );
+      const mechanicCounts = mechanicCountsById.get(songAsset.id);
+      const equationSlots = normalizeCount(mechanicCounts?.equation_slots);
+      const hitCounts = normalizeCountArray(
+        mechanicCounts?.hit_counts,
+        equationSlots,
+      );
+      const spinCounts = normalizeCountArray(
+        mechanicCounts?.spin_counts,
+        equationSlots,
+      );
+      const dragCounts = normalizeCountArray(
+        mechanicCounts?.drag_counts,
+        equationSlots,
+      );
 
-      const [
-        songSignedUrl,
-        chartSignedUrl,
-        sidecarSignedUrl,
-        songMetadata,
-      ] = await Promise.all([
-        createSignedUrl(songAsset.songBucket, songAsset.songPath),
-        createSignedUrl(songAsset.chartBucket, songAsset.chartPath),
-        createOptionalSignedUrl(songAsset.sidecarBucket, songAsset.sidecarPath),
-        getFileMetadata(songAsset.songBucket, songAsset.songPath),
-      ]);
+      const [songSignedUrl, chartSignedUrl, sidecarSignedUrl, songMetadata] =
+        await Promise.all([
+          createSignedUrl(songAsset.songBucket, songAsset.songPath),
+          createSignedUrl(songAsset.chartBucket, songAsset.chartPath),
+          createOptionalSignedUrl(
+            songAsset.sidecarBucket,
+            songAsset.sidecarPath,
+          ),
+          getFileMetadata(songAsset.songBucket, songAsset.songPath),
+        ]);
 
-      const metadata = songMetadata?.metadata as Record<string, unknown> | undefined;
+      const metadata = songMetadata?.metadata as
+        | Record<string, unknown>
+        | undefined;
 
       const songContentType =
         typeof metadata?.mimetype === "string"
@@ -202,6 +238,12 @@ export async function getSongChoices(): Promise<SongChoice[]> {
         durationSeconds: songAsset.durationSeconds,
         equationSlots,
         equation_slots: equationSlots,
+        hitCounts,
+        hit_counts: hitCounts,
+        spinCounts,
+        spin_counts: spinCounts,
+        dragCounts,
+        drag_counts: dragCounts,
 
         song: {
           bucket: songAsset.songBucket,
