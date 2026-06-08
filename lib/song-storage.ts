@@ -143,33 +143,65 @@ async function getSongAssetMechanicCounts(songAssetIds: string[]) {
 
   const supabaseAdmin = getSupabaseAdmin();
 
-  const { data, error } = await supabaseAdmin
+  const { data: slotRows, error: slotError } = await supabaseAdmin
     .from("song_assets")
-    .select("id,equation_slots,hit_counts,spin_counts,drag_counts")
+    .select("id,equation_slots")
     .in("id", songAssetIds);
 
-  if (error) {
-    console.warn("Unable to load song asset mechanic counts:", error);
+  if (slotError) {
+    console.error("Unable to load song asset equation slots:", slotError);
     return new Map<string, SongAssetMechanicCounts>();
   }
 
-  return new Map(
-    (data ?? []).map((row) => [
+  const countsById = new Map<string, SongAssetMechanicCounts>(
+    (slotRows ?? []).map((row) => [
       row.id as string,
       {
         equation_slots: normalizeCount(row.equation_slots),
-        hit_counts: Array.isArray(row.hit_counts)
-          ? row.hit_counts.map(normalizeCount)
-          : [],
-        spin_counts: Array.isArray(row.spin_counts)
-          ? row.spin_counts.map(normalizeCount)
-          : [],
-        drag_counts: Array.isArray(row.drag_counts)
-          ? row.drag_counts.map(normalizeCount)
-          : [],
+        hit_counts: [],
+        spin_counts: [],
+        drag_counts: [],
       },
     ]),
   );
+
+  const { data: countRows, error: countError } = await supabaseAdmin
+    .from("song_assets")
+    .select("id,hit_counts,spin_counts,drag_counts")
+    .in("id", songAssetIds);
+
+  if (countError) {
+    console.warn(
+      "Unable to load song asset mechanic count arrays. Equation slots were still loaded:",
+      countError,
+    );
+    return countsById;
+  }
+
+  for (const row of countRows ?? []) {
+    const id = row.id as string;
+    const existing = countsById.get(id) ?? {
+      equation_slots: 0,
+      hit_counts: [],
+      spin_counts: [],
+      drag_counts: [],
+    };
+
+    countsById.set(id, {
+      equation_slots: existing.equation_slots,
+      hit_counts: Array.isArray(row.hit_counts)
+        ? row.hit_counts.map(normalizeCount)
+        : [],
+      spin_counts: Array.isArray(row.spin_counts)
+        ? row.spin_counts.map(normalizeCount)
+        : [],
+      drag_counts: Array.isArray(row.drag_counts)
+        ? row.drag_counts.map(normalizeCount)
+        : [],
+    });
+  }
+
+  return countsById;
 }
 
 export async function getSongChoices(): Promise<SongChoice[]> {
