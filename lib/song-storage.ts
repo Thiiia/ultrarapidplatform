@@ -149,26 +149,38 @@ async function getSongAssetMechanicCounts(songAssetIds: string[]) {
     .in("id", songAssetIds);
 
   if (error) {
-    console.warn("Unable to load song asset mechanic counts:", error);
+    console.error("Unable to load SongAsset mechanic counts:", error);
     return new Map<string, SongAssetMechanicCounts>();
   }
 
+  console.log("Loaded SongAsset mechanic counts:", data);
+
   return new Map(
-    (data ?? []).map((row) => [
-      row.id as string,
-      {
-        equation_slots: normalizeCount(row.equation_slots),
-        hit_counts: Array.isArray(row.hit_count)
-          ? row.hit_count.map(normalizeCount)
-          : [],
-        spin_counts: Array.isArray(row.spin_count)
-          ? row.spin_count.map(normalizeCount)
-          : [],
-        drag_counts: Array.isArray(row.drag_count)
-          ? row.drag_count.map(normalizeCount)
-          : [],
-      },
-    ]),
+    (data ?? []).map((row) => {
+      const typedRow = row as {
+        id: string;
+        equation_slots: unknown;
+        hit_count: unknown;
+        spin_count: unknown;
+        drag_count: unknown;
+      };
+
+      return [
+        typedRow.id,
+        {
+          equation_slots: normalizeCount(typedRow.equation_slots),
+          hit_counts: Array.isArray(typedRow.hit_count)
+            ? typedRow.hit_count.map(normalizeCount)
+            : [],
+          spin_counts: Array.isArray(typedRow.spin_count)
+            ? typedRow.spin_count.map(normalizeCount)
+            : [],
+          drag_counts: Array.isArray(typedRow.drag_count)
+            ? typedRow.drag_count.map(normalizeCount)
+            : [],
+        },
+      ];
+    }),
   );
 }
 
