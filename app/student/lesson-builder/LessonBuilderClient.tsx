@@ -177,10 +177,48 @@ type SidecarEquationStateEvent = {
 
 type SidecarEvent = SidecarMechanicEvent | SidecarEquationStateEvent;
 
-type SidecarPayload = {
+type SidecarHitBubblePlacement = {
+  tokenIndex: number;
+  pads: HitBubblePosition[];
+};
+
+type SidecarHit = {
+  index: number;
+  bubbles: SidecarHitBubblePlacement[];
+};
+
+type SidecarSpin = {
+  index: number;
+  targets: SpinTarget[];
+};
+
+type SidecarDrag = {
+  index: number;
+  targets: DragTarget[];
+};
+
+type SidecarEquation = {
+  id: string;
+  tick: number;
+  state: string;
+  counts: MechanicCounts;
+  hits: SidecarHit[];
+  spins: SidecarSpin[];
+  drags: SidecarDrag[];
+};
+
+type LegacySidecarPayload = {
   version: 1;
   events: SidecarEvent[];
 };
+
+type EquationSidecarPayload = {
+  version: 2;
+  maxEquationSlots: number;
+  equations: SidecarEquation[];
+};
+
+type SidecarPayload = LegacySidecarPayload | EquationSidecarPayload;
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
 
@@ -210,9 +248,12 @@ const panelBackgroundColor = "#2B2B2B";
 const subtleBorderColor = "#FFFFFF14";
 const textColor = "#FFFFFF";
 
+const MAX_EQUATION_SLOTS = 5;
+
 const emptySidecar: SidecarPayload = {
-  version: 1,
-  events: [],
+  version: 2,
+  maxEquationSlots: MAX_EQUATION_SLOTS,
+  equations: [],
 };
 
 const gameplayMechanics: GameplayMechanic[] = ["hit", "spin", "drag"];
@@ -440,11 +481,14 @@ function getSelectedSongEventCounts(selectedSong: SelectedSongPayload) {
 
   const explicitEquationSlots = getSelectedSongEquationSlotCount(selectedSong);
 
-  const equationSlots = Math.max(
-    explicitEquationSlots,
-    hitCounts.length,
-    spinCounts.length,
-    dragCounts.length,
+  const equationSlots = Math.min(
+    MAX_EQUATION_SLOTS,
+    Math.max(
+      explicitEquationSlots,
+      hitCounts.length,
+      spinCounts.length,
+      dragCounts.length,
+    ),
   );
 
   return Array.from(
@@ -475,13 +519,16 @@ function getSelectedSongEquationSlotTicks(
 
     if (ticks.length > 0) {
       return Array.from(
-        { length: equationSlots },
-        (_, index) => ticks[index] ?? 0,
+        { length: Math.min(MAX_EQUATION_SLOTS, equationSlots) },
+        (_, index) => normalizeTick(ticks[index] ?? 0),
       );
     }
   }
 
-  return Array.from({ length: equationSlots }, () => 0);
+  return Array.from(
+    { length: Math.min(MAX_EQUATION_SLOTS, equationSlots) },
+    () => 0,
+  );
 }
 
 function normalizeHitBubblePosition(value: unknown): HitBubblePosition | null {
@@ -496,7 +543,15 @@ function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
   }
 
   return value.flatMap((placement): HitBubblePlacement[] => {
-    if (!isObject(placement) || !Array.isArray(placement.positions)) {
+    if (!isObject(placement)) {
+      return [];
+    }
+
+    const rawPads = Array.isArray(placement.pads)
+      ? placement.pads
+      : placement.positions;
+
+    if (!Array.isArray(rawPads)) {
       return [];
     }
 
@@ -508,7 +563,7 @@ function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
 
     const positions = Array.from(
       new Set(
-        placement.positions
+        rawPads
           .map((position) => normalizeHitBubblePosition(position))
           .filter((position): position is HitBubblePosition =>
             Boolean(position),
@@ -547,7 +602,106 @@ function normalizeTokenTargets<T extends SpinTarget | DragTarget>(
 }
 
 function normalizeSidecar(value: unknown): SidecarPayload {
-  if (!isObject(value) || !Array.isArray(value.events)) {
+  if (!isObject(value)) {
+    return emptySidecar;
+  }
+
+  if (Array.isArray(value.equations)) {
+    const equations = value.equations.flatMap((equation, index): SidecarEquation[] => {
+      if (!isObject(equation)) {
+        return [];
+      }
+
+      const id =
+        typeof equation.id === "string" && equation.id.trim()
+          ? equation.id.trim()
+          : `eq_${String(index + 1).padStart(3, "0")}`;
+      const state = typeof equation.state === "string" ? equation.state : "";
+      const counts = sidecarCountsToMechanicCounts(equation.counts);
+      const hits = Array.isArray(equation.hits)
+        ? equation.hits.flatMap((hit): SidecarHit[] => {
+            if (!isObject(hit)) {
+              return [];
+            }
+
+            const hitIndex = normalizeNonNegativeInteger(hit.index, -1);
+
+            if (hitIndex < 0) {
+              return [];
+            }
+
+            return [
+              {
+                index: hitIndex,
+                bubbles: hitBubblePlacementsToSidecarBubbles(
+                  normalizeHitBubblePlacements(hit.bubbles),
+                ),
+              },
+            ];
+          })
+        : [];
+      const spins = Array.isArray(equation.spins)
+        ? equation.spins.flatMap((spin): SidecarSpin[] => {
+            if (!isObject(spin)) {
+              return [];
+            }
+
+            const spinIndex = normalizeNonNegativeInteger(spin.index, -1);
+
+            if (spinIndex < 0) {
+              return [];
+            }
+
+            return [
+              {
+                index: spinIndex,
+                targets: normalizeTokenTargets<SpinTarget>(spin.targets),
+              },
+            ];
+          })
+        : [];
+      const drags = Array.isArray(equation.drags)
+        ? equation.drags.flatMap((drag): SidecarDrag[] => {
+            if (!isObject(drag)) {
+              return [];
+            }
+
+            const dragIndex = normalizeNonNegativeInteger(drag.index, -1);
+
+            if (dragIndex < 0) {
+              return [];
+            }
+
+            return [
+              {
+                index: dragIndex,
+                targets: normalizeTokenTargets<DragTarget>(drag.targets),
+              },
+            ];
+          })
+        : [];
+
+      return [
+        {
+          id,
+          tick: normalizeTick(equation.tick),
+          state,
+          counts,
+          hits,
+          spins,
+          drags,
+        },
+      ];
+    });
+
+    return {
+      version: 2,
+      maxEquationSlots: MAX_EQUATION_SLOTS,
+      equations: equations.slice(0, MAX_EQUATION_SLOTS),
+    };
+  }
+
+  if (!Array.isArray(value.events)) {
     return emptySidecar;
   }
 
@@ -727,7 +881,7 @@ function applyCountsToTimelineEvents(
   eventCounts: MechanicCounts[],
   eventTicks: number[] = [],
 ): TimelineEventSlot[] {
-  return eventCounts.map((counts, index) => {
+  return eventCounts.slice(0, MAX_EQUATION_SLOTS).map((counts, index) => {
     const existing = events[index];
     const tick = eventTicks[index] ?? existing?.tick ?? 0;
 
@@ -770,12 +924,128 @@ function parseEquationId(equationId: string) {
   };
 }
 
-function timelineEventsFromSidecar(
-  sidecar: SidecarPayload,
+function sidecarCountsToMechanicCounts(value: unknown): MechanicCounts {
+  if (!isObject(value)) {
+    return { hit: 0, spin: 0, drag: 0 };
+  }
+
+  return {
+    hit: normalizeNonNegativeInteger(value.hit),
+    spin: normalizeNonNegativeInteger(value.spin),
+    drag: normalizeNonNegativeInteger(value.drag),
+  };
+}
+
+function sidecarBubblesToHitBubblePlacements(
+  bubbles: SidecarHitBubblePlacement[],
+): HitBubblePlacement[] {
+  return normalizeHitBubblePlacements(bubbles);
+}
+
+function hitBubblePlacementsToSidecarBubbles(
+  placements: HitBubblePlacement[],
+): SidecarHitBubblePlacement[] {
+  return placements.map((placement) => ({
+    tokenIndex: placement.tokenIndex,
+    pads: placement.positions,
+  }));
+}
+
+function stateFromTimelineEvent(event: TimelineEventSlot) {
+  for (const mechanic of gameplayMechanics) {
+    for (const instance of event.mechanics[mechanic]) {
+      if (instance.equation && instance.equation.tokens.length > 0) {
+        return tokensToEquationState(instance.equation.tokens);
+      }
+    }
+  }
+
+  return "";
+}
+
+function assignEquationToEventInstances(
+  eventSlot: TimelineEventSlot,
+  equation: SavedEquation,
+) {
+  gameplayMechanics.forEach((mechanic) => {
+    eventSlot.mechanics[mechanic].forEach((instance) => {
+      instance.equation = {
+        id: equation.id,
+        tokens: cloneTokens(equation.tokens),
+      };
+    });
+  });
+}
+
+function timelineEventsFromEquationSidecar(
+  sidecar: EquationSidecarPayload,
+  eventCounts: MechanicCounts[],
+  eventTicks: number[] = [],
+) {
+  const equations = sidecar.equations.slice(0, MAX_EQUATION_SLOTS);
+  const countsFromSidecar = equations.map((equation) =>
+    sidecarCountsToMechanicCounts(equation.counts),
+  );
+  const counts = eventCounts.length > 0 ? eventCounts : countsFromSidecar;
+  const ticks = eventTicks.length > 0 ? eventTicks : equations.map((equation) => equation.tick);
+  const events = applyCountsToTimelineEvents([], counts, ticks);
+
+  equations.forEach((equation, index) => {
+    const eventSlot = events[index];
+
+    if (!eventSlot) {
+      return;
+    }
+
+    eventSlot.tick = normalizeTick(equation.tick);
+    eventSlot.counts = sidecarCountsToMechanicCounts(equation.counts);
+    eventSlot.mechanics = {
+      hit: resizeMechanicInstances(eventSlot.mechanics.hit, eventSlot.counts.hit),
+      spin: resizeMechanicInstances(eventSlot.mechanics.spin, eventSlot.counts.spin),
+      drag: resizeMechanicInstances(eventSlot.mechanics.drag, eventSlot.counts.drag),
+    };
+
+    if (equation.state.trim()) {
+      assignEquationToEventInstances(
+        eventSlot,
+        savedEquationFromState(equation.id, equation.state),
+      );
+    }
+
+    equation.hits.forEach((hit) => {
+      const instance = eventSlot.mechanics.hit[hit.index];
+
+      if (instance) {
+        instance.hitBubbles = sidecarBubblesToHitBubblePlacements(hit.bubbles);
+      }
+    });
+
+    equation.spins.forEach((spin) => {
+      const instance = eventSlot.mechanics.spin[spin.index];
+
+      if (instance) {
+        instance.spinTargets = spin.targets;
+      }
+    });
+
+    equation.drags.forEach((drag) => {
+      const instance = eventSlot.mechanics.drag[drag.index];
+
+      if (instance) {
+        instance.dragTargets = drag.targets;
+      }
+    });
+  });
+
+  return events;
+}
+
+function timelineEventsFromLegacySidecar(
+  sidecar: LegacySidecarPayload,
   eventCounts: MechanicCounts[],
   eventTicks: number[] = [],
 ): TimelineEventSlot[] {
-  const normalized = normalizeSidecar(sidecar);
+  const normalized = normalizeSidecar(sidecar) as LegacySidecarPayload;
   const equationEvents = normalized.events.filter(
     (event): event is SidecarEquationStateEvent =>
       event.type === "ALG_EQUATION_STATE",
@@ -841,10 +1111,32 @@ function timelineEventsFromSidecar(
   return events;
 }
 
+function timelineEventsFromSidecar(
+  sidecar: SidecarPayload,
+  eventCounts: MechanicCounts[],
+  eventTicks: number[] = [],
+): TimelineEventSlot[] {
+  const normalized = normalizeSidecar(sidecar);
+
+  if (normalized.version === 2) {
+    return timelineEventsFromEquationSidecar(
+      normalized,
+      eventCounts.slice(0, MAX_EQUATION_SLOTS),
+      eventTicks.slice(0, MAX_EQUATION_SLOTS),
+    );
+  }
+
+  return timelineEventsFromLegacySidecar(
+    normalized,
+    eventCounts.slice(0, MAX_EQUATION_SLOTS),
+    eventTicks.slice(0, MAX_EQUATION_SLOTS),
+  );
+}
+
 function savedEquationsFromTimelineEvents(events: TimelineEventSlot[]) {
   const byState = new Map<string, SavedEquation>();
 
-  events.forEach((event) => {
+  events.slice(0, MAX_EQUATION_SLOTS).forEach((event) => {
     gameplayMechanics.forEach((mechanic) => {
       event.mechanics[mechanic].forEach((instance) => {
         const state = instance.equation
@@ -869,53 +1161,36 @@ function savedEquationsFromTimelineEvents(events: TimelineEventSlot[]) {
 function sidecarFromTimelineEvents(
   events: TimelineEventSlot[],
 ): SidecarPayload {
-  const sidecarEvents = events.flatMap((event, eventIndex): SidecarEvent[] => {
-    return gameplayMechanics.flatMap((mechanic): SidecarEvent[] => {
-      return event.mechanics[mechanic].flatMap(
-        (instance, instanceIndex): SidecarEvent[] => {
-          if (!instance.equation || instance.equation.tokens.length === 0) {
-            return [];
-          }
+  const equations = events.slice(0, MAX_EQUATION_SLOTS).map(
+    (event, eventIndex): SidecarEquation => ({
+      id: `eq_${String(eventIndex + 1).padStart(3, "0")}`,
+      tick: event.tick,
+      state: stateFromTimelineEvent(event),
+      counts: {
+        hit: event.counts.hit,
+        spin: event.counts.spin,
+        drag: event.counts.drag,
+      },
+      hits: event.mechanics.hit.map((instance, index) => ({
+        index,
+        bubbles: hitBubblePlacementsToSidecarBubbles(instance.hitBubbles),
+      })),
+      spins: event.mechanics.spin.map((instance, index) => ({
+        index,
+        targets: instance.spinTargets,
+      })),
+      drags: event.mechanics.drag.map((instance, index) => ({
+        index,
+        targets: instance.dragTargets,
+      })),
+    }),
+  );
 
-          const equationId = equationIdFor(eventIndex, mechanic, instanceIndex);
-          const mechanicEvent: SidecarMechanicEvent = {
-            tick: event.tick,
-            type: "ALG_MECHANIC",
-            mechanic,
-            instanceIndex,
-            equationId,
-          };
-
-          if (mechanic === "hit") {
-            mechanicEvent.hits = Math.max(1, instance.hitBubbles.length || 1);
-            if (instance.hitBubbles.length > 0) {
-              mechanicEvent.hitBubbles = instance.hitBubbles;
-            }
-          }
-
-          if (mechanic === "spin" && instance.spinTargets.length > 0) {
-            mechanicEvent.spinTargets = instance.spinTargets;
-          }
-
-          if (mechanic === "drag" && instance.dragTargets.length > 0) {
-            mechanicEvent.dragTargets = instance.dragTargets;
-          }
-
-          return [
-            mechanicEvent,
-            {
-              tick: event.tick,
-              type: "ALG_EQUATION_STATE",
-              equationId,
-              state: tokensToEquationState(instance.equation.tokens),
-            },
-          ];
-        },
-      );
-    });
-  });
-
-  return { version: 1, events: sortEvents(sidecarEvents) };
+  return {
+    version: 2,
+    maxEquationSlots: MAX_EQUATION_SLOTS,
+    equations,
+  };
 }
 
 async function fileFromSignedUrl({
@@ -1098,6 +1373,7 @@ function HeaderBar({
             <Link
               key={tab.label}
               href={tab.href}
+              prefetch={false}
               aria-label={tab.label}
               className={styles.utilityButton}
               style={{ width: tab.width, height: 38 }}
@@ -3041,14 +3317,16 @@ export default function LessonBuilderClient({
   function loadSidecarIntoTimeline(
     nextSidecar: SidecarPayload,
     nextEventCounts: MechanicCounts[],
-    eventTicks: number[] = [],
+    nextEventTicks: number[] = [],
   ) {
+    const limitedEventCounts = nextEventCounts.slice(0, MAX_EQUATION_SLOTS);
+    const limitedEventTicks = nextEventTicks.slice(0, MAX_EQUATION_SLOTS);
     const nextEvents = timelineEventsFromSidecar(
       nextSidecar,
-      nextEventCounts,
-      eventTicks,
+      limitedEventCounts,
+      limitedEventTicks,
     );
-    setEventCounts(nextEventCounts);
+    setEventCounts(limitedEventCounts);
     setTimelineEvents(nextEvents);
     setSavedEquations((current) => {
       const importedEquations = savedEquationsFromTimelineEvents(nextEvents);
@@ -3235,6 +3513,7 @@ export default function LessonBuilderClient({
 
       const response = await fetch("/api/lesson-builder/save", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           songAssetId: selectedSongStorage.id,
@@ -3245,17 +3524,20 @@ export default function LessonBuilderClient({
               selectedSongStorage.chart.contentType ??
               "text/plain;charset=utf-8",
           },
-sidecar: {
-  ...(selectedSongStorage.sidecar ?? {
-    bucket: "SidecarJsons",
-    path: selectedSongStorage.chart.path.replace(/\.chart$/i, ".json"),
-    contentType: "application/json;charset=utf-8",
-  }),
-  content: sidecarJson,
-  contentType:
-    selectedSongStorage.sidecar?.contentType ??
-    "application/json;charset=utf-8",
-},
+          sidecar: {
+            ...(selectedSongStorage.sidecar ?? {
+              bucket: "SidecarJsons",
+              path: selectedSongStorage.chart.path.replace(
+                /\.chart$/i,
+                ".json",
+              ),
+              contentType: "application/json;charset=utf-8",
+            }),
+            content: sidecarJson,
+            contentType:
+              selectedSongStorage.sidecar?.contentType ??
+              "application/json;charset=utf-8",
+          },
         }),
       });
 
@@ -3302,11 +3584,6 @@ sidecar: {
         selectedSong,
         selectedSongEventCounts.length,
       );
-      console.log("Lesson builder selected song event counts:", {
-  selectedSong,
-  selectedSongEventCounts,
-  selectedSongEventTicks,
-});
 
       setSelectedSongStorage({
         id: selectedSong.id,
@@ -3342,11 +3619,6 @@ sidecar: {
         .catch((error) =>
           console.warn("Selected song audio could not be preloaded.", error),
         );
-
-      console.log("Creating timeline slots before chart fetch:", {
-        selectedSongEventCounts,
-        selectedSongEventTicks,
-      });
 
       loadSidecarIntoTimeline(
         emptySidecar,

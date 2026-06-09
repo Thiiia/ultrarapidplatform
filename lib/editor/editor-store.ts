@@ -16,6 +16,11 @@ export type HitBubblePlacement = {
   positions: HitBubblePosition[];
 };
 
+export type SidecarHitBubblePlacement = {
+  tokenIndex: number;
+  pads: HitBubblePosition[];
+};
+
 export type SpinTarget = {
   tokenIndex: number;
 };
@@ -45,14 +50,50 @@ export type SidecarEquationStateEvent = {
 
 export type SidecarEvent = SidecarMechanicEvent | SidecarEquationStateEvent;
 
-export type SidecarPayload = {
+export type SidecarHit = {
+  index: number;
+  bubbles: SidecarHitBubblePlacement[];
+};
+
+export type SidecarSpin = {
+  index: number;
+  targets: SpinTarget[];
+};
+
+export type SidecarDrag = {
+  index: number;
+  targets: DragTarget[];
+};
+
+export type SidecarEquation = {
+  id: string;
+  tick: number;
+  state: string;
+  counts: Record<GameplayMechanic, number>;
+  hits: SidecarHit[];
+  spins: SidecarSpin[];
+  drags: SidecarDrag[];
+};
+
+export type LegacySidecarPayload = {
   version: 1;
   events: SidecarEvent[];
 };
 
+export type EquationSidecarPayload = {
+  version: 2;
+  maxEquationSlots: number;
+  equations: SidecarEquation[];
+};
+
+export type SidecarPayload = LegacySidecarPayload | EquationSidecarPayload;
+
+export const MAX_EQUATION_SLOTS = 5;
+
 export const emptySidecar: SidecarPayload = {
-  version: 1,
-  events: [],
+  version: 2,
+  maxEquationSlots: MAX_EQUATION_SLOTS,
+  equations: [],
 };
 
 const hitBubblePositions: HitBubblePosition[] = [
@@ -112,7 +153,15 @@ function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
   }
 
   return value.flatMap((placement): HitBubblePlacement[] => {
-    if (!isObject(placement) || !Array.isArray(placement.positions)) {
+    if (!isObject(placement)) {
+      return [];
+    }
+
+    const rawPads = Array.isArray(placement.pads)
+      ? placement.pads
+      : placement.positions;
+
+    if (!Array.isArray(rawPads)) {
       return [];
     }
 
@@ -124,7 +173,7 @@ function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
 
     const positions = Array.from(
       new Set(
-        placement.positions
+        rawPads
           .map((position) => normalizeHitBubblePosition(position))
           .filter((position): position is HitBubblePosition =>
             Boolean(position),
@@ -166,8 +215,150 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function normalizeSidecarCounts(value: unknown): Record<GameplayMechanic, number> {
+  if (!isObject(value)) {
+    return { hit: 0, spin: 0, drag: 0 };
+  }
+
+  return {
+    hit: normalizeNonNegativeInteger(value.hit),
+    spin: normalizeNonNegativeInteger(value.spin),
+    drag: normalizeNonNegativeInteger(value.drag),
+  };
+}
+
+function hitBubblePlacementsToSidecarBubbles(
+  placements: HitBubblePlacement[],
+): SidecarHitBubblePlacement[] {
+  return placements.map((placement) => ({
+    tokenIndex: placement.tokenIndex,
+    pads: placement.positions,
+  }));
+}
+
+function sortSidecarEvents(events: SidecarEvent[]) {
+  return [...events].sort((left, right) => {
+    if (left.tick !== right.tick) {
+      return left.tick - right.tick;
+    }
+
+    if (left.type !== right.type) {
+      return left.type.localeCompare(right.type);
+    }
+
+    if (left.type === "ALG_MECHANIC" && right.type === "ALG_MECHANIC") {
+      if (left.mechanic !== right.mechanic) {
+        return left.mechanic.localeCompare(right.mechanic);
+      }
+
+      return (left.instanceIndex ?? 0) - (right.instanceIndex ?? 0);
+    }
+
+    return 0;
+  });
+}
+
 export function normalizeSidecar(value: unknown): SidecarPayload {
-  if (!isObject(value) || !Array.isArray(value.events)) {
+  if (!isObject(value)) {
+    return emptySidecar;
+  }
+
+  if (Array.isArray(value.equations)) {
+    const equations = value.equations.flatMap((equation, index): SidecarEquation[] => {
+      if (!isObject(equation)) {
+        return [];
+      }
+
+      const id =
+        typeof equation.id === "string" && equation.id.trim()
+          ? equation.id.trim()
+          : `eq_${String(index + 1).padStart(3, "0")}`;
+      const state = typeof equation.state === "string" ? equation.state : "";
+      const counts = normalizeSidecarCounts(equation.counts);
+      const hits = Array.isArray(equation.hits)
+        ? equation.hits.flatMap((hit): SidecarHit[] => {
+            if (!isObject(hit)) {
+              return [];
+            }
+
+            const hitIndex = normalizeNonNegativeInteger(hit.index, -1);
+
+            if (hitIndex < 0) {
+              return [];
+            }
+
+            return [
+              {
+                index: hitIndex,
+                bubbles: hitBubblePlacementsToSidecarBubbles(
+                  normalizeHitBubblePlacements(hit.bubbles),
+                ),
+              },
+            ];
+          })
+        : [];
+      const spins = Array.isArray(equation.spins)
+        ? equation.spins.flatMap((spin): SidecarSpin[] => {
+            if (!isObject(spin)) {
+              return [];
+            }
+
+            const spinIndex = normalizeNonNegativeInteger(spin.index, -1);
+
+            if (spinIndex < 0) {
+              return [];
+            }
+
+            return [
+              {
+                index: spinIndex,
+                targets: normalizeTokenTargets<SpinTarget>(spin.targets),
+              },
+            ];
+          })
+        : [];
+      const drags = Array.isArray(equation.drags)
+        ? equation.drags.flatMap((drag): SidecarDrag[] => {
+            if (!isObject(drag)) {
+              return [];
+            }
+
+            const dragIndex = normalizeNonNegativeInteger(drag.index, -1);
+
+            if (dragIndex < 0) {
+              return [];
+            }
+
+            return [
+              {
+                index: dragIndex,
+                targets: normalizeTokenTargets<DragTarget>(drag.targets),
+              },
+            ];
+          })
+        : [];
+
+      return [
+        {
+          id,
+          tick: normalizeTick(equation.tick),
+          state,
+          counts,
+          hits,
+          spins,
+          drags,
+        },
+      ];
+    });
+
+    return {
+      version: 2,
+      maxEquationSlots: MAX_EQUATION_SLOTS,
+      equations: equations.slice(0, MAX_EQUATION_SLOTS),
+    };
+  }
+
+  if (!Array.isArray(value.events)) {
     return emptySidecar;
   }
 
@@ -243,25 +434,7 @@ export function normalizeSidecar(value: unknown): SidecarPayload {
 
   return {
     version: 1,
-    events: events.sort((left, right) => {
-      if (left.tick !== right.tick) {
-        return left.tick - right.tick;
-      }
-
-      if (left.type !== right.type) {
-        return left.type.localeCompare(right.type);
-      }
-
-      if (left.type === "ALG_MECHANIC" && right.type === "ALG_MECHANIC") {
-        if (left.mechanic !== right.mechanic) {
-          return left.mechanic.localeCompare(right.mechanic);
-        }
-
-        return (left.instanceIndex ?? 0) - (right.instanceIndex ?? 0);
-      }
-
-      return 0;
-    }),
+    events: sortSidecarEvents(events),
   };
 }
 
@@ -299,21 +472,27 @@ export const useEditorStore = create<EditorStore>((set) => ({
       sidecar: normalizeSidecar(updater(cloneSidecar(state.sidecar))),
     })),
   addSidecarEvent: (event) =>
-    set((state) => ({
-      sidecar: normalizeSidecar({
-        version: 1,
-        events: [...state.sidecar.events, event],
-      }),
-    })),
+    set((state) => {
+      const events = state.sidecar.version === 1 ? state.sidecar.events : [];
+
+      return {
+        sidecar: normalizeSidecar({
+          version: 1,
+          events: [...events, event],
+        }),
+      };
+    }),
   removeSidecarEventAtIndex: (index) =>
-    set((state) => ({
-      sidecar: normalizeSidecar({
-        version: 1,
-        events: state.sidecar.events.filter(
-          (_, eventIndex) => eventIndex !== index,
-        ),
-      }),
-    })),
+    set((state) => {
+      const events = state.sidecar.version === 1 ? state.sidecar.events : [];
+
+      return {
+        sidecar: normalizeSidecar({
+          version: 1,
+          events: events.filter((_, eventIndex) => eventIndex !== index),
+        }),
+      };
+    }),
   setSelectedIds: (ids) => set({ selectedIds: ids }),
   addBlock: (block) =>
     set((state) => {

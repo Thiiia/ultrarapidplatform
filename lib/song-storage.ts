@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -49,18 +48,7 @@ export type SongChoice = {
   } | null;
 };
 
-type SongAssetMechanicCounts = {
-  equation_slots: number | null;
-  equation_slot_ticks: number[] | null;
-  hit_counts: number[] | null;
-  spin_counts: number[] | null;
-  drag_counts: number[] | null;
-};
-
-async function createOptionalSignedUrl(
-  bucket: string | null,
-  path: string | null,
-) {
+async function createOptionalSignedUrl(bucket: string | null, path: string | null) {
   if (!bucket || !path) {
     return null;
   }
@@ -97,12 +85,10 @@ async function getFileMetadata(bucket: string, path: string) {
   const folder = path.split("/").slice(0, -1).join("/");
   const fileName = path.split("/").pop();
 
-  const { data } = await supabaseAdmin.storage
-    .from(bucket)
-    .list(folder || undefined, {
-      search: fileName,
-      limit: 1,
-    });
+  const { data } = await supabaseAdmin.storage.from(bucket).list(folder || undefined, {
+    search: fileName,
+    limit: 1,
+  });
 
   return data?.[0] ?? null;
 }
@@ -120,93 +106,6 @@ function getContentTypeFromPath(path: string) {
   return null;
 }
 
-function normalizeCount(value: unknown) {
-  const count = Number(value);
-
-  if (!Number.isFinite(count) || count < 0) {
-    return 0;
-  }
-
-  return Math.round(count);
-}
-
-function parseCountArray(value: unknown) {
-  if (Array.isArray(value)) {
-    return value.map((item) => normalizeCount(item));
-  }
-
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-
-    try {
-      const parsed = JSON.parse(trimmed);
-      return parseCountArray(parsed);
-    } catch {
-      if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-        return trimmed
-          .slice(1, -1)
-          .split(",")
-          .map((item) => item.trim().replace(/^"|"$/g, ""))
-          .map((item) => normalizeCount(item));
-      }
-    }
-  }
-
-  return [];
-}
-
-function normalizeCountArray(value: unknown, equationSlots: number) {
-  const normalized = parseCountArray(value).slice(0, equationSlots);
-
-  while (normalized.length < equationSlots) {
-    normalized.push(0);
-  }
-
-  return normalized;
-}
-
-type SongAssetMechanicRow = {
-  id: string;
-  equation_slots: number | string | null;
-  equation_slot_ticks: unknown;
-  hit_count: unknown;
-  spin_count: unknown;
-  drag_count: unknown;
-};
-
-async function getSongAssetMechanicCounts(songAssetIds: string[]) {
-  if (songAssetIds.length === 0) {
-    return new Map<string, SongAssetMechanicCounts>();
-  }
-
-  const rows = await prisma.$queryRaw<SongAssetMechanicRow[]>(Prisma.sql`
-    select
-      id,
-      equation_slots,
-      equation_slot_ticks,
-      hit_count,
-      spin_count,
-      drag_count
-    from public."SongAsset"
-    where id in (${Prisma.join(songAssetIds)})
-  `);
-
-  console.log("Loaded SongAsset mechanic counts from Prisma:", rows);
-
-  return new Map(
-    rows.map((row) => [
-      row.id,
-      {
-        equation_slots: normalizeCount(row.equation_slots),
-        equation_slot_ticks: parseCountArray(row.equation_slot_ticks),
-        hit_counts: parseCountArray(row.hit_count),
-        spin_counts: parseCountArray(row.spin_count),
-        drag_counts: parseCountArray(row.drag_count),
-      },
-    ]),
-  );
-}
-
 export async function getSongChoices(): Promise<SongChoice[]> {
   const songAssets = await prisma.songAsset.findMany({
     where: {
@@ -215,68 +114,25 @@ export async function getSongChoices(): Promise<SongChoice[]> {
     orderBy: {
       title: "asc",
     },
-    select: {
-      id: true,
-      title: true,
-      artist: true,
-      songBucket: true,
-      songPath: true,
-      chartBucket: true,
-      chartPath: true,
-      sidecarBucket: true,
-      sidecarPath: true,
-      durationSeconds: true,
-      updatedAt: true,
-    },
   });
-
-  const mechanicCountsById = await getSongAssetMechanicCounts(
-    songAssets.map((songAsset) => songAsset.id),
-  );
 
   const songs = await Promise.all(
     songAssets.map(async (songAsset) => {
-      const hasSidecar = Boolean(
-        songAsset.sidecarBucket && songAsset.sidecarPath,
-      );
+      const hasSidecar = Boolean(songAsset.sidecarBucket && songAsset.sidecarPath);
 
-      const mechanicCounts = mechanicCountsById.get(songAsset.id);
-      const equationSlots = normalizeCount(mechanicCounts?.equation_slots);
+      const [
+        songSignedUrl,
+        chartSignedUrl,
+        sidecarSignedUrl,
+        songMetadata,
+      ] = await Promise.all([
+        createSignedUrl(songAsset.songBucket, songAsset.songPath),
+        createSignedUrl(songAsset.chartBucket, songAsset.chartPath),
+createOptionalSignedUrl(songAsset.sidecarBucket, songAsset.sidecarPath),
+        getFileMetadata(songAsset.songBucket, songAsset.songPath),
+      ]);
 
-      const equationSlotTicks = normalizeCountArray(
-        mechanicCounts?.equation_slot_ticks,
-        equationSlots,
-      );
-
-      const hitCounts = normalizeCountArray(
-        mechanicCounts?.hit_counts,
-        equationSlots,
-      );
-
-      const spinCounts = normalizeCountArray(
-        mechanicCounts?.spin_counts,
-        equationSlots,
-      );
-
-      const dragCounts = normalizeCountArray(
-        mechanicCounts?.drag_counts,
-        equationSlots,
-      );
-
-      const [songSignedUrl, chartSignedUrl, sidecarSignedUrl, songMetadata] =
-        await Promise.all([
-          createSignedUrl(songAsset.songBucket, songAsset.songPath),
-          createSignedUrl(songAsset.chartBucket, songAsset.chartPath),
-          createOptionalSignedUrl(
-            songAsset.sidecarBucket,
-            songAsset.sidecarPath,
-          ),
-          getFileMetadata(songAsset.songBucket, songAsset.songPath),
-        ]);
-
-      const metadata = songMetadata?.metadata as
-        | Record<string, unknown>
-        | undefined;
+      const metadata = songMetadata?.metadata as Record<string, unknown> | undefined;
 
       const songContentType =
         typeof metadata?.mimetype === "string"
@@ -294,23 +150,19 @@ export async function getSongChoices(): Promise<SongChoice[]> {
         contentType: songContentType,
         updatedAt: songAsset.updatedAt.toISOString(),
         durationSeconds: songAsset.durationSeconds,
-
-        equationSlots,
-        equation_slots: equationSlots,
-        equationSlotTicks,
-        equation_slot_ticks: equationSlotTicks,
-
-        hitCounts,
-        hit_counts: hitCounts,
-        hit_count: hitCounts,
-
-        spinCounts,
-        spin_counts: spinCounts,
-        spin_count: spinCounts,
-
-        dragCounts,
-        drag_counts: dragCounts,
-        drag_count: dragCounts,
+        equationSlots: songAsset.equationSlots,
+        equation_slots: songAsset.equationSlots,
+        equationSlotTicks: songAsset.equationSlotTicks,
+        equation_slot_ticks: songAsset.equationSlotTicks,
+        hitCounts: songAsset.hitCounts,
+        hit_counts: songAsset.hitCounts,
+        hit_count: songAsset.hitCounts,
+        spinCounts: songAsset.spinCounts,
+        spin_counts: songAsset.spinCounts,
+        spin_count: songAsset.spinCounts,
+        dragCounts: songAsset.dragCounts,
+        drag_counts: songAsset.dragCounts,
+        drag_count: songAsset.dragCounts,
 
         song: {
           bucket: songAsset.songBucket,

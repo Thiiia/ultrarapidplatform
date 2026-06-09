@@ -27,6 +27,8 @@ import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
 import NoteIcon from "@/public/song_choice_icons/Note.svg";
 import PlayIcon from "@/public/song_choice_icons/Play_Icon.svg";
 
+const MAX_EQUATION_SLOTS = 5;
+
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
 
 type DashboardType = "student" | "teacher";
@@ -50,9 +52,6 @@ type SongChoiceWithEquationSlots = SongChoice & {
   spinCounts?: unknown;
   drag_counts?: unknown;
   dragCounts?: unknown;
-  hit_count?: unknown;
-spin_count?: unknown;
-drag_count?: unknown;
   songAsset?: {
     equation_slots?: number | string | null;
     equationSlots?: number | string | null;
@@ -64,9 +63,6 @@ drag_count?: unknown;
     spinCounts?: unknown;
     drag_counts?: unknown;
     dragCounts?: unknown;
-    hit_count?: unknown;
-spin_count?: unknown;
-drag_count?: unknown;
   } | null;
   song_asset?: {
     equation_slots?: number | string | null;
@@ -79,9 +75,6 @@ drag_count?: unknown;
     spinCounts?: unknown;
     drag_counts?: unknown;
     dragCounts?: unknown;
-    hit_count?: unknown;
-spin_count?: unknown;
-drag_count?: unknown;
   } | null;
 };
 
@@ -184,7 +177,7 @@ function getEquationSlots(song: SongChoiceWithEquationSlots) {
     song.song_asset?.equationSlots ??
     null;
 
-  if (rawSlots === null || rawSlots === undefined) {
+  if (rawSlots === null || rawSlots === undefined || rawSlots === "") {
     return null;
   }
 
@@ -197,57 +190,11 @@ function getEquationSlots(song: SongChoiceWithEquationSlots) {
     return null;
   }
 
-  return Math.max(0, Math.floor(parsedSlots));
-}
-
-function getEquationSlotTicks(song: SongChoiceWithEquationSlots, equationSlots: number) {
-  const candidates = [
-    song.equation_slot_ticks,
-    song.equationSlotTicks,
-    song.songAsset?.equation_slot_ticks,
-    song.songAsset?.equationSlotTicks,
-    song.song_asset?.equation_slot_ticks,
-    song.song_asset?.equationSlotTicks,
-  ];
-
-  for (const candidate of candidates) {
-    const hasCandidate =
-      Array.isArray(candidate) ||
-      (typeof candidate === "string" && candidate.trim().length > 0);
-
-    if (!hasCandidate) {
-      continue;
-    }
-
-    return normalizeCountArray(candidate, equationSlots);
-  }
-
-  return Array.from({ length: equationSlots }, () => 0);
+  return Math.min(MAX_EQUATION_SLOTS, Math.max(0, Math.floor(parsedSlots)));
 }
 
 function normalizeCountArray(value: unknown, equationSlots: number) {
-  let raw: unknown[] = [];
-
-  if (Array.isArray(value)) {
-    raw = value;
-  } else if (typeof value === "string") {
-    const trimmed = value.trim();
-
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) {
-        raw = parsed;
-      }
-    } catch {
-      if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-        raw = trimmed
-          .slice(1, -1)
-          .split(",")
-          .map((item) => item.trim().replace(/^"|"$/g, ""));
-      }
-    }
-  }
-
+  const raw = Array.isArray(value) ? value : [];
   const counts = raw
     .map((item) => {
       const count = Number(item);
@@ -271,38 +218,46 @@ function firstCountArray(
       | "hitCounts"
       | "spinCounts"
       | "dragCounts";
-    const snakePluralKey = `${key}_counts` as
+    const snakeKey = `${key}_counts` as
       | "hit_counts"
       | "spin_counts"
       | "drag_counts";
-    const snakeSingularKey = `${key}_count` as
-      | "hit_count"
-      | "spin_count"
-      | "drag_count";
-
     const candidates = [
       song[camelKey],
-      song[snakePluralKey],
-      song[snakeSingularKey],
+      song[snakeKey],
       song.songAsset?.[camelKey],
-      song.songAsset?.[snakePluralKey],
-      song.songAsset?.[snakeSingularKey],
+      song.songAsset?.[snakeKey],
       song.song_asset?.[camelKey],
-      song.song_asset?.[snakePluralKey],
-      song.song_asset?.[snakeSingularKey],
+      song.song_asset?.[snakeKey],
     ];
 
     for (const candidate of candidates) {
-      if (
-        Array.isArray(candidate) ||
-        (typeof candidate === "string" && candidate.trim().length > 0)
-      ) {
+      if (Array.isArray(candidate)) {
         return candidate;
       }
     }
   }
 
   return [];
+}
+
+function getEquationSlotTicks(song: SongChoiceWithEquationSlots, equationSlots: number) {
+  const candidates = [
+    song.equationSlotTicks,
+    song.equation_slot_ticks,
+    song.songAsset?.equationSlotTicks,
+    song.songAsset?.equation_slot_ticks,
+    song.song_asset?.equationSlotTicks,
+    song.song_asset?.equation_slot_ticks,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return normalizeCountArray(candidate, equationSlots);
+    }
+  }
+
+  return normalizeCountArray([], equationSlots);
 }
 
 function getMechanicCounts(song: SongChoiceWithEquationSlots) {
@@ -460,7 +415,6 @@ function HeaderBar({
                 <Link
                   key={tab.label}
                   href={tab.href}
-                  prefetch={false}
                   aria-label={tab.label}
                   className={`${styles.headerTabButton} ${
                     isActive ? styles.headerTabButtonActive : ""
@@ -681,18 +635,11 @@ export default function SongChoiceClient({
     }
 
     const equationSlots = getEquationSlots(selectedSong);
+    const equationSlotTicks = getEquationSlotTicks(
+      selectedSong,
+      equationSlots ?? 0,
+    );
     const mechanicCounts = getMechanicCounts(selectedSong);
-
-const equationSlotTicks = getEquationSlotTicks(selectedSong, equationSlots ?? 0);
-
-console.log("Selected song editor payload:", {
-  equationSlots,
-  equationSlotTicks,
-  mechanicCounts,
-  selectedSong,
-});
-
-    window.sessionStorage.removeItem("ultrarapid_editor_payload");
 
     window.sessionStorage.setItem(
       "ultrarapid_selected_song",
@@ -701,41 +648,28 @@ console.log("Selected song editor payload:", {
         name: selectedSong.name,
         title: selectedSong.title,
         artist: selectedSong.artist,
-equation_slots: equationSlots,
-equationSlots,
-equation_slot_ticks: equationSlotTicks,
-equationSlotTicks,
-
-hit_counts: mechanicCounts.hit_counts,
-hitCounts: mechanicCounts.hitCounts,
-hit_count: mechanicCounts.hit_counts,
-
-spin_counts: mechanicCounts.spin_counts,
-spinCounts: mechanicCounts.spinCounts,
-spin_count: mechanicCounts.spin_counts,
-
-drag_counts: mechanicCounts.drag_counts,
-dragCounts: mechanicCounts.dragCounts,
-drag_count: mechanicCounts.drag_counts,
-
-songAsset: {
-  equation_slots: equationSlots,
-  equationSlots,
-  equation_slot_ticks: equationSlotTicks,
-  equationSlotTicks,
-
-  hit_counts: mechanicCounts.hit_counts,
-  hitCounts: mechanicCounts.hitCounts,
-  hit_count: mechanicCounts.hit_counts,
-
-  spin_counts: mechanicCounts.spin_counts,
-  spinCounts: mechanicCounts.spinCounts,
-  spin_count: mechanicCounts.spin_counts,
-
-  drag_counts: mechanicCounts.drag_counts,
-  dragCounts: mechanicCounts.dragCounts,
-  drag_count: mechanicCounts.drag_counts,
-},
+        equation_slots: equationSlots,
+        equationSlots,
+        equation_slot_ticks: equationSlotTicks,
+        equationSlotTicks,
+        hit_counts: mechanicCounts.hit_counts,
+        hitCounts: mechanicCounts.hitCounts,
+        spin_counts: mechanicCounts.spin_counts,
+        spinCounts: mechanicCounts.spinCounts,
+        drag_counts: mechanicCounts.drag_counts,
+        dragCounts: mechanicCounts.dragCounts,
+        songAsset: {
+          equation_slots: equationSlots,
+          equationSlots,
+          equation_slot_ticks: equationSlotTicks,
+          equationSlotTicks,
+          hit_counts: mechanicCounts.hit_counts,
+          hitCounts: mechanicCounts.hitCounts,
+          spin_counts: mechanicCounts.spin_counts,
+          spinCounts: mechanicCounts.spinCounts,
+          drag_counts: mechanicCounts.drag_counts,
+          dragCounts: mechanicCounts.dragCounts,
+        },
 
         song: {
           bucket: selectedSong.song.bucket,
@@ -984,7 +918,8 @@ songAsset: {
                           width: "100%",
                         }}
                       >
-                        {song.artist ?? "Unknown artist"}
+                        {song.artist ?? "Unknown artist"} ·{" "}
+                        {getEquationSlots(song) ?? "—"} equation slots
                       </span>
                     </div>
 
