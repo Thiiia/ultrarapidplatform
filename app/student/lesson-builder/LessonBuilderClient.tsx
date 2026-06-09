@@ -54,12 +54,17 @@ type SelectedSongPayload = {
   artist?: string | null;
   equationSlots?: number | string | null;
   equation_slots?: number | string | null;
-  hitCounts?: unknown;
-  hit_counts?: unknown;
-  spinCounts?: unknown;
-  spin_counts?: unknown;
-  dragCounts?: unknown;
-  drag_counts?: unknown;
+hitCounts?: unknown;
+hit_counts?: unknown;
+hit_count?: unknown;
+
+spinCounts?: unknown;
+spin_counts?: unknown;
+spin_count?: unknown;
+
+dragCounts?: unknown;
+drag_counts?: unknown;
+drag_count?: unknown;
   songAsset?: {
     equationSlots?: number | string | null;
     equation_slots?: number | string | null;
@@ -69,6 +74,10 @@ type SelectedSongPayload = {
     spin_counts?: unknown;
     dragCounts?: unknown;
     drag_counts?: unknown;
+
+    hit_count?: unknown;
+spin_count?: unknown;
+drag_count?: unknown;
   } | null;
   song_asset?: {
     equationSlots?: number | string | null;
@@ -79,6 +88,10 @@ type SelectedSongPayload = {
     spin_counts?: unknown;
     dragCounts?: unknown;
     drag_counts?: unknown;
+
+    hit_count?: unknown;
+spin_count?: unknown;
+drag_count?: unknown;
   } | null;
   song: StorageFileRef & { signedUrl: string };
   chart: StorageFileRef & { signedUrl: string };
@@ -327,10 +340,20 @@ function normalizeIntegerArray(value: unknown): number[] {
   }
 
   if (typeof value === "string") {
+    const trimmed = value.trim();
+
     try {
-      const parsed = JSON.parse(value) as unknown;
+      const parsed = JSON.parse(trimmed) as unknown;
       return normalizeIntegerArray(parsed);
     } catch {
+      if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+        return trimmed
+          .slice(1, -1)
+          .split(",")
+          .map((item) => item.trim().replace(/^"|"$/g, ""))
+          .map((item) => normalizeNonNegativeInteger(item));
+      }
+
       return [];
     }
   }
@@ -364,52 +387,59 @@ function getSelectedSongMechanicCountArray(
   selectedSong: SelectedSongPayload,
   mechanic: GameplayMechanic,
 ) {
-  if (mechanic === "hit") {
-    return normalizeIntegerArray(selectedSong.hitCounts).length
-      ? normalizeIntegerArray(selectedSong.hitCounts)
-      : normalizeIntegerArray(selectedSong.hit_counts).length
-        ? normalizeIntegerArray(selectedSong.hit_counts)
-        : normalizeIntegerArray(selectedSong.songAsset?.hitCounts).length
-          ? normalizeIntegerArray(selectedSong.songAsset?.hitCounts)
-          : normalizeIntegerArray(selectedSong.songAsset?.hit_counts).length
-            ? normalizeIntegerArray(selectedSong.songAsset?.hit_counts)
-            : normalizeIntegerArray(selectedSong.song_asset?.hitCounts).length
-              ? normalizeIntegerArray(selectedSong.song_asset?.hitCounts)
-              : normalizeIntegerArray(selectedSong.song_asset?.hit_counts);
+  const camelKey = `${mechanic}Counts` as
+    | "hitCounts"
+    | "spinCounts"
+    | "dragCounts";
+
+  const snakePluralKey = `${mechanic}_counts` as
+    | "hit_counts"
+    | "spin_counts"
+    | "drag_counts";
+
+  const snakeSingularKey = `${mechanic}_count` as
+    | "hit_count"
+    | "spin_count"
+    | "drag_count";
+
+  const candidates = [
+    selectedSong[camelKey],
+    selectedSong[snakePluralKey],
+    selectedSong[snakeSingularKey],
+
+    selectedSong.songAsset?.[camelKey],
+    selectedSong.songAsset?.[snakePluralKey],
+    selectedSong.songAsset?.[snakeSingularKey],
+
+    selectedSong.song_asset?.[camelKey],
+    selectedSong.song_asset?.[snakePluralKey],
+    selectedSong.song_asset?.[snakeSingularKey],
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeIntegerArray(candidate);
+
+    if (normalized.length > 0) {
+      return normalized;
+    }
   }
 
-  if (mechanic === "spin") {
-    return normalizeIntegerArray(selectedSong.spinCounts).length
-      ? normalizeIntegerArray(selectedSong.spinCounts)
-      : normalizeIntegerArray(selectedSong.spin_counts).length
-        ? normalizeIntegerArray(selectedSong.spin_counts)
-        : normalizeIntegerArray(selectedSong.songAsset?.spinCounts).length
-          ? normalizeIntegerArray(selectedSong.songAsset?.spinCounts)
-          : normalizeIntegerArray(selectedSong.songAsset?.spin_counts).length
-            ? normalizeIntegerArray(selectedSong.songAsset?.spin_counts)
-            : normalizeIntegerArray(selectedSong.song_asset?.spinCounts).length
-              ? normalizeIntegerArray(selectedSong.song_asset?.spinCounts)
-              : normalizeIntegerArray(selectedSong.song_asset?.spin_counts);
-  }
-
-  return normalizeIntegerArray(selectedSong.dragCounts).length
-    ? normalizeIntegerArray(selectedSong.dragCounts)
-    : normalizeIntegerArray(selectedSong.drag_counts).length
-      ? normalizeIntegerArray(selectedSong.drag_counts)
-      : normalizeIntegerArray(selectedSong.songAsset?.dragCounts).length
-        ? normalizeIntegerArray(selectedSong.songAsset?.dragCounts)
-        : normalizeIntegerArray(selectedSong.songAsset?.drag_counts).length
-          ? normalizeIntegerArray(selectedSong.songAsset?.drag_counts)
-          : normalizeIntegerArray(selectedSong.song_asset?.dragCounts).length
-            ? normalizeIntegerArray(selectedSong.song_asset?.dragCounts)
-            : normalizeIntegerArray(selectedSong.song_asset?.drag_counts);
+  return [];
 }
 
 function getSelectedSongEventCounts(selectedSong: SelectedSongPayload) {
-  const equationSlots = getSelectedSongEquationSlotCount(selectedSong);
   const hitCounts = getSelectedSongMechanicCountArray(selectedSong, "hit");
   const spinCounts = getSelectedSongMechanicCountArray(selectedSong, "spin");
   const dragCounts = getSelectedSongMechanicCountArray(selectedSong, "drag");
+
+  const explicitEquationSlots = getSelectedSongEquationSlotCount(selectedSong);
+
+  const equationSlots = Math.max(
+    explicitEquationSlots,
+    hitCounts.length,
+    spinCounts.length,
+    dragCounts.length,
+  );
 
   return Array.from(
     { length: equationSlots },
@@ -3229,6 +3259,10 @@ export default function LessonBuilderClient({
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
       const selectedSongEventCounts = getSelectedSongEventCounts(selectedSong);
+      console.log("Lesson builder selected song event counts:", {
+  selectedSong,
+  selectedSongEventCounts,
+});
 
       setSelectedSongStorage({
         id: selectedSong.id,
@@ -3312,41 +3346,48 @@ export default function LessonBuilderClient({
     }
   }, [setProject]);
 
-  useEffect(() => {
-    const raw = sessionStorage.getItem("ultrarapid_editor_payload");
-    if (!raw) return;
+useEffect(() => {
+  const selectedSongRaw = sessionStorage.getItem("ultrarapid_selected_song");
 
-    try {
-      const payload: LessonBuilderPayload = JSON.parse(raw);
-      const normalizedSidecar = normalizeSidecar(
-        payload.rawResults ?? emptySidecar,
-      );
+  if (selectedSongRaw) {
+    sessionStorage.removeItem("ultrarapid_editor_payload");
+    return;
+  }
 
-      if (payload?.analysisMetadata) setMetadata(payload.analysisMetadata);
+  const raw = sessionStorage.getItem("ultrarapid_editor_payload");
+  if (!raw) return;
 
-      if (payload?.chartFile) {
-        setChartFile(payload.chartFile);
-        if (payload.analysisMetadata?.uploadedFileName) {
-          setUploadedChartName(payload.analysisMetadata.uploadedFileName);
-        }
-        loadSidecarIntoTimeline(normalizedSidecar, eventCounts);
-        setProject(
-          chartToProject({ ...payload, rawResults: normalizedSidecar }),
-        );
-      } else {
-        loadSidecarIntoTimeline(normalizedSidecar, eventCounts);
+  try {
+    const payload: LessonBuilderPayload = JSON.parse(raw);
+    const normalizedSidecar = normalizeSidecar(
+      payload.rawResults ?? emptySidecar,
+    );
+
+    if (payload?.analysisMetadata) setMetadata(payload.analysisMetadata);
+
+    if (payload?.chartFile) {
+      setChartFile(payload.chartFile);
+      if (payload.analysisMetadata?.uploadedFileName) {
+        setUploadedChartName(payload.analysisMetadata.uploadedFileName);
       }
-
-      sessionStorage.removeItem("ultrarapid_editor_payload");
-    } catch (error) {
-      console.error("Failed to hydrate lesson builder payload", error);
-      setLoadError(
-        error instanceof Error
-          ? error.message
-          : "Failed to hydrate lesson builder payload",
+      loadSidecarIntoTimeline(normalizedSidecar, eventCounts);
+      setProject(
+        chartToProject({ ...payload, rawResults: normalizedSidecar }),
       );
+    } else {
+      loadSidecarIntoTimeline(normalizedSidecar, eventCounts);
     }
-  }, [setProject]);
+
+    sessionStorage.removeItem("ultrarapid_editor_payload");
+  } catch (error) {
+    console.error("Failed to hydrate lesson builder payload", error);
+    setLoadError(
+      error instanceof Error
+        ? error.message
+        : "Failed to hydrate lesson builder payload",
+    );
+  }
+}, [setProject]);
 
   useEffect(() => {
     if (!pendingSongFile) return;
