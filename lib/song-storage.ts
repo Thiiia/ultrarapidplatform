@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -12,14 +13,20 @@ export type SongChoice = {
   contentType: string | null;
   updatedAt: string | null;
   durationSeconds: number | null;
-  equationSlots: number;
-  equation_slots: number;
-  hitCounts: number[];
-  hit_counts: number[];
-  spinCounts: number[];
-  spin_counts: number[];
-  dragCounts: number[];
-  drag_counts: number[];
+equationSlots: number;
+equation_slots: number;
+
+hitCounts: number[];
+hit_counts: number[];
+hit_count: number[];
+
+spinCounts: number[];
+spin_counts: number[];
+spin_count: number[];
+
+dragCounts: number[];
+drag_counts: number[];
+drag_count: number[];
 
   song: {
     bucket: string;
@@ -123,11 +130,33 @@ function normalizeCount(value: unknown) {
   return Math.round(count);
 }
 
+function parseCountArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeCount(item));
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      return parseCountArray(parsed);
+    } catch {
+      if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+        return trimmed
+          .slice(1, -1)
+          .split(",")
+          .map((item) => item.trim().replace(/^"|"$/g, ""))
+          .map((item) => normalizeCount(item));
+      }
+    }
+  }
+
+  return [];
+}
+
 function normalizeCountArray(value: unknown, equationSlots: number) {
-  const raw = Array.isArray(value) ? value : [];
-  const normalized = raw
-    .map((item) => normalizeCount(item))
-    .slice(0, equationSlots);
+  const normalized = parseCountArray(value).slice(0, equationSlots);
 
   while (normalized.length < equationSlots) {
     normalized.push(0);
@@ -136,51 +165,42 @@ function normalizeCountArray(value: unknown, equationSlots: number) {
   return normalized;
 }
 
+type SongAssetMechanicRow = {
+  id: string;
+  equation_slots: number | string | null;
+  hit_count: unknown;
+  spin_count: unknown;
+  drag_count: unknown;
+};
+
 async function getSongAssetMechanicCounts(songAssetIds: string[]) {
   if (songAssetIds.length === 0) {
     return new Map<string, SongAssetMechanicCounts>();
   }
 
-  const supabaseAdmin = getSupabaseAdmin();
+  const rows = await prisma.$queryRaw<SongAssetMechanicRow[]>(Prisma.sql`
+    select
+      id,
+      equation_slots,
+      hit_count,
+      spin_count,
+      drag_count
+    from public."SongAsset"
+    where id in (${Prisma.join(songAssetIds)})
+  `);
 
-  const { data, error } = await supabaseAdmin
-    .from("SongAsset")
-    .select("id,equation_slots,hit_count,spin_count,drag_count")
-    .in("id", songAssetIds);
-
-  if (error) {
-    console.error("Unable to load SongAsset mechanic counts:", error);
-    return new Map<string, SongAssetMechanicCounts>();
-  }
-
-  console.log("Loaded SongAsset mechanic counts:", data);
+  console.log("Loaded SongAsset mechanic counts from Prisma:", rows);
 
   return new Map(
-    (data ?? []).map((row) => {
-      const typedRow = row as {
-        id: string;
-        equation_slots: unknown;
-        hit_count: unknown;
-        spin_count: unknown;
-        drag_count: unknown;
-      };
-
-      return [
-        typedRow.id,
-        {
-          equation_slots: normalizeCount(typedRow.equation_slots),
-          hit_counts: Array.isArray(typedRow.hit_count)
-            ? typedRow.hit_count.map(normalizeCount)
-            : [],
-          spin_counts: Array.isArray(typedRow.spin_count)
-            ? typedRow.spin_count.map(normalizeCount)
-            : [],
-          drag_counts: Array.isArray(typedRow.drag_count)
-            ? typedRow.drag_count.map(normalizeCount)
-            : [],
-        },
-      ];
-    }),
+    rows.map((row) => [
+      row.id,
+      {
+        equation_slots: normalizeCount(row.equation_slots),
+        hit_counts: parseCountArray(row.hit_count),
+        spin_counts: parseCountArray(row.spin_count),
+        drag_counts: parseCountArray(row.drag_count),
+      },
+    ]),
   );
 }
 
@@ -270,14 +290,17 @@ export async function getSongChoices(): Promise<SongChoice[]> {
         equationSlots,
         equation_slots: equationSlots,
 
-        hitCounts,
-        hit_counts: hitCounts,
+hitCounts,
+hit_counts: hitCounts,
+hit_count: hitCounts,
 
-        spinCounts,
-        spin_counts: spinCounts,
+spinCounts,
+spin_counts: spinCounts,
+spin_count: spinCounts,
 
-        dragCounts,
-        drag_counts: dragCounts,
+dragCounts,
+drag_counts: dragCounts,
+drag_count: dragCounts,
 
         song: {
           bucket: songAsset.songBucket,
