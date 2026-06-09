@@ -48,6 +48,9 @@ type SongChoiceWithEquationSlots = SongChoice & {
   spinCounts?: unknown;
   drag_counts?: unknown;
   dragCounts?: unknown;
+  hit_count?: unknown;
+spin_count?: unknown;
+drag_count?: unknown;
   songAsset?: {
     equation_slots?: number | string | null;
     equationSlots?: number | string | null;
@@ -57,6 +60,9 @@ type SongChoiceWithEquationSlots = SongChoice & {
     spinCounts?: unknown;
     drag_counts?: unknown;
     dragCounts?: unknown;
+    hit_count?: unknown;
+spin_count?: unknown;
+drag_count?: unknown;
   } | null;
   song_asset?: {
     equation_slots?: number | string | null;
@@ -67,6 +73,9 @@ type SongChoiceWithEquationSlots = SongChoice & {
     spinCounts?: unknown;
     drag_counts?: unknown;
     dragCounts?: unknown;
+    hit_count?: unknown;
+spin_count?: unknown;
+drag_count?: unknown;
   } | null;
 };
 
@@ -186,7 +195,28 @@ function getEquationSlots(song: SongChoiceWithEquationSlots) {
 }
 
 function normalizeCountArray(value: unknown, equationSlots: number) {
-  const raw = Array.isArray(value) ? value : [];
+  let raw: unknown[] = [];
+
+  if (Array.isArray(value)) {
+    raw = value;
+  } else if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        raw = parsed;
+      }
+    } catch {
+      if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+        raw = trimmed
+          .slice(1, -1)
+          .split(",")
+          .map((item) => item.trim().replace(/^"|"$/g, ""));
+      }
+    }
+  }
+
   const counts = raw
     .map((item) => {
       const count = Number(item);
@@ -210,21 +240,32 @@ function firstCountArray(
       | "hitCounts"
       | "spinCounts"
       | "dragCounts";
-    const snakeKey = `${key}_counts` as
+    const snakePluralKey = `${key}_counts` as
       | "hit_counts"
       | "spin_counts"
       | "drag_counts";
+    const snakeSingularKey = `${key}_count` as
+      | "hit_count"
+      | "spin_count"
+      | "drag_count";
+
     const candidates = [
       song[camelKey],
-      song[snakeKey],
+      song[snakePluralKey],
+      song[snakeSingularKey],
       song.songAsset?.[camelKey],
-      song.songAsset?.[snakeKey],
+      song.songAsset?.[snakePluralKey],
+      song.songAsset?.[snakeSingularKey],
       song.song_asset?.[camelKey],
-      song.song_asset?.[snakeKey],
+      song.song_asset?.[snakePluralKey],
+      song.song_asset?.[snakeSingularKey],
     ];
 
     for (const candidate of candidates) {
-      if (Array.isArray(candidate)) {
+      if (
+        Array.isArray(candidate) ||
+        (typeof candidate === "string" && candidate.trim().length > 0)
+      ) {
         return candidate;
       }
     }
