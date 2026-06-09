@@ -652,6 +652,12 @@ export default function SongChoiceClient({
     const equationSlots = getEquationSlots(selectedSong);
     const mechanicCounts = getMechanicCounts(selectedSong);
 
+console.log("Selected song editor payload:", {
+  equationSlots,
+  mechanicCounts,
+  selectedSong,
+});
+
     window.sessionStorage.setItem(
       "ultrarapid_selected_song",
       JSON.stringify({
@@ -659,27 +665,37 @@ export default function SongChoiceClient({
         name: selectedSong.name,
         title: selectedSong.title,
         artist: selectedSong.artist,
-        equation_slots: equationSlots,
-        equationSlots,
-        hit_counts: mechanicCounts.hit_counts,
-        hitCounts: mechanicCounts.hitCounts,
-        spin_counts: mechanicCounts.spin_counts,
-        spinCounts: mechanicCounts.spinCounts,
-        drag_counts: mechanicCounts.drag_counts,
-        dragCounts: mechanicCounts.dragCounts,
-        songAsset: {
-          equation_slots: equationSlots,
-          equationSlots,
-          hit_counts: mechanicCounts.hit_counts,
-          hitCounts: mechanicCounts.hitCounts,
-          spin_counts: mechanicCounts.spin_counts,
-          spinCounts: mechanicCounts.spinCounts,
-          drag_counts: mechanicCounts.drag_counts,
-          dragCounts: mechanicCounts.dragCounts,
-          hit_count: mechanicCounts.hit_counts,
+equation_slots: equationSlots,
+equationSlots,
+
+hit_counts: mechanicCounts.hit_counts,
+hitCounts: mechanicCounts.hitCounts,
+hit_count: mechanicCounts.hit_counts,
+
+spin_counts: mechanicCounts.spin_counts,
+spinCounts: mechanicCounts.spinCounts,
 spin_count: mechanicCounts.spin_counts,
+
+drag_counts: mechanicCounts.drag_counts,
+dragCounts: mechanicCounts.dragCounts,
 drag_count: mechanicCounts.drag_counts,
-        },
+
+songAsset: {
+  equation_slots: equationSlots,
+  equationSlots,
+
+  hit_counts: mechanicCounts.hit_counts,
+  hitCounts: mechanicCounts.hitCounts,
+  hit_count: mechanicCounts.hit_counts,
+
+  spin_counts: mechanicCounts.spin_counts,
+  spinCounts: mechanicCounts.spinCounts,
+  spin_count: mechanicCounts.spin_counts,
+
+  drag_counts: mechanicCounts.drag_counts,
+  dragCounts: mechanicCounts.dragCounts,
+  drag_count: mechanicCounts.drag_counts,
+},
 
         song: {
           bucket: selectedSong.song.bucket,
