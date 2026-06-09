@@ -676,6 +676,9 @@ export default function SongChoiceClient({
           spinCounts: mechanicCounts.spinCounts,
           drag_counts: mechanicCounts.drag_counts,
           dragCounts: mechanicCounts.dragCounts,
+          hit_count: mechanicCounts.hit_counts,
+spin_count: mechanicCounts.spin_counts,
+drag_count: mechanicCounts.drag_counts,
         },
 
         song: {
