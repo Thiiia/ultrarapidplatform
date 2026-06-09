@@ -1026,6 +1026,7 @@ function HeaderBar({
                 <Link
                   key={tab.label}
                   href={tab.href}
+                   prefetch={false}
                   aria-label={tab.label}
                   className={`${styles.headerTabButton} ${
                     isActive ? styles.headerTabButtonActive : ""
@@ -1061,6 +1062,7 @@ function HeaderBar({
             <Link
               key={tab.label}
               href={tab.href}
+               prefetch={false}
               aria-label={tab.label}
               className={styles.utilityButton}
               style={{ width: tab.width, height: 38 }}
@@ -3298,6 +3300,12 @@ export default function LessonBuilderClient({
         .catch((error) =>
           console.error("Failed to load selected song file", error),
         );
+
+console.log("Creating timeline slots before chart fetch:", {
+  selectedSongEventCounts,
+});
+
+loadSidecarIntoTimeline(emptySidecar, selectedSongEventCounts);
 
       Promise.all([
         textFromSignedUrl(selectedSong.chart.signedUrl),
