@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getCurrentAppUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
 
 type SaveFilePayload = {
@@ -74,17 +73,8 @@ async function uploadTextFile(
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentAppUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const payload = (await request.json()) as SavePayload;
-    const songAssetId = readRequiredString(
-      payload.songAssetId,
-      "songAssetId",
-    );
+    const songAssetId = readRequiredString(payload.songAssetId, "songAssetId");
 
     if (!payload.chart || !payload.sidecar) {
       return NextResponse.json(
@@ -127,6 +117,8 @@ export async function POST(request: Request) {
       sidecar: sidecarRef,
     });
   } catch (error) {
+    console.error("Unable to save lesson files:", error);
+
     return NextResponse.json(
       {
         error:
