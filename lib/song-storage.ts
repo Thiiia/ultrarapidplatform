@@ -13,20 +13,19 @@ export type SongChoice = {
   contentType: string | null;
   updatedAt: string | null;
   durationSeconds: number | null;
-equationSlots: number;
-equation_slots: number;
-
-hitCounts: number[];
-hit_counts: number[];
-hit_count: number[];
-
-spinCounts: number[];
-spin_counts: number[];
-spin_count: number[];
-
-dragCounts: number[];
-drag_counts: number[];
-drag_count: number[];
+  equationSlots: number;
+  equation_slots: number;
+  equationSlotTicks: number[];
+  equation_slot_ticks: number[];
+  hitCounts: number[];
+  hit_counts: number[];
+  hit_count: number[];
+  spinCounts: number[];
+  spin_counts: number[];
+  spin_count: number[];
+  dragCounts: number[];
+  drag_counts: number[];
+  drag_count: number[];
 
   song: {
     bucket: string;
@@ -52,6 +51,7 @@ drag_count: number[];
 
 type SongAssetMechanicCounts = {
   equation_slots: number | null;
+  equation_slot_ticks: number[] | null;
   hit_counts: number[] | null;
   spin_counts: number[] | null;
   drag_counts: number[] | null;
@@ -168,6 +168,7 @@ function normalizeCountArray(value: unknown, equationSlots: number) {
 type SongAssetMechanicRow = {
   id: string;
   equation_slots: number | string | null;
+  equation_slot_ticks: unknown;
   hit_count: unknown;
   spin_count: unknown;
   drag_count: unknown;
@@ -182,6 +183,7 @@ async function getSongAssetMechanicCounts(songAssetIds: string[]) {
     select
       id,
       equation_slots,
+      equation_slot_ticks,
       hit_count,
       spin_count,
       drag_count
@@ -196,6 +198,7 @@ async function getSongAssetMechanicCounts(songAssetIds: string[]) {
       row.id,
       {
         equation_slots: normalizeCount(row.equation_slots),
+        equation_slot_ticks: parseCountArray(row.equation_slot_ticks),
         hit_counts: parseCountArray(row.hit_count),
         spin_counts: parseCountArray(row.spin_count),
         drag_counts: parseCountArray(row.drag_count),
@@ -239,6 +242,11 @@ export async function getSongChoices(): Promise<SongChoice[]> {
 
       const mechanicCounts = mechanicCountsById.get(songAsset.id);
       const equationSlots = normalizeCount(mechanicCounts?.equation_slots);
+
+      const equationSlotTicks = normalizeCountArray(
+        mechanicCounts?.equation_slot_ticks,
+        equationSlots,
+      );
 
       const hitCounts = normalizeCountArray(
         mechanicCounts?.hit_counts,
@@ -289,18 +297,20 @@ export async function getSongChoices(): Promise<SongChoice[]> {
 
         equationSlots,
         equation_slots: equationSlots,
+        equationSlotTicks,
+        equation_slot_ticks: equationSlotTicks,
 
-hitCounts,
-hit_counts: hitCounts,
-hit_count: hitCounts,
+        hitCounts,
+        hit_counts: hitCounts,
+        hit_count: hitCounts,
 
-spinCounts,
-spin_counts: spinCounts,
-spin_count: spinCounts,
+        spinCounts,
+        spin_counts: spinCounts,
+        spin_count: spinCounts,
 
-dragCounts,
-drag_counts: dragCounts,
-drag_count: dragCounts,
+        dragCounts,
+        drag_counts: dragCounts,
+        drag_count: dragCounts,
 
         song: {
           bucket: songAsset.songBucket,

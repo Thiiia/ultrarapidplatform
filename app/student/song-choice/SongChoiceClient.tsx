@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { FC, SVGProps } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
 
@@ -42,6 +42,8 @@ type HeaderTab = {
 type SongChoiceWithEquationSlots = SongChoice & {
   equation_slots?: number | string | null;
   equationSlots?: number | string | null;
+  equation_slot_ticks?: unknown;
+  equationSlotTicks?: unknown;
   hit_counts?: unknown;
   hitCounts?: unknown;
   spin_counts?: unknown;
@@ -54,6 +56,8 @@ drag_count?: unknown;
   songAsset?: {
     equation_slots?: number | string | null;
     equationSlots?: number | string | null;
+    equation_slot_ticks?: unknown;
+    equationSlotTicks?: unknown;
     hit_counts?: unknown;
     hitCounts?: unknown;
     spin_counts?: unknown;
@@ -67,6 +71,8 @@ drag_count?: unknown;
   song_asset?: {
     equation_slots?: number | string | null;
     equationSlots?: number | string | null;
+    equation_slot_ticks?: unknown;
+    equationSlotTicks?: unknown;
     hit_counts?: unknown;
     hitCounts?: unknown;
     spin_counts?: unknown;
@@ -194,42 +200,60 @@ function getEquationSlots(song: SongChoiceWithEquationSlots) {
   return Math.max(0, Math.floor(parsedSlots));
 }
 
-function parseCountArray(value: unknown) {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => {
-        const count = Number(item);
-        return Number.isFinite(count) && count > 0 ? Math.round(count) : 0;
-      })
-      .filter((count) => Number.isFinite(count));
+function getEquationSlotTicks(song: SongChoiceWithEquationSlots, equationSlots: number) {
+  const candidates = [
+    song.equation_slot_ticks,
+    song.equationSlotTicks,
+    song.songAsset?.equation_slot_ticks,
+    song.songAsset?.equationSlotTicks,
+    song.song_asset?.equation_slot_ticks,
+    song.song_asset?.equationSlotTicks,
+  ];
+
+  for (const candidate of candidates) {
+    const hasCandidate =
+      Array.isArray(candidate) ||
+      (typeof candidate === "string" && candidate.trim().length > 0);
+
+    if (!hasCandidate) {
+      continue;
+    }
+
+    return normalizeCountArray(candidate, equationSlots);
   }
 
-  if (typeof value === "string") {
+  return Array.from({ length: equationSlots }, () => 0);
+}
+
+function normalizeCountArray(value: unknown, equationSlots: number) {
+  let raw: unknown[] = [];
+
+  if (Array.isArray(value)) {
+    raw = value;
+  } else if (typeof value === "string") {
     const trimmed = value.trim();
 
     try {
       const parsed = JSON.parse(trimmed);
-      return parseCountArray(parsed);
+      if (Array.isArray(parsed)) {
+        raw = parsed;
+      }
     } catch {
       if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-        return trimmed
+        raw = trimmed
           .slice(1, -1)
           .split(",")
-          .map((item) => item.trim().replace(/^"|"$/g, ""))
-          .map((item) => {
-            const count = Number(item);
-            return Number.isFinite(count) && count > 0 ? Math.round(count) : 0;
-          })
-          .filter((count) => Number.isFinite(count));
+          .map((item) => item.trim().replace(/^"|"$/g, ""));
       }
     }
   }
 
-  return [];
-}
-
-function normalizeCountArray(value: unknown, equationSlots: number) {
-  const counts = parseCountArray(value).slice(0, equationSlots);
+  const counts = raw
+    .map((item) => {
+      const count = Number(item);
+      return Number.isFinite(count) && count > 0 ? Math.round(count) : 0;
+    })
+    .slice(0, equationSlots);
 
   while (counts.length < equationSlots) {
     counts.push(0);
@@ -282,31 +306,33 @@ function firstCountArray(
 }
 
 function getMechanicCounts(song: SongChoiceWithEquationSlots) {
-  const rawHitCounts = parseCountArray(firstCountArray(song, ["hit"]));
-  const rawSpinCounts = parseCountArray(firstCountArray(song, ["spin"]));
-  const rawDragCounts = parseCountArray(firstCountArray(song, ["drag"]));
-
-  const explicitEquationSlots = getEquationSlots(song) ?? 0;
-
-  const equationSlots = Math.max(
-    explicitEquationSlots,
-    rawHitCounts.length,
-    rawSpinCounts.length,
-    rawDragCounts.length,
-  );
+  const equationSlots = getEquationSlots(song) ?? 0;
 
   return {
-    equation_slots: equationSlots,
-    equationSlots,
-
-    hit_counts: normalizeCountArray(rawHitCounts, equationSlots),
-    hitCounts: normalizeCountArray(rawHitCounts, equationSlots),
-
-    spin_counts: normalizeCountArray(rawSpinCounts, equationSlots),
-    spinCounts: normalizeCountArray(rawSpinCounts, equationSlots),
-
-    drag_counts: normalizeCountArray(rawDragCounts, equationSlots),
-    dragCounts: normalizeCountArray(rawDragCounts, equationSlots),
+    hit_counts: normalizeCountArray(
+      firstCountArray(song, ["hit"]),
+      equationSlots,
+    ),
+    hitCounts: normalizeCountArray(
+      firstCountArray(song, ["hit"]),
+      equationSlots,
+    ),
+    spin_counts: normalizeCountArray(
+      firstCountArray(song, ["spin"]),
+      equationSlots,
+    ),
+    spinCounts: normalizeCountArray(
+      firstCountArray(song, ["spin"]),
+      equationSlots,
+    ),
+    drag_counts: normalizeCountArray(
+      firstCountArray(song, ["drag"]),
+      equationSlots,
+    ),
+    dragCounts: normalizeCountArray(
+      firstCountArray(song, ["drag"]),
+      equationSlots,
+    ),
   };
 }
 
@@ -593,6 +619,9 @@ export default function SongChoiceClient({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
+  const [durationsById, setDurationsById] = useState<Record<string, number>>(
+    {},
+  );
 
   const filteredSongs = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -614,19 +643,56 @@ export default function SongChoiceClient({
     return songs.find((song) => song.id === selectedSongId) ?? null;
   }, [selectedSongId, songs]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    songs.forEach((song) => {
+      if (song.durationSeconds || durationsById[song.id]) {
+        return;
+      }
+
+      const audio = new Audio();
+      audio.preload = "metadata";
+      audio.src = song.signedUrl;
+
+      const handleLoadedMetadata = () => {
+        if (cancelled || !Number.isFinite(audio.duration)) {
+          return;
+        }
+
+        setDurationsById((current) => ({
+          ...current,
+          [song.id]: audio.duration,
+        }));
+      };
+
+      audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.load();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [songs, durationsById]);
+
   function handleContinue() {
     if (!selectedSong) {
       return;
     }
 
-const mechanicCounts = getMechanicCounts(selectedSong);
-const equationSlots = mechanicCounts.equation_slots;
+    const equationSlots = getEquationSlots(selectedSong);
+    const mechanicCounts = getMechanicCounts(selectedSong);
+
+const equationSlotTicks = getEquationSlotTicks(selectedSong, equationSlots ?? 0);
 
 console.log("Selected song editor payload:", {
   equationSlots,
+  equationSlotTicks,
   mechanicCounts,
   selectedSong,
 });
+
+    window.sessionStorage.removeItem("ultrarapid_editor_payload");
 
     window.sessionStorage.setItem(
       "ultrarapid_selected_song",
@@ -637,6 +703,8 @@ console.log("Selected song editor payload:", {
         artist: selectedSong.artist,
 equation_slots: equationSlots,
 equationSlots,
+equation_slot_ticks: equationSlotTicks,
+equationSlotTicks,
 
 hit_counts: mechanicCounts.hit_counts,
 hitCounts: mechanicCounts.hitCounts,
@@ -653,6 +721,8 @@ drag_count: mechanicCounts.drag_counts,
 songAsset: {
   equation_slots: equationSlots,
   equationSlots,
+  equation_slot_ticks: equationSlotTicks,
+  equationSlotTicks,
 
   hit_counts: mechanicCounts.hit_counts,
   hitCounts: mechanicCounts.hitCounts,
@@ -809,7 +879,8 @@ songAsset: {
             {filteredSongs.length > 0 ? (
               filteredSongs.map((song, index) => {
                 const isSelected = selectedSongId === song.id;
-                const duration = song.durationSeconds ?? null;
+                const duration =
+                  song.durationSeconds ?? durationsById[song.id] ?? null;
 
                 return (
                   <button

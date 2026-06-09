@@ -54,6 +54,8 @@ type SelectedSongPayload = {
   artist?: string | null;
   equationSlots?: number | string | null;
   equation_slots?: number | string | null;
+  equationSlotTicks?: unknown;
+  equation_slot_ticks?: unknown;
 hitCounts?: unknown;
 hit_counts?: unknown;
 hit_count?: unknown;
@@ -68,6 +70,8 @@ drag_count?: unknown;
   songAsset?: {
     equationSlots?: number | string | null;
     equation_slots?: number | string | null;
+    equationSlotTicks?: unknown;
+    equation_slot_ticks?: unknown;
     hitCounts?: unknown;
     hit_counts?: unknown;
     spinCounts?: unknown;
@@ -82,6 +86,8 @@ drag_count?: unknown;
   song_asset?: {
     equationSlots?: number | string | null;
     equation_slots?: number | string | null;
+    equationSlotTicks?: unknown;
+    equation_slot_ticks?: unknown;
     hitCounts?: unknown;
     hit_counts?: unknown;
     spinCounts?: unknown;
@@ -451,6 +457,33 @@ function getSelectedSongEventCounts(selectedSong: SelectedSongPayload) {
   );
 }
 
+function getSelectedSongEquationSlotTicks(
+  selectedSong: SelectedSongPayload,
+  equationSlots: number,
+) {
+  const candidates = [
+    selectedSong.equationSlotTicks,
+    selectedSong.equation_slot_ticks,
+    selectedSong.songAsset?.equationSlotTicks,
+    selectedSong.songAsset?.equation_slot_ticks,
+    selectedSong.song_asset?.equationSlotTicks,
+    selectedSong.song_asset?.equation_slot_ticks,
+  ];
+
+  for (const candidate of candidates) {
+    const ticks = normalizeIntegerArray(candidate);
+
+    if (ticks.length > 0) {
+      return Array.from(
+        { length: equationSlots },
+        (_, index) => ticks[index] ?? 0,
+      );
+    }
+  }
+
+  return Array.from({ length: equationSlots }, () => 0);
+}
+
 function normalizeHitBubblePosition(value: unknown): HitBubblePosition | null {
   return hitBubblePositions.includes(value as HitBubblePosition)
     ? (value as HitBubblePosition)
@@ -692,16 +725,19 @@ function resizeMechanicInstances(instances: MechanicInstance[], count: number) {
 function applyCountsToTimelineEvents(
   events: TimelineEventSlot[],
   eventCounts: MechanicCounts[],
+  eventTicks: number[] = [],
 ): TimelineEventSlot[] {
   return eventCounts.map((counts, index) => {
     const existing = events[index];
+    const tick = eventTicks[index] ?? existing?.tick ?? 0;
 
     if (!existing) {
-      return makeTimelineEvent(index, counts);
+      return makeTimelineEvent(index, counts, tick);
     }
 
     return {
       ...existing,
+      tick,
       counts,
       mechanics: {
         hit: resizeMechanicInstances(existing.mechanics.hit, counts.hit),
@@ -737,6 +773,7 @@ function parseEquationId(equationId: string) {
 function timelineEventsFromSidecar(
   sidecar: SidecarPayload,
   eventCounts: MechanicCounts[],
+  eventTicks: number[] = [],
 ): TimelineEventSlot[] {
   const normalized = normalizeSidecar(sidecar);
   const equationEvents = normalized.events.filter(
@@ -747,7 +784,7 @@ function timelineEventsFromSidecar(
     (event): event is SidecarMechanicEvent => event.type === "ALG_MECHANIC",
   );
 
-  const events = applyCountsToTimelineEvents([], eventCounts);
+  const events = applyCountsToTimelineEvents([], eventCounts, eventTicks);
 
   equationEvents.forEach((equationEvent) => {
     const parsed = parseEquationId(equationEvent.equationId);
@@ -1026,7 +1063,6 @@ function HeaderBar({
                 <Link
                   key={tab.label}
                   href={tab.href}
-                   prefetch={false}
                   aria-label={tab.label}
                   className={`${styles.headerTabButton} ${
                     isActive ? styles.headerTabButtonActive : ""
@@ -1062,7 +1098,6 @@ function HeaderBar({
             <Link
               key={tab.label}
               href={tab.href}
-               prefetch={false}
               aria-label={tab.label}
               className={styles.utilityButton}
               style={{ width: tab.width, height: 38 }}
@@ -3006,8 +3041,13 @@ export default function LessonBuilderClient({
   function loadSidecarIntoTimeline(
     nextSidecar: SidecarPayload,
     nextEventCounts: MechanicCounts[],
+    eventTicks: number[] = [],
   ) {
-    const nextEvents = timelineEventsFromSidecar(nextSidecar, nextEventCounts);
+    const nextEvents = timelineEventsFromSidecar(
+      nextSidecar,
+      nextEventCounts,
+      eventTicks,
+    );
     setEventCounts(nextEventCounts);
     setTimelineEvents(nextEvents);
     setSavedEquations((current) => {
@@ -3261,9 +3301,14 @@ export default function LessonBuilderClient({
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
       const selectedSongEventCounts = getSelectedSongEventCounts(selectedSong);
+      const selectedSongEventTicks = getSelectedSongEquationSlotTicks(
+        selectedSong,
+        selectedSongEventCounts.length,
+      );
       console.log("Lesson builder selected song event counts:", {
   selectedSong,
   selectedSongEventCounts,
+  selectedSongEventTicks,
 });
 
       setSelectedSongStorage({
@@ -3298,14 +3343,19 @@ export default function LessonBuilderClient({
       })
         .then((file) => setPendingSongFile(file))
         .catch((error) =>
-          console.error("Failed to load selected song file", error),
+          console.warn("Selected song audio could not be preloaded.", error),
         );
 
-console.log("Creating timeline slots before chart fetch:", {
-  selectedSongEventCounts,
-});
+      console.log("Creating timeline slots before chart fetch:", {
+        selectedSongEventCounts,
+        selectedSongEventTicks,
+      });
 
-loadSidecarIntoTimeline(emptySidecar, selectedSongEventCounts);
+      loadSidecarIntoTimeline(
+        emptySidecar,
+        selectedSongEventCounts,
+        selectedSongEventTicks,
+      );
 
       Promise.all([
         textFromSignedUrl(selectedSong.chart.signedUrl),
@@ -3322,7 +3372,11 @@ loadSidecarIntoTimeline(emptySidecar, selectedSongEventCounts);
 
           setChartFile(nextChartFile);
           setUploadedChartName(nextChartName);
-          loadSidecarIntoTimeline(normalizedSidecar, selectedSongEventCounts);
+          loadSidecarIntoTimeline(
+            normalizedSidecar,
+            selectedSongEventCounts,
+            selectedSongEventTicks,
+          );
 
           const payload: LessonBuilderPayload = {
             chartFile: nextChartFile,
@@ -3337,12 +3391,7 @@ loadSidecarIntoTimeline(emptySidecar, selectedSongEventCounts);
           setProject(chartToProject(payload));
         })
         .catch((error) => {
-          console.error("Failed to load selected chart or sidecar JSON", error);
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : "Failed to load selected song package",
-          );
+          console.warn("Selected chart or sidecar could not be loaded.", error);
         });
     } catch (error) {
       console.error("Failed to parse selected song package", error);
