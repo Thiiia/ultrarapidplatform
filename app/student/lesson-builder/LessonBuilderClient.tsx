@@ -3245,20 +3245,17 @@ export default function LessonBuilderClient({
               selectedSongStorage.chart.contentType ??
               "text/plain;charset=utf-8",
           },
-          sidecar: {
-            ...(selectedSongStorage.sidecar ?? {
-              bucket: selectedSongStorage.chart.bucket,
-              path: selectedSongStorage.chart.path.replace(
-                /\.chart$/i,
-                ".json",
-              ),
-              contentType: "application/json;charset=utf-8",
-            }),
-            content: sidecarJson,
-            contentType:
-              selectedSongStorage.sidecar?.contentType ??
-              "application/json;charset=utf-8",
-          },
+sidecar: {
+  ...(selectedSongStorage.sidecar ?? {
+    bucket: "SidecarJsons",
+    path: selectedSongStorage.chart.path.replace(/\.chart$/i, ".json"),
+    contentType: "application/json;charset=utf-8",
+  }),
+  content: sidecarJson,
+  contentType:
+    selectedSongStorage.sidecar?.contentType ??
+    "application/json;charset=utf-8",
+},
         }),
       });
 
