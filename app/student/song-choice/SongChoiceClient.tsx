@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { FC, SVGProps } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
 
@@ -593,9 +593,6 @@ export default function SongChoiceClient({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
-  const [durationsById, setDurationsById] = useState<Record<string, number>>(
-    {},
-  );
 
   const filteredSongs = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -616,38 +613,6 @@ export default function SongChoiceClient({
   const selectedSong = useMemo(() => {
     return songs.find((song) => song.id === selectedSongId) ?? null;
   }, [selectedSongId, songs]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    songs.forEach((song) => {
-      if (song.durationSeconds || durationsById[song.id]) {
-        return;
-      }
-
-      const audio = new Audio();
-      audio.preload = "metadata";
-      audio.src = song.signedUrl;
-
-      const handleLoadedMetadata = () => {
-        if (cancelled || !Number.isFinite(audio.duration)) {
-          return;
-        }
-
-        setDurationsById((current) => ({
-          ...current,
-          [song.id]: audio.duration,
-        }));
-      };
-
-      audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.load();
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [songs, durationsById]);
 
   function handleContinue() {
     if (!selectedSong) {
@@ -844,8 +809,7 @@ songAsset: {
             {filteredSongs.length > 0 ? (
               filteredSongs.map((song, index) => {
                 const isSelected = selectedSongId === song.id;
-                const duration =
-                  song.durationSeconds ?? durationsById[song.id] ?? null;
+                const duration = song.durationSeconds ?? null;
 
                 return (
                   <button
