@@ -194,35 +194,42 @@ function getEquationSlots(song: SongChoiceWithEquationSlots) {
   return Math.max(0, Math.floor(parsedSlots));
 }
 
-function normalizeCountArray(value: unknown, equationSlots: number) {
-  let raw: unknown[] = [];
-
+function parseCountArray(value: unknown) {
   if (Array.isArray(value)) {
-    raw = value;
-  } else if (typeof value === "string") {
+    return value
+      .map((item) => {
+        const count = Number(item);
+        return Number.isFinite(count) && count > 0 ? Math.round(count) : 0;
+      })
+      .filter((count) => Number.isFinite(count));
+  }
+
+  if (typeof value === "string") {
     const trimmed = value.trim();
 
     try {
       const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) {
-        raw = parsed;
-      }
+      return parseCountArray(parsed);
     } catch {
       if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-        raw = trimmed
+        return trimmed
           .slice(1, -1)
           .split(",")
-          .map((item) => item.trim().replace(/^"|"$/g, ""));
+          .map((item) => item.trim().replace(/^"|"$/g, ""))
+          .map((item) => {
+            const count = Number(item);
+            return Number.isFinite(count) && count > 0 ? Math.round(count) : 0;
+          })
+          .filter((count) => Number.isFinite(count));
       }
     }
   }
 
-  const counts = raw
-    .map((item) => {
-      const count = Number(item);
-      return Number.isFinite(count) && count > 0 ? Math.round(count) : 0;
-    })
-    .slice(0, equationSlots);
+  return [];
+}
+
+function normalizeCountArray(value: unknown, equationSlots: number) {
+  const counts = parseCountArray(value).slice(0, equationSlots);
 
   while (counts.length < equationSlots) {
     counts.push(0);
@@ -275,33 +282,31 @@ function firstCountArray(
 }
 
 function getMechanicCounts(song: SongChoiceWithEquationSlots) {
-  const equationSlots = getEquationSlots(song) ?? 0;
+  const rawHitCounts = parseCountArray(firstCountArray(song, ["hit"]));
+  const rawSpinCounts = parseCountArray(firstCountArray(song, ["spin"]));
+  const rawDragCounts = parseCountArray(firstCountArray(song, ["drag"]));
+
+  const explicitEquationSlots = getEquationSlots(song) ?? 0;
+
+  const equationSlots = Math.max(
+    explicitEquationSlots,
+    rawHitCounts.length,
+    rawSpinCounts.length,
+    rawDragCounts.length,
+  );
 
   return {
-    hit_counts: normalizeCountArray(
-      firstCountArray(song, ["hit"]),
-      equationSlots,
-    ),
-    hitCounts: normalizeCountArray(
-      firstCountArray(song, ["hit"]),
-      equationSlots,
-    ),
-    spin_counts: normalizeCountArray(
-      firstCountArray(song, ["spin"]),
-      equationSlots,
-    ),
-    spinCounts: normalizeCountArray(
-      firstCountArray(song, ["spin"]),
-      equationSlots,
-    ),
-    drag_counts: normalizeCountArray(
-      firstCountArray(song, ["drag"]),
-      equationSlots,
-    ),
-    dragCounts: normalizeCountArray(
-      firstCountArray(song, ["drag"]),
-      equationSlots,
-    ),
+    equation_slots: equationSlots,
+    equationSlots,
+
+    hit_counts: normalizeCountArray(rawHitCounts, equationSlots),
+    hitCounts: normalizeCountArray(rawHitCounts, equationSlots),
+
+    spin_counts: normalizeCountArray(rawSpinCounts, equationSlots),
+    spinCounts: normalizeCountArray(rawSpinCounts, equationSlots),
+
+    drag_counts: normalizeCountArray(rawDragCounts, equationSlots),
+    dragCounts: normalizeCountArray(rawDragCounts, equationSlots),
   };
 }
 
@@ -649,8 +654,8 @@ export default function SongChoiceClient({
       return;
     }
 
-    const equationSlots = getEquationSlots(selectedSong);
-    const mechanicCounts = getMechanicCounts(selectedSong);
+const mechanicCounts = getMechanicCounts(selectedSong);
+const equationSlots = mechanicCounts.equation_slots;
 
 console.log("Selected song editor payload:", {
   equationSlots,
