@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -54,57 +55,60 @@ type SelectedSongPayload = {
   artist?: string | null;
   equationSlots?: number | string | null;
   equation_slots?: number | string | null;
-  equationSlotTicks?: unknown;
-  equation_slot_ticks?: unknown;
-hitCounts?: unknown;
-hit_counts?: unknown;
-hit_count?: unknown;
-
-spinCounts?: unknown;
-spin_counts?: unknown;
-spin_count?: unknown;
-
-dragCounts?: unknown;
-drag_counts?: unknown;
-drag_count?: unknown;
+  hitCounts?: unknown;
+  hit_counts?: unknown;
+  spinCounts?: unknown;
+  spin_counts?: unknown;
+  dragCounts?: unknown;
+  drag_counts?: unknown;
   songAsset?: {
     equationSlots?: number | string | null;
     equation_slots?: number | string | null;
-    equationSlotTicks?: unknown;
-    equation_slot_ticks?: unknown;
     hitCounts?: unknown;
     hit_counts?: unknown;
     spinCounts?: unknown;
     spin_counts?: unknown;
     dragCounts?: unknown;
     drag_counts?: unknown;
-
-    hit_count?: unknown;
-spin_count?: unknown;
-drag_count?: unknown;
   } | null;
   song_asset?: {
     equationSlots?: number | string | null;
     equation_slots?: number | string | null;
-    equationSlotTicks?: unknown;
-    equation_slot_ticks?: unknown;
     hitCounts?: unknown;
     hit_counts?: unknown;
     spinCounts?: unknown;
     spin_counts?: unknown;
     dragCounts?: unknown;
     drag_counts?: unknown;
-
-    hit_count?: unknown;
-spin_count?: unknown;
-drag_count?: unknown;
   } | null;
   song: StorageFileRef & { signedUrl: string };
   chart: StorageFileRef & { signedUrl: string };
   sidecar: (StorageFileRef & { signedUrl: string }) | null;
 };
 
-type EquationToken = {
+type EquationTextToken = {
+  id: string;
+  type?: "text";
+  label: string;
+};
+
+type EquationGroupToken = {
+  id: string;
+  type: "group";
+  layout: "tight";
+  children: EquationTextToken[];
+};
+
+type EquationFractionToken = {
+  id: string;
+  type: "fraction";
+  numerator: EquationToken[];
+  denominator: EquationToken[];
+};
+
+type EquationToken = EquationTextToken | EquationGroupToken | EquationFractionToken;
+
+type RenderableEquationToken = {
   id: string;
   label: string;
 };
@@ -126,15 +130,18 @@ type HitBubblePosition =
 
 type HitBubblePlacement = {
   tokenIndex: number;
+  tokenId?: string;
   positions: HitBubblePosition[];
 };
 
 type SpinTarget = {
   tokenIndex: number;
+  tokenId?: string;
 };
 
 type DragTarget = {
   tokenIndex: number;
+  tokenId?: string;
 };
 
 type HitBubblePair = "topLeftBottomRight" | "topRightBottomLeft" | "leftRight";
@@ -154,6 +161,13 @@ type TimelineEventSlot = {
   tick: number;
   counts: MechanicCounts;
   mechanics: Record<GameplayMechanic, MechanicInstance[]>;
+};
+
+type SidecarHitBubble = {
+  tokenIndex?: number;
+  tokenId?: string;
+  positions?: HitBubblePosition[];
+  pads?: HitBubblePosition[];
 };
 
 type SidecarMechanicEvent = {
@@ -177,34 +191,21 @@ type SidecarEquationStateEvent = {
 
 type SidecarEvent = SidecarMechanicEvent | SidecarEquationStateEvent;
 
-type SidecarHitBubblePlacement = {
-  tokenIndex: number;
-  pads: HitBubblePosition[];
-};
-
-type SidecarHit = {
+type SidecarEquationMechanicInstance = {
   index: number;
-  bubbles: SidecarHitBubblePlacement[];
+  bubbles?: SidecarHitBubble[];
+  targets?: Array<{ tokenIndex?: number; tokenId?: string }>;
 };
 
-type SidecarSpin = {
-  index: number;
-  targets: SpinTarget[];
-};
-
-type SidecarDrag = {
-  index: number;
-  targets: DragTarget[];
-};
-
-type SidecarEquation = {
+type SidecarEquationEntry = {
   id: string;
   tick: number;
   state: string;
+  tokens?: EquationToken[];
   counts: MechanicCounts;
-  hits: SidecarHit[];
-  spins: SidecarSpin[];
-  drags: SidecarDrag[];
+  hits: SidecarEquationMechanicInstance[];
+  spins: SidecarEquationMechanicInstance[];
+  drags: SidecarEquationMechanicInstance[];
 };
 
 type LegacySidecarPayload = {
@@ -215,7 +216,7 @@ type LegacySidecarPayload = {
 type EquationSidecarPayload = {
   version: 2;
   maxEquationSlots: number;
-  equations: SidecarEquation[];
+  equations: SidecarEquationEntry[];
 };
 
 type SidecarPayload = LegacySidecarPayload | EquationSidecarPayload;
@@ -387,20 +388,10 @@ function normalizeIntegerArray(value: unknown): number[] {
   }
 
   if (typeof value === "string") {
-    const trimmed = value.trim();
-
     try {
-      const parsed = JSON.parse(trimmed) as unknown;
+      const parsed = JSON.parse(value) as unknown;
       return normalizeIntegerArray(parsed);
     } catch {
-      if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-        return trimmed
-          .slice(1, -1)
-          .split(",")
-          .map((item) => item.trim().replace(/^"|"$/g, ""))
-          .map((item) => normalizeNonNegativeInteger(item));
-      }
-
       return [];
     }
   }
@@ -434,100 +425,60 @@ function getSelectedSongMechanicCountArray(
   selectedSong: SelectedSongPayload,
   mechanic: GameplayMechanic,
 ) {
-  const camelKey = `${mechanic}Counts` as
-    | "hitCounts"
-    | "spinCounts"
-    | "dragCounts";
-
-  const snakePluralKey = `${mechanic}_counts` as
-    | "hit_counts"
-    | "spin_counts"
-    | "drag_counts";
-
-  const snakeSingularKey = `${mechanic}_count` as
-    | "hit_count"
-    | "spin_count"
-    | "drag_count";
-
-  const candidates = [
-    selectedSong[camelKey],
-    selectedSong[snakePluralKey],
-    selectedSong[snakeSingularKey],
-
-    selectedSong.songAsset?.[camelKey],
-    selectedSong.songAsset?.[snakePluralKey],
-    selectedSong.songAsset?.[snakeSingularKey],
-
-    selectedSong.song_asset?.[camelKey],
-    selectedSong.song_asset?.[snakePluralKey],
-    selectedSong.song_asset?.[snakeSingularKey],
-  ];
-
-  for (const candidate of candidates) {
-    const normalized = normalizeIntegerArray(candidate);
-
-    if (normalized.length > 0) {
-      return normalized;
-    }
+  if (mechanic === "hit") {
+    return normalizeIntegerArray(selectedSong.hitCounts).length
+      ? normalizeIntegerArray(selectedSong.hitCounts)
+      : normalizeIntegerArray(selectedSong.hit_counts).length
+        ? normalizeIntegerArray(selectedSong.hit_counts)
+        : normalizeIntegerArray(selectedSong.songAsset?.hitCounts).length
+          ? normalizeIntegerArray(selectedSong.songAsset?.hitCounts)
+          : normalizeIntegerArray(selectedSong.songAsset?.hit_counts).length
+            ? normalizeIntegerArray(selectedSong.songAsset?.hit_counts)
+            : normalizeIntegerArray(selectedSong.song_asset?.hitCounts).length
+              ? normalizeIntegerArray(selectedSong.song_asset?.hitCounts)
+              : normalizeIntegerArray(selectedSong.song_asset?.hit_counts);
   }
 
-  return [];
+  if (mechanic === "spin") {
+    return normalizeIntegerArray(selectedSong.spinCounts).length
+      ? normalizeIntegerArray(selectedSong.spinCounts)
+      : normalizeIntegerArray(selectedSong.spin_counts).length
+        ? normalizeIntegerArray(selectedSong.spin_counts)
+        : normalizeIntegerArray(selectedSong.songAsset?.spinCounts).length
+          ? normalizeIntegerArray(selectedSong.songAsset?.spinCounts)
+          : normalizeIntegerArray(selectedSong.songAsset?.spin_counts).length
+            ? normalizeIntegerArray(selectedSong.songAsset?.spin_counts)
+            : normalizeIntegerArray(selectedSong.song_asset?.spinCounts).length
+              ? normalizeIntegerArray(selectedSong.song_asset?.spinCounts)
+              : normalizeIntegerArray(selectedSong.song_asset?.spin_counts);
+  }
+
+  return normalizeIntegerArray(selectedSong.dragCounts).length
+    ? normalizeIntegerArray(selectedSong.dragCounts)
+    : normalizeIntegerArray(selectedSong.drag_counts).length
+      ? normalizeIntegerArray(selectedSong.drag_counts)
+      : normalizeIntegerArray(selectedSong.songAsset?.dragCounts).length
+        ? normalizeIntegerArray(selectedSong.songAsset?.dragCounts)
+        : normalizeIntegerArray(selectedSong.songAsset?.drag_counts).length
+          ? normalizeIntegerArray(selectedSong.songAsset?.drag_counts)
+          : normalizeIntegerArray(selectedSong.song_asset?.dragCounts).length
+            ? normalizeIntegerArray(selectedSong.song_asset?.dragCounts)
+            : normalizeIntegerArray(selectedSong.song_asset?.drag_counts);
 }
 
 function getSelectedSongEventCounts(selectedSong: SelectedSongPayload) {
+  const equationSlots = getSelectedSongEquationSlotCount(selectedSong);
   const hitCounts = getSelectedSongMechanicCountArray(selectedSong, "hit");
   const spinCounts = getSelectedSongMechanicCountArray(selectedSong, "spin");
   const dragCounts = getSelectedSongMechanicCountArray(selectedSong, "drag");
 
-  const explicitEquationSlots = getSelectedSongEquationSlotCount(selectedSong);
-
-  const equationSlots = Math.min(
-    MAX_EQUATION_SLOTS,
-    Math.max(
-      explicitEquationSlots,
-      hitCounts.length,
-      spinCounts.length,
-      dragCounts.length,
-    ),
-  );
-
   return Array.from(
-    { length: equationSlots },
+    { length: Math.min(equationSlots, MAX_EQUATION_SLOTS) },
     (_, index): MechanicCounts => ({
       hit: hitCounts[index] ?? 0,
       spin: spinCounts[index] ?? 0,
       drag: dragCounts[index] ?? 0,
     }),
-  );
-}
-
-function getSelectedSongEquationSlotTicks(
-  selectedSong: SelectedSongPayload,
-  equationSlots: number,
-) {
-  const candidates = [
-    selectedSong.equationSlotTicks,
-    selectedSong.equation_slot_ticks,
-    selectedSong.songAsset?.equationSlotTicks,
-    selectedSong.songAsset?.equation_slot_ticks,
-    selectedSong.song_asset?.equationSlotTicks,
-    selectedSong.song_asset?.equation_slot_ticks,
-  ];
-
-  for (const candidate of candidates) {
-    const ticks = normalizeIntegerArray(candidate);
-
-    if (ticks.length > 0) {
-      return Array.from(
-        { length: Math.min(MAX_EQUATION_SLOTS, equationSlots) },
-        (_, index) => normalizeTick(ticks[index] ?? 0),
-      );
-    }
-  }
-
-  return Array.from(
-    { length: Math.min(MAX_EQUATION_SLOTS, equationSlots) },
-    () => 0,
   );
 }
 
@@ -549,15 +500,18 @@ function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
 
     const rawPads = Array.isArray(placement.pads)
       ? placement.pads
-      : placement.positions;
+      : Array.isArray(placement.positions)
+        ? placement.positions
+        : [];
 
-    if (!Array.isArray(rawPads)) {
+    if (rawPads.length === 0) {
       return [];
     }
 
     const tokenIndex = normalizeNonNegativeInteger(placement.tokenIndex, -1);
+    const tokenId = typeof placement.tokenId === "string" ? placement.tokenId : undefined;
 
-    if (tokenIndex < 0) {
+    if (tokenIndex < 0 && !tokenId) {
       return [];
     }
 
@@ -575,7 +529,7 @@ function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
       return [];
     }
 
-    return [{ tokenIndex, positions }];
+    return [{ tokenIndex, ...(tokenId ? { tokenId } : {}), positions }];
   });
 }
 
@@ -592,12 +546,57 @@ function normalizeTokenTargets<T extends SpinTarget | DragTarget>(
     }
 
     const tokenIndex = normalizeNonNegativeInteger(target.tokenIndex, -1);
+    const tokenId = typeof target.tokenId === "string" ? target.tokenId : undefined;
 
-    if (tokenIndex < 0) {
+    if (tokenIndex < 0 && !tokenId) {
       return [];
     }
 
-    return [{ tokenIndex } as T];
+    return [{ tokenIndex, ...(tokenId ? { tokenId } : {}) } as T];
+  });
+}
+
+function normalizeSidecarEquationInstances(
+  value: unknown,
+  kind: GameplayMechanic,
+): SidecarEquationMechanicInstance[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((instance, fallbackIndex): SidecarEquationMechanicInstance[] => {
+    if (!isObject(instance)) {
+      return [];
+    }
+
+    const index = normalizeNonNegativeInteger(instance.index, fallbackIndex);
+
+    if (kind === "hit") {
+      return [
+        {
+          index,
+          bubbles: normalizeHitBubblePlacements(instance.bubbles).map(
+            (bubble) => ({
+              tokenIndex: bubble.tokenIndex,
+              ...(bubble.tokenId ? { tokenId: bubble.tokenId } : {}),
+              pads: bubble.positions,
+            }),
+          ),
+        },
+      ];
+    }
+
+    return [
+      {
+        index,
+        targets: normalizeTokenTargets<SpinTarget | DragTarget>(
+          instance.targets,
+        ).map((target) => ({
+          tokenIndex: target.tokenIndex,
+          ...(target.tokenId ? { tokenId: target.tokenId } : {}),
+        })),
+      },
+    ];
   });
 }
 
@@ -607,97 +606,46 @@ function normalizeSidecar(value: unknown): SidecarPayload {
   }
 
   if (Array.isArray(value.equations)) {
-    const equations = value.equations.flatMap((equation, index): SidecarEquation[] => {
-      if (!isObject(equation)) {
-        return [];
-      }
+    const equations = value.equations
+      .slice(0, MAX_EQUATION_SLOTS)
+      .flatMap((equation, index): SidecarEquationEntry[] => {
+        if (!isObject(equation)) {
+          return [];
+        }
 
-      const id =
-        typeof equation.id === "string" && equation.id.trim()
-          ? equation.id.trim()
-          : `eq_${String(index + 1).padStart(3, "0")}`;
-      const state = typeof equation.state === "string" ? equation.state : "";
-      const counts = sidecarCountsToMechanicCounts(equation.counts);
-      const hits = Array.isArray(equation.hits)
-        ? equation.hits.flatMap((hit): SidecarHit[] => {
-            if (!isObject(hit)) {
-              return [];
-            }
+        const id =
+          typeof equation.id === "string" && equation.id.trim().length > 0
+            ? equation.id.trim()
+            : `eq_${String(index + 1).padStart(3, "0")}`;
+        const countsSource = isObject(equation.counts) ? equation.counts : {};
+        const state = typeof equation.state === "string" ? equation.state : "";
+        const tokens = Array.isArray(equation.tokens)
+          ? normalizeEquationTokens(equation.tokens)
+          : equationStateToTokens(state);
+        const counts = {
+          hit: normalizeNonNegativeInteger(countsSource.hit),
+          spin: normalizeNonNegativeInteger(countsSource.spin),
+          drag: normalizeNonNegativeInteger(countsSource.drag),
+        };
 
-            const hitIndex = normalizeNonNegativeInteger(hit.index, -1);
-
-            if (hitIndex < 0) {
-              return [];
-            }
-
-            return [
-              {
-                index: hitIndex,
-                bubbles: hitBubblePlacementsToSidecarBubbles(
-                  normalizeHitBubblePlacements(hit.bubbles),
-                ),
-              },
-            ];
-          })
-        : [];
-      const spins = Array.isArray(equation.spins)
-        ? equation.spins.flatMap((spin): SidecarSpin[] => {
-            if (!isObject(spin)) {
-              return [];
-            }
-
-            const spinIndex = normalizeNonNegativeInteger(spin.index, -1);
-
-            if (spinIndex < 0) {
-              return [];
-            }
-
-            return [
-              {
-                index: spinIndex,
-                targets: normalizeTokenTargets<SpinTarget>(spin.targets),
-              },
-            ];
-          })
-        : [];
-      const drags = Array.isArray(equation.drags)
-        ? equation.drags.flatMap((drag): SidecarDrag[] => {
-            if (!isObject(drag)) {
-              return [];
-            }
-
-            const dragIndex = normalizeNonNegativeInteger(drag.index, -1);
-
-            if (dragIndex < 0) {
-              return [];
-            }
-
-            return [
-              {
-                index: dragIndex,
-                targets: normalizeTokenTargets<DragTarget>(drag.targets),
-              },
-            ];
-          })
-        : [];
-
-      return [
-        {
-          id,
-          tick: normalizeTick(equation.tick),
-          state,
-          counts,
-          hits,
-          spins,
-          drags,
-        },
-      ];
-    });
+        return [
+          {
+            id,
+            tick: normalizeTick(equation.tick),
+            state: state || tokensToEquationState(tokens),
+            tokens,
+            counts,
+            hits: normalizeSidecarEquationInstances(equation.hits, "hit"),
+            spins: normalizeSidecarEquationInstances(equation.spins, "spin"),
+            drags: normalizeSidecarEquationInstances(equation.drags, "drag"),
+          },
+        ];
+      });
 
     return {
       version: 2,
       maxEquationSlots: MAX_EQUATION_SLOTS,
-      equations: equations.slice(0, MAX_EQUATION_SLOTS),
+      equations,
     };
   }
 
@@ -799,12 +747,164 @@ function sortEvents(events: SidecarEvent[]) {
   });
 }
 
-function cloneTokens(tokens: EquationToken[]) {
-  return tokens.map((token) => ({ ...token, id: makeId("token") }));
+function isTextEquationToken(token: EquationToken): token is EquationTextToken {
+  return !token.type || token.type === "text";
 }
 
-function tokensToEquationState(tokens: EquationToken[]) {
-  return tokens.map((token) => token.label).join(" ");
+function cloneToken(token: EquationToken): EquationToken {
+  if (isTextEquationToken(token)) {
+    return { id: makeId("token"), type: "text", label: token.label };
+  }
+
+  if (token.type === "group") {
+    return {
+      id: makeId("token-group"),
+      type: "group",
+      layout: "tight",
+      children: token.children.map((child) => ({
+        id: makeId("token"),
+        type: "text",
+        label: child.label,
+      })),
+    };
+  }
+
+  return {
+    id: makeId("token-fraction"),
+    type: "fraction",
+    numerator: cloneTokens(token.numerator),
+    denominator: cloneTokens(token.denominator),
+  };
+}
+
+function cloneTokens(tokens: EquationToken[]) {
+  return tokens.map((token) => cloneToken(token));
+}
+
+function renderableEquationTokens(tokens: EquationToken[]): RenderableEquationToken[] {
+  return tokens.flatMap((token): RenderableEquationToken[] => {
+    if (isTextEquationToken(token)) {
+      return [{ id: token.id, label: token.label }];
+    }
+
+    if (token.type === "group") {
+      return token.children.map((child) => ({ id: child.id, label: child.label }));
+    }
+
+    return [
+      ...renderableEquationTokens(token.numerator),
+      ...renderableEquationTokens(token.denominator),
+    ];
+  });
+}
+
+function tokenIdFromRenderableIndex(tokens: EquationToken[], tokenIndex: number) {
+  return renderableEquationTokens(tokens)[tokenIndex]?.id;
+}
+
+function tokenIndexFromTokenId(tokens: EquationToken[], tokenId: string | undefined) {
+  if (!tokenId) return -1;
+  return renderableEquationTokens(tokens).findIndex((token) => token.id === tokenId);
+}
+
+function tokensToEquationState(tokens: EquationToken[]): string {
+  return tokens
+    .map((token) => {
+      if (isTextEquationToken(token)) return token.label;
+      if (token.type === "group") return token.children.map((child) => child.label).join("");
+      return `${tokensToEquationState(token.numerator)}/${tokensToEquationState(token.denominator)}`;
+    })
+    .join(" ");
+}
+
+function simpleTextToken(label: string): EquationTextToken {
+  return { id: makeId("token"), type: "text", label };
+}
+
+function parseEquationPartToToken(part: string): EquationToken {
+  const trimmed = part.trim();
+  const fractionMatch = trimmed.match(/^\(?([^()/]+)\)?\/\(?([^()/]+)\)?$/);
+
+  if (fractionMatch) {
+    return {
+      id: makeId("token-fraction"),
+      type: "fraction",
+      numerator: equationStateToTokens(fractionMatch[1].trim()),
+      denominator: equationStateToTokens(fractionMatch[2].trim()),
+    };
+  }
+
+  const tightGroupMatch = trimmed.match(/^(\d+)([a-zA-Z])$/);
+
+  if (tightGroupMatch) {
+    return {
+      id: makeId("token-group"),
+      type: "group",
+      layout: "tight",
+      children: [simpleTextToken(tightGroupMatch[1]), simpleTextToken(tightGroupMatch[2])],
+    };
+  }
+
+  return simpleTextToken(trimmed);
+}
+
+function normalizeEquationTokens(value: unknown): EquationToken[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((token): EquationToken[] => {
+    if (!isObject(token)) {
+      return [];
+    }
+
+    const id =
+      typeof token.id === "string" && token.id.trim().length > 0
+        ? token.id
+        : makeId("token");
+
+    if (token.type === "group" && Array.isArray(token.children)) {
+      const children = token.children.flatMap((child): EquationTextToken[] => {
+        if (!isObject(child) || typeof child.label !== "string") {
+          return [];
+        }
+
+        return [
+          {
+            id:
+              typeof child.id === "string" && child.id.trim().length > 0
+                ? child.id
+                : makeId("token"),
+            type: "text",
+            label: child.label,
+          },
+        ];
+      });
+
+      if (children.length === 0) {
+        return [];
+      }
+
+      return [{ id, type: "group", layout: "tight", children }];
+    }
+
+    if (token.type === "fraction") {
+      const numerator = normalizeEquationTokens(token.numerator);
+      const denominator = normalizeEquationTokens(token.denominator);
+
+      if (numerator.length === 0 || denominator.length === 0) {
+        return [];
+      }
+
+      return [{ id, type: "fraction", numerator, denominator }];
+    }
+
+    if (typeof token.label === "string") {
+      return [{ id, type: "text", label: token.label }];
+    }
+
+    return [];
+  });
 }
 
 function equationStateToTokens(state: string): EquationToken[] {
@@ -812,7 +912,7 @@ function equationStateToTokens(state: string): EquationToken[] {
     .split(/\s+/)
     .map((label) => label.trim())
     .filter(Boolean)
-    .map((label) => ({ id: makeId("token"), label }));
+    .map((label) => parseEquationPartToToken(label));
 }
 
 function cloneSavedEquation(equation: SavedEquation): SavedEquation {
@@ -879,19 +979,16 @@ function resizeMechanicInstances(instances: MechanicInstance[], count: number) {
 function applyCountsToTimelineEvents(
   events: TimelineEventSlot[],
   eventCounts: MechanicCounts[],
-  eventTicks: number[] = [],
 ): TimelineEventSlot[] {
-  return eventCounts.slice(0, MAX_EQUATION_SLOTS).map((counts, index) => {
+  return eventCounts.map((counts, index) => {
     const existing = events[index];
-    const tick = eventTicks[index] ?? existing?.tick ?? 0;
 
     if (!existing) {
-      return makeTimelineEvent(index, counts, tick);
+      return makeTimelineEvent(index, counts);
     }
 
     return {
       ...existing,
-      tick,
       counts,
       mechanics: {
         hit: resizeMechanicInstances(existing.mechanics.hit, counts.hit),
@@ -924,128 +1021,122 @@ function parseEquationId(equationId: string) {
   };
 }
 
-function sidecarCountsToMechanicCounts(value: unknown): MechanicCounts {
-  if (!isObject(value)) {
-    return { hit: 0, spin: 0, drag: 0 };
-  }
-
-  return {
-    hit: normalizeNonNegativeInteger(value.hit),
-    spin: normalizeNonNegativeInteger(value.spin),
-    drag: normalizeNonNegativeInteger(value.drag),
-  };
-}
-
-function sidecarBubblesToHitBubblePlacements(
-  bubbles: SidecarHitBubblePlacement[],
+function hitBubblesFromSidecarInstance(
+  tokens: EquationToken[],
+  instance: SidecarEquationMechanicInstance,
 ): HitBubblePlacement[] {
-  return normalizeHitBubblePlacements(bubbles);
-}
+  return (instance.bubbles ?? []).flatMap((bubble): HitBubblePlacement[] => {
+    const tokenIndex =
+      typeof bubble.tokenIndex === "number"
+        ? bubble.tokenIndex
+        : tokenIndexFromTokenId(tokens, bubble.tokenId);
+    const rawPads = bubble.pads ?? bubble.positions ?? [];
+    const positions = rawPads
+      .map((position) => normalizeHitBubblePosition(position))
+      .filter((position): position is HitBubblePosition => Boolean(position));
 
-function hitBubblePlacementsToSidecarBubbles(
-  placements: HitBubblePlacement[],
-): SidecarHitBubblePlacement[] {
-  return placements.map((placement) => ({
-    tokenIndex: placement.tokenIndex,
-    pads: placement.positions,
-  }));
-}
-
-function stateFromTimelineEvent(event: TimelineEventSlot) {
-  for (const mechanic of gameplayMechanics) {
-    for (const instance of event.mechanics[mechanic]) {
-      if (instance.equation && instance.equation.tokens.length > 0) {
-        return tokensToEquationState(instance.equation.tokens);
-      }
+    if (tokenIndex < 0 || positions.length === 0) {
+      return [];
     }
+
+    return [
+      {
+        tokenIndex,
+        ...(bubble.tokenId ? { tokenId: bubble.tokenId } : {}),
+        positions,
+      },
+    ];
+  });
+}
+
+function targetsFromSidecarInstance<T extends SpinTarget | DragTarget>(
+  tokens: EquationToken[],
+  instance: SidecarEquationMechanicInstance,
+): T[] {
+  return (instance.targets ?? []).flatMap((target): T[] => {
+    const tokenIndex =
+      typeof target.tokenIndex === "number"
+        ? target.tokenIndex
+        : tokenIndexFromTokenId(tokens, target.tokenId);
+
+    if (tokenIndex < 0) {
+      return [];
+    }
+
+    return [{ tokenIndex, ...(target.tokenId ? { tokenId: target.tokenId } : {}) } as T];
+  });
+}
+
+function timelineEventsFromSidecar(
+  sidecar: SidecarPayload,
+  eventCounts: MechanicCounts[],
+): TimelineEventSlot[] {
+  const normalized = normalizeSidecar(sidecar);
+
+  if (normalized.version === 2) {
+    const events = applyCountsToTimelineEvents(
+      [],
+      eventCounts.slice(0, MAX_EQUATION_SLOTS),
+    );
+
+    normalized.equations.slice(0, MAX_EQUATION_SLOTS).forEach((equation, index) => {
+      const eventSlot = events[index];
+
+      if (!eventSlot) {
+        return;
+      }
+
+      const equationTokens = equation.tokens?.length
+        ? equation.tokens
+        : equationStateToTokens(equation.state);
+      const savedEquation: SavedEquation = {
+        id: equation.id,
+        tokens: cloneTokens(equationTokens),
+      };
+
+      eventSlot.tick = equation.tick;
+      eventSlot.counts = equation.counts;
+      eventSlot.mechanics.hit = resizeMechanicInstances(
+        eventSlot.mechanics.hit,
+        equation.counts.hit,
+      );
+      eventSlot.mechanics.spin = resizeMechanicInstances(
+        eventSlot.mechanics.spin,
+        equation.counts.spin,
+      );
+      eventSlot.mechanics.drag = resizeMechanicInstances(
+        eventSlot.mechanics.drag,
+        equation.counts.drag,
+      );
+
+      eventSlot.mechanics.hit.forEach((instance, instanceIndex) => {
+        const source = equation.hits.find((hit) => hit.index === instanceIndex);
+        instance.equation = cloneSavedEquation(savedEquation);
+        instance.hitBubbles = source
+          ? hitBubblesFromSidecarInstance(savedEquation.tokens, source)
+          : [];
+      });
+
+      eventSlot.mechanics.spin.forEach((instance, instanceIndex) => {
+        const source = equation.spins.find((spin) => spin.index === instanceIndex);
+        instance.equation = cloneSavedEquation(savedEquation);
+        instance.spinTargets = source
+          ? targetsFromSidecarInstance<SpinTarget>(savedEquation.tokens, source)
+          : [];
+      });
+
+      eventSlot.mechanics.drag.forEach((instance, instanceIndex) => {
+        const source = equation.drags.find((drag) => drag.index === instanceIndex);
+        instance.equation = cloneSavedEquation(savedEquation);
+        instance.dragTargets = source
+          ? targetsFromSidecarInstance<DragTarget>(savedEquation.tokens, source)
+          : [];
+      });
+    });
+
+    return events;
   }
 
-  return "";
-}
-
-function assignEquationToEventInstances(
-  eventSlot: TimelineEventSlot,
-  equation: SavedEquation,
-) {
-  gameplayMechanics.forEach((mechanic) => {
-    eventSlot.mechanics[mechanic].forEach((instance) => {
-      instance.equation = {
-        id: equation.id,
-        tokens: cloneTokens(equation.tokens),
-      };
-    });
-  });
-}
-
-function timelineEventsFromEquationSidecar(
-  sidecar: EquationSidecarPayload,
-  eventCounts: MechanicCounts[],
-  eventTicks: number[] = [],
-) {
-  const equations = sidecar.equations.slice(0, MAX_EQUATION_SLOTS);
-  const countsFromSidecar = equations.map((equation) =>
-    sidecarCountsToMechanicCounts(equation.counts),
-  );
-  const counts = eventCounts.length > 0 ? eventCounts : countsFromSidecar;
-  const ticks = eventTicks.length > 0 ? eventTicks : equations.map((equation) => equation.tick);
-  const events = applyCountsToTimelineEvents([], counts, ticks);
-
-  equations.forEach((equation, index) => {
-    const eventSlot = events[index];
-
-    if (!eventSlot) {
-      return;
-    }
-
-    eventSlot.tick = normalizeTick(equation.tick);
-    eventSlot.counts = sidecarCountsToMechanicCounts(equation.counts);
-    eventSlot.mechanics = {
-      hit: resizeMechanicInstances(eventSlot.mechanics.hit, eventSlot.counts.hit),
-      spin: resizeMechanicInstances(eventSlot.mechanics.spin, eventSlot.counts.spin),
-      drag: resizeMechanicInstances(eventSlot.mechanics.drag, eventSlot.counts.drag),
-    };
-
-    if (equation.state.trim()) {
-      assignEquationToEventInstances(
-        eventSlot,
-        savedEquationFromState(equation.id, equation.state),
-      );
-    }
-
-    equation.hits.forEach((hit) => {
-      const instance = eventSlot.mechanics.hit[hit.index];
-
-      if (instance) {
-        instance.hitBubbles = sidecarBubblesToHitBubblePlacements(hit.bubbles);
-      }
-    });
-
-    equation.spins.forEach((spin) => {
-      const instance = eventSlot.mechanics.spin[spin.index];
-
-      if (instance) {
-        instance.spinTargets = spin.targets;
-      }
-    });
-
-    equation.drags.forEach((drag) => {
-      const instance = eventSlot.mechanics.drag[drag.index];
-
-      if (instance) {
-        instance.dragTargets = drag.targets;
-      }
-    });
-  });
-
-  return events;
-}
-
-function timelineEventsFromLegacySidecar(
-  sidecar: LegacySidecarPayload,
-  eventCounts: MechanicCounts[],
-  eventTicks: number[] = [],
-): TimelineEventSlot[] {
-  const normalized = normalizeSidecar(sidecar) as LegacySidecarPayload;
   const equationEvents = normalized.events.filter(
     (event): event is SidecarEquationStateEvent =>
       event.type === "ALG_EQUATION_STATE",
@@ -1054,7 +1145,10 @@ function timelineEventsFromLegacySidecar(
     (event): event is SidecarMechanicEvent => event.type === "ALG_MECHANIC",
   );
 
-  const events = applyCountsToTimelineEvents([], eventCounts, eventTicks);
+  const events = applyCountsToTimelineEvents(
+    [],
+    eventCounts.slice(0, MAX_EQUATION_SLOTS),
+  );
 
   equationEvents.forEach((equationEvent) => {
     const parsed = parseEquationId(equationEvent.equationId);
@@ -1111,32 +1205,10 @@ function timelineEventsFromLegacySidecar(
   return events;
 }
 
-function timelineEventsFromSidecar(
-  sidecar: SidecarPayload,
-  eventCounts: MechanicCounts[],
-  eventTicks: number[] = [],
-): TimelineEventSlot[] {
-  const normalized = normalizeSidecar(sidecar);
-
-  if (normalized.version === 2) {
-    return timelineEventsFromEquationSidecar(
-      normalized,
-      eventCounts.slice(0, MAX_EQUATION_SLOTS),
-      eventTicks.slice(0, MAX_EQUATION_SLOTS),
-    );
-  }
-
-  return timelineEventsFromLegacySidecar(
-    normalized,
-    eventCounts.slice(0, MAX_EQUATION_SLOTS),
-    eventTicks.slice(0, MAX_EQUATION_SLOTS),
-  );
-}
-
 function savedEquationsFromTimelineEvents(events: TimelineEventSlot[]) {
   const byState = new Map<string, SavedEquation>();
 
-  events.slice(0, MAX_EQUATION_SLOTS).forEach((event) => {
+  events.forEach((event) => {
     gameplayMechanics.forEach((mechanic) => {
       event.mechanics[mechanic].forEach((instance) => {
         const state = instance.equation
@@ -1158,33 +1230,79 @@ function savedEquationsFromTimelineEvents(events: TimelineEventSlot[]) {
   return Array.from(byState.values());
 }
 
+function sidecarBubblesFromPlacement(
+  tokens: EquationToken[],
+  placement: HitBubblePlacement,
+): SidecarHitBubble {
+  const tokenId = placement.tokenId ?? tokenIdFromRenderableIndex(tokens, placement.tokenIndex);
+
+  return {
+    tokenIndex: placement.tokenIndex,
+    ...(tokenId ? { tokenId } : {}),
+    pads: placement.positions,
+  };
+}
+
+function sidecarTargetsFromTarget(
+  tokens: EquationToken[],
+  target: SpinTarget | DragTarget,
+) {
+  const tokenId = target.tokenId ?? tokenIdFromRenderableIndex(tokens, target.tokenIndex);
+
+  return {
+    tokenIndex: target.tokenIndex,
+    ...(tokenId ? { tokenId } : {}),
+  };
+}
+
+function firstEquationForEvent(event: TimelineEventSlot): SavedEquation | null {
+  for (const mechanic of gameplayMechanics) {
+    const instance = event.mechanics[mechanic].find(
+      (nextInstance) => nextInstance.equation,
+    );
+
+    if (instance?.equation) {
+      return instance.equation;
+    }
+  }
+
+  return null;
+}
+
 function sidecarFromTimelineEvents(
   events: TimelineEventSlot[],
 ): SidecarPayload {
-  const equations = events.slice(0, MAX_EQUATION_SLOTS).map(
-    (event, eventIndex): SidecarEquation => ({
-      id: `eq_${String(eventIndex + 1).padStart(3, "0")}`,
+  const equations = events.slice(0, MAX_EQUATION_SLOTS).map((event, eventIndex) => {
+    const equation = firstEquationForEvent(event);
+    const tokens = equation ? cloneTokens(equation.tokens) : [];
+    const id = `eq_${String(eventIndex + 1).padStart(3, "0")}`;
+
+    return {
+      id,
       tick: event.tick,
-      state: stateFromTimelineEvent(event),
-      counts: {
-        hit: event.counts.hit,
-        spin: event.counts.spin,
-        drag: event.counts.drag,
-      },
+      state: equation ? tokensToEquationState(equation.tokens) : "",
+      tokens,
+      counts: event.counts,
       hits: event.mechanics.hit.map((instance, index) => ({
         index,
-        bubbles: hitBubblePlacementsToSidecarBubbles(instance.hitBubbles),
+        bubbles: instance.hitBubbles.map((placement) =>
+          sidecarBubblesFromPlacement(instance.equation?.tokens ?? tokens, placement),
+        ),
       })),
       spins: event.mechanics.spin.map((instance, index) => ({
         index,
-        targets: instance.spinTargets,
+        targets: instance.spinTargets.map((target) =>
+          sidecarTargetsFromTarget(instance.equation?.tokens ?? tokens, target),
+        ),
       })),
       drags: event.mechanics.drag.map((instance, index) => ({
         index,
-        targets: instance.dragTargets,
+        targets: instance.dragTargets.map((target) =>
+          sidecarTargetsFromTarget(instance.equation?.tokens ?? tokens, target),
+        ),
       })),
-    }),
-  );
+    };
+  });
 
   return {
     version: 2,
@@ -1373,7 +1491,6 @@ function HeaderBar({
             <Link
               key={tab.label}
               href={tab.href}
-              prefetch={false}
               aria-label={tab.label}
               className={styles.utilityButton}
               style={{ width: tab.width, height: 38 }}
@@ -1563,6 +1680,87 @@ function EquationCircle({
   );
 }
 
+
+function EquationTokenPreview({
+  token,
+  circleSize,
+}: {
+  token: EquationToken;
+  circleSize: number;
+}) {
+  if (isTextEquationToken(token)) {
+    return (
+      <EquationCircle
+        label={token.label}
+        draggable={false}
+        size={circleSize}
+      />
+    );
+  }
+
+  if (token.type === "group") {
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 0,
+        }}
+      >
+        {token.children.map((child) => (
+          <EquationCircle
+            key={child.id}
+            label={child.label}
+            draggable={false}
+            size={circleSize}
+          />
+        ))}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: Math.max(2, circleSize / 12),
+        padding: "0 4px",
+      }}
+    >
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+        {token.numerator.map((child) => (
+          <EquationTokenPreview
+            key={child.id}
+            token={child}
+            circleSize={Math.max(20, Math.round(circleSize * 0.78))}
+          />
+        ))}
+      </span>
+      <span
+        style={{
+          width: "100%",
+          minWidth: circleSize,
+          height: 3,
+          borderRadius: 999,
+          background: "rgba(255, 255, 255, 0.85)",
+        }}
+      />
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+        {token.denominator.map((child) => (
+          <EquationTokenPreview
+            key={child.id}
+            token={child}
+            circleSize={Math.max(20, Math.round(circleSize * 0.78))}
+          />
+        ))}
+      </span>
+    </span>
+  );
+}
+
 function EquationPreview({
   tokens,
   circleSize = 34,
@@ -1589,11 +1787,10 @@ function EquationPreview({
       }}
     >
       {tokens.map((token) => (
-        <EquationCircle
+        <EquationTokenPreview
           key={token.id}
-          label={token.label}
-          draggable={false}
-          size={circleSize}
+          token={token}
+          circleSize={circleSize}
         />
       ))}
     </div>
@@ -1808,10 +2005,9 @@ function EquationBuilderArea({
                       cursor: "pointer",
                     }}
                   >
-                    <EquationCircle
-                      label={token.label}
-                      draggable={false}
-                      size={68}
+                    <EquationTokenPreview
+                      token={token}
+                      circleSize={68}
                     />
                   </button>
                   <EquationDropSlot
@@ -1995,7 +2191,7 @@ function HitEquationPreview({
         padding: 36,
       }}
     >
-      {tokens.map((token, tokenIndex) => {
+      {renderableEquationTokens(tokens).map((token, tokenIndex) => {
         const isOperator = isEquationOperator(token.label);
         const placement = hitBubbles.find(
           (nextPlacement) => nextPlacement.tokenIndex === tokenIndex,
@@ -2146,7 +2342,7 @@ function SpinEquationPreview({
         padding: 44,
       }}
     >
-      {tokens.map((token, tokenIndex) => {
+      {renderableEquationTokens(tokens).map((token, tokenIndex) => {
         const isOperator = isEquationOperator(token.label);
         const isSpinTarget = targetIndexes.has(tokenIndex);
 
@@ -2198,8 +2394,9 @@ function SpinEquationPreview({
 }
 
 function findEqualsIndex(tokens: EquationToken[]) {
-  const index = tokens.findIndex((token) => token.label === "=");
-  return index >= 0 ? index : Math.floor(tokens.length / 2);
+  const renderableTokens = renderableEquationTokens(tokens);
+  const index = renderableTokens.findIndex((token) => token.label === "=");
+  return index >= 0 ? index : Math.floor(renderableTokens.length / 2);
 }
 
 function DragArcOverlay({
@@ -2303,7 +2500,7 @@ function DragEquationPreview({
         padding: 44,
       }}
     >
-      {tokens.map((token, tokenIndex) => {
+      {renderableEquationTokens(tokens).map((token, tokenIndex) => {
         const isOperator = isEquationOperator(token.label);
         const isDragTarget = targetIndexes.has(tokenIndex);
         const targetSide = tokenIndex < equalsIndex ? "right" : "left";
@@ -2727,7 +2924,7 @@ function CompactHitPreview({ instance }: { instance: MechanicInstance }) {
         flexWrap: "wrap",
       }}
     >
-      {tokens.map((token, tokenIndex) => {
+      {renderableEquationTokens(tokens).map((token, tokenIndex) => {
         const isOperator = isEquationOperator(token.label);
         const placement = instance.hitBubbles.find(
           (nextPlacement) => nextPlacement.tokenIndex === tokenIndex,
@@ -2790,7 +2987,7 @@ function CompactSpinPreview({ instance }: { instance: MechanicInstance }) {
         flexWrap: "wrap",
       }}
     >
-      {tokens.map((token, tokenIndex) => {
+      {renderableEquationTokens(tokens).map((token, tokenIndex) => {
         const active =
           !isEquationOperator(token.label) && targets.has(tokenIndex);
         return (
@@ -2834,7 +3031,7 @@ function CompactDragPreview({ instance }: { instance: MechanicInstance }) {
         flexWrap: "wrap",
       }}
     >
-      {tokens.map((token, tokenIndex) => {
+      {renderableEquationTokens(tokens).map((token, tokenIndex) => {
         const active =
           !isEquationOperator(token.label) && targets.has(tokenIndex);
         const side = tokenIndex < equalsIndex ? "right" : "left";
@@ -3317,16 +3514,9 @@ export default function LessonBuilderClient({
   function loadSidecarIntoTimeline(
     nextSidecar: SidecarPayload,
     nextEventCounts: MechanicCounts[],
-    nextEventTicks: number[] = [],
   ) {
-    const limitedEventCounts = nextEventCounts.slice(0, MAX_EQUATION_SLOTS);
-    const limitedEventTicks = nextEventTicks.slice(0, MAX_EQUATION_SLOTS);
-    const nextEvents = timelineEventsFromSidecar(
-      nextSidecar,
-      limitedEventCounts,
-      limitedEventTicks,
-    );
-    setEventCounts(limitedEventCounts);
+    const nextEvents = timelineEventsFromSidecar(nextSidecar, nextEventCounts);
+    setEventCounts(nextEventCounts);
     setTimelineEvents(nextEvents);
     setSavedEquations((current) => {
       const importedEquations = savedEquationsFromTimelineEvents(nextEvents);
@@ -3358,7 +3548,7 @@ export default function LessonBuilderClient({
 
   function handleInsertEquationToken(index: number, label: string) {
     setDraftTokens((current) => {
-      const nextToken = { id: makeId("token"), label };
+      const nextToken = parseEquationPartToToken(label);
       const safeIndex = Math.max(0, Math.min(index, current.length));
       return [
         ...current.slice(0, safeIndex),
@@ -3513,7 +3703,6 @@ export default function LessonBuilderClient({
 
       const response = await fetch("/api/lesson-builder/save", {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           songAssetId: selectedSongStorage.id,
@@ -3526,7 +3715,7 @@ export default function LessonBuilderClient({
           },
           sidecar: {
             ...(selectedSongStorage.sidecar ?? {
-              bucket: "SidecarJsons",
+              bucket: selectedSongStorage.chart.bucket,
               path: selectedSongStorage.chart.path.replace(
                 /\.chart$/i,
                 ".json",
@@ -3580,10 +3769,6 @@ export default function LessonBuilderClient({
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
       const selectedSongEventCounts = getSelectedSongEventCounts(selectedSong);
-      const selectedSongEventTicks = getSelectedSongEquationSlotTicks(
-        selectedSong,
-        selectedSongEventCounts.length,
-      );
 
       setSelectedSongStorage({
         id: selectedSong.id,
@@ -3617,14 +3802,8 @@ export default function LessonBuilderClient({
       })
         .then((file) => setPendingSongFile(file))
         .catch((error) =>
-          console.warn("Selected song audio could not be preloaded.", error),
+          console.error("Failed to load selected song file", error),
         );
-
-      loadSidecarIntoTimeline(
-        emptySidecar,
-        selectedSongEventCounts,
-        selectedSongEventTicks,
-      );
 
       Promise.all([
         textFromSignedUrl(selectedSong.chart.signedUrl),
@@ -3641,11 +3820,7 @@ export default function LessonBuilderClient({
 
           setChartFile(nextChartFile);
           setUploadedChartName(nextChartName);
-          loadSidecarIntoTimeline(
-            normalizedSidecar,
-            selectedSongEventCounts,
-            selectedSongEventTicks,
-          );
+          loadSidecarIntoTimeline(normalizedSidecar, selectedSongEventCounts);
 
           const payload: LessonBuilderPayload = {
             chartFile: nextChartFile,
@@ -3660,7 +3835,12 @@ export default function LessonBuilderClient({
           setProject(chartToProject(payload));
         })
         .catch((error) => {
-          console.warn("Selected chart or sidecar could not be loaded.", error);
+          console.error("Failed to load selected chart or sidecar JSON", error);
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "Failed to load selected song package",
+          );
         });
     } catch (error) {
       console.error("Failed to parse selected song package", error);
@@ -3672,48 +3852,41 @@ export default function LessonBuilderClient({
     }
   }, [setProject]);
 
-useEffect(() => {
-  const selectedSongRaw = sessionStorage.getItem("ultrarapid_selected_song");
+  useEffect(() => {
+    const raw = sessionStorage.getItem("ultrarapid_editor_payload");
+    if (!raw) return;
 
-  if (selectedSongRaw) {
-    sessionStorage.removeItem("ultrarapid_editor_payload");
-    return;
-  }
-
-  const raw = sessionStorage.getItem("ultrarapid_editor_payload");
-  if (!raw) return;
-
-  try {
-    const payload: LessonBuilderPayload = JSON.parse(raw);
-    const normalizedSidecar = normalizeSidecar(
-      payload.rawResults ?? emptySidecar,
-    );
-
-    if (payload?.analysisMetadata) setMetadata(payload.analysisMetadata);
-
-    if (payload?.chartFile) {
-      setChartFile(payload.chartFile);
-      if (payload.analysisMetadata?.uploadedFileName) {
-        setUploadedChartName(payload.analysisMetadata.uploadedFileName);
-      }
-      loadSidecarIntoTimeline(normalizedSidecar, eventCounts);
-      setProject(
-        chartToProject({ ...payload, rawResults: normalizedSidecar }),
+    try {
+      const payload: LessonBuilderPayload = JSON.parse(raw);
+      const normalizedSidecar = normalizeSidecar(
+        payload.rawResults ?? emptySidecar,
       );
-    } else {
-      loadSidecarIntoTimeline(normalizedSidecar, eventCounts);
-    }
 
-    sessionStorage.removeItem("ultrarapid_editor_payload");
-  } catch (error) {
-    console.error("Failed to hydrate lesson builder payload", error);
-    setLoadError(
-      error instanceof Error
-        ? error.message
-        : "Failed to hydrate lesson builder payload",
-    );
-  }
-}, [setProject]);
+      if (payload?.analysisMetadata) setMetadata(payload.analysisMetadata);
+
+      if (payload?.chartFile) {
+        setChartFile(payload.chartFile);
+        if (payload.analysisMetadata?.uploadedFileName) {
+          setUploadedChartName(payload.analysisMetadata.uploadedFileName);
+        }
+        loadSidecarIntoTimeline(normalizedSidecar, eventCounts);
+        setProject(
+          chartToProject({ ...payload, rawResults: normalizedSidecar }),
+        );
+      } else {
+        loadSidecarIntoTimeline(normalizedSidecar, eventCounts);
+      }
+
+      sessionStorage.removeItem("ultrarapid_editor_payload");
+    } catch (error) {
+      console.error("Failed to hydrate lesson builder payload", error);
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Failed to hydrate lesson builder payload",
+      );
+    }
+  }, [setProject]);
 
   useEffect(() => {
     if (!pendingSongFile) return;
@@ -3798,3 +3971,5 @@ useEffect(() => {
     </div>
   );
 }
+
+
