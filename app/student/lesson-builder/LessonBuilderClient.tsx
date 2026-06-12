@@ -55,11 +55,48 @@ type SelectedSongPayload = {
   name: string;
   title?: string;
   artist?: string | null;
-  equationSlots?: number | null;
-  equation_slots?: number | null;
+  equationSlots?: unknown;
+  equation_slots?: unknown;
+  equationSlotTicks?: unknown;
+  equation_slot_ticks?: unknown;
+  hitCounts?: unknown;
+  hit_counts?: unknown;
+  hit_count?: unknown;
+  spinCounts?: unknown;
+  spin_counts?: unknown;
+  spin_count?: unknown;
+  dragCounts?: unknown;
+  drag_counts?: unknown;
+  drag_count?: unknown;
   songAsset?: {
-    equationSlots?: number | null;
-    equation_slots?: number | null;
+    equationSlots?: unknown;
+    equation_slots?: unknown;
+    equationSlotTicks?: unknown;
+    equation_slot_ticks?: unknown;
+    hitCounts?: unknown;
+    hit_counts?: unknown;
+    hit_count?: unknown;
+    spinCounts?: unknown;
+    spin_counts?: unknown;
+    spin_count?: unknown;
+    dragCounts?: unknown;
+    drag_counts?: unknown;
+    drag_count?: unknown;
+  } | null;
+  song_asset?: {
+    equationSlots?: unknown;
+    equation_slots?: unknown;
+    equationSlotTicks?: unknown;
+    equation_slot_ticks?: unknown;
+    hitCounts?: unknown;
+    hit_counts?: unknown;
+    hit_count?: unknown;
+    spinCounts?: unknown;
+    spin_counts?: unknown;
+    spin_count?: unknown;
+    dragCounts?: unknown;
+    drag_counts?: unknown;
+    drag_count?: unknown;
   } | null;
   song: StorageFileRef & { signedUrl: string };
   chart: StorageFileRef & { signedUrl: string };
@@ -179,6 +216,7 @@ const emptySidecar: SidecarPayload = {
 };
 
 const gameplayMechanics: GameplayMechanic[] = ["hit", "spin", "drag"];
+const maxEditableEquationSlots = 5;
 
 const equationPalette = [
   "0",
@@ -316,10 +354,12 @@ function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
         ? placement.positions
         : [];
     const pads = Array.from(
-      new Set(rawPads.flatMap((pad) => {
-        const normalizedPad = normalizeHitBubblePad(pad);
-        return normalizedPad ? [normalizedPad] : [];
-      })),
+      new Set(
+        rawPads.flatMap((pad) => {
+          const normalizedPad = normalizeHitBubblePad(pad);
+          return normalizedPad ? [normalizedPad] : [];
+        }),
+      ),
     );
 
     if (tokenIndex === null || pads.length === 0) {
@@ -358,71 +398,75 @@ function normalizeSidecar(value: unknown): SidecarPayload {
   }
 
   if (value.version === 2 && Array.isArray(value.equations)) {
-    const events = value.equations.flatMap((equation, equationIndex): SidecarEvent[] => {
-      if (!isObject(equation)) {
-        return [];
-      }
-
-      const tick = normalizeTick(equation.tick);
-      const equationId =
-        typeof equation.id === "string" && equation.id.trim()
-          ? equation.id
-          : `eq_${String(equationIndex + 1).padStart(3, "0")}`;
-      const state = typeof equation.state === "string" ? equation.state : "";
-      const counts = isObject(equation.counts) ? equation.counts : {};
-      const result: SidecarEvent[] = [];
-
-      gameplayMechanics.forEach((mechanic) => {
-        const count = Math.max(0, Math.round(Number(counts[mechanic] ?? 0)));
-        const rawInstances: unknown[] = Array.isArray(equation[`${mechanic}s`])
-          ? (equation[`${mechanic}s`] as unknown[])
-          : [];
-
-        for (let index = 0; index < count; index += 1) {
-          const rawInstance = rawInstances[index];
-          const instance = isObject(rawInstance) ? rawInstance : {};
-          const mechanicEvent: SidecarMechanicEvent = {
-            tick,
-            type: "ALG_MECHANIC",
-            mechanic,
-            instanceIndex: index,
-            equationId,
-          };
-
-          if (mechanic === "hit") {
-            mechanicEvent.hits = 1;
-            mechanicEvent.hitBubbles = normalizeHitBubblePlacements(
-              instance.bubbles,
-            );
-          }
-
-          if (mechanic === "spin") {
-            mechanicEvent.spinTargets = normalizeTokenTargets<SpinTarget>(
-              instance.targets,
-            );
-          }
-
-          if (mechanic === "drag") {
-            mechanicEvent.dragTargets = normalizeTokenTargets<DragTarget>(
-              instance.targets,
-            );
-          }
-
-          result.push(mechanicEvent);
+    const events = value.equations.flatMap(
+      (equation, equationIndex): SidecarEvent[] => {
+        if (!isObject(equation)) {
+          return [];
         }
-      });
 
-      if (state.trim()) {
-        result.push({
-          tick,
-          type: "ALG_EQUATION_STATE",
-          equationId,
-          state,
+        const tick = normalizeTick(equation.tick);
+        const equationId =
+          typeof equation.id === "string" && equation.id.trim()
+            ? equation.id
+            : `eq_${String(equationIndex + 1).padStart(3, "0")}`;
+        const state = typeof equation.state === "string" ? equation.state : "";
+        const counts = isObject(equation.counts) ? equation.counts : {};
+        const result: SidecarEvent[] = [];
+
+        gameplayMechanics.forEach((mechanic) => {
+          const count = Math.max(0, Math.round(Number(counts[mechanic] ?? 0)));
+          const rawInstances: unknown[] = Array.isArray(
+            equation[`${mechanic}s`],
+          )
+            ? (equation[`${mechanic}s`] as unknown[])
+            : [];
+
+          for (let index = 0; index < count; index += 1) {
+            const rawInstance = rawInstances[index];
+            const instance = isObject(rawInstance) ? rawInstance : {};
+            const mechanicEvent: SidecarMechanicEvent = {
+              tick,
+              type: "ALG_MECHANIC",
+              mechanic,
+              instanceIndex: index,
+              equationId,
+            };
+
+            if (mechanic === "hit") {
+              mechanicEvent.hits = 1;
+              mechanicEvent.hitBubbles = normalizeHitBubblePlacements(
+                instance.bubbles,
+              );
+            }
+
+            if (mechanic === "spin") {
+              mechanicEvent.spinTargets = normalizeTokenTargets<SpinTarget>(
+                instance.targets,
+              );
+            }
+
+            if (mechanic === "drag") {
+              mechanicEvent.dragTargets = normalizeTokenTargets<DragTarget>(
+                instance.targets,
+              );
+            }
+
+            result.push(mechanicEvent);
+          }
         });
-      }
 
-      return result;
-    });
+        if (state.trim()) {
+          result.push({
+            tick,
+            type: "ALG_EQUATION_STATE",
+            equationId,
+            state,
+          });
+        }
+
+        return result;
+      },
+    );
 
     return {
       version: 1,
@@ -453,12 +497,9 @@ function normalizeSidecar(value: unknown): SidecarPayload {
           tick: normalizeTick(event.tick),
           type: "ALG_MECHANIC",
           mechanic,
-          instanceIndex:
-            normalizeTokenIndex(event.instanceIndex) ?? undefined,
+          instanceIndex: normalizeTokenIndex(event.instanceIndex) ?? undefined,
           equationId:
-            typeof event.equationId === "string"
-              ? event.equationId
-              : undefined,
+            typeof event.equationId === "string" ? event.equationId : undefined,
           ...(Number.isFinite(hits) && hits > 0
             ? { hits: Math.max(1, Math.round(hits)) }
             : {}),
@@ -637,8 +678,185 @@ function getSelectedSongEquationSlotCount(
     normalizeEquationSlotCount(selectedSong.equationSlots) ??
     normalizeEquationSlotCount(selectedSong.equation_slots) ??
     normalizeEquationSlotCount(selectedSong.songAsset?.equationSlots) ??
-    normalizeEquationSlotCount(selectedSong.songAsset?.equation_slots)
+    normalizeEquationSlotCount(selectedSong.songAsset?.equation_slots) ??
+    normalizeEquationSlotCount(selectedSong.song_asset?.equationSlots) ??
+    normalizeEquationSlotCount(selectedSong.song_asset?.equation_slots)
   );
+}
+
+function normalizeIntegerArray(value: unknown): number[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => {
+      const parsed = Number(item);
+      return Number.isFinite(parsed) ? [Math.max(0, Math.round(parsed))] : [];
+    });
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return [];
+    }
+
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        return normalizeIntegerArray(JSON.parse(trimmed));
+      } catch {
+        return [];
+      }
+    }
+
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      return normalizeIntegerArray(
+        trimmed
+          .slice(1, -1)
+          .split(",")
+          .map((item) => item.trim()),
+      );
+    }
+
+    return normalizeIntegerArray(trimmed.split(","));
+  }
+
+  return [];
+}
+
+function getSelectedSongMechanicCountArray(
+  selectedSong: SelectedSongPayload,
+  mechanic: GameplayMechanic,
+) {
+  const camelKey = `${mechanic}Counts` as keyof SelectedSongPayload;
+  const snakePluralKey = `${mechanic}_counts` as keyof SelectedSongPayload;
+  const snakeSingularKey = `${mechanic}_count` as keyof SelectedSongPayload;
+
+  const candidates = [
+    selectedSong[camelKey],
+    selectedSong[snakePluralKey],
+    selectedSong[snakeSingularKey],
+    selectedSong.songAsset?.[
+      camelKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
+    ],
+    selectedSong.songAsset?.[
+      snakePluralKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
+    ],
+    selectedSong.songAsset?.[
+      snakeSingularKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
+    ],
+    selectedSong.song_asset?.[
+      camelKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
+    ],
+    selectedSong.song_asset?.[
+      snakePluralKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
+    ],
+    selectedSong.song_asset?.[
+      snakeSingularKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
+    ],
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeIntegerArray(candidate);
+
+    if (normalized.length > 0) {
+      return normalized;
+    }
+  }
+
+  return [];
+}
+
+function getSelectedSongEquationSlotTicks(
+  selectedSong: SelectedSongPayload,
+  slotCount: number,
+) {
+  const candidates = [
+    selectedSong.equationSlotTicks,
+    selectedSong.equation_slot_ticks,
+    selectedSong.songAsset?.equationSlotTicks,
+    selectedSong.songAsset?.equation_slot_ticks,
+    selectedSong.song_asset?.equationSlotTicks,
+    selectedSong.song_asset?.equation_slot_ticks,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeIntegerArray(candidate);
+
+    if (normalized.length > 0) {
+      return Array.from(
+        { length: slotCount },
+        (_, index) => normalized[index] ?? 0,
+      );
+    }
+  }
+
+  return Array.from({ length: slotCount }, () => 0);
+}
+
+function getSelectedSongEventCounts(
+  selectedSong: SelectedSongPayload,
+): MechanicCounts[] {
+  const explicitSlotCount = getSelectedSongEquationSlotCount(selectedSong) ?? 0;
+  const hitCounts = getSelectedSongMechanicCountArray(selectedSong, "hit");
+  const spinCounts = getSelectedSongMechanicCountArray(selectedSong, "spin");
+  const dragCounts = getSelectedSongMechanicCountArray(selectedSong, "drag");
+  const slotCount = Math.min(
+    maxEditableEquationSlots,
+    Math.max(
+      explicitSlotCount,
+      hitCounts.length,
+      spinCounts.length,
+      dragCounts.length,
+    ),
+  );
+
+  return Array.from({ length: slotCount }, (_, index) => ({
+    hit: hitCounts[index] ?? 0,
+    spin: spinCounts[index] ?? 0,
+    drag: dragCounts[index] ?? 0,
+  }));
+}
+
+function applySongAssetMechanicCountsToTimelineEvents(
+  events: TimelineEventSlot[],
+  eventCounts: MechanicCounts[],
+  eventTicks: number[] = [],
+): TimelineEventSlot[] {
+  if (eventCounts.length === 0) {
+    return events.slice(0, maxEditableEquationSlots);
+  }
+
+  return eventCounts.slice(0, maxEditableEquationSlots).map((counts, index) => {
+    const existing = events[index];
+    const tick = eventTicks[index] ?? existing?.tick ?? 0;
+    const nextCounts = {
+      ...makeEmptyMechanicCounts(),
+      ...counts,
+    };
+
+    if (!existing) {
+      return makeTimelineEvent(index, tick, nextCounts);
+    }
+
+    return {
+      ...existing,
+      tick,
+      counts: nextCounts,
+      mechanicInstances: {
+        hit: resizeMechanicInstances(
+          existing.mechanicInstances.hit,
+          nextCounts.hit,
+        ),
+        spin: resizeMechanicInstances(
+          existing.mechanicInstances.spin,
+          nextCounts.spin,
+        ),
+        drag: resizeMechanicInstances(
+          existing.mechanicInstances.drag,
+          nextCounts.drag,
+        ),
+      },
+    };
+  });
 }
 
 function resizeTimelineEvents(
@@ -703,6 +921,8 @@ function savedEquationFromState(
 function timelineEventsFromSidecar(
   sidecar: SidecarPayload,
   targetCount: number | null,
+  fallbackEventCounts: MechanicCounts[] = [],
+  fallbackEventTicks: number[] = [],
 ): TimelineEventSlot[] {
   const normalized = normalizeSidecar(sidecar);
   const equationEvents = normalized.events.filter(
@@ -756,7 +976,8 @@ function timelineEventsFromSidecar(
 
     mechanicsAtTick.forEach((mechanicEvent) => {
       const instanceIndex = mechanicEvent.instanceIndex ?? 0;
-      const instance = slot.mechanicInstances[mechanicEvent.mechanic]?.[instanceIndex];
+      const instance =
+        slot.mechanicInstances[mechanicEvent.mechanic]?.[instanceIndex];
 
       if (!instance) {
         return;
@@ -778,11 +999,23 @@ function timelineEventsFromSidecar(
     return slot;
   });
 
-  if (typeof targetCount === "number") {
-    return resizeTimelineEvents(slots, targetCount);
-  }
+  const targetSlots =
+    fallbackEventCounts.length > 0
+      ? Math.min(maxEditableEquationSlots, fallbackEventCounts.length)
+      : typeof targetCount === "number"
+        ? Math.min(maxEditableEquationSlots, targetCount)
+        : null;
 
-  return slots;
+  const resizedSlots =
+    typeof targetSlots === "number"
+      ? resizeTimelineEvents(slots, targetSlots)
+      : slots;
+
+  return applySongAssetMechanicCountsToTimelineEvents(
+    resizedSlots,
+    fallbackEventCounts,
+    fallbackEventTicks,
+  );
 }
 
 function savedEquationsFromTimelineEvents(events: TimelineEventSlot[]) {
@@ -816,42 +1049,44 @@ function sidecarFromTimelineEvents(
     }
 
     const equationId = `eq_${String(eventIndex + 1).padStart(3, "0")}`;
-    const mechanicEvents = gameplayMechanics.flatMap((mechanic): SidecarEvent[] => {
-      const count = event.counts?.[mechanic] ?? 0;
+    const mechanicEvents = gameplayMechanics.flatMap(
+      (mechanic): SidecarEvent[] => {
+        const count = event.counts?.[mechanic] ?? 0;
 
-      if (count <= 0) {
-        return [];
-      }
+        if (count <= 0) {
+          return [];
+        }
 
-      return Array.from({ length: count }, (_, instanceIndex) => {
-        const instance = event.mechanicInstances?.[mechanic]?.[instanceIndex];
-        const mechanicEvent: SidecarMechanicEvent = {
-          tick: event.tick,
-          type: "ALG_MECHANIC",
-          mechanic,
-          instanceIndex,
-          equationId,
-        };
+        return Array.from({ length: count }, (_, instanceIndex) => {
+          const instance = event.mechanicInstances?.[mechanic]?.[instanceIndex];
+          const mechanicEvent: SidecarMechanicEvent = {
+            tick: event.tick,
+            type: "ALG_MECHANIC",
+            mechanic,
+            instanceIndex,
+            equationId,
+          };
 
-        if (mechanic === "hit") {
-          mechanicEvent.hits = 1;
+          if (mechanic === "hit") {
+            mechanicEvent.hits = 1;
 
-          if (instance?.hitBubbles.length) {
-            mechanicEvent.hitBubbles = instance.hitBubbles;
+            if (instance?.hitBubbles.length) {
+              mechanicEvent.hitBubbles = instance.hitBubbles;
+            }
           }
-        }
 
-        if (mechanic === "spin" && instance?.spinTargets.length) {
-          mechanicEvent.spinTargets = instance.spinTargets;
-        }
+          if (mechanic === "spin" && instance?.spinTargets.length) {
+            mechanicEvent.spinTargets = instance.spinTargets;
+          }
 
-        if (mechanic === "drag" && instance?.dragTargets.length) {
-          mechanicEvent.dragTargets = instance.dragTargets;
-        }
+          if (mechanic === "drag" && instance?.dragTargets.length) {
+            mechanicEvent.dragTargets = instance.dragTargets;
+          }
 
-        return mechanicEvent;
-      });
-    });
+          return mechanicEvent;
+        });
+      },
+    );
 
     if (mechanicEvents.length === 0) {
       return [];
@@ -1540,7 +1775,13 @@ function EquationBuilderArea({
 }
 
 function isEquationOperator(label: string) {
-  return label === "+" || label === "-" || label === "×" || label === "÷" || label === "=";
+  return (
+    label === "+" ||
+    label === "-" ||
+    label === "×" ||
+    label === "÷" ||
+    label === "="
+  );
 }
 
 function getHitBubblePairPads(pair: HitBubblePair): HitBubblePad[] {
@@ -1592,7 +1833,11 @@ function EmptyEquationBubble({ size = 34 }: { size?: number }) {
   );
 }
 
-function HitBubbleChoice({ onSelect }: { onSelect: (pair: HitBubblePair) => void }) {
+function HitBubbleChoice({
+  onSelect,
+}: {
+  onSelect: (pair: HitBubblePair) => void;
+}) {
   const choices: Array<{ pair: HitBubblePair; label: string }> = [
     { pair: "topLeftBottomRight", label: "↘" },
     { pair: "topRightBottomLeft", label: "↙" },
@@ -1653,12 +1898,18 @@ function HitEquationEditor({
   hitBubbles: HitBubblePlacement[];
   onAddHitBubblePair: (tokenIndex: number, pair: HitBubblePair) => void;
 }) {
-  const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(null);
+  const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(
+    null,
+  );
   const bubbleSize = 28;
   const circleSize = 58;
 
   if (tokens.length === 0) {
-    return <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>Empty</span>;
+    return (
+      <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>
+        Empty
+      </span>
+    );
   }
 
   return (
@@ -1675,7 +1926,9 @@ function HitEquationEditor({
     >
       {tokens.map((token, tokenIndex) => {
         const isOperator = isEquationOperator(token.label);
-        const placement = hitBubbles.find((item) => item.tokenIndex === tokenIndex);
+        const placement = hitBubbles.find(
+          (item) => item.tokenIndex === tokenIndex,
+        );
 
         return (
           <span
@@ -1715,7 +1968,11 @@ function HitEquationEditor({
             ) : null}
 
             {isOperator ? (
-              <EquationCircle label={token.label} draggable={false} size={circleSize} />
+              <EquationCircle
+                label={token.label}
+                draggable={false}
+                size={circleSize}
+              />
             ) : (
               <button
                 type="button"
@@ -1735,7 +1992,11 @@ function HitEquationEditor({
                   cursor: "pointer",
                 }}
               >
-                <EquationCircle label={token.label} draggable={false} size={circleSize} />
+                <EquationCircle
+                  label={token.label}
+                  draggable={false}
+                  size={circleSize}
+                />
               </button>
             )}
           </span>
@@ -1760,7 +2021,13 @@ function SpinOverlay() {
         zIndex: 1,
       }}
     >
-      <svg width="150" height="106" viewBox="0 0 150 106" fill="none" style={{ display: "block", overflow: "visible" }}>
+      <svg
+        width="150"
+        height="106"
+        viewBox="0 0 150 106"
+        fill="none"
+        style={{ display: "block", overflow: "visible" }}
+      >
         <ellipse
           cx="75"
           cy="53"
@@ -1792,20 +2059,48 @@ function SpinEquationEditor({
   const circleSize = 58;
 
   if (tokens.length === 0) {
-    return <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>Empty</span>;
+    return (
+      <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>
+        Empty
+      </span>
+    );
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 42, flexWrap: "wrap", padding: 46 }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 42,
+        flexWrap: "wrap",
+        padding: 46,
+      }}
+    >
       {tokens.map((token, tokenIndex) => {
         const isOperator = isEquationOperator(token.label);
         const isSpinTarget = targetIndexes.has(tokenIndex);
 
         return (
-          <span key={token.id} style={{ position: "relative", width: circleSize, height: circleSize, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <span
+            key={token.id}
+            style={{
+              position: "relative",
+              width: circleSize,
+              height: circleSize,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
             {!isOperator && isSpinTarget ? <SpinOverlay /> : null}
             {isOperator ? (
-              <EquationCircle label={token.label} draggable={false} size={circleSize} />
+              <EquationCircle
+                label={token.label}
+                draggable={false}
+                size={circleSize}
+              />
             ) : (
               <button
                 type="button"
@@ -1814,9 +2109,20 @@ function SpinEquationEditor({
                   onToggleSpinTarget(tokenIndex);
                 }}
                 title="Click to add or remove spin behavior"
-                style={{ position: "relative", zIndex: 5, border: "none", background: "transparent", padding: 0, cursor: "pointer" }}
+                style={{
+                  position: "relative",
+                  zIndex: 5,
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
               >
-                <EquationCircle label={token.label} draggable={false} size={circleSize} />
+                <EquationCircle
+                  label={token.label}
+                  draggable={false}
+                  size={circleSize}
+                />
               </button>
             )}
           </span>
@@ -1851,7 +2157,13 @@ function DragArcOverlay({ side }: { side: "left" | "right" }) {
         zIndex: 1,
       }}
     >
-      <svg width={width} height={height} viewBox="0 0 210 150" fill="none" style={{ display: "block", overflow: "visible" }}>
+      <svg
+        width={width}
+        height={height}
+        viewBox="0 0 210 150"
+        fill="none"
+        style={{ display: "block", overflow: "visible" }}
+      >
         <path
           d="M0 28C31 122 112 142 190 96"
           stroke="rgba(207, 255, 4, 0.34)"
@@ -1906,21 +2218,51 @@ function DragEquationEditor({
   const circleSize = 58;
 
   if (tokens.length === 0) {
-    return <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>Empty</span>;
+    return (
+      <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>
+        Empty
+      </span>
+    );
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 42, flexWrap: "wrap", padding: 46 }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 42,
+        flexWrap: "wrap",
+        padding: 46,
+      }}
+    >
       {tokens.map((token, tokenIndex) => {
         const isOperator = isEquationOperator(token.label);
         const isDragTarget = targetIndexes.has(tokenIndex);
         const targetSide = tokenIndex < equalsIndex ? "right" : "left";
 
         return (
-          <span key={token.id} style={{ position: "relative", width: circleSize, height: circleSize, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            {!isOperator && isDragTarget ? <DragArcOverlay side={targetSide} /> : null}
+          <span
+            key={token.id}
+            style={{
+              position: "relative",
+              width: circleSize,
+              height: circleSize,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            {!isOperator && isDragTarget ? (
+              <DragArcOverlay side={targetSide} />
+            ) : null}
             {isOperator ? (
-              <EquationCircle label={token.label} draggable={false} size={circleSize} />
+              <EquationCircle
+                label={token.label}
+                draggable={false}
+                size={circleSize}
+              />
             ) : (
               <button
                 type="button"
@@ -1929,9 +2271,20 @@ function DragEquationEditor({
                   onToggleDragTarget(tokenIndex);
                 }}
                 title="Click to add or remove drag behavior"
-                style={{ position: "relative", zIndex: 5, border: "none", background: "transparent", padding: 0, cursor: "pointer" }}
+                style={{
+                  position: "relative",
+                  zIndex: 5,
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
               >
-                <EquationCircle label={token.label} draggable={false} size={circleSize} />
+                <EquationCircle
+                  label={token.label}
+                  draggable={false}
+                  size={circleSize}
+                />
               </button>
             )}
           </span>
@@ -1958,7 +2311,14 @@ function MechanicEquationEditor({
 }) {
   if (!equation) {
     return (
-      <div style={{ color: "#FFFFFF80", fontSize: 13, fontWeight: 700, textAlign: "center" }}>
+      <div
+        style={{
+          color: "#FFFFFF80",
+          fontSize: 13,
+          fontWeight: 700,
+          textAlign: "center",
+        }}
+      >
         Drag an equation into this event to assign it to all {mechanic}s.
       </div>
     );
@@ -2306,8 +2666,8 @@ function EventBuilderArea({
             Event at tick {eventSlot.tick}
           </div>
           <div style={{ color: "#FFFFFF80", fontSize: 12, fontWeight: 700 }}>
-            Drop one equation here. It will be assigned to every mechanic row
-            in this event.
+            Drop one equation here. It will be assigned to every mechanic row in
+            this event.
           </div>
         </div>
         {assignedEquation ? (
@@ -2789,10 +3149,14 @@ export default function LessonBuilderClient({
   function loadSidecarIntoTimeline(
     nextSidecar: SidecarPayload,
     equationSlotCount: number | null,
+    eventCounts: MechanicCounts[] = [],
+    eventTicks: number[] = [],
   ) {
     const nextEvents = timelineEventsFromSidecar(
       nextSidecar,
       equationSlotCount,
+      eventCounts,
+      eventTicks,
     );
 
     setTimelineEvents(nextEvents);
@@ -2816,7 +3180,9 @@ export default function LessonBuilderClient({
     });
     setActiveEventId(nextEvents[0]?.id ?? null);
     setMode("event");
-    setStoreSidecar(sidecarFromTimelineEvents(nextEvents) as StoreSidecarPayload);
+    setStoreSidecar(
+      sidecarFromTimelineEvents(nextEvents) as StoreSidecarPayload,
+    );
   }
 
   function applySongAssetEquationSlotCount(count: number | null) {
@@ -3105,8 +3471,16 @@ export default function LessonBuilderClient({
 
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
+      const selectedSongEventCounts = getSelectedSongEventCounts(selectedSong);
       const selectedSongEquationSlots =
+        selectedSongEventCounts.length ||
         getSelectedSongEquationSlotCount(selectedSong);
+      const selectedSongEventTicks = getSelectedSongEquationSlotTicks(
+        selectedSong,
+        typeof selectedSongEquationSlots === "number"
+          ? selectedSongEquationSlots
+          : 0,
+      );
 
       setSelectedSongStorage({
         id: selectedSong.id,
@@ -3125,6 +3499,12 @@ export default function LessonBuilderClient({
       });
 
       applySongAssetEquationSlotCount(selectedSongEquationSlots);
+      loadSidecarIntoTimeline(
+        emptySidecar,
+        selectedSongEquationSlots,
+        selectedSongEventCounts,
+        selectedSongEventTicks,
+      );
       setUploadedSongName(selectedSong.name);
       setMetadata((current) => ({
         ...current,
@@ -3161,7 +3541,12 @@ export default function LessonBuilderClient({
 
           setChartFile(nextChartFile);
           setUploadedChartName(nextChartName);
-          loadSidecarIntoTimeline(normalizedSidecar, selectedSongEquationSlots);
+          loadSidecarIntoTimeline(
+            normalizedSidecar,
+            selectedSongEquationSlots,
+            selectedSongEventCounts,
+            selectedSongEventTicks,
+          );
 
           const payload: LessonBuilderPayload = {
             chartFile: nextChartFile,
