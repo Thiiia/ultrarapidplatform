@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -53,62 +52,18 @@ type SelectedSongPayload = {
   name: string;
   title?: string;
   artist?: string | null;
-  equationSlots?: number | string | null;
-  equation_slots?: number | string | null;
-  hitCounts?: unknown;
-  hit_counts?: unknown;
-  spinCounts?: unknown;
-  spin_counts?: unknown;
-  dragCounts?: unknown;
-  drag_counts?: unknown;
+  equationSlots?: number | null;
+  equation_slots?: number | null;
   songAsset?: {
-    equationSlots?: number | string | null;
-    equation_slots?: number | string | null;
-    hitCounts?: unknown;
-    hit_counts?: unknown;
-    spinCounts?: unknown;
-    spin_counts?: unknown;
-    dragCounts?: unknown;
-    drag_counts?: unknown;
-  } | null;
-  song_asset?: {
-    equationSlots?: number | string | null;
-    equation_slots?: number | string | null;
-    hitCounts?: unknown;
-    hit_counts?: unknown;
-    spinCounts?: unknown;
-    spin_counts?: unknown;
-    dragCounts?: unknown;
-    drag_counts?: unknown;
+    equationSlots?: number | null;
+    equation_slots?: number | null;
   } | null;
   song: StorageFileRef & { signedUrl: string };
   chart: StorageFileRef & { signedUrl: string };
   sidecar: (StorageFileRef & { signedUrl: string }) | null;
 };
 
-type EquationTextToken = {
-  id: string;
-  type?: "text";
-  label: string;
-};
-
-type EquationGroupToken = {
-  id: string;
-  type: "group";
-  layout: "tight";
-  children: EquationTextToken[];
-};
-
-type EquationFractionToken = {
-  id: string;
-  type: "fraction";
-  numerator: EquationToken[];
-  denominator: EquationToken[];
-};
-
-type EquationToken = EquationTextToken | EquationGroupToken | EquationFractionToken;
-
-type RenderableEquationToken = {
+type EquationToken = {
   id: string;
   label: string;
 };
@@ -120,66 +75,17 @@ type SavedEquation = {
 
 type GameplayMechanic = "hit" | "spin" | "drag";
 
-type HitBubblePosition =
-  | "topLeft"
-  | "topRight"
-  | "left"
-  | "right"
-  | "bottomLeft"
-  | "bottomRight";
-
-type HitBubblePlacement = {
-  tokenIndex: number;
-  tokenId?: string;
-  positions: HitBubblePosition[];
-};
-
-type SpinTarget = {
-  tokenIndex: number;
-  tokenId?: string;
-};
-
-type DragTarget = {
-  tokenIndex: number;
-  tokenId?: string;
-};
-
-type HitBubblePair = "topLeftBottomRight" | "topRightBottomLeft" | "leftRight";
-
-type MechanicInstance = {
-  id: string;
-  equation: SavedEquation | null;
-  hitBubbles: HitBubblePlacement[];
-  spinTargets: SpinTarget[];
-  dragTargets: DragTarget[];
-};
-
-type MechanicCounts = Record<GameplayMechanic, number>;
-
 type TimelineEventSlot = {
   id: string;
   tick: number;
-  counts: MechanicCounts;
-  mechanics: Record<GameplayMechanic, MechanicInstance[]>;
-};
-
-type SidecarHitBubble = {
-  tokenIndex?: number;
-  tokenId?: string;
-  positions?: HitBubblePosition[];
-  pads?: HitBubblePosition[];
+  assignments: Record<GameplayMechanic, SavedEquation | null>;
 };
 
 type SidecarMechanicEvent = {
   tick: number;
   type: "ALG_MECHANIC";
   mechanic: GameplayMechanic;
-  instanceIndex?: number;
-  equationId?: string;
   hits?: number;
-  hitBubbles?: HitBubblePlacement[];
-  spinTargets?: SpinTarget[];
-  dragTargets?: DragTarget[];
 };
 
 type SidecarEquationStateEvent = {
@@ -191,35 +97,10 @@ type SidecarEquationStateEvent = {
 
 type SidecarEvent = SidecarMechanicEvent | SidecarEquationStateEvent;
 
-type SidecarEquationMechanicInstance = {
-  index: number;
-  bubbles?: SidecarHitBubble[];
-  targets?: Array<{ tokenIndex?: number; tokenId?: string }>;
-};
-
-type SidecarEquationEntry = {
-  id: string;
-  tick: number;
-  state: string;
-  tokens?: EquationToken[];
-  counts: MechanicCounts;
-  hits: SidecarEquationMechanicInstance[];
-  spins: SidecarEquationMechanicInstance[];
-  drags: SidecarEquationMechanicInstance[];
-};
-
-type LegacySidecarPayload = {
+type SidecarPayload = {
   version: 1;
   events: SidecarEvent[];
 };
-
-type EquationSidecarPayload = {
-  version: 2;
-  maxEquationSlots: number;
-  equations: SidecarEquationEntry[];
-};
-
-type SidecarPayload = LegacySidecarPayload | EquationSidecarPayload;
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
 
@@ -249,31 +130,13 @@ const panelBackgroundColor = "#2B2B2B";
 const subtleBorderColor = "#FFFFFF14";
 const textColor = "#FFFFFF";
 
-const MAX_EQUATION_SLOTS = 5;
-
 const emptySidecar: SidecarPayload = {
-  version: 2,
-  maxEquationSlots: MAX_EQUATION_SLOTS,
-  equations: [],
+  version: 1,
+  events: [],
 };
 
 const gameplayMechanics: GameplayMechanic[] = ["hit", "spin", "drag"];
-const hitBubblePositions: HitBubblePosition[] = [
-  "topLeft",
-  "topRight",
-  "left",
-  "right",
-  "bottomLeft",
-  "bottomRight",
-];
 
-const hitBubblePairPositions: Record<HitBubblePair, HitBubblePosition[]> = {
-  topLeftBottomRight: ["topLeft", "bottomRight"],
-  topRightBottomLeft: ["topRight", "bottomLeft"],
-  leftRight: ["left", "right"],
-};
-
-const binaryOperatorLabels = new Set(["+", "-", "×", "÷", "="]);
 const equationPalette = [
   "0",
   "1",
@@ -350,10 +213,6 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isEquationOperator(label: string) {
-  return binaryOperatorLabels.has(label);
-}
-
 function normalizeTick(value: unknown) {
   const nextTick = Number(value);
 
@@ -372,284 +231,8 @@ function normalizeMechanic(value: unknown): GameplayMechanic | null {
   return null;
 }
 
-function normalizeNonNegativeInteger(value: unknown, fallback = 0) {
-  const parsed = Number(value);
-
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    return fallback;
-  }
-
-  return Math.round(parsed);
-}
-
-function normalizeIntegerArray(value: unknown): number[] {
-  if (Array.isArray(value)) {
-    return value.map((item) => normalizeNonNegativeInteger(item));
-  }
-
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value) as unknown;
-      return normalizeIntegerArray(parsed);
-    } catch {
-      return [];
-    }
-  }
-
-  return [];
-}
-
-function normalizeEquationSlotCount(value: unknown): number | null {
-  const count = Number(value);
-
-  if (!Number.isFinite(count) || count < 0) {
-    return null;
-  }
-
-  return Math.round(count);
-}
-
-function getSelectedSongEquationSlotCount(selectedSong: SelectedSongPayload) {
-  return (
-    normalizeEquationSlotCount(selectedSong.equationSlots) ??
-    normalizeEquationSlotCount(selectedSong.equation_slots) ??
-    normalizeEquationSlotCount(selectedSong.songAsset?.equationSlots) ??
-    normalizeEquationSlotCount(selectedSong.songAsset?.equation_slots) ??
-    normalizeEquationSlotCount(selectedSong.song_asset?.equationSlots) ??
-    normalizeEquationSlotCount(selectedSong.song_asset?.equation_slots) ??
-    0
-  );
-}
-
-function getSelectedSongMechanicCountArray(
-  selectedSong: SelectedSongPayload,
-  mechanic: GameplayMechanic,
-) {
-  if (mechanic === "hit") {
-    return normalizeIntegerArray(selectedSong.hitCounts).length
-      ? normalizeIntegerArray(selectedSong.hitCounts)
-      : normalizeIntegerArray(selectedSong.hit_counts).length
-        ? normalizeIntegerArray(selectedSong.hit_counts)
-        : normalizeIntegerArray(selectedSong.songAsset?.hitCounts).length
-          ? normalizeIntegerArray(selectedSong.songAsset?.hitCounts)
-          : normalizeIntegerArray(selectedSong.songAsset?.hit_counts).length
-            ? normalizeIntegerArray(selectedSong.songAsset?.hit_counts)
-            : normalizeIntegerArray(selectedSong.song_asset?.hitCounts).length
-              ? normalizeIntegerArray(selectedSong.song_asset?.hitCounts)
-              : normalizeIntegerArray(selectedSong.song_asset?.hit_counts);
-  }
-
-  if (mechanic === "spin") {
-    return normalizeIntegerArray(selectedSong.spinCounts).length
-      ? normalizeIntegerArray(selectedSong.spinCounts)
-      : normalizeIntegerArray(selectedSong.spin_counts).length
-        ? normalizeIntegerArray(selectedSong.spin_counts)
-        : normalizeIntegerArray(selectedSong.songAsset?.spinCounts).length
-          ? normalizeIntegerArray(selectedSong.songAsset?.spinCounts)
-          : normalizeIntegerArray(selectedSong.songAsset?.spin_counts).length
-            ? normalizeIntegerArray(selectedSong.songAsset?.spin_counts)
-            : normalizeIntegerArray(selectedSong.song_asset?.spinCounts).length
-              ? normalizeIntegerArray(selectedSong.song_asset?.spinCounts)
-              : normalizeIntegerArray(selectedSong.song_asset?.spin_counts);
-  }
-
-  return normalizeIntegerArray(selectedSong.dragCounts).length
-    ? normalizeIntegerArray(selectedSong.dragCounts)
-    : normalizeIntegerArray(selectedSong.drag_counts).length
-      ? normalizeIntegerArray(selectedSong.drag_counts)
-      : normalizeIntegerArray(selectedSong.songAsset?.dragCounts).length
-        ? normalizeIntegerArray(selectedSong.songAsset?.dragCounts)
-        : normalizeIntegerArray(selectedSong.songAsset?.drag_counts).length
-          ? normalizeIntegerArray(selectedSong.songAsset?.drag_counts)
-          : normalizeIntegerArray(selectedSong.song_asset?.dragCounts).length
-            ? normalizeIntegerArray(selectedSong.song_asset?.dragCounts)
-            : normalizeIntegerArray(selectedSong.song_asset?.drag_counts);
-}
-
-function getSelectedSongEventCounts(selectedSong: SelectedSongPayload) {
-  const equationSlots = getSelectedSongEquationSlotCount(selectedSong);
-  const hitCounts = getSelectedSongMechanicCountArray(selectedSong, "hit");
-  const spinCounts = getSelectedSongMechanicCountArray(selectedSong, "spin");
-  const dragCounts = getSelectedSongMechanicCountArray(selectedSong, "drag");
-
-  return Array.from(
-    { length: Math.min(equationSlots, MAX_EQUATION_SLOTS) },
-    (_, index): MechanicCounts => ({
-      hit: hitCounts[index] ?? 0,
-      spin: spinCounts[index] ?? 0,
-      drag: dragCounts[index] ?? 0,
-    }),
-  );
-}
-
-function normalizeHitBubblePosition(value: unknown): HitBubblePosition | null {
-  return hitBubblePositions.includes(value as HitBubblePosition)
-    ? (value as HitBubblePosition)
-    : null;
-}
-
-function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.flatMap((placement): HitBubblePlacement[] => {
-    if (!isObject(placement)) {
-      return [];
-    }
-
-    const rawPads = Array.isArray(placement.pads)
-      ? placement.pads
-      : Array.isArray(placement.positions)
-        ? placement.positions
-        : [];
-
-    if (rawPads.length === 0) {
-      return [];
-    }
-
-    const tokenIndex = normalizeNonNegativeInteger(placement.tokenIndex, -1);
-    const tokenId = typeof placement.tokenId === "string" ? placement.tokenId : undefined;
-
-    if (tokenIndex < 0 && !tokenId) {
-      return [];
-    }
-
-    const positions = Array.from(
-      new Set(
-        rawPads
-          .map((position) => normalizeHitBubblePosition(position))
-          .filter((position): position is HitBubblePosition =>
-            Boolean(position),
-          ),
-      ),
-    );
-
-    if (positions.length === 0) {
-      return [];
-    }
-
-    return [{ tokenIndex, ...(tokenId ? { tokenId } : {}), positions }];
-  });
-}
-
-function normalizeTokenTargets<T extends SpinTarget | DragTarget>(
-  value: unknown,
-) {
-  if (!Array.isArray(value)) {
-    return [] as T[];
-  }
-
-  return value.flatMap((target): T[] => {
-    if (!isObject(target)) {
-      return [];
-    }
-
-    const tokenIndex = normalizeNonNegativeInteger(target.tokenIndex, -1);
-    const tokenId = typeof target.tokenId === "string" ? target.tokenId : undefined;
-
-    if (tokenIndex < 0 && !tokenId) {
-      return [];
-    }
-
-    return [{ tokenIndex, ...(tokenId ? { tokenId } : {}) } as T];
-  });
-}
-
-function normalizeSidecarEquationInstances(
-  value: unknown,
-  kind: GameplayMechanic,
-): SidecarEquationMechanicInstance[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.flatMap((instance, fallbackIndex): SidecarEquationMechanicInstance[] => {
-    if (!isObject(instance)) {
-      return [];
-    }
-
-    const index = normalizeNonNegativeInteger(instance.index, fallbackIndex);
-
-    if (kind === "hit") {
-      return [
-        {
-          index,
-          bubbles: normalizeHitBubblePlacements(instance.bubbles).map(
-            (bubble) => ({
-              tokenIndex: bubble.tokenIndex,
-              ...(bubble.tokenId ? { tokenId: bubble.tokenId } : {}),
-              pads: bubble.positions,
-            }),
-          ),
-        },
-      ];
-    }
-
-    return [
-      {
-        index,
-        targets: normalizeTokenTargets<SpinTarget | DragTarget>(
-          instance.targets,
-        ).map((target) => ({
-          tokenIndex: target.tokenIndex,
-          ...(target.tokenId ? { tokenId: target.tokenId } : {}),
-        })),
-      },
-    ];
-  });
-}
-
 function normalizeSidecar(value: unknown): SidecarPayload {
-  if (!isObject(value)) {
-    return emptySidecar;
-  }
-
-  if (Array.isArray(value.equations)) {
-    const equations = value.equations
-      .slice(0, MAX_EQUATION_SLOTS)
-      .flatMap((equation, index): SidecarEquationEntry[] => {
-        if (!isObject(equation)) {
-          return [];
-        }
-
-        const id =
-          typeof equation.id === "string" && equation.id.trim().length > 0
-            ? equation.id.trim()
-            : `eq_${String(index + 1).padStart(3, "0")}`;
-        const countsSource = isObject(equation.counts) ? equation.counts : {};
-        const state = typeof equation.state === "string" ? equation.state : "";
-        const tokens = Array.isArray(equation.tokens)
-          ? normalizeEquationTokens(equation.tokens)
-          : equationStateToTokens(state);
-        const counts = {
-          hit: normalizeNonNegativeInteger(countsSource.hit),
-          spin: normalizeNonNegativeInteger(countsSource.spin),
-          drag: normalizeNonNegativeInteger(countsSource.drag),
-        };
-
-        return [
-          {
-            id,
-            tick: normalizeTick(equation.tick),
-            state: state || tokensToEquationState(tokens),
-            tokens,
-            counts,
-            hits: normalizeSidecarEquationInstances(equation.hits, "hit"),
-            spins: normalizeSidecarEquationInstances(equation.spins, "spin"),
-            drags: normalizeSidecarEquationInstances(equation.drags, "drag"),
-          },
-        ];
-      });
-
-    return {
-      version: 2,
-      maxEquationSlots: MAX_EQUATION_SLOTS,
-      equations,
-    };
-  }
-
-  if (!Array.isArray(value.events)) {
+  if (!isObject(value) || !Array.isArray(value.events)) {
     return emptySidecar;
   }
 
@@ -665,36 +248,15 @@ function normalizeSidecar(value: unknown): SidecarPayload {
         return [];
       }
 
-      const equationId =
-        typeof event.equationId === "string" ? event.equationId : undefined;
-      const instanceIndex = normalizeNonNegativeInteger(event.instanceIndex);
+      const hits = Number(event.hits);
 
       return [
         {
           tick: normalizeTick(event.tick),
           type: "ALG_MECHANIC",
           mechanic,
-          instanceIndex,
-          ...(equationId ? { equationId } : {}),
-          ...(mechanic === "hit"
-            ? {
-                hits: Math.max(1, normalizeNonNegativeInteger(event.hits, 1)),
-                hitBubbles: normalizeHitBubblePlacements(event.hitBubbles),
-              }
-            : {}),
-          ...(mechanic === "spin"
-            ? {
-                spinTargets: normalizeTokenTargets<SpinTarget>(
-                  event.spinTargets,
-                ),
-              }
-            : {}),
-          ...(mechanic === "drag"
-            ? {
-                dragTargets: normalizeTokenTargets<DragTarget>(
-                  event.dragTargets,
-                ),
-              }
+          ...(Number.isFinite(hits) && hits > 0
+            ? { hits: Math.max(1, Math.round(hits)) }
             : {}),
         },
       ];
@@ -722,7 +284,10 @@ function normalizeSidecar(value: unknown): SidecarPayload {
     return [];
   });
 
-  return { version: 1, events: sortEvents(events) };
+  return {
+    version: 1,
+    events: sortEvents(events),
+  };
 }
 
 function sortEvents(events: SidecarEvent[]) {
@@ -735,176 +300,19 @@ function sortEvents(events: SidecarEvent[]) {
       return left.type.localeCompare(right.type);
     }
 
-    if (left.type === "ALG_MECHANIC" && right.type === "ALG_MECHANIC") {
-      if (left.mechanic !== right.mechanic) {
-        return left.mechanic.localeCompare(right.mechanic);
-      }
+    const leftMechanic = left.type === "ALG_MECHANIC" ? left.mechanic : "";
+    const rightMechanic = right.type === "ALG_MECHANIC" ? right.mechanic : "";
 
-      return (left.instanceIndex ?? 0) - (right.instanceIndex ?? 0);
-    }
-
-    return 0;
+    return leftMechanic.localeCompare(rightMechanic);
   });
-}
-
-function isTextEquationToken(token: EquationToken): token is EquationTextToken {
-  return !token.type || token.type === "text";
-}
-
-function cloneToken(token: EquationToken): EquationToken {
-  if (isTextEquationToken(token)) {
-    return { id: makeId("token"), type: "text", label: token.label };
-  }
-
-  if (token.type === "group") {
-    return {
-      id: makeId("token-group"),
-      type: "group",
-      layout: "tight",
-      children: token.children.map((child) => ({
-        id: makeId("token"),
-        type: "text",
-        label: child.label,
-      })),
-    };
-  }
-
-  return {
-    id: makeId("token-fraction"),
-    type: "fraction",
-    numerator: cloneTokens(token.numerator),
-    denominator: cloneTokens(token.denominator),
-  };
 }
 
 function cloneTokens(tokens: EquationToken[]) {
-  return tokens.map((token) => cloneToken(token));
+  return tokens.map((token) => ({ ...token, id: makeId("token") }));
 }
 
-function renderableEquationTokens(tokens: EquationToken[]): RenderableEquationToken[] {
-  return tokens.flatMap((token): RenderableEquationToken[] => {
-    if (isTextEquationToken(token)) {
-      return [{ id: token.id, label: token.label }];
-    }
-
-    if (token.type === "group") {
-      return token.children.map((child) => ({ id: child.id, label: child.label }));
-    }
-
-    return [
-      ...renderableEquationTokens(token.numerator),
-      ...renderableEquationTokens(token.denominator),
-    ];
-  });
-}
-
-function tokenIdFromRenderableIndex(tokens: EquationToken[], tokenIndex: number) {
-  return renderableEquationTokens(tokens)[tokenIndex]?.id;
-}
-
-function tokenIndexFromTokenId(tokens: EquationToken[], tokenId: string | undefined) {
-  if (!tokenId) return -1;
-  return renderableEquationTokens(tokens).findIndex((token) => token.id === tokenId);
-}
-
-function tokensToEquationState(tokens: EquationToken[]): string {
-  return tokens
-    .map((token) => {
-      if (isTextEquationToken(token)) return token.label;
-      if (token.type === "group") return token.children.map((child) => child.label).join("");
-      return `${tokensToEquationState(token.numerator)}/${tokensToEquationState(token.denominator)}`;
-    })
-    .join(" ");
-}
-
-function simpleTextToken(label: string): EquationTextToken {
-  return { id: makeId("token"), type: "text", label };
-}
-
-function parseEquationPartToToken(part: string): EquationToken {
-  const trimmed = part.trim();
-  const fractionMatch = trimmed.match(/^\(?([^()/]+)\)?\/\(?([^()/]+)\)?$/);
-
-  if (fractionMatch) {
-    return {
-      id: makeId("token-fraction"),
-      type: "fraction",
-      numerator: equationStateToTokens(fractionMatch[1].trim()),
-      denominator: equationStateToTokens(fractionMatch[2].trim()),
-    };
-  }
-
-  const tightGroupMatch = trimmed.match(/^(\d+)([a-zA-Z])$/);
-
-  if (tightGroupMatch) {
-    return {
-      id: makeId("token-group"),
-      type: "group",
-      layout: "tight",
-      children: [simpleTextToken(tightGroupMatch[1]), simpleTextToken(tightGroupMatch[2])],
-    };
-  }
-
-  return simpleTextToken(trimmed);
-}
-
-function normalizeEquationTokens(value: unknown): EquationToken[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.flatMap((token): EquationToken[] => {
-    if (!isObject(token)) {
-      return [];
-    }
-
-    const id =
-      typeof token.id === "string" && token.id.trim().length > 0
-        ? token.id
-        : makeId("token");
-
-    if (token.type === "group" && Array.isArray(token.children)) {
-      const children = token.children.flatMap((child): EquationTextToken[] => {
-        if (!isObject(child) || typeof child.label !== "string") {
-          return [];
-        }
-
-        return [
-          {
-            id:
-              typeof child.id === "string" && child.id.trim().length > 0
-                ? child.id
-                : makeId("token"),
-            type: "text",
-            label: child.label,
-          },
-        ];
-      });
-
-      if (children.length === 0) {
-        return [];
-      }
-
-      return [{ id, type: "group", layout: "tight", children }];
-    }
-
-    if (token.type === "fraction") {
-      const numerator = normalizeEquationTokens(token.numerator);
-      const denominator = normalizeEquationTokens(token.denominator);
-
-      if (numerator.length === 0 || denominator.length === 0) {
-        return [];
-      }
-
-      return [{ id, type: "fraction", numerator, denominator }];
-    }
-
-    if (typeof token.label === "string") {
-      return [{ id, type: "text", label: token.label }];
-    }
-
-    return [];
-  });
+function tokensToEquationState(tokens: EquationToken[]) {
+  return tokens.map((token) => token.label).join(" ");
 }
 
 function equationStateToTokens(state: string): EquationToken[] {
@@ -912,14 +320,75 @@ function equationStateToTokens(state: string): EquationToken[] {
     .split(/\s+/)
     .map((label) => label.trim())
     .filter(Boolean)
-    .map((label) => parseEquationPartToToken(label));
+    .map((label) => ({
+      id: makeId("token"),
+      label,
+    }));
 }
 
-function cloneSavedEquation(equation: SavedEquation): SavedEquation {
+function makeEmptyAssignments(): Record<
+  GameplayMechanic,
+  SavedEquation | null
+> {
   return {
-    id: equation.id || makeId("equation"),
-    tokens: cloneTokens(equation.tokens),
+    hit: null,
+    spin: null,
+    drag: null,
   };
+}
+
+function makeTimelineEvent(index: number, tick = 0): TimelineEventSlot {
+  return {
+    id: makeId("event"),
+    tick,
+    assignments: makeEmptyAssignments(),
+  };
+}
+
+function normalizeEquationSlotCount(value: unknown): number | null {
+  const count = Number(value);
+
+  if (!Number.isFinite(count) || count < 0) {
+    return null;
+  }
+
+  return Math.round(count);
+}
+
+function getSelectedSongEquationSlotCount(
+  selectedSong: SelectedSongPayload,
+): number | null {
+  return (
+    normalizeEquationSlotCount(selectedSong.equationSlots) ??
+    normalizeEquationSlotCount(selectedSong.equation_slots) ??
+    normalizeEquationSlotCount(selectedSong.songAsset?.equationSlots) ??
+    normalizeEquationSlotCount(selectedSong.songAsset?.equation_slots)
+  );
+}
+
+function resizeTimelineEvents(
+  events: TimelineEventSlot[],
+  targetCount: number,
+): TimelineEventSlot[] {
+  const safeCount = Math.max(0, Math.round(targetCount));
+  const nextEvents = events.slice(0, safeCount);
+
+  for (let index = nextEvents.length; index < safeCount; index += 1) {
+    nextEvents.push(makeTimelineEvent(index));
+  }
+
+  return nextEvents;
+}
+
+function inferMechanicFromEquationId(
+  equationId: string,
+): GameplayMechanic | null {
+  const normalizedId = equationId.toLowerCase();
+
+  return (
+    gameplayMechanics.find((mechanic) => normalizedId.includes(mechanic)) ??
+    null
+  );
 }
 
 function savedEquationFromState(
@@ -932,211 +401,11 @@ function savedEquationFromState(
   };
 }
 
-function makeMechanicInstance(): MechanicInstance {
-  return {
-    id: makeId("mechanic"),
-    equation: null,
-    hitBubbles: [],
-    spinTargets: [],
-    dragTargets: [],
-  };
-}
-
-function makeMechanicInstances(count: number) {
-  return Array.from({ length: Math.max(0, count) }, () =>
-    makeMechanicInstance(),
-  );
-}
-
-function makeTimelineEvent(
-  index: number,
-  counts: MechanicCounts,
-  tick = 0,
-): TimelineEventSlot {
-  return {
-    id: makeId("event"),
-    tick,
-    counts,
-    mechanics: {
-      hit: makeMechanicInstances(counts.hit),
-      spin: makeMechanicInstances(counts.spin),
-      drag: makeMechanicInstances(counts.drag),
-    },
-  };
-}
-
-function resizeMechanicInstances(instances: MechanicInstance[], count: number) {
-  const safeCount = Math.max(0, count);
-  const next = instances.slice(0, safeCount);
-
-  while (next.length < safeCount) {
-    next.push(makeMechanicInstance());
-  }
-
-  return next;
-}
-
-function applyCountsToTimelineEvents(
-  events: TimelineEventSlot[],
-  eventCounts: MechanicCounts[],
-): TimelineEventSlot[] {
-  return eventCounts.map((counts, index) => {
-    const existing = events[index];
-
-    if (!existing) {
-      return makeTimelineEvent(index, counts);
-    }
-
-    return {
-      ...existing,
-      counts,
-      mechanics: {
-        hit: resizeMechanicInstances(existing.mechanics.hit, counts.hit),
-        spin: resizeMechanicInstances(existing.mechanics.spin, counts.spin),
-        drag: resizeMechanicInstances(existing.mechanics.drag, counts.drag),
-      },
-    };
-  });
-}
-
-function equationIdFor(
-  eventIndex: number,
-  mechanic: GameplayMechanic,
-  instanceIndex: number,
-) {
-  return `eq_${String(eventIndex + 1).padStart(3, "0")}_${mechanic}_${String(instanceIndex + 1).padStart(2, "0")}`;
-}
-
-function parseEquationId(equationId: string) {
-  const match = equationId.match(/^eq_(\d+)_(hit|spin|drag)_(\d+)$/i);
-
-  if (!match) {
-    return null;
-  }
-
-  return {
-    eventIndex: Math.max(0, Number(match[1]) - 1),
-    mechanic: match[2].toLowerCase() as GameplayMechanic,
-    instanceIndex: Math.max(0, Number(match[3]) - 1),
-  };
-}
-
-function hitBubblesFromSidecarInstance(
-  tokens: EquationToken[],
-  instance: SidecarEquationMechanicInstance,
-): HitBubblePlacement[] {
-  return (instance.bubbles ?? []).flatMap((bubble): HitBubblePlacement[] => {
-    const tokenIndex =
-      typeof bubble.tokenIndex === "number"
-        ? bubble.tokenIndex
-        : tokenIndexFromTokenId(tokens, bubble.tokenId);
-    const rawPads = bubble.pads ?? bubble.positions ?? [];
-    const positions = rawPads
-      .map((position) => normalizeHitBubblePosition(position))
-      .filter((position): position is HitBubblePosition => Boolean(position));
-
-    if (tokenIndex < 0 || positions.length === 0) {
-      return [];
-    }
-
-    return [
-      {
-        tokenIndex,
-        ...(bubble.tokenId ? { tokenId: bubble.tokenId } : {}),
-        positions,
-      },
-    ];
-  });
-}
-
-function targetsFromSidecarInstance<T extends SpinTarget | DragTarget>(
-  tokens: EquationToken[],
-  instance: SidecarEquationMechanicInstance,
-): T[] {
-  return (instance.targets ?? []).flatMap((target): T[] => {
-    const tokenIndex =
-      typeof target.tokenIndex === "number"
-        ? target.tokenIndex
-        : tokenIndexFromTokenId(tokens, target.tokenId);
-
-    if (tokenIndex < 0) {
-      return [];
-    }
-
-    return [{ tokenIndex, ...(target.tokenId ? { tokenId: target.tokenId } : {}) } as T];
-  });
-}
-
 function timelineEventsFromSidecar(
   sidecar: SidecarPayload,
-  eventCounts: MechanicCounts[],
+  targetCount: number | null,
 ): TimelineEventSlot[] {
   const normalized = normalizeSidecar(sidecar);
-
-  if (normalized.version === 2) {
-    const events = applyCountsToTimelineEvents(
-      [],
-      eventCounts.slice(0, MAX_EQUATION_SLOTS),
-    );
-
-    normalized.equations.slice(0, MAX_EQUATION_SLOTS).forEach((equation, index) => {
-      const eventSlot = events[index];
-
-      if (!eventSlot) {
-        return;
-      }
-
-      const equationTokens = equation.tokens?.length
-        ? equation.tokens
-        : equationStateToTokens(equation.state);
-      const savedEquation: SavedEquation = {
-        id: equation.id,
-        tokens: cloneTokens(equationTokens),
-      };
-
-      eventSlot.tick = equation.tick;
-      eventSlot.counts = equation.counts;
-      eventSlot.mechanics.hit = resizeMechanicInstances(
-        eventSlot.mechanics.hit,
-        equation.counts.hit,
-      );
-      eventSlot.mechanics.spin = resizeMechanicInstances(
-        eventSlot.mechanics.spin,
-        equation.counts.spin,
-      );
-      eventSlot.mechanics.drag = resizeMechanicInstances(
-        eventSlot.mechanics.drag,
-        equation.counts.drag,
-      );
-
-      eventSlot.mechanics.hit.forEach((instance, instanceIndex) => {
-        const source = equation.hits.find((hit) => hit.index === instanceIndex);
-        instance.equation = cloneSavedEquation(savedEquation);
-        instance.hitBubbles = source
-          ? hitBubblesFromSidecarInstance(savedEquation.tokens, source)
-          : [];
-      });
-
-      eventSlot.mechanics.spin.forEach((instance, instanceIndex) => {
-        const source = equation.spins.find((spin) => spin.index === instanceIndex);
-        instance.equation = cloneSavedEquation(savedEquation);
-        instance.spinTargets = source
-          ? targetsFromSidecarInstance<SpinTarget>(savedEquation.tokens, source)
-          : [];
-      });
-
-      eventSlot.mechanics.drag.forEach((instance, instanceIndex) => {
-        const source = equation.drags.find((drag) => drag.index === instanceIndex);
-        instance.equation = cloneSavedEquation(savedEquation);
-        instance.dragTargets = source
-          ? targetsFromSidecarInstance<DragTarget>(savedEquation.tokens, source)
-          : [];
-      });
-    });
-
-    return events;
-  }
-
   const equationEvents = normalized.events.filter(
     (event): event is SidecarEquationStateEvent =>
       event.type === "ALG_EQUATION_STATE",
@@ -1145,64 +414,71 @@ function timelineEventsFromSidecar(
     (event): event is SidecarMechanicEvent => event.type === "ALG_MECHANIC",
   );
 
-  const events = applyCountsToTimelineEvents(
-    [],
-    eventCounts.slice(0, MAX_EQUATION_SLOTS),
-  );
+  const ticks = Array.from(
+    new Set([
+      ...mechanicEvents.map((event) => event.tick),
+      ...equationEvents.map((event) => event.tick),
+    ]),
+  ).sort((left, right) => left - right);
 
-  equationEvents.forEach((equationEvent) => {
-    const parsed = parseEquationId(equationEvent.equationId);
-
-    if (!parsed) {
-      return;
-    }
-
-    const eventSlot = events[parsed.eventIndex];
-    const instance =
-      eventSlot?.mechanics[parsed.mechanic]?.[parsed.instanceIndex];
-
-    if (!instance) {
-      return;
-    }
-
-    instance.equation = savedEquationFromState(
-      equationEvent.equationId,
-      equationEvent.state,
+  const slots = ticks.map((tick, index) => {
+    const slot = makeTimelineEvent(index, tick);
+    const equationsAtTick = equationEvents.filter(
+      (event) => event.tick === tick,
     );
+    const mechanicsAtTick = mechanicEvents.filter(
+      (event) => event.tick === tick,
+    );
+    const usedEquationIds = new Set<string>();
+
+    mechanicsAtTick.forEach((mechanicEvent) => {
+      const matchingEquation =
+        equationsAtTick.find(
+          (equationEvent) =>
+            !usedEquationIds.has(equationEvent.equationId) &&
+            inferMechanicFromEquationId(equationEvent.equationId) ===
+              mechanicEvent.mechanic,
+        ) ??
+        equationsAtTick.find(
+          (equationEvent) => !usedEquationIds.has(equationEvent.equationId),
+        );
+
+      if (matchingEquation) {
+        usedEquationIds.add(matchingEquation.equationId);
+        slot.assignments[mechanicEvent.mechanic] = savedEquationFromState(
+          matchingEquation.equationId,
+          matchingEquation.state,
+        );
+      }
+    });
+
+    equationsAtTick.forEach((equationEvent, equationIndex) => {
+      if (usedEquationIds.has(equationEvent.equationId)) {
+        return;
+      }
+
+      const inferredMechanic = inferMechanicFromEquationId(
+        equationEvent.equationId,
+      );
+      const fallbackMechanic =
+        gameplayMechanics[equationIndex % gameplayMechanics.length];
+      const mechanic = inferredMechanic ?? fallbackMechanic;
+
+      slot.assignments[mechanic] = savedEquationFromState(
+        equationEvent.equationId,
+        equationEvent.state,
+      );
+      usedEquationIds.add(equationEvent.equationId);
+    });
+
+    return slot;
   });
 
-  mechanicEvents.forEach((mechanicEvent) => {
-    const eventIndex = events.findIndex(
-      (eventSlot) => eventSlot.tick === mechanicEvent.tick,
-    );
-    const fallbackParsed = mechanicEvent.equationId
-      ? parseEquationId(mechanicEvent.equationId)
-      : null;
-    const safeEventIndex = fallbackParsed?.eventIndex ?? eventIndex;
-    const safeInstanceIndex =
-      fallbackParsed?.instanceIndex ?? mechanicEvent.instanceIndex ?? 0;
-    const eventSlot = safeEventIndex >= 0 ? events[safeEventIndex] : null;
-    const instance =
-      eventSlot?.mechanics[mechanicEvent.mechanic]?.[safeInstanceIndex];
+  if (typeof targetCount === "number") {
+    return resizeTimelineEvents(slots, targetCount);
+  }
 
-    if (!instance) {
-      return;
-    }
-
-    if (mechanicEvent.mechanic === "hit") {
-      instance.hitBubbles = mechanicEvent.hitBubbles ?? [];
-    }
-
-    if (mechanicEvent.mechanic === "spin") {
-      instance.spinTargets = mechanicEvent.spinTargets ?? [];
-    }
-
-    if (mechanicEvent.mechanic === "drag") {
-      instance.dragTargets = mechanicEvent.dragTargets ?? [];
-    }
-  });
-
-  return events;
+  return slots;
 }
 
 function savedEquationsFromTimelineEvents(events: TimelineEventSlot[]) {
@@ -1210,19 +486,16 @@ function savedEquationsFromTimelineEvents(events: TimelineEventSlot[]) {
 
   events.forEach((event) => {
     gameplayMechanics.forEach((mechanic) => {
-      event.mechanics[mechanic].forEach((instance) => {
-        const state = instance.equation
-          ? tokensToEquationState(instance.equation.tokens)
-          : "";
+      const equation = event.assignments[mechanic];
+      const state = equation ? tokensToEquationState(equation.tokens) : "";
 
-        if (!instance.equation || !state || byState.has(state)) {
-          return;
-        }
+      if (!equation || !state || byState.has(state)) {
+        return;
+      }
 
-        byState.set(state, {
-          id: instance.equation.id || makeId("equation"),
-          tokens: cloneTokens(instance.equation.tokens),
-        });
+      byState.set(state, {
+        id: equation.id || makeId("equation"),
+        tokens: cloneTokens(equation.tokens),
       });
     });
   });
@@ -1230,84 +503,39 @@ function savedEquationsFromTimelineEvents(events: TimelineEventSlot[]) {
   return Array.from(byState.values());
 }
 
-function sidecarBubblesFromPlacement(
-  tokens: EquationToken[],
-  placement: HitBubblePlacement,
-): SidecarHitBubble {
-  const tokenId = placement.tokenId ?? tokenIdFromRenderableIndex(tokens, placement.tokenIndex);
-
-  return {
-    tokenIndex: placement.tokenIndex,
-    ...(tokenId ? { tokenId } : {}),
-    pads: placement.positions,
-  };
-}
-
-function sidecarTargetsFromTarget(
-  tokens: EquationToken[],
-  target: SpinTarget | DragTarget,
-) {
-  const tokenId = target.tokenId ?? tokenIdFromRenderableIndex(tokens, target.tokenIndex);
-
-  return {
-    tokenIndex: target.tokenIndex,
-    ...(tokenId ? { tokenId } : {}),
-  };
-}
-
-function firstEquationForEvent(event: TimelineEventSlot): SavedEquation | null {
-  for (const mechanic of gameplayMechanics) {
-    const instance = event.mechanics[mechanic].find(
-      (nextInstance) => nextInstance.equation,
-    );
-
-    if (instance?.equation) {
-      return instance.equation;
-    }
-  }
-
-  return null;
-}
-
 function sidecarFromTimelineEvents(
   events: TimelineEventSlot[],
 ): SidecarPayload {
-  const equations = events.slice(0, MAX_EQUATION_SLOTS).map((event, eventIndex) => {
-    const equation = firstEquationForEvent(event);
-    const tokens = equation ? cloneTokens(equation.tokens) : [];
-    const id = `eq_${String(eventIndex + 1).padStart(3, "0")}`;
+  const sidecarEvents = events.flatMap((event, eventIndex): SidecarEvent[] => {
+    return gameplayMechanics.flatMap((mechanic): SidecarEvent[] => {
+      const equation = event.assignments[mechanic];
 
-    return {
-      id,
-      tick: event.tick,
-      state: equation ? tokensToEquationState(equation.tokens) : "",
-      tokens,
-      counts: event.counts,
-      hits: event.mechanics.hit.map((instance, index) => ({
-        index,
-        bubbles: instance.hitBubbles.map((placement) =>
-          sidecarBubblesFromPlacement(instance.equation?.tokens ?? tokens, placement),
-        ),
-      })),
-      spins: event.mechanics.spin.map((instance, index) => ({
-        index,
-        targets: instance.spinTargets.map((target) =>
-          sidecarTargetsFromTarget(instance.equation?.tokens ?? tokens, target),
-        ),
-      })),
-      drags: event.mechanics.drag.map((instance, index) => ({
-        index,
-        targets: instance.dragTargets.map((target) =>
-          sidecarTargetsFromTarget(instance.equation?.tokens ?? tokens, target),
-        ),
-      })),
-    };
+      if (!equation || equation.tokens.length === 0) {
+        return [];
+      }
+
+      const equationId = `eq_${String(eventIndex + 1).padStart(3, "0")}_${mechanic}`;
+
+      return [
+        {
+          tick: event.tick,
+          type: "ALG_MECHANIC",
+          mechanic,
+          hits: mechanic === "hit" ? 1 : undefined,
+        },
+        {
+          tick: event.tick,
+          type: "ALG_EQUATION_STATE",
+          equationId,
+          state: tokensToEquationState(equation.tokens),
+        },
+      ];
+    });
   });
 
   return {
-    version: 2,
-    maxEquationSlots: MAX_EQUATION_SLOTS,
-    equations,
+    version: 1,
+    events: sortEvents(sidecarEvents),
   };
 }
 
@@ -1457,9 +685,7 @@ function HeaderBar({
                   key={tab.label}
                   href={tab.href}
                   aria-label={tab.label}
-                  className={`${styles.headerTabButton} ${
-                    isActive ? styles.headerTabButtonActive : ""
-                  }`}
+                  className={`${styles.headerTabButton} ${isActive ? styles.headerTabButtonActive : ""}`}
                   style={{
                     width: tab.width,
                     height: 45.5,
@@ -1532,7 +758,7 @@ function EditorActionBar({
         width: "100%",
         height: 72,
         minHeight: 72,
-        background: headerBackgroundColor,
+        background: pageBackgroundColor,
         borderBottom: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
         color: textColor,
@@ -1556,7 +782,7 @@ function EditorActionBar({
           style={{
             minWidth: 96,
             height: 42,
-            background: pageBackgroundColor,
+            background: panelBackgroundColor,
             color: "#FFFFFF",
             border: `1px solid ${subtleBorderColor}`,
             borderRadius: 12,
@@ -1592,8 +818,8 @@ function EditorActionBar({
           aria-label="Save lesson to Supabase"
           title="Save lesson"
           style={{
-            width: 119,
-            height: 58,
+            width: 132,
+            height: 64,
             border: "none",
             borderRadius: 12,
             background: "transparent",
@@ -1611,8 +837,8 @@ function EditorActionBar({
             alt=""
             aria-hidden="true"
             style={{
-              width: 119,
-              height: 58,
+              width: 132,
+              height: 64,
               display: "block",
               objectFit: "contain",
             }}
@@ -1623,26 +849,15 @@ function EditorActionBar({
   );
 }
 
-function getEquationBubbleSize(label: string, baseSize: number) {
-  return isEquationOperator(label) ? Math.round(baseSize * 0.5) : baseSize;
-}
-
 function EquationCircle({
   label,
   draggable = true,
   size = 34,
-  shrinkOperators = true,
 }: {
   label: string;
   draggable?: boolean;
   size?: number;
-  shrinkOperators?: boolean;
 }) {
-  const visualSize =
-    shrinkOperators && isEquationOperator(label)
-      ? getEquationBubbleSize(label, size)
-      : size;
-
   return (
     <div
       draggable={draggable}
@@ -1656,8 +871,8 @@ function EquationCircle({
         event.dataTransfer.effectAllowed = "copy";
       }}
       style={{
-        width: visualSize,
-        height: visualSize,
+        width: size,
+        height: size,
         borderRadius: "999px",
         background: "#191919",
         border: "2px solid rgba(255, 255, 255, 0.72)",
@@ -1666,7 +881,7 @@ function EquationCircle({
         alignItems: "center",
         justifyContent: "center",
         fontFamily: "Grandstander, Space Grotesk, sans-serif",
-        fontSize: visualSize >= 60 ? 32 : visualSize >= 40 ? 22 : 15,
+        fontSize: size >= 60 ? 32 : 16,
         fontWeight: 700,
         lineHeight: 1,
         cursor: draggable ? "grab" : "default",
@@ -1677,87 +892,6 @@ function EquationCircle({
     >
       {label}
     </div>
-  );
-}
-
-
-function EquationTokenPreview({
-  token,
-  circleSize,
-}: {
-  token: EquationToken;
-  circleSize: number;
-}) {
-  if (isTextEquationToken(token)) {
-    return (
-      <EquationCircle
-        label={token.label}
-        draggable={false}
-        size={circleSize}
-      />
-    );
-  }
-
-  if (token.type === "group") {
-    return (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 0,
-        }}
-      >
-        {token.children.map((child) => (
-          <EquationCircle
-            key={child.id}
-            label={child.label}
-            draggable={false}
-            size={circleSize}
-          />
-        ))}
-      </span>
-    );
-  }
-
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: Math.max(2, circleSize / 12),
-        padding: "0 4px",
-      }}
-    >
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-        {token.numerator.map((child) => (
-          <EquationTokenPreview
-            key={child.id}
-            token={child}
-            circleSize={Math.max(20, Math.round(circleSize * 0.78))}
-          />
-        ))}
-      </span>
-      <span
-        style={{
-          width: "100%",
-          minWidth: circleSize,
-          height: 3,
-          borderRadius: 999,
-          background: "rgba(255, 255, 255, 0.85)",
-        }}
-      />
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-        {token.denominator.map((child) => (
-          <EquationTokenPreview
-            key={child.id}
-            token={child}
-            circleSize={Math.max(20, Math.round(circleSize * 0.78))}
-          />
-        ))}
-      </span>
-    </span>
   );
 }
 
@@ -1787,10 +921,11 @@ function EquationPreview({
       }}
     >
       {tokens.map((token) => (
-        <EquationTokenPreview
+        <EquationCircle
           key={token.id}
-          token={token}
-          circleSize={circleSize}
+          label={token.label}
+          draggable={false}
+          size={circleSize}
         />
       ))}
     </div>
@@ -1806,13 +941,19 @@ function EquationDropSlot({
 }) {
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
+
     const rawToken = event.dataTransfer.getData("application/x-equation-token");
 
-    if (!rawToken) return;
+    if (!rawToken) {
+      return;
+    }
 
     try {
       const parsed = JSON.parse(rawToken) as { label?: string };
-      if (parsed.label) onInsertToken(index, parsed.label);
+
+      if (parsed.label) {
+        onInsertToken(index, parsed.label);
+      }
     } catch (error) {
       console.error("Failed to drop equation token", error);
     }
@@ -1855,6 +996,7 @@ function CustomEquationCircle({
       draggable={draggable}
       onDragStart={(event) => {
         const label = value.trim();
+
         if (!label) {
           event.preventDefault();
           return;
@@ -1883,9 +1025,10 @@ function CustomEquationCircle({
     >
       <input
         value={value}
-        onChange={(event: ChangeEvent<HTMLInputElement>) =>
-          onChange(event.target.value.slice(0, 3))
-        }
+        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+          onChange(event.target.value.slice(0, 3));
+        }}
+        placeholder=""
         aria-label="Custom equation symbol"
         style={{
           width: 48,
@@ -1949,6 +1092,7 @@ function EquationBuilderArea({
         {equationPalette.map((label) => (
           <EquationCircle key={label} label={label} size={68} />
         ))}
+
         <CustomEquationCircle
           value={customTokenLabel}
           onChange={onCustomTokenLabelChange}
@@ -1985,6 +1129,7 @@ function EquationBuilderArea({
           ) : (
             <>
               <EquationDropSlot index={0} onInsertToken={onInsertToken} />
+
               {draftTokens.map((token, index) => (
                 <span
                   key={token.id}
@@ -2005,11 +1150,13 @@ function EquationBuilderArea({
                       cursor: "pointer",
                     }}
                   >
-                    <EquationTokenPreview
-                      token={token}
-                      circleSize={68}
+                    <EquationCircle
+                      label={token.label}
+                      draggable={false}
+                      size={68}
                     />
                   </button>
+
                   <EquationDropSlot
                     index={index + 1}
                     onInsertToken={onInsertToken}
@@ -2057,586 +1204,31 @@ function EquationBuilderArea({
   );
 }
 
-function getHitBubblePairFromPosition(
-  position: HitBubblePosition,
-): HitBubblePair {
-  if (position === "topLeft" || position === "bottomRight")
-    return "topLeftBottomRight";
-  if (position === "topRight" || position === "bottomLeft")
-    return "topRightBottomLeft";
-  return "leftRight";
-}
-
-function getHitBubblePositionStyle(position: HitBubblePosition) {
-  const offset = 34;
-  const cornerOffset = 28;
-
-  switch (position) {
-    case "topLeft":
-      return { left: -cornerOffset, top: -cornerOffset };
-    case "topRight":
-      return { right: -cornerOffset, top: -cornerOffset };
-    case "left":
-      return { left: -offset, top: "50%", transform: "translateY(-50%)" };
-    case "right":
-      return { right: -offset, top: "50%", transform: "translateY(-50%)" };
-    case "bottomLeft":
-      return { left: -cornerOffset, bottom: -cornerOffset };
-    case "bottomRight":
-      return { right: -cornerOffset, bottom: -cornerOffset };
-  }
-}
-
-function EmptyEquationBubble({ size = 34 }: { size?: number }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "999px",
-        background: "#191919",
-        border: "2px dashed rgba(255, 255, 255, 0.58)",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        boxSizing: "border-box",
-      }}
-    />
-  );
-}
-
-function HitOptionBubble({
-  position,
-  onSelect,
-}: {
-  position: HitBubblePosition;
-  onSelect: (position: HitBubblePosition) => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={`Add hit bubbles at ${position}`}
-      onClick={(event) => {
-        event.stopPropagation();
-        onSelect(position);
-      }}
-      style={{
-        position: "absolute",
-        ...getHitBubblePositionStyle(position),
-        width: 22,
-        height: 22,
-        borderRadius: "999px",
-        background: "#191919",
-        border: "2px dashed rgba(207, 255, 4, 0.85)",
-        cursor: "pointer",
-        padding: 0,
-        zIndex: 4,
-        boxShadow: "0 0 12px rgba(207, 255, 4, 0.25)",
-      }}
-    />
-  );
-}
-
-function HitPlacedBubble({ position }: { position: HitBubblePosition }) {
-  return (
-    <span
-      style={{
-        position: "absolute",
-        ...getHitBubblePositionStyle(position),
-        width: 34,
-        height: 34,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        pointerEvents: "none",
-        zIndex: 3,
-      }}
-    >
-      <EmptyEquationBubble size={34} />
-    </span>
-  );
-}
-
-function HitEquationPreview({
-  tokens,
-  hitBubbles,
-  onAddHitBubblePair,
-}: {
-  tokens: EquationToken[];
-  hitBubbles: HitBubblePlacement[];
-  onAddHitBubblePair: (tokenIndex: number, pair: HitBubblePair) => void;
-}) {
-  const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(
-    null,
-  );
-
-  if (tokens.length === 0) {
-    return (
-      <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>
-        Empty
-      </span>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 34,
-        flexWrap: "wrap",
-        padding: 36,
-      }}
-    >
-      {renderableEquationTokens(tokens).map((token, tokenIndex) => {
-        const isOperator = isEquationOperator(token.label);
-        const placement = hitBubbles.find(
-          (nextPlacement) => nextPlacement.tokenIndex === tokenIndex,
-        );
-        const placedPositions = placement?.positions ?? [];
-        const isSelected = selectedTokenIndex === tokenIndex && !isOperator;
-
-        return (
-          <span
-            key={token.id}
-            style={{
-              position: "relative",
-              width: 46,
-              height: 46,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            {!isOperator
-              ? placedPositions.map((position) => (
-                  <HitPlacedBubble key={position} position={position} />
-                ))
-              : null}
-
-            {isSelected
-              ? hitBubblePositions.map((position) => (
-                  <HitOptionBubble
-                    key={position}
-                    position={position}
-                    onSelect={(nextPosition) => {
-                      onAddHitBubblePair(
-                        tokenIndex,
-                        getHitBubblePairFromPosition(nextPosition),
-                      );
-                      setSelectedTokenIndex(null);
-                    }}
-                  />
-                ))
-              : null}
-
-            {isOperator ? (
-              <EquationCircle label={token.label} draggable={false} size={46} />
-            ) : (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setSelectedTokenIndex((current) =>
-                    current === tokenIndex ? null : tokenIndex,
-                  );
-                }}
-                style={{
-                  position: "relative",
-                  zIndex: 5,
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  cursor: "pointer",
-                }}
-                title="Click to add hit bubbles"
-              >
-                <EquationCircle
-                  label={token.label}
-                  draggable={false}
-                  size={46}
-                />
-              </button>
-            )}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-function SpinOverlay({ compact = false }: { compact?: boolean }) {
-  const width = compact ? 48 : 150;
-  const height = compact ? 34 : 106;
-
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        position: "absolute",
-        left: "50%",
-        top: "50%",
-        width,
-        height,
-        transform: "translate(-50%, -50%)",
-        pointerEvents: "none",
-        zIndex: 1,
-      }}
-    >
-      <svg
-        width={width}
-        height={height}
-        viewBox="0 0 150 106"
-        fill="none"
-        style={{ display: "block", overflow: "visible" }}
-      >
-        <ellipse
-          cx="75"
-          cy="53"
-          rx="70"
-          ry="46"
-          stroke="rgba(255, 255, 255, 0.28)"
-          strokeWidth="18"
-          strokeLinecap="round"
-          strokeDasharray="178 90"
-          transform="rotate(-18 75 53)"
-        />
-        <circle cx="75" cy="8" r="13" fill="rgba(255, 255, 255, 0.18)" />
-        <circle cx="75" cy="98" r="13" fill="rgba(255, 255, 255, 0.18)" />
-      </svg>
-    </span>
-  );
-}
-
-function SpinEquationPreview({
-  tokens,
-  spinTargets,
-  onToggleSpinTarget,
-}: {
-  tokens: EquationToken[];
-  spinTargets: SpinTarget[];
-  onToggleSpinTarget: (tokenIndex: number) => void;
-}) {
-  const targetIndexes = new Set(spinTargets.map((target) => target.tokenIndex));
-
-  if (tokens.length === 0) {
-    return (
-      <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>
-        Empty
-      </span>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 34,
-        flexWrap: "wrap",
-        padding: 44,
-      }}
-    >
-      {renderableEquationTokens(tokens).map((token, tokenIndex) => {
-        const isOperator = isEquationOperator(token.label);
-        const isSpinTarget = targetIndexes.has(tokenIndex);
-
-        return (
-          <span
-            key={token.id}
-            style={{
-              position: "relative",
-              width: 58,
-              height: 58,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            {!isOperator && isSpinTarget ? <SpinOverlay /> : null}
-            {isOperator ? (
-              <EquationCircle label={token.label} draggable={false} size={58} />
-            ) : (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onToggleSpinTarget(tokenIndex);
-                }}
-                style={{
-                  position: "relative",
-                  zIndex: 5,
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  cursor: "pointer",
-                }}
-                title="Click to add or remove spin behavior"
-              >
-                <EquationCircle
-                  label={token.label}
-                  draggable={false}
-                  size={58}
-                />
-              </button>
-            )}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-function findEqualsIndex(tokens: EquationToken[]) {
-  const renderableTokens = renderableEquationTokens(tokens);
-  const index = renderableTokens.findIndex((token) => token.label === "=");
-  return index >= 0 ? index : Math.floor(renderableTokens.length / 2);
-}
-
-function DragArcOverlay({
-  side,
-  compact = false,
-}: {
-  side: "left" | "right";
-  compact?: boolean;
-}) {
-  const isRight = side === "right";
-  const width = compact ? 56 : 190;
-  const height = compact ? 40 : 140;
-
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        position: "absolute",
-        top: "50%",
-        [isRight ? "left" : "right"]: compact ? 18 : 36,
-        width,
-        height,
-        transform: `translateY(-10%) ${isRight ? "" : "scaleX(-1)"}`,
-        pointerEvents: "none",
-        zIndex: 1,
-      }}
-    >
-      <svg
-        width={width}
-        height={height}
-        viewBox="0 0 190 140"
-        fill="none"
-        style={{ display: "block", overflow: "visible" }}
-      >
-        <path
-          d="M6 8C20 96 83 130 180 104"
-          stroke="rgba(255, 72, 72, 0.36)"
-          strokeWidth="34"
-          strokeLinecap="round"
-        />
-        <path
-          d="M23 38C57 119 121 126 180 104"
-          stroke="rgba(207, 255, 4, 0.24)"
-          strokeWidth="34"
-          strokeLinecap="round"
-        />
-        <path
-          d="M111 113C140 113 164 109 180 104"
-          stroke="rgba(255, 255, 255, 0.16)"
-          strokeWidth="34"
-          strokeLinecap="round"
-        />
-      </svg>
-      <span
-        style={{
-          position: "absolute",
-          right: compact ? -8 : -6,
-          top: compact ? -6 : 0,
-          width: compact ? 22 : 44,
-          height: compact ? 22 : 44,
-          borderRadius: "999px",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <EmptyEquationBubble size={compact ? 22 : 44} />
-      </span>
-    </span>
-  );
-}
-
-function DragEquationPreview({
-  tokens,
-  dragTargets,
-  onToggleDragTarget,
-}: {
-  tokens: EquationToken[];
-  dragTargets: DragTarget[];
-  onToggleDragTarget: (tokenIndex: number) => void;
-}) {
-  const targetIndexes = new Set(dragTargets.map((target) => target.tokenIndex));
-  const equalsIndex = findEqualsIndex(tokens);
-
-  if (tokens.length === 0) {
-    return (
-      <span style={{ color: "#FFFFFF66", fontSize: 12, fontWeight: 700 }}>
-        Empty
-      </span>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 34,
-        flexWrap: "wrap",
-        padding: 44,
-      }}
-    >
-      {renderableEquationTokens(tokens).map((token, tokenIndex) => {
-        const isOperator = isEquationOperator(token.label);
-        const isDragTarget = targetIndexes.has(tokenIndex);
-        const targetSide = tokenIndex < equalsIndex ? "right" : "left";
-
-        return (
-          <span
-            key={token.id}
-            style={{
-              position: "relative",
-              width: 58,
-              height: 58,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            {!isOperator && isDragTarget ? (
-              <DragArcOverlay side={targetSide} />
-            ) : null}
-            {isOperator ? (
-              <EquationCircle label={token.label} draggable={false} size={58} />
-            ) : (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onToggleDragTarget(tokenIndex);
-                }}
-                style={{
-                  position: "relative",
-                  zIndex: 5,
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  cursor: "pointer",
-                }}
-                title="Click to add or remove drag behavior"
-              >
-                <EquationCircle
-                  label={token.label}
-                  draggable={false}
-                  size={58}
-                />
-              </button>
-            )}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-function InstancePreview({
+function EventMechanicColumn({
   mechanic,
-  instance,
-  onAddHitBubblePair,
-  onToggleSpinTarget,
-  onToggleDragTarget,
-}: {
-  mechanic: GameplayMechanic;
-  instance: MechanicInstance;
-  onAddHitBubblePair: (tokenIndex: number, pair: HitBubblePair) => void;
-  onToggleSpinTarget: (tokenIndex: number) => void;
-  onToggleDragTarget: (tokenIndex: number) => void;
-}) {
-  if (!instance.equation) {
-    return (
-      <span style={{ color: "#FFFFFF80", fontSize: 12, fontWeight: 700 }}>
-        Drop equation here.
-      </span>
-    );
-  }
-
-  if (mechanic === "hit") {
-    return (
-      <HitEquationPreview
-        tokens={instance.equation.tokens}
-        hitBubbles={instance.hitBubbles}
-        onAddHitBubblePair={onAddHitBubblePair}
-      />
-    );
-  }
-
-  if (mechanic === "spin") {
-    return (
-      <SpinEquationPreview
-        tokens={instance.equation.tokens}
-        spinTargets={instance.spinTargets}
-        onToggleSpinTarget={onToggleSpinTarget}
-      />
-    );
-  }
-
-  return (
-    <DragEquationPreview
-      tokens={instance.equation.tokens}
-      dragTargets={instance.dragTargets}
-      onToggleDragTarget={onToggleDragTarget}
-    />
-  );
-}
-
-function MechanicInstanceCell({
-  mechanic,
-  instance,
-  instanceIndex,
+  equation,
   onDropEquation,
-  onAddHitBubblePair,
-  onToggleSpinTarget,
-  onToggleDragTarget,
 }: {
   mechanic: GameplayMechanic;
-  instance: MechanicInstance;
-  instanceIndex: number;
-  onDropEquation: (instanceIndex: number, equation: SavedEquation) => void;
-  onAddHitBubblePair: (
-    instanceIndex: number,
-    tokenIndex: number,
-    pair: HitBubblePair,
-  ) => void;
-  onToggleSpinTarget: (instanceIndex: number, tokenIndex: number) => void;
-  onToggleDragTarget: (instanceIndex: number, tokenIndex: number) => void;
+  equation: SavedEquation | null;
+  onDropEquation: (mechanic: GameplayMechanic, equation: SavedEquation) => void;
 }) {
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
+
     const rawEquation = event.dataTransfer.getData(
       "application/x-saved-equation",
     );
 
-    if (!rawEquation) return;
+    if (!rawEquation) {
+      return;
+    }
 
     try {
       const parsed = JSON.parse(rawEquation) as SavedEquation;
+
       if (parsed.id && Array.isArray(parsed.tokens)) {
-        onDropEquation(instanceIndex, {
+        onDropEquation(mechanic, {
           id: parsed.id,
           tokens: cloneTokens(parsed.tokens),
         });
@@ -2654,11 +1246,10 @@ function MechanicInstanceCell({
       }}
       onDrop={handleDrop}
       style={{
-        minWidth: 260,
-        minHeight: 0,
         background: "#191919",
         border: `1px dashed ${subtleBorderColor}`,
-        borderRadius: 14,
+        borderRadius: 18,
+        minHeight: 0,
         display: "grid",
         gridTemplateRows: "auto 1fr",
         overflow: "hidden",
@@ -2666,96 +1257,8 @@ function MechanicInstanceCell({
     >
       <div
         style={{
-          minHeight: 34,
+          minHeight: 54,
           borderBottom: `1px solid ${subtleBorderColor}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#FFFFFF99",
-          fontSize: 11,
-          fontWeight: 900,
-        }}
-      >
-        {mechanic.toUpperCase()} {instanceIndex + 1}
-      </div>
-      <div
-        style={{
-          padding: 10,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "auto",
-        }}
-      >
-        <InstancePreview
-          mechanic={mechanic}
-          instance={instance}
-          onAddHitBubblePair={(tokenIndex, pair) =>
-            onAddHitBubblePair(instanceIndex, tokenIndex, pair)
-          }
-          onToggleSpinTarget={(tokenIndex) =>
-            onToggleSpinTarget(instanceIndex, tokenIndex)
-          }
-          onToggleDragTarget={(tokenIndex) =>
-            onToggleDragTarget(instanceIndex, tokenIndex)
-          }
-        />
-      </div>
-    </div>
-  );
-}
-
-function EventMechanicRow({
-  mechanic,
-  instances,
-  onDropEquation,
-  onAddHitBubblePair,
-  onToggleSpinTarget,
-  onToggleDragTarget,
-}: {
-  mechanic: GameplayMechanic;
-  instances: MechanicInstance[];
-  onDropEquation: (
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    equation: SavedEquation,
-  ) => void;
-  onAddHitBubblePair: (
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-    pair: HitBubblePair,
-  ) => void;
-  onToggleSpinTarget: (
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-  ) => void;
-  onToggleDragTarget: (
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-  ) => void;
-}) {
-  if (instances.length === 0) {
-    return null;
-  }
-
-  return (
-    <div
-      style={{
-        background: "#191919",
-        border: `1px solid ${subtleBorderColor}`,
-        borderRadius: 18,
-        minHeight: 0,
-        display: "grid",
-        gridTemplateColumns: "92px minmax(0, 1fr)",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          borderRight: `1px solid ${subtleBorderColor}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -2768,36 +1271,33 @@ function EventMechanicRow({
       >
         {mechanic}
       </div>
+
       <div
         style={{
-          padding: 12,
-          display: "grid",
-          gridTemplateColumns: `repeat(${instances.length}, minmax(260px, 1fr))`,
-          gap: 12,
-          overflowX: "auto",
-          overflowY: "hidden",
+          padding: 18,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "auto",
         }}
       >
-        {instances.map((instance, index) => (
-          <MechanicInstanceCell
-            key={instance.id}
-            mechanic={mechanic}
-            instance={instance}
-            instanceIndex={index}
-            onDropEquation={(instanceIndex, equation) =>
-              onDropEquation(mechanic, instanceIndex, equation)
-            }
-            onAddHitBubblePair={(instanceIndex, tokenIndex, pair) =>
-              onAddHitBubblePair(mechanic, instanceIndex, tokenIndex, pair)
-            }
-            onToggleSpinTarget={(instanceIndex, tokenIndex) =>
-              onToggleSpinTarget(mechanic, instanceIndex, tokenIndex)
-            }
-            onToggleDragTarget={(instanceIndex, tokenIndex) =>
-              onToggleDragTarget(mechanic, instanceIndex, tokenIndex)
-            }
-          />
-        ))}
+        {equation ? (
+          <EquationPreview tokens={equation.tokens} circleSize={46} />
+        ) : (
+          <div
+            style={{
+              maxWidth: 220,
+              color: "#FFFFFF80",
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 13,
+              fontWeight: 700,
+              lineHeight: 1.4,
+              textAlign: "center",
+            }}
+          >
+            Drag an equation here.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2806,32 +1306,9 @@ function EventMechanicRow({
 function EventBuilderArea({
   eventSlot,
   onDropEquation,
-  onAddHitBubblePair,
-  onToggleSpinTarget,
-  onToggleDragTarget,
 }: {
   eventSlot: TimelineEventSlot | null;
-  onDropEquation: (
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    equation: SavedEquation,
-  ) => void;
-  onAddHitBubblePair: (
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-    pair: HitBubblePair,
-  ) => void;
-  onToggleSpinTarget: (
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-  ) => void;
-  onToggleDragTarget: (
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-  ) => void;
+  onDropEquation: (mechanic: GameplayMechanic, equation: SavedEquation) => void;
 }) {
   if (!eventSlot) {
     return (
@@ -2854,10 +1331,6 @@ function EventBuilderArea({
     );
   }
 
-  const visibleMechanics = gameplayMechanics.filter(
-    (mechanic) => eventSlot.mechanics[mechanic].length > 0,
-  );
-
   return (
     <div
       style={{
@@ -2869,203 +1342,21 @@ function EventBuilderArea({
         padding: 18,
         boxSizing: "border-box",
         display: "grid",
-        gridTemplateRows:
-          visibleMechanics.length > 0
-            ? `repeat(${visibleMechanics.length}, minmax(0, 1fr))`
-            : "1fr",
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
         gap: 18,
         overflow: "hidden",
       }}
     >
-      {visibleMechanics.length === 0 ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#FFFFFF80",
-            fontFamily: "Space Grotesk, sans-serif",
-            fontSize: 14,
-            fontWeight: 800,
-          }}
-        >
-          This event does not have any hit, spin, or drag requirements.
-        </div>
-      ) : (
-        visibleMechanics.map((mechanic) => (
-          <EventMechanicRow
-            key={mechanic}
-            mechanic={mechanic}
-            instances={eventSlot.mechanics[mechanic]}
-            onDropEquation={onDropEquation}
-            onAddHitBubblePair={onAddHitBubblePair}
-            onToggleSpinTarget={onToggleSpinTarget}
-            onToggleDragTarget={onToggleDragTarget}
-          />
-        ))
-      )}
+      {gameplayMechanics.map((mechanic) => (
+        <EventMechanicColumn
+          key={mechanic}
+          mechanic={mechanic}
+          equation={eventSlot.assignments[mechanic]}
+          onDropEquation={onDropEquation}
+        />
+      ))}
     </div>
   );
-}
-
-function CompactHitPreview({ instance }: { instance: MechanicInstance }) {
-  const tokens = instance.equation?.tokens ?? [];
-
-  if (tokens.length === 0)
-    return <EquationPreview tokens={[]} circleSize={18} />;
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        justifyContent: "center",
-        flexWrap: "wrap",
-      }}
-    >
-      {renderableEquationTokens(tokens).map((token, tokenIndex) => {
-        const isOperator = isEquationOperator(token.label);
-        const placement = instance.hitBubbles.find(
-          (nextPlacement) => nextPlacement.tokenIndex === tokenIndex,
-        );
-
-        return (
-          <span
-            key={token.id}
-            style={{
-              position: "relative",
-              width: 24,
-              height: 24,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {!isOperator && placement?.positions.length
-              ? placement.positions.map((position) => (
-                  <span
-                    key={position}
-                    style={{
-                      position: "absolute",
-                      ...getHitBubblePositionStyle(position),
-                      transform:
-                        position === "left" || position === "right"
-                          ? "translateY(-50%) scale(0.42)"
-                          : "scale(0.42)",
-                      transformOrigin: "center",
-                    }}
-                  >
-                    <EmptyEquationBubble size={22} />
-                  </span>
-                ))
-              : null}
-            <EquationCircle label={token.label} draggable={false} size={20} />
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-function CompactSpinPreview({ instance }: { instance: MechanicInstance }) {
-  const tokens = instance.equation?.tokens ?? [];
-  const targets = new Set(
-    instance.spinTargets.map((target) => target.tokenIndex),
-  );
-
-  if (tokens.length === 0)
-    return <EquationPreview tokens={[]} circleSize={18} />;
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        justifyContent: "center",
-        flexWrap: "wrap",
-      }}
-    >
-      {renderableEquationTokens(tokens).map((token, tokenIndex) => {
-        const active =
-          !isEquationOperator(token.label) && targets.has(tokenIndex);
-        return (
-          <span
-            key={token.id}
-            style={{
-              position: "relative",
-              width: 24,
-              height: 24,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {active ? <SpinOverlay compact /> : null}
-            <EquationCircle label={token.label} draggable={false} size={20} />
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-function CompactDragPreview({ instance }: { instance: MechanicInstance }) {
-  const tokens = instance.equation?.tokens ?? [];
-  const targets = new Set(
-    instance.dragTargets.map((target) => target.tokenIndex),
-  );
-  const equalsIndex = findEqualsIndex(tokens);
-
-  if (tokens.length === 0)
-    return <EquationPreview tokens={[]} circleSize={18} />;
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        justifyContent: "center",
-        flexWrap: "wrap",
-      }}
-    >
-      {renderableEquationTokens(tokens).map((token, tokenIndex) => {
-        const active =
-          !isEquationOperator(token.label) && targets.has(tokenIndex);
-        const side = tokenIndex < equalsIndex ? "right" : "left";
-        return (
-          <span
-            key={token.id}
-            style={{
-              position: "relative",
-              width: 24,
-              height: 24,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {active ? <DragArcOverlay side={side} compact /> : null}
-            <EquationCircle label={token.label} draggable={false} size={20} />
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-function CompactInstancePreview({
-  mechanic,
-  instance,
-}: {
-  mechanic: GameplayMechanic;
-  instance: MechanicInstance;
-}) {
-  if (mechanic === "hit") return <CompactHitPreview instance={instance} />;
-  if (mechanic === "spin") return <CompactSpinPreview instance={instance} />;
-  return <CompactDragPreview instance={instance} />;
 }
 
 function EquationTimeline({
@@ -3116,9 +1407,6 @@ function EquationTimeline({
         ) : (
           events.map((eventSlot, index) => {
             const isActive = eventSlot.id === activeEventId;
-            const visibleMechanics = gameplayMechanics.filter(
-              (mechanic) => eventSlot.mechanics[mechanic].length > 0,
-            );
 
             return (
               <button
@@ -3126,8 +1414,8 @@ function EquationTimeline({
                 type="button"
                 onClick={() => onSelectEvent(eventSlot.id)}
                 style={{
-                  width: 300,
-                  minWidth: 300,
+                  width: 240,
+                  minWidth: 240,
                   height: "100%",
                   background: isActive ? "#191919" : "#252525",
                   color: textColor,
@@ -3145,6 +1433,7 @@ function EquationTimeline({
                 <div style={{ fontSize: 13, fontWeight: 900 }}>
                   Event {index + 1}
                 </div>
+
                 <div
                   style={{
                     border: `1px dashed ${subtleBorderColor}`,
@@ -3152,73 +1441,37 @@ function EquationTimeline({
                     padding: 10,
                     display: "grid",
                     gap: 8,
-                    overflow: "auto",
+                    overflow: "hidden",
                   }}
                 >
-                  {visibleMechanics.length === 0 ? (
+                  {gameplayMechanics.map((mechanic) => (
                     <div
+                      key={mechanic}
                       style={{
-                        color: "#FFFFFF80",
-                        fontSize: 11,
-                        fontWeight: 800,
+                        display: "grid",
+                        gridTemplateColumns: "42px minmax(0, 1fr)",
+                        alignItems: "center",
+                        gap: 8,
+                        minHeight: 28,
                       }}
                     >
-                      No mechanics
-                    </div>
-                  ) : (
-                    visibleMechanics.map((mechanic) => (
-                      <div
-                        key={mechanic}
+                      <span
                         style={{
-                          display: "grid",
-                          gridTemplateColumns: "42px minmax(0, 1fr)",
-                          alignItems: "center",
-                          gap: 8,
-                          minHeight: 32,
+                          color: "#FFFFFF99",
+                          fontSize: 10,
+                          fontWeight: 900,
                         }}
                       >
-                        <span
-                          style={{
-                            color: "#FFFFFF99",
-                            fontSize: 10,
-                            fontWeight: 900,
-                          }}
-                        >
-                          {mechanic.toUpperCase()}
-                        </span>
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: 8,
-                            overflowX: "auto",
-                            overflowY: "visible",
-                            padding: "4px 0",
-                          }}
-                        >
-                          {eventSlot.mechanics[mechanic].map(
-                            (instance, instanceIndex) => (
-                              <div
-                                key={instance.id}
-                                title={`${mechanic} ${instanceIndex + 1}`}
-                                style={{
-                                  minWidth: 82,
-                                  border: `1px solid ${subtleBorderColor}`,
-                                  borderRadius: 8,
-                                  padding: 4,
-                                  overflow: "visible",
-                                }}
-                              >
-                                <CompactInstancePreview
-                                  mechanic={mechanic}
-                                  instance={instance}
-                                />
-                              </div>
-                            ),
-                          )}
-                        </div>
+                        {mechanic.toUpperCase()}
+                      </span>
+                      <div style={{ minWidth: 0, overflow: "hidden" }}>
+                        <EquationPreview
+                          tokens={eventSlot.assignments[mechanic]?.tokens ?? []}
+                          circleSize={20}
+                        />
                       </div>
-                    ))
-                  )}
+                    </div>
+                  ))}
                 </div>
               </button>
             );
@@ -3265,8 +1518,12 @@ function EquationsPanel({
       >
         Equations
       </div>
+
       <div
-        style={{ padding: 12, borderBottom: `1px solid ${subtleBorderColor}` }}
+        style={{
+          padding: 12,
+          borderBottom: `1px solid ${subtleBorderColor}`,
+        }}
       >
         <button
           type="button"
@@ -3288,6 +1545,7 @@ function EquationsPanel({
           New Equation
         </button>
       </div>
+
       <div
         style={{
           padding: 12,
@@ -3310,7 +1568,7 @@ function EquationsPanel({
             Build equations here, then drag them into an event.
           </div>
         ) : (
-          savedEquations.map((equation) => (
+          savedEquations.map((equation, index) => (
             <div
               key={equation.id}
               draggable
@@ -3323,20 +1581,24 @@ function EquationsPanel({
               }}
               style={{
                 width: "100%",
-                minHeight: 48,
+                minHeight: 58,
                 background: "#191919",
                 border: `1px solid ${subtleBorderColor}`,
                 borderRadius: 10,
                 padding: "8px",
                 boxSizing: "border-box",
                 color: textColor,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                display: "grid",
+                gap: 8,
                 cursor: "grab",
               }}
               title={tokensToEquationState(equation.tokens)}
             >
+              <div
+                style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 900 }}
+              >
+                Equation {index + 1}
+              </div>
               <EquationPreview tokens={equation.tokens} circleSize={24} />
             </div>
           ))
@@ -3390,9 +1652,6 @@ function CenterEditorPanel({
   onRemoveToken,
   onSaveEquation,
   onDropEquation,
-  onAddHitBubblePair,
-  onToggleSpinTarget,
-  onToggleDragTarget,
 }: {
   mode: "event" | "equation";
   timelineEvents: TimelineEventSlot[];
@@ -3404,27 +1663,7 @@ function CenterEditorPanel({
   onInsertToken: (index: number, label: string) => void;
   onRemoveToken: (id: string) => void;
   onSaveEquation: () => void;
-  onDropEquation: (
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    equation: SavedEquation,
-  ) => void;
-  onAddHitBubblePair: (
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-    pair: HitBubblePair,
-  ) => void;
-  onToggleSpinTarget: (
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-  ) => void;
-  onToggleDragTarget: (
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-  ) => void;
+  onDropEquation: (mechanic: GameplayMechanic, equation: SavedEquation) => void;
 }) {
   const activeEvent =
     timelineEvents.find((eventSlot) => eventSlot.id === activeEventId) ?? null;
@@ -3456,11 +1695,9 @@ function CenterEditorPanel({
         <EventBuilderArea
           eventSlot={activeEvent}
           onDropEquation={onDropEquation}
-          onAddHitBubblePair={onAddHitBubblePair}
-          onToggleSpinTarget={onToggleSpinTarget}
-          onToggleDragTarget={onToggleDragTarget}
         />
       )}
+
       <EquationTimeline
         events={timelineEvents}
         activeEventId={activeEventId}
@@ -3486,7 +1723,7 @@ export default function LessonBuilderClient({
   const [uploadedSongName, setUploadedSongName] = useState("");
   const [uploadedChartName, setUploadedChartName] = useState("");
   const [pendingSongFile, setPendingSongFile] = useState<File | null>(null);
-  const [eventCounts, setEventCounts] = useState<MechanicCounts[]>([]);
+
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventSlot[]>([]);
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [savedEquations, setSavedEquations] = useState<SavedEquation[]>([]);
@@ -3506,17 +1743,25 @@ export default function LessonBuilderClient({
     () => sidecarFromTimelineEvents(timelineEvents),
     [timelineEvents],
   );
+
   const payloadForProject: LessonBuilderPayload = useMemo(
-    () => ({ chartFile, analysisMetadata: metadata, rawResults: sidecar }),
+    () => ({
+      chartFile,
+      analysisMetadata: metadata,
+      rawResults: sidecar,
+    }),
     [chartFile, metadata, sidecar],
   );
 
   function loadSidecarIntoTimeline(
     nextSidecar: SidecarPayload,
-    nextEventCounts: MechanicCounts[],
+    equationSlotCount: number | null,
   ) {
-    const nextEvents = timelineEventsFromSidecar(nextSidecar, nextEventCounts);
-    setEventCounts(nextEventCounts);
+    const nextEvents = timelineEventsFromSidecar(
+      nextSidecar,
+      equationSlotCount,
+    );
+
     setTimelineEvents(nextEvents);
     setSavedEquations((current) => {
       const importedEquations = savedEquationsFromTimelineEvents(nextEvents);
@@ -3527,6 +1772,7 @@ export default function LessonBuilderClient({
 
       importedEquations.forEach((equation) => {
         const state = tokensToEquationState(equation.tokens);
+
         if (!existingStates.has(state)) {
           merged.push(equation);
           existingStates.add(state);
@@ -3540,6 +1786,29 @@ export default function LessonBuilderClient({
     setStoreSidecar(sidecarFromTimelineEvents(nextEvents));
   }
 
+  function applySongAssetEquationSlotCount(count: number | null) {
+    if (typeof count !== "number") {
+      return;
+    }
+
+    setTimelineEvents((current) => {
+      const nextEvents = resizeTimelineEvents(current, count);
+
+      setActiveEventId((currentId) => {
+        if (
+          currentId &&
+          nextEvents.some((eventSlot) => eventSlot.id === currentId)
+        ) {
+          return currentId;
+        }
+
+        return nextEvents[0]?.id ?? null;
+      });
+
+      return nextEvents;
+    });
+  }
+
   function handleNewEquation() {
     setDraftTokens([]);
     setCustomTokenLabel("");
@@ -3548,8 +1817,12 @@ export default function LessonBuilderClient({
 
   function handleInsertEquationToken(index: number, label: string) {
     setDraftTokens((current) => {
-      const nextToken = parseEquationPartToToken(label);
+      const nextToken = {
+        id: makeId("token"),
+        label,
+      };
       const safeIndex = Math.max(0, Math.min(index, current.length));
+
       return [
         ...current.slice(0, safeIndex),
         nextToken,
@@ -3563,7 +1836,9 @@ export default function LessonBuilderClient({
   }
 
   function handleSaveEquation() {
-    if (draftTokens.length === 0) return;
+    if (draftTokens.length === 0) {
+      return;
+    }
 
     setSavedEquations((current) => [
       ...current,
@@ -3582,106 +1857,32 @@ export default function LessonBuilderClient({
     setMode("event");
   }
 
-  function updateActiveInstance(
+  function handleDropEquation(
     mechanic: GameplayMechanic,
-    instanceIndex: number,
-    updater: (instance: MechanicInstance) => MechanicInstance,
+    equation: SavedEquation,
   ) {
-    if (!activeEventId) return;
+    if (!activeEventId) {
+      return;
+    }
 
     setTimelineEvents((current) =>
       current.map((eventSlot) => {
-        if (eventSlot.id !== activeEventId) return eventSlot;
+        if (eventSlot.id !== activeEventId) {
+          return eventSlot;
+        }
 
         return {
           ...eventSlot,
-          mechanics: {
-            ...eventSlot.mechanics,
-            [mechanic]: eventSlot.mechanics[mechanic].map((instance, index) =>
-              index === instanceIndex ? updater(instance) : instance,
-            ),
+          assignments: {
+            ...eventSlot.assignments,
+            [mechanic]: {
+              ...equation,
+              tokens: cloneTokens(equation.tokens),
+            },
           },
         };
       }),
     );
-  }
-
-  function handleDropEquation(
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    equation: SavedEquation,
-  ) {
-    updateActiveInstance(mechanic, instanceIndex, (instance) => ({
-      ...instance,
-      equation: cloneSavedEquation(equation),
-      hitBubbles: [],
-      spinTargets: [],
-      dragTargets: [],
-    }));
-  }
-
-  function handleAddHitBubblePair(
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-    pair: HitBubblePair,
-  ) {
-    if (mechanic !== "hit") return;
-    const pairPositions = hitBubblePairPositions[pair];
-
-    updateActiveInstance("hit", instanceIndex, (instance) => ({
-      ...instance,
-      hitBubbles: [
-        ...instance.hitBubbles.filter(
-          (placement) => placement.tokenIndex !== tokenIndex,
-        ),
-        { tokenIndex, positions: pairPositions },
-      ],
-    }));
-  }
-
-  function handleToggleSpinTarget(
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-  ) {
-    if (mechanic !== "spin") return;
-
-    updateActiveInstance("spin", instanceIndex, (instance) => {
-      const exists = instance.spinTargets.some(
-        (target) => target.tokenIndex === tokenIndex,
-      );
-      return {
-        ...instance,
-        spinTargets: exists
-          ? instance.spinTargets.filter(
-              (target) => target.tokenIndex !== tokenIndex,
-            )
-          : [...instance.spinTargets, { tokenIndex }],
-      };
-    });
-  }
-
-  function handleToggleDragTarget(
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-  ) {
-    if (mechanic !== "drag") return;
-
-    updateActiveInstance("drag", instanceIndex, (instance) => {
-      const exists = instance.dragTargets.some(
-        (target) => target.tokenIndex === tokenIndex,
-      );
-      return {
-        ...instance,
-        dragTargets: exists
-          ? instance.dragTargets.filter(
-              (target) => target.tokenIndex !== tokenIndex,
-            )
-          : [...instance.dragTargets, { tokenIndex }],
-      };
-    });
   }
 
   function handleBackToSongChoice() {
@@ -3703,7 +1904,9 @@ export default function LessonBuilderClient({
 
       const response = await fetch("/api/lesson-builder/save", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           songAssetId: selectedSongStorage.id,
           chart: {
@@ -3733,6 +1936,7 @@ export default function LessonBuilderClient({
       const result = (await response.json().catch(() => null)) as {
         error?: string;
       } | null;
+
       if (!response.ok) {
         throw new Error(result?.error ?? "Unable to save lesson files");
       }
@@ -3764,11 +1968,14 @@ export default function LessonBuilderClient({
   useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_selected_song");
 
-    if (!raw) return;
+    if (!raw) {
+      return;
+    }
 
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
-      const selectedSongEventCounts = getSelectedSongEventCounts(selectedSong);
+      const selectedSongEquationSlots =
+        getSelectedSongEquationSlotCount(selectedSong);
 
       setSelectedSongStorage({
         id: selectedSong.id,
@@ -3786,6 +1993,7 @@ export default function LessonBuilderClient({
           : null,
       });
 
+      applySongAssetEquationSlotCount(selectedSongEquationSlots);
       setUploadedSongName(selectedSong.name);
       setMetadata((current) => ({
         ...current,
@@ -3800,10 +2008,12 @@ export default function LessonBuilderClient({
         name: selectedSong.name,
         contentType: selectedSong.song.contentType,
       })
-        .then((file) => setPendingSongFile(file))
-        .catch((error) =>
-          console.error("Failed to load selected song file", error),
-        );
+        .then((file) => {
+          setPendingSongFile(file);
+        })
+        .catch((error) => {
+          console.error("Failed to load selected song file", error);
+        });
 
       Promise.all([
         textFromSignedUrl(selectedSong.chart.signedUrl),
@@ -3820,7 +2030,7 @@ export default function LessonBuilderClient({
 
           setChartFile(nextChartFile);
           setUploadedChartName(nextChartName);
-          loadSidecarIntoTimeline(normalizedSidecar, selectedSongEventCounts);
+          loadSidecarIntoTimeline(normalizedSidecar, selectedSongEquationSlots);
 
           const payload: LessonBuilderPayload = {
             chartFile: nextChartFile,
@@ -3862,19 +2072,23 @@ export default function LessonBuilderClient({
         payload.rawResults ?? emptySidecar,
       );
 
-      if (payload?.analysisMetadata) setMetadata(payload.analysisMetadata);
+      if (payload?.analysisMetadata) {
+        setMetadata(payload.analysisMetadata);
+      }
 
       if (payload?.chartFile) {
         setChartFile(payload.chartFile);
+
         if (payload.analysisMetadata?.uploadedFileName) {
           setUploadedChartName(payload.analysisMetadata.uploadedFileName);
         }
-        loadSidecarIntoTimeline(normalizedSidecar, eventCounts);
+
+        loadSidecarIntoTimeline(normalizedSidecar, null);
         setProject(
           chartToProject({ ...payload, rawResults: normalizedSidecar }),
         );
       } else {
-        loadSidecarIntoTimeline(normalizedSidecar, eventCounts);
+        loadSidecarIntoTimeline(normalizedSidecar, null);
       }
 
       sessionStorage.removeItem("ultrarapid_editor_payload");
@@ -3890,6 +2104,7 @@ export default function LessonBuilderClient({
 
   useEffect(() => {
     if (!pendingSongFile) return;
+
     console.info("Selected song file loaded for editor:", pendingSongFile.name);
   }, [pendingSongFile]);
 
@@ -3929,12 +2144,14 @@ export default function LessonBuilderClient({
       }}
     >
       <HeaderBar pathname={pathname} topTabs={topTabs} />
+
       <EditorActionBar
         saveStatus={loadError || saveStatus}
         isSaving={isSaving}
         onBack={handleBackToSongChoice}
         onSave={handleSaveToSupabase}
       />
+
       <main
         style={{
           width: "100%",
@@ -3950,6 +2167,7 @@ export default function LessonBuilderClient({
           savedEquations={savedEquations}
           onNewEquation={handleNewEquation}
         />
+
         <CenterEditorPanel
           mode={mode}
           timelineEvents={timelineEvents}
@@ -3962,14 +2180,10 @@ export default function LessonBuilderClient({
           onRemoveToken={handleRemoveEquationToken}
           onSaveEquation={handleSaveEquation}
           onDropEquation={handleDropEquation}
-          onAddHitBubblePair={handleAddHitBubblePair}
-          onToggleSpinTarget={handleToggleSpinTarget}
-          onToggleDragTarget={handleToggleDragTarget}
         />
+
         <RightLessonPanel />
       </main>
     </div>
   );
 }
-
-
