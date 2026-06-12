@@ -1,5 +1,23 @@
 import type { ChartProject } from "./types";
-import type { LegacySidecarPayload, SidecarPayload } from "./editor-store";
+
+type LegacySidecarEvent = {
+  tick: number;
+  type: string;
+  [key: string]: unknown;
+};
+
+type LegacySidecarPayload = {
+  version: 1;
+  events: LegacySidecarEvent[];
+};
+
+type EquationSidecarPayload = {
+  version: 2;
+  maxEquationSlots: number;
+  equations: unknown[];
+};
+
+type ProjectSidecarPayload = LegacySidecarPayload | EquationSidecarPayload;
 
 function escapeChartString(value: unknown) {
   return String(value ?? "")
@@ -52,7 +70,7 @@ export function projectToChart(project: ChartProject): string {
   return [song, syncTrack, events, expert].join("\n\n");
 }
 
-export function projectToSidecarJson(sidecar: SidecarPayload): string {
+export function projectToSidecarJson(sidecar: ProjectSidecarPayload): string {
   if (sidecar.version === 2) {
     return JSON.stringify(
       {
