@@ -75,9 +75,12 @@ type SavedEquation = {
 
 type GameplayMechanic = "hit" | "spin" | "drag";
 
+type MechanicCounts = Record<GameplayMechanic, number>;
+
 type TimelineEventSlot = {
   id: string;
   tick: number;
+  counts: MechanicCounts;
   assignments: Record<GameplayMechanic, SavedEquation | null>;
 };
 
@@ -337,10 +340,42 @@ function makeEmptyAssignments(): Record<
   };
 }
 
-function makeTimelineEvent(index: number, tick = 0): TimelineEventSlot {
+function makeEmptyMechanicCounts(): MechanicCounts {
+  return {
+    hit: 0,
+    spin: 0,
+    drag: 0,
+  };
+}
+
+function getTimelineEventEquation(eventSlot: TimelineEventSlot) {
+  return (
+    eventSlot.assignments.hit ??
+    eventSlot.assignments.spin ??
+    eventSlot.assignments.drag ??
+    null
+  );
+}
+
+function cloneEquationForAssignment(equation: SavedEquation): SavedEquation {
+  return {
+    ...equation,
+    tokens: cloneTokens(equation.tokens),
+  };
+}
+
+function makeTimelineEvent(
+  index: number,
+  tick = 0,
+  counts: Partial<MechanicCounts> = {},
+): TimelineEventSlot {
   return {
     id: makeId("event"),
     tick,
+    counts: {
+      ...makeEmptyMechanicCounts(),
+      ...counts,
+    },
     assignments: makeEmptyAssignments(),
   };
 }
@@ -371,7 +406,13 @@ function resizeTimelineEvents(
   targetCount: number,
 ): TimelineEventSlot[] {
   const safeCount = Math.max(0, Math.round(targetCount));
-  const nextEvents = events.slice(0, safeCount);
+  const nextEvents = events.slice(0, safeCount).map((eventSlot) => ({
+    ...eventSlot,
+    counts: {
+      ...makeEmptyMechanicCounts(),
+      ...(eventSlot.counts ?? {}),
+    },
+  }));
 
   for (let index = nextEvents.length; index < safeCount; index += 1) {
     nextEvents.push(makeTimelineEvent(index));
@@ -422,54 +463,38 @@ function timelineEventsFromSidecar(
   ).sort((left, right) => left - right);
 
   const slots = ticks.map((tick, index) => {
-    const slot = makeTimelineEvent(index, tick);
-    const equationsAtTick = equationEvents.filter(
-      (event) => event.tick === tick,
-    );
     const mechanicsAtTick = mechanicEvents.filter(
       (event) => event.tick === tick,
     );
-    const usedEquationIds = new Set<string>();
+    const equationsAtTick = equationEvents.filter(
+      (event) => event.tick === tick,
+    );
+    const counts = makeEmptyMechanicCounts();
 
     mechanicsAtTick.forEach((mechanicEvent) => {
-      const matchingEquation =
-        equationsAtTick.find(
-          (equationEvent) =>
-            !usedEquationIds.has(equationEvent.equationId) &&
-            inferMechanicFromEquationId(equationEvent.equationId) ===
-              mechanicEvent.mechanic,
-        ) ??
-        equationsAtTick.find(
-          (equationEvent) => !usedEquationIds.has(equationEvent.equationId),
-        );
-
-      if (matchingEquation) {
-        usedEquationIds.add(matchingEquation.equationId);
-        slot.assignments[mechanicEvent.mechanic] = savedEquationFromState(
-          matchingEquation.equationId,
-          matchingEquation.state,
-        );
-      }
-    });
-
-    equationsAtTick.forEach((equationEvent, equationIndex) => {
-      if (usedEquationIds.has(equationEvent.equationId)) {
+      if (mechanicEvent.mechanic === "hit") {
+        counts.hit += Math.max(1, Math.round(Number(mechanicEvent.hits ?? 1)));
         return;
       }
 
-      const inferredMechanic = inferMechanicFromEquationId(
-        equationEvent.equationId,
-      );
-      const fallbackMechanic =
-        gameplayMechanics[equationIndex % gameplayMechanics.length];
-      const mechanic = inferredMechanic ?? fallbackMechanic;
-
-      slot.assignments[mechanic] = savedEquationFromState(
-        equationEvent.equationId,
-        equationEvent.state,
-      );
-      usedEquationIds.add(equationEvent.equationId);
+      counts[mechanicEvent.mechanic] += 1;
     });
+
+    const slot = makeTimelineEvent(index, tick, counts);
+    const firstEquationEvent = equationsAtTick[0];
+
+    if (firstEquationEvent) {
+      const equation = savedEquationFromState(
+        firstEquationEvent.equationId,
+        firstEquationEvent.state,
+      );
+
+      gameplayMechanics.forEach((mechanic) => {
+        if (slot.counts[mechanic] > 0) {
+          slot.assignments[mechanic] = cloneEquationForAssignment(equation);
+        }
+      });
+    }
 
     return slot;
   });
@@ -485,18 +510,16 @@ function savedEquationsFromTimelineEvents(events: TimelineEventSlot[]) {
   const byState = new Map<string, SavedEquation>();
 
   events.forEach((event) => {
-    gameplayMechanics.forEach((mechanic) => {
-      const equation = event.assignments[mechanic];
-      const state = equation ? tokensToEquationState(equation.tokens) : "";
+    const equation = getTimelineEventEquation(event);
+    const state = equation ? tokensToEquationState(equation.tokens) : "";
 
-      if (!equation || !state || byState.has(state)) {
-        return;
-      }
+    if (!equation || !state || byState.has(state)) {
+      return;
+    }
 
-      byState.set(state, {
-        id: equation.id || makeId("equation"),
-        tokens: cloneTokens(equation.tokens),
-      });
+    byState.set(state, {
+      id: equation.id || makeId("equation"),
+      tokens: cloneTokens(equation.tokens),
     });
   });
 
@@ -507,30 +530,43 @@ function sidecarFromTimelineEvents(
   events: TimelineEventSlot[],
 ): SidecarPayload {
   const sidecarEvents = events.flatMap((event, eventIndex): SidecarEvent[] => {
-    return gameplayMechanics.flatMap((mechanic): SidecarEvent[] => {
-      const equation = event.assignments[mechanic];
+    const equation = getTimelineEventEquation(event);
 
-      if (!equation || equation.tokens.length === 0) {
+    if (!equation || equation.tokens.length === 0) {
+      return [];
+    }
+
+    const equationId = `eq_${String(eventIndex + 1).padStart(3, "0")}`;
+    const mechanicEvents = gameplayMechanics.flatMap((mechanic): SidecarEvent[] => {
+      const count = event.counts?.[mechanic] ?? 0;
+
+      if (count <= 0) {
         return [];
       }
-
-      const equationId = `eq_${String(eventIndex + 1).padStart(3, "0")}_${mechanic}`;
 
       return [
         {
           tick: event.tick,
           type: "ALG_MECHANIC",
           mechanic,
-          hits: mechanic === "hit" ? 1 : undefined,
-        },
-        {
-          tick: event.tick,
-          type: "ALG_EQUATION_STATE",
-          equationId,
-          state: tokensToEquationState(equation.tokens),
+          hits: mechanic === "hit" ? count : undefined,
         },
       ];
     });
+
+    if (mechanicEvents.length === 0) {
+      return [];
+    }
+
+    return [
+      ...mechanicEvents,
+      {
+        tick: event.tick,
+        type: "ALG_EQUATION_STATE",
+        equationId,
+        state: tokensToEquationState(equation.tokens),
+      },
+    ];
   });
 
   return {
@@ -1204,14 +1240,188 @@ function EquationBuilderArea({
   );
 }
 
-function EventMechanicColumn({
+function MechanicInstanceRow({
   mechanic,
+  count,
   equation,
   onDropEquation,
 }: {
   mechanic: GameplayMechanic;
+  count: number;
   equation: SavedEquation | null;
-  onDropEquation: (mechanic: GameplayMechanic, equation: SavedEquation) => void;
+  onDropEquation: (equation: SavedEquation) => void;
+}) {
+  const [activeInstanceIndex, setActiveInstanceIndex] = useState(0);
+  const safeCount = Math.max(0, Math.round(count));
+
+  useEffect(() => {
+    setActiveInstanceIndex((current) =>
+      safeCount > 0 ? Math.min(current, safeCount - 1) : 0,
+    );
+  }, [safeCount]);
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+
+    const rawEquation = event.dataTransfer.getData(
+      "application/x-saved-equation",
+    );
+
+    if (!rawEquation) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawEquation) as SavedEquation;
+
+      if (parsed.id && Array.isArray(parsed.tokens)) {
+        onDropEquation({
+          id: parsed.id,
+          tokens: cloneTokens(parsed.tokens),
+        });
+      }
+    } catch (error) {
+      console.error("Failed to drop saved equation", error);
+    }
+  }
+
+  if (safeCount <= 0) {
+    return null;
+  }
+
+  return (
+    <div
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      }}
+      onDrop={handleDrop}
+      style={{
+        background: "#191919",
+        border: `1px dashed ${subtleBorderColor}`,
+        borderRadius: 18,
+        minHeight: 142,
+        display: "grid",
+        gridTemplateColumns: "140px minmax(0, 1fr)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          borderRight: `1px solid ${subtleBorderColor}`,
+          padding: 14,
+          display: "grid",
+          alignContent: "center",
+          gap: 10,
+        }}
+      >
+        <div
+          style={{
+            color: textColor,
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 14,
+            fontWeight: 900,
+            textTransform: "uppercase",
+          }}
+        >
+          {mechanic}s
+        </div>
+        <div
+          style={{
+            color: "#FFFFFF99",
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 12,
+            fontWeight: 700,
+          }}
+        >
+          {safeCount} total
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: 14,
+          display: "grid",
+          gridTemplateRows: safeCount > 1 ? "auto 1fr" : "1fr",
+          gap: 12,
+          minWidth: 0,
+        }}
+      >
+        {safeCount > 1 ? (
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              overflowX: "auto",
+            }}
+          >
+            {Array.from({ length: safeCount }, (_, index) => {
+              const isActive = index === activeInstanceIndex;
+
+              return (
+                <button
+                  key={`${mechanic}-${index}`}
+                  type="button"
+                  onClick={() => setActiveInstanceIndex(index)}
+                  style={{
+                    minWidth: 44,
+                    minHeight: 30,
+                    borderRadius: 999,
+                    border: `1px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
+                    background: isActive ? "#CFFF04" : "#252525",
+                    color: isActive ? "#000000" : textColor,
+                    fontFamily: "Space Grotesk, sans-serif",
+                    fontSize: 12,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  {index + 1}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+
+        <div
+          style={{
+            minHeight: 86,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "auto",
+          }}
+        >
+          {equation ? (
+            <EquationPreview tokens={equation.tokens} circleSize={42} />
+          ) : (
+            <div
+              style={{
+                maxWidth: 320,
+                color: "#FFFFFF80",
+                fontFamily: "Space Grotesk, sans-serif",
+                fontSize: 13,
+                fontWeight: 700,
+                lineHeight: 1.4,
+                textAlign: "center",
+              }}
+            >
+              Drag an equation into this event to assign it to all {mechanic}
+              {safeCount === 1 ? "" : "s"}.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EventBuilderArea({
+  eventSlot,
+  onDropEquation,
+}: {
+  eventSlot: TimelineEventSlot | null;
+  onDropEquation: (equation: SavedEquation) => void;
 }) {
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -1228,7 +1438,7 @@ function EventMechanicColumn({
       const parsed = JSON.parse(rawEquation) as SavedEquation;
 
       if (parsed.id && Array.isArray(parsed.tokens)) {
-        onDropEquation(mechanic, {
+        onDropEquation({
           id: parsed.id,
           tokens: cloneTokens(parsed.tokens),
         });
@@ -1238,78 +1448,6 @@ function EventMechanicColumn({
     }
   }
 
-  return (
-    <div
-      onDragOver={(event) => {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "copy";
-      }}
-      onDrop={handleDrop}
-      style={{
-        background: "#191919",
-        border: `1px dashed ${subtleBorderColor}`,
-        borderRadius: 18,
-        minHeight: 0,
-        display: "grid",
-        gridTemplateRows: "auto 1fr",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          minHeight: 54,
-          borderBottom: `1px solid ${subtleBorderColor}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: textColor,
-          fontFamily: "Space Grotesk, sans-serif",
-          fontSize: 14,
-          fontWeight: 900,
-          textTransform: "uppercase",
-        }}
-      >
-        {mechanic}
-      </div>
-
-      <div
-        style={{
-          padding: 18,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "auto",
-        }}
-      >
-        {equation ? (
-          <EquationPreview tokens={equation.tokens} circleSize={46} />
-        ) : (
-          <div
-            style={{
-              maxWidth: 220,
-              color: "#FFFFFF80",
-              fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 13,
-              fontWeight: 700,
-              lineHeight: 1.4,
-              textAlign: "center",
-            }}
-          >
-            Drag an equation here.
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function EventBuilderArea({
-  eventSlot,
-  onDropEquation,
-}: {
-  eventSlot: TimelineEventSlot | null;
-  onDropEquation: (mechanic: GameplayMechanic, equation: SavedEquation) => void;
-}) {
   if (!eventSlot) {
     return (
       <div
@@ -1331,8 +1469,18 @@ function EventBuilderArea({
     );
   }
 
+  const assignedEquation = getTimelineEventEquation(eventSlot);
+  const visibleMechanics = gameplayMechanics.filter(
+    (mechanic) => (eventSlot.counts?.[mechanic] ?? 0) > 0,
+  );
+
   return (
     <div
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      }}
+      onDrop={handleDrop}
       style={{
         flex: 1,
         minHeight: 0,
@@ -1342,19 +1490,74 @@ function EventBuilderArea({
         padding: 18,
         boxSizing: "border-box",
         display: "grid",
-        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-        gap: 18,
+        gridTemplateRows: "auto 1fr",
+        gap: 16,
         overflow: "hidden",
       }}
     >
-      {gameplayMechanics.map((mechanic) => (
-        <EventMechanicColumn
-          key={mechanic}
-          mechanic={mechanic}
-          equation={eventSlot.assignments[mechanic]}
-          onDropEquation={onDropEquation}
-        />
-      ))}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          color: textColor,
+          fontFamily: "Space Grotesk, sans-serif",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 900 }}>
+            Event at tick {eventSlot.tick}
+          </div>
+          <div style={{ color: "#FFFFFF80", fontSize: 12, fontWeight: 700 }}>
+            Drop one equation here. It will be assigned to every mechanic row
+            in this event.
+          </div>
+        </div>
+        {assignedEquation ? (
+          <EquationPreview tokens={assignedEquation.tokens} circleSize={28} />
+        ) : null}
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          alignContent: "start",
+          gap: 14,
+          overflow: "auto",
+          minHeight: 0,
+        }}
+      >
+        {visibleMechanics.length === 0 ? (
+          <div
+            style={{
+              minHeight: 180,
+              border: `1px dashed ${subtleBorderColor}`,
+              borderRadius: 18,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#FFFFFF80",
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 13,
+              fontWeight: 700,
+              textAlign: "center",
+            }}
+          >
+            This event does not have any hits, spins, or drags.
+          </div>
+        ) : (
+          visibleMechanics.map((mechanic) => (
+            <MechanicInstanceRow
+              key={mechanic}
+              mechanic={mechanic}
+              count={eventSlot.counts[mechanic]}
+              equation={assignedEquation}
+              onDropEquation={onDropEquation}
+            />
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -1407,6 +1610,7 @@ function EquationTimeline({
         ) : (
           events.map((eventSlot, index) => {
             const isActive = eventSlot.id === activeEventId;
+            const assignedEquation = getTimelineEventEquation(eventSlot);
 
             return (
               <button
@@ -1425,7 +1629,7 @@ function EquationTimeline({
                   boxSizing: "border-box",
                   cursor: "pointer",
                   display: "grid",
-                  gridTemplateRows: "auto 1fr",
+                  gridTemplateRows: "auto 1fr auto",
                   gap: 10,
                   textAlign: "left",
                 }}
@@ -1439,39 +1643,46 @@ function EquationTimeline({
                     border: `1px dashed ${subtleBorderColor}`,
                     borderRadius: 12,
                     padding: 10,
-                    display: "grid",
-                    gap: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     overflow: "hidden",
+                    textAlign: "center",
                   }}
                 >
-                  {gameplayMechanics.map((mechanic) => (
-                    <div
-                      key={mechanic}
+                  {assignedEquation ? (
+                    <EquationPreview
+                      tokens={assignedEquation.tokens}
+                      circleSize={24}
+                    />
+                  ) : (
+                    <span
                       style={{
-                        display: "grid",
-                        gridTemplateColumns: "42px minmax(0, 1fr)",
-                        alignItems: "center",
-                        gap: 8,
-                        minHeight: 28,
+                        color: "#FFFFFF80",
+                        fontSize: 12,
+                        fontWeight: 800,
+                        lineHeight: 1.3,
                       }}
                     >
-                      <span
-                        style={{
-                          color: "#FFFFFF99",
-                          fontSize: 10,
-                          fontWeight: 900,
-                        }}
-                      >
-                        {mechanic.toUpperCase()}
-                      </span>
-                      <div style={{ minWidth: 0, overflow: "hidden" }}>
-                        <EquationPreview
-                          tokens={eventSlot.assignments[mechanic]?.tokens ?? []}
-                          circleSize={20}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                      Click here to Assign an Equation
+                    </span>
+                  )}
+                </div>
+
+                <div
+                  style={{
+                    color: "#FFFFFF99",
+                    fontSize: 10,
+                    fontWeight: 900,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 8,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  <span>H {eventSlot.counts?.hit ?? 0}</span>
+                  <span>S {eventSlot.counts?.spin ?? 0}</span>
+                  <span>D {eventSlot.counts?.drag ?? 0}</span>
                 </div>
               </button>
             );
@@ -1663,7 +1874,7 @@ function CenterEditorPanel({
   onInsertToken: (index: number, label: string) => void;
   onRemoveToken: (id: string) => void;
   onSaveEquation: () => void;
-  onDropEquation: (mechanic: GameplayMechanic, equation: SavedEquation) => void;
+  onDropEquation: (equation: SavedEquation) => void;
 }) {
   const activeEvent =
     timelineEvents.find((eventSlot) => eventSlot.id === activeEventId) ?? null;
@@ -1857,10 +2068,7 @@ export default function LessonBuilderClient({
     setMode("event");
   }
 
-  function handleDropEquation(
-    mechanic: GameplayMechanic,
-    equation: SavedEquation,
-  ) {
+  function handleDropEquation(equation: SavedEquation) {
     if (!activeEventId) {
       return;
     }
@@ -1871,15 +2079,17 @@ export default function LessonBuilderClient({
           return eventSlot;
         }
 
+        const nextAssignments = makeEmptyAssignments();
+
+        gameplayMechanics.forEach((mechanic) => {
+          if ((eventSlot.counts?.[mechanic] ?? 0) > 0) {
+            nextAssignments[mechanic] = cloneEquationForAssignment(equation);
+          }
+        });
+
         return {
           ...eventSlot,
-          assignments: {
-            ...eventSlot.assignments,
-            [mechanic]: {
-              ...equation,
-              tokens: cloneTokens(equation.tokens),
-            },
-          },
+          assignments: nextAssignments,
         };
       }),
     );
