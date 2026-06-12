@@ -1,4 +1,3 @@
-
 import { create } from "zustand";
 import type { ChartProject, GameplayBlock } from "./types";
 
@@ -13,20 +12,16 @@ export type HitBubblePosition =
   | "bottomRight";
 
 export type HitBubblePlacement = {
-  tokenIndex?: number;
-  tokenId?: string;
-  positions?: HitBubblePosition[];
-  pads?: HitBubblePosition[];
+  tokenIndex: number;
+  positions: HitBubblePosition[];
 };
 
 export type SpinTarget = {
-  tokenIndex?: number;
-  tokenId?: string;
+  tokenIndex: number;
 };
 
 export type DragTarget = {
-  tokenIndex?: number;
-  tokenId?: string;
+  tokenIndex: number;
 };
 
 export type SidecarMechanicEvent = {
@@ -50,18 +45,14 @@ export type SidecarEquationStateEvent = {
 
 export type SidecarEvent = SidecarMechanicEvent | SidecarEquationStateEvent;
 
-export type SidecarPayload =
-  | { version: 1; events: SidecarEvent[] }
-  | {
-      version: 2;
-      maxEquationSlots?: number;
-      equations: unknown[];
-    };
+export type SidecarPayload = {
+  version: 1;
+  events: SidecarEvent[];
+};
 
 export const emptySidecar: SidecarPayload = {
-  version: 2,
-  maxEquationSlots: 5,
-  equations: [],
+  version: 1,
+  events: [],
 };
 
 const hitBubblePositions: HitBubblePosition[] = [
@@ -121,25 +112,19 @@ function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
   }
 
   return value.flatMap((placement): HitBubblePlacement[] => {
-    if (!isObject(placement)) {
+    if (!isObject(placement) || !Array.isArray(placement.positions)) {
       return [];
     }
 
-    const rawPads = Array.isArray(placement.pads)
-      ? placement.pads
-      : Array.isArray(placement.positions)
-        ? placement.positions
-        : [];
     const tokenIndex = normalizeNonNegativeInteger(placement.tokenIndex, -1);
-    const tokenId = typeof placement.tokenId === "string" ? placement.tokenId : undefined;
 
-    if (tokenIndex < 0 && !tokenId) {
+    if (tokenIndex < 0) {
       return [];
     }
 
     const positions = Array.from(
       new Set(
-        rawPads
+        placement.positions
           .map((position) => normalizeHitBubblePosition(position))
           .filter((position): position is HitBubblePosition =>
             Boolean(position),
@@ -151,7 +136,7 @@ function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
       return [];
     }
 
-    return [{ tokenIndex, ...(tokenId ? { tokenId } : {}), positions }];
+    return [{ tokenIndex, positions }];
   });
 }
 
@@ -168,13 +153,12 @@ function normalizeTokenTargets<T extends SpinTarget | DragTarget>(
     }
 
     const tokenIndex = normalizeNonNegativeInteger(target.tokenIndex, -1);
-    const tokenId = typeof target.tokenId === "string" ? target.tokenId : undefined;
 
-    if (tokenIndex < 0 && !tokenId) {
+    if (tokenIndex < 0) {
       return [];
     }
 
-    return [{ tokenIndex, ...(tokenId ? { tokenId } : {}) } as T];
+    return [{ tokenIndex } as T];
   });
 }
 
@@ -183,20 +167,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 export function normalizeSidecar(value: unknown): SidecarPayload {
-  if (!isObject(value)) {
-    return emptySidecar;
-  }
-
-  if (Array.isArray(value.equations)) {
-    return {
-      version: 2,
-      maxEquationSlots:
-        typeof value.maxEquationSlots === "number" ? value.maxEquationSlots : 5,
-      equations: value.equations.slice(0, 5),
-    };
-  }
-
-  if (!Array.isArray(value.events)) {
+  if (!isObject(value) || !Array.isArray(value.events)) {
     return emptySidecar;
   }
 
@@ -331,22 +302,16 @@ export const useEditorStore = create<EditorStore>((set) => ({
     set((state) => ({
       sidecar: normalizeSidecar({
         version: 1,
-        events: [
-          ...(state.sidecar.version === 1 ? state.sidecar.events : []),
-          event,
-        ],
+        events: [...state.sidecar.events, event],
       }),
     })),
   removeSidecarEventAtIndex: (index) =>
     set((state) => ({
       sidecar: normalizeSidecar({
         version: 1,
-        events:
-          state.sidecar.version === 1
-            ? state.sidecar.events.filter(
-                (_, eventIndex) => eventIndex !== index,
-              )
-            : [],
+        events: state.sidecar.events.filter(
+          (_, eventIndex) => eventIndex !== index,
+        ),
       }),
     })),
   setSelectedIds: (ids) => set({ selectedIds: ids }),
@@ -383,5 +348,3 @@ export const useEditorStore = create<EditorStore>((set) => ({
       return { project, selectedIds: [] };
     }),
 }));
-
-
