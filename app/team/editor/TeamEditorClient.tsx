@@ -13,6 +13,7 @@ import {
   projectToChart,
   projectToSidecarJson,
 } from "@/lib/editor/project-to-chart";
+import type { SongChoice } from "@/lib/song-storage";
 import styles from "../../student/student.module.css";
 
 /* Header Icon imports */
@@ -199,8 +200,46 @@ type UtilityTab = {
   width: number;
 };
 
+type TeamSongChoice = SongChoice & {
+  equation_slots?: number | string | null;
+  equationSlots?: number | string | null;
+  equation_slot_ticks?: unknown;
+  equationSlotTicks?: unknown;
+  hit_counts?: unknown;
+  hitCounts?: unknown;
+  spin_counts?: unknown;
+  spinCounts?: unknown;
+  drag_counts?: unknown;
+  dragCounts?: unknown;
+  songAsset?: {
+    equation_slots?: number | string | null;
+    equationSlots?: number | string | null;
+    equation_slot_ticks?: unknown;
+    equationSlotTicks?: unknown;
+    hit_counts?: unknown;
+    hitCounts?: unknown;
+    spin_counts?: unknown;
+    spinCounts?: unknown;
+    drag_counts?: unknown;
+    dragCounts?: unknown;
+  } | null;
+  song_asset?: {
+    equation_slots?: number | string | null;
+    equationSlots?: number | string | null;
+    equation_slot_ticks?: unknown;
+    equationSlotTicks?: unknown;
+    hit_counts?: unknown;
+    hitCounts?: unknown;
+    spin_counts?: unknown;
+    spinCounts?: unknown;
+    drag_counts?: unknown;
+    dragCounts?: unknown;
+  } | null;
+};
+
 type LessonBuilderClientProps = {
   navBasePath?: string;
+  songs?: SelectedSongPayload[];
 };
 
 type EditorWorkspaceMode = "equationEditor" | "chartEditor";
@@ -1378,35 +1417,150 @@ function HeaderBar({
   );
 }
 
+function EditorToolbarButton({
+  children,
+  onClick,
+  disabled = false,
+  title,
+}: {
+  children: string;
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      title={title}
+      style={{
+        minWidth: 132,
+        height: 40,
+        background: disabled ? "#252525" : "#CFFF04",
+        color: disabled ? "#FFFFFF80" : "#000000",
+        border: `1px solid ${disabled ? subtleBorderColor : "#CFFF04"}`,
+        borderRadius: 10,
+        fontFamily: "Space Grotesk, sans-serif",
+        fontSize: 12,
+        fontWeight: 900,
+        cursor: disabled ? "not-allowed" : "pointer",
+        padding: "0 14px",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 function EditorActionBar({
   saveStatus,
   isSaving,
-  onBack,
   onSave,
+  onUploadSong,
+  onUploadChart,
+  onUploadSidecar,
+  songs,
+  onSelectSupabaseSong,
 }: {
   saveStatus: string;
   isSaving: boolean;
-  onBack: () => void;
   onSave: () => void;
+  onUploadSong: (file: File) => void;
+  onUploadChart: (file: File) => void;
+  onUploadSidecar: (file: File) => void;
+  songs: SelectedSongPayload[];
+  onSelectSupabaseSong: (song: SelectedSongPayload) => void;
 }) {
+  const songInputRef = useRef<HTMLInputElement | null>(null);
+  const chartInputRef = useRef<HTMLInputElement | null>(null);
+  const sidecarInputRef = useRef<HTMLInputElement | null>(null);
+  const [isSongPickerOpen, setIsSongPickerOpen] = useState(false);
+  const [songSearchQuery, setSongSearchQuery] = useState("");
+
+  const filteredSongs = useMemo(() => {
+    const query = songSearchQuery.trim().toLowerCase();
+
+    if (!query) {
+      return songs;
+    }
+
+    return songs.filter((song) => {
+      return (
+        song.name.toLowerCase().includes(query) ||
+        song.song.path.toLowerCase().includes(query) ||
+        song.artist?.toLowerCase().includes(query)
+      );
+    });
+  }, [songSearchQuery, songs]);
+
   return (
     <section
-      aria-label="Lesson builder actions"
+      aria-label="Team editor actions"
       style={{
         width: "100%",
-        height: 72,
         minHeight: 72,
         background: pageBackgroundColor,
         borderBottom: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
         color: textColor,
         fontFamily: "Space Grotesk, sans-serif",
+        position: "relative",
       }}
     >
+      <input
+        ref={songInputRef}
+        type="file"
+        accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac,.flac"
+        style={{ display: "none" }}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+
+          if (file) {
+            onUploadSong(file);
+          }
+
+          event.target.value = "";
+        }}
+      />
+
+      <input
+        ref={chartInputRef}
+        type="file"
+        accept=".chart,text/plain"
+        style={{ display: "none" }}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+
+          if (file) {
+            onUploadChart(file);
+          }
+
+          event.target.value = "";
+        }}
+      />
+
+      <input
+        ref={sidecarInputRef}
+        type="file"
+        accept=".json,application/json"
+        style={{ display: "none" }}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+
+          if (file) {
+            onUploadSidecar(file);
+          }
+
+          event.target.value = "";
+        }}
+      />
+
       <div
         style={{
           width: pagePanelWidth,
-          height: "100%",
+          minHeight: 72,
           margin: "0 auto",
           display: "flex",
           alignItems: "center",
@@ -1414,75 +1568,305 @@ function EditorActionBar({
           gap: 16,
         }}
       >
-        <button
-          type="button"
-          onClick={onBack}
-          style={{
-            minWidth: 96,
-            height: 42,
-            background: panelBackgroundColor,
-            color: "#FFFFFF",
-            border: `1px solid ${subtleBorderColor}`,
-            borderRadius: 12,
-            fontFamily: "Space Grotesk, sans-serif",
-            fontSize: 14,
-            fontWeight: 800,
-            cursor: "pointer",
-          }}
-        >
-          Back
-        </button>
-
         <div
-          aria-live="polite"
           style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
             minWidth: 0,
-            color: saveStatus === "Saved" ? "#CFFF04" : "#FFFFFF99",
-            fontSize: 12,
-            fontWeight: 700,
-            textAlign: "right",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            overflowX: "auto",
           }}
         >
-          {saveStatus}
+          <EditorToolbarButton onClick={() => songInputRef.current?.click()}>
+            Upload Song
+          </EditorToolbarButton>
+
+          <EditorToolbarButton onClick={() => chartInputRef.current?.click()}>
+            Upload .chart
+          </EditorToolbarButton>
+
+          <EditorToolbarButton onClick={() => sidecarInputRef.current?.click()}>
+            Upload Sidecar JSON
+          </EditorToolbarButton>
+
+          <EditorToolbarButton
+            onClick={() => setIsSongPickerOpen(true)}
+            disabled={songs.length === 0}
+            title={
+              songs.length === 0
+                ? "No Supabase songs were passed into TeamEditorClient."
+                : "Choose a song from Supabase."
+            }
+          >
+            Download Song
+          </EditorToolbarButton>
         </div>
 
-        <button
-          type="button"
-          disabled={isSaving}
-          onClick={onSave}
-          aria-label="Save lesson to Supabase"
-          title="Save lesson"
+        <div
           style={{
-          width: 119,
-          height: 58,
-            border: "none",
-            borderRadius: 12,
-            background: "transparent",
-            padding: 0,
-            cursor: isSaving ? "not-allowed" : "pointer",
-            opacity: isSaving ? 0.55 : 1,
-            flexShrink: 0,
-            display: "inline-flex",
+            display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            gap: 12,
+            flexShrink: 0,
           }}
         >
-          <img
-            src="/Save_Button.svg"
-            alt=""
-            aria-hidden="true"
+          <div
+            aria-live="polite"
+            style={{
+              maxWidth: 280,
+              color: saveStatus === "Saved" ? "#CFFF04" : "#FFFFFF99",
+              fontSize: 12,
+              fontWeight: 700,
+              textAlign: "right",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {saveStatus}
+          </div>
+
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={onSave}
+            aria-label="Save lesson to Supabase"
+            title="Save lesson"
             style={{
               width: 119,
               height: 58,
-              display: "block",
-              objectFit: "contain",
+              border: "none",
+              borderRadius: 12,
+              background: "transparent",
+              padding: 0,
+              cursor: isSaving ? "not-allowed" : "pointer",
+              opacity: isSaving ? 0.55 : 1,
+              flexShrink: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
-          />
-        </button>
+          >
+            <img
+              src="/Save_Button.svg"
+              alt=""
+              aria-hidden="true"
+              style={{
+                width: 119,
+                height: 58,
+                display: "block",
+                objectFit: "contain",
+              }}
+            />
+          </button>
+        </div>
       </div>
+
+      {isSongPickerOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Choose a song from Supabase"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.64)",
+            zIndex: 100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            style={{
+              width: "min(760px, 92vw)",
+              maxHeight: "78vh",
+              background: "#2B2B2B",
+              border: `1px solid ${subtleBorderColor}`,
+              borderRadius: 18,
+              boxShadow: "0 24px 80px rgba(0,0,0,0.46)",
+              display: "grid",
+              gridTemplateRows: "auto auto 1fr auto",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 20px",
+                borderBottom: `1px solid ${subtleBorderColor}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 14,
+              }}
+            >
+              <div
+                style={{
+                  color: "#FFFFFF",
+                  fontSize: 16,
+                  fontWeight: 900,
+                }}
+              >
+                Download Song
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsSongPickerOpen(false)}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 999,
+                  border: `1px solid ${subtleBorderColor}`,
+                  background: "#191919",
+                  color: "#FFFFFF",
+                  cursor: "pointer",
+                  fontSize: 18,
+                  fontWeight: 900,
+                }}
+                aria-label="Close song picker"
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              style={{
+                padding: 16,
+                borderBottom: `1px solid ${subtleBorderColor}`,
+              }}
+            >
+              <input
+                type="search"
+                value={songSearchQuery}
+                onChange={(event) => setSongSearchQuery(event.target.value)}
+                placeholder="Search songs"
+                aria-label="Search songs"
+                style={{
+                  width: "100%",
+                  height: 42,
+                  background: "#191919",
+                  border: `1px solid ${subtleBorderColor}`,
+                  borderRadius: 12,
+                  color: "#FFFFFF",
+                  fontFamily: "Space Grotesk, sans-serif",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  outline: "none",
+                  padding: "0 14px",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+
+            <div
+              style={{
+                overflowY: "auto",
+                padding: 12,
+                display: "grid",
+                gap: 8,
+              }}
+            >
+              {filteredSongs.length === 0 ? (
+                <div
+                  style={{
+                    padding: 18,
+                    color: "#FFFFFF80",
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                >
+                  No songs found.
+                </div>
+              ) : (
+                filteredSongs.map((song) => (
+                  <button
+                    key={song.id}
+                    type="button"
+                    onClick={() => {
+                      onSelectSupabaseSong(song);
+                      setIsSongPickerOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      minHeight: 58,
+                      background: "#191919",
+                      color: "#FFFFFF",
+                      border: `1px solid ${subtleBorderColor}`,
+                      borderRadius: 12,
+                      padding: "10px 14px",
+                      cursor: "pointer",
+                      display: "grid",
+                      gridTemplateColumns: "minmax(0, 1fr) auto",
+                      gap: 12,
+                      textAlign: "left",
+                    }}
+                  >
+                    <span
+                      style={{
+                        minWidth: 0,
+                        display: "grid",
+                        gap: 3,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 900,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {song.name}
+                      </span>
+
+                      <span
+                        style={{
+                          color: "#FFFFFF99",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {song.artist ?? "Unknown artist"} · {song.song.path}
+                      </span>
+                    </span>
+
+                    <span
+                      style={{
+                        color: "#CFFF04",
+                        fontSize: 12,
+                        fontWeight: 900,
+                        alignSelf: "center",
+                      }}
+                    >
+                      Select
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+
+            <div
+              style={{
+                padding: 14,
+                borderTop: `1px solid ${subtleBorderColor}`,
+                color: "#FFFFFF80",
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+            >
+              Selecting a song loads its audio, .chart file, and sidecar JSON if
+              those files exist.
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -4226,6 +4610,7 @@ function CenterEditorPanel({
 
 export default function LessonBuilderClient({
   navBasePath = "/student",
+  songs = [],
 }: LessonBuilderClientProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -4344,6 +4729,150 @@ export default function LessonBuilderClient({
       return nextEvents;
     });
   }
+
+  async function handleUploadSongFile(file: File) {
+  setPendingSongFile(file);
+  setUploadedSongName(file.name);
+  setSelectedSongStorage(null);
+  setSaveStatus(`Loaded song: ${file.name}`);
+
+  setMetadata((current) => ({
+    ...current,
+    songTitle: file.name.replace(/\.[^/.]+$/, ""),
+    uploadedFileName: file.name,
+  }));
+}
+
+async function handleUploadChartFile(file: File) {
+  try {
+    const nextChartFile = await file.text();
+
+    setChartFile(nextChartFile);
+    setUploadedChartName(file.name);
+    setSaveStatus(`Loaded chart: ${file.name}`);
+
+    try {
+      setProject(
+        chartToProject({
+          chartFile: nextChartFile,
+          analysisMetadata: metadata,
+          rawResults: sidecar,
+        }),
+      );
+    } catch (error) {
+      console.error("Failed to rebuild project from uploaded chart", error);
+    }
+  } catch (error) {
+    setSaveStatus(
+      error instanceof Error ? error.message : "Unable to load .chart file",
+    );
+  }
+}
+
+async function handleUploadSidecarJsonFile(file: File) {
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text) as unknown;
+    const normalizedSidecar = normalizeSidecar(parsed);
+
+    loadSidecarIntoTimeline(normalizedSidecar, null);
+    setSaveStatus(`Loaded sidecar JSON: ${file.name}`);
+
+    if (chartFile.trim()) {
+      try {
+        setProject(
+          chartToProject({
+            chartFile,
+            analysisMetadata: metadata,
+            rawResults: normalizedSidecar,
+          }),
+        );
+      } catch (error) {
+        console.error("Failed to rebuild project from uploaded sidecar", error);
+      }
+    }
+  } catch (error) {
+    setSaveStatus(
+      error instanceof Error
+        ? error.message
+        : "Unable to load sidecar JSON file",
+    );
+  }
+}
+
+async function handleSelectSupabaseSong(song: SelectedSongPayload) {
+  setSaveStatus(`Loading ${song.name}...`);
+
+  try {
+    setSelectedSongStorage({
+      id: song.id,
+      chart: {
+        bucket: song.chart.bucket,
+        path: song.chart.path,
+        contentType: song.chart.contentType,
+      },
+      sidecar: song.sidecar
+        ? {
+            bucket: song.sidecar.bucket,
+            path: song.sidecar.path,
+            contentType: song.sidecar.contentType,
+          }
+        : null,
+    });
+
+    setUploadedSongName(song.name);
+
+    setMetadata((current) => ({
+      ...current,
+      songTitle: song.title ?? song.name,
+      artist: song.artist ?? current?.artist,
+      uploadedFileName: song.song.path,
+    }));
+
+    const nextSongFile = await fileFromSignedUrl({
+      signedUrl: song.song.signedUrl,
+      path: song.song.path,
+      name: song.name,
+      contentType: song.song.contentType,
+    });
+
+    setPendingSongFile(nextSongFile);
+
+    const [nextChartFile, sidecarJson] = await Promise.all([
+      textFromSignedUrl(song.chart.signedUrl),
+      song.sidecar
+        ? jsonFromSignedUrl(song.sidecar.signedUrl)
+        : Promise.resolve(null),
+    ]);
+
+    const normalizedSidecar = normalizeSidecar(sidecarJson ?? emptySidecar);
+    const nextChartName = song.chart.path.split("/").pop() ?? "selected.chart";
+
+    setChartFile(nextChartFile);
+    setUploadedChartName(nextChartName);
+    loadSidecarIntoTimeline(normalizedSidecar, null);
+
+    setProject(
+      chartToProject({
+        chartFile: nextChartFile,
+        analysisMetadata: {
+          songTitle: song.title ?? song.name,
+          artist: song.artist ?? undefined,
+          uploadedFileName: song.song.path,
+        },
+        rawResults: normalizedSidecar,
+      }),
+    );
+
+    setSaveStatus(`Loaded ${song.name}`);
+  } catch (error) {
+    setSaveStatus(
+      error instanceof Error
+        ? error.message
+        : "Unable to download selected song package",
+    );
+  }
+}
 
   function handleNewEquation() {
     setDraftTokens([]);
@@ -4875,12 +5404,16 @@ function handleToggleDragTarget(
     >
       <HeaderBar pathname={pathname} topTabs={topTabs} />
 
-      <EditorActionBar
-        saveStatus={loadError || saveStatus}
-        isSaving={isSaving}
-        onBack={handleBackToSongChoice}
-        onSave={handleSaveToSupabase}
-      />
+<EditorActionBar
+  saveStatus={loadError || saveStatus}
+  isSaving={isSaving}
+  onSave={handleSaveToSupabase}
+  onUploadSong={handleUploadSongFile}
+  onUploadChart={handleUploadChartFile}
+  onUploadSidecar={handleUploadSidecarJsonFile}
+  songs={songs}
+  onSelectSupabaseSong={handleSelectSupabaseSong}
+/>
 
       <main
         style={{
