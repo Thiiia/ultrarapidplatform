@@ -1450,7 +1450,7 @@ function EquationCircle({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        fontFamily: "Grandstander, Space Grotesk, sans-serif",
+        fontFamily: "Space Grotesk, sans-serif",
         fontSize: size >= 60 ? 32 : 16,
         fontWeight: 700,
         lineHeight: 1,
@@ -1767,7 +1767,7 @@ function CustomEquationCircle({
           background: "transparent",
           color: "#FFFFFF",
           textAlign: "center",
-          fontFamily: "Grandstander, Space Grotesk, sans-serif",
+          fontFamily: "Space Grotesk, sans-serif",
           fontSize: 32,
           fontWeight: 700,
           lineHeight: 1,
@@ -2148,7 +2148,8 @@ function HitEquationEditor({
     null,
   );
   const bubbleSize = 28;
-  const circleSize = 58;
+  const largeCircleSize = 68;
+  const tokenSlotSize = 68;
 
   if (tokens.length === 0) {
     return (
@@ -2172,6 +2173,7 @@ function HitEquationEditor({
     >
       {tokens.map((token, tokenIndex) => {
         const isOperator = isEquationOperator(token.label);
+        const tokenSize = getEquationEditorTokenSize(token.label);
         const placement = hitBubbles.find(
           (item) => item.tokenIndex === tokenIndex,
         );
@@ -2181,8 +2183,8 @@ function HitEquationEditor({
             key={token.id}
             style={{
               position: "relative",
-              width: circleSize,
-              height: circleSize,
+              width: tokenSlotSize,
+              height: tokenSlotSize,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -2200,10 +2202,10 @@ function HitEquationEditor({
                     }}
                   >
                     <EmptyEquationBubble
-  size={bubbleSize}
-  borderColor="#CFFF04"
-  background="rgba(207, 255, 4, 0.08)"
-/>
+                      size={bubbleSize}
+                      borderColor="#CFFF04"
+                      background="rgba(207, 255, 4, 0.08)"
+                    />
                   </span>
                 ))
               : null}
@@ -2221,7 +2223,7 @@ function HitEquationEditor({
               <EquationCircle
                 label={token.label}
                 draggable={false}
-                size={circleSize}
+                size={tokenSize}
               />
             ) : (
               <button
@@ -2245,7 +2247,7 @@ function HitEquationEditor({
                 <EquationCircle
                   label={token.label}
                   draggable={false}
-                  size={circleSize}
+                  size={largeCircleSize}
                 />
               </button>
             )}
@@ -2306,7 +2308,8 @@ function SpinEquationEditor({
   onToggleSpinTarget: (tokenIndex: number) => void;
 }) {
   const targetIndexes = new Set(spinTargets.map((target) => target.tokenIndex));
-  const circleSize = 58;
+  const largeCircleSize = 68;
+  const tokenSlotSize = 68;
 
   if (tokens.length === 0) {
     return (
@@ -2330,14 +2333,15 @@ function SpinEquationEditor({
       {tokens.map((token, tokenIndex) => {
         const isOperator = isEquationOperator(token.label);
         const isSpinTarget = targetIndexes.has(tokenIndex);
+        const tokenSize = getEquationEditorTokenSize(token.label);
 
         return (
           <span
             key={token.id}
             style={{
               position: "relative",
-              width: circleSize,
-              height: circleSize,
+              width: tokenSlotSize,
+              height: tokenSlotSize,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -2345,11 +2349,12 @@ function SpinEquationEditor({
             }}
           >
             {!isOperator && isSpinTarget ? <SpinOverlay /> : null}
+
             {isOperator ? (
               <EquationCircle
                 label={token.label}
                 draggable={false}
-                size={circleSize}
+                size={tokenSize}
               />
             ) : (
               <button
@@ -2371,7 +2376,7 @@ function SpinEquationEditor({
                 <EquationCircle
                   label={token.label}
                   draggable={false}
-                  size={circleSize}
+                  size={largeCircleSize}
                 />
               </button>
             )}
@@ -2448,7 +2453,11 @@ function DragArcSvg({ arcs }: { arcs: DragArcGeometry[] }) {
         const deltaX = arc.endX - arc.startX;
         const lift = Math.max(76, Math.min(170, Math.abs(deltaX) * 0.32));
         const controlY = Math.min(arc.startY, arc.endY) - lift;
-        const path = `M ${arc.startX} ${arc.startY} C ${arc.startX + deltaX * 0.25} ${controlY}, ${arc.startX + deltaX * 0.75} ${controlY}, ${arc.endX} ${arc.endY}`;
+        const path = `M ${arc.startX} ${arc.startY} C ${
+          arc.startX + deltaX * 0.25
+        } ${controlY}, ${arc.startX + deltaX * 0.75} ${controlY}, ${
+          arc.endX
+        } ${arc.endY}`;
 
         return (
           <g key={arc.targetIndex}>
@@ -2482,87 +2491,128 @@ function DragEquationEditor({
   dragTargets: DragTarget[];
   onToggleDragTarget: (tokenIndex: number) => void;
 }) {
-  const targetIndexes = useMemo(
-    () =>
-      Array.from(new Set(dragTargets.map((target) => target.tokenIndex))).sort(
-        (left, right) => left - right,
-      ),
-    [dragTargets],
-  );
-  const targetIndexSet = useMemo(() => new Set(targetIndexes), [targetIndexes]);
+  const targetIndexes = new Set(dragTargets.map((target) => target.tokenIndex));
+  const selectedTargetIndex = dragTargets[0]?.tokenIndex ?? null;
   const equalsIndex = findEqualsIndex(tokens);
   const actualEqualsIndex = tokens.findIndex((token) => token.label === "=");
-  const circleSize = 58;
-  const surfaceRef = useRef<HTMLDivElement | null>(null);
-  const tokenRefs = useRef(new Map<number, HTMLSpanElement>());
-  const destinationRefs = useRef(new Map<number, HTMLSpanElement>());
-  const [arcs, setArcs] = useState<DragArcGeometry[]>([]);
-  const targetKey = targetIndexes.join(",");
+  const largeCircleSize = 68;
+  const tokenSlotSize = 68;
 
-  const targetsStartingOnLeft = targetIndexes.filter(
-    (targetIndex) => targetIndex < equalsIndex,
-  );
-  const targetsStartingOnRight = targetIndexes.filter(
-    (targetIndex) => targetIndex >= equalsIndex,
-  );
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const tokenRefs = useRef<Map<number, HTMLSpanElement>>(new Map());
+  const destinationRefs = useRef<Map<number, HTMLSpanElement>>(new Map());
+  const [arcs, setArcs] = useState<DragArcGeometry[]>([]);
+
   const leftTokens = tokens
     .map((token, tokenIndex) => ({ token, tokenIndex }))
-    .filter(({ tokenIndex }) =>
-      actualEqualsIndex >= 0
-        ? tokenIndex < actualEqualsIndex
-        : tokenIndex < equalsIndex,
-    );
-  const equalsToken = actualEqualsIndex >= 0 ? tokens[actualEqualsIndex] : null;
+    .filter(({ tokenIndex }) => tokenIndex < equalsIndex);
+
   const rightTokens = tokens
     .map((token, tokenIndex) => ({ token, tokenIndex }))
-    .filter(({ tokenIndex }) =>
-      actualEqualsIndex >= 0
-        ? tokenIndex > actualEqualsIndex
-        : tokenIndex >= equalsIndex,
-    );
+    .filter(({ tokenIndex }) => tokenIndex > equalsIndex);
+
+  const equalsToken =
+    actualEqualsIndex >= 0 ? tokens[actualEqualsIndex] : null;
+
+  const targetsStartingOnLeft =
+    selectedTargetIndex !== null && selectedTargetIndex < equalsIndex
+      ? [selectedTargetIndex]
+      : [];
+
+  const targetsStartingOnRight =
+    selectedTargetIndex !== null && selectedTargetIndex > equalsIndex
+      ? [selectedTargetIndex]
+      : [];
 
   useLayoutEffect(() => {
-    function measureArcs() {
+    const surface = surfaceRef.current;
+
+    if (!surface || dragTargets.length === 0) {
+      setArcs([]);
+      return;
+    }
+
+    const surfaceRect = surface.getBoundingClientRect();
+
+    const nextArcs = dragTargets.flatMap((target): DragArcGeometry[] => {
+      const tokenNode = tokenRefs.current.get(target.tokenIndex);
+      const destinationNode = destinationRefs.current.get(target.tokenIndex);
+
+      if (!tokenNode || !destinationNode) {
+        return [];
+      }
+
+      const tokenRect = tokenNode.getBoundingClientRect();
+      const destinationRect = destinationNode.getBoundingClientRect();
+
+      return [
+        {
+          targetIndex: target.tokenIndex,
+          startX: tokenRect.left + tokenRect.width / 2 - surfaceRect.left,
+          startY: tokenRect.top + tokenRect.height / 2 - surfaceRect.top,
+          endX:
+            destinationRect.left +
+            destinationRect.width / 2 -
+            surfaceRect.left,
+          endY:
+            destinationRect.top +
+            destinationRect.height / 2 -
+            surfaceRect.top,
+        },
+      ];
+    });
+
+    setArcs(nextArcs);
+  }, [dragTargets, tokens]);
+
+  useEffect(() => {
+    function handleResize() {
       const surface = surfaceRef.current;
 
-      if (!surface) {
+      if (!surface || dragTargets.length === 0) {
         setArcs([]);
         return;
       }
 
-      const surfaceBox = surface.getBoundingClientRect();
-      const nextArcs = targetIndexes.flatMap(
-        (targetIndex): DragArcGeometry[] => {
-          const startElement = tokenRefs.current.get(targetIndex);
-          const endElement = destinationRefs.current.get(targetIndex);
+      const surfaceRect = surface.getBoundingClientRect();
 
-          if (!startElement || !endElement) {
-            return [];
-          }
+      const nextArcs = dragTargets.flatMap((target): DragArcGeometry[] => {
+        const tokenNode = tokenRefs.current.get(target.tokenIndex);
+        const destinationNode = destinationRefs.current.get(target.tokenIndex);
 
-          const startBox = startElement.getBoundingClientRect();
-          const endBox = endElement.getBoundingClientRect();
+        if (!tokenNode || !destinationNode) {
+          return [];
+        }
 
-          return [
-            {
-              targetIndex,
-              startX: startBox.left + startBox.width / 2 - surfaceBox.left,
-              startY: startBox.top + startBox.height / 2 - surfaceBox.top,
-              endX: endBox.left + endBox.width / 2 - surfaceBox.left,
-              endY: endBox.top + endBox.height / 2 - surfaceBox.top,
-            },
-          ];
-        },
-      );
+        const tokenRect = tokenNode.getBoundingClientRect();
+        const destinationRect = destinationNode.getBoundingClientRect();
+
+        return [
+          {
+            targetIndex: target.tokenIndex,
+            startX: tokenRect.left + tokenRect.width / 2 - surfaceRect.left,
+            startY: tokenRect.top + tokenRect.height / 2 - surfaceRect.top,
+            endX:
+              destinationRect.left +
+              destinationRect.width / 2 -
+              surfaceRect.left,
+            endY:
+              destinationRect.top +
+              destinationRect.height / 2 -
+              surfaceRect.top,
+          },
+        ];
+      });
 
       setArcs(nextArcs);
     }
 
-    measureArcs();
-    window.addEventListener("resize", measureArcs);
+    window.addEventListener("resize", handleResize);
 
-    return () => window.removeEventListener("resize", measureArcs);
-  }, [equalsIndex, targetIndexes, targetKey, tokens.length]);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [dragTargets]);
 
   if (tokens.length === 0) {
     return (
@@ -2574,7 +2624,8 @@ function DragEquationEditor({
 
   function renderToken(token: EquationToken, tokenIndex: number) {
     const isOperator = isEquationOperator(token.label);
-    const isDragTarget = targetIndexSet.has(tokenIndex);
+    const isDragTarget = targetIndexes.has(tokenIndex);
+    const tokenSize = getEquationEditorTokenSize(token.label);
 
     return (
       <span
@@ -2588,8 +2639,8 @@ function DragEquationEditor({
         }}
         style={{
           position: "relative",
-          width: circleSize,
-          height: circleSize,
+          width: tokenSlotSize,
+          height: tokenSlotSize,
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
@@ -2601,7 +2652,7 @@ function DragEquationEditor({
           <EquationCircle
             label={token.label}
             draggable={false}
-            size={circleSize}
+            size={tokenSize}
           />
         ) : (
           <button
@@ -2618,18 +2669,28 @@ function DragEquationEditor({
               background: "transparent",
               padding: 0,
               cursor: "pointer",
-              filter: isDragTarget
-                ? "drop-shadow(0 0 12px rgba(187, 255, 0, 0.22))"
-                : undefined,
             }}
           >
             <EquationCircle
               label={token.label}
               draggable={false}
-              size={circleSize}
+              size={largeCircleSize}
             />
           </button>
         )}
+
+        {!isOperator && isDragTarget ? (
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: -6,
+              borderRadius: 999,
+              border: "2px solid rgba(207, 255, 4, 0.38)",
+              pointerEvents: "none",
+            }}
+          />
+        ) : null}
       </span>
     );
   }
@@ -2647,8 +2708,8 @@ function DragEquationEditor({
         }}
         style={{
           position: "relative",
-          width: circleSize,
-          height: circleSize,
+          width: largeCircleSize,
+          height: largeCircleSize,
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
@@ -2656,7 +2717,7 @@ function DragEquationEditor({
           zIndex: 5,
         }}
       >
-        <DragDestinationBubble size={circleSize} />
+        <DragDestinationBubble size={largeCircleSize} />
       </span>
     );
   }
@@ -2680,11 +2741,15 @@ function DragEquationEditor({
       {leftTokens.map(({ token, tokenIndex }) =>
         renderToken(token, tokenIndex),
       )}
+
       {targetsStartingOnRight.map(renderDestination)}
+
       {equalsToken ? renderToken(equalsToken, actualEqualsIndex) : null}
+
       {rightTokens.map(({ token, tokenIndex }) =>
         renderToken(token, tokenIndex),
       )}
+
       {targetsStartingOnLeft.map(renderDestination)}
     </div>
   );
