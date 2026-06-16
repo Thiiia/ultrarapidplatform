@@ -1502,19 +1502,37 @@ function EquationPreview({
   );
 }
 
-function EquationDropSlot({
+function getEquationEditorTokenSize(label: string) {
+  return isEquationOperator(label) ? 34 : 68;
+}
+
+function EquationInsertionSlot({
   index,
+  isActive,
+  onHover,
+  onLeave,
   onInsertToken,
 }: {
   index: number;
+  isActive: boolean;
+  onHover: (index: number) => void;
+  onLeave: () => void;
   onInsertToken: (index: number, label: string) => void;
 }) {
+function acceptsPaletteToken(event: DragEvent<HTMLElement>) {
+  return Array.from(event.dataTransfer.types).includes(
+    "application/x-equation-token",
+  );
+}
+
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
+    event.stopPropagation();
 
     const rawToken = event.dataTransfer.getData("application/x-equation-token");
 
     if (!rawToken) {
+      onLeave();
       return;
     }
 
@@ -1526,29 +1544,170 @@ function EquationDropSlot({
       }
     } catch (error) {
       console.error("Failed to drop equation token", error);
+    } finally {
+      onLeave();
+    }
+  }
+
+  return (
+    <span
+      onDragEnter={(event) => {
+        if (!acceptsPaletteToken(event)) return;
+        event.preventDefault();
+        onHover(index);
+      }}
+      onDragOver={(event) => {
+        if (!acceptsPaletteToken(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        onHover(index);
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          onLeave();
+        }
+      }}
+      onDrop={handleDrop}
+      style={{
+        width: isActive ? 74 : 10,
+        height: 82,
+        borderRadius: 999,
+        background: isActive ? "rgba(207, 255, 4, 0.16)" : "transparent",
+        outline: isActive ? "2px solid rgba(207, 255, 4, 0.48)" : "none",
+        boxSizing: "border-box",
+        transition: "width 140ms ease, background 140ms ease, outline 140ms ease",
+        flexShrink: 0,
+      }}
+      aria-label={`Drop token at position ${index + 1}`}
+    />
+  );
+}
+
+function DraftEquationToken({
+  token,
+}: {
+  token: EquationToken;
+}) {
+  const tokenSize = getEquationEditorTokenSize(token.label);
+
+  return (
+    <span
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.setData(
+          "application/x-draft-equation-token",
+          JSON.stringify({ id: token.id }),
+        );
+        event.dataTransfer.effectAllowed = "move";
+      }}
+      title="Drag to the trash to delete"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 68,
+        height: 68,
+        cursor: "grab",
+        flexShrink: 0,
+      }}
+    >
+      <EquationCircle
+        label={token.label}
+        draggable={false}
+        size={tokenSize}
+      />
+    </span>
+  );
+}
+
+function EquationTrashDropZone({
+  isActive,
+  onActiveChange,
+  onRemoveToken,
+}: {
+  isActive: boolean;
+  onActiveChange: (isActive: boolean) => void;
+  onRemoveToken: (id: string) => void;
+}) {
+function acceptsDraftToken(event: DragEvent<HTMLElement>) {
+  return Array.from(event.dataTransfer.types).includes(
+    "application/x-draft-equation-token",
+  );
+}
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rawToken = event.dataTransfer.getData(
+      "application/x-draft-equation-token",
+    );
+
+    if (!rawToken) {
+      onActiveChange(false);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(rawToken) as { id?: string };
+
+      if (parsed.id) {
+        onRemoveToken(parsed.id);
+      }
+    } catch (error) {
+      console.error("Failed to delete draft equation token", error);
+    } finally {
+      onActiveChange(false);
     }
   }
 
   return (
     <div
-      onDragOver={(event) => {
+      onDragEnter={(event) => {
+        if (!acceptsDraftToken(event)) return;
         event.preventDefault();
-        event.dataTransfer.dropEffect = "copy";
+        onActiveChange(true);
+      }}
+      onDragOver={(event) => {
+        if (!acceptsDraftToken(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        onActiveChange(true);
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          onActiveChange(false);
+        }
       }}
       onDrop={handleDrop}
-      title="Drop here"
+      title="Drag tokens here to delete them"
       style={{
-        width: 34,
-        height: 34,
-        borderRadius: "999px",
-        background: "#191919",
-        border: "2px dashed rgba(255, 255, 255, 0.58)",
+        position: "absolute",
+        left: 18,
+        bottom: 18,
+        width: 62,
+        height: 62,
+        borderRadius: 18,
+        background: isActive ? "rgba(255, 53, 53, 0.22)" : "#111111",
+        border: `2px solid ${
+          isActive ? "rgba(255, 53, 53, 0.72)" : "rgba(255,255,255,0.18)"
+        }`,
+        boxShadow: isActive
+          ? "0 0 26px rgba(255, 53, 53, 0.24)"
+          : "0 12px 26px rgba(0,0,0,0.24)",
+        color: "#FFFFFF",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        flexShrink: 0,
+        fontSize: 28,
+        pointerEvents: "auto",
+        transition: "background 140ms ease, border 140ms ease, box-shadow 140ms ease",
+        zIndex: 30,
       }}
-    />
+      aria-label="Trash. Drop a token here to delete it."
+    >
+      🗑
+    </div>
   );
 }
 
@@ -1634,6 +1793,11 @@ function EquationBuilderArea({
   onRemoveToken: (id: string) => void;
   onSaveEquation: () => void;
 }) {
+  const [hoveredInsertIndex, setHoveredInsertIndex] = useState<number | null>(
+    null,
+  );
+  const [isTrashActive, setIsTrashActive] = useState(false);
+
   return (
     <div
       style={{
@@ -1660,7 +1824,22 @@ function EquationBuilderArea({
         }}
       >
         {equationPalette.map((label) => (
-          <EquationCircle key={label} label={label} size={68} />
+          <span
+            key={label}
+            style={{
+              width: 68,
+              height: 68,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <EquationCircle
+              label={label}
+              size={getEquationEditorTokenSize(label)}
+            />
+          </span>
         ))}
 
         <CustomEquationCircle
@@ -1671,8 +1850,9 @@ function EquationBuilderArea({
 
       <div
         style={{
+          position: "relative",
           margin: 18,
-          border: `1px dashed ${subtleBorderColor}`,
+          border: `1px solid ${subtleBorderColor}`,
           borderRadius: 18,
           background: "#191919",
           display: "flex",
@@ -1683,22 +1863,91 @@ function EquationBuilderArea({
           fontFamily: "Space Grotesk, sans-serif",
         }}
       >
+        <EquationTrashDropZone
+          isActive={isTrashActive}
+          onActiveChange={setIsTrashActive}
+          onRemoveToken={onRemoveToken}
+        />
+
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 12,
+            gap: 0,
             flexWrap: "wrap",
-            padding: 24,
-            minHeight: 120,
+            padding: "44px 96px 84px",
+            minHeight: 150,
           }}
         >
           {draftTokens.length === 0 ? (
-            <EquationDropSlot index={0} onInsertToken={onInsertToken} />
+            <div
+              onDragOver={(event) => {
+                if (
+                  !Array.from(event.dataTransfer.types).includes(
+                    "application/x-equation-token",
+                  )
+                ) {
+                  return;
+                }
+
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "copy";
+                setHoveredInsertIndex(0);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+
+                const rawToken = event.dataTransfer.getData(
+                  "application/x-equation-token",
+                );
+
+                if (!rawToken) {
+                  setHoveredInsertIndex(null);
+                  return;
+                }
+
+                try {
+                  const parsed = JSON.parse(rawToken) as { label?: string };
+
+                  if (parsed.label) {
+                    onInsertToken(0, parsed.label);
+                  }
+                } catch (error) {
+                  console.error("Failed to drop equation token", error);
+                } finally {
+                  setHoveredInsertIndex(null);
+                }
+              }}
+              style={{
+                minWidth: 260,
+                minHeight: 96,
+                borderRadius: 24,
+                background:
+                  hoveredInsertIndex === 0
+                    ? "rgba(207, 255, 4, 0.12)"
+                    : "transparent",
+                color: "#FFFFFF66",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 13,
+                fontWeight: 800,
+                textAlign: "center",
+                transition: "background 140ms ease",
+              }}
+            >
+              Drag a token here to start the equation
+            </div>
           ) : (
             <>
-              <EquationDropSlot index={0} onInsertToken={onInsertToken} />
+              <EquationInsertionSlot
+                index={0}
+                isActive={hoveredInsertIndex === 0}
+                onHover={setHoveredInsertIndex}
+                onLeave={() => setHoveredInsertIndex(null)}
+                onInsertToken={onInsertToken}
+              />
 
               {draftTokens.map((token, index) => (
                 <span
@@ -1706,29 +1955,16 @@ function EquationBuilderArea({
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: 12,
+                    gap: 0,
                   }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => onRemoveToken(token.id)}
-                    title="Click to remove"
-                    style={{
-                      border: "none",
-                      background: "transparent",
-                      padding: 0,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <EquationCircle
-                      label={token.label}
-                      draggable={false}
-                      size={68}
-                    />
-                  </button>
+                  <DraftEquationToken token={token} />
 
-                  <EquationDropSlot
+                  <EquationInsertionSlot
                     index={index + 1}
+                    isActive={hoveredInsertIndex === index + 1}
+                    onHover={setHoveredInsertIndex}
+                    onLeave={() => setHoveredInsertIndex(null)}
                     onInsertToken={onInsertToken}
                   />
                 </span>
@@ -1759,7 +1995,9 @@ function EquationBuilderArea({
             minHeight: 40,
             background: draftTokens.length > 0 ? "#CFFF04" : "#2B2B2B",
             color: draftTokens.length > 0 ? "#000000" : "#FFFFFF80",
-            border: `1px solid ${draftTokens.length > 0 ? "#CFFF04" : subtleBorderColor}`,
+            border: `1px solid ${
+              draftTokens.length > 0 ? "#CFFF04" : subtleBorderColor
+            }`,
             borderRadius: 10,
             fontFamily: "Space Grotesk, sans-serif",
             fontSize: 13,
@@ -2533,6 +2771,8 @@ function MechanicInstanceRow({
 }) {
   const [activeInstanceIndex, setActiveInstanceIndex] = useState(0);
   const safeCount = Math.max(0, Math.round(count));
+  const tabLabel =
+    mechanic === "hit" ? "Hit" : mechanic === "spin" ? "Spin" : "Drag";
 
   useEffect(() => {
     setActiveInstanceIndex((current) =>
@@ -2582,7 +2822,7 @@ function MechanicInstanceRow({
         background: "#191919",
         border: `1px dashed ${subtleBorderColor}`,
         borderRadius: 18,
-        minHeight: 178,
+        minHeight: 196,
         display: "grid",
         gridTemplateColumns: "140px minmax(0, 1fr)",
         overflow: "hidden",
@@ -2622,52 +2862,62 @@ function MechanicInstanceRow({
 
       <div
         style={{
-          padding: 14,
+          padding: 0,
           display: "grid",
-          gridTemplateRows: safeCount > 1 ? "auto 1fr" : "1fr",
-          gap: 12,
+          gridTemplateRows: "auto 1fr",
           minWidth: 0,
         }}
       >
-        {safeCount > 1 ? (
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              overflowX: "auto",
-            }}
-          >
-            {Array.from({ length: safeCount }, (_, index) => {
-              const isActive = index === activeInstanceIndex;
+        <div
+          role="tablist"
+          aria-label={`${tabLabel} selector`}
+          style={{
+            minHeight: 44,
+            display: "flex",
+            alignItems: "stretch",
+            gap: 0,
+            overflowX: "auto",
+            borderBottom: `1px solid ${subtleBorderColor}`,
+            background: "#151515",
+          }}
+        >
+          {Array.from({ length: safeCount }, (_, index) => {
+            const isActive = index === activeInstanceIndex;
 
-              return (
-                <button
-                  key={`${mechanic}-${index}`}
-                  type="button"
-                  onClick={() => setActiveInstanceIndex(index)}
-                  style={{
-                    minWidth: 44,
-                    minHeight: 30,
-                    borderRadius: 999,
-                    border: `1px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
-                    background: isActive ? "#CFFF04" : "#252525",
-                    color: isActive ? "#000000" : textColor,
-                    fontFamily: "Space Grotesk, sans-serif",
-                    fontSize: 12,
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  {index + 1}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
+            return (
+              <button
+                key={`${mechanic}-tab-${index}`}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveInstanceIndex(index)}
+                style={{
+                  minWidth: 92,
+                  minHeight: 44,
+                  border: "none",
+                  borderRight: `1px solid ${subtleBorderColor}`,
+                  borderBottom: `3px solid ${
+                    isActive ? "#CFFF04" : "transparent"
+                  }`,
+                  background: isActive ? "#252525" : "transparent",
+                  color: isActive ? "#FFFFFF" : "#FFFFFF99",
+                  fontFamily: "Space Grotesk, sans-serif",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                  textTransform: "uppercase",
+                }}
+              >
+                {tabLabel} {index + 1}
+              </button>
+            );
+          })}
+        </div>
 
         <div
           style={{
-            minHeight: 112,
+            minHeight: 132,
+            padding: 14,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -2797,29 +3047,11 @@ function EventBuilderArea({
         overflow: "hidden",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          color: textColor,
-          fontFamily: "Space Grotesk, sans-serif",
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 900 }}>
-            Event at tick {eventSlot.tick}
-          </div>
-          <div style={{ color: "#FFFFFF80", fontSize: 12, fontWeight: 700 }}>
-            Drop one equation here. It will be assigned to every mechanic row in
-            this event.
-          </div>
-        </div>
-        {assignedEquation ? (
-          <EquationPreview tokens={assignedEquation.tokens} circleSize={28} />
-        ) : null}
-      </div>
+<div
+  style={{
+    display: "none",
+  }}
+/>
 
       <div
         style={{
@@ -2832,19 +3064,19 @@ function EventBuilderArea({
       >
         {visibleMechanics.length === 0 ? (
           <div
-            style={{
-              minHeight: 180,
-              border: `1px dashed ${subtleBorderColor}`,
-              borderRadius: 18,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#FFFFFF80",
-              fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 13,
-              fontWeight: 700,
-              textAlign: "center",
-            }}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          height: "60vh",
+          maxHeight: "60vh",
+          background: "#191919",
+          padding: 18,
+          boxSizing: "border-box",
+          display: "grid",
+          gridTemplateRows: "1fr",
+          gap: 0,
+          overflow: "hidden",
+        }}
           >
             This event does not have any hits, spins, or drags.
           </div>
