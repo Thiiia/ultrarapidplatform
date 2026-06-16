@@ -13,7 +13,7 @@ import {
   projectToChart,
   projectToSidecarJson,
 } from "@/lib/editor/project-to-chart";
-import styles from "../student.module.css";
+import styles from "../../student/student.module.css";
 
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
