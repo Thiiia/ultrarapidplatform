@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ChangeEvent, DragEvent, FC, SVGProps } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   useEditorStore,
   type SidecarPayload as StoreSidecarPayload,
@@ -2137,70 +2137,89 @@ function findEqualsIndex(tokens: EquationToken[]) {
   return index >= 0 ? index : Math.floor(tokens.length / 2);
 }
 
-function DragArcOverlay({ side }: { side: "left" | "right" }) {
-  const isRight = side === "right";
-  const bubbleSize = 58;
-  const width = 210;
-  const height = 150;
+const dragGradient =
+  "linear-gradient(89.9deg, rgba(255, 53, 53, 0.3) 0.11%, rgba(187, 255, 0, 0.3) 43.96%, rgba(255, 255, 255, 0.1) 82.59%)";
 
+type DragArcGeometry = {
+  targetIndex: number;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+};
+
+function DragDestinationBubble({ size }: { size: number }) {
   return (
     <span
       aria-hidden="true"
       style={{
+        width: size,
+        height: size,
+        borderRadius: 999,
+        border: "3px solid transparent",
+        background: `linear-gradient(#191919, #191919) padding-box, ${dragGradient} border-box`,
+        boxSizing: "border-box",
+        boxShadow: "0 0 20px rgba(187, 255, 0, 0.08)",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    />
+  );
+}
+
+function DragArcSvg({ arcs }: { arcs: DragArcGeometry[] }) {
+  if (arcs.length === 0) {
+    return null;
+  }
+
+  return (
+    <svg
+      aria-hidden="true"
+      style={{
         position: "absolute",
-        top: "50%",
-        [isRight ? "left" : "right"]: bubbleSize * 0.45,
-        width,
-        height,
-        transform: `translateY(-11%) ${isRight ? "" : "scaleX(-1)"}`,
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        overflow: "visible",
         pointerEvents: "none",
         zIndex: 1,
       }}
     >
-      <svg
-        width={width}
-        height={height}
-        viewBox="0 0 210 150"
-        fill="none"
-        style={{ display: "block", overflow: "visible" }}
-      >
-        <path
-          d="M0 28C31 122 112 142 190 96"
-          stroke="rgba(207, 255, 4, 0.34)"
-          strokeWidth={bubbleSize}
-          strokeLinecap="round"
-        />
-        <path
-          d="M0 28C31 122 112 142 190 96"
-          stroke="rgba(255, 255, 255, 0.17)"
-          strokeWidth={Math.max(10, bubbleSize * 0.34)}
-          strokeLinecap="round"
-        />
-      </svg>
-      <span
-        style={{
-          position: "absolute",
-          left: -bubbleSize / 2,
-          top: 28 - bubbleSize / 2,
-          width: bubbleSize,
-          height: bubbleSize,
-          borderRadius: 999,
-          border: "2px solid rgba(207, 255, 4, 0.28)",
-          boxSizing: "border-box",
-        }}
-      />
-      <span
-        style={{
-          position: "absolute",
-          left: 190 - bubbleSize / 2,
-          top: 96 - bubbleSize / 2,
-          width: bubbleSize,
-          height: bubbleSize,
-        }}
-      >
-        <EmptyEquationBubble size={bubbleSize} />
-      </span>
-    </span>
+      <defs>
+        <linearGradient id="dragArcGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0.11%" stopColor="rgba(255, 53, 53, 0.3)" />
+          <stop offset="43.96%" stopColor="rgba(187, 255, 0, 0.3)" />
+          <stop offset="82.59%" stopColor="rgba(255, 255, 255, 0.1)" />
+        </linearGradient>
+      </defs>
+
+      {arcs.map((arc) => {
+        const deltaX = arc.endX - arc.startX;
+        const lift = Math.max(76, Math.min(170, Math.abs(deltaX) * 0.32));
+        const controlY = Math.min(arc.startY, arc.endY) - lift;
+        const path = `M ${arc.startX} ${arc.startY} C ${arc.startX + deltaX * 0.25} ${controlY}, ${arc.startX + deltaX * 0.75} ${controlY}, ${arc.endX} ${arc.endY}`;
+
+        return (
+          <g key={arc.targetIndex}>
+            <path
+              d={path}
+              fill="none"
+              stroke="url(#dragArcGradient)"
+              strokeWidth="58"
+              strokeLinecap="round"
+            />
+            <path
+              d={path}
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.16)"
+              strokeWidth="20"
+              strokeLinecap="round"
+            />
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 
@@ -2213,9 +2232,87 @@ function DragEquationEditor({
   dragTargets: DragTarget[];
   onToggleDragTarget: (tokenIndex: number) => void;
 }) {
-  const targetIndexes = new Set(dragTargets.map((target) => target.tokenIndex));
+  const targetIndexes = useMemo(
+    () =>
+      Array.from(new Set(dragTargets.map((target) => target.tokenIndex))).sort(
+        (left, right) => left - right,
+      ),
+    [dragTargets],
+  );
+  const targetIndexSet = useMemo(() => new Set(targetIndexes), [targetIndexes]);
   const equalsIndex = findEqualsIndex(tokens);
+  const actualEqualsIndex = tokens.findIndex((token) => token.label === "=");
   const circleSize = 58;
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const tokenRefs = useRef(new Map<number, HTMLSpanElement>());
+  const destinationRefs = useRef(new Map<number, HTMLSpanElement>());
+  const [arcs, setArcs] = useState<DragArcGeometry[]>([]);
+  const targetKey = targetIndexes.join(",");
+
+  const targetsStartingOnLeft = targetIndexes.filter(
+    (targetIndex) => targetIndex < equalsIndex,
+  );
+  const targetsStartingOnRight = targetIndexes.filter(
+    (targetIndex) => targetIndex >= equalsIndex,
+  );
+  const leftTokens = tokens
+    .map((token, tokenIndex) => ({ token, tokenIndex }))
+    .filter(({ tokenIndex }) =>
+      actualEqualsIndex >= 0
+        ? tokenIndex < actualEqualsIndex
+        : tokenIndex < equalsIndex,
+    );
+  const equalsToken = actualEqualsIndex >= 0 ? tokens[actualEqualsIndex] : null;
+  const rightTokens = tokens
+    .map((token, tokenIndex) => ({ token, tokenIndex }))
+    .filter(({ tokenIndex }) =>
+      actualEqualsIndex >= 0
+        ? tokenIndex > actualEqualsIndex
+        : tokenIndex >= equalsIndex,
+    );
+
+  useLayoutEffect(() => {
+    function measureArcs() {
+      const surface = surfaceRef.current;
+
+      if (!surface) {
+        setArcs([]);
+        return;
+      }
+
+      const surfaceBox = surface.getBoundingClientRect();
+      const nextArcs = targetIndexes.flatMap(
+        (targetIndex): DragArcGeometry[] => {
+          const startElement = tokenRefs.current.get(targetIndex);
+          const endElement = destinationRefs.current.get(targetIndex);
+
+          if (!startElement || !endElement) {
+            return [];
+          }
+
+          const startBox = startElement.getBoundingClientRect();
+          const endBox = endElement.getBoundingClientRect();
+
+          return [
+            {
+              targetIndex,
+              startX: startBox.left + startBox.width / 2 - surfaceBox.left,
+              startY: startBox.top + startBox.height / 2 - surfaceBox.top,
+              endX: endBox.left + endBox.width / 2 - surfaceBox.left,
+              endY: endBox.top + endBox.height / 2 - surfaceBox.top,
+            },
+          ];
+        },
+      );
+
+      setArcs(nextArcs);
+    }
+
+    measureArcs();
+    window.addEventListener("resize", measureArcs);
+
+    return () => window.removeEventListener("resize", measureArcs);
+  }, [equalsIndex, targetIndexes, targetKey, tokens.length]);
 
   if (tokens.length === 0) {
     return (
@@ -2225,71 +2322,120 @@ function DragEquationEditor({
     );
   }
 
+  function renderToken(token: EquationToken, tokenIndex: number) {
+    const isOperator = isEquationOperator(token.label);
+    const isDragTarget = targetIndexSet.has(tokenIndex);
+
+    return (
+      <span
+        key={token.id}
+        ref={(node) => {
+          if (node) {
+            tokenRefs.current.set(tokenIndex, node);
+          } else {
+            tokenRefs.current.delete(tokenIndex);
+          }
+        }}
+        style={{
+          position: "relative",
+          width: circleSize,
+          height: circleSize,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          zIndex: 5,
+        }}
+      >
+        {isOperator ? (
+          <EquationCircle
+            label={token.label}
+            draggable={false}
+            size={circleSize}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleDragTarget(tokenIndex);
+            }}
+            title="Click to add or remove drag behavior"
+            style={{
+              position: "relative",
+              zIndex: 5,
+              border: "none",
+              background: "transparent",
+              padding: 0,
+              cursor: "pointer",
+              filter: isDragTarget
+                ? "drop-shadow(0 0 12px rgba(187, 255, 0, 0.22))"
+                : undefined,
+            }}
+          >
+            <EquationCircle
+              label={token.label}
+              draggable={false}
+              size={circleSize}
+            />
+          </button>
+        )}
+      </span>
+    );
+  }
+
+  function renderDestination(targetIndex: number) {
+    return (
+      <span
+        key={`drag-destination-${targetIndex}`}
+        ref={(node) => {
+          if (node) {
+            destinationRefs.current.set(targetIndex, node);
+          } else {
+            destinationRefs.current.delete(targetIndex);
+          }
+        }}
+        style={{
+          position: "relative",
+          width: circleSize,
+          height: circleSize,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          zIndex: 5,
+        }}
+      >
+        <DragDestinationBubble size={circleSize} />
+      </span>
+    );
+  }
+
   return (
     <div
+      ref={surfaceRef}
       style={{
+        position: "relative",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         gap: 42,
         flexWrap: "wrap",
         padding: 46,
+        overflow: "visible",
       }}
     >
-      {tokens.map((token, tokenIndex) => {
-        const isOperator = isEquationOperator(token.label);
-        const isDragTarget = targetIndexes.has(tokenIndex);
-        const targetSide = tokenIndex < equalsIndex ? "right" : "left";
+      <DragArcSvg arcs={arcs} />
 
-        return (
-          <span
-            key={token.id}
-            style={{
-              position: "relative",
-              width: circleSize,
-              height: circleSize,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            {!isOperator && isDragTarget ? (
-              <DragArcOverlay side={targetSide} />
-            ) : null}
-            {isOperator ? (
-              <EquationCircle
-                label={token.label}
-                draggable={false}
-                size={circleSize}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onToggleDragTarget(tokenIndex);
-                }}
-                title="Click to add or remove drag behavior"
-                style={{
-                  position: "relative",
-                  zIndex: 5,
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  cursor: "pointer",
-                }}
-              >
-                <EquationCircle
-                  label={token.label}
-                  draggable={false}
-                  size={circleSize}
-                />
-              </button>
-            )}
-          </span>
-        );
-      })}
+      {leftTokens.map(({ token, tokenIndex }) =>
+        renderToken(token, tokenIndex),
+      )}
+      {targetsStartingOnRight.map(renderDestination)}
+      {equalsToken ? renderToken(equalsToken, actualEqualsIndex) : null}
+      {rightTokens.map(({ token, tokenIndex }) =>
+        renderToken(token, tokenIndex),
+      )}
+      {targetsStartingOnLeft.map(renderDestination)}
     </div>
   );
 }
