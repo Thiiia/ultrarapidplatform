@@ -1388,8 +1388,8 @@ function EditorActionBar({
           aria-label="Save lesson to Supabase"
           title="Save lesson"
           style={{
-            width: 132,
-            height: 64,
+          width: 119,
+          height: 58,
             border: "none",
             borderRadius: 12,
             background: "transparent",
@@ -1407,8 +1407,8 @@ function EditorActionBar({
             alt=""
             aria-hidden="true"
             style={{
-              width: 132,
-              height: 64,
+              width: 119,
+              height: 58,
               display: "block",
               objectFit: "contain",
             }}
@@ -2054,7 +2054,15 @@ function getHitBubblePadStyle(pad: HitBubblePad, bubbleSize: number) {
   }
 }
 
-function EmptyEquationBubble({ size = 34 }: { size?: number }) {
+function EmptyEquationBubble({
+  size = 34,
+  borderColor = "rgba(255, 255, 255, 0.42)",
+  background = "rgba(255, 255, 255, 0.08)",
+}: {
+  size?: number;
+  borderColor?: string;
+  background?: string;
+}) {
   return (
     <span
       aria-hidden="true"
@@ -2062,8 +2070,8 @@ function EmptyEquationBubble({ size = 34 }: { size?: number }) {
         width: size,
         height: size,
         borderRadius: "999px",
-        background: "rgba(255, 255, 255, 0.08)",
-        border: "2px dashed rgba(255, 255, 255, 0.42)",
+        background,
+        border: `2px dashed ${borderColor}`,
         boxSizing: "border-box",
         display: "inline-block",
       }}
@@ -2191,7 +2199,11 @@ function HitEquationEditor({
                       zIndex: 1,
                     }}
                   >
-                    <EmptyEquationBubble size={bubbleSize} />
+                    <EmptyEquationBubble
+  size={bubbleSize}
+  borderColor="#CFFF04"
+  background="rgba(207, 255, 4, 0.08)"
+/>
                   </span>
                 ))
               : null}
@@ -3305,53 +3317,46 @@ function EquationsPanel({
           fontFamily: "Space Grotesk, sans-serif",
         }}
       >
-        {savedEquations.length === 0 ? (
+      {savedEquations.length === 0 ? (
+        <div
+          style={{
+            color: "#FFFFFF80",
+            fontSize: 12,
+            fontWeight: 700,
+            lineHeight: 1.4,
+          }}
+        >
+          Build equations here, then drag them into an event.
+        </div>
+      ) : (
+        savedEquations.map((equation) => (
           <div
-            style={{
-              color: "#FFFFFF80",
-              fontSize: 12,
-              fontWeight: 700,
-              lineHeight: 1.4,
+            key={equation.id}
+            draggable
+            onDragStart={(event) => {
+              event.dataTransfer.setData(
+                "application/x-saved-equation",
+                JSON.stringify(equation),
+              );
+              event.dataTransfer.effectAllowed = "copy";
             }}
+            style={{
+              width: "100%",
+              minHeight: 42,
+              padding: "4px 0",
+              boxSizing: "border-box",
+              color: textColor,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "grab",
+            }}
+            title={tokensToEquationState(equation.tokens)}
           >
-            Build equations here, then drag them into an event.
+            <EquationPreview tokens={equation.tokens} circleSize={24} />
           </div>
-        ) : (
-          savedEquations.map((equation, index) => (
-            <div
-              key={equation.id}
-              draggable
-              onDragStart={(event) => {
-                event.dataTransfer.setData(
-                  "application/x-saved-equation",
-                  JSON.stringify(equation),
-                );
-                event.dataTransfer.effectAllowed = "copy";
-              }}
-              style={{
-                width: "100%",
-                minHeight: 58,
-                background: "#191919",
-                border: `1px solid ${subtleBorderColor}`,
-                borderRadius: 10,
-                padding: "8px",
-                boxSizing: "border-box",
-                color: textColor,
-                display: "grid",
-                gap: 8,
-                cursor: "grab",
-              }}
-              title={tokensToEquationState(equation.tokens)}
-            >
-              <div
-                style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 900 }}
-              >
-                Equation {index + 1}
-              </div>
-              <EquationPreview tokens={equation.tokens} circleSize={24} />
-            </div>
-          ))
-        )}
+        ))
+      )}
       </div>
     </section>
   );
@@ -3691,74 +3696,60 @@ export default function LessonBuilderClient({
     );
   }
 
-  function handleAddHitBubblePair(
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-    pair: HitBubblePair,
-  ) {
-    const pads = getHitBubblePairPads(pair);
+function handleAddHitBubblePair(
+  mechanic: GameplayMechanic,
+  instanceIndex: number,
+  tokenIndex: number,
+  pair: HitBubblePair,
+) {
+  const pads = getHitBubblePairPads(pair);
 
-    updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
-      const currentPlacement = instance.hitBubbles.find(
-        (placement) => placement.tokenIndex === tokenIndex,
-      );
-      const nextHitBubbles = currentPlacement
-        ? instance.hitBubbles.map((placement) =>
-            placement.tokenIndex === tokenIndex
-              ? { ...placement, positions: pads, pads }
-              : placement,
-          )
-        : [...instance.hitBubbles, { tokenIndex, positions: pads, pads }];
+  updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
+    return {
+      ...instance,
+      // Only keep the newly selected hit token.
+      hitBubbles: [{ tokenIndex, positions: pads, pads }],
+    };
+  });
+}
 
-      return {
-        ...instance,
-        hitBubbles: nextHitBubbles,
-      };
-    });
-  }
+function handleToggleSpinTarget(
+  mechanic: GameplayMechanic,
+  instanceIndex: number,
+  tokenIndex: number,
+) {
+  updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
+    const isSameTokenAlreadySelected =
+      instance.spinTargets.length === 1 &&
+      instance.spinTargets[0]?.tokenIndex === tokenIndex;
 
-  function handleToggleSpinTarget(
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-  ) {
-    updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
-      const hasTarget = instance.spinTargets.some(
-        (target) => target.tokenIndex === tokenIndex,
-      );
+    return {
+      ...instance,
+      // Clicking the same token again clears it.
+      // Clicking a different token replaces the old one.
+      spinTargets: isSameTokenAlreadySelected ? [] : [{ tokenIndex }],
+    };
+  });
+}
 
-      return {
-        ...instance,
-        spinTargets: hasTarget
-          ? instance.spinTargets.filter(
-              (target) => target.tokenIndex !== tokenIndex,
-            )
-          : [...instance.spinTargets, { tokenIndex }],
-      };
-    });
-  }
+function handleToggleDragTarget(
+  mechanic: GameplayMechanic,
+  instanceIndex: number,
+  tokenIndex: number,
+) {
+  updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
+    const isSameTokenAlreadySelected =
+      instance.dragTargets.length === 1 &&
+      instance.dragTargets[0]?.tokenIndex === tokenIndex;
 
-  function handleToggleDragTarget(
-    mechanic: GameplayMechanic,
-    instanceIndex: number,
-    tokenIndex: number,
-  ) {
-    updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
-      const hasTarget = instance.dragTargets.some(
-        (target) => target.tokenIndex === tokenIndex,
-      );
-
-      return {
-        ...instance,
-        dragTargets: hasTarget
-          ? instance.dragTargets.filter(
-              (target) => target.tokenIndex !== tokenIndex,
-            )
-          : [...instance.dragTargets, { tokenIndex }],
-      };
-    });
-  }
+    return {
+      ...instance,
+      // Clicking the same token again clears it.
+      // Clicking a different token replaces the old one.
+      dragTargets: isSameTokenAlreadySelected ? [] : [{ tokenIndex }],
+    };
+  });
+}
 
   function handleBackToSongChoice() {
     router.push(`${navBasePath}/song-choice`);
