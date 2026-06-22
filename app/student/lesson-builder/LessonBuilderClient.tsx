@@ -222,7 +222,8 @@ const emptySidecar: SidecarPayload = {
 };
 
 const gameplayMechanics: GameplayMechanic[] = ["hit", "spin", "drag"];
-const maxEditableEquationSlots = 5;
+// Previous hard cap preserved for reference; event slots are no longer capped.
+// const maxEditableEquationSlots = 5;
 
 const equationPalette = [
   "0",
@@ -805,14 +806,11 @@ function getSelectedSongEventCounts(
   const hitCounts = getSelectedSongMechanicCountArray(selectedSong, "hit");
   const spinCounts = getSelectedSongMechanicCountArray(selectedSong, "spin");
   const dragCounts = getSelectedSongMechanicCountArray(selectedSong, "drag");
-  const slotCount = Math.min(
-    maxEditableEquationSlots,
-    Math.max(
-      explicitSlotCount,
-      hitCounts.length,
-      spinCounts.length,
-      dragCounts.length,
-    ),
+  const slotCount = Math.max(
+    explicitSlotCount,
+    hitCounts.length,
+    spinCounts.length,
+    dragCounts.length,
   );
 
   return Array.from({ length: slotCount }, (_, index) => ({
@@ -828,10 +826,10 @@ function applySongAssetMechanicCountsToTimelineEvents(
   eventTicks: number[] = [],
 ): TimelineEventSlot[] {
   if (eventCounts.length === 0) {
-    return events.slice(0, maxEditableEquationSlots);
+    return events;
   }
 
-  return eventCounts.slice(0, maxEditableEquationSlots).map((counts, index) => {
+  return eventCounts.map((counts, index) => {
     const existing = events[index];
     const tick = eventTicks[index] ?? existing?.tick ?? 0;
     const nextCounts = {
@@ -1007,9 +1005,9 @@ function timelineEventsFromSidecar(
 
   const targetSlots =
     fallbackEventCounts.length > 0
-      ? Math.min(maxEditableEquationSlots, fallbackEventCounts.length)
+      ? fallbackEventCounts.length
       : typeof targetCount === "number"
-        ? Math.min(maxEditableEquationSlots, targetCount)
+        ? targetCount
         : null;
 
   const resizedSlots =
@@ -3215,6 +3213,23 @@ function timelineTickToSeconds(tick: number) {
   return tick > 1000 ? tick / 1000 : tick;
 }
 
+function buildWaveformPeaksFromChannelData(channelData: Float32Array, peakCount: number) {
+  const safePeakCount = Math.max(1, Math.round(peakCount));
+  const samplesPerPeak = Math.max(1, Math.floor(channelData.length / safePeakCount));
+
+  return Array.from({ length: safePeakCount }, (_, peakIndex) => {
+    const start = peakIndex * samplesPerPeak;
+    const end = Math.min(channelData.length, start + samplesPerPeak);
+    let peak = 0;
+
+    for (let sampleIndex = start; sampleIndex < end; sampleIndex += 1) {
+      peak = Math.max(peak, Math.abs(channelData[sampleIndex] ?? 0));
+    }
+
+    return peak;
+  });
+}
+
 function TimelineMarkerDots({
   count,
   color,
@@ -3236,8 +3251,8 @@ function TimelineMarkerDots({
           aria-hidden="true"
           style={{
             position: "absolute",
-            left: `${left}px`,
-            top: `calc(50% + ${(dotIndex - (count - 1) / 2) * 11}px)`,
+            left: `${left + dotIndex * 13}px`,
+            top: "50%",
             width: 9,
             height: 9,
             borderRadius: 999,
@@ -3257,12 +3272,14 @@ function EquationTimeline({
   onSelectEvent,
   currentSongSeconds,
   durationSeconds,
+  waveformPeaks,
 }: {
   events: TimelineEventSlot[];
   activeEventId: string | null;
   onSelectEvent: (eventId: string) => void;
   currentSongSeconds: number;
   durationSeconds: number;
+  waveformPeaks: number[];
 }) {
   const blockSeconds = 8;
   const blockWidth = 220;
@@ -3274,13 +3291,14 @@ function EquationTimeline({
   const visualDurationSeconds = Math.max(
     blockSeconds,
     durationSeconds,
-    maxEventSeconds + blockSeconds,
+    maxEventSeconds,
   );
-  const blockCount = Math.max(1, Math.ceil(visualDurationSeconds / blockSeconds));
+  const blockCount = Math.max(1, Math.ceil(visualDurationSeconds / blockSeconds) + 1);
   const trackWidth = blockCount * blockWidth;
+  const pixelsPerSecond = blockWidth / blockSeconds;
   const playheadLeft = Math.min(
     trackWidth,
-    Math.max(0, (currentSongSeconds / visualDurationSeconds) * trackWidth),
+    Math.max(0, currentSongSeconds * pixelsPerSecond),
   );
   const labelRows = [
     { key: "merged", label: "", color: "#FFFFFF" },
@@ -3416,29 +3434,52 @@ function EquationTimeline({
               overflow: "hidden",
             }}
           >
-            <svg
-              aria-label="Song waveform"
-              width={trackWidth}
-              height="100%"
-              viewBox={`0 0 ${trackWidth} 100`}
-              preserveAspectRatio="none"
-              style={{ position: "absolute", inset: 0, display: "block" }}
-            >
-              <polyline
-                points={Array.from({ length: Math.max(24, blockCount * 10) }, (_, index) => {
-                  const x = (index / Math.max(1, blockCount * 10 - 1)) * trackWidth;
-                  const wave = Math.sin(index * 0.78) * 17 + Math.sin(index * 0.24) * 11;
-                  const y = 50 + wave;
-                  return `${x},${y}`;
-                }).join(" ")}
-                fill="none"
-                stroke="#CFFF04"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity="0.95"
-              />
-            </svg>
+            {waveformPeaks.length > 0 ? (
+              <svg
+                aria-label="Song waveform"
+                width={trackWidth}
+                height="100%"
+                viewBox={`0 0 ${trackWidth} 100`}
+                preserveAspectRatio="none"
+                style={{ position: "absolute", inset: 0, display: "block" }}
+              >
+                {waveformPeaks.map((peak, index) => {
+                  const x =
+                    waveformPeaks.length === 1
+                      ? 0
+                      : (index / (waveformPeaks.length - 1)) * trackWidth;
+                  const height = Math.max(4, peak * 84);
+
+                  return (
+                    <line
+                      key={index}
+                      x1={x}
+                      x2={x}
+                      y1={50 - height / 2}
+                      y2={50 + height / 2}
+                      stroke="#CFFF04"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      opacity="0.92"
+                    />
+                  );
+                })}
+              </svg>
+            ) : (
+              <div
+                style={{
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  paddingLeft: 16,
+                  color: "#FFFFFF66",
+                  fontSize: 12,
+                  fontWeight: 800,
+                }}
+              >
+                Waveform loads after the selected song file is decoded.
+              </div>
+            )}
           </div>
 
           <div
@@ -3465,8 +3506,7 @@ function EquationTimeline({
             ) : (
               events.map((eventSlot, index) => {
                 const eventSeconds = timelineTickToSeconds(eventSlot.tick);
-                const blockIndex = Math.floor(eventSeconds / blockSeconds);
-                const left = blockIndex * blockWidth + 10;
+                const left = eventSeconds * pixelsPerSecond + 10;
                 const isActive = eventSlot.id === activeEventId;
                 const assignedEquation = getTimelineEventEquation(eventSlot);
 
@@ -3524,7 +3564,7 @@ function EquationTimeline({
               >
                 {events.map((eventSlot) => {
                   const eventSeconds = timelineTickToSeconds(eventSlot.tick);
-                  const left = (eventSeconds / visualDurationSeconds) * trackWidth;
+                  const left = eventSeconds * pixelsPerSecond;
 
                   return (
                     <TimelineMarkerDots
@@ -3730,13 +3770,13 @@ function LeftEquationBuilderPanel({
         onClick={() => onAddToken(label)}
         style={{
           width: "100%",
-          minHeight: isOperator ? 34 : 42,
+          minHeight: isOperator ? 28 : 42,
           borderRadius: isOperator ? 999 : 12,
           border: `1px solid ${isOperator ? "#CFFF04" : "rgba(255,255,255,0.18)"}`,
           background: isOperator ? "rgba(207,255,4,0.12)" : "#191919",
           color: isOperator ? "#CFFF04" : "#FFFFFF",
           fontFamily: "Grandstander, sans-serif",
-          fontSize: isOperator ? 18 : 20,
+          fontSize: isOperator ? 15 : 20,
           fontWeight: 800,
           cursor: "pointer",
           boxShadow: "0 10px 22px rgba(0,0,0,0.18)",
@@ -3799,7 +3839,7 @@ function LeftEquationBuilderPanel({
           minHeight: 0,
           padding: 10,
           boxSizing: "border-box",
-          overflowY: shouldScrollTiles ? "auto" : "hidden",
+          overflowY: "auto",
           fontFamily: "Space Grotesk, sans-serif",
         }}
       >
@@ -3817,7 +3857,7 @@ function LeftEquationBuilderPanel({
             <div style={{ color: "#FFFFFF99", fontSize: 10, fontWeight: 900, marginBottom: 6, textTransform: "uppercase" }}>
               Operators
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6 }}>
               {operatorTiles.map((label) => renderTile(label, "operator"))}
             </div>
           </div>
@@ -3928,10 +3968,12 @@ function LeftEquationBuilderPanel({
 
 function CenterChoicePanel({
   choice,
+  draftTokens,
   onCreateEquation,
   onBrowseLibrary,
 }: {
   choice: CenterChoice;
+  draftTokens: EquationToken[];
   onCreateEquation: () => void;
   onBrowseLibrary: () => void;
 }) {
@@ -4046,6 +4088,28 @@ function CenterChoicePanel({
             {isCreate ? "← Start in the Equation Builder" : "Browse the Pre-Made Library →"}
           </div>
         )}
+
+        {draftTokens.length > 0 ? (
+          <div
+            aria-label="Current equation being built"
+            style={{
+              marginTop: 8,
+              minHeight: 90,
+              width: "min(620px, 100%)",
+              borderRadius: 18,
+              border: `1px solid ${subtleBorderColor}`,
+              background: "#202020",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 18,
+              boxSizing: "border-box",
+              overflowX: "auto",
+            }}
+          >
+            <EquationPreview tokens={draftTokens} circleSize={42} />
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -4419,6 +4483,10 @@ export default function LessonBuilderClient({
   const [libraryTab, setLibraryTab] = useState<LibraryTab>("mine");
   const [currentSongSeconds, setCurrentSongSeconds] = useState(0);
   const [isSongPlaying, setIsSongPlaying] = useState(false);
+  const [audioObjectUrl, setAudioObjectUrl] = useState("");
+  const [audioDurationSeconds, setAudioDurationSeconds] = useState(0);
+  const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [draftTokens, setDraftTokens] = useState<EquationToken[]>([]);
   const [customTokenLabel, setCustomTokenLabel] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -4442,8 +4510,8 @@ export default function LessonBuilderClient({
       0,
     );
 
-    return Math.max(8, metadata?.durationSeconds ?? 0, maxEventSeconds + 8);
-  }, [metadata?.durationSeconds, timelineEvents]);
+    return Math.max(8, audioDurationSeconds, metadata?.durationSeconds ?? 0, maxEventSeconds);
+  }, [audioDurationSeconds, metadata?.durationSeconds, timelineEvents]);
 
   const payloadForProject: LessonBuilderPayload = useMemo(
     () => ({
@@ -4939,9 +5007,88 @@ function handleToggleDragTarget(
   }, [setProject]);
 
   useEffect(() => {
-    if (!pendingSongFile) return;
+    if (!pendingSongFile) {
+      setAudioObjectUrl("");
+      setAudioDurationSeconds(0);
+      setWaveformPeaks([]);
+      return;
+    }
+
+    let isCancelled = false;
+    const objectUrl = URL.createObjectURL(pendingSongFile);
+    const audio = new Audio(objectUrl);
+
+    audio.preload = "auto";
+    audioRef.current = audio;
+    setAudioObjectUrl(objectUrl);
+    setCurrentSongSeconds(0);
+    setIsSongPlaying(false);
+
+    function handleLoadedMetadata() {
+      if (!Number.isFinite(audio.duration)) {
+        return;
+      }
+
+      setAudioDurationSeconds(audio.duration);
+      setMetadata((current) => ({
+        ...current,
+        durationSeconds: audio.duration,
+      }));
+    }
+
+    function handleTimeUpdate() {
+      setCurrentSongSeconds(audio.currentTime);
+    }
+
+    function handleEnded() {
+      setIsSongPlaying(false);
+      setCurrentSongSeconds(audio.duration || 0);
+    }
+
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("ended", handleEnded);
+
+    pendingSongFile
+      .arrayBuffer()
+      .then(async (arrayBuffer) => {
+        const audioContext = new AudioContext();
+        const decodedAudio = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+        const channelData = decodedAudio.getChannelData(0);
+        const peaks = buildWaveformPeaksFromChannelData(channelData, 900);
+
+        await audioContext.close();
+
+        if (!isCancelled) {
+          setWaveformPeaks(peaks);
+          setAudioDurationSeconds(decodedAudio.duration);
+          setMetadata((current) => ({
+            ...current,
+            durationSeconds: decodedAudio.duration,
+          }));
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to decode selected song waveform", error);
+        if (!isCancelled) {
+          setWaveformPeaks([]);
+        }
+      });
 
     console.info("Selected song file loaded for editor:", pendingSongFile.name);
+
+    return () => {
+      isCancelled = true;
+      audio.pause();
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("ended", handleEnded);
+      URL.revokeObjectURL(objectUrl);
+
+      if (audioRef.current === audio) {
+        audioRef.current = null;
+      }
+    };
   }, [pendingSongFile]);
 
   useEffect(() => {
@@ -4968,39 +5115,68 @@ function handleToggleDragTarget(
   }, [activeEventId, timelineEvents]);
 
   useEffect(() => {
-    if (!isSongPlaying) {
-      return;
+    const audio = audioRef.current;
+
+    if (!audio) {
+      if (!isSongPlaying) {
+        return;
+      }
+
+      const intervalId = window.setInterval(() => {
+        setCurrentSongSeconds((current) => {
+          const next = Math.min(timelineDurationSeconds, current + 0.1);
+
+          if (next >= timelineDurationSeconds) {
+            setIsSongPlaying(false);
+          }
+
+          return next;
+        });
+      }, 100);
+
+      return () => {
+        window.clearInterval(intervalId);
+      };
     }
 
-    const intervalId = window.setInterval(() => {
-      setCurrentSongSeconds((current) => {
-        const next = Math.min(timelineDurationSeconds, current + 0.1);
-
-        if (next >= timelineDurationSeconds) {
-          setIsSongPlaying(false);
-        }
-
-        return next;
+    if (isSongPlaying) {
+      audio.play().catch((error) => {
+        console.error("Unable to play selected song", error);
+        setIsSongPlaying(false);
       });
-    }, 100);
+    } else {
+      audio.pause();
+    }
+  }, [isSongPlaying, timelineDurationSeconds, audioObjectUrl]);
 
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [isSongPlaying, timelineDurationSeconds]);
+  function seekSong(seconds: number) {
+    const nextSeconds = Math.max(0, Math.min(timelineDurationSeconds, seconds));
+    const audio = audioRef.current;
+
+    if (audio) {
+      audio.currentTime = nextSeconds;
+    }
+
+    setCurrentSongSeconds(nextSeconds);
+  }
 
   function handleRewindSong() {
-    setCurrentSongSeconds((current) => Math.max(0, current - 8));
+    seekSong(currentSongSeconds - 8);
   }
 
   function handleToggleSongPlayback() {
+    const audio = audioRef.current;
+
+    if (audio && currentSongSeconds >= timelineDurationSeconds) {
+      audio.currentTime = 0;
+      setCurrentSongSeconds(0);
+    }
+
     setIsSongPlaying((current) => !current);
   }
 
   function handleFastForwardSong() {
-    setCurrentSongSeconds((current) =>
-      Math.min(timelineDurationSeconds, current + 8),
-    );
+    seekSong(currentSongSeconds + 8);
   }
 
   const isTimelineInstructionVisible = centerChoice !== null;
@@ -5081,6 +5257,7 @@ function handleToggleDragTarget(
 
           <CenterChoicePanel
             choice={centerChoice}
+            draftTokens={draftTokens}
             onCreateEquation={handleCreateEquationChoice}
             onBrowseLibrary={handleBrowsePremadeChoice}
           />
@@ -5143,6 +5320,7 @@ function handleToggleDragTarget(
             onSelectEvent={handleSelectEvent}
             currentSongSeconds={currentSongSeconds}
             durationSeconds={timelineDurationSeconds}
+            waveformPeaks={waveformPeaks}
           />
         </section>
       </main>
