@@ -203,6 +203,9 @@ type LessonBuilderClientProps = {
   navBasePath?: string;
 };
 
+type CenterChoice = "create" | "premade" | null;
+type LibraryTab = "mine" | "premade";
+
 const pagePanelWidth = "92vw";
 const headerHeight = 70;
 const viewerRowHeight = "60vh";
@@ -3186,22 +3189,112 @@ function EventBuilderArea({
   );
 }
 
+function formatTimelineTime(seconds: number) {
+  const safeSeconds = Math.max(0, seconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds - minutes * 60;
+
+  return `${minutes}:${remainingSeconds.toFixed(1).padStart(4, "0")}`;
+}
+
+function formatSongTime(seconds: number) {
+  const safeSeconds = Math.max(0, seconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = Math.floor(safeSeconds - minutes * 60);
+
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function timelineTickToSeconds(tick: number) {
+  if (!Number.isFinite(tick)) {
+    return 0;
+  }
+
+  // Existing song assets appear to store event timing as ticks. Treat large
+  // values as milliseconds for this visual pass, and small values as seconds.
+  return tick > 1000 ? tick / 1000 : tick;
+}
+
+function TimelineMarkerDots({
+  count,
+  color,
+  left,
+}: {
+  count: number;
+  color: string;
+  left: number;
+}) {
+  if (count <= 0) {
+    return null;
+  }
+
+  return (
+    <>
+      {Array.from({ length: count }, (_, dotIndex) => (
+        <span
+          key={dotIndex}
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            left: `${left}px`,
+            top: `calc(50% + ${(dotIndex - (count - 1) / 2) * 11}px)`,
+            width: 9,
+            height: 9,
+            borderRadius: 999,
+            background: color,
+            boxShadow: `0 0 12px ${color}`,
+            transform: "translate(-50%, -50%)",
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
 function EquationTimeline({
   events,
   activeEventId,
   onSelectEvent,
+  currentSongSeconds,
+  durationSeconds,
 }: {
   events: TimelineEventSlot[];
   activeEventId: string | null;
   onSelectEvent: (eventId: string) => void;
+  currentSongSeconds: number;
+  durationSeconds: number;
 }) {
+  const blockSeconds = 8;
+  const blockWidth = 220;
+  const maxEventSeconds = events.reduce(
+    (maxSeconds, eventSlot) =>
+      Math.max(maxSeconds, timelineTickToSeconds(eventSlot.tick)),
+    0,
+  );
+  const visualDurationSeconds = Math.max(
+    blockSeconds,
+    durationSeconds,
+    maxEventSeconds + blockSeconds,
+  );
+  const blockCount = Math.max(1, Math.ceil(visualDurationSeconds / blockSeconds));
+  const trackWidth = blockCount * blockWidth;
+  const playheadLeft = Math.min(
+    trackWidth,
+    Math.max(0, (currentSongSeconds / visualDurationSeconds) * trackWidth),
+  );
+  const labelRows = [
+    { key: "merged", label: "", color: "#FFFFFF" },
+    { key: "equations", label: "Equations", color: "#CFFF04" },
+    { key: "hits", label: "Hits", color: "#2EA7FF" },
+    { key: "spinouts", label: "Spinouts", color: "#FF3535" },
+    { key: "drags", label: "Drags", color: "#B45CFF" },
+  ];
+
   return (
     <section
       aria-label="Timeline"
       style={{
         width: "100%",
-        // The timeline row now controls this height.
-        // height: "calc(40vh - 142px)",
         height: "100%",
         minHeight: 0,
         background: panelBackgroundColor,
@@ -3209,111 +3302,243 @@ function EquationTimeline({
         boxSizing: "border-box",
         overflow: "hidden",
         fontFamily: "Space Grotesk, sans-serif",
+        display: "grid",
+        gridTemplateColumns: "12.5vw minmax(0, 1fr)",
       }}
     >
       <div
+        aria-label="Timeline labels"
         style={{
+          minHeight: 0,
           height: "100%",
-          display: "flex",
-          gap: 14,
-          padding: 16,
+          display: "grid",
+          gridTemplateRows: "15% repeat(5, 17%)",
+          background: "#202020",
+          borderRight: `1px solid ${subtleBorderColor}`,
           boxSizing: "border-box",
-          overflowX: "auto",
         }}
       >
-        {events.length === 0 ? (
+        <div
+          style={{
+            gridRow: "1 / span 2",
+            borderBottom: `1px solid ${subtleBorderColor}`,
+            boxSizing: "border-box",
+          }}
+        />
+        {labelRows.slice(1).map((row) => (
           <div
+            key={row.key}
             style={{
-              color: "#FFFFFF80",
-              fontSize: 13,
-              fontWeight: 700,
               display: "flex",
               alignItems: "center",
+              paddingLeft: 16,
+              borderBottom: `1px solid ${subtleBorderColor}`,
+              boxSizing: "border-box",
+              color: row.color,
+              fontSize: 13,
+              fontWeight: 900,
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
             }}
           >
-            This song does not have any event slots yet.
+            {row.label}
           </div>
-        ) : (
-          events.map((eventSlot, index) => {
-            const isActive = eventSlot.id === activeEventId;
-            const assignedEquation = getTimelineEventEquation(eventSlot);
+        ))}
+      </div>
 
-            return (
-              <button
-                key={eventSlot.id}
-                type="button"
-                onClick={() => onSelectEvent(eventSlot.id)}
+      <div
+        aria-label="Timeline tracks"
+        style={{
+          position: "relative",
+          minWidth: 0,
+          minHeight: 0,
+          overflowX: "auto",
+          overflowY: "hidden",
+          background: "#191919",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: trackWidth,
+            minWidth: "100%",
+            height: "100%",
+            display: "grid",
+            gridTemplateRows: "15% repeat(5, 17%)",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              left: playheadLeft,
+              top: 0,
+              bottom: 0,
+              width: 3,
+              background: "#CFFF04",
+              boxShadow: "0 0 18px rgba(207,255,4,0.78)",
+              zIndex: 20,
+              transform: "translateX(-50%)",
+              pointerEvents: "none",
+            }}
+          />
+
+          <div
+            style={{
+              position: "relative",
+              borderBottom: `1px solid ${subtleBorderColor}`,
+              boxSizing: "border-box",
+              display: "grid",
+              gridTemplateColumns: `repeat(${blockCount}, ${blockWidth}px)`,
+            }}
+          >
+            {Array.from({ length: blockCount }, (_, blockIndex) => (
+              <div
+                key={blockIndex}
                 style={{
-                  width: 240,
-                  minWidth: 240,
-                  height: "100%",
-                  background: isActive ? "#191919" : "#252525",
-                  color: textColor,
-                  border: `2px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
-                  borderRadius: 16,
-                  padding: 12,
+                  borderRight: `1px solid ${subtleBorderColor}`,
+                  color: "#FFFFFF99",
+                  fontSize: 11,
+                  fontWeight: 900,
+                  padding: "8px 10px",
                   boxSizing: "border-box",
-                  cursor: "pointer",
-                  display: "grid",
-                  gridTemplateRows: "auto 1fr auto",
-                  gap: 10,
-                  textAlign: "left",
                 }}
               >
-                <div style={{ fontSize: 13, fontWeight: 900 }}>
-                  Event {index + 1}
-                </div>
+                {formatTimelineTime(blockIndex * blockSeconds)}
+              </div>
+            ))}
+          </div>
 
-                <div
-                  style={{
-                    border: `1px dashed ${subtleBorderColor}`,
-                    borderRadius: 12,
-                    padding: 10,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "hidden",
-                    textAlign: "center",
-                  }}
-                >
-                  {assignedEquation ? (
-                    <EquationPreview
-                      tokens={assignedEquation.tokens}
-                      circleSize={24}
+          <div
+            style={{
+              position: "relative",
+              borderBottom: `1px solid ${subtleBorderColor}`,
+              boxSizing: "border-box",
+              overflow: "hidden",
+            }}
+          >
+            <svg
+              aria-label="Song waveform"
+              width={trackWidth}
+              height="100%"
+              viewBox={`0 0 ${trackWidth} 100`}
+              preserveAspectRatio="none"
+              style={{ position: "absolute", inset: 0, display: "block" }}
+            >
+              <polyline
+                points={Array.from({ length: Math.max(24, blockCount * 10) }, (_, index) => {
+                  const x = (index / Math.max(1, blockCount * 10 - 1)) * trackWidth;
+                  const wave = Math.sin(index * 0.78) * 17 + Math.sin(index * 0.24) * 11;
+                  const y = 50 + wave;
+                  return `${x},${y}`;
+                }).join(" ")}
+                fill="none"
+                stroke="#CFFF04"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.95"
+              />
+            </svg>
+          </div>
+
+          <div
+            style={{
+              position: "relative",
+              borderBottom: `1px solid ${subtleBorderColor}`,
+              boxSizing: "border-box",
+            }}
+          >
+            {events.length === 0 ? (
+              <div
+                style={{
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  paddingLeft: 16,
+                  color: "#FFFFFF66",
+                  fontSize: 12,
+                  fontWeight: 800,
+                }}
+              >
+                No timeline events yet.
+              </div>
+            ) : (
+              events.map((eventSlot, index) => {
+                const eventSeconds = timelineTickToSeconds(eventSlot.tick);
+                const blockIndex = Math.floor(eventSeconds / blockSeconds);
+                const left = blockIndex * blockWidth + 10;
+                const isActive = eventSlot.id === activeEventId;
+                const assignedEquation = getTimelineEventEquation(eventSlot);
+
+                return (
+                  <button
+                    key={eventSlot.id}
+                    type="button"
+                    onClick={() => onSelectEvent(eventSlot.id)}
+                    style={{
+                      position: "absolute",
+                      left,
+                      top: "50%",
+                      width: blockWidth - 20,
+                      minHeight: 30,
+                      transform: "translateY(-50%)",
+                      borderRadius: 10,
+                      border: `2px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
+                      background: isActive ? "#252525" : "#202020",
+                      color: "#FFFFFF",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      padding: "4px 8px",
+                      boxSizing: "border-box",
+                      cursor: "pointer",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {assignedEquation ? (
+                      <EquationPreview tokens={assignedEquation.tokens} circleSize={20} />
+                    ) : (
+                      <span style={{ fontSize: 11, fontWeight: 900 }}>
+                        Event {index + 1}
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {(["hit", "spin", "drag"] as GameplayMechanic[]).map((mechanic) => {
+            const color =
+              mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF";
+
+            return (
+              <div
+                key={mechanic}
+                style={{
+                  position: "relative",
+                  borderBottom: `1px solid ${subtleBorderColor}`,
+                  boxSizing: "border-box",
+                }}
+              >
+                {events.map((eventSlot) => {
+                  const eventSeconds = timelineTickToSeconds(eventSlot.tick);
+                  const left = (eventSeconds / visualDurationSeconds) * trackWidth;
+
+                  return (
+                    <TimelineMarkerDots
+                      key={`${eventSlot.id}-${mechanic}`}
+                      count={eventSlot.counts?.[mechanic] ?? 0}
+                      color={color}
+                      left={left}
                     />
-                  ) : (
-                    <span
-                      style={{
-                        color: "#FFFFFF80",
-                        fontSize: 12,
-                        fontWeight: 800,
-                        lineHeight: 1.3,
-                      }}
-                    >
-                      Click here to Assign an Equation
-                    </span>
-                  )}
-                </div>
-
-                <div
-                  style={{
-                    color: "#FFFFFF99",
-                    fontSize: 10,
-                    fontWeight: 900,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 8,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  <span>H {eventSlot.counts?.hit ?? 0}</span>
-                  <span>S {eventSlot.counts?.spin ?? 0}</span>
-                  <span>D {eventSlot.counts?.drag ?? 0}</span>
-                </div>
-              </button>
+                  );
+                })}
+              </div>
             );
-          })
-        )}
+          })}
+        </div>
       </div>
     </section>
   );
@@ -3476,6 +3701,601 @@ function RightLessonPanel() {
   );
 }
 
+
+function LeftEquationBuilderPanel({
+  draftTokens,
+  onAddToken,
+  onClearEquation,
+  onSaveEquation,
+  shouldScrollTiles,
+}: {
+  draftTokens: EquationToken[];
+  onAddToken: (label: string) => void;
+  onClearEquation: () => void;
+  onSaveEquation: () => void;
+  shouldScrollTiles: boolean;
+}) {
+  const numberTiles = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+  const operatorTiles = ["+", "-", "×", "÷", "="];
+  const variableTiles = ["X", "Y", "Z"];
+  const hasDraft = draftTokens.length > 0;
+
+  function renderTile(label: string, kind: "number" | "operator" | "variable") {
+    const isOperator = kind === "operator";
+
+    return (
+      <button
+        key={label}
+        type="button"
+        onClick={() => onAddToken(label)}
+        style={{
+          width: "100%",
+          minHeight: isOperator ? 34 : 42,
+          borderRadius: isOperator ? 999 : 12,
+          border: `1px solid ${isOperator ? "#CFFF04" : "rgba(255,255,255,0.18)"}`,
+          background: isOperator ? "rgba(207,255,4,0.12)" : "#191919",
+          color: isOperator ? "#CFFF04" : "#FFFFFF",
+          fontFamily: "Grandstander, sans-serif",
+          fontSize: isOperator ? 18 : 20,
+          fontWeight: 800,
+          cursor: "pointer",
+          boxShadow: "0 10px 22px rgba(0,0,0,0.18)",
+        }}
+      >
+        {label}
+      </button>
+    );
+  }
+
+  return (
+    <section
+      aria-label="Equation builder column"
+      style={{
+        width: "12.5vw",
+        height: "100%",
+        minHeight: 0,
+        background: panelBackgroundColor,
+        color: textColor,
+        borderRight: `1px solid ${subtleBorderColor}`,
+        boxSizing: "border-box",
+        overflow: "hidden",
+        display: "grid",
+        gridTemplateRows: "10% 75% 15%",
+      }}
+    >
+      <div
+        style={{
+          minHeight: 0,
+          padding: "10px 10px 8px",
+          borderBottom: `1px solid ${subtleBorderColor}`,
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "flex-start",
+          gap: 4,
+          fontFamily: "Space Grotesk, sans-serif",
+        }}
+      >
+        <div style={{ fontSize: 13, fontWeight: 900, lineHeight: 1.1 }}>
+          Equation Builder
+        </div>
+        <div
+          style={{
+            color: "#CFFF04",
+            fontSize: 11,
+            fontWeight: 900,
+            letterSpacing: "0.03em",
+            textTransform: "uppercase",
+            animation: "urFlash 900ms ease-in-out infinite alternate",
+          }}
+        >
+          Start Here
+        </div>
+      </div>
+
+      <div
+        style={{
+          minHeight: 0,
+          padding: 10,
+          boxSizing: "border-box",
+          overflowY: shouldScrollTiles ? "auto" : "hidden",
+          fontFamily: "Space Grotesk, sans-serif",
+        }}
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          <div>
+            <div style={{ color: "#FFFFFF99", fontSize: 10, fontWeight: 900, marginBottom: 6, textTransform: "uppercase" }}>
+              Numbers
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6 }}>
+              {numberTiles.map((label) => renderTile(label, "number"))}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ color: "#FFFFFF99", fontSize: 10, fontWeight: 900, marginBottom: 6, textTransform: "uppercase" }}>
+              Operators
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
+              {operatorTiles.map((label) => renderTile(label, "operator"))}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ color: "#FFFFFF99", fontSize: 10, fontWeight: 900, marginBottom: 6, textTransform: "uppercase" }}>
+              Variables
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6 }}>
+              {variableTiles.map((label) => renderTile(label, "variable"))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          minHeight: 0,
+          padding: 8,
+          borderTop: `1px solid ${subtleBorderColor}`,
+          boxSizing: "border-box",
+          display: "grid",
+          gridTemplateRows: "1fr auto auto",
+          gap: 6,
+          fontFamily: "Space Grotesk, sans-serif",
+        }}
+      >
+        <div
+          style={{
+            border: "1px dashed rgba(255,255,255,0.36)",
+            borderRadius: 10,
+            color: "#FFFFFF99",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            fontSize: 10,
+            fontWeight: 800,
+            lineHeight: 1.15,
+            padding: "4px 6px",
+          }}
+        >
+          ↑ Click a tile to begin
+        </div>
+
+        <div
+          aria-label="Draft equation preview"
+          style={{
+            minHeight: 22,
+            borderRadius: 8,
+            background: "#191919",
+            border: `1px solid ${subtleBorderColor}`,
+            color: hasDraft ? "#FFFFFF" : "#FFFFFF66",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            overflowX: "auto",
+            padding: "2px 6px",
+            boxSizing: "border-box",
+            fontSize: 11,
+            fontWeight: 800,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {hasDraft ? draftTokens.map((token) => token.label).join(" ") : "Equation preview"}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.45fr", gap: 6 }}>
+          <button
+            type="button"
+            onClick={onClearEquation}
+            disabled={!hasDraft}
+            style={{
+              minHeight: 26,
+              borderRadius: 8,
+              border: `1px solid ${subtleBorderColor}`,
+              background: "#252525",
+              color: hasDraft ? "#FFFFFF" : "#FFFFFF66",
+              fontSize: 10,
+              fontWeight: 900,
+              cursor: hasDraft ? "pointer" : "not-allowed",
+            }}
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            onClick={onSaveEquation}
+            disabled={!hasDraft}
+            style={{
+              minHeight: 26,
+              borderRadius: 8,
+              border: `1px solid ${hasDraft ? "#CFFF04" : subtleBorderColor}`,
+              background: hasDraft ? "#CFFF04" : "#252525",
+              color: hasDraft ? "#000000" : "#FFFFFF66",
+              fontSize: 10,
+              fontWeight: 900,
+              cursor: hasDraft ? "pointer" : "not-allowed",
+            }}
+          >
+            Save Equation
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CenterChoicePanel({
+  choice,
+  onCreateEquation,
+  onBrowseLibrary,
+}: {
+  choice: CenterChoice;
+  onCreateEquation: () => void;
+  onBrowseLibrary: () => void;
+}) {
+  const isCreate = choice === "create";
+  const isPremade = choice === "premade";
+  const title = isCreate
+    ? "Build your equation"
+    : isPremade
+      ? "Choose a pre-made equation"
+      : "Build or choose a pre-made equation";
+  const subtitle = isCreate
+    ? "Use the builder on the left, then assign it to a timeline event."
+    : isPremade
+      ? "Select an equation from the library, then click a timeline event to assign it."
+      : "Create an equation from scratch or start with a curriculum-aligned equation";
+
+  return (
+    <section
+      aria-label="Equation workspace choice"
+      style={{
+        width: "77.5vw",
+        height: "100%",
+        minHeight: 0,
+        background: "#191919",
+        color: textColor,
+        boxSizing: "border-box",
+        overflow: "hidden",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 32,
+        fontFamily: "Space Grotesk, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          width: "min(720px, 92%)",
+          display: "grid",
+          justifyItems: "center",
+          gap: 18,
+          textAlign: "center",
+        }}
+      >
+        <URIcon
+          aria-label="UltraRapid"
+          style={{
+            width: 220,
+            height: 50,
+            display: "block",
+            overflow: "visible",
+            animation: "urFlash 1s ease-in-out infinite alternate",
+          }}
+        />
+
+        <div style={{ display: "grid", gap: 8 }}>
+          <h1 style={{ margin: 0, color: "#FFFFFF", fontSize: 30, lineHeight: 1.1, fontWeight: 900 }}>
+            {title}
+          </h1>
+          <p style={{ margin: 0, color: "#FFFFFF99", fontSize: 15, lineHeight: 1.4, fontWeight: 700 }}>
+            {subtitle}
+          </p>
+        </div>
+
+        {choice === null ? (
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+            <button
+              type="button"
+              onClick={onCreateEquation}
+              style={{
+                minWidth: 178,
+                minHeight: 46,
+                borderRadius: 14,
+                border: "1px solid #CFFF04",
+                background: "#CFFF04",
+                color: "#000000",
+                fontSize: 14,
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
+            >
+              Create Equation
+            </button>
+            <button
+              type="button"
+              onClick={onBrowseLibrary}
+              style={{
+                minWidth: 220,
+                minHeight: 46,
+                borderRadius: 14,
+                border: `1px solid ${subtleBorderColor}`,
+                background: "#2B2B2B",
+                color: "#FFFFFF",
+                fontSize: 14,
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
+            >
+              Browse Pre-Made Library
+            </button>
+          </div>
+        ) : (
+          <div
+            style={{
+              color: "#CFFF04",
+              fontSize: 16,
+              fontWeight: 900,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            {isCreate ? "← Start in the Equation Builder" : "Browse the Pre-Made Library →"}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function LibraryPanel({
+  activeTab,
+  savedEquations,
+  onTabChange,
+  shouldScrollLibrary,
+}: {
+  activeTab: LibraryTab;
+  savedEquations: SavedEquation[];
+  onTabChange: (tab: LibraryTab) => void;
+  shouldScrollLibrary: boolean;
+}) {
+  return (
+    <section
+      aria-label="Equation library"
+      style={{
+        width: "10vw",
+        height: "100%",
+        minHeight: 0,
+        background: panelBackgroundColor,
+        color: textColor,
+        borderLeft: `1px solid ${subtleBorderColor}`,
+        boxSizing: "border-box",
+        overflow: "hidden",
+        display: "grid",
+        gridTemplateRows: "10% 90%",
+        fontFamily: "Space Grotesk, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          minHeight: 0,
+          padding: "8px 8px 6px",
+          borderBottom: `1px solid ${subtleBorderColor}`,
+          boxSizing: "border-box",
+          display: "grid",
+          alignContent: "center",
+          gap: 6,
+        }}
+      >
+        <div style={{ textAlign: "left", fontSize: 13, fontWeight: 900 }}>Library</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+          {(["mine", "premade"] as LibraryTab[]).map((tab) => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => onTabChange(tab)}
+                style={{
+                  minHeight: 24,
+                  borderRadius: 8,
+                  border: `1px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
+                  background: isActive ? "rgba(207,255,4,0.12)" : "#252525",
+                  color: isActive ? "#CFFF04" : "#FFFFFF99",
+                  fontSize: 9,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                  padding: "0 4px",
+                }}
+              >
+                {tab === "mine" ? "My Equations" : "Pre-Made"}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div
+        style={{
+          minHeight: 0,
+          padding: 10,
+          boxSizing: "border-box",
+          overflowY: shouldScrollLibrary ? "auto" : "hidden",
+        }}
+      >
+        {activeTab === "mine" ? (
+          savedEquations.length === 0 ? (
+            <div style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700, lineHeight: 1.35 }}>
+              Saved equations will appear here.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {savedEquations.map((equation) => (
+                <div
+                  key={equation.id}
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData(
+                      "application/x-saved-equation",
+                      JSON.stringify(equation),
+                    );
+                    event.dataTransfer.effectAllowed = "copy";
+                  }}
+                  style={{
+                    minHeight: 46,
+                    padding: 6,
+                    borderRadius: 10,
+                    border: `1px solid ${subtleBorderColor}`,
+                    background: "#191919",
+                    color: textColor,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "grab",
+                  }}
+                  title={tokensToEquationState(equation.tokens)}
+                >
+                  <EquationPreview tokens={equation.tokens} circleSize={22} />
+                </div>
+              ))}
+            </div>
+          )
+        ) : (
+          <div style={{ color: "#FFFFFF66", fontSize: 11, fontWeight: 700, lineHeight: 1.35 }} />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function TimelineInstructionPanel({ choice }: { choice: CenterChoice }) {
+  const text =
+    choice === "premade"
+      ? "Choose a curriculum-aligned equation template from the panel on the right"
+      : "Build your equation using the blocks on the left";
+
+  return (
+    <div
+      aria-hidden={choice === null}
+      style={{
+        minHeight: 0,
+        height: "100%",
+        background: "#202020",
+        borderTop: `1px solid ${subtleBorderColor}`,
+        borderBottom: `1px solid ${subtleBorderColor}`,
+        boxSizing: "border-box",
+        display: "flex",
+        alignItems: "center",
+        padding: "0 20px",
+        gap: 10,
+        overflow: "hidden",
+        opacity: choice === null ? 0 : 1,
+        transform: choice === null ? "translateY(100%)" : "translateY(0)",
+        transition: "transform 260ms ease, opacity 260ms ease",
+        fontFamily: "Space Grotesk, sans-serif",
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: 999,
+          background: "#CFFF04",
+          boxShadow: "0 0 18px rgba(207,255,4,0.8)",
+          flexShrink: 0,
+          animation: "urPulseDot 850ms ease-in-out infinite alternate",
+        }}
+      />
+      <span style={{ color: "#FFFFFF", fontSize: 13, fontWeight: 900 }}>
+        {text}
+      </span>
+    </div>
+  );
+}
+
+function TimelineControlsRow({
+  isPlaying,
+  currentSongSeconds,
+  onRewind,
+  onTogglePlay,
+  onFastForward,
+}: {
+  isPlaying: boolean;
+  currentSongSeconds: number;
+  onRewind: () => void;
+  onTogglePlay: () => void;
+  onFastForward: () => void;
+}) {
+  const controls = [
+    { label: "⏪", ariaLabel: "Rewind", onClick: onRewind },
+    { label: isPlaying ? "⏸" : "▶", ariaLabel: isPlaying ? "Pause" : "Play", onClick: onTogglePlay },
+    { label: "⏩", ariaLabel: "Fast forward", onClick: onFastForward },
+  ];
+
+  return (
+    <div
+      aria-label="Song controls"
+      style={{
+        minHeight: 0,
+        height: "100%",
+        background: panelBackgroundColor,
+        borderBottom: `1px solid ${subtleBorderColor}`,
+        boxSizing: "border-box",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "0 16px",
+        fontFamily: "Space Grotesk, sans-serif",
+      }}
+    >
+      {controls.map((control) => (
+        <button
+          key={control.ariaLabel}
+          type="button"
+          aria-label={control.ariaLabel}
+          onClick={control.onClick}
+          style={{
+            width: 38,
+            height: 30,
+            borderRadius: 10,
+            border: `1px solid ${subtleBorderColor}`,
+            background: "#191919",
+            color: "#FFFFFF",
+            fontSize: 13,
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+        >
+          {control.label}
+        </button>
+      ))}
+      <div
+        aria-label="Current song time"
+        style={{
+          marginLeft: 8,
+          minWidth: 74,
+          height: 30,
+          borderRadius: 10,
+          border: `1px solid ${subtleBorderColor}`,
+          background: "#191919",
+          color: "#FFFFFF",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 13,
+          fontWeight: 900,
+        }}
+      >
+        {formatSongTime(currentSongSeconds)}
+      </div>
+    </div>
+  );
+}
+
 function CenterEditorPanel({
   mode,
   timelineEvents,
@@ -3595,6 +4415,10 @@ export default function LessonBuilderClient({
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [savedEquations, setSavedEquations] = useState<SavedEquation[]>([]);
   const [mode, setMode] = useState<"event" | "equation">("event");
+  const [centerChoice, setCenterChoice] = useState<CenterChoice>(null);
+  const [libraryTab, setLibraryTab] = useState<LibraryTab>("mine");
+  const [currentSongSeconds, setCurrentSongSeconds] = useState(0);
+  const [isSongPlaying, setIsSongPlaying] = useState(false);
   const [draftTokens, setDraftTokens] = useState<EquationToken[]>([]);
   const [customTokenLabel, setCustomTokenLabel] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -3610,6 +4434,16 @@ export default function LessonBuilderClient({
     () => sidecarFromTimelineEvents(timelineEvents),
     [timelineEvents],
   );
+
+  const timelineDurationSeconds = useMemo(() => {
+    const maxEventSeconds = timelineEvents.reduce(
+      (maxSeconds, eventSlot) =>
+        Math.max(maxSeconds, timelineTickToSeconds(eventSlot.tick)),
+      0,
+    );
+
+    return Math.max(8, metadata?.durationSeconds ?? 0, maxEventSeconds + 8);
+  }, [metadata?.durationSeconds, timelineEvents]);
 
   const payloadForProject: LessonBuilderPayload = useMemo(
     () => ({
@@ -3702,6 +4536,32 @@ export default function LessonBuilderClient({
         ...current.slice(safeIndex),
       ];
     });
+  }
+
+  function handleAppendEquationToken(label: string) {
+    setMode("equation");
+    setDraftTokens((current) => [
+      ...current,
+      {
+        id: makeId("token"),
+        label,
+      },
+    ]);
+  }
+
+  function handleClearEquationDraft() {
+    setDraftTokens([]);
+    setCustomTokenLabel("");
+  }
+
+  function handleCreateEquationChoice() {
+    setCenterChoice("create");
+    setMode("equation");
+  }
+
+  function handleBrowsePremadeChoice() {
+    setCenterChoice("premade");
+    setLibraryTab("premade");
   }
 
   function handleRemoveEquationToken(id: string) {
@@ -4107,6 +4967,51 @@ function handleToggleDragTarget(
     }
   }, [activeEventId, timelineEvents]);
 
+  useEffect(() => {
+    if (!isSongPlaying) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setCurrentSongSeconds((current) => {
+        const next = Math.min(timelineDurationSeconds, current + 0.1);
+
+        if (next >= timelineDurationSeconds) {
+          setIsSongPlaying(false);
+        }
+
+        return next;
+      });
+    }, 100);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isSongPlaying, timelineDurationSeconds]);
+
+  function handleRewindSong() {
+    setCurrentSongSeconds((current) => Math.max(0, current - 8));
+  }
+
+  function handleToggleSongPlayback() {
+    setIsSongPlaying((current) => !current);
+  }
+
+  function handleFastForwardSong() {
+    setCurrentSongSeconds((current) =>
+      Math.min(timelineDurationSeconds, current + 8),
+    );
+  }
+
+  const isTimelineInstructionVisible = centerChoice !== null;
+  const timelineInstructionHeight = `calc(${timelineRowHeight} * 0.15)`;
+  const viewerRowTemplate = isTimelineInstructionVisible
+    ? `calc(${viewerRowHeight} - ${timelineInstructionHeight})`
+    : viewerRowHeight;
+  const timelineRowTemplate = isTimelineInstructionVisible
+    ? `calc(${timelineRowHeight} + ${timelineInstructionHeight})`
+    : timelineRowHeight;
+
   return (
     <div
       className={styles.studentTypography}
@@ -4119,6 +5024,16 @@ function handleToggleDragTarget(
         overflowX: "hidden",
       }}
     >
+      <style>{`
+        @keyframes urFlash {
+          from { opacity: 0.45; filter: drop-shadow(0 0 0 rgba(207,255,4,0)); }
+          to { opacity: 1; filter: drop-shadow(0 0 16px rgba(207,255,4,0.55)); }
+        }
+        @keyframes urPulseDot {
+          from { transform: scale(0.7); opacity: 0.45; }
+          to { transform: scale(1.15); opacity: 1; }
+        }
+      `}</style>
       <HeaderBar pathname={pathname} topTabs={topTabs} />
 
       {/*
@@ -4139,7 +5054,7 @@ function handleToggleDragTarget(
           flex: 1,
           minHeight: 0,
           display: "grid",
-          gridTemplateRows: `${viewerRowHeight} ${timelineRowHeight}`,
+          gridTemplateRows: `${viewerRowTemplate} ${timelineRowTemplate}`,
           background: pageBackgroundColor,
           color: textColor,
           overflow: "hidden",
@@ -4156,28 +5071,50 @@ function handleToggleDragTarget(
             overflow: "hidden",
           }}
         >
-          <EquationsPanel
-            savedEquations={savedEquations}
-            onNewEquation={handleNewEquation}
-          />
-
-          <CenterEditorPanel
-            mode={mode}
-            timelineEvents={timelineEvents}
-            activeEventId={activeEventId}
+          <LeftEquationBuilderPanel
             draftTokens={draftTokens}
-            customTokenLabel={customTokenLabel}
-            onCustomTokenLabelChange={setCustomTokenLabel}
-            onInsertToken={handleInsertEquationToken}
-            onRemoveToken={handleRemoveEquationToken}
+            onAddToken={handleAppendEquationToken}
+            onClearEquation={handleClearEquationDraft}
             onSaveEquation={handleSaveEquation}
-            onDropEquation={handleDropEquation}
-            onAddHitBubblePair={handleAddHitBubblePair}
-            onToggleSpinTarget={handleToggleSpinTarget}
-            onToggleDragTarget={handleToggleDragTarget}
+            shouldScrollTiles={isTimelineInstructionVisible}
           />
 
-          <RightLessonPanel />
+          <CenterChoicePanel
+            choice={centerChoice}
+            onCreateEquation={handleCreateEquationChoice}
+            onBrowseLibrary={handleBrowsePremadeChoice}
+          />
+
+          <LibraryPanel
+            activeTab={libraryTab}
+            savedEquations={savedEquations}
+            onTabChange={setLibraryTab}
+            shouldScrollLibrary={isTimelineInstructionVisible}
+          />
+
+          {/*
+            Previous row-2 column usage preserved for reference:
+            <EquationsPanel
+              savedEquations={savedEquations}
+              onNewEquation={handleNewEquation}
+            />
+            <CenterEditorPanel
+              mode={mode}
+              timelineEvents={timelineEvents}
+              activeEventId={activeEventId}
+              draftTokens={draftTokens}
+              customTokenLabel={customTokenLabel}
+              onCustomTokenLabelChange={setCustomTokenLabel}
+              onInsertToken={handleInsertEquationToken}
+              onRemoveToken={handleRemoveEquationToken}
+              onSaveEquation={handleSaveEquation}
+              onDropEquation={handleDropEquation}
+              onAddHitBubblePair={handleAddHitBubblePair}
+              onToggleSpinTarget={handleToggleSpinTarget}
+              onToggleDragTarget={handleToggleDragTarget}
+            />
+            <RightLessonPanel />
+          */}
         </section>
 
         <section
@@ -4185,12 +5122,27 @@ function handleToggleDragTarget(
           style={{
             minHeight: 0,
             overflow: "hidden",
+            display: "grid",
+            gridTemplateRows: isTimelineInstructionVisible
+              ? "15% 15% 70%"
+              : "0px 15% 85%",
+            transition: "grid-template-rows 260ms ease",
           }}
         >
+          <TimelineInstructionPanel choice={centerChoice} />
+          <TimelineControlsRow
+            isPlaying={isSongPlaying}
+            currentSongSeconds={currentSongSeconds}
+            onRewind={handleRewindSong}
+            onTogglePlay={handleToggleSongPlayback}
+            onFastForward={handleFastForwardSong}
+          />
           <EquationTimeline
             events={timelineEvents}
             activeEventId={activeEventId}
             onSelectEvent={handleSelectEvent}
+            currentSongSeconds={currentSongSeconds}
+            durationSeconds={timelineDurationSeconds}
           />
         </section>
       </main>
