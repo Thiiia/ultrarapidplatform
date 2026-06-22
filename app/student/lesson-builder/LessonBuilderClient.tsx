@@ -204,6 +204,9 @@ type LessonBuilderClientProps = {
 };
 
 const pagePanelWidth = "92vw";
+const headerHeight = 70;
+const viewerRowHeight = "60vh";
+const timelineRowHeight = `calc(40vh - ${headerHeight}px)`;
 const headerBackgroundColor = "#2B2B2B";
 const pageBackgroundColor = "#191919";
 const panelBackgroundColor = "#2B2B2B";
@@ -1168,7 +1171,7 @@ function HeaderBar({
         background: headerBackgroundColor,
         width: "100%",
         boxSizing: "border-box",
-        height: 70,
+        height: headerHeight,
         borderBottom: `1px solid ${subtleBorderColor}`,
         display: "flex",
         alignItems: "center",
@@ -3113,8 +3116,11 @@ function EventBuilderArea({
       style={{
         flex: 1,
         minHeight: 0,
-        height: "60vh",
-        maxHeight: "60vh",
+        // Previous embedded-center-panel sizing kept this at 60vh.
+        // height: "60vh",
+        // maxHeight: "60vh",
+        height: "100%",
+        maxHeight: "100%",
         background: "#191919",
         padding: 18,
         boxSizing: "border-box",
@@ -3144,8 +3150,11 @@ function EventBuilderArea({
         style={{
           flex: 1,
           minHeight: 0,
-          height: "60vh",
-          maxHeight: "60vh",
+          // Previous embedded-center-panel sizing kept this at 60vh.
+          // height: "60vh",
+          // maxHeight: "60vh",
+          height: "100%",
+          maxHeight: "100%",
           background: "#191919",
           padding: 18,
           boxSizing: "border-box",
@@ -3191,8 +3200,10 @@ function EquationTimeline({
       aria-label="Timeline"
       style={{
         width: "100%",
-        height: "calc(40vh - 142px)",
-        minHeight: 180,
+        // The timeline row now controls this height.
+        // height: "calc(40vh - 142px)",
+        height: "100%",
+        minHeight: 0,
         background: panelBackgroundColor,
         borderTop: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
@@ -3319,8 +3330,11 @@ function EquationsPanel({
     <section
       style={{
         width: "12.5vw",
-        height: "calc(100vh - 142px)",
-        minHeight: "calc(100vh - 142px)",
+        // The top-level viewer row now controls panel height.
+        // height: "calc(100vh - 142px)",
+        // minHeight: "calc(100vh - 142px)",
+        height: "100%",
+        minHeight: 0,
         background: panelBackgroundColor,
         color: textColor,
         borderRight: `1px solid ${subtleBorderColor}`,
@@ -3432,8 +3446,11 @@ function RightLessonPanel() {
     <section
       style={{
         width: "12.5vw",
-        height: "calc(100vh - 142px)",
-        minHeight: "calc(100vh - 142px)",
+        // The top-level viewer row now controls panel height.
+        // height: "calc(100vh - 142px)",
+        // minHeight: "calc(100vh - 142px)",
+        height: "100%",
+        minHeight: 0,
         background: panelBackgroundColor,
         color: textColor,
         borderLeft: `1px solid ${subtleBorderColor}`,
@@ -3466,7 +3483,8 @@ function CenterEditorPanel({
   draftTokens,
   customTokenLabel,
   onCustomTokenLabelChange,
-  onSelectEvent,
+  // Timeline selection moved to the top-level row 3 render.
+  // onSelectEvent,
   onInsertToken,
   onRemoveToken,
   onSaveEquation,
@@ -3481,7 +3499,8 @@ function CenterEditorPanel({
   draftTokens: EquationToken[];
   customTokenLabel: string;
   onCustomTokenLabelChange: (value: string) => void;
-  onSelectEvent: (eventId: string) => void;
+  // Timeline selection moved to the top-level row 3 render.
+  // onSelectEvent: (eventId: string) => void;
   onInsertToken: (index: number, label: string) => void;
   onRemoveToken: (id: string) => void;
   onSaveEquation: () => void;
@@ -3510,8 +3529,11 @@ function CenterEditorPanel({
     <section
       style={{
         width: "75vw",
-        height: "calc(100vh - 142px)",
-        minHeight: "calc(100vh - 142px)",
+        // The top-level viewer row now controls this panel height.
+        // height: "calc(100vh - 142px)",
+        // minHeight: "calc(100vh - 142px)",
+        height: "100%",
+        minHeight: 0,
         background: "#191919",
         color: textColor,
         boxSizing: "border-box",
@@ -3539,11 +3561,15 @@ function CenterEditorPanel({
         />
       )}
 
-      <EquationTimeline
-        events={timelineEvents}
-        activeEventId={activeEventId}
-        onSelectEvent={onSelectEvent}
-      />
+      {/*
+        Timeline moved out of CenterEditorPanel so the page can be three
+        top-level rows: header, viewer, timeline.
+        <EquationTimeline
+          events={timelineEvents}
+          activeEventId={activeEventId}
+          onSelectEvent={onSelectEvent}
+        />
+      */}
     </section>
   );
 }
@@ -4095,47 +4121,78 @@ function handleToggleDragTarget(
     >
       <HeaderBar pathname={pathname} topTabs={topTabs} />
 
-      <EditorActionBar
-        saveStatus={loadError || saveStatus}
-        isSaving={isSaving}
-        onBack={handleBackToSongChoice}
-        onSave={handleSaveToSupabase}
-      />
+      {/*
+        The action bar is preserved for later, but commented out because the
+        requested layout starts with the existing header as row 1, then uses
+        row 2 for the viewer and row 3 for the timeline.
+        <EditorActionBar
+          saveStatus={loadError || saveStatus}
+          isSaving={isSaving}
+          onBack={handleBackToSongChoice}
+          onSave={handleSaveToSupabase}
+        />
+      */}
 
       <main
         style={{
           width: "100%",
-          height: "calc(100vh - 142px)",
-          display: "flex",
-          alignItems: "stretch",
+          flex: 1,
+          minHeight: 0,
+          display: "grid",
+          gridTemplateRows: `${viewerRowHeight} ${timelineRowHeight}`,
           background: pageBackgroundColor,
           color: textColor,
           overflow: "hidden",
         }}
       >
-        <EquationsPanel
-          savedEquations={savedEquations}
-          onNewEquation={handleNewEquation}
-        />
+        <section
+          aria-label="Main viewer"
+          style={{
+            minHeight: 0,
+            display: "flex",
+            alignItems: "stretch",
+            background: pageBackgroundColor,
+            color: textColor,
+            overflow: "hidden",
+          }}
+        >
+          <EquationsPanel
+            savedEquations={savedEquations}
+            onNewEquation={handleNewEquation}
+          />
 
-        <CenterEditorPanel
-          mode={mode}
-          timelineEvents={timelineEvents}
-          activeEventId={activeEventId}
-          draftTokens={draftTokens}
-          customTokenLabel={customTokenLabel}
-          onCustomTokenLabelChange={setCustomTokenLabel}
-          onSelectEvent={handleSelectEvent}
-          onInsertToken={handleInsertEquationToken}
-          onRemoveToken={handleRemoveEquationToken}
-          onSaveEquation={handleSaveEquation}
-          onDropEquation={handleDropEquation}
-          onAddHitBubblePair={handleAddHitBubblePair}
-          onToggleSpinTarget={handleToggleSpinTarget}
-          onToggleDragTarget={handleToggleDragTarget}
-        />
+          <CenterEditorPanel
+            mode={mode}
+            timelineEvents={timelineEvents}
+            activeEventId={activeEventId}
+            draftTokens={draftTokens}
+            customTokenLabel={customTokenLabel}
+            onCustomTokenLabelChange={setCustomTokenLabel}
+            onInsertToken={handleInsertEquationToken}
+            onRemoveToken={handleRemoveEquationToken}
+            onSaveEquation={handleSaveEquation}
+            onDropEquation={handleDropEquation}
+            onAddHitBubblePair={handleAddHitBubblePair}
+            onToggleSpinTarget={handleToggleSpinTarget}
+            onToggleDragTarget={handleToggleDragTarget}
+          />
 
-        <RightLessonPanel />
+          <RightLessonPanel />
+        </section>
+
+        <section
+          aria-label="Timeline row"
+          style={{
+            minHeight: 0,
+            overflow: "hidden",
+          }}
+        >
+          <EquationTimeline
+            events={timelineEvents}
+            activeEventId={activeEventId}
+            onSelectEvent={handleSelectEvent}
+          />
+        </section>
       </main>
     </div>
   );
