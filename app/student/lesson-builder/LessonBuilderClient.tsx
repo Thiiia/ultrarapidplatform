@@ -4547,6 +4547,9 @@ function TimelineControlsRow({
   onRewind,
   onTogglePlay,
   onFastForward,
+  onAddEvent,
+  onRemoveEvent,
+  onAddMechanic,
   onSongUpload,
   onChartUpload,
   onSidecarUpload,
@@ -4556,6 +4559,9 @@ function TimelineControlsRow({
   onRewind: () => void;
   onTogglePlay: () => void;
   onFastForward: () => void;
+  onAddEvent: () => void;
+  onRemoveEvent: () => void;
+  onAddMechanic: (mechanic: GameplayMechanic) => void;
   onSongUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onChartUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onSidecarUpload: (event: ChangeEvent<HTMLInputElement>) => void;
@@ -4577,6 +4583,24 @@ function TimelineControlsRow({
     alignItems: "center",
     justifyContent: "center",
     padding: "0 10px",
+    boxSizing: "border-box" as const,
+    fontSize: 10,
+    fontWeight: 900,
+    cursor: "pointer",
+    whiteSpace: "nowrap" as const,
+  };
+
+  const timelineEditButtonStyle = {
+    minWidth: 78,
+    height: 30,
+    borderRadius: 10,
+    border: `1px solid ${subtleBorderColor}`,
+    background: "#191919",
+    color: "#FFFFFF",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0 9px",
     boxSizing: "border-box" as const,
     fontSize: 10,
     fontWeight: 900,
@@ -4639,6 +4663,33 @@ function TimelineControlsRow({
         }}
       >
         {formatSongTime(currentSongSeconds)}
+      </div>
+
+      <button type="button" onClick={onAddEvent} style={timelineEditButtonStyle}>
+        Add Event
+      </button>
+      <button type="button" onClick={onRemoveEvent} style={timelineEditButtonStyle}>
+        Remove Event
+      </button>
+
+      <div
+        aria-label="Timeline mechanic controls"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          minWidth: 0,
+        }}
+      >
+        <button type="button" onClick={() => onAddMechanic("hit")} style={timelineEditButtonStyle}>
+          Add Hit
+        </button>
+        <button type="button" onClick={() => onAddMechanic("spin")} style={timelineEditButtonStyle}>
+          Add Spin
+        </button>
+        <button type="button" onClick={() => onAddMechanic("drag")} style={timelineEditButtonStyle}>
+          Add Drag
+        </button>
       </div>
 
       <div
@@ -5529,6 +5580,109 @@ function handleToggleDragTarget(
     seekSong(currentSongSeconds + 8);
   }
 
+  function syncTimelineFilesFromEvents(nextEvents: TimelineEventSlot[]) {
+    const nextSidecar = sidecarFromTimelineEvents(nextEvents);
+
+    setStoreSidecar(nextSidecar as StoreSidecarPayload);
+
+    if (!chartFile.trim()) {
+      setSaveStatus("Updated sidecar JSON");
+      return;
+    }
+
+    try {
+      const nextProject = chartToProject({
+        chartFile,
+        analysisMetadata: metadata,
+        rawResults: nextSidecar,
+      });
+
+      setProject(nextProject);
+      setChartFile(projectToChart(nextProject));
+      setSaveStatus("Updated .chart and sidecar JSON");
+    } catch (error) {
+      console.error("Failed to update chart after timeline edit", error);
+      setSaveStatus("Updated sidecar JSON. Unable to rebuild .chart from the current chart text.");
+    }
+  }
+
+  function handleAddTimelineEvent() {
+    const nextTick = Number(currentSongSeconds.toFixed(3));
+
+    setTimelineEvents((current) => {
+      const nextEvent = makeTimelineEvent(current.length, nextTick);
+      const nextEvents = [...current, nextEvent].sort(
+        (left, right) => timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
+      );
+
+      setActiveEventId(nextEvent.id);
+      syncTimelineFilesFromEvents(nextEvents);
+
+      return nextEvents;
+    });
+  }
+
+  function handleRemoveSelectedTimelineEvent() {
+    if (!activeEventId) {
+      return;
+    }
+
+    setTimelineEvents((current) => {
+      const selectedIndex = current.findIndex((eventSlot) => eventSlot.id === activeEventId);
+
+      if (selectedIndex < 0) {
+        return current;
+      }
+
+      const nextEvents = current.filter((eventSlot) => eventSlot.id !== activeEventId);
+      const nextActiveEvent = nextEvents[Math.min(selectedIndex, nextEvents.length - 1)] ?? null;
+
+      setActiveEventId(nextActiveEvent?.id ?? null);
+      syncTimelineFilesFromEvents(nextEvents);
+
+      return nextEvents;
+    });
+  }
+
+  function handleAddMechanicToSelectedEvent(mechanic: GameplayMechanic) {
+    if (!activeEventId) {
+      return;
+    }
+
+    const nextTick = Number(currentSongSeconds.toFixed(3));
+
+    setTimelineEvents((current) => {
+      const nextEvents = current.map((eventSlot) => {
+        if (eventSlot.id !== activeEventId) {
+          return eventSlot;
+        }
+
+        const nextCount = (eventSlot.counts?.[mechanic] ?? 0) + 1;
+        const nextInstances = resizeMechanicInstances(
+          eventSlot.mechanicInstances?.[mechanic],
+          nextCount,
+        );
+
+        return {
+          ...eventSlot,
+          tick: nextTick,
+          counts: {
+            ...eventSlot.counts,
+            [mechanic]: nextCount,
+          },
+          mechanicInstances: {
+            ...eventSlot.mechanicInstances,
+            [mechanic]: nextInstances,
+          },
+        };
+      });
+
+      syncTimelineFilesFromEvents(nextEvents);
+
+      return nextEvents;
+    });
+  }
+
   function handleTimelineSongUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -5779,6 +5933,9 @@ function handleToggleDragTarget(
             onRewind={handleRewindSong}
             onTogglePlay={handleToggleSongPlayback}
             onFastForward={handleFastForwardSong}
+            onAddEvent={handleAddTimelineEvent}
+            onRemoveEvent={handleRemoveSelectedTimelineEvent}
+            onAddMechanic={handleAddMechanicToSelectedEvent}
             onSongUpload={handleTimelineSongUpload}
             onChartUpload={handleTimelineChartUpload}
             onSidecarUpload={handleTimelineSidecarUpload}
