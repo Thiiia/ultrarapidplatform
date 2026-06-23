@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import type { ChangeEvent, DragEvent, FC, SVGProps } from "react";
+import type { ChangeEvent, DragEvent, FC, PointerEvent, SVGProps } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   useEditorStore,
@@ -3233,11 +3233,11 @@ function buildWaveformPeaksFromChannelData(channelData: Float32Array, peakCount:
 function TimelineMarkerDots({
   count,
   color,
-  left,
+  leftPercent,
 }: {
   count: number;
   color: string;
-  left: number;
+  leftPercent: number;
 }) {
   if (count <= 0) {
     return null;
@@ -3251,7 +3251,7 @@ function TimelineMarkerDots({
           aria-hidden="true"
           style={{
             position: "absolute",
-            left: `${left + dotIndex * 13}px`,
+            left: `calc(${leftPercent}% + ${dotIndex * 13}px)`,
             top: "50%",
             width: 9,
             height: 9,
@@ -3266,7 +3266,7 @@ function TimelineMarkerDots({
   );
 }
 
-/* VERIFIED_LAYOUT_PATCH_2026_06_23: row2 shrinks; timeline scrollbar spacer aligned; shared equation tiles. */
+/* VERIFIED_LAYOUT_PATCH_2026_06_23: row2 shrinks; timeline has no horizontal scrollbar; draggable playhead controls song time; shared equation tiles. */
 function EquationTimeline({
   events,
   activeEventId,
@@ -3274,6 +3274,7 @@ function EquationTimeline({
   currentSongSeconds,
   durationSeconds,
   waveformPeaks,
+  onSeek,
 }: {
   events: TimelineEventSlot[];
   activeEventId: string | null;
@@ -3281,9 +3282,11 @@ function EquationTimeline({
   currentSongSeconds: number;
   durationSeconds: number;
   waveformPeaks: number[];
+  onSeek: (seconds: number) => void;
 }) {
+  const timelineTrackRef = useRef<HTMLDivElement | null>(null);
+  const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const blockSeconds = 8;
-  const blockWidth = 220;
   const maxEventSeconds = events.reduce(
     (maxSeconds, eventSlot) =>
       Math.max(maxSeconds, timelineTickToSeconds(eventSlot.tick)),
@@ -3294,19 +3297,14 @@ function EquationTimeline({
     durationSeconds,
     maxEventSeconds,
   );
-  const blockCount = Math.max(1, Math.ceil(visualDurationSeconds / blockSeconds) + 1);
-  const trackWidth = blockCount * blockWidth;
-  const pixelsPerSecond = blockWidth / blockSeconds;
-  const playheadLeft = Math.min(
-    trackWidth,
-    Math.max(0, currentSongSeconds * pixelsPerSecond),
+  const blockCount = Math.max(
+    1,
+    Math.ceil(visualDurationSeconds / blockSeconds) + 1,
   );
-  // Reserve the same vertical space on the left label column that the
-  // horizontal scrollbar uses on the right track column. This keeps the
-  // six timeline rows visually aligned instead of letting the right grid
-  // sit behind the scrollbar.
-  const timelineScrollbarHeight = 18;
-  const timelineContentHeight = `calc(100% - ${timelineScrollbarHeight}px)`;
+  const playheadLeftPercent = Math.min(
+    100,
+    Math.max(0, (currentSongSeconds / visualDurationSeconds) * 100),
+  );
   const labelRows = [
     { key: "merged", label: "", color: "#FFFFFF" },
     { key: "equations", label: "Equations", color: "#CFFF04" },
@@ -3314,6 +3312,49 @@ function EquationTimeline({
     { key: "spinouts", label: "Spinouts", color: "#FF3535" },
     { key: "drags", label: "Drags", color: "#B45CFF" },
   ];
+
+  function seekFromClientX(clientX: number) {
+    const track = timelineTrackRef.current;
+
+    if (!track) {
+      return;
+    }
+
+    const rect = track.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+
+    onSeek(ratio * visualDurationSeconds);
+  }
+
+  function handlePlayheadPointerDown(event: PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDraggingPlayhead(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    seekFromClientX(event.clientX);
+  }
+
+  function handlePlayheadPointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (!isDraggingPlayhead) {
+      return;
+    }
+
+    event.preventDefault();
+    seekFromClientX(event.clientX);
+  }
+
+  function handlePlayheadPointerUp(event: PointerEvent<HTMLDivElement>) {
+    if (isDraggingPlayhead) {
+      event.preventDefault();
+      seekFromClientX(event.clientX);
+    }
+
+    setIsDraggingPlayhead(false);
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
 
   return (
     <section
@@ -3337,19 +3378,12 @@ function EquationTimeline({
           minHeight: 0,
           height: "100%",
           display: "grid",
-          gridTemplateRows: `${timelineContentHeight} ${timelineScrollbarHeight}px`,
+          gridTemplateRows: "15% repeat(5, 17%)",
           background: "#202020",
           borderRight: `1px solid ${subtleBorderColor}`,
           boxSizing: "border-box",
         }}
       >
-        <div
-          style={{
-            minHeight: 0,
-            display: "grid",
-            gridTemplateRows: "15% repeat(5, 17%)",
-          }}
-        >
         <div
           style={{
             gridRow: "1 / span 2",
@@ -3376,36 +3410,25 @@ function EquationTimeline({
             {row.label}
           </div>
         ))}
-        </div>
-
-        <div
-          aria-hidden="true"
-          style={{
-            height: timelineScrollbarHeight,
-            borderTop: `1px solid ${subtleBorderColor}`,
-            boxSizing: "border-box",
-            background: "#202020",
-          }}
-        />
       </div>
 
       <div
+        ref={timelineTrackRef}
         aria-label="Timeline tracks"
         style={{
           position: "relative",
           minWidth: 0,
           minHeight: 0,
-          overflowX: "auto",
-          overflowY: "hidden",
+          overflow: "hidden",
           background: "#191919",
         }}
       >
         <div
           style={{
             position: "relative",
-            width: trackWidth,
-            minWidth: "100%",
-            height: timelineContentHeight,
+            width: "100%",
+            minWidth: 0,
+            height: "100%",
             display: "grid",
             gridTemplateRows: "15% repeat(5, 17%)",
           }}
@@ -3413,17 +3436,56 @@ function EquationTimeline({
           <div
             style={{
               position: "absolute",
-              left: playheadLeft,
+              left: `${playheadLeftPercent}%`,
               top: 0,
               bottom: 0,
-              width: 3,
-              background: "#CFFF04",
-              boxShadow: "0 0 18px rgba(207,255,4,0.78)",
-              zIndex: 20,
+              width: 28,
+              zIndex: 30,
               transform: "translateX(-50%)",
-              pointerEvents: "none",
+              cursor: isDraggingPlayhead ? "grabbing" : "grab",
+              touchAction: "none",
+              pointerEvents: "auto",
             }}
-          />
+            role="slider"
+            aria-label="Song position"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(visualDurationSeconds)}
+            aria-valuenow={Math.round(currentSongSeconds)}
+            tabIndex={0}
+            onPointerDown={handlePlayheadPointerDown}
+            onPointerMove={handlePlayheadPointerMove}
+            onPointerUp={handlePlayheadPointerUp}
+            onPointerCancel={handlePlayheadPointerUp}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: 2,
+                width: 0,
+                height: 0,
+                borderLeft: "8px solid transparent",
+                borderRight: "8px solid transparent",
+                borderTop: "12px solid #CFFF04",
+                transform: "translateX(-50%)",
+                filter: "drop-shadow(0 0 12px rgba(207,255,4,0.78))",
+              }}
+            />
+            <span
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: 0,
+                bottom: 0,
+                width: 3,
+                background: "#CFFF04",
+                boxShadow: "0 0 18px rgba(207,255,4,0.78)",
+                transform: "translateX(-50%)",
+              }}
+            />
+          </div>
 
           <div
             style={{
@@ -3431,7 +3493,7 @@ function EquationTimeline({
               borderBottom: `1px solid ${subtleBorderColor}`,
               boxSizing: "border-box",
               display: "grid",
-              gridTemplateColumns: `repeat(${blockCount}, ${blockWidth}px)`,
+              gridTemplateColumns: `repeat(${blockCount}, minmax(0, 1fr))`,
             }}
           >
             {Array.from({ length: blockCount }, (_, blockIndex) => (
@@ -3440,10 +3502,13 @@ function EquationTimeline({
                 style={{
                   borderRight: `1px solid ${subtleBorderColor}`,
                   color: "#FFFFFF99",
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: 900,
-                  padding: "8px 10px",
+                  padding: "8px 6px",
                   boxSizing: "border-box",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {formatTimelineTime(blockIndex * blockSeconds)}
@@ -3462,9 +3527,9 @@ function EquationTimeline({
             {waveformPeaks.length > 0 ? (
               <svg
                 aria-label="Song waveform"
-                width={trackWidth}
+                width="100%"
                 height="100%"
-                viewBox={`0 0 ${trackWidth} 100`}
+                viewBox="0 0 1000 100"
                 preserveAspectRatio="none"
                 style={{ position: "absolute", inset: 0, display: "block" }}
               >
@@ -3472,7 +3537,7 @@ function EquationTimeline({
                   const x =
                     waveformPeaks.length === 1
                       ? 0
-                      : (index / (waveformPeaks.length - 1)) * trackWidth;
+                      : (index / (waveformPeaks.length - 1)) * 1000;
                   const height = Math.max(4, peak * 84);
 
                   return (
@@ -3531,7 +3596,12 @@ function EquationTimeline({
             ) : (
               events.map((eventSlot, index) => {
                 const eventSeconds = timelineTickToSeconds(eventSlot.tick);
-                const left = eventSeconds * pixelsPerSecond + 10;
+                const blockIndex = Math.min(
+                  blockCount - 1,
+                  Math.max(0, Math.floor(eventSeconds / blockSeconds)),
+                );
+                const blockLeftPercent = (blockIndex / blockCount) * 100;
+                const blockWidthPercent = 100 / blockCount;
                 const isActive = eventSlot.id === activeEventId;
                 const assignedEquation = getTimelineEventEquation(eventSlot);
 
@@ -3539,12 +3609,14 @@ function EquationTimeline({
                   <button
                     key={eventSlot.id}
                     type="button"
+                    onPointerDown={(event) => event.stopPropagation()}
                     onClick={() => onSelectEvent(eventSlot.id)}
                     style={{
                       position: "absolute",
-                      left,
+                      left: `calc(${blockLeftPercent}% + 6px)`,
                       top: "50%",
-                      width: blockWidth - 20,
+                      width: `calc(${blockWidthPercent}% - 12px)`,
+                      minWidth: 44,
                       minHeight: 30,
                       transform: "translateY(-50%)",
                       borderRadius: 10,
@@ -3589,14 +3661,17 @@ function EquationTimeline({
               >
                 {events.map((eventSlot) => {
                   const eventSeconds = timelineTickToSeconds(eventSlot.tick);
-                  const left = eventSeconds * pixelsPerSecond;
+                  const leftPercent = Math.min(
+                    100,
+                    Math.max(0, (eventSeconds / visualDurationSeconds) * 100),
+                  );
 
                   return (
                     <TimelineMarkerDots
                       key={`${eventSlot.id}-${mechanic}`}
                       count={eventSlot.counts?.[mechanic] ?? 0}
                       color={color}
-                      left={left}
+                      leftPercent={leftPercent}
                     />
                   );
                 })}
@@ -3909,7 +3984,7 @@ function LeftEquationBuilderPanel({
         boxSizing: "border-box",
         overflow: "hidden",
         display: "grid",
-        gridTemplateRows: "10% 75% 15%",
+        gridTemplateRows: "calc(60vh * 0.1) minmax(0, 1fr) calc(60vh * 0.15)",
       }}
     >
       <div
@@ -4023,7 +4098,7 @@ function LeftEquationBuilderPanel({
             display: "flex",
             alignItems: "center",
             gap: 4,
-            overflowX: "hidden",
+            overflow: "hidden",
             padding: "2px 6px",
             boxSizing: "border-box",
             fontSize: 11,
@@ -5386,10 +5461,10 @@ function handleToggleDragTarget(
 
   const isTimelineInstructionVisible = centerChoice !== null;
   // When the instruction strip appears, row 3 grows upward by the exact
-  // strip height so row 2 shrinks instead of being covered. Because the
-  // visible row 3 template is 15% / 15% / 70%, the added strip height is
-  // 15 / 85 of the original timeline row height.
-  const timelineInstructionHeight = `calc(${timelineRowHeight} * 0.1764705882)`;
+  // strip height so row 2 shrinks instead of being covered. Avoid CSS calc()
+  // multiplication here because it can be unsupported and make the timeline
+  // visually overlay row 2 instead of participating in the grid.
+  const timelineInstructionHeight = "calc(7.058823529vh - 12.352941176px)";
   const viewerRowTemplate = isTimelineInstructionVisible
     ? `calc(${viewerRowHeight} - ${timelineInstructionHeight})`
     : viewerRowHeight;
@@ -5536,6 +5611,7 @@ function handleToggleDragTarget(
             currentSongSeconds={currentSongSeconds}
             durationSeconds={timelineDurationSeconds}
             waveformPeaks={waveformPeaks}
+            onSeek={seekSong}
           />
         </section>
       </main>
