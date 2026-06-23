@@ -207,6 +207,7 @@ type CenterChoice = "create" | "premade" | null;
 type LibraryTab = "mine" | "premade";
 
 /* VERIFIED_TIMELINE_HIDDEN_SCROLL_DRAG_HANDLE_PATCH */
+/* VERIFIED_TIMELINE_UPLOAD_BUTTONS_PATCH: row 3 subrow 2 supports song/chart/sidecar uploads and updates timeline data. */
 const pagePanelWidth = "92vw";
 const headerHeight = 70;
 const viewerRowHeight = "60vh";
@@ -4546,18 +4547,42 @@ function TimelineControlsRow({
   onRewind,
   onTogglePlay,
   onFastForward,
+  onSongUpload,
+  onChartUpload,
+  onSidecarUpload,
 }: {
   isPlaying: boolean;
   currentSongSeconds: number;
   onRewind: () => void;
   onTogglePlay: () => void;
   onFastForward: () => void;
+  onSongUpload: (event: ChangeEvent<HTMLInputElement>) => void;
+  onChartUpload: (event: ChangeEvent<HTMLInputElement>) => void;
+  onSidecarUpload: (event: ChangeEvent<HTMLInputElement>) => void;
 }) {
   const controls = [
     { label: "⏪", ariaLabel: "Rewind", onClick: onRewind },
     { label: isPlaying ? "⏸" : "▶", ariaLabel: isPlaying ? "Pause" : "Play", onClick: onTogglePlay },
     { label: "⏩", ariaLabel: "Fast forward", onClick: onFastForward },
   ];
+
+  const uploadControlStyle = {
+    minWidth: 92,
+    height: 30,
+    borderRadius: 10,
+    border: `1px solid ${subtleBorderColor}`,
+    background: "#191919",
+    color: "#FFFFFF",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0 10px",
+    boxSizing: "border-box" as const,
+    fontSize: 10,
+    fontWeight: 900,
+    cursor: "pointer",
+    whiteSpace: "nowrap" as const,
+  };
 
   return (
     <div
@@ -4614,6 +4639,46 @@ function TimelineControlsRow({
         }}
       >
         {formatSongTime(currentSongSeconds)}
+      </div>
+
+      <div
+        aria-label="Timeline file uploads"
+        style={{
+          marginLeft: "auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          gap: 8,
+          minWidth: 0,
+        }}
+      >
+        <label style={uploadControlStyle}>
+          Upload Song
+          <input
+            type="file"
+            accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac"
+            onChange={onSongUpload}
+            style={{ display: "none" }}
+          />
+        </label>
+        <label style={uploadControlStyle}>
+          Upload .chart
+          <input
+            type="file"
+            accept=".chart,text/plain"
+            onChange={onChartUpload}
+            style={{ display: "none" }}
+          />
+        </label>
+        <label style={uploadControlStyle}>
+          Upload JSON
+          <input
+            type="file"
+            accept=".json,application/json"
+            onChange={onSidecarUpload}
+            style={{ display: "none" }}
+          />
+        </label>
       </div>
     </div>
   );
@@ -5464,6 +5529,101 @@ function handleToggleDragTarget(
     seekSong(currentSongSeconds + 8);
   }
 
+  function handleTimelineSongUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setIsSongPlaying(false);
+    setCurrentSongSeconds(0);
+    setPendingSongFile(file);
+    setUploadedSongName(file.name);
+    setLoadError("");
+    setMetadata((current) => ({
+      ...current,
+      songTitle: current?.songTitle ?? file.name.replace(/\.[^.]+$/, ""),
+      uploadedFileName: file.name,
+    }));
+  }
+
+  async function handleTimelineChartUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const nextChartFile = await file.text();
+      const nextMetadata = {
+        ...metadata,
+        uploadedFileName: file.name,
+      };
+
+      setChartFile(nextChartFile);
+      setUploadedChartName(file.name);
+      setMetadata(nextMetadata);
+      setLoadError("");
+      setSaveStatus(`Loaded ${file.name}`);
+
+      try {
+        setProject(
+          chartToProject({
+            chartFile: nextChartFile,
+            analysisMetadata: nextMetadata,
+            rawResults: sidecar,
+          }),
+        );
+      } catch (error) {
+        console.error("Failed to rebuild project from uploaded chart", error);
+      }
+    } catch (error) {
+      setLoadError(
+        error instanceof Error ? error.message : "Failed to load .chart file",
+      );
+    }
+  }
+
+  async function handleTimelineSidecarUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const parsedSidecar = JSON.parse(await file.text());
+      const normalizedSidecar = normalizeSidecar(parsedSidecar);
+
+      setLoadError("");
+      setSaveStatus(`Loaded ${file.name}`);
+      loadSidecarIntoTimeline(normalizedSidecar, null);
+
+      if (chartFile.trim()) {
+        try {
+          setProject(
+            chartToProject({
+              chartFile,
+              analysisMetadata: metadata,
+              rawResults: normalizedSidecar,
+            }),
+          );
+        } catch (error) {
+          console.error("Failed to rebuild project from uploaded sidecar", error);
+        }
+      }
+    } catch (error) {
+      setLoadError(
+        error instanceof Error ? error.message : "Failed to load sidecar JSON",
+      );
+    }
+  }
+
   const isTimelineInstructionVisible = centerChoice !== null;
   // When the instruction strip appears, row 3 grows upward by the exact
   // strip height so row 2 shrinks instead of being covered. Avoid CSS calc()
@@ -5619,6 +5779,9 @@ function handleToggleDragTarget(
             onRewind={handleRewindSong}
             onTogglePlay={handleToggleSongPlayback}
             onFastForward={handleFastForwardSong}
+            onSongUpload={handleTimelineSongUpload}
+            onChartUpload={handleTimelineChartUpload}
+            onSidecarUpload={handleTimelineSidecarUpload}
           />
           <EquationTimeline
             events={timelineEvents}
