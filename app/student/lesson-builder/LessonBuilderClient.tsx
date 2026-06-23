@@ -3215,6 +3215,46 @@ function timelineTickToSeconds(tick: number) {
   return tick > 1000 ? tick / 1000 : tick;
 }
 
+const timelineEventDurationSeconds = 8;
+
+function findTimelineEventAtSeconds(
+  events: TimelineEventSlot[],
+  seconds: number,
+) {
+  const safeSeconds = Math.max(0, seconds);
+
+  return events.find((eventSlot) => {
+    const eventStartSeconds = timelineTickToSeconds(eventSlot.tick);
+    return (
+      safeSeconds >= eventStartSeconds &&
+      safeSeconds < eventStartSeconds + timelineEventDurationSeconds
+    );
+  });
+}
+
+function getDownloadBaseName(name: string, fallback: string) {
+  const trimmedName = name.trim();
+
+  if (!trimmedName) {
+    return fallback;
+  }
+
+  return trimmedName.replace(/\.[^.]+$/, "") || fallback;
+}
+
+function downloadTextFile(fileName: string, text: string, contentType: string) {
+  const blob = new Blob([text], { type: contentType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function buildWaveformPeaksFromChannelData(channelData: Float32Array, peakCount: number) {
   const safePeakCount = Math.max(1, Math.round(peakCount));
   const samplesPerPeak = Math.max(1, Math.floor(channelData.length / safePeakCount));
@@ -3288,7 +3328,7 @@ function EquationTimeline({
 }) {
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
-  const blockSeconds = 8;
+  const blockSeconds = timelineEventDurationSeconds;
   const blockWidth = 220;
   const maxEventSeconds = events.reduce(
     (maxSeconds, eventSlot) =>
@@ -4553,6 +4593,7 @@ function TimelineControlsRow({
   onSongUpload,
   onChartUpload,
   onSidecarUpload,
+  onSaveFiles,
 }: {
   isPlaying: boolean;
   currentSongSeconds: number;
@@ -4565,6 +4606,7 @@ function TimelineControlsRow({
   onSongUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onChartUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onSidecarUpload: (event: ChangeEvent<HTMLInputElement>) => void;
+  onSaveFiles: () => void;
 }) {
   const controls = [
     { label: "⏪", ariaLabel: "Rewind", onClick: onRewind },
@@ -4730,6 +4772,9 @@ function TimelineControlsRow({
             style={{ display: "none" }}
           />
         </label>
+        <button type="button" onClick={onSaveFiles} style={uploadControlStyle}>
+          Save
+        </button>
       </div>
     </div>
   );
@@ -5645,15 +5690,20 @@ function handleToggleDragTarget(
   }
 
   function handleAddMechanicToSelectedEvent(mechanic: GameplayMechanic) {
-    if (!activeEventId) {
-      return;
-    }
-
-    const nextTick = Number(currentSongSeconds.toFixed(3));
+    const mechanicSeconds = currentSongSeconds;
 
     setTimelineEvents((current) => {
+      const targetEvent = findTimelineEventAtSeconds(current, mechanicSeconds);
+
+      if (!targetEvent) {
+        setSaveStatus(
+          `No event at ${formatSongTime(mechanicSeconds)}. Add an event there first.`,
+        );
+        return current;
+      }
+
       const nextEvents = current.map((eventSlot) => {
-        if (eventSlot.id !== activeEventId) {
+        if (eventSlot.id !== targetEvent.id) {
           return eventSlot;
         }
 
@@ -5665,7 +5715,6 @@ function handleToggleDragTarget(
 
         return {
           ...eventSlot,
-          tick: nextTick,
           counts: {
             ...eventSlot.counts,
             [mechanic]: nextCount,
@@ -5677,10 +5726,50 @@ function handleToggleDragTarget(
         };
       });
 
+      setActiveEventId(targetEvent.id);
       syncTimelineFilesFromEvents(nextEvents);
 
       return nextEvents;
     });
+  }
+
+  function handleDownloadTimelineFiles() {
+    const currentSidecar = sidecarFromTimelineEvents(timelineEvents);
+    const baseName = getDownloadBaseName(
+      uploadedChartName || metadata?.uploadedFileName || metadata?.songTitle || uploadedSongName,
+      "lesson",
+    );
+    const sidecarJson = projectToSidecarJson(currentSidecar);
+    let chartText = chartFile;
+
+    if (chartFile.trim()) {
+      try {
+        const nextProject = chartToProject({
+          chartFile,
+          analysisMetadata: metadata,
+          rawResults: currentSidecar,
+        });
+
+        chartText = projectToChart(nextProject);
+      } catch (error) {
+        console.error("Failed to rebuild chart for download", error);
+        chartText = project ? projectToChart(project) : chartFile;
+      }
+    } else if (project) {
+      chartText = projectToChart(project);
+    }
+
+    downloadTextFile(
+      `${baseName}.json`,
+      sidecarJson,
+      "application/json;charset=utf-8",
+    );
+    downloadTextFile(
+      `${baseName}.chart`,
+      chartText,
+      "text/plain;charset=utf-8",
+    );
+    setSaveStatus("Downloaded .chart and sidecar JSON");
   }
 
   function handleTimelineSongUpload(event: ChangeEvent<HTMLInputElement>) {
@@ -5939,6 +6028,7 @@ function handleToggleDragTarget(
             onSongUpload={handleTimelineSongUpload}
             onChartUpload={handleTimelineChartUpload}
             onSidecarUpload={handleTimelineSidecarUpload}
+            onSaveFiles={handleDownloadTimelineFiles}
           />
           <EquationTimeline
             events={timelineEvents}
