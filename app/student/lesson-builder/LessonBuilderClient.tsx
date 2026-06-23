@@ -5809,45 +5809,57 @@ function handleToggleDragTarget(
   function handleRemoveNearestMechanic(mechanic: GameplayMechanic) {
     const targetSeconds = currentSongSeconds;
 
+    type NearestMechanicMatch = {
+      eventId: string;
+      instanceIndex: number;
+      distanceSeconds: number;
+    };
+
     setTimelineEvents((current) => {
-      let nearest:
-        | {
-            eventId: string;
-            instanceIndex: number;
-            distanceSeconds: number;
-          }
-        | null = null;
-
-      current.forEach((eventSlot) => {
-        const count = Math.max(0, eventSlot.counts?.[mechanic] ?? 0);
-        const instances = resizeMechanicInstances(
-          eventSlot.mechanicInstances?.[mechanic],
-          count,
-        );
-
-        instances.forEach((instance, instanceIndex) => {
-          const instanceSeconds = timelineTickToSeconds(
-            instance.tick ?? eventSlot.tick,
+      const nearestMatch = current.reduce<NearestMechanicMatch | null>(
+        (bestMatch, eventSlot) => {
+          const count = Math.max(0, eventSlot.counts?.[mechanic] ?? 0);
+          const instances = resizeMechanicInstances(
+            eventSlot.mechanicInstances?.[mechanic],
+            count,
           );
-          const distanceSeconds = Math.abs(instanceSeconds - targetSeconds);
 
-          if (!nearest || distanceSeconds < nearest.distanceSeconds) {
-            nearest = {
-              eventId: eventSlot.id,
-              instanceIndex,
-              distanceSeconds,
-            };
-          }
-        });
-      });
+          return instances.reduce<NearestMechanicMatch | null>(
+            (bestInstanceMatch, instance, instanceIndex) => {
+              const instanceSeconds = timelineTickToSeconds(
+                instance.tick ?? eventSlot.tick,
+              );
+              const distanceSeconds = Math.abs(instanceSeconds - targetSeconds);
 
-      if (!nearest) {
+              if (
+                bestInstanceMatch &&
+                bestInstanceMatch.distanceSeconds <= distanceSeconds
+              ) {
+                return bestInstanceMatch;
+              }
+
+              return {
+                eventId: eventSlot.id,
+                instanceIndex,
+                distanceSeconds,
+              };
+            },
+            bestMatch,
+          );
+        },
+        null,
+      );
+
+      if (!nearestMatch) {
         setSaveStatus(`No ${mechanic} to remove.`);
         return current;
       }
 
+      const eventIdToUpdate = nearestMatch.eventId;
+      const instanceIndexToRemove = nearestMatch.instanceIndex;
+
       const nextEvents = current.map((eventSlot) => {
-        if (eventSlot.id !== nearest?.eventId) {
+        if (eventSlot.id !== eventIdToUpdate) {
           return eventSlot;
         }
 
@@ -5857,7 +5869,7 @@ function handleToggleDragTarget(
           count,
         );
         const nextInstances = currentInstances.filter(
-          (_, instanceIndex) => instanceIndex !== nearest?.instanceIndex,
+          (_, instanceIndex) => instanceIndex !== instanceIndexToRemove,
         );
         const nextCount = Math.max(0, count - 1);
 
@@ -5874,7 +5886,7 @@ function handleToggleDragTarget(
         };
       });
 
-      setActiveEventId(nearest.eventId);
+      setActiveEventId(eventIdToUpdate);
       syncTimelineFilesFromEvents(nextEvents);
       setSaveStatus(
         `Removed nearest ${mechanic} to ${formatSongTime(targetSeconds)}.`,
