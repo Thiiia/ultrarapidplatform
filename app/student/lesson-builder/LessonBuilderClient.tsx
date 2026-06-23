@@ -3237,17 +3237,14 @@ function EventBuilderArea({
 function formatTimelineTime(seconds: number) {
   const safeSeconds = Math.max(0, seconds);
   const minutes = Math.floor(safeSeconds / 60);
-  const remainingSeconds = safeSeconds - minutes * 60;
+  const remainingSeconds = Math.floor(safeSeconds - minutes * 60);
+  const centiseconds = Math.floor((safeSeconds - Math.floor(safeSeconds)) * 100);
 
-  return `${minutes}:${remainingSeconds.toFixed(1).padStart(4, "0")}`;
+  return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}:${String(centiseconds).padStart(2, "0")}`;
 }
 
 function formatSongTime(seconds: number) {
-  const safeSeconds = Math.max(0, seconds);
-  const minutes = Math.floor(safeSeconds / 60);
-  const remainingSeconds = Math.floor(safeSeconds - minutes * 60);
-
-  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+  return formatTimelineTime(seconds);
 }
 
 function timelineTickToSeconds(tick: number) {
@@ -3371,26 +3368,28 @@ function EquationTimeline({
 }) {
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
-  const blockSeconds = timelineEventDurationSeconds;
-  const blockWidth = 220;
-  const maxEventSeconds = events.reduce(
-    (maxSeconds, eventSlot) =>
-      Math.max(maxSeconds, timelineTickToSeconds(eventSlot.tick)),
-    0,
-  );
+  const pixelsPerSecond = 44;
+  const maxTimelineSeconds = events.reduce((maxSeconds, eventSlot) => {
+    const eventStartSeconds = timelineTickToSeconds(eventSlot.tick);
+    const eventEndSeconds = eventStartSeconds + timelineEventDurationSeconds;
+    const mechanicSeconds = gameplayMechanics.flatMap((mechanic) =>
+      (eventSlot.mechanicInstances?.[mechanic] ?? []).map((instance) =>
+        timelineTickToSeconds(instance.tick ?? eventSlot.tick),
+      ),
+    );
+
+    return Math.max(maxSeconds, eventEndSeconds, ...mechanicSeconds);
+  }, 0);
   const visualDurationSeconds = Math.max(
-    blockSeconds,
+    timelineEventDurationSeconds,
     durationSeconds,
-    maxEventSeconds,
+    maxTimelineSeconds,
   );
-  const blockCount = Math.max(
-    1,
-    Math.ceil(visualDurationSeconds / blockSeconds) + 1,
-  );
-  const trackWidth = blockCount * blockWidth;
+  const wholeSecondCount = Math.max(1, Math.ceil(visualDurationSeconds) + 1);
+  const trackWidth = Math.max(wholeSecondCount * pixelsPerSecond, pixelsPerSecond);
   const playheadLeft = Math.min(
     trackWidth,
-    Math.max(0, (currentSongSeconds / visualDurationSeconds) * trackWidth),
+    Math.max(0, currentSongSeconds * pixelsPerSecond),
   );
   const labelRows = [
     { key: "merged", label: "", color: "#FFFFFF" },
@@ -3400,18 +3399,59 @@ function EquationTimeline({
     { key: "drags", label: "Drags", color: "#B45CFF" },
   ];
 
-  function seekFromClientX(clientX: number) {
+  function getSecondsFromClientX(clientX: number, options: { autoScroll?: boolean } = {}) {
     const track = timelineTrackRef.current;
 
     if (!track) {
-      return;
+      return currentSongSeconds;
     }
 
     const rect = track.getBoundingClientRect();
-    const xWithinScrollableTrack = clientX - rect.left + track.scrollLeft;
-    const ratio = Math.max(0, Math.min(1, xWithinScrollableTrack / trackWidth));
 
-    onSeek(ratio * visualDurationSeconds);
+    if (options.autoScroll) {
+      const edgeThreshold = 64;
+      const scrollStep = 28;
+
+      if (clientX > rect.right - edgeThreshold) {
+        track.scrollLeft = Math.min(
+          track.scrollWidth - track.clientWidth,
+          track.scrollLeft + scrollStep,
+        );
+      }
+
+      if (clientX < rect.left + edgeThreshold) {
+        track.scrollLeft = Math.max(0, track.scrollLeft - scrollStep);
+      }
+    }
+
+    const xWithinScrollableTrack = clientX - rect.left + track.scrollLeft;
+
+    return Math.max(
+      0,
+      Math.min(visualDurationSeconds, xWithinScrollableTrack / pixelsPerSecond),
+    );
+  }
+
+  function seekFromClientX(
+    clientX: number,
+    options: { snapToWholeSecond?: boolean; autoScroll?: boolean } = {},
+  ) {
+    const seconds = getSecondsFromClientX(clientX, {
+      autoScroll: options.autoScroll,
+    });
+
+    onSeek(options.snapToWholeSecond ? Math.round(seconds) : seconds);
+  }
+
+  function handleTimelinePointerDown(event: PointerEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement | null;
+
+    if (target?.closest("[data-timeline-interactive='true']")) {
+      return;
+    }
+
+    event.preventDefault();
+    seekFromClientX(event.clientX, { snapToWholeSecond: true });
   }
 
   function handlePlayheadPointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -3428,13 +3468,13 @@ function EquationTimeline({
     }
 
     event.preventDefault();
-    seekFromClientX(event.clientX);
+    seekFromClientX(event.clientX, { autoScroll: true });
   }
 
   function handlePlayheadPointerUp(event: PointerEvent<HTMLDivElement>) {
     if (isDraggingPlayhead) {
       event.preventDefault();
-      seekFromClientX(event.clientX);
+      seekFromClientX(event.clientX, { autoScroll: true });
     }
 
     setIsDraggingPlayhead(false);
@@ -3514,6 +3554,7 @@ function EquationTimeline({
         }}
       >
         <div
+          onPointerDown={handleTimelinePointerDown}
           style={{
             position: "relative",
             width: trackWidth,
@@ -3521,6 +3562,7 @@ function EquationTimeline({
             height: "100%",
             display: "grid",
             gridTemplateRows: "15% repeat(5, 17%)",
+            cursor: "crosshair",
           }}
         >
           <div
@@ -3537,6 +3579,7 @@ function EquationTimeline({
               pointerEvents: "auto",
             }}
             role="slider"
+            data-timeline-interactive="true"
             aria-label="Song position"
             aria-valuemin={0}
             aria-valuemax={Math.round(visualDurationSeconds)}
@@ -3578,32 +3621,65 @@ function EquationTimeline({
           </div>
 
           <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 0,
+              pointerEvents: "none",
+            }}
+          >
+            {Array.from({ length: wholeSecondCount }, (_, secondIndex) => {
+              const markerLeft = secondIndex * pixelsPerSecond;
+
+              return (
+                <span
+                  key={`timeline-grid-${secondIndex}`}
+                  style={{
+                    position: "absolute",
+                    left: markerLeft,
+                    top: 0,
+                    bottom: 0,
+                    width: 1,
+                    background: secondIndex % 8 === 0
+                      ? "rgba(207,255,4,0.34)"
+                      : "rgba(255,255,255,0.12)",
+                    transform: "translateX(-0.5px)",
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          <div
             style={{
               position: "relative",
               borderBottom: `1px solid ${subtleBorderColor}`,
               boxSizing: "border-box",
-              display: "grid",
-              gridTemplateColumns: `repeat(${blockCount}, ${blockWidth}px)`,
+              zIndex: 2,
             }}
           >
-            {Array.from({ length: blockCount }, (_, blockIndex) => (
-              <div
-                key={blockIndex}
-                style={{
-                  borderRight: `1px solid ${subtleBorderColor}`,
-                  color: "#FFFFFF99",
-                  fontSize: 11,
-                  fontWeight: 900,
-                  padding: "8px 10px",
-                  boxSizing: "border-box",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {formatTimelineTime(blockIndex * blockSeconds)}
-              </div>
-            ))}
+            {Array.from({ length: wholeSecondCount }, (_, secondIndex) => {
+              const markerLeft = secondIndex * pixelsPerSecond;
+
+              return (
+                <span
+                  key={`timeline-label-${secondIndex}`}
+                  style={{
+                    position: "absolute",
+                    left: markerLeft + 4,
+                    top: 7,
+                    color: "#FFFFFF99",
+                    fontSize: 10,
+                    fontWeight: 900,
+                    whiteSpace: "nowrap",
+                    pointerEvents: "none",
+                  }}
+                >
+                  {formatTimelineTime(secondIndex)}
+                </span>
+              );
+            })}
           </div>
 
           <div
@@ -3688,11 +3764,11 @@ function EquationTimeline({
                 const eventSeconds = timelineTickToSeconds(eventSlot.tick);
                 const eventLeft = Math.min(
                   trackWidth,
-                  Math.max(0, (eventSeconds / visualDurationSeconds) * trackWidth),
+                  Math.max(0, eventSeconds * pixelsPerSecond),
                 );
                 const eventWidth = Math.max(
                   44,
-                  (timelineEventDurationSeconds / visualDurationSeconds) * trackWidth,
+                  timelineEventDurationSeconds * pixelsPerSecond,
                 );
                 const isActive = eventSlot.id === activeEventId;
                 const assignedEquation = getTimelineEventEquation(eventSlot);
@@ -3701,6 +3777,7 @@ function EquationTimeline({
                   <button
                     key={eventSlot.id}
                     type="button"
+                    data-timeline-interactive="true"
                     onPointerDown={(event) => event.stopPropagation()}
                     onClick={() => onSelectEvent(eventSlot.id)}
                     style={{
@@ -3766,7 +3843,7 @@ function EquationTimeline({
 
                     return Math.min(
                       trackWidth,
-                      Math.max(0, (markerSeconds / visualDurationSeconds) * trackWidth),
+                      Math.max(0, markerSeconds * pixelsPerSecond),
                     );
                   });
 
@@ -5692,6 +5769,34 @@ function handleToggleDragTarget(
   function handleFastForwardSong() {
     seekSong(currentSongSeconds + 8);
   }
+
+  useEffect(() => {
+    function handleDocumentKeyDown(event: KeyboardEvent) {
+      if (event.code !== "Space") {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      const isTypingTarget =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT" ||
+        target?.isContentEditable;
+
+      if (isTypingTarget) {
+        return;
+      }
+
+      event.preventDefault();
+      handleToggleSongPlayback();
+    }
+
+    document.addEventListener("keydown", handleDocumentKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleDocumentKeyDown);
+    };
+  }, [currentSongSeconds, timelineDurationSeconds]);
 
   function syncTimelineFilesFromEvents(nextEvents: TimelineEventSlot[]) {
     const nextSidecar = sidecarFromTimelineEvents(nextEvents);
