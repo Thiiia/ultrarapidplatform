@@ -141,6 +141,7 @@ type HitBubblePair = "topLeftBottomRight" | "topRightBottomLeft" | "leftRight";
 
 type MechanicInstanceState = {
   id: string;
+  tick?: number;
   hitBubbles: HitBubblePlacement[];
   spinTargets: SpinTarget[];
   dragTargets: DragTarget[];
@@ -602,9 +603,10 @@ function makeEmptyMechanicCounts(): MechanicCounts {
   };
 }
 
-function makeMechanicInstance(): MechanicInstanceState {
+function makeMechanicInstance(tick?: number): MechanicInstanceState {
   return {
     id: makeId("mechanic"),
+    ...(typeof tick === "number" ? { tick } : {}),
     hitBubbles: [],
     spinTargets: [],
     dragTargets: [],
@@ -939,28 +941,57 @@ function timelineEventsFromSidecar(
     (event): event is SidecarMechanicEvent => event.type === "ALG_MECHANIC",
   );
 
-  const ticks = Array.from(
+  const eventStartTicks = Array.from(
     new Set([
-      ...mechanicEvents.map((event) => event.tick),
       ...equationEvents.map((event) => event.tick),
+      ...fallbackEventTicks,
+      ...(equationEvents.length === 0 && fallbackEventTicks.length === 0
+        ? mechanicEvents.map((event) => event.tick)
+        : []),
     ]),
   ).sort((left, right) => left - right);
 
-  const slots = ticks.map((tick, index) => {
-    const mechanicsAtTick = mechanicEvents.filter(
-      (event) => event.tick === tick,
+  const expandedMechanicEvents = mechanicEvents.flatMap((mechanicEvent) => {
+    const instanceCount =
+      mechanicEvent.mechanic === "hit"
+        ? Math.max(1, Math.round(Number(mechanicEvent.hits ?? 1)))
+        : 1;
+
+    return Array.from({ length: instanceCount }, (_, offset) => ({
+      ...mechanicEvent,
+      hits: mechanicEvent.mechanic === "hit" ? 1 : mechanicEvent.hits,
+      instanceIndex:
+        typeof mechanicEvent.instanceIndex === "number"
+          ? mechanicEvent.instanceIndex + offset
+          : undefined,
+    }));
+  });
+
+  function eventStartTickForMechanicTick(mechanicTick: number) {
+    const mechanicSeconds = timelineTickToSeconds(mechanicTick);
+
+    return [...eventStartTicks]
+      .reverse()
+      .find((eventTick) => {
+        const eventSeconds = timelineTickToSeconds(eventTick);
+
+        return (
+          mechanicSeconds >= eventSeconds &&
+          mechanicSeconds < eventSeconds + timelineEventDurationSeconds
+        );
+      });
+  }
+
+  const slots = eventStartTicks.map((tick, index) => {
+    const mechanicsInEvent = expandedMechanicEvents.filter(
+      (event) => eventStartTickForMechanicTick(event.tick) === tick,
     );
     const equationsAtTick = equationEvents.filter(
       (event) => event.tick === tick,
     );
     const counts = makeEmptyMechanicCounts();
 
-    mechanicsAtTick.forEach((mechanicEvent) => {
-      if (mechanicEvent.mechanic === "hit") {
-        counts.hit += Math.max(1, Math.round(Number(mechanicEvent.hits ?? 1)));
-        return;
-      }
-
+    mechanicsInEvent.forEach((mechanicEvent) => {
       counts[mechanicEvent.mechanic] += 1;
     });
 
@@ -980,14 +1011,28 @@ function timelineEventsFromSidecar(
       });
     }
 
-    mechanicsAtTick.forEach((mechanicEvent) => {
-      const instanceIndex = mechanicEvent.instanceIndex ?? 0;
-      const instance =
-        slot.mechanicInstances[mechanicEvent.mechanic]?.[instanceIndex];
+    const nextInstanceIndexByMechanic: Record<GameplayMechanic, number> = {
+      hit: 0,
+      spin: 0,
+      drag: 0,
+    };
+
+    mechanicsInEvent.forEach((mechanicEvent) => {
+      const mechanic = mechanicEvent.mechanic;
+      const instanceIndex =
+        mechanicEvent.instanceIndex ?? nextInstanceIndexByMechanic[mechanic];
+      nextInstanceIndexByMechanic[mechanic] = Math.max(
+        nextInstanceIndexByMechanic[mechanic],
+        instanceIndex + 1,
+      );
+
+      const instance = slot.mechanicInstances[mechanic]?.[instanceIndex];
 
       if (!instance) {
         return;
       }
+
+      instance.tick = mechanicEvent.tick;
 
       if (mechanicEvent.mechanic === "hit") {
         instance.hitBubbles = mechanicEvent.hitBubbles ?? [];
@@ -1066,7 +1111,7 @@ function sidecarFromTimelineEvents(
         return Array.from({ length: count }, (_, instanceIndex) => {
           const instance = event.mechanicInstances?.[mechanic]?.[instanceIndex];
           const mechanicEvent: SidecarMechanicEvent = {
-            tick: event.tick,
+            tick: instance?.tick ?? event.tick,
             type: "ALG_MECHANIC",
             mechanic,
             instanceIndex,
@@ -3273,27 +3318,25 @@ function buildWaveformPeaksFromChannelData(channelData: Float32Array, peakCount:
 }
 
 function TimelineMarkerDots({
-  count,
   color,
-  left,
+  lefts,
 }: {
-  count: number;
   color: string;
-  left: number;
+  lefts: number[];
 }) {
-  if (count <= 0) {
+  if (lefts.length === 0) {
     return null;
   }
 
   return (
     <>
-      {Array.from({ length: count }, (_, dotIndex) => (
+      {lefts.map((left, dotIndex) => (
         <span
           key={dotIndex}
           aria-hidden="true"
           style={{
             position: "absolute",
-            left: left + dotIndex * 13,
+            left,
             top: "50%",
             width: 9,
             height: 9,
@@ -3643,11 +3686,14 @@ function EquationTimeline({
             ) : (
               events.map((eventSlot, index) => {
                 const eventSeconds = timelineTickToSeconds(eventSlot.tick);
-                const blockIndex = Math.min(
-                  blockCount - 1,
-                  Math.max(0, Math.floor(eventSeconds / blockSeconds)),
+                const eventLeft = Math.min(
+                  trackWidth,
+                  Math.max(0, (eventSeconds / visualDurationSeconds) * trackWidth),
                 );
-                const blockLeft = blockIndex * blockWidth;
+                const eventWidth = Math.max(
+                  44,
+                  (timelineEventDurationSeconds / visualDurationSeconds) * trackWidth,
+                );
                 const isActive = eventSlot.id === activeEventId;
                 const assignedEquation = getTimelineEventEquation(eventSlot);
 
@@ -3659,9 +3705,9 @@ function EquationTimeline({
                     onClick={() => onSelectEvent(eventSlot.id)}
                     style={{
                       position: "absolute",
-                      left: blockLeft + 6,
+                      left: eventLeft,
                       top: "50%",
-                      width: blockWidth - 12,
+                      width: eventWidth,
                       minWidth: 44,
                       minHeight: 30,
                       transform: "translateY(-50%)",
@@ -3706,18 +3752,29 @@ function EquationTimeline({
                 }}
               >
                 {events.map((eventSlot) => {
-                  const eventSeconds = timelineTickToSeconds(eventSlot.tick);
-                  const left = Math.min(
-                    trackWidth,
-                    Math.max(0, (eventSeconds / visualDurationSeconds) * trackWidth),
+                  const instances = eventSlot.mechanicInstances?.[mechanic] ?? [];
+                  const fallbackCount = Math.max(
+                    0,
+                    (eventSlot.counts?.[mechanic] ?? 0) - instances.length,
                   );
+                  const markerTicks = [
+                    ...instances.map((instance) => instance.tick ?? eventSlot.tick),
+                    ...Array.from({ length: fallbackCount }, () => eventSlot.tick),
+                  ];
+                  const lefts = markerTicks.map((tick) => {
+                    const markerSeconds = timelineTickToSeconds(tick);
+
+                    return Math.min(
+                      trackWidth,
+                      Math.max(0, (markerSeconds / visualDurationSeconds) * trackWidth),
+                    );
+                  });
 
                   return (
                     <TimelineMarkerDots
                       key={`${eventSlot.id}-${mechanic}`}
-                      count={eventSlot.counts?.[mechanic] ?? 0}
                       color={color}
-                      left={left}
+                      lefts={lefts}
                     />
                   );
                 })}
@@ -5712,6 +5769,10 @@ function handleToggleDragTarget(
           eventSlot.mechanicInstances?.[mechanic],
           nextCount,
         );
+        nextInstances[nextCount - 1] = {
+          ...nextInstances[nextCount - 1],
+          tick: Number(mechanicSeconds.toFixed(3)),
+        };
 
         return {
           ...eventSlot,
