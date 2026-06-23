@@ -4647,6 +4647,7 @@ function TimelineControlsRow({
   onAddEvent,
   onRemoveEvent,
   onAddMechanic,
+  onRemoveMechanic,
   onSongUpload,
   onChartUpload,
   onSidecarUpload,
@@ -4660,6 +4661,7 @@ function TimelineControlsRow({
   onAddEvent: () => void;
   onRemoveEvent: () => void;
   onAddMechanic: (mechanic: GameplayMechanic) => void;
+  onRemoveMechanic: (mechanic: GameplayMechanic) => void;
   onSongUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onChartUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onSidecarUpload: (event: ChangeEvent<HTMLInputElement>) => void;
@@ -4788,6 +4790,15 @@ function TimelineControlsRow({
         </button>
         <button type="button" onClick={() => onAddMechanic("drag")} style={timelineEditButtonStyle}>
           Add Drag
+        </button>
+        <button type="button" onClick={() => onRemoveMechanic("hit")} style={timelineEditButtonStyle}>
+          Remove Hit
+        </button>
+        <button type="button" onClick={() => onRemoveMechanic("spin")} style={timelineEditButtonStyle}>
+          Remove Spin
+        </button>
+        <button type="button" onClick={() => onRemoveMechanic("drag")} style={timelineEditButtonStyle}>
+          Remove Drag
         </button>
       </div>
 
@@ -5794,6 +5805,85 @@ function handleToggleDragTarget(
     });
   }
 
+
+  function handleRemoveNearestMechanic(mechanic: GameplayMechanic) {
+    const targetSeconds = currentSongSeconds;
+
+    setTimelineEvents((current) => {
+      let nearest:
+        | {
+            eventId: string;
+            instanceIndex: number;
+            distanceSeconds: number;
+          }
+        | null = null;
+
+      current.forEach((eventSlot) => {
+        const count = Math.max(0, eventSlot.counts?.[mechanic] ?? 0);
+        const instances = resizeMechanicInstances(
+          eventSlot.mechanicInstances?.[mechanic],
+          count,
+        );
+
+        instances.forEach((instance, instanceIndex) => {
+          const instanceSeconds = timelineTickToSeconds(
+            instance.tick ?? eventSlot.tick,
+          );
+          const distanceSeconds = Math.abs(instanceSeconds - targetSeconds);
+
+          if (!nearest || distanceSeconds < nearest.distanceSeconds) {
+            nearest = {
+              eventId: eventSlot.id,
+              instanceIndex,
+              distanceSeconds,
+            };
+          }
+        });
+      });
+
+      if (!nearest) {
+        setSaveStatus(`No ${mechanic} to remove.`);
+        return current;
+      }
+
+      const nextEvents = current.map((eventSlot) => {
+        if (eventSlot.id !== nearest?.eventId) {
+          return eventSlot;
+        }
+
+        const count = Math.max(0, eventSlot.counts?.[mechanic] ?? 0);
+        const currentInstances = resizeMechanicInstances(
+          eventSlot.mechanicInstances?.[mechanic],
+          count,
+        );
+        const nextInstances = currentInstances.filter(
+          (_, instanceIndex) => instanceIndex !== nearest?.instanceIndex,
+        );
+        const nextCount = Math.max(0, count - 1);
+
+        return {
+          ...eventSlot,
+          counts: {
+            ...eventSlot.counts,
+            [mechanic]: nextCount,
+          },
+          mechanicInstances: {
+            ...eventSlot.mechanicInstances,
+            [mechanic]: nextInstances,
+          },
+        };
+      });
+
+      setActiveEventId(nearest.eventId);
+      syncTimelineFilesFromEvents(nextEvents);
+      setSaveStatus(
+        `Removed nearest ${mechanic} to ${formatSongTime(targetSeconds)}.`,
+      );
+
+      return nextEvents;
+    });
+  }
+
   function handleDownloadTimelineFiles() {
     const currentSidecar = sidecarFromTimelineEvents(timelineEvents);
     const baseName = getDownloadBaseName(
@@ -6086,6 +6176,7 @@ function handleToggleDragTarget(
             onAddEvent={handleAddTimelineEvent}
             onRemoveEvent={handleRemoveSelectedTimelineEvent}
             onAddMechanic={handleAddMechanicToSelectedEvent}
+            onRemoveMechanic={handleRemoveNearestMechanic}
             onSongUpload={handleTimelineSongUpload}
             onChartUpload={handleTimelineChartUpload}
             onSidecarUpload={handleTimelineSidecarUpload}
