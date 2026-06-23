@@ -3266,6 +3266,7 @@ function TimelineMarkerDots({
   );
 }
 
+/* VERIFIED_LAYOUT_PATCH_2026_06_23: row2 shrinks; timeline scrollbar spacer aligned; shared equation tiles. */
 function EquationTimeline({
   events,
   activeEventId,
@@ -3300,6 +3301,12 @@ function EquationTimeline({
     trackWidth,
     Math.max(0, currentSongSeconds * pixelsPerSecond),
   );
+  // Reserve the same vertical space on the left label column that the
+  // horizontal scrollbar uses on the right track column. This keeps the
+  // six timeline rows visually aligned instead of letting the right grid
+  // sit behind the scrollbar.
+  const timelineScrollbarHeight = 18;
+  const timelineContentHeight = `calc(100% - ${timelineScrollbarHeight}px)`;
   const labelRows = [
     { key: "merged", label: "", color: "#FFFFFF" },
     { key: "equations", label: "Equations", color: "#CFFF04" },
@@ -3330,12 +3337,19 @@ function EquationTimeline({
           minHeight: 0,
           height: "100%",
           display: "grid",
-          gridTemplateRows: "15% repeat(5, 17%)",
+          gridTemplateRows: `${timelineContentHeight} ${timelineScrollbarHeight}px`,
           background: "#202020",
           borderRight: `1px solid ${subtleBorderColor}`,
           boxSizing: "border-box",
         }}
       >
+        <div
+          style={{
+            minHeight: 0,
+            display: "grid",
+            gridTemplateRows: "15% repeat(5, 17%)",
+          }}
+        >
         <div
           style={{
             gridRow: "1 / span 2",
@@ -3362,6 +3376,17 @@ function EquationTimeline({
             {row.label}
           </div>
         ))}
+        </div>
+
+        <div
+          aria-hidden="true"
+          style={{
+            height: timelineScrollbarHeight,
+            borderTop: `1px solid ${subtleBorderColor}`,
+            boxSizing: "border-box",
+            background: "#202020",
+          }}
+        />
       </div>
 
       <div
@@ -3380,7 +3405,7 @@ function EquationTimeline({
             position: "relative",
             width: trackWidth,
             minWidth: "100%",
-            height: "100%",
+            height: timelineContentHeight,
             display: "grid",
             gridTemplateRows: "15% repeat(5, 17%)",
           }}
@@ -3537,7 +3562,7 @@ function EquationTimeline({
                     }}
                   >
                     {assignedEquation ? (
-                      <EquationPreview tokens={assignedEquation.tokens} circleSize={20} />
+                      <EquationTileStrip tokens={assignedEquation.tokens} compact />
                     ) : (
                       <span style={{ fontSize: 11, fontWeight: 900 }}>
                         Event {index + 1}
@@ -3742,6 +3767,113 @@ function RightLessonPanel() {
 }
 
 
+
+function getEquationTileKind(label: string): "number" | "operator" | "variable" {
+  if (isEquationOperator(label)) {
+    return "operator";
+  }
+
+  if (/^\d+$/.test(label)) {
+    return "number";
+  }
+
+  return "variable";
+}
+
+function getEquationTileStyle({
+  label,
+  compact = false,
+  disabled = false,
+}: {
+  label: string;
+  compact?: boolean;
+  disabled?: boolean;
+}) {
+  const kind = getEquationTileKind(label);
+  const isOperator = kind === "operator";
+
+  return {
+    width: compact ? (isOperator ? 44 : 42) : "100%",
+    minWidth: compact ? (isOperator ? 44 : 42) : 0,
+    height: compact ? (isOperator ? 28 : 34) : undefined,
+    minHeight: compact ? undefined : isOperator ? 26 : 42,
+    borderRadius: isOperator ? 999 : 12,
+    border: `1px solid ${isOperator ? "#CFFF04" : "rgba(255,255,255,0.18)"}`,
+    background: isOperator ? "rgba(207,255,4,0.12)" : "#191919",
+    color: isOperator ? "#CFFF04" : "#FFFFFF",
+    fontFamily: "Grandstander, sans-serif",
+    fontSize: compact ? (isOperator ? 14 : 17) : isOperator ? 14 : 20,
+    fontWeight: 800,
+    boxShadow: "0 10px 22px rgba(0,0,0,0.18)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    opacity: disabled ? 0.55 : 1,
+    boxSizing: "border-box" as const,
+  };
+}
+
+function EquationTileButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      key={label}
+      type="button"
+      onClick={onClick}
+      style={{
+        ...getEquationTileStyle({ label }),
+        cursor: "pointer",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function EquationTileStrip({
+  tokens,
+  emptyLabel = "Equation preview",
+  compact = true,
+}: {
+  tokens: EquationToken[];
+  emptyLabel?: string;
+  compact?: boolean;
+}) {
+  if (tokens.length === 0) {
+    return (
+      <span style={{ color: "#FFFFFF66", fontSize: 11, fontWeight: 800 }}>
+        {emptyLabel}
+      </span>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        flexWrap: "wrap",
+        maxWidth: "100%",
+        minWidth: 0,
+      }}
+    >
+      {tokens.map((token) => (
+        <span key={token.id} style={getEquationTileStyle({ label: token.label, compact })}>
+          {token.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function LeftEquationBuilderPanel({
   draftTokens,
   onAddToken,
@@ -3761,30 +3893,7 @@ function LeftEquationBuilderPanel({
   const hasDraft = draftTokens.length > 0;
 
   function renderTile(label: string, kind: "number" | "operator" | "variable") {
-    const isOperator = kind === "operator";
-
-    return (
-      <button
-        key={label}
-        type="button"
-        onClick={() => onAddToken(label)}
-        style={{
-          width: "100%",
-          minHeight: isOperator ? 28 : 42,
-          borderRadius: isOperator ? 999 : 12,
-          border: `1px solid ${isOperator ? "#CFFF04" : "rgba(255,255,255,0.18)"}`,
-          background: isOperator ? "rgba(207,255,4,0.12)" : "#191919",
-          color: isOperator ? "#CFFF04" : "#FFFFFF",
-          fontFamily: "Grandstander, sans-serif",
-          fontSize: isOperator ? 15 : 20,
-          fontWeight: 800,
-          cursor: "pointer",
-          boxShadow: "0 10px 22px rgba(0,0,0,0.18)",
-        }}
-      >
-        {label}
-      </button>
-    );
+    return <EquationTileButton key={`${kind}-${label}`} label={label} onClick={() => onAddToken(label)} />;
   }
 
   return (
@@ -3914,7 +4023,7 @@ function LeftEquationBuilderPanel({
             display: "flex",
             alignItems: "center",
             gap: 4,
-            overflowX: "auto",
+            overflowX: "hidden",
             padding: "2px 6px",
             boxSizing: "border-box",
             fontSize: 11,
@@ -3922,7 +4031,7 @@ function LeftEquationBuilderPanel({
             whiteSpace: "nowrap",
           }}
         >
-          {hasDraft ? draftTokens.map((token) => token.label).join(" ") : "Equation preview"}
+          <EquationTileStrip tokens={draftTokens} emptyLabel="Equation preview" compact />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1.45fr", gap: 6 }}>
@@ -3969,16 +4078,25 @@ function LeftEquationBuilderPanel({
 function CenterChoicePanel({
   choice,
   draftTokens,
+  activeEventEquation,
   onCreateEquation,
   onBrowseLibrary,
 }: {
   choice: CenterChoice;
   draftTokens: EquationToken[];
+  activeEventEquation: SavedEquation | null;
   onCreateEquation: () => void;
   onBrowseLibrary: () => void;
 }) {
   const isCreate = choice === "create";
   const isPremade = choice === "premade";
+  const hasDraft = draftTokens.length > 0;
+  const visibleEquationTokens = hasDraft ? draftTokens : activeEventEquation?.tokens ?? [];
+  const visibleEquationLabel = hasDraft
+    ? "Current equation being built"
+    : activeEventEquation
+      ? "Equation assigned to selected event"
+      : "";
   const title = isCreate
     ? "Build your equation"
     : isPremade
@@ -4089,25 +4207,37 @@ function CenterChoicePanel({
           </div>
         )}
 
-        {draftTokens.length > 0 ? (
+        {visibleEquationTokens.length > 0 ? (
           <div
-            aria-label="Current equation being built"
+            aria-label={visibleEquationLabel}
             style={{
               marginTop: 8,
-              minHeight: 90,
+              minHeight: 96,
               width: "min(620px, 100%)",
               borderRadius: 18,
-              border: `1px solid ${subtleBorderColor}`,
+              border: `1px solid ${hasDraft ? "#CFFF04" : subtleBorderColor}`,
               background: "#202020",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              display: "grid",
+              alignContent: "center",
+              justifyItems: "center",
+              gap: 10,
               padding: 18,
               boxSizing: "border-box",
-              overflowX: "auto",
+              overflow: "hidden",
             }}
           >
-            <EquationPreview tokens={draftTokens} circleSize={42} />
+            <div
+              style={{
+                color: hasDraft ? "#CFFF04" : "#FFFFFF99",
+                fontSize: 11,
+                fontWeight: 900,
+                textTransform: "uppercase",
+                letterSpacing: 0.4,
+              }}
+            >
+              {visibleEquationLabel}
+            </div>
+            <EquationTileStrip tokens={visibleEquationTokens} compact />
           </div>
         ) : null}
       </div>
@@ -4118,14 +4248,24 @@ function CenterChoicePanel({
 function LibraryPanel({
   activeTab,
   savedEquations,
+  activeEventId,
+  selectedEquationId,
   onTabChange,
+  onSelectEquation,
+  onAddSelectedEquationToEvent,
   shouldScrollLibrary,
 }: {
   activeTab: LibraryTab;
   savedEquations: SavedEquation[];
+  activeEventId: string | null;
+  selectedEquationId: string | null;
   onTabChange: (tab: LibraryTab) => void;
+  onSelectEquation: (equationId: string) => void;
+  onAddSelectedEquationToEvent: () => void;
   shouldScrollLibrary: boolean;
 }) {
+  const canAddEquation = activeTab === "mine" && Boolean(activeEventId && selectedEquationId);
+
   return (
     <section
       aria-label="Equation library"
@@ -4187,49 +4327,88 @@ function LibraryPanel({
           minHeight: 0,
           padding: 10,
           boxSizing: "border-box",
-          overflowY: shouldScrollLibrary ? "auto" : "hidden",
+          display: "grid",
+          gridTemplateRows: "minmax(0, 1fr) auto",
+          gap: 10,
+          overflow: "hidden",
         }}
       >
-        {activeTab === "mine" ? (
-          savedEquations.length === 0 ? (
-            <div style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700, lineHeight: 1.35 }}>
-              Saved equations will appear here.
-            </div>
+        <div
+          style={{
+            minHeight: 0,
+            overflowY: shouldScrollLibrary ? "auto" : "hidden",
+            paddingRight: shouldScrollLibrary ? 4 : 0,
+            boxSizing: "border-box",
+          }}
+        >
+          {activeTab === "mine" ? (
+            savedEquations.length === 0 ? (
+              <div style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700, lineHeight: 1.35 }}>
+                Saved equations will appear here.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 10 }}>
+                {savedEquations.map((equation) => {
+                  const isSelected = equation.id === selectedEquationId;
+
+                  return (
+                    <button
+                      key={equation.id}
+                      type="button"
+                      draggable
+                      onClick={() => onSelectEquation(equation.id)}
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData(
+                          "application/x-saved-equation",
+                          JSON.stringify(equation),
+                        );
+                        event.dataTransfer.effectAllowed = "copy";
+                      }}
+                      style={{
+                        minHeight: 52,
+                        padding: 6,
+                        borderRadius: 10,
+                        border: `2px solid ${isSelected ? "#CFFF04" : subtleBorderColor}`,
+                        background: isSelected ? "rgba(207,255,4,0.10)" : "#191919",
+                        color: textColor,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                      }}
+                      title={tokensToEquationState(equation.tokens)}
+                    >
+                      <EquationTileStrip tokens={equation.tokens} compact />
+                    </button>
+                  );
+                })}
+              </div>
+            )
           ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {savedEquations.map((equation) => (
-                <div
-                  key={equation.id}
-                  draggable
-                  onDragStart={(event) => {
-                    event.dataTransfer.setData(
-                      "application/x-saved-equation",
-                      JSON.stringify(equation),
-                    );
-                    event.dataTransfer.effectAllowed = "copy";
-                  }}
-                  style={{
-                    minHeight: 46,
-                    padding: 6,
-                    borderRadius: 10,
-                    border: `1px solid ${subtleBorderColor}`,
-                    background: "#191919",
-                    color: textColor,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "grab",
-                  }}
-                  title={tokensToEquationState(equation.tokens)}
-                >
-                  <EquationPreview tokens={equation.tokens} circleSize={22} />
-                </div>
-              ))}
-            </div>
-          )
-        ) : (
-          <div style={{ color: "#FFFFFF66", fontSize: 11, fontWeight: 700, lineHeight: 1.35 }} />
-        )}
+            <div style={{ color: "#FFFFFF66", fontSize: 11, fontWeight: 700, lineHeight: 1.35 }} />
+          )}
+        </div>
+
+        {activeEventId ? (
+          <button
+            type="button"
+            onClick={onAddSelectedEquationToEvent}
+            disabled={!canAddEquation}
+            style={{
+              width: "100%",
+              minHeight: 34,
+              borderRadius: 10,
+              border: `1px solid ${canAddEquation ? "#CFFF04" : subtleBorderColor}`,
+              background: canAddEquation ? "#CFFF04" : "#252525",
+              color: canAddEquation ? "#000000" : "#FFFFFF66",
+              fontSize: 10,
+              fontWeight: 900,
+              cursor: canAddEquation ? "pointer" : "not-allowed",
+            }}
+          >
+            Add Equation
+          </button>
+        ) : null}
       </div>
     </section>
   );
@@ -4257,8 +4436,8 @@ function TimelineInstructionPanel({ choice }: { choice: CenterChoice }) {
         gap: 10,
         overflow: "hidden",
         opacity: choice === null ? 0 : 1,
-        transform: choice === null ? "translateY(100%)" : "translateY(0)",
-        transition: "transform 260ms ease, opacity 260ms ease",
+        transform: "none",
+        transition: "opacity 1100ms cubic-bezier(0.16, 1, 0.3, 1)",
         fontFamily: "Space Grotesk, sans-serif",
       }}
     >
@@ -4481,6 +4660,7 @@ export default function LessonBuilderClient({
   const [mode, setMode] = useState<"event" | "equation">("event");
   const [centerChoice, setCenterChoice] = useState<CenterChoice>(null);
   const [libraryTab, setLibraryTab] = useState<LibraryTab>("mine");
+  const [selectedEquationId, setSelectedEquationId] = useState<string | null>(null);
   const [currentSongSeconds, setCurrentSongSeconds] = useState(0);
   const [isSongPlaying, setIsSongPlaying] = useState(false);
   const [audioObjectUrl, setAudioObjectUrl] = useState("");
@@ -4512,6 +4692,17 @@ export default function LessonBuilderClient({
 
     return Math.max(8, audioDurationSeconds, metadata?.durationSeconds ?? 0, maxEventSeconds);
   }, [audioDurationSeconds, metadata?.durationSeconds, timelineEvents]);
+
+  const activeEventEquation = useMemo(() => {
+    const activeEvent = timelineEvents.find((eventSlot) => eventSlot.id === activeEventId);
+
+    return activeEvent ? getTimelineEventEquation(activeEvent) : null;
+  }, [activeEventId, timelineEvents]);
+
+  const selectedEquation = useMemo(
+    () => savedEquations.find((equation) => equation.id === selectedEquationId) ?? null,
+    [savedEquations, selectedEquationId],
+  );
 
   const payloadForProject: LessonBuilderPayload = useMemo(
     () => ({
@@ -4641,13 +4832,14 @@ export default function LessonBuilderClient({
       return;
     }
 
-    setSavedEquations((current) => [
-      ...current,
-      {
-        id: makeId("equation"),
-        tokens: cloneTokens(draftTokens),
-      },
-    ]);
+    const nextEquation = {
+      id: makeId("equation"),
+      tokens: cloneTokens(draftTokens),
+    };
+
+    setSavedEquations((current) => [...current, nextEquation]);
+    setSelectedEquationId(nextEquation.id);
+    setLibraryTab("mine");
     setDraftTokens([]);
     setCustomTokenLabel("");
     setMode("event");
@@ -4656,6 +4848,19 @@ export default function LessonBuilderClient({
   function handleSelectEvent(eventId: string) {
     setActiveEventId(eventId);
     setMode("event");
+  }
+
+  function handleSelectLibraryEquation(equationId: string) {
+    setSelectedEquationId(equationId);
+    setLibraryTab("mine");
+  }
+
+  function handleAddSelectedEquationToEvent() {
+    if (!selectedEquation || !activeEventId) {
+      return;
+    }
+
+    handleDropEquation(selectedEquation);
   }
 
   function handleDropEquation(equation: SavedEquation) {
@@ -5180,7 +5385,11 @@ function handleToggleDragTarget(
   }
 
   const isTimelineInstructionVisible = centerChoice !== null;
-  const timelineInstructionHeight = `calc(${timelineRowHeight} * 0.15)`;
+  // When the instruction strip appears, row 3 grows upward by the exact
+  // strip height so row 2 shrinks instead of being covered. Because the
+  // visible row 3 template is 15% / 15% / 70%, the added strip height is
+  // 15 / 85 of the original timeline row height.
+  const timelineInstructionHeight = `calc(${timelineRowHeight} * 0.1764705882)`;
   const viewerRowTemplate = isTimelineInstructionVisible
     ? `calc(${viewerRowHeight} - ${timelineInstructionHeight})`
     : viewerRowHeight;
@@ -5231,6 +5440,7 @@ function handleToggleDragTarget(
           minHeight: 0,
           display: "grid",
           gridTemplateRows: `${viewerRowTemplate} ${timelineRowTemplate}`,
+          transition: "grid-template-rows 1100ms cubic-bezier(0.16, 1, 0.3, 1)",
           background: pageBackgroundColor,
           color: textColor,
           overflow: "hidden",
@@ -5258,6 +5468,7 @@ function handleToggleDragTarget(
           <CenterChoicePanel
             choice={centerChoice}
             draftTokens={draftTokens}
+            activeEventEquation={activeEventEquation}
             onCreateEquation={handleCreateEquationChoice}
             onBrowseLibrary={handleBrowsePremadeChoice}
           />
@@ -5265,7 +5476,11 @@ function handleToggleDragTarget(
           <LibraryPanel
             activeTab={libraryTab}
             savedEquations={savedEquations}
+            activeEventId={activeEventId}
+            selectedEquationId={selectedEquationId}
             onTabChange={setLibraryTab}
+            onSelectEquation={handleSelectLibraryEquation}
+            onAddSelectedEquationToEvent={handleAddSelectedEquationToEvent}
             shouldScrollLibrary={isTimelineInstructionVisible}
           />
 
@@ -5303,7 +5518,7 @@ function handleToggleDragTarget(
             gridTemplateRows: isTimelineInstructionVisible
               ? "15% 15% 70%"
               : "0px 15% 85%",
-            transition: "grid-template-rows 260ms ease",
+            transition: "grid-template-rows 1100ms cubic-bezier(0.16, 1, 0.3, 1)",
           }}
         >
           <TimelineInstructionPanel choice={centerChoice} />
