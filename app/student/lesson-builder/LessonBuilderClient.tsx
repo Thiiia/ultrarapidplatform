@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import type { ChangeEvent, DragEvent, FC, PointerEvent, SVGProps } from "react";
+import type { ChangeEvent, DragEvent, FC, PointerEvent, ReactNode, SVGProps } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   useEditorStore,
@@ -3386,9 +3386,14 @@ function EquationTimeline({
     maxTimelineSeconds,
   );
   const wholeSecondCount = Math.max(1, Math.ceil(visualDurationSeconds) + 1);
-  const trackWidth = Math.max(wholeSecondCount * pixelsPerSecond, pixelsPerSecond);
+  const playheadMaxLeft = visualDurationSeconds * pixelsPerSecond;
+  const endScrollBuffer = 260;
+  const trackWidth = Math.max(
+    wholeSecondCount * pixelsPerSecond + endScrollBuffer,
+    pixelsPerSecond,
+  );
   const playheadLeft = Math.min(
-    trackWidth,
+    playheadMaxLeft,
     Math.max(0, currentSongSeconds * pixelsPerSecond),
   );
   const labelRows = [
@@ -3409,8 +3414,8 @@ function EquationTimeline({
     const rect = track.getBoundingClientRect();
 
     if (options.autoScroll) {
-      const edgeThreshold = 64;
-      const scrollStep = 28;
+      const edgeThreshold = 54;
+      const scrollStep = 8;
 
       if (clientX > rect.right - edgeThreshold) {
         track.scrollLeft = Math.min(
@@ -4286,7 +4291,7 @@ function LeftEquationBuilderPanel({
             whiteSpace: "nowrap",
           }}
         >
-          <EquationTileStrip tokens={draftTokens} emptyLabel="Equation preview" compact />
+          {hasDraft ? tokensToEquationState(draftTokens) : "Equation preview"}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1.45fr", gap: 6 }}>
@@ -4334,12 +4339,14 @@ function CenterChoicePanel({
   choice,
   draftTokens,
   activeEventEquation,
+  hasInspector,
   onCreateEquation,
   onBrowseLibrary,
 }: {
   choice: CenterChoice;
   draftTokens: EquationToken[];
   activeEventEquation: SavedEquation | null;
+  hasInspector: boolean;
   onCreateEquation: () => void;
   onBrowseLibrary: () => void;
 }) {
@@ -4367,7 +4374,7 @@ function CenterChoicePanel({
     <section
       aria-label="Equation workspace choice"
       style={{
-        width: "77.5vw",
+        width: hasInspector ? "65vw" : "77.5vw",
         height: "100%",
         minHeight: 0,
         background: "#191919",
@@ -4633,7 +4640,22 @@ function LibraryPanel({
                       }}
                       title={tokensToEquationState(equation.tokens)}
                     >
-                      <EquationTileStrip tokens={equation.tokens} compact />
+                      <span
+                        style={{
+                          width: "100%",
+                          color: textColor,
+                          fontSize: 11,
+                          fontWeight: 900,
+                          lineHeight: 1.25,
+                          textAlign: "center",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {tokensToEquationState(equation.tokens)}
+                      </span>
                     </button>
                   );
                 })}
@@ -4665,6 +4687,139 @@ function LibraryPanel({
           </button>
         ) : null}
       </div>
+    </section>
+  );
+}
+
+function InspectorPanel({
+  eventSlot,
+  eventIndex,
+}: {
+  eventSlot: TimelineEventSlot | null;
+  eventIndex: number;
+}) {
+  if (!eventSlot) {
+    return null;
+  }
+
+  const selectedEventSlot = eventSlot;
+  const assignedEquation = getTimelineEventEquation(selectedEventSlot);
+  const assignedEquationText = assignedEquation
+    ? tokensToEquationState(assignedEquation.tokens)
+    : "No equation assigned";
+
+  function getMechanicRows(mechanic: GameplayMechanic) {
+    const count = Math.max(0, selectedEventSlot.counts?.[mechanic] ?? 0);
+    const instances = selectedEventSlot.mechanicInstances?.[mechanic] ?? [];
+
+    if (count === 0) {
+      return ["None"];
+    }
+
+    return Array.from({ length: count }, (_, index) => {
+      const instanceTick = instances[index]?.tick ?? selectedEventSlot.tick;
+      const timestamp = formatTimelineTime(timelineTickToSeconds(instanceTick));
+      const label =
+        mechanic === "hit" ? "Hit" : mechanic === "spin" ? "Spin" : "Drag";
+
+      return `${label} ${index + 1} @ ${timestamp}`;
+    });
+  }
+
+  function renderInspectorRow(title: string, children: ReactNode) {
+    return (
+      <div
+        style={{
+          minHeight: 0,
+          padding: "9px 10px",
+          borderBottom: `1px solid ${subtleBorderColor}`,
+          boxSizing: "border-box",
+          overflow: "auto",
+          fontFamily: "Space Grotesk, sans-serif",
+        }}
+      >
+        <div
+          style={{
+            color: "#FFFFFF99",
+            fontSize: 9,
+            fontWeight: 900,
+            letterSpacing: 0.35,
+            textTransform: "uppercase",
+            marginBottom: 5,
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            color: "#FFFFFF",
+            fontSize: 11,
+            fontWeight: 800,
+            lineHeight: 1.35,
+            wordBreak: "break-word",
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    );
+  }
+
+  function renderMechanicList(mechanic: GameplayMechanic) {
+    const rows = getMechanicRows(mechanic);
+
+    return (
+      <div style={{ display: "grid", gap: 3 }}>
+        {rows.map((row, index) => (
+          <span key={`${mechanic}-inspector-${index}`}>{row}</span>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <section
+      aria-label="Inspector"
+      style={{
+        width: "12.5vw",
+        height: "100%",
+        minHeight: 0,
+        background: panelBackgroundColor,
+        color: textColor,
+        borderLeft: `1px solid ${subtleBorderColor}`,
+        boxSizing: "border-box",
+        overflow: "hidden",
+        display: "grid",
+        gridTemplateRows: "10% 15% 13% 13% 13% minmax(0, 1fr)",
+        fontFamily: "Space Grotesk, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          minHeight: 0,
+          padding: "8px 8px 6px",
+          borderBottom: `1px solid ${subtleBorderColor}`,
+          boxSizing: "border-box",
+          display: "grid",
+          alignContent: "center",
+        }}
+      >
+        <div style={{ textAlign: "left", fontSize: 13, fontWeight: 900 }}>
+          Inspector
+        </div>
+      </div>
+
+      {renderInspectorRow(
+        "Selected Event",
+        <>
+          <div>{`Event ${eventIndex + 1}`}</div>
+          <div style={{ color: "#CFFF04", marginTop: 4 }}>{assignedEquationText}</div>
+        </>,
+      )}
+      {renderInspectorRow("Hits", renderMechanicList("hit"))}
+      {renderInspectorRow("Spins", renderMechanicList("spin"))}
+      {renderInspectorRow("Drags", renderMechanicList("drag"))}
+      <div style={{ minHeight: 0, background: "#191919" }} />
     </section>
   );
 }
@@ -5079,11 +5234,21 @@ export default function LessonBuilderClient({
     return Math.max(8, audioDurationSeconds, metadata?.durationSeconds ?? 0, maxEventSeconds);
   }, [audioDurationSeconds, metadata?.durationSeconds, timelineEvents]);
 
-  const activeEventEquation = useMemo(() => {
-    const activeEvent = timelineEvents.find((eventSlot) => eventSlot.id === activeEventId);
+  const activeTimelineEvent = useMemo(
+    () => timelineEvents.find((eventSlot) => eventSlot.id === activeEventId) ?? null,
+    [activeEventId, timelineEvents],
+  );
 
-    return activeEvent ? getTimelineEventEquation(activeEvent) : null;
-  }, [activeEventId, timelineEvents]);
+  const activeTimelineEventIndex = useMemo(
+    () => timelineEvents.findIndex((eventSlot) => eventSlot.id === activeEventId),
+    [activeEventId, timelineEvents],
+  );
+
+  const activeEventEquation = useMemo(() => {
+    return activeTimelineEvent ? getTimelineEventEquation(activeTimelineEvent) : null;
+  }, [activeTimelineEvent]);
+
+  const isInspectorVisible = Boolean(activeTimelineEvent);
 
   const selectedEquation = useMemo(
     () => savedEquations.find((equation) => equation.id === selectedEquationId) ?? null,
@@ -6229,6 +6394,7 @@ function handleToggleDragTarget(
             choice={centerChoice}
             draftTokens={draftTokens}
             activeEventEquation={activeEventEquation}
+            hasInspector={isInspectorVisible}
             onCreateEquation={handleCreateEquationChoice}
             onBrowseLibrary={handleBrowsePremadeChoice}
           />
@@ -6242,6 +6408,11 @@ function handleToggleDragTarget(
             onSelectEquation={handleSelectLibraryEquation}
             onAddSelectedEquationToEvent={handleAddSelectedEquationToEvent}
             shouldScrollLibrary={isTimelineInstructionVisible}
+          />
+
+          <InspectorPanel
+            eventSlot={activeTimelineEvent}
+            eventIndex={activeTimelineEventIndex}
           />
 
           {/*
