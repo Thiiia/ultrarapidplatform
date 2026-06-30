@@ -210,11 +210,15 @@ type LibraryTab = "mine" | "premade";
 /* VERIFIED_TIMELINE_HIDDEN_SCROLL_DRAG_HANDLE_PATCH */
 /* VERIFIED_TIMELINE_UPLOAD_BUTTONS_PATCH: row 3 subrow 2 supports song/chart/sidecar uploads and updates timeline data. */
 const pagePanelWidth = "92vw";
-const headerHeight = 70;
+const headerHeight = "5.5vh";
 const viewerRowHeight = "60vh";
-const timelineRowHeight = `calc(40vh - ${headerHeight}px)`;
-const headerBackgroundColor = "#2B2B2B";
-const pageBackgroundColor = "#191919";
+const timelineRowHeight = `calc(40vh - ${headerHeight})`;
+const headerBackgroundColor = "#060B15FC";
+const row2Column1BackgroundColor = "#0A1222FA";
+const row2Column2BackgroundColor = "#070C16FA";
+const row2Column3BackgroundColor = "#09101FF7";
+const row3BackgroundColor = "#060B15FC";
+const pageBackgroundColor = "#060B15FC";
 const panelBackgroundColor = "#2B2B2B";
 const subtleBorderColor = "#FFFFFF14";
 const textColor = "#FFFFFF";
@@ -3496,7 +3500,7 @@ function EquationTimeline({
         width: "100%",
         height: "100%",
         minHeight: 0,
-        background: panelBackgroundColor,
+        background: row3BackgroundColor,
         borderTop: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
         overflow: "visible",
@@ -3512,7 +3516,7 @@ function EquationTimeline({
           height: "100%",
           display: "grid",
           gridTemplateRows: "15% repeat(5, 17%)",
-          background: "#202020",
+          background: row3BackgroundColor,
           borderRight: `1px solid ${subtleBorderColor}`,
           boxSizing: "border-box",
         }}
@@ -3555,7 +3559,7 @@ function EquationTimeline({
           minHeight: 0,
           overflowX: "auto",
           overflowY: "visible",
-          background: "#191919",
+          background: row3BackgroundColor,
         }}
       >
         <div
@@ -4163,7 +4167,7 @@ function LeftEquationBuilderPanel({
         width: "12.5vw",
         height: "100%",
         minHeight: 0,
-        background: panelBackgroundColor,
+        background: row2Column1BackgroundColor,
         color: textColor,
         borderRight: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
@@ -4377,7 +4381,7 @@ function CenterChoicePanel({
         width: hasInspector ? "65vw" : "77.5vw",
         height: "100%",
         minHeight: 0,
-        background: "#191919",
+        background: row2Column2BackgroundColor,
         color: textColor,
         boxSizing: "border-box",
         overflow: "hidden",
@@ -4535,7 +4539,7 @@ function LibraryPanel({
         width: "10vw",
         height: "100%",
         minHeight: 0,
-        background: panelBackgroundColor,
+        background: row2Column3BackgroundColor,
         color: textColor,
         borderLeft: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
@@ -4784,7 +4788,7 @@ function InspectorPanel({
         width: "12.5vw",
         height: "100%",
         minHeight: 0,
-        background: panelBackgroundColor,
+        background: row2Column3BackgroundColor,
         color: textColor,
         borderLeft: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
@@ -4836,7 +4840,7 @@ function TimelineInstructionPanel({ choice }: { choice: CenterChoice }) {
       style={{
         minHeight: 0,
         height: "100%",
-        background: "#202020",
+        background: row3BackgroundColor,
         borderTop: `1px solid ${subtleBorderColor}`,
         borderBottom: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
@@ -4947,7 +4951,7 @@ function TimelineControlsRow({
       style={{
         minHeight: 0,
         height: "100%",
-        background: panelBackgroundColor,
+        background: row3BackgroundColor,
         borderBottom: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
         display: "flex",
@@ -6444,6 +6448,7 @@ function handleToggleDragTarget(
           aria-label="Timeline row"
           style={{
             minHeight: 0,
+            background: row3BackgroundColor,
             overflow: "visible",
             position: "relative",
             zIndex: 2,
