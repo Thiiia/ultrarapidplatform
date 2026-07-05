@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import type { TeacherDashboardData } from "@/lib/teacher-dashboard";
-import DemoTutorialOverlay from "@/app/components/demo/DemoTutorialOverlay";
+// Demo overlay removed per request
 import styles from "../student/student.module.css";
 
 import URIcon from "@/public/header_icons/URIcon.svg";
@@ -105,8 +105,6 @@ function HeaderTabButton({
     <Link
       href={tab.href}
       aria-label={tab.label}
-      data-demo-target={isClassesTab ? "teacher-classes-tab" : undefined}
-      data-demo-allowed={isClassesTab ? "teacher-classes-tab" : undefined}
       className={`${styles.headerTabButton} ${
         isActive ? styles.headerTabButtonActive : ""
       }`}
@@ -526,16 +524,7 @@ export default function TeacherDashboard({
         )}
       </DashboardSection>
 
-      {demoTutorial ? (
-        <DemoTutorialOverlay
-          active
-          targetSelector='[data-demo-target="teacher-classes-tab"]'
-          allowedSelector='[data-demo-allowed="teacher-classes-tab"]'
-          title="Teacher dashboard"
-          body="This is the dashboard for teacher Ash Phillips. Click Classes to see all of his students."
-          blockedMessage="Please click Classes to continue the demo."
-        />
-      ) : null}
+      {/* demoTutorial removed: overlay and popup text intentionally disabled */}
     </div>
   );
 }
