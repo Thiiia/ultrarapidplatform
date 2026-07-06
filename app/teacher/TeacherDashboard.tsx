@@ -42,13 +42,13 @@ function getDisplayFirstName(value?: string | null) {
 
 const pagePanelWidth = "85vw";
 const pageBackgroundStyle =
-  "linear-gradient(0deg, #F9FAFB, #F9FAFB), linear-gradient(180deg, #082733 0%, #030E14 100%)";
+  "linear-gradient(180deg, #082733 0%, #030E14 100%)";
 
 function HeaderBar({ profileLabel }: { profileLabel: string }) {
   return (
     <header
       style={{
-        background: "#082733",
+        background: "#060B15FC",
         width: "100%",
         boxSizing: "border-box",
         height: 70,
@@ -129,10 +129,12 @@ function HeaderBar({ profileLabel }: { profileLabel: string }) {
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#FFFFFF",
+              color: "#7A8FA8",
               fontSize: 14,
               fontWeight: 600,
               borderRadius: 999,
+              background: "#060B15FC",
+              border: "1px solid #7A8FA8",
             }}
           >
             {profileLabel}
@@ -142,6 +144,12 @@ function HeaderBar({ profileLabel }: { profileLabel: string }) {
             href="/auth/logout"
             aria-label="Log out"
             className={`${styles.utilityButton} ${styles.logoutButton}`}
+            style={{
+              background: "#060B15FC",
+              color: "#7A8FA8",
+              border: "1px solid #7A8FA8",
+              borderRadius: 999,
+            }}
           >
             Log out
           </a>
@@ -196,6 +204,10 @@ export default function TeacherDashboard({
             display: "grid",
             gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
             gap: 20,
+            padding: 24,
+            borderRadius: 28,
+            background: "linear-gradient(0deg, #F9FAFB, #F9FAFB), linear-gradient(180deg, #082733 0%, #030E14 100%)",
+            boxShadow: "0 18px 40px rgba(0, 0, 0, 0.14)",
           }}
         >
           {numeracyPanels.map((panel) => (
@@ -231,7 +243,7 @@ export default function TeacherDashboard({
                   src={panel.src}
                   alt={panel.alt}
                   fill
-                  style={{ objectFit: "cover", objectPosition: "center", padding: 1 }}
+                  style={{ objectFit: "cover", objectPosition: "center", padding: 6 }}
                   priority={panel.title === "Number Bonds"}
                 />
               </div>
