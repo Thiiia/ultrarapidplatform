@@ -180,7 +180,7 @@ export default async function HomePage() {
             }}
           >
             <Link
-              href="/demo/teacher"
+              href="/demo/student"
               style={{
                 width: "100%",
                 minHeight: 58,
