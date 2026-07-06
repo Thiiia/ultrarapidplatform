@@ -201,7 +201,7 @@ export default function StudentDashboard({
             <div
               key={panel.title}
               style={{
-                background: "#F9FAFB",
+                background: "#CFFF04",
                 border: "none",
                 borderRadius: 0,
                 padding: 0,
@@ -220,7 +220,7 @@ export default function StudentDashboard({
                   position: "relative",
                   borderRadius: 0,
                   overflow: "hidden",
-                  background: "#F9FAFB",
+                  background: "#CFFF04",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -230,7 +230,7 @@ export default function StudentDashboard({
                   src={panel.src}
                   alt={panel.alt}
                   fill
-                  style={{ objectFit: "cover", objectPosition: "center", padding: 2 }}
+                  style={{ objectFit: "cover", objectPosition: "center", padding: 0 }}
                   priority={panel.title === "Number Bonds"}
                 />
               </div>

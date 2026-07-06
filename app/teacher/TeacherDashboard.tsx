@@ -214,7 +214,7 @@ export default function TeacherDashboard({
             <div
               key={panel.title}
               style={{
-                background: "#F9FAFB",
+                background: "#CFFF04",
                 border: "none",
                 borderRadius: 0,
                 padding: 0,
@@ -233,7 +233,7 @@ export default function TeacherDashboard({
                   position: "relative",
                   borderRadius: 0,
                   overflow: "hidden",
-                  background: "#F9FAFB",
+                  background: "#CFFF04",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -243,7 +243,7 @@ export default function TeacherDashboard({
                   src={panel.src}
                   alt={panel.alt}
                   fill
-                  style={{ objectFit: "cover", objectPosition: "center", padding: 2 }}
+                  style={{ objectFit: "cover", objectPosition: "center", padding: 0 }}
                   priority={panel.title === "Number Bonds"}
                 />
               </div>
