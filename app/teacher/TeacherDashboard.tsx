@@ -203,8 +203,8 @@ export default function TeacherDashboard({
             width: pagePanelWidth,
             display: "grid",
             gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: 20,
-            padding: 24,
+            gap: 0,
+            padding: 0,
             borderRadius: 28,
             background: "linear-gradient(0deg, #F9FAFB, #F9FAFB), linear-gradient(180deg, #082733 0%, #030E14 100%)",
             boxShadow: "0 18px 40px rgba(0, 0, 0, 0.14)",
@@ -215,9 +215,9 @@ export default function TeacherDashboard({
               key={panel.title}
               style={{
                 background: "#F9FAFB",
-                border: "1px solid #CFFF04",
-                borderRadius: 20,
-                padding: 1,
+                border: "none",
+                borderRadius: 0,
+                padding: 0,
                 minHeight: 280,
                 display: "flex",
                 flexDirection: "column",
@@ -228,10 +228,10 @@ export default function TeacherDashboard({
             >
               <div
                 style={{
-                  width: "calc(100% - 2px)",
+                  width: "100%",
                   aspectRatio: "4 / 3",
                   position: "relative",
-                  borderRadius: 19,
+                  borderRadius: 0,
                   overflow: "hidden",
                   background: "#F9FAFB",
                   display: "flex",
@@ -243,7 +243,7 @@ export default function TeacherDashboard({
                   src={panel.src}
                   alt={panel.alt}
                   fill
-                  style={{ objectFit: "cover", objectPosition: "center", padding: 6 }}
+                  style={{ objectFit: "cover", objectPosition: "center", padding: 2 }}
                   priority={panel.title === "Number Bonds"}
                 />
               </div>
