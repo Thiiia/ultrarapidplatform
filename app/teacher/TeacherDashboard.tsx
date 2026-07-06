@@ -42,13 +42,13 @@ function getDisplayFirstName(value?: string | null) {
 
 const pagePanelWidth = "85vw";
 const pageBackgroundStyle =
-  "radial-gradient(circle at top left, rgba(207,255,4,0.12) 0%, #111318 45%, #090A0D 100%)";
+  "linear-gradient(0deg, #F9FAFB, #F9FAFB), linear-gradient(180deg, #082733 0%, #030E14 100%)";
 
 function HeaderBar({ profileLabel }: { profileLabel: string }) {
   return (
     <header
       style={{
-        background: "#2B2B2B",
+        background: "#082733",
         width: "100%",
         boxSizing: "border-box",
         height: 70,
@@ -202,26 +202,26 @@ export default function TeacherDashboard({
             <div
               key={panel.title}
               style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.12)",
+                background: "#F9FAFB",
+                border: "1px solid #CFFF04",
                 borderRadius: 20,
-                padding: 20,
+                padding: 1,
                 minHeight: 280,
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
                 alignItems: "center",
-                boxShadow: "0 16px 35px rgba(0, 0, 0, 0.18)",
+                boxShadow: "0 16px 35px rgba(0, 0, 0, 0.16)",
               }}
             >
               <div
                 style={{
-                  width: "100%",
+                  width: "calc(100% - 2px)",
                   aspectRatio: "4 / 3",
                   position: "relative",
-                  borderRadius: 16,
+                  borderRadius: 19,
                   overflow: "hidden",
-                  background: "#111318",
+                  background: "#F9FAFB",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -231,21 +231,10 @@ export default function TeacherDashboard({
                   src={panel.src}
                   alt={panel.alt}
                   fill
-                  style={{ objectFit: "contain", padding: 18 }}
+                  style={{ objectFit: "cover", objectPosition: "center", padding: 1 }}
                   priority={panel.title === "Number Bonds"}
                 />
               </div>
-              <h3
-                style={{
-                  margin: "16px 0 0",
-                  color: "#FFFFFF",
-                  fontSize: 18,
-                  fontWeight: 600,
-                  letterSpacing: "0.01em",
-                }}
-              >
-                {panel.title}
-              </h3>
             </div>
           ))}
         </div>
