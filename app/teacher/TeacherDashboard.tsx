@@ -169,10 +169,30 @@ export default function TeacherDashboard({
   const profileLabel = getDisplayFirstName(displayName);
 
   const numeracyPanels = [
-    { title: "Number Bonds", src: numberBondsImage, alt: "Number bonds" },
-    { title: "Missing Numbers", src: missingNumbersImage, alt: "Missing numbers" },
-    { title: "Equations", src: equationsImage, alt: "Equations" },
-    { title: "Early Algebra", src: earlyAlgebraImage, alt: "Early algebra" },
+    {
+      title: "Number Bonds",
+      src: numberBondsImage,
+      alt: "Number bonds",
+      selection: "number-bonds",
+    },
+    {
+      title: "Missing Numbers",
+      src: missingNumbersImage,
+      alt: "Missing numbers",
+      selection: "missing-numbers",
+    },
+    {
+      title: "Equations",
+      src: equationsImage,
+      alt: "Equations",
+      selection: "equations",
+    },
+    {
+      title: "Early Algebra",
+      src: earlyAlgebraImage,
+      alt: "Early algebra",
+      selection: "early-algebra",
+    },
   ];
 
   return (
@@ -211,8 +231,18 @@ export default function TeacherDashboard({
           }}
         >
           {numeracyPanels.map((panel) => (
-            <div
+            <Link
               key={panel.title}
+              href={{ pathname: "/student/song-choice", query: { activity: panel.selection } }}
+              aria-label={`Open ${panel.alt}`}
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.sessionStorage.setItem(
+                    "selectedDashboardActivity",
+                    JSON.stringify({ key: panel.selection, label: panel.title }),
+                  );
+                }
+              }}
               style={{
                 background: "#CFFF04",
                 border: "none",
@@ -224,6 +254,9 @@ export default function TeacherDashboard({
                 justifyContent: "center",
                 alignItems: "center",
                 boxShadow: "0 16px 35px rgba(0, 0, 0, 0.16)",
+                textDecoration: "none",
+                cursor: "pointer",
+                overflow: "hidden",
               }}
             >
               <div
@@ -243,11 +276,11 @@ export default function TeacherDashboard({
                   src={panel.src}
                   alt={panel.alt}
                   fill
-                  style={{ objectFit: "cover", objectPosition: "center", padding: 0 }}
+                  style={{ objectFit: "contain", objectPosition: "center", padding: 0 }}
                   priority={panel.title === "Number Bonds"}
                 />
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </main>

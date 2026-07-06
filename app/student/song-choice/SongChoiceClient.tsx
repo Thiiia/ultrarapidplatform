@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FC, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { SongChoice } from "@/lib/song-storage";
@@ -161,6 +161,13 @@ function getTeacherTopTabs(navBasePath = "/teacher"): HeaderTab[] {
 
 const pagePanelWidth = "85vw";
 const pageBackgroundColor = "#191919";
+
+const activityLabelMap: Record<string, string> = {
+  "number-bonds": "Number Bonds",
+  "missing-numbers": "Missing Numbers",
+  equations: "Equations",
+  "early-algebra": "Early Algebra",
+};
 
 const headerStyles = {
   backgroundColor: "#2B2B2B",
@@ -571,6 +578,11 @@ export default function SongChoiceClient({
 }: SongChoiceClientProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [selectedActivity, setSelectedActivity] = useState<{
+    key: string;
+    label: string;
+  } | null>(null);
 
   const topTabs =
     dashboardType === "teacher"
@@ -602,6 +614,43 @@ export default function SongChoiceClient({
   const selectedSong = useMemo(() => {
     return songs.find((song) => song.id === selectedSongId) ?? null;
   }, [selectedSongId, songs]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const activityFromUrl = searchParams.get("activity")?.trim().toLowerCase();
+
+    if (activityFromUrl) {
+      const label = activityLabelMap[activityFromUrl] ?? activityFromUrl;
+      const value = { key: activityFromUrl, label };
+      setSelectedActivity(value);
+      window.sessionStorage.setItem(
+        "selectedDashboardActivity",
+        JSON.stringify(value),
+      );
+      return;
+    }
+
+    const storedActivity = window.sessionStorage.getItem(
+      "selectedDashboardActivity",
+    );
+
+    if (!storedActivity) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedActivity) as { key?: string; label?: string };
+      if (parsed?.key) {
+        const label = parsed.label ?? activityLabelMap[parsed.key] ?? parsed.key;
+        setSelectedActivity({ key: parsed.key, label });
+      }
+    } catch {
+      window.sessionStorage.removeItem("selectedDashboardActivity");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -743,6 +792,24 @@ export default function SongChoiceClient({
             position: "relative",
           }}
         >
+          {selectedActivity ? (
+            <div
+              style={{
+                alignSelf: "flex-start",
+                marginBottom: 16,
+                padding: "8px 12px",
+                borderRadius: 999,
+                background: "rgba(207,255,4,0.14)",
+                color: "#CFFF04",
+                fontSize: 13,
+                fontWeight: 600,
+                letterSpacing: "0.02em",
+              }}
+            >
+              Selected activity: {selectedActivity.label}
+            </div>
+          ) : null}
+
           <div
             style={{
               width: "100%",
