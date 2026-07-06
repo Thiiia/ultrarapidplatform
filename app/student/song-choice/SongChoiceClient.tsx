@@ -759,44 +759,51 @@ export default function SongChoiceClient({
       className={styles.studentTypography}
       style={{
         minHeight: "100vh",
-        background: pageBackgroundColor,
+        background: "#082733",
         color: "#FFFFFF",
         display: "flex",
         flexDirection: "column",
-        overflowX: "hidden",
+        overflow: "hidden",
       }}
     >
-      <HeaderBar
-        pathname={pathname}
-        topTabs={topTabs}
-        navBasePath={navBasePath}
-        dashboardType={dashboardType}
-      />
-
-      <LessonBuilderPanel />
-
-      <main
+      <div
         style={{
-          background: pageBackgroundColor,
-          width: "100%",
-          flex: 1,
-          position: "relative",
+          height: "91.5vh",
+          background: "linear-gradient(180deg, #082733 0%, #030E14 100%)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          padding: "24px 24px 20px",
+          boxSizing: "border-box",
         }}
       >
-        <section
+        <div
           style={{
-            width: pagePanelWidth,
-            margin: "0 auto",
-            padding: "20px 0 96px 0",
-            boxSizing: "border-box",
-            position: "relative",
+            width: "min(960px, 100%)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+            minHeight: 0,
+            flex: 1,
           }}
         >
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 32,
+              fontWeight: 700,
+              textAlign: "center",
+              color: "#FFFFFF",
+            }}
+          >
+            Choose a song
+          </h1>
+
           {selectedActivity ? (
             <div
               style={{
-                alignSelf: "flex-start",
-                marginBottom: 16,
+                alignSelf: "center",
                 padding: "8px 12px",
                 borderRadius: 999,
                 background: "rgba(207,255,4,0.14)",
@@ -814,8 +821,8 @@ export default function SongChoiceClient({
             style={{
               width: "100%",
               height: 44,
-              background: "#2B2B2B",
-              border: "1px solid #FFFFFF14",
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.16)",
               borderRadius: 12,
               color: "#FFFFFF",
               padding: "0 16px",
@@ -823,7 +830,7 @@ export default function SongChoiceClient({
               display: "flex",
               alignItems: "center",
               gap: 10,
-              marginBottom: 16,
+              flexShrink: 0,
             }}
           >
             <svg
@@ -877,10 +884,10 @@ export default function SongChoiceClient({
               display: "flex",
               flexDirection: "column",
               gap: 0,
-              maxHeight: "calc(100vh - 320px)",
-              minHeight: 240,
+              flex: 1,
+              minHeight: 0,
               overflowY: "auto",
-              paddingBottom: 92,
+              paddingBottom: 12,
             }}
           >
             {filteredSongs.length > 0 ? (
@@ -901,7 +908,7 @@ export default function SongChoiceClient({
                       minHeight: 58,
                       background: isSelected
                         ? "rgba(207, 255, 4, 0.12)"
-                        : "#2B2B2B",
+                        : "rgba(255,255,255,0.04)",
                       borderTop: "none",
                       borderRight: "none",
                       borderBottom: isSelected
@@ -991,8 +998,7 @@ export default function SongChoiceClient({
                           width: "100%",
                         }}
                       >
-                        {song.artist ?? "Unknown artist"} ·{" "}
-                        {getEquationSlots(song) ?? "—"} equation slots
+                        {song.artist ?? "Unknown artist"} · {getEquationSlots(song) ?? "—"} equation slots
                       </span>
                     </div>
 
@@ -1036,8 +1042,8 @@ export default function SongChoiceClient({
             ) : (
               <div
                 style={{
-                  background: "#2B2B2B",
-                  border: "1px solid #FFFFFF14",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.14)",
                   borderRadius: 12,
                   padding: 16,
                 }}
@@ -1065,68 +1071,58 @@ export default function SongChoiceClient({
               </div>
             )}
           </div>
+        </div>
+      </div>
 
-          <div
-            style={{
-              position: "sticky",
-              bottom: 0,
-              marginTop: -71,
-              height: 71,
-              minHeight: 71,
-              width: "100vw",
-              marginLeft: "calc((85vw - 100vw) / 2)",
-              marginRight: "calc((85vw - 100vw) / 2)",
-              background: "#2B2B2B",
-              borderTop: "1px solid #FFFFFF14",
-              borderRight: "none",
-              borderBottom: "none",
-              borderLeft: "none",
-              borderRadius: 0,
-              padding: "0 30px",
-              boxSizing: "border-box",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              gap: 12,
-              boxShadow: "0 -12px 32px rgba(0, 0, 0, 0.28)",
-              zIndex: 5,
-            }}
-          >
-            <button
-              type="button"
-              disabled={!selectedSong}
-              onClick={handleContinue}
-              aria-label="Continue to Lesson Builder"
-              style={{
-                width: 132,
-                height: 64,
-                border: "none",
-                borderRadius: 12,
-                background: "transparent",
-                padding: 0,
-                cursor: selectedSong ? "pointer" : "not-allowed",
-                opacity: selectedSong ? 1 : 0.4,
-                flexShrink: 0,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <img
-                src="/Next_Button.svg"
-                alt=""
-                aria-hidden="true"
-                style={{
-                  width: 132,
-                  height: 64,
-                  display: "block",
-                  objectFit: "contain",
-                }}
-              />
-            </button>
-          </div>
-        </section>
-      </main>
+      <div
+        style={{
+          height: "8.5vh",
+          background: "#082733",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 24px",
+          boxSizing: "border-box",
+          borderTop: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => router.push(`${navBasePath}`)}
+          style={{
+            border: "1px solid #7A8FA8",
+            borderRadius: 999,
+            background: "transparent",
+            color: "#FFFFFF",
+            padding: "10px 24px",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Back
+        </button>
+
+        <button
+          type="button"
+          disabled={!selectedSong}
+          onClick={handleContinue}
+          aria-label="Continue to Lesson Builder"
+          style={{
+            border: "none",
+            borderRadius: 999,
+            background: selectedSong ? "#CFFF04" : "rgba(207,255,4,0.35)",
+            color: selectedSong ? "#082733" : "#FFFFFF",
+            padding: "10px 24px",
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: selectedSong ? "pointer" : "not-allowed",
+            opacity: selectedSong ? 1 : 0.7,
+          }}
+        >
+          Next
+        </button>
+      </div>
 
       <style jsx global>{`
         .songChoiceRow:hover {

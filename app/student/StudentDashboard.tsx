@@ -220,7 +220,7 @@ export default function StudentDashboard({
           {numeracyPanels.map((panel) => (
             <Link
               key={panel.title}
-              href={{ pathname: "/student/song-choice", query: { activity: panel.selection } }}
+              href={{ pathname: "/demo/student/song-choice", query: { activity: panel.selection } }}
               aria-label={`Open ${panel.alt}`}
               onClick={() => {
                 if (typeof window !== "undefined") {
