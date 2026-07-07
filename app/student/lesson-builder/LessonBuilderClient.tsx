@@ -3329,7 +3329,7 @@ function buildSmoothWaveformPath(peaks: number[], width: number, height: number)
   const points = peaks.map((peak, index) => {
     const x = peaks.length === 1 ? safeWidth / 2 : (index / (peaks.length - 1)) * safeWidth;
     const amplitude = Math.max(2, peak * safeHeight * 0.8);
-    const y = baseline + (Math.sin(index / peaks.length * Math.PI) * 0.08 + 0.92) * amplitude / 2;
+    const y = baseline + ((index % 2 === 0 ? 1 : -1) * 0.08 + 0.92) * amplitude / 2;
 
     return { x, y };
   });
@@ -3407,6 +3407,8 @@ function EquationTimeline({
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1280);
+  const blockDurationSeconds = 8;
+  const blockWidthPx = Math.max(96, viewportWidth * 0.05);
   useEffect(() => {
     const handleResize = () => {
       setViewportWidth(window.innerWidth);
@@ -3419,7 +3421,7 @@ function EquationTimeline({
       window.removeEventListener("resize", handleResize);
     };
   }, []);
-  const pixelsPerSecond = Math.max(72, viewportWidth * 0.05) / 8;
+  const pixelsPerSecond = blockWidthPx / blockDurationSeconds;
   const maxTimelineSeconds = events.reduce((maxSeconds, eventSlot) => {
     const eventStartSeconds = timelineTickToSeconds(eventSlot.tick);
     const eventEndSeconds = eventStartSeconds + timelineEventDurationSeconds;
@@ -3436,13 +3438,10 @@ function EquationTimeline({
     durationSeconds,
     maxTimelineSeconds,
   );
-  const wholeSecondCount = Math.max(1, Math.ceil(visualDurationSeconds) + 1);
+  const blockCount = Math.max(1, Math.ceil(visualDurationSeconds / blockDurationSeconds));
   const playheadMaxLeft = visualDurationSeconds * pixelsPerSecond;
   const endScrollBuffer = 260;
-  const trackWidth = Math.max(
-    wholeSecondCount * pixelsPerSecond + endScrollBuffer,
-    pixelsPerSecond,
-  );
+  const trackWidth = Math.max(blockCount * blockWidthPx + endScrollBuffer, blockWidthPx);
   const playheadLeft = Math.min(
     playheadMaxLeft,
     Math.max(0, currentSongSeconds * pixelsPerSecond),
@@ -3688,21 +3687,19 @@ function EquationTimeline({
               pointerEvents: "none",
             }}
           >
-            {Array.from({ length: wholeSecondCount }, (_, secondIndex) => {
-              const markerLeft = secondIndex * pixelsPerSecond;
+            {Array.from({ length: blockCount }, (_, blockIndex) => {
+              const markerLeft = blockIndex * blockWidthPx;
 
               return (
                 <span
-                  key={`timeline-grid-${secondIndex}`}
+                  key={`timeline-grid-${blockIndex}`}
                   style={{
                     position: "absolute",
                     left: markerLeft,
                     top: 0,
                     bottom: 0,
                     width: 1,
-                    background: secondIndex % 8 === 0
-                      ? "rgba(207,255,4,0.34)"
-                      : "rgba(255,255,255,0.12)",
+                    background: "rgba(207,255,4,0.34)",
                     transform: "translateX(-0.5px)",
                   }}
                 />
@@ -3718,15 +3715,16 @@ function EquationTimeline({
               zIndex: 2,
             }}
           >
-            {Array.from({ length: wholeSecondCount }, (_, secondIndex) => {
-              const markerLeft = secondIndex * pixelsPerSecond;
+            {Array.from({ length: blockCount }, (_, blockIndex) => {
+              const markerLeft = blockIndex * blockWidthPx;
+              const startSeconds = blockIndex * blockDurationSeconds;
 
               return (
                 <span
-                  key={`timeline-label-${secondIndex}`}
+                  key={`timeline-label-${blockIndex}`}
                   style={{
                     position: "absolute",
-                    left: markerLeft + 4,
+                    left: markerLeft + 6,
                     top: 7,
                     color: "#FFFFFF99",
                     fontSize: 10,
@@ -3735,7 +3733,7 @@ function EquationTimeline({
                     pointerEvents: "none",
                   }}
                 >
-                  {formatTimelineTime(secondIndex)}
+                  {formatTimelineTime(startSeconds)}
                 </span>
               );
             })}
@@ -3759,15 +3757,10 @@ function EquationTimeline({
                 style={{ position: "absolute", inset: 0, display: "block" }}
               >
                 <path
-                  d={`${buildSmoothWaveformPath(waveformPeaks, trackWidth, 100)} L ${trackWidth} 100 L 0 100 Z`}
-                  fill="rgba(207,255,4,0.22)"
-                  stroke="none"
-                />
-                <path
                   d={buildSmoothWaveformPath(waveformPeaks, trackWidth, 100)}
                   fill="none"
                   stroke="#CFFF04"
-                  strokeWidth="3"
+                  strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   opacity="0.96"
@@ -4037,43 +4030,6 @@ function EquationsPanel({
     </section>
   );
 }
-
-function RightLessonPanel() {
-  return (
-    <section
-      style={{
-        width: "12.5vw",
-        // The top-level viewer row now controls panel height.
-        // height: "calc(100vh - 142px)",
-        // minHeight: "calc(100vh - 142px)",
-        height: "100%",
-        minHeight: 0,
-        background: panelBackgroundColor,
-        color: textColor,
-        borderLeft: `1px solid ${subtleBorderColor}`,
-        boxSizing: "border-box",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          padding: "18px 12px",
-          borderBottom: `1px solid ${subtleBorderColor}`,
-          color: textColor,
-          fontFamily: "Space Grotesk, sans-serif",
-          fontSize: 13,
-          fontWeight: 700,
-          lineHeight: "19.5px",
-          textAlign: "center",
-        }}
-      >
-        Start Building Your Lesson
-      </div>
-    </section>
-  );
-}
-
-
 
 function getEquationTileKind(label: string): "number" | "operator" | "variable" {
   if (isEquationOperator(label)) {
@@ -5258,7 +5214,7 @@ export default function LessonBuilderClient({
   const [audioObjectUrl, setAudioObjectUrl] = useState("");
   const [audioDurationSeconds, setAudioDurationSeconds] = useState(0);
   const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
-  const [row2ColumnWidths, setRow2ColumnWidths] = useState([220, 500, 180, 180]);
+  const [row2ColumnWidths, setRow2ColumnWidths] = useState([220, 500, 180]);
   const [activeResizeHandle, setActiveResizeHandle] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const resizeStartRef = useRef<{ handleIndex: number; startX: number; startWidths: number[] } | null>(null);
@@ -6557,12 +6513,6 @@ function handleToggleDragTarget(
             }}
           />
 
-          <div style={{ flex: `0 0 ${row2ColumnWidths[3]}px`, minWidth: 0, height: "100%" }}>
-            <InspectorPanel
-              eventSlot={activeTimelineEvent}
-              eventIndex={activeTimelineEventIndex}
-            />
-          </div>
         </section>
 
         <section
@@ -6574,13 +6524,13 @@ function handleToggleDragTarget(
             position: "relative",
             zIndex: 2,
             display: "grid",
-            gridTemplateRows: isTimelineInstructionVisible
-              ? "15% 15% 70%"
-              : "0px 15% 85%",
+            gridTemplateRows: "0px 15% 85%",
             transition: "grid-template-rows 1100ms cubic-bezier(0.16, 1, 0.3, 1)",
           }}
         >
-          <TimelineInstructionPanel choice={centerChoice} />
+          <div style={{ display: "none" }}>
+            <TimelineInstructionPanel choice={centerChoice} />
+          </div>
           <TimelineControlsRow
             isPlaying={isSongPlaying}
             currentSongSeconds={currentSongSeconds}
