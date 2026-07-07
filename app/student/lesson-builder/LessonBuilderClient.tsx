@@ -6380,7 +6380,6 @@ function handleToggleDragTarget(
   }
 
   const isTimelineInstructionVisible = centerChoice !== null;
-
   return (
     <div
       className={styles.studentTypography}
@@ -6536,11 +6535,10 @@ function handleToggleDragTarget(
             position: "relative",
             zIndex: 2,
             display: "grid",
-            gridTemplateRows: "16% 84%",
+            gridTemplateRows: "4.5vh 22.5vh",
             transition: "grid-template-rows 1100ms cubic-bezier(0.16, 1, 0.3, 1)",
           }}
         >
-          <TimelineInstructionPanel choice={centerChoice} />
           <TimelineControlsRow
             isPlaying={isSongPlaying}
             currentSongSeconds={currentSongSeconds}
