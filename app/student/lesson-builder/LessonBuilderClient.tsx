@@ -3318,36 +3318,40 @@ function buildWaveformPeaksFromChannelData(channelData: Float32Array, peakCount:
   });
 }
 
-function buildSmoothWaveformPath(peaks: number[], width: number, height: number) {
+function buildFilledWaveformPath(peaks: number[], width: number, height: number) {
   if (!peaks.length) {
-    return `M 0 ${height / 2} L ${width} ${height / 2}`;
+    const midY = height / 2;
+    return `M 0 ${midY} L ${width} ${midY} L ${width} ${height} L 0 ${height} Z`;
   }
 
   const safeWidth = Math.max(1, width);
   const safeHeight = Math.max(1, height);
-  const baseline = safeHeight / 2;
+  const midline = safeHeight / 2;
+
   const points = peaks.map((peak, index) => {
     const x = peaks.length === 1 ? safeWidth / 2 : (index / (peaks.length - 1)) * safeWidth;
-    const amplitude = Math.max(2, peak * safeHeight * 0.8);
-    const y = baseline + ((index % 2 === 0 ? 1 : -1) * 0.08 + 0.92) * amplitude / 2;
+    const amplitude = Math.max(0, Math.min(1, peak)) * (safeHeight / 2 * 0.95);
+    const y = midline - amplitude;
 
     return { x, y };
   });
 
   if (points.length === 1) {
-    return `M ${points[0].x} ${points[0].y} L ${points[0].x} ${points[0].y}`;
+    const x = points[0].x;
+    const y = points[0].y;
+    return `M ${x} ${y} L ${x} ${safeHeight} L 0 ${safeHeight} L 0 ${y} Z`;
   }
 
   const pathSegments: string[] = [`M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`];
 
   for (let index = 1; index < points.length; index += 1) {
-    const previous = points[index - 1];
     const current = points[index];
-    const midpointX = (previous.x + current.x) / 2;
-    const midpointY = (previous.y + current.y) / 2;
-    pathSegments.push(`Q ${previous.x.toFixed(2)} ${previous.y.toFixed(2)} ${midpointX.toFixed(2)} ${midpointY.toFixed(2)}`);
-    pathSegments.push(`T ${current.x.toFixed(2)} ${current.y.toFixed(2)}`);
+    pathSegments.push(`L ${current.x.toFixed(2)} ${current.y.toFixed(2)}`);
   }
+
+  pathSegments.push(`L ${safeWidth} ${safeHeight}`);
+  pathSegments.push(`L 0 ${safeHeight}`);
+  pathSegments.push("Z");
 
   return pathSegments.join(" ");
 }
@@ -3756,14 +3760,16 @@ function EquationTimeline({
                 preserveAspectRatio="none"
                 style={{ position: "absolute", inset: 0, display: "block" }}
               >
+                <defs>
+                  <linearGradient id="waveformGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#CFFF04" stopOpacity="0.8" />
+                    <stop offset="100%" stopColor="#CFFF04" stopOpacity="0.3" />
+                  </linearGradient>
+                </defs>
                 <path
-                  d={buildSmoothWaveformPath(waveformPeaks, trackWidth, 100)}
-                  fill="none"
-                  stroke="#CFFF04"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity="0.96"
+                  d={buildFilledWaveformPath(waveformPeaks, trackWidth, 100)}
+                  fill="url(#waveformGradient)"
+                  stroke="none"
                 />
               </svg>
             ) : (
@@ -6530,9 +6536,7 @@ function handleToggleDragTarget(
             position: "relative",
             zIndex: 2,
             display: "grid",
-            gridTemplateRows: isTimelineInstructionVisible
-              ? "25% 50% 25%"
-              : "0px 50% 50%",
+            gridTemplateRows: "16% 84%",
             transition: "grid-template-rows 1100ms cubic-bezier(0.16, 1, 0.3, 1)",
           }}
         >
