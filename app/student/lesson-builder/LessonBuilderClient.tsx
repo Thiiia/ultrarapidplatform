@@ -211,8 +211,8 @@ type LibraryTab = "mine" | "premade";
 /* VERIFIED_TIMELINE_UPLOAD_BUTTONS_PATCH: row 3 subrow 2 supports song/chart/sidecar uploads and updates timeline data. */
 const pagePanelWidth = "92vw";
 const headerHeight = "5.5vh";
-const viewerRowHeight = "60vh";
-const timelineRowHeight = `calc(40vh - ${headerHeight})`;
+const viewerRowHeight = "65vh";
+const timelineRowHeight = "29.5vh";
 const headerBackgroundColor = "#060B15FC";
 const row2Column1BackgroundColor = "#0A1222FA";
 const row2Column2BackgroundColor = "#070C16FA";
@@ -5214,7 +5214,7 @@ export default function LessonBuilderClient({
   const [audioObjectUrl, setAudioObjectUrl] = useState("");
   const [audioDurationSeconds, setAudioDurationSeconds] = useState(0);
   const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
-  const [row2ColumnWidths, setRow2ColumnWidths] = useState([220, 500, 180, 180]);
+  const [row2ColumnWidths, setRow2ColumnWidths] = useState<number[]>([220, 600, 230, 217]);
   const [activeResizeHandle, setActiveResizeHandle] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const resizeStartRef = useRef<{ handleIndex: number; startX: number; startWidths: number[] } | null>(null);
@@ -5273,6 +5273,18 @@ export default function LessonBuilderClient({
       window.removeEventListener("pointerup", handlePointerUp);
     };
   }, [activeResizeHandle]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const separatorsWidth = 18;
+    const col1Width = 220;
+    const col3Width = Math.round(window.innerWidth * 0.18);
+    const col4Width = Math.round(window.innerWidth * 0.17);
+    const col2Width = Math.max(200, window.innerWidth - separatorsWidth - col1Width - col3Width - col4Width);
+
+    setRow2ColumnWidths([col1Width, col2Width, col3Width, col4Width]);
+  }, []);
 
   const timelineDurationSeconds = useMemo(() => {
     const maxEventSeconds = timelineEvents.reduce(
@@ -6362,17 +6374,6 @@ function handleToggleDragTarget(
   }
 
   const isTimelineInstructionVisible = centerChoice !== null;
-  // When the instruction strip appears, row 3 grows upward by the exact
-  // strip height so row 2 shrinks instead of being covered. Avoid CSS calc()
-  // multiplication here because it can be unsupported and make the timeline
-  // visually overlay row 2 instead of participating in the grid.
-  const timelineInstructionHeight = "calc(7.058823529vh - 12.352941176px)";
-  const viewerRowTemplate = isTimelineInstructionVisible
-    ? `calc(${viewerRowHeight} - ${timelineInstructionHeight})`
-    : viewerRowHeight;
-  const timelineRowTemplate = isTimelineInstructionVisible
-    ? `calc(${timelineRowHeight} + ${timelineInstructionHeight})`
-    : timelineRowHeight;
 
   return (
     <div
@@ -6425,8 +6426,7 @@ function handleToggleDragTarget(
           flex: 1,
           minHeight: 0,
           display: "grid",
-          gridTemplateRows: `${viewerRowTemplate} ${timelineRowTemplate}`,
-          transition: "grid-template-rows 1100ms cubic-bezier(0.16, 1, 0.3, 1)",
+          gridTemplateRows: `${viewerRowHeight} ${timelineRowHeight}`,
           background: pageBackgroundColor,
           color: textColor,
           overflow: "hidden",
@@ -6530,7 +6530,9 @@ function handleToggleDragTarget(
             position: "relative",
             zIndex: 2,
             display: "grid",
-            gridTemplateRows: "15% 15% 70%",
+            gridTemplateRows: isTimelineInstructionVisible
+              ? "25% 50% 25%"
+              : "0px 50% 50%",
             transition: "grid-template-rows 1100ms cubic-bezier(0.16, 1, 0.3, 1)",
           }}
         >
