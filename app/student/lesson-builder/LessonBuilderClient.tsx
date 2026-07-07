@@ -3241,10 +3241,10 @@ function EventBuilderArea({
 function formatTimelineTime(seconds: number) {
   const safeSeconds = Math.max(0, seconds);
   const minutes = Math.floor(safeSeconds / 60);
-  const remainingSeconds = Math.floor(safeSeconds - minutes * 60);
-  const tenths = Math.floor((safeSeconds - Math.floor(safeSeconds)) * 10);
+  const wholeSeconds = Math.floor(safeSeconds - minutes * 60);
+  const hundredths = Math.floor((safeSeconds - Math.floor(safeSeconds)) * 100);
 
-  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}.${String(tenths).padStart(1, "0")}`;
+  return `${minutes}:${String(wholeSeconds).padStart(2, "0")}.${String(hundredths).padStart(2, "0")}`;
 }
 
 function formatSongTime(seconds: number) {
@@ -3318,6 +3318,40 @@ function buildWaveformPeaksFromChannelData(channelData: Float32Array, peakCount:
   });
 }
 
+function buildSmoothWaveformPath(peaks: number[], width: number, height: number) {
+  if (!peaks.length) {
+    return `M 0 ${height / 2} L ${width} ${height / 2}`;
+  }
+
+  const safeWidth = Math.max(1, width);
+  const safeHeight = Math.max(1, height);
+  const baseline = safeHeight / 2;
+  const points = peaks.map((peak, index) => {
+    const x = peaks.length === 1 ? safeWidth / 2 : (index / (peaks.length - 1)) * safeWidth;
+    const amplitude = Math.max(2, peak * safeHeight * 0.8);
+    const y = baseline + (Math.sin(index / peaks.length * Math.PI) * 0.08 + 0.92) * amplitude / 2;
+
+    return { x, y };
+  });
+
+  if (points.length === 1) {
+    return `M ${points[0].x} ${points[0].y} L ${points[0].x} ${points[0].y}`;
+  }
+
+  const pathSegments: string[] = [`M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`];
+
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    const midpointX = (previous.x + current.x) / 2;
+    const midpointY = (previous.y + current.y) / 2;
+    pathSegments.push(`Q ${previous.x.toFixed(2)} ${previous.y.toFixed(2)} ${midpointX.toFixed(2)} ${midpointY.toFixed(2)}`);
+    pathSegments.push(`T ${current.x.toFixed(2)} ${current.y.toFixed(2)}`);
+  }
+
+  return pathSegments.join(" ");
+}
+
 function TimelineMarkerDots({
   color,
   lefts,
@@ -3372,7 +3406,20 @@ function EquationTimeline({
 }) {
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
-  const pixelsPerSecond = 44;
+  const [viewportWidth, setViewportWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1280);
+  useEffect(() => {
+    const handleResize = () => {
+      setViewportWidth(window.innerWidth);
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+  const pixelsPerSecond = Math.max(72, viewportWidth * 0.05) / 8;
   const maxTimelineSeconds = events.reduce((maxSeconds, eventSlot) => {
     const eventStartSeconds = timelineTickToSeconds(eventSlot.tick);
     const eventEndSeconds = eventStartSeconds + timelineEventDurationSeconds;
@@ -3448,8 +3495,11 @@ function EquationTimeline({
     const seconds = getSecondsFromClientX(clientX, {
       autoScroll: options.autoScroll,
     });
+    const snappedSeconds = options.snapToWholeSecond
+      ? Math.round(seconds)
+      : Math.round(seconds * 50) / 50;
 
-    onSeek(options.snapToWholeSecond ? Math.round(seconds) : seconds);
+    onSeek(snappedSeconds);
   }
 
   function handleTimelinePointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -3708,27 +3758,20 @@ function EquationTimeline({
                 preserveAspectRatio="none"
                 style={{ position: "absolute", inset: 0, display: "block" }}
               >
-                {waveformPeaks.map((peak, index) => {
-                  const x =
-                    waveformPeaks.length === 1
-                      ? 0
-                      : (index / (waveformPeaks.length - 1)) * trackWidth;
-                  const height = Math.max(4, peak * 84);
-
-                  return (
-                    <line
-                      key={index}
-                      x1={x}
-                      x2={x}
-                      y1={50 - height / 2}
-                      y2={50 + height / 2}
-                      stroke="#CFFF04"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      opacity="0.92"
-                    />
-                  );
-                })}
+                <path
+                  d={`${buildSmoothWaveformPath(waveformPeaks, trackWidth, 100)} L ${trackWidth} 100 L 0 100 Z`}
+                  fill="rgba(207,255,4,0.22)"
+                  stroke="none"
+                />
+                <path
+                  d={buildSmoothWaveformPath(waveformPeaks, trackWidth, 100)}
+                  fill="none"
+                  stroke="#CFFF04"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity="0.96"
+                />
               </svg>
             ) : (
               <div
@@ -4164,9 +4207,10 @@ function LeftEquationBuilderPanel({
     <section
       aria-label="Equation builder column"
       style={{
-        width: "12.5vw",
+        width: "100%",
         height: "100%",
         minHeight: 0,
+        minWidth: 0,
         background: row2Column1BackgroundColor,
         color: textColor,
         borderRight: `1px solid ${subtleBorderColor}`,
@@ -4378,9 +4422,10 @@ function CenterChoicePanel({
     <section
       aria-label="Equation workspace choice"
       style={{
-        width: hasInspector ? "65vw" : "77.5vw",
+        width: "100%",
         height: "100%",
         minHeight: 0,
+        minWidth: 0,
         background: row2Column2BackgroundColor,
         color: textColor,
         boxSizing: "border-box",
@@ -4536,9 +4581,10 @@ function LibraryPanel({
     <section
       aria-label="Equation library"
       style={{
-        width: "10vw",
+        width: "100%",
         height: "100%",
         minHeight: 0,
+        minWidth: 0,
         background: row2Column3BackgroundColor,
         color: textColor,
         borderLeft: `1px solid ${subtleBorderColor}`,
@@ -4785,9 +4831,10 @@ function InspectorPanel({
     <section
       aria-label="Inspector"
       style={{
-        width: "12.5vw",
+        width: "100%",
         height: "100%",
         minHeight: 0,
+        minWidth: 0,
         background: row2Column3BackgroundColor,
         color: textColor,
         borderLeft: `1px solid ${subtleBorderColor}`,
@@ -5211,7 +5258,10 @@ export default function LessonBuilderClient({
   const [audioObjectUrl, setAudioObjectUrl] = useState("");
   const [audioDurationSeconds, setAudioDurationSeconds] = useState(0);
   const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
+  const [row2ColumnWidths, setRow2ColumnWidths] = useState([220, 500, 180, 180]);
+  const [activeResizeHandle, setActiveResizeHandle] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const resizeStartRef = useRef<{ handleIndex: number; startX: number; startWidths: number[] } | null>(null);
   const [draftTokens, setDraftTokens] = useState<EquationToken[]>([]);
   const [customTokenLabel, setCustomTokenLabel] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -5227,6 +5277,46 @@ export default function LessonBuilderClient({
     () => sidecarFromTimelineEvents(timelineEvents),
     [timelineEvents],
   );
+
+  useEffect(() => {
+    if (activeResizeHandle === null) {
+      return;
+    }
+
+    const handlePointerMove = (event: Event) => {
+      const resizeState = resizeStartRef.current;
+
+      if (!resizeState) {
+        return;
+      }
+
+      const pointerEvent = event as globalThis.PointerEvent;
+      const handleIndex = resizeState.handleIndex;
+      const delta = pointerEvent.clientX - resizeState.startX;
+      const availableWidth = resizeState.startWidths[handleIndex] + resizeState.startWidths[handleIndex + 1];
+      const nextLeftWidth = Math.min(
+        Math.max(180, resizeState.startWidths[handleIndex] + delta),
+        availableWidth - 180,
+      );
+      const nextWidths = [...resizeState.startWidths];
+      nextWidths[handleIndex] = nextLeftWidth;
+      nextWidths[handleIndex + 1] = availableWidth - nextLeftWidth;
+      setRow2ColumnWidths(nextWidths);
+    };
+
+    const handlePointerUp = () => {
+      setActiveResizeHandle(null);
+      resizeStartRef.current = null;
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [activeResizeHandle]);
 
   const timelineDurationSeconds = useMemo(() => {
     const maxEventSeconds = timelineEvents.reduce(
@@ -5403,6 +5493,17 @@ export default function LessonBuilderClient({
   function handleSelectEvent(eventId: string) {
     setActiveEventId(eventId);
     setMode("event");
+  }
+
+  function beginColumnResize(handleIndex: number, event: PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    resizeStartRef.current = {
+      handleIndex,
+      startX: event.clientX,
+      startWidths: row2ColumnWidths,
+    };
+    setActiveResizeHandle(handleIndex);
   }
 
   function handleSelectLibraryEquation(equationId: string) {
@@ -5884,7 +5985,7 @@ function handleToggleDragTarget(
 
       const intervalId = window.setInterval(() => {
         setCurrentSongSeconds((current) => {
-          const next = Math.min(timelineDurationSeconds, current + 0.1);
+          const next = Math.min(timelineDurationSeconds, current + 0.02);
 
           if (next >= timelineDurationSeconds) {
             setIsSongPlaying(false);
@@ -5910,7 +6011,7 @@ function handleToggleDragTarget(
   }, [isSongPlaying, timelineDurationSeconds, audioObjectUrl]);
 
   function seekSong(seconds: number) {
-    const nextSeconds = Math.max(0, Math.min(timelineDurationSeconds, seconds));
+    const nextSeconds = Math.max(0, Math.min(timelineDurationSeconds, Math.round(seconds * 50) / 50));
     const audio = audioRef.current;
 
     if (audio) {
@@ -6386,62 +6487,82 @@ function handleToggleDragTarget(
             overflow: "hidden",
           }}
         >
-          <LeftEquationBuilderPanel
-            draftTokens={draftTokens}
-            onAddToken={handleAppendEquationToken}
-            onClearEquation={handleClearEquationDraft}
-            onSaveEquation={handleSaveEquation}
-            shouldScrollTiles={isTimelineInstructionVisible}
-          />
-
-          <CenterChoicePanel
-            choice={centerChoice}
-            draftTokens={draftTokens}
-            activeEventEquation={activeEventEquation}
-            hasInspector={isInspectorVisible}
-            onCreateEquation={handleCreateEquationChoice}
-            onBrowseLibrary={handleBrowsePremadeChoice}
-          />
-
-          <LibraryPanel
-            activeTab={libraryTab}
-            savedEquations={savedEquations}
-            activeEventId={activeEventId}
-            selectedEquationId={selectedEquationId}
-            onTabChange={setLibraryTab}
-            onSelectEquation={handleSelectLibraryEquation}
-            onAddSelectedEquationToEvent={handleAddSelectedEquationToEvent}
-            shouldScrollLibrary={isTimelineInstructionVisible}
-          />
-
-          <InspectorPanel
-            eventSlot={activeTimelineEvent}
-            eventIndex={activeTimelineEventIndex}
-          />
-
-          {/*
-            Previous row-2 column usage preserved for reference:
-            <EquationsPanel
-              savedEquations={savedEquations}
-              onNewEquation={handleNewEquation}
-            />
-            <CenterEditorPanel
-              mode={mode}
-              timelineEvents={timelineEvents}
-              activeEventId={activeEventId}
+          <div style={{ flex: `0 0 ${row2ColumnWidths[0]}px`, minWidth: 0, height: "100%" }}>
+            <LeftEquationBuilderPanel
               draftTokens={draftTokens}
-              customTokenLabel={customTokenLabel}
-              onCustomTokenLabelChange={setCustomTokenLabel}
-              onInsertToken={handleInsertEquationToken}
-              onRemoveToken={handleRemoveEquationToken}
+              onAddToken={handleAppendEquationToken}
+              onClearEquation={handleClearEquationDraft}
               onSaveEquation={handleSaveEquation}
-              onDropEquation={handleDropEquation}
-              onAddHitBubblePair={handleAddHitBubblePair}
-              onToggleSpinTarget={handleToggleSpinTarget}
-              onToggleDragTarget={handleToggleDragTarget}
+              shouldScrollTiles={isTimelineInstructionVisible}
             />
-            <RightLessonPanel />
-          */}
+          </div>
+
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onPointerDown={(event) => beginColumnResize(0, event)}
+            style={{
+              width: 6,
+              flex: "0 0 6px",
+              cursor: "col-resize",
+              background: activeResizeHandle === 0 ? "rgba(207,255,4,0.22)" : "transparent",
+            }}
+          />
+
+          <div style={{ flex: `0 0 ${row2ColumnWidths[1]}px`, minWidth: 0, height: "100%" }}>
+            <CenterChoicePanel
+              choice={centerChoice}
+              draftTokens={draftTokens}
+              activeEventEquation={activeEventEquation}
+              hasInspector={isInspectorVisible}
+              onCreateEquation={handleCreateEquationChoice}
+              onBrowseLibrary={handleBrowsePremadeChoice}
+            />
+          </div>
+
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onPointerDown={(event) => beginColumnResize(1, event)}
+            style={{
+              width: 6,
+              flex: "0 0 6px",
+              cursor: "col-resize",
+              background: activeResizeHandle === 1 ? "rgba(207,255,4,0.22)" : "transparent",
+            }}
+          />
+
+          <div style={{ flex: `0 0 ${row2ColumnWidths[2]}px`, minWidth: 0, height: "100%" }}>
+            <LibraryPanel
+              activeTab={libraryTab}
+              savedEquations={savedEquations}
+              activeEventId={activeEventId}
+              selectedEquationId={selectedEquationId}
+              onTabChange={setLibraryTab}
+              onSelectEquation={handleSelectLibraryEquation}
+              onAddSelectedEquationToEvent={handleAddSelectedEquationToEvent}
+              shouldScrollLibrary={isTimelineInstructionVisible}
+            />
+          </div>
+
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onPointerDown={(event) => beginColumnResize(2, event)}
+            style={{
+              width: 6,
+              flex: "0 0 6px",
+              cursor: "col-resize",
+              background: activeResizeHandle === 2 ? "rgba(207,255,4,0.22)" : "transparent",
+            }}
+          />
+
+          <div style={{ flex: `0 0 ${row2ColumnWidths[3]}px`, minWidth: 0, height: "100%" }}>
+            <InspectorPanel
+              eventSlot={activeTimelineEvent}
+              eventIndex={activeTimelineEventIndex}
+            />
+          </div>
         </section>
 
         <section
