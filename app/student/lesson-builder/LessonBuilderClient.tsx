@@ -3408,7 +3408,7 @@ function EquationTimeline({
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1280);
   const blockDurationSeconds = 8;
-  const blockWidthPx = Math.max(96, viewportWidth * 0.05);
+  const blockWidthPx = viewportWidth * 0.05;
   useEffect(() => {
     const handleResize = () => {
       setViewportWidth(window.innerWidth);
@@ -5214,7 +5214,7 @@ export default function LessonBuilderClient({
   const [audioObjectUrl, setAudioObjectUrl] = useState("");
   const [audioDurationSeconds, setAudioDurationSeconds] = useState(0);
   const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
-  const [row2ColumnWidths, setRow2ColumnWidths] = useState([220, 500, 180]);
+  const [row2ColumnWidths, setRow2ColumnWidths] = useState([220, 500, 180, 180]);
   const [activeResizeHandle, setActiveResizeHandle] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const resizeStartRef = useRef<{ handleIndex: number; startX: number; startWidths: number[] } | null>(null);
@@ -6513,6 +6513,12 @@ function handleToggleDragTarget(
             }}
           />
 
+          <div style={{ flex: "1 1 0", minWidth: 0, height: "100%" }}>
+            <InspectorPanel
+              eventSlot={activeTimelineEvent}
+              eventIndex={activeTimelineEventIndex}
+            />
+          </div>
         </section>
 
         <section
@@ -6524,13 +6530,11 @@ function handleToggleDragTarget(
             position: "relative",
             zIndex: 2,
             display: "grid",
-            gridTemplateRows: "0px 15% 85%",
+            gridTemplateRows: "15% 15% 70%",
             transition: "grid-template-rows 1100ms cubic-bezier(0.16, 1, 0.3, 1)",
           }}
         >
-          <div style={{ display: "none" }}>
-            <TimelineInstructionPanel choice={centerChoice} />
-          </div>
+          <TimelineInstructionPanel choice={centerChoice} />
           <TimelineControlsRow
             isPlaying={isSongPlaying}
             currentSongSeconds={currentSongSeconds}
