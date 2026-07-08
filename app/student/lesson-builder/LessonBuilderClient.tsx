@@ -3394,10 +3394,6 @@ function EquationTimeline({
       waveColor: "#CFFF04",
       progressColor: "#CFFF0466",
       height: "auto",
-      barWidth: 2,
-      barGap: 3,
-      barRadius: 2,
-      cursorWidth: 0,
     });
 
     if (audioObjectUrl) {
