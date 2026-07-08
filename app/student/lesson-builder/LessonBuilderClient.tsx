@@ -5290,6 +5290,16 @@ export default function LessonBuilderClient({
     const col2Width = Math.max(200, window.innerWidth - separatorsWidth - col1Width - col3Width - col4Width);
 
     setRow2ColumnWidths([col1Width, col2Width, col3Width, col4Width]);
+
+    const handleResize = () => {
+      const col3 = Math.round(window.innerWidth * 0.18);
+      const col4 = Math.round(window.innerWidth * 0.17);
+      const col2 = Math.max(200, window.innerWidth - separatorsWidth - col1Width - col3 - col4);
+      setRow2ColumnWidths([col1Width, col2, col3, col4]);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const timelineDurationSeconds = useMemo(() => {
@@ -5957,9 +5967,16 @@ function handleToggleDragTarget(
         return;
       }
 
-      const intervalId = window.setInterval(() => {
+      let frameId: number;
+      let lastUpdateTime = Date.now();
+
+      const updateFrame = () => {
+        const now = Date.now();
+        const elapsed = (now - lastUpdateTime) / 1000;
+        lastUpdateTime = now;
+
         setCurrentSongSeconds((current) => {
-          const next = Math.min(timelineDurationSeconds, current + 0.02);
+          const next = Math.min(timelineDurationSeconds, current + elapsed);
 
           if (next >= timelineDurationSeconds) {
             setIsSongPlaying(false);
@@ -5967,10 +5984,14 @@ function handleToggleDragTarget(
 
           return next;
         });
-      }, 100);
+
+        frameId = requestAnimationFrame(updateFrame);
+      };
+
+      frameId = requestAnimationFrame(updateFrame);
 
       return () => {
-        window.clearInterval(intervalId);
+        cancelAnimationFrame(frameId);
       };
     }
 
