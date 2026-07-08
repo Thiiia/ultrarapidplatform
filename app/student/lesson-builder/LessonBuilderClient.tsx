@@ -3326,11 +3326,13 @@ function buildFilledWaveformPath(peaks: number[], width: number, height: number)
 
   const safeWidth = Math.max(1, width);
   const safeHeight = Math.max(1, height);
+  const padding = safeHeight * 0.12;
+  const usableHeight = safeHeight - padding * 2;
   const midline = safeHeight / 2;
 
   const points = peaks.map((peak, index) => {
     const x = peaks.length === 1 ? safeWidth / 2 : (index / (peaks.length - 1)) * safeWidth;
-    const amplitude = Math.max(0, Math.min(1, peak)) * (safeHeight / 2 * 0.95);
+    const amplitude = Math.max(0, Math.min(1, peak)) * (usableHeight / 2);
     const y = midline - amplitude;
 
     return { x, y };
@@ -3339,7 +3341,7 @@ function buildFilledWaveformPath(peaks: number[], width: number, height: number)
   if (points.length === 1) {
     const x = points[0].x;
     const y = points[0].y;
-    return `M ${x} ${y} L ${x} ${safeHeight} L 0 ${safeHeight} L 0 ${y} Z`;
+    return `M ${x} ${y} L ${x} ${safeHeight - padding} L 0 ${safeHeight - padding} L 0 ${y} Z`;
   }
 
   const pathSegments: string[] = [`M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`];
@@ -3349,8 +3351,8 @@ function buildFilledWaveformPath(peaks: number[], width: number, height: number)
     pathSegments.push(`L ${current.x.toFixed(2)} ${current.y.toFixed(2)}`);
   }
 
-  pathSegments.push(`L ${safeWidth} ${safeHeight}`);
-  pathSegments.push(`L 0 ${safeHeight}`);
+  pathSegments.push(`L ${safeWidth} ${safeHeight - padding}`);
+  pathSegments.push(`L 0 ${safeHeight - padding}`);
   pathSegments.push("Z");
 
   return pathSegments.join(" ");
@@ -4060,20 +4062,36 @@ function getEquationTileStyle({
 }) {
   const kind = getEquationTileKind(label);
   const isOperator = kind === "operator";
+  const isNumber = kind === "number";
+
+  const background = isOperator ? "#6B3312" : isNumber ? "#1B3668" : "#3D1E6B";
+  const borderTop = isOperator
+    ? "1px solid #FF8C3C73"
+    : isNumber
+    ? "1px solid #64A0FF73"
+    : "1px solid #B478FF73";
+  const boxShadow = isOperator
+    ? "0px 0px 8px 0px #FF823C4D"
+    : isNumber
+    ? "0px 0px 8px 0px #3C82FF4D"
+    : "0px 0px 8px 0px #A064FF4D";
 
   return {
     width: compact ? (isOperator ? 44 : 42) : "100%",
     minWidth: compact ? (isOperator ? 44 : 42) : 0,
     height: compact ? (isOperator ? 28 : 34) : undefined,
     minHeight: compact ? undefined : isOperator ? 26 : 42,
-    borderRadius: isOperator ? 999 : 12,
-    border: `1px solid ${isOperator ? "#CFFF04" : "rgba(255,255,255,0.18)"}`,
-    background: isOperator ? "rgba(207,255,4,0.12)" : "#191919",
-    color: isOperator ? "#CFFF04" : "#FFFFFF",
+    borderRadius: isOperator ? 0 : 12,
+    borderTop,
+    borderRight: "none",
+    borderBottom: "none",
+    borderLeft: "none",
+    background,
+    boxShadow,
+    color: "#FFFFFF",
     fontFamily: "Grandstander, sans-serif",
     fontSize: compact ? (isOperator ? 14 : 17) : isOperator ? 14 : 20,
     fontWeight: 800,
-    boxShadow: "0 10px 22px rgba(0,0,0,0.18)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
