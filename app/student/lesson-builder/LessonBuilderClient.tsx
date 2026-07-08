@@ -3243,9 +3243,8 @@ function formatTimelineTime(seconds: number) {
   const safeSeconds = Math.max(0, seconds);
   const minutes = Math.floor(safeSeconds / 60);
   const wholeSeconds = Math.floor(safeSeconds - minutes * 60);
-  const hundredths = Math.floor((safeSeconds - Math.floor(safeSeconds)) * 100);
 
-  return `${minutes}:${String(wholeSeconds).padStart(2, "0")}.${String(hundredths).padStart(2, "0")}`;
+  return `${minutes}:${String(wholeSeconds).padStart(2, "0")}`;
 }
 
 function formatSongTime(seconds: number) {
