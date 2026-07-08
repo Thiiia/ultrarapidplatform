@@ -4020,10 +4020,12 @@ function getEquationTileStyle({
   label,
   compact = false,
   disabled = false,
+  compactSize,
 }: {
   label: string;
   compact?: boolean;
   disabled?: boolean;
+  compactSize?: number;
 }) {
   const kind = getEquationTileKind(label);
   const isOperator = kind === "operator";
@@ -4042,9 +4044,9 @@ function getEquationTileStyle({
     : "0px 0px 8px 0px #A064FF4D";
 
   return {
-    width: compact ? 42 : "100%",
-    minWidth: compact ? 42 : 0,
-    height: compact ? 34 : undefined,
+    width: compact ? compactSize ?? 42 : "100%",
+    minWidth: compact ? compactSize ?? 42 : 0,
+    height: compact ? compactSize ?? 34 : undefined,
     minHeight: compact ? undefined : 42,
     borderRadius: 12,
     borderTop,
@@ -4092,10 +4094,12 @@ function EquationTileStrip({
   tokens,
   emptyLabel = "Equation preview",
   compact = true,
+  compactSize,
 }: {
   tokens: EquationToken[];
   emptyLabel?: string;
   compact?: boolean;
+  compactSize?: number;
 }) {
   if (tokens.length === 0) {
     return (
@@ -4118,7 +4122,14 @@ function EquationTileStrip({
       }}
     >
       {tokens.map((token) => (
-        <span key={token.id} style={getEquationTileStyle({ label: token.label, compact })}>
+        <span
+          key={token.id}
+          style={getEquationTileStyle({
+            label: token.label,
+            compact,
+            compactSize,
+          })}
+        >
           {token.label}
         </span>
       ))}
@@ -4332,6 +4343,7 @@ function CenterChoicePanel({
   choice,
   draftTokens,
   activeEventEquation,
+  equationViewerBlockSize,
   hasInspector,
   onCreateEquation,
   onBrowseLibrary,
@@ -4340,6 +4352,7 @@ function CenterChoicePanel({
   choice: CenterChoice;
   draftTokens: EquationToken[];
   activeEventEquation: SavedEquation | null;
+  equationViewerBlockSize: number;
   hasInspector: boolean;
   onCreateEquation: () => void;
   onBrowseLibrary: () => void;
@@ -4501,7 +4514,11 @@ function CenterChoicePanel({
             >
               {visibleEquationLabel}
             </div>
-            <EquationTileStrip tokens={visibleEquationTokens} compact />
+            <EquationTileStrip
+              tokens={visibleEquationTokens}
+              compact
+              compactSize={equationViewerBlockSize}
+            />
           </div>
         ) : null}
       </div>
@@ -5230,6 +5247,11 @@ export default function LessonBuilderClient({
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
     [timelineEvents],
+  );
+
+  const equationViewerBlockSize = useMemo(
+    () => row2ColumnWidths[1] * 0.12,
+    [row2ColumnWidths],
   );
 
   useEffect(() => {
@@ -6489,6 +6511,7 @@ function handleToggleDragTarget(
               choice={centerChoice}
               draftTokens={draftTokens}
               activeEventEquation={activeEventEquation}
+              equationViewerBlockSize={equationViewerBlockSize}
               hasInspector={isInspectorVisible}
               onCreateEquation={handleCreateEquationChoice}
               onBrowseLibrary={handleBrowsePremadeChoice}
