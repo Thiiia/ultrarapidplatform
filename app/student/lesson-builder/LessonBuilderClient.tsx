@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ChangeEvent, DragEvent, FC, PointerEvent, ReactNode, SVGProps } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import WaveSurfer from "wavesurfer.js";
 import {
   useEditorStore,
   type SidecarPayload as StoreSidecarPayload,
@@ -3318,46 +3319,6 @@ function buildWaveformPeaksFromChannelData(channelData: Float32Array, peakCount:
   });
 }
 
-function buildFilledWaveformPath(peaks: number[], width: number, height: number) {
-  if (!peaks.length) {
-    const midY = height / 2;
-    return `M 0 ${midY} L ${width} ${midY} L ${width} ${height} L 0 ${height} Z`;
-  }
-
-  const safeWidth = Math.max(1, width);
-  const safeHeight = Math.max(1, height);
-  const padding = safeHeight * 0.12;
-  const usableHeight = safeHeight - padding * 2;
-  const midline = safeHeight / 2;
-
-  const points = peaks.map((peak, index) => {
-    const x = peaks.length === 1 ? safeWidth / 2 : (index / (peaks.length - 1)) * safeWidth;
-    const amplitude = Math.max(0, Math.min(1, peak)) * (usableHeight / 2);
-    const y = midline - amplitude;
-
-    return { x, y };
-  });
-
-  if (points.length === 1) {
-    const x = points[0].x;
-    const y = points[0].y;
-    return `M ${x} ${y} L ${x} ${safeHeight - padding} L 0 ${safeHeight - padding} L 0 ${y} Z`;
-  }
-
-  const pathSegments: string[] = [`M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`];
-
-  for (let index = 1; index < points.length; index += 1) {
-    const current = points[index];
-    pathSegments.push(`L ${current.x.toFixed(2)} ${current.y.toFixed(2)}`);
-  }
-
-  pathSegments.push(`L ${safeWidth} ${safeHeight - padding}`);
-  pathSegments.push(`L 0 ${safeHeight - padding}`);
-  pathSegments.push("Z");
-
-  return pathSegments.join(" ");
-}
-
 function TimelineMarkerDots({
   color,
   lefts,
@@ -3401,6 +3362,7 @@ function EquationTimeline({
   durationSeconds,
   waveformPeaks,
   onSeek,
+  audioObjectUrl,
 }: {
   events: TimelineEventSlot[];
   activeEventId: string | null;
@@ -3409,12 +3371,49 @@ function EquationTimeline({
   durationSeconds: number;
   waveformPeaks: number[];
   onSeek: (seconds: number) => void;
+  audioObjectUrl: string;
 }) {
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
+  const waveformContainerRef = useRef<HTMLDivElement | null>(null);
+  const wavesurferRef = useRef<WaveSurfer | null>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1280);
   const blockDurationSeconds = 8;
   const blockWidthPx = viewportWidth * 0.05;
+  useEffect(() => {
+    if (!waveformContainerRef.current || !waveformPeaks.length) {
+      return;
+    }
+
+    if (wavesurferRef.current) {
+      wavesurferRef.current.destroy();
+    }
+
+    const wavesurfer = WaveSurfer.create({
+      container: waveformContainerRef.current,
+      waveColor: "#CFFF04",
+      progressColor: "#CFFF0466",
+      height: "auto",
+      barWidth: 2,
+      barGap: 3,
+      barRadius: 2,
+      cursorWidth: 0,
+    });
+
+    if (audioObjectUrl) {
+      wavesurfer.load(audioObjectUrl);
+    }
+
+    wavesurferRef.current = wavesurfer;
+
+    return () => {
+      if (wavesurferRef.current) {
+        wavesurferRef.current.destroy();
+        wavesurferRef.current = null;
+      }
+    };
+  }, [waveformPeaks.length, audioObjectUrl]);
+
   useEffect(() => {
     const handleResize = () => {
       setViewportWidth(window.innerWidth);
@@ -3753,42 +3752,13 @@ function EquationTimeline({
               overflow: "hidden",
             }}
           >
-            {waveformPeaks.length > 0 ? (
-              <svg
-                aria-label="Song waveform"
-                width={trackWidth}
-                height="100%"
-                viewBox={`0 0 ${trackWidth} 100`}
-                preserveAspectRatio="none"
-                style={{ position: "absolute", inset: 0, display: "block" }}
-              >
-                <defs>
-                  <linearGradient id="waveformGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#CFFF04" stopOpacity="0.8" />
-                    <stop offset="100%" stopColor="#CFFF04" stopOpacity="0.3" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d={buildFilledWaveformPath(waveformPeaks, trackWidth, 100)}
-                  fill="url(#waveformGradient)"
-                  stroke="none"
-                />
-              </svg>
-            ) : (
-              <div
-                style={{
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  paddingLeft: 16,
-                  color: "#FFFFFF66",
-                  fontSize: 12,
-                  fontWeight: 800,
-                }}
-              >
-                Waveform loads after the selected song file is decoded.
-              </div>
-            )}
+            <div
+              ref={waveformContainerRef}
+              style={{
+                width: "100%",
+                height: "100%",
+              }}
+            />
           </div>
 
           <div
@@ -6598,6 +6568,7 @@ function handleToggleDragTarget(
             durationSeconds={timelineDurationSeconds}
             waveformPeaks={waveformPeaks}
             onSeek={seekSong}
+            audioObjectUrl={audioObjectUrl}
           />
         </section>
       </main>
