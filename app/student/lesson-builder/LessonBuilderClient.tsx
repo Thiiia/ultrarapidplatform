@@ -5284,22 +5284,19 @@ export default function LessonBuilderClient({
     if (typeof window === "undefined") return;
 
     const separatorsWidth = 18;
-    const col1Width = 220;
-    const col3Width = Math.round(window.innerWidth * 0.18);
-    const col4Width = Math.round(window.innerWidth * 0.17);
-    const col2Width = Math.max(200, window.innerWidth - separatorsWidth - col1Width - col3Width - col4Width);
 
-    setRow2ColumnWidths([col1Width, col2Width, col3Width, col4Width]);
-
-    const handleResize = () => {
-      const col3 = Math.round(window.innerWidth * 0.18);
-      const col4 = Math.round(window.innerWidth * 0.17);
-      const col2 = Math.max(200, window.innerWidth - separatorsWidth - col1Width - col3 - col4);
-      setRow2ColumnWidths([col1Width, col2, col3, col4]);
+    const calcWidths = () => {
+      const w = window.innerWidth;
+      const col1 = Math.round(w * 0.17);
+      const col3 = Math.round(w * 0.18);
+      const col4 = Math.round(w * 0.17);
+      const col2 = Math.max(200, w - separatorsWidth - col1 - col3 - col4);
+      setRow2ColumnWidths([col1, col2, col3, col4]);
     };
 
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    calcWidths();
+    window.addEventListener("resize", calcWidths);
+    return () => window.removeEventListener("resize", calcWidths);
   }, []);
 
   const timelineDurationSeconds = useMemo(() => {
