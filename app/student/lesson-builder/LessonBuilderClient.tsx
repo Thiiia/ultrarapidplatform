@@ -4047,11 +4047,11 @@ function getEquationTileStyle({
     : "0px 0px 8px 0px #A064FF4D";
 
   return {
-    width: compact ? (isOperator ? 44 : 42) : "100%",
-    minWidth: compact ? (isOperator ? 44 : 42) : 0,
-    height: compact ? (isOperator ? 28 : 34) : undefined,
-    minHeight: compact ? undefined : isOperator ? 26 : 42,
-    borderRadius: isOperator ? 0 : 12,
+    width: compact ? 42 : "100%",
+    minWidth: compact ? 42 : 0,
+    height: compact ? 34 : undefined,
+    minHeight: compact ? undefined : 42,
+    borderRadius: 12,
     borderTop,
     borderRight: "none",
     borderBottom: "none",
@@ -4340,6 +4340,7 @@ function CenterChoicePanel({
   hasInspector,
   onCreateEquation,
   onBrowseLibrary,
+  hideHeader = false,
 }: {
   choice: CenterChoice;
   draftTokens: EquationToken[];
@@ -4347,6 +4348,7 @@ function CenterChoicePanel({
   hasInspector: boolean;
   onCreateEquation: () => void;
   onBrowseLibrary: () => void;
+  hideHeader?: boolean;
 }) {
   const isCreate = choice === "create";
   const isPremade = choice === "premade";
@@ -4381,110 +4383,116 @@ function CenterChoicePanel({
         boxSizing: "border-box",
         overflow: "hidden",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 32,
+        alignItems: hideHeader ? "stretch" : "center",
+        justifyContent: hideHeader ? "stretch" : "center",
+        padding: hideHeader ? 0 : 32,
         fontFamily: "Space Grotesk, sans-serif",
       }}
     >
       <div
         style={{
-          width: "min(720px, 92%)",
+          width: hideHeader ? "100%" : "min(720px, 92%)",
+          height: hideHeader ? "100%" : "auto",
           display: "grid",
           justifyItems: "center",
-          gap: 18,
+          gap: hideHeader ? 0 : 18,
           textAlign: "center",
         }}
       >
-        <URIcon
-          aria-label="UltraRapid"
-          style={{
-            width: 220,
-            height: 50,
-            display: "block",
-            overflow: "visible",
-            animation: "urFlash 1s ease-in-out infinite alternate",
-          }}
-        />
-
-        <div style={{ display: "grid", gap: 8 }}>
-          <h1 style={{ margin: 0, color: "#FFFFFF", fontSize: 30, lineHeight: 1.1, fontWeight: 900 }}>
-            {title}
-          </h1>
-          <p style={{ margin: 0, color: "#FFFFFF99", fontSize: 15, lineHeight: 1.4, fontWeight: 700 }}>
-            {subtitle}
-          </p>
-        </div>
-
-        {choice === null ? (
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-            <button
-              type="button"
-              onClick={onCreateEquation}
+        {!hideHeader && (
+          <>
+            <URIcon
+              aria-label="UltraRapid"
               style={{
-                minWidth: 178,
-                minHeight: 46,
-                borderRadius: 14,
-                border: "1px solid #CFFF04",
-                background: "#CFFF04",
-                color: "#000000",
-                fontSize: 14,
-                fontWeight: 900,
-                cursor: "pointer",
+                width: 220,
+                height: 50,
+                display: "block",
+                overflow: "visible",
+                animation: "urFlash 1s ease-in-out infinite alternate",
               }}
-            >
-              Create Equation
-            </button>
-            <button
-              type="button"
-              onClick={onBrowseLibrary}
-              style={{
-                minWidth: 220,
-                minHeight: 46,
-                borderRadius: 14,
-                border: `1px solid ${subtleBorderColor}`,
-                background: "#2B2B2B",
-                color: "#FFFFFF",
-                fontSize: 14,
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              Browse Pre-Made Library
-            </button>
-          </div>
-        ) : (
-          <div
-            style={{
-              color: "#CFFF04",
-              fontSize: 16,
-              fontWeight: 900,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            {isCreate ? "← Start in the Equation Builder" : "Browse the Pre-Made Library →"}
-          </div>
+            />
+
+            <div style={{ display: "grid", gap: 8 }}>
+              <h1 style={{ margin: 0, color: "#FFFFFF", fontSize: 30, lineHeight: 1.1, fontWeight: 900 }}>
+                {title}
+              </h1>
+              <p style={{ margin: 0, color: "#FFFFFF99", fontSize: 15, lineHeight: 1.4, fontWeight: 700 }}>
+                {subtitle}
+              </p>
+            </div>
+
+            {choice === null ? (
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+                <button
+                  type="button"
+                  onClick={onCreateEquation}
+                  style={{
+                    minWidth: 178,
+                    minHeight: 46,
+                    borderRadius: 14,
+                    border: "1px solid #CFFF04",
+                    background: "#CFFF04",
+                    color: "#000000",
+                    fontSize: 14,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  Create Equation
+                </button>
+                <button
+                  type="button"
+                  onClick={onBrowseLibrary}
+                  style={{
+                    minWidth: 220,
+                    minHeight: 46,
+                    borderRadius: 14,
+                    border: `1px solid ${subtleBorderColor}`,
+                    background: "#2B2B2B",
+                    color: "#FFFFFF",
+                    fontSize: 14,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  Browse Pre-Made Library
+                </button>
+              </div>
+            ) : (
+              <div
+                style={{
+                  color: "#CFFF04",
+                  fontSize: 16,
+                  fontWeight: 900,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                {isCreate ? "← Start in the Equation Builder" : "Browse the Pre-Made Library →"}
+              </div>
+            )}
+          </>
         )}
 
         {visibleEquationTokens.length > 0 ? (
           <div
             aria-label={visibleEquationLabel}
             style={{
-              marginTop: 8,
-              minHeight: 96,
-              width: "min(620px, 100%)",
-              borderRadius: 18,
-              border: `1px solid ${hasDraft ? "#CFFF04" : subtleBorderColor}`,
-              background: "#202020",
+              marginTop: hideHeader ? 0 : 8,
+              width: hideHeader ? "100%" : "min(620px, 100%)",
+              height: hideHeader ? "100%" : "auto",
+              minHeight: hideHeader ? 0 : 96,
+              borderRadius: hideHeader ? 0 : 18,
+              border: hideHeader ? "none" : `1px solid ${hasDraft ? "#CFFF04" : subtleBorderColor}`,
+              background: hideHeader ? row2Column2BackgroundColor : "#202020",
               display: "grid",
               alignContent: "center",
               justifyItems: "center",
               gap: 10,
-              padding: 18,
+              padding: hideHeader ? 0 : 18,
               boxSizing: "border-box",
-              overflow: "hidden",
+              overflow: hideHeader ? "auto" : "hidden",
             }}
           >
             <div
@@ -5203,6 +5211,7 @@ export default function LessonBuilderClient({
   const [centerChoice, setCenterChoice] = useState<CenterChoice>(null);
   const [libraryTab, setLibraryTab] = useState<LibraryTab>("mine");
   const [selectedEquationId, setSelectedEquationId] = useState<string | null>(null);
+  const [hideEquationHeader, setHideEquationHeader] = useState(false);
   const [currentSongSeconds, setCurrentSongSeconds] = useState(0);
   const [isSongPlaying, setIsSongPlaying] = useState(false);
   const [audioObjectUrl, setAudioObjectUrl] = useState("");
@@ -5413,6 +5422,7 @@ export default function LessonBuilderClient({
 
   function handleAppendEquationToken(label: string) {
     setMode("equation");
+    setHideEquationHeader(true);
     setDraftTokens((current) => [
       ...current,
       {
@@ -5430,11 +5440,13 @@ export default function LessonBuilderClient({
   function handleCreateEquationChoice() {
     setCenterChoice("create");
     setMode("equation");
+    setHideEquationHeader(true);
   }
 
   function handleBrowsePremadeChoice() {
     setCenterChoice("premade");
     setLibraryTab("premade");
+    setHideEquationHeader(true);
   }
 
   function handleRemoveEquationToken(id: string) {
@@ -5462,6 +5474,7 @@ export default function LessonBuilderClient({
   function handleSelectEvent(eventId: string) {
     setActiveEventId(eventId);
     setMode("event");
+    setHideEquationHeader(true);
   }
 
   function beginColumnResize(handleIndex: number, event: PointerEvent<HTMLDivElement>) {
@@ -6484,6 +6497,7 @@ function handleToggleDragTarget(
               hasInspector={isInspectorVisible}
               onCreateEquation={handleCreateEquationChoice}
               onBrowseLibrary={handleBrowsePremadeChoice}
+              hideHeader={hideEquationHeader}
             />
           </div>
 
