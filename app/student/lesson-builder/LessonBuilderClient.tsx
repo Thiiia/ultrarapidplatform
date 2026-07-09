@@ -172,6 +172,7 @@ type SidecarPayload = {
 
 type LessonBuilderClientProps = {
   studentName?: string;
+  navBasePath?: string;
 };
 
 type CenterChoice = "create" | "premade" | null;
@@ -5109,9 +5110,9 @@ function CenterEditorPanel({
 
 export default function LessonBuilderClient({
   studentName = "Student",
+  navBasePath = "/student",
 }: LessonBuilderClientProps) {
   const router = useRouter();
-  const navBasePath = "/student";
   const project = useEditorStore((s) => s.project);
   const setProject = useEditorStore((s) => s.setProject);
   const setStoreSidecar = useEditorStore((s) => s.setSidecar);
