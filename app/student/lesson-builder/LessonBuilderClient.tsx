@@ -184,6 +184,8 @@ type PendingMechanicRangeSelection = {
   startTick: number;
 };
 
+type HitDirection = "vert" | "leftDiag" | "rightDiag";
+
 type CenterChoice = "create" | "premade" | null;
 type LibraryTab = "mine" | "premade";
 
@@ -5338,6 +5340,10 @@ export default function LessonBuilderClient({
     useState<string | null>(null);
   const [pendingRangeSelection, setPendingRangeSelection] =
     useState<PendingMechanicRangeSelection | null>(null);
+  const [isPlayheadAutoSelectPaused, setIsPlayheadAutoSelectPaused] =
+    useState(false);
+  const [selectedHitDirection, setSelectedHitDirection] =
+    useState<HitDirection>("vert");
 
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
@@ -5508,6 +5514,39 @@ export default function LessonBuilderClient({
       ) ?? centerContextMechanicItems[0]
     );
   }, [centerContextMechanicItems, selectedContextMechanicKey]);
+
+  const assignableEquationTokens = useMemo(() => {
+    const tokens = centerContextEventEquation?.tokens ?? [];
+
+    return tokens
+      .map((token, tokenIndex) => ({ token, tokenIndex }))
+      .filter(({ token }) => !isEquationOperator(token.label));
+  }, [centerContextEventEquation]);
+
+  const selectedContextMechanicAssignedTokenIndex = useMemo(() => {
+    if (!centerContextEvent || !selectedCenterContextMechanic) {
+      return null;
+    }
+
+    const instance =
+      centerContextEvent.mechanicInstances?.[
+        selectedCenterContextMechanic.mechanic
+      ]?.[selectedCenterContextMechanic.instanceIndex];
+
+    if (!instance) {
+      return null;
+    }
+
+    if (selectedCenterContextMechanic.mechanic === "hit") {
+      return instance.hitBubbles[0]?.tokenIndex ?? null;
+    }
+
+    if (selectedCenterContextMechanic.mechanic === "spin") {
+      return instance.spinTargets[0]?.tokenIndex ?? null;
+    }
+
+    return instance.dragTargets[0]?.tokenIndex ?? null;
+  }, [centerContextEvent, selectedCenterContextMechanic]);
 
   useEffect(() => {
     if (centerContextMechanicItems.length === 0) {
@@ -5706,9 +5745,185 @@ export default function LessonBuilderClient({
   }
 
   function handleSelectEvent(eventId: string) {
-    setActiveEventId(eventId);
+    setActiveEventId((current) => {
+      if (current === eventId) {
+        setIsPlayheadAutoSelectPaused(true);
+        return null;
+      }
+
+      setIsPlayheadAutoSelectPaused(false);
+      return eventId;
+    });
     setMode("event");
     setHideEquationHeader(true);
+  }
+
+  function getHitDirectionPads(direction: HitDirection): HitBubblePad[] {
+    if (direction === "leftDiag") {
+      return ["topRight", "bottomLeft"];
+    }
+
+    if (direction === "rightDiag") {
+      return ["topLeft", "bottomRight"];
+    }
+
+    return ["topLeft", "bottomLeft"];
+  }
+
+  function handleAssignTokenToSelectedContextMechanic(tokenIndex: number) {
+    if (!centerContextEvent || !selectedCenterContextMechanic) {
+      return;
+    }
+
+    const { key, mechanic, instanceIndex } = selectedCenterContextMechanic;
+
+    setTimelineEvents((current) => {
+      const nextEvents = current.map((eventSlot) => {
+        if (eventSlot.id !== centerContextEvent.id) {
+          return eventSlot;
+        }
+
+        const nextInstances = (eventSlot.mechanicInstances?.[mechanic] ?? []).map(
+          (instance, index) => {
+            if (index !== instanceIndex) {
+              return instance;
+            }
+
+            if (mechanic === "hit") {
+              const pads = getHitDirectionPads(selectedHitDirection);
+
+              return {
+                ...instance,
+                hitBubbles: [{ tokenIndex, positions: pads, pads }],
+              };
+            }
+
+            if (mechanic === "spin") {
+              return {
+                ...instance,
+                spinTargets: [{ tokenIndex }],
+              };
+            }
+
+            return {
+              ...instance,
+              dragTargets: [{ tokenIndex }],
+            };
+          },
+        );
+
+        return {
+          ...eventSlot,
+          mechanicInstances: {
+            ...eventSlot.mechanicInstances,
+            [mechanic]: nextInstances,
+          },
+        };
+      });
+
+      syncTimelineFilesFromEvents(nextEvents);
+      setSelectedContextMechanicKey(key);
+
+      return nextEvents;
+    });
+  }
+
+  function handleRemoveSelectedContextMechanic() {
+    if (!centerContextEvent || !selectedCenterContextMechanic) {
+      return;
+    }
+
+    const { mechanic, instanceIndex } = selectedCenterContextMechanic;
+
+    setTimelineEvents((current) => {
+      const nextEvents = current.map((eventSlot) => {
+        if (eventSlot.id !== centerContextEvent.id) {
+          return eventSlot;
+        }
+
+        const count = Math.max(0, eventSlot.counts?.[mechanic] ?? 0);
+        const currentInstances = resizeMechanicInstances(
+          eventSlot.mechanicInstances?.[mechanic],
+          count,
+        );
+        const nextInstances = currentInstances.filter(
+          (_, currentIndex) => currentIndex !== instanceIndex,
+        );
+        const nextCount = Math.max(0, count - 1);
+
+        return {
+          ...eventSlot,
+          counts: {
+            ...eventSlot.counts,
+            [mechanic]: nextCount,
+          },
+          mechanicInstances: {
+            ...eventSlot.mechanicInstances,
+            [mechanic]: nextInstances,
+          },
+        };
+      });
+
+      syncTimelineFilesFromEvents(nextEvents);
+      setSaveStatus(
+        `Removed ${selectedCenterContextMechanic.mechanic} ${selectedCenterContextMechanic.instanceIndex + 1}.`,
+      );
+
+      return nextEvents;
+    });
+  }
+
+  function handleSetSelectedHitDirection(direction: HitDirection) {
+    setSelectedHitDirection(direction);
+
+    if (
+      !centerContextEvent ||
+      !selectedCenterContextMechanic ||
+      selectedCenterContextMechanic.mechanic !== "hit"
+    ) {
+      return;
+    }
+
+    const tokenIndex = selectedContextMechanicAssignedTokenIndex;
+
+    if (tokenIndex === null) {
+      return;
+    }
+
+    const { mechanic, instanceIndex } = selectedCenterContextMechanic;
+    const pads = getHitDirectionPads(direction);
+
+    setTimelineEvents((current) => {
+      const nextEvents = current.map((eventSlot) => {
+        if (eventSlot.id !== centerContextEvent.id) {
+          return eventSlot;
+        }
+
+        const nextInstances = (eventSlot.mechanicInstances?.[mechanic] ?? []).map(
+          (instance, index) => {
+            if (index !== instanceIndex) {
+              return instance;
+            }
+
+            return {
+              ...instance,
+              hitBubbles: [{ tokenIndex, positions: pads, pads }],
+            };
+          },
+        );
+
+        return {
+          ...eventSlot,
+          mechanicInstances: {
+            ...eventSlot.mechanicInstances,
+            [mechanic]: nextInstances,
+          },
+        };
+      });
+
+      syncTimelineFilesFromEvents(nextEvents);
+      return nextEvents;
+    });
   }
 
   function beginColumnResize(handleIndex: number, event: PointerEvent<HTMLDivElement>) {
@@ -6197,10 +6412,23 @@ function handleToggleDragTarget(
       currentSongSeconds,
     );
 
+    if (isPlayheadAutoSelectPaused) {
+      if (!eventAtPlayhead) {
+        setIsPlayheadAutoSelectPaused(false);
+      }
+
+      return;
+    }
+
     if (eventAtPlayhead && eventAtPlayhead.id !== activeEventId) {
       setActiveEventId(eventAtPlayhead.id);
     }
-  }, [activeEventId, currentSongSeconds, timelineEvents]);
+  }, [
+    activeEventId,
+    currentSongSeconds,
+    isPlayheadAutoSelectPaused,
+    timelineEvents,
+  ]);
 
   useEffect(() => {
     if (!pendingRangeSelection) {
@@ -6891,7 +7119,7 @@ function handleToggleDragTarget(
                 style={{
                   display: centerContextEvent ? "grid" : "none",
                   minHeight: 0,
-                  gridTemplateColumns: "auto minmax(0, 1fr) auto",
+                  gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.2fr) auto",
                   alignItems: "center",
                   gap: 10,
                   borderTop: `1px solid ${subtleBorderColor}`,
@@ -6920,8 +7148,8 @@ function handleToggleDragTarget(
                       style={{
                         display: "flex",
                         alignItems: "center",
+                        flexWrap: "wrap",
                         gap: 10,
-                        whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         fontSize: 11,
@@ -6951,6 +7179,27 @@ function handleToggleDragTarget(
                               isAdvancedMode,
                             )}`}
                       </span>
+
+                      <button
+                        type="button"
+                        onClick={handleRemoveSelectedContextMechanic}
+                        style={{
+                          minWidth: 74,
+                          height: 22,
+                          borderRadius: 999,
+                          border: `1px solid ${subtleBorderColor}`,
+                          background: "#3A1818",
+                          color: "#FFFFFF",
+                          fontSize: 9,
+                          fontWeight: 900,
+                          cursor: "pointer",
+                          padding: "0 8px",
+                          whiteSpace: "nowrap",
+                          fontFamily: "Space Grotesk, sans-serif",
+                        }}
+                      >
+                        Remove
+                      </button>
                     </div>
                   ) : (
                     <span style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700 }}>
@@ -6967,7 +7216,10 @@ function handleToggleDragTarget(
                       <button
                         key={item.key}
                         type="button"
-                        onClick={() => setSelectedContextMechanicKey(item.key)}
+                        onClick={() => {
+                          setSelectedContextMechanicKey(item.key);
+                          seekSong(timelineTickToSeconds(item.startTick));
+                        }}
                         style={{
                           minWidth: 44,
                           height: 22,
@@ -6989,6 +7241,91 @@ function handleToggleDragTarget(
                     );
                   })}
                 </div>
+
+                {selectedCenterContextMechanic && centerContextEventEquation ? (
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      minWidth: 0,
+                      display: "grid",
+                      gridTemplateColumns: "minmax(0, 1fr) auto",
+                      gap: 10,
+                      alignItems: "center",
+                    }}
+                  >
+                    <div style={{ minWidth: 0, display: "flex", gap: 6, overflowX: "auto" }}>
+                      {assignableEquationTokens.map(({ token, tokenIndex }) => {
+                        const isAssigned =
+                          selectedContextMechanicAssignedTokenIndex === tokenIndex;
+
+                        return (
+                          <button
+                            key={`${token.id}-${selectedCenterContextMechanic.key}`}
+                            type="button"
+                            onClick={() => handleAssignTokenToSelectedContextMechanic(tokenIndex)}
+                            style={{
+                              minWidth: 28,
+                              height: 22,
+                              borderRadius: 999,
+                              border: `1px solid ${isAssigned ? "#CFFF04" : subtleBorderColor}`,
+                              background: isAssigned
+                                ? "rgba(207,255,4,0.12)"
+                                : "#252525",
+                              color: isAssigned ? "#CFFF04" : "#FFFFFF",
+                              fontSize: 10,
+                              fontWeight: 900,
+                              cursor: "pointer",
+                              padding: "0 8px",
+                              whiteSpace: "nowrap",
+                              fontFamily: "Space Grotesk, sans-serif",
+                            }}
+                            aria-label={`Assign to token ${token.label}`}
+                          >
+                            {token.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {selectedCenterContextMechanic.mechanic === "hit" ? (
+                      <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
+                        {([
+                          ["vert", "Vert"],
+                          ["leftDiag", "Left Diag"],
+                          ["rightDiag", "Right Diag"],
+                        ] as Array<[HitDirection, string]>).map(([direction, label]) => {
+                          const isSelected = selectedHitDirection === direction;
+
+                          return (
+                            <button
+                              key={direction}
+                              type="button"
+                              onClick={() => handleSetSelectedHitDirection(direction)}
+                              style={{
+                                minWidth: 72,
+                                height: 22,
+                                borderRadius: 999,
+                                border: `1px solid ${isSelected ? "#CFFF04" : subtleBorderColor}`,
+                                background: isSelected
+                                  ? "rgba(207,255,4,0.12)"
+                                  : "#252525",
+                                color: isSelected ? "#CFFF04" : "#FFFFFF",
+                                fontSize: 9,
+                                fontWeight: 900,
+                                cursor: "pointer",
+                                padding: "0 8px",
+                                whiteSpace: "nowrap",
+                                fontFamily: "Space Grotesk, sans-serif",
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
