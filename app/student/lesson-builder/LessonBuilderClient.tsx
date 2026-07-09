@@ -3751,7 +3751,6 @@ function EquationTimeline({
                   timelineEventDurationSeconds * pixelsPerSecond,
                 );
                 const isActive = eventSlot.id === activeEventId;
-                const assignedEquation = getTimelineEventEquation(eventSlot);
 
                 return (
                   <button
@@ -3782,13 +3781,9 @@ function EquationTimeline({
                       overflow: "hidden",
                     }}
                   >
-                    {assignedEquation ? (
-                      <EquationTileStrip tokens={assignedEquation.tokens} compact />
-                    ) : (
-                      <span style={{ fontSize: 11, fontWeight: 900 }}>
-                        Event {index + 1}
-                      </span>
-                    )}
+                    <span style={{ fontSize: 11, fontWeight: 900 }}>
+                      Event {index + 1}
+                    </span>
                   </button>
                 );
               })
@@ -5152,6 +5147,8 @@ export default function LessonBuilderClient({
     sidecar: StorageFileRef | null;
   } | null>(null);
   const [isAdvancedMode, setIsAdvancedMode] = useState(false);
+  const [selectedContextMechanicKey, setSelectedContextMechanicKey] =
+    useState<string | null>(null);
 
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
@@ -5245,6 +5242,93 @@ export default function LessonBuilderClient({
   const activeEventEquation = useMemo(() => {
     return activeTimelineEvent ? getTimelineEventEquation(activeTimelineEvent) : null;
   }, [activeTimelineEvent]);
+
+  const playheadTimelineEvent = useMemo(
+    () => findTimelineEventAtSeconds(timelineEvents, currentSongSeconds) ?? null,
+    [currentSongSeconds, timelineEvents],
+  );
+
+  const centerContextEvent = activeTimelineEvent ?? playheadTimelineEvent;
+
+  const centerContextEventIndex = useMemo(() => {
+    if (!centerContextEvent) {
+      return -1;
+    }
+
+    return timelineEvents.findIndex(
+      (eventSlot) => eventSlot.id === centerContextEvent.id,
+    );
+  }, [centerContextEvent, timelineEvents]);
+
+  const centerContextEventEquation = useMemo(() => {
+    return centerContextEvent ? getTimelineEventEquation(centerContextEvent) : null;
+  }, [centerContextEvent]);
+
+  const centerContextMechanicItems = useMemo(() => {
+    if (!centerContextEvent) {
+      return [] as Array<{
+        key: string;
+        mechanic: GameplayMechanic;
+        instanceIndex: number;
+        tick: number;
+      }>;
+    }
+
+    const items: Array<{
+      key: string;
+      mechanic: GameplayMechanic;
+      instanceIndex: number;
+      tick: number;
+    }> = [];
+
+    gameplayMechanics.forEach((mechanic) => {
+      const count = Math.max(0, centerContextEvent.counts?.[mechanic] ?? 0);
+      const instances = centerContextEvent.mechanicInstances?.[mechanic] ?? [];
+
+      for (let instanceIndex = 0; instanceIndex < count; instanceIndex += 1) {
+        items.push({
+          key: `${mechanic}:${instanceIndex}`,
+          mechanic,
+          instanceIndex,
+          tick: instances[instanceIndex]?.tick ?? centerContextEvent.tick,
+        });
+      }
+    });
+
+    return items;
+  }, [centerContextEvent]);
+
+  const selectedCenterContextMechanic = useMemo(() => {
+    if (centerContextMechanicItems.length === 0) {
+      return null;
+    }
+
+    return (
+      centerContextMechanicItems.find(
+        (item) => item.key === selectedContextMechanicKey,
+      ) ?? centerContextMechanicItems[0]
+    );
+  }, [centerContextMechanicItems, selectedContextMechanicKey]);
+
+  useEffect(() => {
+    if (centerContextMechanicItems.length === 0) {
+      if (selectedContextMechanicKey !== null) {
+        setSelectedContextMechanicKey(null);
+      }
+      return;
+    }
+
+    if (
+      selectedContextMechanicKey &&
+      centerContextMechanicItems.some(
+        (item) => item.key === selectedContextMechanicKey,
+      )
+    ) {
+      return;
+    }
+
+    setSelectedContextMechanicKey(centerContextMechanicItems[0].key);
+  }, [centerContextMechanicItems, selectedContextMechanicKey]);
 
   const isInspectorVisible = isAdvancedMode && Boolean(activeTimelineEvent);
 
@@ -6445,16 +6529,145 @@ function handleToggleDragTarget(
           />
 
           <div style={{ flex: `0 0 ${row2DisplayWidths.column2}px`, minWidth: 0, height: "100%" }}>
-            <CenterChoicePanel
-              choice={centerChoice}
-              draftTokens={draftTokens}
-              activeEventEquation={activeEventEquation}
-              equationViewerBlockSize={equationViewerBlockSize}
-              hasInspector={isInspectorVisible}
-              onCreateEquation={handleCreateEquationChoice}
-              onBrowseLibrary={handleBrowsePremadeChoice}
-              hideHeader={hideEquationHeader}
-            />
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                minHeight: 0,
+                display: "grid",
+                gridTemplateRows: centerContextEvent ? "7% 80% 13%" : "0 100% 0",
+                background: row2Column2BackgroundColor,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  display: centerContextEvent ? "grid" : "none",
+                  minHeight: 0,
+                  alignItems: "center",
+                  borderBottom: `1px solid ${subtleBorderColor}`,
+                  padding: "0 12px",
+                  boxSizing: "border-box",
+                  color: "#FFFFFF",
+                  fontFamily: "Space Grotesk, sans-serif",
+                  fontSize: 11,
+                  fontWeight: 800,
+                }}
+              >
+                {centerContextEvent && centerContextEventIndex >= 0 ? (
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                    <span>{`Event ${centerContextEventIndex + 1}`}</span>
+                    <span>{`Start ${formatTimelineTime(timelineTickToSeconds(centerContextEvent.tick), isAdvancedMode)}`}</span>
+                    <span>{`Spins ${centerContextEvent.counts?.spin ?? 0}`}</span>
+                    <span>{`Hits ${centerContextEvent.counts?.hit ?? 0}`}</span>
+                    <span>{`Drags ${centerContextEvent.counts?.drag ?? 0}`}</span>
+                  </div>
+                ) : null}
+              </div>
+
+              <div style={{ minHeight: 0 }}>
+                <CenterChoicePanel
+                  choice={centerChoice}
+                  draftTokens={draftTokens}
+                  activeEventEquation={centerContextEventEquation ?? activeEventEquation}
+                  equationViewerBlockSize={equationViewerBlockSize}
+                  hasInspector={isInspectorVisible}
+                  onCreateEquation={handleCreateEquationChoice}
+                  onBrowseLibrary={handleBrowsePremadeChoice}
+                  hideHeader={hideEquationHeader}
+                />
+              </div>
+
+              <div
+                style={{
+                  display: centerContextEvent ? "grid" : "none",
+                  minHeight: 0,
+                  gridTemplateColumns: "auto minmax(0, 1fr) auto",
+                  alignItems: "center",
+                  gap: 10,
+                  borderTop: `1px solid ${subtleBorderColor}`,
+                  padding: "0 12px",
+                  boxSizing: "border-box",
+                  color: "#FFFFFF",
+                  fontFamily: "Space Grotesk, sans-serif",
+                  overflow: "hidden",
+                }}
+              >
+                <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ color: "#FFFFFF99", fontSize: 10, fontWeight: 900, textTransform: "uppercase" }}>
+                    Assigned
+                  </span>
+                  <EquationTileStrip
+                    tokens={centerContextEventEquation?.tokens ?? []}
+                    compact
+                    compactSize={20}
+                    emptyLabel="No equation"
+                  />
+                </div>
+
+                <div style={{ minWidth: 0, overflow: "hidden" }}>
+                  {selectedCenterContextMechanic ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        fontSize: 11,
+                        fontWeight: 800,
+                      }}
+                    >
+                      <span style={{ color: "#CFFF04" }}>
+                        {`${selectedCenterContextMechanic.mechanic.toUpperCase()} ${selectedCenterContextMechanic.instanceIndex + 1}`}
+                      </span>
+                      <span>
+                        {formatTimelineTime(
+                          timelineTickToSeconds(selectedCenterContextMechanic.tick),
+                          isAdvancedMode,
+                        )}
+                      </span>
+                    </div>
+                  ) : (
+                    <span style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700 }}>
+                      No hit/spin/drag assigned
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 6, overflowX: "auto" }}>
+                  {centerContextMechanicItems.map((item) => {
+                    const isSelected = item.key === selectedCenterContextMechanic?.key;
+
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setSelectedContextMechanicKey(item.key)}
+                        style={{
+                          minWidth: 44,
+                          height: 22,
+                          borderRadius: 999,
+                          border: `1px solid ${isSelected ? "#CFFF04" : subtleBorderColor}`,
+                          background: isSelected ? "rgba(207,255,4,0.12)" : "#252525",
+                          color: isSelected ? "#CFFF04" : "#FFFFFF99",
+                          fontSize: 9,
+                          fontWeight: 900,
+                          cursor: "pointer",
+                          padding: "0 8px",
+                          whiteSpace: "nowrap",
+                          fontFamily: "Space Grotesk, sans-serif",
+                        }}
+                        aria-label={`Select ${item.mechanic} ${item.instanceIndex + 1}`}
+                      >
+                        {`${item.mechanic[0].toUpperCase()}${item.instanceIndex + 1}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
 
           <div
