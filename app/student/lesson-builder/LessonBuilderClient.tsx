@@ -5061,6 +5061,7 @@ function TimelineControlsRow({
   onRewind,
   onTogglePlay,
   onFastForward,
+  onAddEmptyEvent,
   onSongUpload,
   onChartUpload,
   onSidecarUpload,
@@ -5072,6 +5073,7 @@ function TimelineControlsRow({
   onRewind: () => void;
   onTogglePlay: () => void;
   onFastForward: () => void;
+  onAddEmptyEvent: () => void;
   onSongUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onChartUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onSidecarUpload: (event: ChangeEvent<HTMLInputElement>) => void;
@@ -5179,6 +5181,15 @@ function TimelineControlsRow({
               style={{ display: "none" }}
             />
           </label>
+          <button
+            type="button"
+            onClick={onAddEmptyEvent}
+            style={uploadControlStyle}
+            aria-label="Add empty event at current timestamp"
+            title="Add empty event at current timestamp"
+          >
+            Add Empty Event
+          </button>
           <label style={uploadControlStyle}>
             Upload .chart
             <input
@@ -7450,6 +7461,7 @@ function handleToggleDragTarget(
             onRewind={handleRewindSong}
             onTogglePlay={handleToggleSongPlayback}
             onFastForward={handleFastForwardSong}
+            onAddEmptyEvent={handleAddTimelineEvent}
             onSongUpload={handleTimelineSongUpload}
             onChartUpload={handleTimelineChartUpload}
             onSidecarUpload={handleTimelineSidecarUpload}
