@@ -6438,16 +6438,23 @@ function handleToggleDragTarget(
     let nextAddedInstanceId: string | null = null;
 
     setTimelineEvents((current) => {
-      const targetEvent = findTimelineEventAtSeconds(current, mechanicSeconds);
+      const selectedEvent =
+        activeEventId
+          ? current.find((eventSlot) => eventSlot.id === activeEventId) ?? null
+          : null;
+      const playheadEvent = findTimelineEventAtSeconds(current, mechanicSeconds);
+      const targetEvent =
+        selectedEvent ??
+        playheadEvent ??
+        makeTimelineEvent(current.length, mechanicTick);
+      const baseEvents = selectedEvent || playheadEvent
+        ? current
+        : [...current, targetEvent].sort(
+            (left, right) =>
+              timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
+          );
 
-      if (!targetEvent) {
-        setSaveStatus(
-          `No event at ${formatSongTime(mechanicSeconds)}. Add an event there first.`,
-        );
-        return current;
-      }
-
-      const nextEvents = current.map((eventSlot) => {
+      const nextEvents = baseEvents.map((eventSlot) => {
         if (eventSlot.id !== targetEvent.id) {
           return eventSlot;
         }
@@ -6490,6 +6497,9 @@ function handleToggleDragTarget(
         setPendingRangeSelection(null);
       }
       syncTimelineFilesFromEvents(nextEvents);
+      setSaveStatus(
+        `${mechanic.toUpperCase()} added at ${formatSongTime(mechanicSeconds, isAdvancedMode)}.`,
+      );
 
       return nextEvents;
     });
