@@ -1128,6 +1128,18 @@ function sidecarFromTimelineEvents(
   };
 }
 
+function createBlankChartFile(
+  analysisMetadata?: LessonBuilderPayload["analysisMetadata"],
+) {
+  return projectToChart(
+    chartToProject({
+      chartFile: "",
+      analysisMetadata,
+      rawResults: emptySidecar,
+    }),
+  );
+}
+
 async function fileFromSignedUrl({
   signedUrl,
   path,
@@ -6076,7 +6088,15 @@ function handleToggleDragTarget(
     setSaveStatus("Saving...");
 
     try {
-      const chartText = project ? projectToChart(project) : chartFile;
+      const fallbackMetadata = {
+        ...metadata,
+        uploadedFileName:
+          metadata?.uploadedFileName || uploadedSongName || "audio.mp3",
+      };
+      const chartTextSource = project ? projectToChart(project) : chartFile;
+      const chartText = chartTextSource.trim()
+        ? chartTextSource
+        : createBlankChartFile(fallbackMetadata);
       const sidecarJson = projectToSidecarJson(sidecar);
 
       const response = await fetch("/api/lesson-builder/save", {
@@ -6206,18 +6226,39 @@ function handleToggleDragTarget(
           console.error("Failed to load selected song file", error);
         });
 
-      Promise.all([
+      Promise.allSettled([
         textFromSignedUrl(selectedSong.chart.signedUrl),
         selectedSong.sidecar
           ? jsonFromSignedUrl(selectedSong.sidecar.signedUrl)
-          : Promise.resolve(null),
+          : Promise.resolve(emptySidecar),
       ])
-        .then(([nextChartFile, sidecarJson]) => {
+        .then(([chartResult, sidecarResult]) => {
+          const selectedSongMetadata = {
+            songTitle: selectedSong.title ?? selectedSong.name,
+            artist: selectedSong.artist ?? undefined,
+            uploadedFileName: selectedSong.song.path,
+          };
+          const fallbackChartFile = createBlankChartFile(selectedSongMetadata);
+          const nextChartFile =
+            chartResult.status === "fulfilled" && chartResult.value.trim()
+              ? chartResult.value
+              : fallbackChartFile;
+          const sidecarJson =
+            sidecarResult.status === "fulfilled"
+              ? sidecarResult.value
+              : emptySidecar;
           const nextChartName =
             selectedSong.chart.path.split("/").pop() ?? "selected.chart";
           const normalizedSidecar = normalizeSidecar(
             sidecarJson ?? emptySidecar,
           );
+
+          if (
+            chartResult.status !== "fulfilled" ||
+            sidecarResult.status !== "fulfilled"
+          ) {
+            setSaveStatus("Using blank .chart/JSON fallback files");
+          }
 
           setChartFile(nextChartFile);
           setUploadedChartName(nextChartName);
@@ -6230,11 +6271,7 @@ function handleToggleDragTarget(
 
           const payload: LessonBuilderPayload = {
             chartFile: nextChartFile,
-            analysisMetadata: {
-              songTitle: selectedSong.title ?? selectedSong.name,
-              artist: selectedSong.artist ?? undefined,
-              uploadedFileName: selectedSong.song.path,
-            },
+            analysisMetadata: selectedSongMetadata,
             rawResults: normalizedSidecar,
           };
 
@@ -6860,6 +6897,14 @@ function handleToggleDragTarget(
       }
     } else if (project) {
       chartText = projectToChart(project);
+    }
+
+    if (!chartText.trim()) {
+      chartText = createBlankChartFile({
+        ...metadata,
+        uploadedFileName:
+          metadata?.uploadedFileName || uploadedSongName || "audio.mp3",
+      });
     }
 
     downloadTextFile(
