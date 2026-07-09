@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import type { ChangeEvent, DragEvent, FC, PointerEvent, ReactNode, SVGProps } from "react";
+import { useRouter } from "next/navigation";
+import type { ChangeEvent, DragEvent, PointerEvent, ReactNode } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
 import {
@@ -18,19 +17,6 @@ import styles from "../student.module.css";
 
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
-import HomeIcon from "@/public/header_icons/Home.svg";
-import HomePressedIcon from "@/public/header_icons/Home_pressed.svg";
-import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
-import MyLessonsPressedTab from "@/public/header_icons/my_lessons_tab_pressed.svg";
-import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab.svg";
-import LessonBuilderPressedTab from "@/public/header_icons/lesson_builder_tab_pressed.svg";
-import ProgressTab from "@/public/header_icons/progress_tab.svg";
-import ProgressPressedTab from "@/public/header_icons/progress_tab_pressed.svg";
-import PlayTab from "@/public/header_icons/play_tab.svg";
-import PlayPressedTab from "@/public/header_icons/play_tab_pressed.svg";
-
-/* Utility Icon Imports */
-import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
 
 type LessonBuilderPayload = {
   chartFile: string;
@@ -184,25 +170,8 @@ type SidecarPayload = {
   events: SidecarEvent[];
 };
 
-type TabIcon = FC<SVGProps<SVGSVGElement>>;
-
-type HeaderTab = {
-  label: string;
-  href: string;
-  Icon: TabIcon;
-  ActiveIcon: TabIcon;
-  width: number;
-};
-
-type UtilityTab = {
-  label: string;
-  href: string;
-  Icon: TabIcon;
-  width: number;
-};
-
 type LessonBuilderClientProps = {
-  navBasePath?: string;
+  studentName?: string;
 };
 
 type CenterChoice = "create" | "premade" | null;
@@ -252,53 +221,19 @@ const equationPalette = [
   "=",
 ];
 
-const utilityTabs: UtilityTab[] = [
-  {
-    label: "Profile",
-    href: "/student/profile",
-    Icon: ProfileIcon,
-    width: 134.45,
-  },
-];
+function getDisplayFirstName(value?: string | null) {
+  if (!value) {
+    return "Student";
+  }
 
-function getTopTabs(navBasePath = "/student"): HeaderTab[] {
-  return [
-    {
-      label: "Home",
-      href: navBasePath,
-      Icon: HomeIcon,
-      ActiveIcon: HomePressedIcon,
-      width: 99,
-    },
-    {
-      label: "My Lessons",
-      href: `${navBasePath}/lessons`,
-      Icon: MyLessonsTab,
-      ActiveIcon: MyLessonsPressedTab,
-      width: 139,
-    },
-    {
-      label: "Lesson Builder",
-      href: `${navBasePath}/song-choice`,
-      Icon: LessonBuilderTab,
-      ActiveIcon: LessonBuilderPressedTab,
-      width: 159,
-    },
-    {
-      label: "Progress",
-      href: `${navBasePath}/progress`,
-      Icon: ProgressTab,
-      ActiveIcon: ProgressPressedTab,
-      width: 120,
-    },
-    {
-      label: "Play",
-      href: `${navBasePath}/game`,
-      Icon: PlayTab,
-      ActiveIcon: PlayPressedTab,
-      width: 99,
-    },
-  ];
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "Student";
+  }
+
+  const [firstName] = trimmed.split(/\s+/);
+  return firstName || "Student";
 }
 
 function makeId(prefix: string) {
@@ -1212,11 +1147,13 @@ async function jsonFromSignedUrl(signedUrl: string) {
 }
 
 function HeaderBar({
-  pathname,
-  topTabs,
+  studentName,
+  isAdvancedMode,
+  onToggleAdvancedMode,
 }: {
-  pathname: string;
-  topTabs: HeaderTab[];
+  studentName: string;
+  isAdvancedMode: boolean;
+  onToggleAdvancedMode: () => void;
 }) {
   return (
     <header
@@ -1273,60 +1210,26 @@ function HeaderBar({
             />
           </div>
 
-          <nav
-            aria-label="Student navigation"
+          <button
+            type="button"
+            onClick={onToggleAdvancedMode}
+            aria-pressed={isAdvancedMode}
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              minWidth: 0,
-              overflow: "visible",
+              minWidth: 106,
+              height: 38,
+              borderRadius: 999,
+              border: "1px solid #7A8FA8",
+              background: isAdvancedMode ? "#CFFF04" : "#060B15FC",
+              color: isAdvancedMode ? "#071222" : "#7A8FA8",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              padding: "0 16px",
+              fontFamily: "Space Grotesk, sans-serif",
             }}
           >
-            {topTabs.map((tab) => {
-              const cleanTabHref = tab.href.split("?")[0];
-              const isHomeTab = tab.label === "Home";
-              const isPlayTab = tab.label === "Play";
-              const isLessonBuilderTab = tab.label === "Lesson Builder";
-              const lessonBuilderPath = cleanTabHref.replace(
-                "/song-choice",
-                "/lesson-builder",
-              );
-
-              const isActive =
-                pathname === cleanTabHref ||
-                (isLessonBuilderTab &&
-                  (pathname === lessonBuilderPath ||
-                    pathname.startsWith(`${lessonBuilderPath}/`))) ||
-                (!isHomeTab &&
-                  !isPlayTab &&
-                  !isLessonBuilderTab &&
-                  cleanTabHref !== "/" &&
-                  pathname.startsWith(`${cleanTabHref}/`));
-
-              const Icon = isActive ? tab.ActiveIcon : tab.Icon;
-
-              return (
-                <Link
-                  key={tab.label}
-                  href={tab.href}
-                  aria-label={tab.label}
-                  className={`${styles.headerTabButton} ${isActive ? styles.headerTabButtonActive : ""}`}
-                  style={{
-                    width: tab.width,
-                    height: 45.5,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Icon
-                    style={{ width: tab.width, height: 45.5, display: "block" }}
-                  />
-                </Link>
-              );
-            })}
-          </nav>
+            Advanced
+          </button>
         </div>
 
         <div
@@ -1339,19 +1242,27 @@ function HeaderBar({
             overflow: "visible",
           }}
         >
-          {utilityTabs.map((tab) => (
-            <Link
-              key={tab.label}
-              href={tab.href}
-              aria-label={tab.label}
-              className={styles.utilityButton}
-              style={{ width: tab.width, height: 38 }}
-            >
-              <tab.Icon
-                style={{ width: tab.width, height: 38, display: "block" }}
-              />
-            </Link>
-          ))}
+          <span
+            aria-label="Student name"
+            style={{
+              minWidth: 112,
+              height: 38,
+              padding: "0 16px",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#7A8FA8",
+              fontSize: 14,
+              fontWeight: 600,
+              borderRadius: 999,
+              background: "#060B15FC",
+              border: "1px solid #7A8FA8",
+              fontFamily: "Space Grotesk, sans-serif",
+            }}
+          >
+            {studentName}
+          </span>
 
           <a
             href="/auth/logout"
@@ -3239,16 +3150,27 @@ function EventBuilderArea({
   );
 }
 
-function formatTimelineTime(seconds: number) {
+function formatTimelineTime(seconds: number, showHundredths = false) {
   const safeSeconds = Math.max(0, seconds);
   const minutes = Math.floor(safeSeconds / 60);
-  const wholeSeconds = Math.floor(safeSeconds - minutes * 60);
+  const secondsWithinMinute = safeSeconds - minutes * 60;
+
+  if (showHundredths) {
+    const wholeSeconds = Math.floor(secondsWithinMinute);
+    const hundredths = Math.floor((secondsWithinMinute - wholeSeconds) * 100)
+      .toString()
+      .padStart(2, "0");
+
+    return `${minutes}:${String(wholeSeconds).padStart(2, "0")}.${hundredths}`;
+  }
+
+  const wholeSeconds = Math.floor(secondsWithinMinute);
 
   return `${minutes}:${String(wholeSeconds).padStart(2, "0")}`;
 }
 
-function formatSongTime(seconds: number) {
-  return formatTimelineTime(seconds);
+function formatSongTime(seconds: number, showHundredths = false) {
+  return formatTimelineTime(seconds, showHundredths);
 }
 
 function timelineTickToSeconds(tick: number) {
@@ -3362,6 +3284,7 @@ function EquationTimeline({
   waveformPeaks,
   onSeek,
   audioObjectUrl,
+  isAdvancedMode,
 }: {
   events: TimelineEventSlot[];
   activeEventId: string | null;
@@ -3371,13 +3294,15 @@ function EquationTimeline({
   waveformPeaks: number[];
   onSeek: (seconds: number) => void;
   audioObjectUrl: string;
+  isAdvancedMode: boolean;
 }) {
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
   const waveformContainerRef = useRef<HTMLDivElement | null>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1280);
-  const blockDurationSeconds = 8;
+  const blockDurationSeconds = isAdvancedMode ? 1 : 8;
+  const fineGridIntervalSeconds = isAdvancedMode ? 0.2 : 0;
   const blockWidthPx = viewportWidth * 0.05;
   useEffect(() => {
     if (!waveformContainerRef.current || !waveformPeaks.length) {
@@ -3494,9 +3419,13 @@ function EquationTimeline({
     const seconds = getSecondsFromClientX(clientX, {
       autoScroll: options.autoScroll,
     });
-    const snappedSeconds = options.snapToWholeSecond
+    let snappedSeconds = options.snapToWholeSecond
       ? Math.round(seconds)
       : Math.round(seconds * 50) / 50;
+
+    if (isAdvancedMode) {
+      snappedSeconds = Math.round(seconds / 0.2) * 0.2;
+    }
 
     onSeek(snappedSeconds);
   }
@@ -3641,7 +3570,11 @@ function EquationTimeline({
             aria-label="Song position"
             aria-valuemin={0}
             aria-valuemax={Math.round(visualDurationSeconds)}
-            aria-valuenow={Math.round(currentSongSeconds)}
+            aria-valuenow={
+              isAdvancedMode
+                ? Math.round(currentSongSeconds * 100) / 100
+                : Math.round(currentSongSeconds)
+            }
             tabIndex={0}
             onPointerDown={handlePlayheadPointerDown}
             onPointerMove={handlePlayheadPointerMove}
@@ -3705,6 +3638,34 @@ function EquationTimeline({
                 />
               );
             })}
+
+            {isAdvancedMode
+              ? Array.from(
+                  {
+                    length:
+                      Math.ceil(visualDurationSeconds / fineGridIntervalSeconds) +
+                      1,
+                  },
+                  (_, gridIndex) => {
+                    const markerLeft = gridIndex * fineGridIntervalSeconds * pixelsPerSecond;
+
+                    return (
+                      <span
+                        key={`timeline-fine-grid-${gridIndex}`}
+                        style={{
+                          position: "absolute",
+                          left: markerLeft,
+                          top: 0,
+                          bottom: 0,
+                          width: 1,
+                          background: "rgba(255,255,255,0.12)",
+                          transform: "translateX(-0.5px)",
+                        }}
+                      />
+                    );
+                  },
+                )
+              : null}
           </div>
 
           <div
@@ -3733,7 +3694,7 @@ function EquationTimeline({
                     pointerEvents: "none",
                   }}
                 >
-                  {formatTimelineTime(startSeconds)}
+                  {formatTimelineTime(startSeconds, isAdvancedMode)}
                 </span>
               );
             })}
@@ -4714,9 +4675,11 @@ function LibraryPanel({
 function InspectorPanel({
   eventSlot,
   eventIndex,
+  isAdvancedMode,
 }: {
   eventSlot: TimelineEventSlot | null;
   eventIndex: number;
+  isAdvancedMode: boolean;
 }) {
   if (!eventSlot) {
     return null;
@@ -4738,7 +4701,10 @@ function InspectorPanel({
 
     return Array.from({ length: count }, (_, index) => {
       const instanceTick = instances[index]?.tick ?? selectedEventSlot.tick;
-      const timestamp = formatTimelineTime(timelineTickToSeconds(instanceTick));
+      const timestamp = formatTimelineTime(
+        timelineTickToSeconds(instanceTick),
+        isAdvancedMode,
+      );
       const label =
         mechanic === "hit" ? "Hit" : mechanic === "spin" ? "Spin" : "Drag";
 
@@ -4894,13 +4860,10 @@ function TimelineInstructionPanel({ choice }: { choice: CenterChoice }) {
 function TimelineControlsRow({
   isPlaying,
   currentSongSeconds,
+  isAdvancedMode,
   onRewind,
   onTogglePlay,
   onFastForward,
-  onAddEvent,
-  onRemoveEvent,
-  onAddMechanic,
-  onRemoveMechanic,
   onSongUpload,
   onChartUpload,
   onSidecarUpload,
@@ -4908,13 +4871,10 @@ function TimelineControlsRow({
 }: {
   isPlaying: boolean;
   currentSongSeconds: number;
+  isAdvancedMode: boolean;
   onRewind: () => void;
   onTogglePlay: () => void;
   onFastForward: () => void;
-  onAddEvent: () => void;
-  onRemoveEvent: () => void;
-  onAddMechanic: (mechanic: GameplayMechanic) => void;
-  onRemoveMechanic: (mechanic: GameplayMechanic) => void;
   onSongUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onChartUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onSidecarUpload: (event: ChangeEvent<HTMLInputElement>) => void;
@@ -4937,24 +4897,6 @@ function TimelineControlsRow({
     alignItems: "center",
     justifyContent: "center",
     padding: "0 10px",
-    boxSizing: "border-box" as const,
-    fontSize: 10,
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap" as const,
-  };
-
-  const timelineEditButtonStyle = {
-    minWidth: 78,
-    height: 30,
-    borderRadius: 10,
-    border: `1px solid ${subtleBorderColor}`,
-    background: "#191919",
-    color: "#FFFFFF",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "0 9px",
     boxSizing: "border-box" as const,
     fontSize: 10,
     fontWeight: 900,
@@ -5016,87 +4958,53 @@ function TimelineControlsRow({
           fontWeight: 900,
         }}
       >
-        {formatSongTime(currentSongSeconds)}
+        {formatSongTime(currentSongSeconds, isAdvancedMode)}
       </div>
 
-      <button type="button" onClick={onAddEvent} style={timelineEditButtonStyle}>
-        Add Event
-      </button>
-      <button type="button" onClick={onRemoveEvent} style={timelineEditButtonStyle}>
-        Remove Event
-      </button>
-
-      <div
-        aria-label="Timeline mechanic controls"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          minWidth: 0,
-        }}
-      >
-        <button type="button" onClick={() => onAddMechanic("hit")} style={timelineEditButtonStyle}>
-          Add Hit
-        </button>
-        <button type="button" onClick={() => onAddMechanic("spin")} style={timelineEditButtonStyle}>
-          Add Spin
-        </button>
-        <button type="button" onClick={() => onAddMechanic("drag")} style={timelineEditButtonStyle}>
-          Add Drag
-        </button>
-        <button type="button" onClick={() => onRemoveMechanic("hit")} style={timelineEditButtonStyle}>
-          Remove Hit
-        </button>
-        <button type="button" onClick={() => onRemoveMechanic("spin")} style={timelineEditButtonStyle}>
-          Remove Spin
-        </button>
-        <button type="button" onClick={() => onRemoveMechanic("drag")} style={timelineEditButtonStyle}>
-          Remove Drag
-        </button>
-      </div>
-
-      <div
-        aria-label="Timeline file uploads"
-        style={{
-          marginLeft: "auto",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          gap: 8,
-          minWidth: 0,
-        }}
-      >
-        <label style={uploadControlStyle}>
-          Upload Song
-          <input
-            type="file"
-            accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac"
-            onChange={onSongUpload}
-            style={{ display: "none" }}
-          />
-        </label>
-        <label style={uploadControlStyle}>
-          Upload .chart
-          <input
-            type="file"
-            accept=".chart,text/plain"
-            onChange={onChartUpload}
-            style={{ display: "none" }}
-          />
-        </label>
-        <label style={uploadControlStyle}>
-          Upload JSON
-          <input
-            type="file"
-            accept=".json,application/json"
-            onChange={onSidecarUpload}
-            style={{ display: "none" }}
-          />
-        </label>
-        <button type="button" onClick={onSaveFiles} style={uploadControlStyle}>
-          Save
-        </button>
-      </div>
+      {isAdvancedMode ? (
+        <div
+          aria-label="Timeline file uploads"
+          style={{
+            marginLeft: "auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 8,
+            minWidth: 0,
+          }}
+        >
+          <label style={uploadControlStyle}>
+            Upload Song
+            <input
+              type="file"
+              accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac"
+              onChange={onSongUpload}
+              style={{ display: "none" }}
+            />
+          </label>
+          <label style={uploadControlStyle}>
+            Upload .chart
+            <input
+              type="file"
+              accept=".chart,text/plain"
+              onChange={onChartUpload}
+              style={{ display: "none" }}
+            />
+          </label>
+          <label style={uploadControlStyle}>
+            Upload JSON
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={onSidecarUpload}
+              style={{ display: "none" }}
+            />
+          </label>
+          <button type="button" onClick={onSaveFiles} style={uploadControlStyle}>
+            Save
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -5200,11 +5108,10 @@ function CenterEditorPanel({
 }
 
 export default function LessonBuilderClient({
-  navBasePath = "/student",
+  studentName = "Student",
 }: LessonBuilderClientProps) {
-  const pathname = usePathname();
   const router = useRouter();
-  const topTabs = useMemo(() => getTopTabs(navBasePath), [navBasePath]);
+  const navBasePath = "/student";
   const project = useEditorStore((s) => s.project);
   const setProject = useEditorStore((s) => s.setProject);
   const setStoreSidecar = useEditorStore((s) => s.setSidecar);
@@ -5243,6 +5150,7 @@ export default function LessonBuilderClient({
     chart: StorageFileRef;
     sidecar: StorageFileRef | null;
   } | null>(null);
+  const [isAdvancedMode, setIsAdvancedMode] = useState(false);
 
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
@@ -5337,7 +5245,32 @@ export default function LessonBuilderClient({
     return activeTimelineEvent ? getTimelineEventEquation(activeTimelineEvent) : null;
   }, [activeTimelineEvent]);
 
-  const isInspectorVisible = Boolean(activeTimelineEvent);
+  const isInspectorVisible = isAdvancedMode && Boolean(activeTimelineEvent);
+
+  const row2DisplayWidths = useMemo(() => {
+    if (isAdvancedMode) {
+      return {
+        column1: row2ColumnWidths[0],
+        column2: row2ColumnWidths[1],
+        column3: row2ColumnWidths[2],
+        column4: row2ColumnWidths[3],
+      };
+    }
+
+    const sharedSideWidth = Math.round((row2ColumnWidths[0] + row2ColumnWidths[2]) / 2);
+
+    return {
+      column1: sharedSideWidth,
+      column2: row2ColumnWidths[1] + row2ColumnWidths[3],
+      column3: sharedSideWidth,
+      column4: 0,
+    };
+  }, [isAdvancedMode, row2ColumnWidths]);
+
+  const studentFirstName = useMemo(
+    () => getDisplayFirstName(studentName),
+    [studentName],
+  );
 
   const selectedEquation = useMemo(
     () => savedEquations.find((equation) => equation.id === selectedEquationId) ?? null,
@@ -6447,7 +6380,11 @@ function handleToggleDragTarget(
           height: 0;
         }
       `}</style>
-      <HeaderBar pathname={pathname} topTabs={topTabs} />
+      <HeaderBar
+        studentName={studentFirstName}
+        isAdvancedMode={isAdvancedMode}
+        onToggleAdvancedMode={() => setIsAdvancedMode((current) => !current)}
+      />
 
       {/*
         The action bar is preserved for later, but commented out because the
@@ -6484,7 +6421,7 @@ function handleToggleDragTarget(
             overflow: "hidden",
           }}
         >
-          <div style={{ flex: `0 0 ${row2ColumnWidths[0]}px`, minWidth: 0, height: "100%" }}>
+          <div style={{ flex: `0 0 ${row2DisplayWidths.column1}px`, minWidth: 0, height: "100%" }}>
             <LeftEquationBuilderPanel
               draftTokens={draftTokens}
               onAddToken={handleAppendEquationToken}
@@ -6506,7 +6443,7 @@ function handleToggleDragTarget(
             }}
           />
 
-          <div style={{ flex: `0 0 ${row2ColumnWidths[1]}px`, minWidth: 0, height: "100%" }}>
+          <div style={{ flex: `0 0 ${row2DisplayWidths.column2}px`, minWidth: 0, height: "100%" }}>
             <CenterChoicePanel
               choice={centerChoice}
               draftTokens={draftTokens}
@@ -6531,7 +6468,7 @@ function handleToggleDragTarget(
             }}
           />
 
-          <div style={{ flex: `0 0 ${row2ColumnWidths[2]}px`, minWidth: 0, height: "100%" }}>
+          <div style={{ flex: `0 0 ${row2DisplayWidths.column3}px`, minWidth: 0, height: "100%" }}>
             <LibraryPanel
               activeTab={libraryTab}
               savedEquations={savedEquations}
@@ -6544,24 +6481,29 @@ function handleToggleDragTarget(
             />
           </div>
 
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            onPointerDown={(event) => beginColumnResize(2, event)}
-            style={{
-              width: 6,
-              flex: "0 0 6px",
-              cursor: "col-resize",
-              background: activeResizeHandle === 2 ? "rgba(207,255,4,0.22)" : "transparent",
-            }}
-          />
+          {isAdvancedMode ? (
+            <>
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                onPointerDown={(event) => beginColumnResize(2, event)}
+                style={{
+                  width: 6,
+                  flex: "0 0 6px",
+                  cursor: "col-resize",
+                  background: activeResizeHandle === 2 ? "rgba(207,255,4,0.22)" : "transparent",
+                }}
+              />
 
-          <div style={{ flex: "1 1 0", minWidth: 0, height: "100%" }}>
-            <InspectorPanel
-              eventSlot={activeTimelineEvent}
-              eventIndex={activeTimelineEventIndex}
-            />
-          </div>
+              <div style={{ flex: `0 0 ${row2DisplayWidths.column4}px`, minWidth: 0, height: "100%" }}>
+                <InspectorPanel
+                  eventSlot={activeTimelineEvent}
+                  eventIndex={activeTimelineEventIndex}
+                  isAdvancedMode={isAdvancedMode}
+                />
+              </div>
+            </>
+          ) : null}
         </section>
 
         <section
@@ -6580,13 +6522,10 @@ function handleToggleDragTarget(
           <TimelineControlsRow
             isPlaying={isSongPlaying}
             currentSongSeconds={currentSongSeconds}
+            isAdvancedMode={isAdvancedMode}
             onRewind={handleRewindSong}
             onTogglePlay={handleToggleSongPlayback}
             onFastForward={handleFastForwardSong}
-            onAddEvent={handleAddTimelineEvent}
-            onRemoveEvent={handleRemoveSelectedTimelineEvent}
-            onAddMechanic={handleAddMechanicToSelectedEvent}
-            onRemoveMechanic={handleRemoveNearestMechanic}
             onSongUpload={handleTimelineSongUpload}
             onChartUpload={handleTimelineChartUpload}
             onSidecarUpload={handleTimelineSidecarUpload}
@@ -6601,6 +6540,7 @@ function handleToggleDragTarget(
             waveformPeaks={waveformPeaks}
             onSeek={seekSong}
             audioObjectUrl={audioObjectUrl}
+            isAdvancedMode={isAdvancedMode}
           />
         </section>
       </main>

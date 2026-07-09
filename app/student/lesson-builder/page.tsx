@@ -17,5 +17,9 @@ export default async function LessonBuilderPage() {
     redirect("/teacher");
   }
 
-  return <LessonBuilderClient navBasePath="/student" />;
+  return (
+    <LessonBuilderClient
+      studentName={user.name ?? "Student"}
+    />
+  );
 }
