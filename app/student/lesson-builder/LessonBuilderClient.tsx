@@ -3394,6 +3394,8 @@ function EquationTimeline({
   durationSeconds,
   waveformPeaks,
   onSeek,
+  onPlayheadDragStart,
+  onPlayheadDragEnd,
   audioObjectUrl,
   isAdvancedMode,
 }: {
@@ -3404,6 +3406,8 @@ function EquationTimeline({
   durationSeconds: number;
   waveformPeaks: number[];
   onSeek: (seconds: number) => void;
+  onPlayheadDragStart: () => void;
+  onPlayheadDragEnd: () => void;
   audioObjectUrl: string;
   isAdvancedMode: boolean;
 }) {
@@ -3544,12 +3548,14 @@ function EquationTimeline({
 
     event.preventDefault();
     seekFromClientX(event.clientX, { snapToWholeSecond: true });
+    onPlayheadDragEnd();
   }
 
   function handlePlayheadPointerDown(event: PointerEvent<HTMLDivElement>) {
     event.preventDefault();
     event.stopPropagation();
     setIsDraggingPlayhead(true);
+    onPlayheadDragStart();
     event.currentTarget.setPointerCapture(event.pointerId);
     seekFromClientX(event.clientX);
   }
@@ -3570,6 +3576,7 @@ function EquationTimeline({
     }
 
     setIsDraggingPlayhead(false);
+    onPlayheadDragEnd();
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
@@ -6247,9 +6254,15 @@ function handleToggleDragTarget(
       syncTimelineFilesFromEvents(nextEvents);
       return nextEvents;
     });
+  }, [currentSongSeconds, pendingRangeSelection]);
+
+  function handleFinalizePendingRangeSelection() {
+    if (!pendingRangeSelection) {
+      return;
+    }
 
     setPendingRangeSelection(null);
-  }, [currentSongSeconds, pendingRangeSelection]);
+  }
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -7058,6 +7071,10 @@ function handleToggleDragTarget(
             durationSeconds={timelineDurationSeconds}
             waveformPeaks={waveformPeaks}
             onSeek={seekSong}
+            onPlayheadDragStart={() => {
+              // no-op hook for now; used to align lifecycle with drag-end finalize.
+            }}
+            onPlayheadDragEnd={handleFinalizePendingRangeSelection}
             audioObjectUrl={audioObjectUrl}
             isAdvancedMode={isAdvancedMode}
           />
