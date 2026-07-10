@@ -2458,11 +2458,12 @@ function DragArcSvg({ arcs }: { arcs: DragArcGeometry[] }) {
 
       {arcs.map((arc) => {
         const deltaX = arc.endX - arc.startX;
-        const lift = Math.max(76, Math.min(170, Math.abs(deltaX) * 0.32));
+        const horizontalDistance = Math.abs(deltaX);
+        const lift = Math.max(64, Math.min(212, 52 + horizontalDistance * 0.46));
         const controlY = Math.min(arc.startY, arc.endY) - lift;
         const path = `M ${arc.startX} ${arc.startY} C ${
-          arc.startX + deltaX * 0.25
-        } ${controlY}, ${arc.startX + deltaX * 0.75} ${controlY}, ${
+          arc.startX + deltaX * 0.18
+        } ${controlY}, ${arc.startX + deltaX * 0.82} ${controlY}, ${
           arc.endX
         } ${arc.endY}`;
 
@@ -4383,6 +4384,9 @@ function EquationTileStrip({
   selectedHitPair,
   onSelectHitPair,
   fontSizeOverride,
+  currentSongSeconds,
+  mechanicStartSeconds,
+  mechanicEndSeconds,
 }: {
   tokens: EquationToken[];
   emptyLabel?: string;
@@ -4399,6 +4403,9 @@ function EquationTileStrip({
     operator: number;
     nonOperator: number;
   };
+  currentSongSeconds?: number;
+  mechanicStartSeconds?: number | null;
+  mechanicEndSeconds?: number | null;
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const selectedTokenRef = useRef<HTMLSpanElement | null>(null);
@@ -4410,12 +4417,13 @@ function EquationTileStrip({
   const hitCircleOffset = Math.max(12, Math.round(baseTokenWidth * 0.38));
   const hitCircleSize = Math.max(10, Math.round(baseTokenWidth * 0.3));
   const hitCircleBorderWidth = Math.max(1.5, Math.round(baseTokenWidth * 0.04));
-  const spinInset = -Math.max(20, Math.round(baseTokenWidth * 0.58));
+  const spinInset = -Math.max(24, Math.round(baseTokenWidth * 0.72));
   const dragArcStrokeWidth = Math.max(2, Math.round(baseTokenWidth * 0.06));
   const dragArcDashLength = Math.max(6, Math.round(baseTokenWidth * 0.18));
   const dragArcGapLength = Math.max(5, Math.round(baseTokenWidth * 0.14));
 
   const equalsIndex = findEqualsIndex(tokens);
+  const actualEqualsIndex = tokens.findIndex((token) => token.label === "=");
   const safeSelectedTokenIndex =
     selectedTokenIndex !== null &&
     selectedTokenIndex !== undefined &&
@@ -4428,78 +4436,163 @@ function EquationTileStrip({
     mechanicMode === "drag" && safeSelectedTokenIndex !== null;
   const dragSelectionStartsOnLeft =
     safeSelectedTokenIndex !== null ? safeSelectedTokenIndex < equalsIndex : false;
+  const shouldShowDragDestination = !(
+    mechanicMode === "drag" &&
+    typeof mechanicEndSeconds === "number" &&
+    Number.isFinite(mechanicEndSeconds) &&
+    typeof currentSongSeconds === "number" &&
+    Number.isFinite(currentSongSeconds) &&
+    currentSongSeconds > mechanicEndSeconds
+  );
 
-  useLayoutEffect(() => {
-    const surface = surfaceRef.current;
-    const tokenNode = selectedTokenRef.current;
-    const destinationNode = destinationRef.current;
-    const pathNode = dragArcPathRef.current;
-
-    if (!pathNode) {
-      return;
+  const slots: Array<
+    | { kind: "token"; token: EquationToken; tokenIndex: number }
+    | { kind: "destination" }
+  > = (() => {
+    if (!isDragSelectionActive || actualEqualsIndex < 0 || !shouldShowDragDestination) {
+      return tokens.map((token, tokenIndex) => ({
+        kind: "token" as const,
+        token,
+        tokenIndex,
+      }));
     }
 
-    if (!isDragSelectionActive || !surface || !tokenNode || !destinationNode) {
-      pathNode.setAttribute("d", "");
-      return;
-    }
-
-    const surfaceRect = surface.getBoundingClientRect();
-    const tokenRect = tokenNode.getBoundingClientRect();
-    const destinationRect = destinationNode.getBoundingClientRect();
-    const startX = tokenRect.left + tokenRect.width / 2 - surfaceRect.left;
-    const startY = tokenRect.top + tokenRect.height / 2 - surfaceRect.top;
-    const endX = destinationRect.left + destinationRect.width / 2 - surfaceRect.left;
-    const endY = destinationRect.top + destinationRect.height / 2 - surfaceRect.top;
-    const deltaX = endX - startX;
-    const controlY =
-      Math.min(startY, endY) - Math.max(baseTokenWidth * 2.4, Math.abs(deltaX) * 1.2);
-
-    pathNode.setAttribute(
-      "d",
-      `M ${startX} ${startY} Q ${startX + deltaX * 0.5} ${controlY}, ${endX} ${endY}`,
-    );
-  }, [isDragSelectionActive, safeSelectedTokenIndex, tokens, baseTokenWidth]);
-
-  useEffect(() => {
-    function handleResize() {
-      const surface = surfaceRef.current;
-      const tokenNode = selectedTokenRef.current;
-      const destinationNode = destinationRef.current;
-      const pathNode = dragArcPathRef.current;
-
-      if (!pathNode) {
-        return;
-      }
-
-      if (!isDragSelectionActive || !surface || !tokenNode || !destinationNode) {
-        pathNode.setAttribute("d", "");
-        return;
-      }
-
-      const surfaceRect = surface.getBoundingClientRect();
-      const tokenRect = tokenNode.getBoundingClientRect();
-      const destinationRect = destinationNode.getBoundingClientRect();
-      const startX = tokenRect.left + tokenRect.width / 2 - surfaceRect.left;
-      const startY = tokenRect.top + tokenRect.height / 2 - surfaceRect.top;
-      const endX = destinationRect.left + destinationRect.width / 2 - surfaceRect.left;
-      const endY = destinationRect.top + destinationRect.height / 2 - surfaceRect.top;
-      const deltaX = endX - startX;
-      const controlY =
-        Math.min(startY, endY) - Math.max(baseTokenWidth * 2.4, Math.abs(deltaX) * 1.2);
-
-      pathNode.setAttribute(
-        "d",
-        `M ${startX} ${startY} Q ${startX + deltaX * 0.5} ${controlY}, ${endX} ${endY}`,
-      );
-    }
-
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
+    const left = tokens
+      .slice(0, actualEqualsIndex)
+      .map((token, tokenIndex) => ({ kind: "token" as const, token, tokenIndex }));
+    const equalsToken = {
+      kind: "token" as const,
+      token: tokens[actualEqualsIndex],
+      tokenIndex: actualEqualsIndex,
     };
-  }, [isDragSelectionActive, baseTokenWidth]);
+    const right = tokens
+      .slice(actualEqualsIndex + 1)
+      .map((token, offset) => ({
+        kind: "token" as const,
+        token,
+        tokenIndex: actualEqualsIndex + 1 + offset,
+      }));
+
+    if (dragSelectionStartsOnLeft) {
+      return [
+        ...left,
+        equalsToken,
+        ...right,
+        { kind: "destination" as const },
+      ];
+    }
+
+    return [
+      ...left,
+      { kind: "destination" as const },
+      equalsToken,
+      ...right,
+    ];
+  })();
+
+  const slotCount = Math.max(1, slots.length);
+  const tokenWidthCss = compact
+    ? `min(${baseTokenWidth}px, calc((100% - ${(slotCount - 1) * tokenGap}px) / ${slotCount}))`
+    : undefined;
+
+  const tokenSlotIndexByTokenIndex = new Map<number, number>();
+  let destinationSlotIndex: number | null = null;
+  slots.forEach((slot, slotIndex) => {
+    if (slot.kind === "token") {
+      tokenSlotIndexByTokenIndex.set(slot.tokenIndex, slotIndex);
+    } else {
+      destinationSlotIndex = slotIndex;
+    }
+  });
+
+  const selectedSlotIndex =
+    safeSelectedTokenIndex !== null
+      ? tokenSlotIndexByTokenIndex.get(safeSelectedTokenIndex) ?? null
+      : null;
+
+  function slotCenterX(slotIndex: number) {
+    return ((slotIndex + 0.5) / slotCount) * 100;
+  }
+
+  function clamp01(value: number) {
+    return Math.max(0, Math.min(1, value));
+  }
+
+  const timingStart =
+    typeof mechanicStartSeconds === "number" && Number.isFinite(mechanicStartSeconds)
+      ? mechanicStartSeconds
+      : null;
+  const timingEnd =
+    typeof mechanicEndSeconds === "number" && Number.isFinite(mechanicEndSeconds)
+      ? mechanicEndSeconds
+      : timingStart;
+  const nowSeconds =
+    typeof currentSongSeconds === "number" && Number.isFinite(currentSongSeconds)
+      ? currentSongSeconds
+      : null;
+
+  const dragProgress =
+    mechanicMode === "drag" &&
+    timingStart !== null &&
+    timingEnd !== null &&
+    nowSeconds !== null &&
+    timingEnd > timingStart &&
+    nowSeconds >= timingStart &&
+    nowSeconds <= timingEnd
+      ? clamp01((nowSeconds - timingStart) / (timingEnd - timingStart))
+      : null;
+
+  const spinProgress =
+    mechanicMode === "spin" &&
+    timingStart !== null &&
+    timingEnd !== null &&
+    nowSeconds !== null &&
+    timingEnd > timingStart &&
+    nowSeconds >= timingStart &&
+    nowSeconds <= timingEnd
+      ? clamp01((nowSeconds - timingStart) / (timingEnd - timingStart))
+      : null;
+
+  const hitAnimationProgress =
+    mechanicMode === "hit" &&
+    timingStart !== null &&
+    nowSeconds !== null &&
+    nowSeconds >= timingStart - 0.5 &&
+    nowSeconds <= timingStart + 0.2
+      ? clamp01((nowSeconds - (timingStart - 0.5)) / 0.5)
+      : null;
+
+  const selectedTokenIsAnimatingDrag =
+    dragProgress !== null && selectedSlotIndex !== null && destinationSlotIndex !== null;
+
+  const operatorToMoveIndex =
+    selectedTokenIsAnimatingDrag && safeSelectedTokenIndex !== null
+      ? (() => {
+          const candidate = safeSelectedTokenIndex - 1;
+          if (candidate < 0) {
+            return null;
+          }
+
+          const label = tokens[candidate]?.label;
+
+          return label && ["+", "-", "×", "÷"].includes(label)
+            ? candidate
+            : null;
+        })()
+      : null;
+
+  const operatorMovingSlotIndex =
+    operatorToMoveIndex !== null
+      ? tokenSlotIndexByTokenIndex.get(operatorToMoveIndex) ?? null
+      : null;
+
+  function flipOperatorLabel(label: string) {
+    if (label === "+") return "-";
+    if (label === "-") return "+";
+    if (label === "×") return "÷";
+    if (label === "÷") return "×";
+    return label;
+  }
 
   const hitPairs: Array<{
     pair: HitBubblePair;
@@ -4553,13 +4646,10 @@ function EquationTileStrip({
     },
   ];
 
-  function renderDragDestination() {
-    if (!isDragSelectionActive) {
-      return null;
-    }
-
+  function renderDragDestination(key: string) {
     return (
       <span
+        key={key}
         ref={destinationRef}
         aria-hidden="true"
         style={{
@@ -4574,16 +4664,22 @@ function EquationTileStrip({
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
-          marginInline: Math.max(4, Math.round(tokenGap * 0.4)),
         }}
       />
     );
   }
 
-  function renderTokenNode(token: EquationToken, tokenIndex: number) {
+  function renderTokenNode(
+    token: EquationToken,
+    tokenIndex: number,
+    slotIndex: number,
+  ) {
     const isOperator = isEquationOperator(token.label);
     const isSelected = selectedTokenIndex === tokenIndex;
     const isClickable = Boolean(onTokenClick) && !isOperator;
+    const hideForDragAnimation =
+      selectedTokenIsAnimatingDrag &&
+      (tokenIndex === safeSelectedTokenIndex || tokenIndex === operatorToMoveIndex);
     const baseStyle = getEquationTileStyle({
       label: token.label,
       compact,
@@ -4597,12 +4693,15 @@ function EquationTileStrip({
           ? fontSizeOverride.operator
           : fontSizeOverride.nonOperator
         : baseStyle.fontSize,
+      width: tokenWidthCss ?? baseStyle.width,
+      minWidth: tokenWidthCss ?? baseStyle.minWidth,
       cursor: isClickable ? "pointer" : "default",
       boxShadow: isSelected
         ? `0 0 0 2px ${selectedOutlineColor}, 0 0 16px ${selectedOutlineColor}66`
         : undefined,
       position: "relative" as const,
       zIndex: 2,
+      opacity: hideForDragAnimation ? 0 : 1,
     };
 
     if (!isClickable) {
@@ -4632,7 +4731,7 @@ function EquationTileStrip({
           {token.label}
         </button>
 
-        {isSelected && mechanicMode === "spin" ? (
+        {isSelected && mechanicMode === "spin" && spinProgress !== null ? (
           <span
             aria-hidden="true"
             style={{
@@ -4664,7 +4763,19 @@ function EquationTileStrip({
                 strokeWidth="5"
                 strokeLinecap="round"
                 strokeDasharray="64 258"
-                style={{ animation: "urSpinHighlightCcw 950ms linear infinite" }}
+                strokeDashoffset={spinProgress * 322}
+                transform="rotate(-90 50 50)"
+              />
+              <circle
+                cx="50"
+                cy="50"
+                r="41"
+                stroke="#FF3535"
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeDasharray="64 258"
+                strokeDashoffset={spinProgress * 322 + 161}
+                transform="rotate(-90 50 50)"
               />
             </svg>
           </span>
@@ -4705,6 +4816,57 @@ function EquationTileStrip({
                 />
               ));
             })}
+
+            {hitAnimationProgress !== null && selectedHitPair
+              ? (() => {
+                  const pairOffsets: Record<
+                    HitBubblePair,
+                    Array<{ dx: number; dy: number }>
+                  > = {
+                    leftRight: [
+                      { dx: 0, dy: -hitCircleOffset },
+                      { dx: 0, dy: hitCircleOffset },
+                    ],
+                    topLeftBottomRight: [
+                      { dx: -hitCircleOffset, dy: -hitCircleOffset },
+                      { dx: hitCircleOffset, dy: hitCircleOffset },
+                    ],
+                    topRightBottomLeft: [
+                      { dx: hitCircleOffset, dy: -hitCircleOffset },
+                      { dx: -hitCircleOffset, dy: hitCircleOffset },
+                    ],
+                  };
+
+                  const targets = pairOffsets[selectedHitPair];
+
+                  return targets.map((target, circleIndex) => {
+                    const dx = target.dx * hitAnimationProgress;
+                    const dy = target.dy * hitAnimationProgress;
+                    const size = Math.max(2, hitCircleSize * hitAnimationProgress);
+
+                    return (
+                      <span
+                        key={`hit-anim-${slotIndex}-${circleIndex}`}
+                        aria-hidden="true"
+                        style={{
+                          position: "absolute",
+                          left: `calc(50% + ${dx}px)`,
+                          top: `calc(50% + ${dy}px)`,
+                          width: size,
+                          height: size,
+                          borderRadius: 999,
+                          border: `${hitCircleBorderWidth}px solid #2EA7FF`,
+                          background: "rgba(46,167,255,0.26)",
+                          transform: "translate(-50%, -50%)",
+                          boxSizing: "border-box",
+                          pointerEvents: "none",
+                          zIndex: 5,
+                        }}
+                      />
+                    );
+                  });
+                })()
+              : null}
           </>
         ) : null}
       </span>
@@ -4728,9 +4890,10 @@ function EquationTileStrip({
         alignItems: "center",
         justifyContent: "center",
         gap: tokenGap,
-        flexWrap: "wrap",
+        flexWrap: "nowrap",
         maxWidth: "100%",
         minWidth: 0,
+        overflow: "hidden",
       }}
     >
       {isDragSelectionActive ? (
@@ -4758,59 +4921,88 @@ function EquationTileStrip({
         </svg>
       ) : null}
 
-      {(() => {
-        if (!isDragSelectionActive) {
-          return tokens.map((token, tokenIndex) => renderTokenNode(token, tokenIndex));
-        }
+      {selectedTokenIsAnimatingDrag &&
+      selectedSlotIndex !== null &&
+      destinationSlotIndex !== null &&
+      dragProgress !== null ? (
+        (() => {
+          const startX = slotCenterX(selectedSlotIndex);
+          const endX = slotCenterX(destinationSlotIndex);
+          const controlX = startX + (endX - startX) * 0.5;
+          const horizontalDistance = Math.abs(endX - startX);
+          const arcHeight = Math.max(
+            baseTokenHeight * 1.15,
+            Math.min(baseTokenHeight * 2.6, baseTokenHeight * 1.05 + horizontalDistance * 1.35),
+          );
+          const controlY = -arcHeight;
+          const t = dragProgress;
+          const oneMinus = 1 - t;
+          const x =
+            oneMinus * oneMinus * startX +
+            2 * oneMinus * t * controlX +
+            t * t * endX;
+          const y = 2 * oneMinus * t * controlY;
+          const operatorLabel =
+            operatorToMoveIndex !== null ? tokens[operatorToMoveIndex]?.label ?? "" : "";
+          const showFlippedOperator = t >= 0.5;
 
-        const actualEqualsIndex = tokens.findIndex((token) => token.label === "=");
-
-        if (actualEqualsIndex < 0) {
           return (
             <>
-              {!dragSelectionStartsOnLeft ? renderDragDestination() : null}
-              {tokens.map((token, tokenIndex) => renderTokenNode(token, tokenIndex))}
-              {dragSelectionStartsOnLeft ? renderDragDestination() : null}
+              <span
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: `${x}%`,
+                  top: `calc(50% + ${y}px)`,
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 6,
+                  ...getEquationTileStyle({
+                    label: tokens[safeSelectedTokenIndex ?? 0]?.label ?? "X",
+                    compact,
+                    compactSize,
+                  }),
+                  width: tokenWidthCss ?? undefined,
+                  minWidth: tokenWidthCss ?? undefined,
+                  fontSize: fontSizeOverride?.nonOperator,
+                }}
+              >
+                {tokens[safeSelectedTokenIndex ?? 0]?.label ?? "X"}
+              </span>
+
+              {operatorMovingSlotIndex !== null && operatorLabel ? (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    left: `${x - Math.max(4, tokenGap * 0.9)}%`,
+                    top: `calc(50% + ${y}px)`,
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 6,
+                    ...getEquationTileStyle({
+                      label: operatorLabel,
+                      compact,
+                      compactSize,
+                    }),
+                    width: tokenWidthCss ?? undefined,
+                    minWidth: tokenWidthCss ?? undefined,
+                    fontSize: fontSizeOverride?.operator,
+                  }}
+                >
+                  {showFlippedOperator
+                    ? flipOperatorLabel(operatorLabel)
+                    : operatorLabel}
+                </span>
+              ) : null}
             </>
           );
-        }
+        })()
+      ) : null}
 
-        const leftTokens = tokens
-          .map((token, tokenIndex) => ({ token, tokenIndex }))
-          .filter(({ tokenIndex }) => tokenIndex < actualEqualsIndex);
-        const rightTokens = tokens
-          .map((token, tokenIndex) => ({ token, tokenIndex }))
-          .filter(({ tokenIndex }) => tokenIndex > actualEqualsIndex);
-        const equalsToken = tokens[actualEqualsIndex];
-
-        if (dragSelectionStartsOnLeft) {
-          return (
-            <>
-              {leftTokens.map(({ token, tokenIndex }) =>
-                renderTokenNode(token, tokenIndex),
-              )}
-              {renderTokenNode(equalsToken, actualEqualsIndex)}
-              {renderDragDestination()}
-              {rightTokens.map(({ token, tokenIndex }) =>
-                renderTokenNode(token, tokenIndex),
-              )}
-            </>
-          );
-        }
-
-        return (
-          <>
-            {leftTokens.map(({ token, tokenIndex }) =>
-              renderTokenNode(token, tokenIndex),
-            )}
-            {renderDragDestination()}
-            {renderTokenNode(equalsToken, actualEqualsIndex)}
-            {rightTokens.map(({ token, tokenIndex }) =>
-              renderTokenNode(token, tokenIndex),
-            )}
-          </>
-        );
-      })()}
+      {slots.map((slot, slotIndex) =>
+        slot.kind === "destination"
+          ? renderDragDestination(`drag-destination-${slotIndex}`)
+          : renderTokenNode(slot.token, slot.tokenIndex, slotIndex),
+      )}
     </div>
   );
 }
@@ -5008,6 +5200,9 @@ function CenterChoicePanel({
   selectedHitPair,
   onSelectHitPair,
   equationViewerBlockSize,
+  currentSongSeconds,
+  mechanicStartSeconds,
+  mechanicEndSeconds,
   onCreateEquation,
   onBrowseLibrary,
   hideHeader = false,
@@ -5022,6 +5217,9 @@ function CenterChoicePanel({
   selectedHitPair: HitBubblePair | null;
   onSelectHitPair: ((pair: HitBubblePair) => void) | null;
   equationViewerBlockSize: number;
+  currentSongSeconds: number;
+  mechanicStartSeconds: number | null;
+  mechanicEndSeconds: number | null;
   onCreateEquation: () => void;
   onBrowseLibrary: () => void;
   hideHeader?: boolean;
@@ -5208,6 +5406,9 @@ function CenterChoicePanel({
                   operator: 36,
                   nonOperator: 44,
                 }}
+                currentSongSeconds={currentSongSeconds}
+                mechanicStartSeconds={mechanicStartSeconds}
+                mechanicEndSeconds={mechanicEndSeconds}
               />
             ) : null}
           </div>
@@ -6122,6 +6323,20 @@ export default function LessonBuilderClient({
 
     return pad ? getHitBubblePairFromPad(pad) : null;
   }, [centerContextEvent, selectedCenterContextMechanic]);
+
+  const selectedContextMechanicTimeWindow = useMemo(() => {
+    if (!selectedCenterContextMechanic) {
+      return {
+        startSeconds: null as number | null,
+        endSeconds: null as number | null,
+      };
+    }
+
+    return {
+      startSeconds: timelineTickToSeconds(selectedCenterContextMechanic.startTick),
+      endSeconds: timelineTickToSeconds(selectedCenterContextMechanic.endTick),
+    };
+  }, [selectedCenterContextMechanic]);
 
   useEffect(() => {
     if (centerContextMechanicItems.length === 0) {
@@ -7789,6 +8004,9 @@ function handleToggleDragTarget(
                       : null
                   }
                   equationViewerBlockSize={equationViewerBlockSize}
+                  currentSongSeconds={currentSongSeconds}
+                  mechanicStartSeconds={selectedContextMechanicTimeWindow.startSeconds}
+                  mechanicEndSeconds={selectedContextMechanicTimeWindow.endSeconds}
                   onCreateEquation={handleCreateEquationChoice}
                   onBrowseLibrary={handleBrowsePremadeChoice}
                   hideHeader={hideEquationHeader}
