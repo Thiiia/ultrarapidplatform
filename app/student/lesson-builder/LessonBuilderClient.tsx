@@ -189,6 +189,8 @@ type HitDirection = "vert" | "leftDiag" | "rightDiag";
 type CenterChoice = "create" | "premade" | null;
 type LibraryTab = "mine" | "premade";
 
+type TimelineMarkerEdge = "start" | "end";
+
 /* VERIFIED_TIMELINE_HIDDEN_SCROLL_DRAG_HANDLE_PATCH */
 /* VERIFIED_TIMELINE_UPLOAD_BUTTONS_PATCH: row 3 subrow 2 supports song/chart/sidecar uploads and updates timeline data. */
 const pagePanelWidth = "92vw";
@@ -3365,38 +3367,25 @@ function buildWaveformPeaksFromChannelData(channelData: Float32Array, peakCount:
   });
 }
 
-function TimelineMarkerDots({
-  color,
-  lefts,
-}: {
-  color: string;
-  lefts: number[];
-}) {
-  if (lefts.length === 0) {
-    return null;
+function getTimelineMarkerShapeStyles(mechanic: GameplayMechanic) {
+  if (mechanic === "hit") {
+    return {
+      borderRadius: 2,
+      transform: "translate(-50%, -50%) rotate(45deg)",
+    };
   }
 
-  return (
-    <>
-      {lefts.map((left, dotIndex) => (
-        <span
-          key={dotIndex}
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            left,
-            top: "50%",
-            width: 9,
-            height: 9,
-            borderRadius: 999,
-            background: color,
-            boxShadow: `0 0 12px ${color}`,
-            transform: "translate(-50%, -50%)",
-          }}
-        />
-      ))}
-    </>
-  );
+  if (mechanic === "drag") {
+    return {
+      borderRadius: 2,
+      transform: "translate(-50%, -50%)",
+    };
+  }
+
+  return {
+    borderRadius: 999,
+    transform: "translate(-50%, -50%)",
+  };
 }
 
 /* VERIFIED_LAYOUT_PATCH_2026_06_23: row2 shrinks; timeline has no horizontal scrollbar; draggable playhead controls song time; shared equation tiles. */
@@ -3410,6 +3399,7 @@ function EquationTimeline({
   onSeek,
   onPlayheadDragStart,
   onPlayheadDragEnd,
+  onRetimeMechanicMarker,
   audioObjectUrl,
   isAdvancedMode,
 }: {
@@ -3422,6 +3412,13 @@ function EquationTimeline({
   onSeek: (seconds: number) => void;
   onPlayheadDragStart: () => void;
   onPlayheadDragEnd: () => void;
+  onRetimeMechanicMarker: (
+    eventId: string,
+    mechanic: GameplayMechanic,
+    instanceIndex: number,
+    edge: TimelineMarkerEdge,
+    seconds: number,
+  ) => void;
   audioObjectUrl: string;
   isAdvancedMode: boolean;
 }) {
@@ -3429,6 +3426,12 @@ function EquationTimeline({
   const waveformContainerRef = useRef<HTMLDivElement | null>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
+  const [draggedMechanicMarker, setDraggedMechanicMarker] = useState<{
+    eventId: string;
+    mechanic: GameplayMechanic;
+    instanceIndex: number;
+    edge: TimelineMarkerEdge;
+  } | null>(null);
   const [viewportWidth, setViewportWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1280);
   const blockDurationSeconds = isAdvancedMode ? 1 : 8;
   const fineGridIntervalSeconds = isAdvancedMode ? 0.2 : 0;
@@ -3551,6 +3554,82 @@ function EquationTimeline({
     }
 
     onSeek(snappedSeconds);
+  }
+
+  function snapTimelineSeconds(seconds: number) {
+    let snappedSeconds = Math.round(seconds * 50) / 50;
+
+    if (isAdvancedMode) {
+      snappedSeconds = Math.round(seconds / 0.2) * 0.2;
+    }
+
+    return Math.max(0, Math.min(visualDurationSeconds, snappedSeconds));
+  }
+
+  function retimeDraggedMarker(
+    marker: {
+      eventId: string;
+      mechanic: GameplayMechanic;
+      instanceIndex: number;
+      edge: TimelineMarkerEdge;
+    },
+    clientX: number,
+    options: { autoScroll?: boolean } = {},
+  ) {
+    const seconds = getSecondsFromClientX(clientX, {
+      autoScroll: options.autoScroll,
+    });
+
+    onRetimeMechanicMarker(
+      marker.eventId,
+      marker.mechanic,
+      marker.instanceIndex,
+      marker.edge,
+      snapTimelineSeconds(seconds),
+    );
+  }
+
+  function handleMechanicMarkerPointerDown(
+    event: PointerEvent<HTMLButtonElement>,
+    marker: {
+      eventId: string;
+      mechanic: GameplayMechanic;
+      instanceIndex: number;
+      edge: TimelineMarkerEdge;
+    },
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    onPlayheadDragStart();
+    setDraggedMechanicMarker(marker);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    retimeDraggedMarker(marker, event.clientX);
+  }
+
+  function handleMechanicMarkerPointerMove(event: PointerEvent<HTMLButtonElement>) {
+    if (!draggedMechanicMarker) {
+      return;
+    }
+
+    event.preventDefault();
+    retimeDraggedMarker(draggedMechanicMarker, event.clientX, {
+      autoScroll: true,
+    });
+  }
+
+  function handleMechanicMarkerPointerUp(event: PointerEvent<HTMLButtonElement>) {
+    if (draggedMechanicMarker) {
+      event.preventDefault();
+      retimeDraggedMarker(draggedMechanicMarker, event.clientX, {
+        autoScroll: true,
+      });
+      setDraggedMechanicMarker(null);
+      onPlayheadDragEnd();
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   }
 
   function handleTimelinePointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -3919,6 +3998,7 @@ function EquationTimeline({
           {(["hit", "spin", "drag"] as GameplayMechanic[]).map((mechanic) => {
             const color =
               mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF";
+            const markerShapeStyle = getTimelineMarkerShapeStyles(mechanic);
 
             return (
               <div
@@ -3948,23 +4028,52 @@ function EquationTimeline({
                   ];
 
                   if (mechanic === "hit") {
-                    const lefts = renderedInstances.map((instance) => {
-                      const markerSeconds = timelineTickToSeconds(
-                        instance.tick ?? eventSlot.tick,
-                      );
-
-                      return Math.min(
-                        trackWidth,
-                        Math.max(0, markerSeconds * pixelsPerSecond),
-                      );
-                    });
-
                     return (
-                      <TimelineMarkerDots
-                        key={`${eventSlot.id}-${mechanic}`}
-                        color={color}
-                        lefts={lefts}
-                      />
+                      <span key={`${eventSlot.id}-${mechanic}`}>
+                        {renderedInstances.map((instance, instanceIndex) => {
+                          const markerSeconds = timelineTickToSeconds(
+                            instance.tick ?? eventSlot.tick,
+                          );
+                          const markerLeft = Math.min(
+                            trackWidth,
+                            Math.max(0, markerSeconds * pixelsPerSecond),
+                          );
+
+                          return (
+                            <button
+                              key={`${eventSlot.id}-${mechanic}-start-${instanceIndex}`}
+                              type="button"
+                              data-timeline-interactive="true"
+                              onPointerDown={(event) =>
+                                handleMechanicMarkerPointerDown(event, {
+                                  eventId: eventSlot.id,
+                                  mechanic,
+                                  instanceIndex,
+                                  edge: "start",
+                                })
+                              }
+                              onPointerMove={handleMechanicMarkerPointerMove}
+                              onPointerUp={handleMechanicMarkerPointerUp}
+                              onPointerCancel={handleMechanicMarkerPointerUp}
+                              style={{
+                                position: "absolute",
+                                left: markerLeft,
+                                top: "50%",
+                                width: 10,
+                                height: 10,
+                                border: "none",
+                                background: color,
+                                boxShadow: `0 0 12px ${color}`,
+                                ...markerShapeStyle,
+                                cursor: "grab",
+                                touchAction: "none",
+                                padding: 0,
+                              }}
+                              aria-label={`Drag ${mechanic} timing`}
+                            />
+                          );
+                        })}
+                      </span>
                     );
                   }
 
@@ -4002,7 +4111,44 @@ function EquationTimeline({
                                 transform: "translateY(-50%)",
                               }}
                             />
-                            <TimelineMarkerDots color={color} lefts={[startLeft, endLeft]} />
+                            {([
+                              ["start", startLeft],
+                              ["end", endLeft],
+                            ] as Array<[TimelineMarkerEdge, number]>).map(
+                              ([edge, left]) => (
+                                <button
+                                  key={`${eventSlot.id}-${mechanic}-${edge}-${instanceIndex}`}
+                                  type="button"
+                                  data-timeline-interactive="true"
+                                  onPointerDown={(event) =>
+                                    handleMechanicMarkerPointerDown(event, {
+                                      eventId: eventSlot.id,
+                                      mechanic,
+                                      instanceIndex,
+                                      edge,
+                                    })
+                                  }
+                                  onPointerMove={handleMechanicMarkerPointerMove}
+                                  onPointerUp={handleMechanicMarkerPointerUp}
+                                  onPointerCancel={handleMechanicMarkerPointerUp}
+                                  style={{
+                                    position: "absolute",
+                                    left,
+                                    top: "50%",
+                                    width: 10,
+                                    height: 10,
+                                    border: "none",
+                                    background: color,
+                                    boxShadow: `0 0 12px ${color}`,
+                                    ...markerShapeStyle,
+                                    cursor: "grab",
+                                    touchAction: "none",
+                                    padding: 0,
+                                  }}
+                                  aria-label={`Drag ${mechanic} ${edge} timing`}
+                                />
+                              ),
+                            )}
                           </span>
                         );
                       })}
@@ -4193,7 +4339,7 @@ function getEquationTileStyle({
     boxShadow,
     color: "#FFFFFF",
     fontFamily: "Grandstander, sans-serif",
-    fontSize: compact ? (isOperator ? 14 : 17) : isOperator ? 14 : 20,
+    fontSize: compact ? (isOperator ? 16 : 19) : isOperator ? 18 : 22,
     fontWeight: 800,
     display: "inline-flex",
     alignItems: "center",
@@ -4231,11 +4377,15 @@ function EquationTileStrip({
   emptyLabel = "Equation preview",
   compact = true,
   compactSize,
+  selectedTokenIndex,
+  onTokenClick,
 }: {
   tokens: EquationToken[];
   emptyLabel?: string;
   compact?: boolean;
   compactSize?: number;
+  selectedTokenIndex?: number | null;
+  onTokenClick?: (tokenIndex: number) => void;
 }) {
   if (tokens.length === 0) {
     return (
@@ -4257,18 +4407,46 @@ function EquationTileStrip({
         minWidth: 0,
       }}
     >
-      {tokens.map((token) => (
-        <span
-          key={token.id}
-          style={getEquationTileStyle({
+      {tokens.map((token, tokenIndex) => {
+        const isOperator = isEquationOperator(token.label);
+        const isSelected = selectedTokenIndex === tokenIndex;
+        const isClickable = Boolean(onTokenClick) && !isOperator;
+        const tileStyle = {
+          ...getEquationTileStyle({
             label: token.label,
             compact,
             compactSize,
-          })}
-        >
-          {token.label}
-        </span>
-      ))}
+          }),
+          cursor: isClickable ? "pointer" : "default",
+          boxShadow: isSelected
+            ? "0 0 0 2px #CFFF04, 0 0 16px rgba(207,255,4,0.35)"
+            : undefined,
+        };
+
+        if (!isClickable) {
+          return (
+            <span key={token.id} style={tileStyle}>
+              {token.label}
+            </span>
+          );
+        }
+
+        return (
+          <button
+            key={token.id}
+            type="button"
+            onClick={() => onTokenClick?.(tokenIndex)}
+            style={{
+              ...tileStyle,
+              border: "none",
+              padding: 0,
+            }}
+            aria-label={`Assign to token ${token.label}`}
+          >
+            {token.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -4278,13 +4456,11 @@ function LeftEquationBuilderPanel({
   onAddToken,
   onClearEquation,
   onSaveEquation,
-  shouldScrollTiles,
 }: {
   draftTokens: EquationToken[];
   onAddToken: (label: string) => void;
   onClearEquation: () => void;
   onSaveEquation: () => void;
-  shouldScrollTiles: boolean;
 }) {
   const numberTiles = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
   const operatorTiles = ["+", "-", "×", "÷", "="];
@@ -4389,29 +4565,11 @@ function LeftEquationBuilderPanel({
           borderTop: `1px solid ${subtleBorderColor}`,
           boxSizing: "border-box",
           display: "grid",
-          gridTemplateRows: "1fr auto auto",
+          gridTemplateRows: "auto auto",
           gap: 6,
           fontFamily: "Space Grotesk, sans-serif",
         }}
       >
-        <div
-          style={{
-            border: "1px dashed rgba(255,255,255,0.36)",
-            borderRadius: 10,
-            color: "#FFFFFF99",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            textAlign: "center",
-            fontSize: 10,
-            fontWeight: 800,
-            lineHeight: 1.15,
-            padding: "4px 6px",
-          }}
-        >
-          ↑ Click a tile to begin
-        </div>
-
         <div
           aria-label="Draft equation preview"
           style={{
@@ -4479,6 +4637,9 @@ function CenterChoicePanel({
   choice,
   draftTokens,
   activeEventEquation,
+  hasSelectedEvent,
+  selectedTokenIndex,
+  onSelectToken,
   equationViewerBlockSize,
   hasInspector,
   onCreateEquation,
@@ -4488,6 +4649,9 @@ function CenterChoicePanel({
   choice: CenterChoice;
   draftTokens: EquationToken[];
   activeEventEquation: SavedEquation | null;
+  hasSelectedEvent: boolean;
+  selectedTokenIndex: number | null;
+  onSelectToken: ((tokenIndex: number) => void) | null;
   equationViewerBlockSize: number;
   hasInspector: boolean;
   onCreateEquation: () => void;
@@ -4501,7 +4665,9 @@ function CenterChoicePanel({
   const visibleEquationLabel = hasDraft
     ? "Current equation being built"
     : activeEventEquation
-      ? "Equation assigned to selected event"
+      ? ""
+      : hasSelectedEvent
+        ? "No equation is assigned to this event."
       : "";
   const title = isCreate
     ? "Build your equation"
@@ -4619,9 +4785,9 @@ function CenterChoicePanel({
           </>
         )}
 
-        {visibleEquationTokens.length > 0 ? (
+        {visibleEquationTokens.length > 0 || visibleEquationLabel ? (
           <div
-            aria-label={visibleEquationLabel}
+            aria-label={visibleEquationLabel || "Selected equation"}
             style={{
               marginTop: hideHeader ? 0 : 8,
               width: hideHeader ? "100%" : "min(620px, 100%)",
@@ -4650,11 +4816,15 @@ function CenterChoicePanel({
             >
               {visibleEquationLabel}
             </div>
-            <EquationTileStrip
-              tokens={visibleEquationTokens}
-              compact
-              compactSize={equationViewerBlockSize}
-            />
+            {visibleEquationTokens.length > 0 ? (
+              <EquationTileStrip
+                tokens={visibleEquationTokens}
+                compact
+                compactSize={equationViewerBlockSize}
+                selectedTokenIndex={selectedTokenIndex}
+                onTokenClick={onSelectToken ?? undefined}
+              />
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -4866,15 +5036,15 @@ function InspectorPanel({
   onAddDrag: () => void;
   pendingRangeMechanic: "spin" | "drag" | null;
 }) {
-  if (!eventSlot) {
-    return null;
-  }
-
   const selectedEventSlot = eventSlot;
-  const assignedEquation = getTimelineEventEquation(selectedEventSlot);
-  const assignedEquationText = assignedEquation
-    ? tokensToEquationState(assignedEquation.tokens)
-    : "No equation assigned";
+  const assignedEquation = selectedEventSlot
+    ? getTimelineEventEquation(selectedEventSlot)
+    : null;
+  const assignedEquationText = selectedEventSlot
+    ? assignedEquation
+      ? tokensToEquationState(assignedEquation.tokens)
+      : "No equation assigned"
+    : "No event selected. Add hit/spin/drag to create one.";
 
   function renderInspectorRow(title: string, children: ReactNode) {
     return (
@@ -4964,7 +5134,7 @@ function InspectorPanel({
       {renderInspectorRow(
         "Selected Event",
         <>
-          <div>{`Event ${eventIndex + 1}`}</div>
+          <div>{selectedEventSlot ? `Event ${eventIndex + 1}` : "No event selected"}</div>
           <div style={{ color: "#CFFF04", marginTop: 4 }}>{assignedEquationText}</div>
           <div style={{ marginTop: 4, color: "#FFFFFF99" }}>
             {`Playhead ${formatTimelineTime(currentSongSeconds, isAdvancedMode)}`}
@@ -5061,7 +5231,6 @@ function TimelineControlsRow({
   onRewind,
   onTogglePlay,
   onFastForward,
-  onAddEmptyEvent,
   onSongUpload,
   onChartUpload,
   onSidecarUpload,
@@ -5073,7 +5242,6 @@ function TimelineControlsRow({
   onRewind: () => void;
   onTogglePlay: () => void;
   onFastForward: () => void;
-  onAddEmptyEvent: () => void;
   onSongUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onChartUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onSidecarUpload: (event: ChangeEvent<HTMLInputElement>) => void;
@@ -5181,15 +5349,6 @@ function TimelineControlsRow({
               style={{ display: "none" }}
             />
           </label>
-          <button
-            type="button"
-            onClick={onAddEmptyEvent}
-            style={uploadControlStyle}
-            aria-label="Add empty event at current timestamp"
-            title="Add empty event at current timestamp"
-          >
-            Add Empty Event
-          </button>
           <label style={uploadControlStyle}>
             Upload .chart
             <input
@@ -5538,14 +5697,6 @@ export default function LessonBuilderClient({
     );
   }, [centerContextMechanicItems, selectedContextMechanicKey]);
 
-  const assignableEquationTokens = useMemo(() => {
-    const tokens = centerContextEventEquation?.tokens ?? [];
-
-    return tokens
-      .map((token, tokenIndex) => ({ token, tokenIndex }))
-      .filter(({ token }) => !isEquationOperator(token.label));
-  }, [centerContextEventEquation]);
-
   const selectedContextMechanicAssignedTokenIndex = useMemo(() => {
     if (!centerContextEvent || !selectedCenterContextMechanic) {
       return null;
@@ -5591,7 +5742,7 @@ export default function LessonBuilderClient({
     setSelectedContextMechanicKey(centerContextMechanicItems[0].key);
   }, [centerContextMechanicItems, selectedContextMechanicKey]);
 
-  const isInspectorVisible = isAdvancedMode && Boolean(activeTimelineEvent);
+  const isInspectorVisible = isAdvancedMode;
 
   const row2DisplayWidths = useMemo(() => {
     if (isAdvancedMode) {
@@ -5984,17 +6135,13 @@ export default function LessonBuilderClient({
           return eventSlot;
         }
 
-        const nextAssignments = makeEmptyAssignments();
-
-        gameplayMechanics.forEach((mechanic) => {
-          if ((eventSlot.counts?.[mechanic] ?? 0) > 0) {
-            nextAssignments[mechanic] = cloneEquationForAssignment(equation);
-          }
-        });
-
         return {
           ...eventSlot,
-          assignments: nextAssignments,
+          assignments: {
+            hit: cloneEquationForAssignment(equation),
+            spin: cloneEquationForAssignment(equation),
+            drag: cloneEquationForAssignment(equation),
+          },
         };
       }),
     );
@@ -6670,6 +6817,80 @@ function handleToggleDragTarget(
     }
   }
 
+  function handleRetimeMechanicMarker(
+    eventId: string,
+    mechanic: GameplayMechanic,
+    instanceIndex: number,
+    edge: TimelineMarkerEdge,
+    seconds: number,
+  ) {
+    const nextTick = Number(seconds.toFixed(3));
+
+    setTimelineEvents((current) => {
+      let didUpdate = false;
+
+      const nextEvents = current.map((eventSlot) => {
+        if (eventSlot.id !== eventId) {
+          return eventSlot;
+        }
+
+        const nextInstances = (eventSlot.mechanicInstances?.[mechanic] ?? []).map(
+          (instance, currentIndex) => {
+            if (currentIndex !== instanceIndex) {
+              return instance;
+            }
+
+            didUpdate = true;
+            const currentStartTick = Number(
+              (instance.tick ?? eventSlot.tick).toFixed(3),
+            );
+            const currentEndTick = Number(
+              (instance.endTick ?? instance.tick ?? eventSlot.tick).toFixed(3),
+            );
+
+            if (mechanic === "hit") {
+              return {
+                ...instance,
+                tick: nextTick,
+              };
+            }
+
+            if (edge === "start") {
+              return {
+                ...instance,
+                tick: Math.min(nextTick, currentEndTick),
+                endTick: Math.max(nextTick, currentEndTick),
+              };
+            }
+
+            return {
+              ...instance,
+              tick: Math.min(currentStartTick, nextTick),
+              endTick: Math.max(currentStartTick, nextTick),
+            };
+          },
+        );
+
+        return {
+          ...eventSlot,
+          mechanicInstances: {
+            ...eventSlot.mechanicInstances,
+            [mechanic]: nextInstances,
+          },
+        };
+      });
+
+      if (!didUpdate) {
+        return current;
+      }
+
+      setActiveEventId(eventId);
+      syncTimelineFilesFromEvents(nextEvents);
+
+      return nextEvents;
+    });
+  }
+
   function handleAddTimelineEvent() {
     const nextTick = Number(currentSongSeconds.toFixed(3));
 
@@ -7105,7 +7326,6 @@ function handleToggleDragTarget(
               onAddToken={handleAppendEquationToken}
               onClearEquation={handleClearEquationDraft}
               onSaveEquation={handleSaveEquation}
-              shouldScrollTiles={isTimelineInstructionVisible}
             />
           </div>
 
@@ -7163,6 +7383,13 @@ function handleToggleDragTarget(
                   choice={centerChoice}
                   draftTokens={draftTokens}
                   activeEventEquation={centerContextEventEquation ?? activeEventEquation}
+                  hasSelectedEvent={Boolean(centerContextEvent)}
+                  selectedTokenIndex={selectedContextMechanicAssignedTokenIndex}
+                  onSelectToken={
+                    selectedCenterContextMechanic && centerContextEventEquation
+                      ? handleAssignTokenToSelectedContextMechanic
+                      : null
+                  }
                   equationViewerBlockSize={equationViewerBlockSize}
                   hasInspector={isInspectorVisible}
                   onCreateEquation={handleCreateEquationChoice}
@@ -7194,6 +7421,12 @@ function handleToggleDragTarget(
                     tokens={centerContextEventEquation?.tokens ?? []}
                     compact
                     compactSize={20}
+                    selectedTokenIndex={selectedContextMechanicAssignedTokenIndex}
+                    onTokenClick={
+                      selectedCenterContextMechanic
+                        ? handleAssignTokenToSelectedContextMechanic
+                        : undefined
+                    }
                     emptyLabel="No equation"
                   />
                 </div>
@@ -7303,46 +7536,11 @@ function handleToggleDragTarget(
                     style={{
                       gridColumn: "1 / -1",
                       minWidth: 0,
-                      display: "grid",
-                      gridTemplateColumns: "minmax(0, 1fr) auto",
+                      display: "flex",
                       gap: 10,
                       alignItems: "center",
                     }}
                   >
-                    <div style={{ minWidth: 0, display: "flex", gap: 6, overflowX: "auto" }}>
-                      {assignableEquationTokens.map(({ token, tokenIndex }) => {
-                        const isAssigned =
-                          selectedContextMechanicAssignedTokenIndex === tokenIndex;
-
-                        return (
-                          <button
-                            key={`${token.id}-${selectedCenterContextMechanic.key}`}
-                            type="button"
-                            onClick={() => handleAssignTokenToSelectedContextMechanic(tokenIndex)}
-                            style={{
-                              minWidth: 28,
-                              height: 22,
-                              borderRadius: 999,
-                              border: `1px solid ${isAssigned ? "#CFFF04" : subtleBorderColor}`,
-                              background: isAssigned
-                                ? "rgba(207,255,4,0.12)"
-                                : "#252525",
-                              color: isAssigned ? "#CFFF04" : "#FFFFFF",
-                              fontSize: 10,
-                              fontWeight: 900,
-                              cursor: "pointer",
-                              padding: "0 8px",
-                              whiteSpace: "nowrap",
-                              fontFamily: "Space Grotesk, sans-serif",
-                            }}
-                            aria-label={`Assign to token ${token.label}`}
-                          >
-                            {token.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-
                     {selectedCenterContextMechanic.mechanic === "hit" ? (
                       <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
                         {([
@@ -7461,7 +7659,6 @@ function handleToggleDragTarget(
             onRewind={handleRewindSong}
             onTogglePlay={handleToggleSongPlayback}
             onFastForward={handleFastForwardSong}
-            onAddEmptyEvent={handleAddTimelineEvent}
             onSongUpload={handleTimelineSongUpload}
             onChartUpload={handleTimelineChartUpload}
             onSidecarUpload={handleTimelineSidecarUpload}
@@ -7479,6 +7676,7 @@ function handleToggleDragTarget(
               // no-op hook for now; used to align lifecycle with drag-end finalize.
             }}
             onPlayheadDragEnd={handleFinalizePendingRangeSelection}
+            onRetimeMechanicMarker={handleRetimeMechanicMarker}
             audioObjectUrl={audioObjectUrl}
             isAdvancedMode={isAdvancedMode}
           />
