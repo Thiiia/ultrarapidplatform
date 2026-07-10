@@ -5072,8 +5072,8 @@ function EquationTileStrip({
             fill="none"
             stroke="#B45CFF"
             strokeWidth={dragArcStrokeWidth}
-            strokeDasharray={`${dragArcDashLength} ${dragArcGapLength}`}
-            strokeLinecap="round"
+            strokeDasharray="2.6 2.2"
+            strokeLinecap="butt"
           />
         </svg>
       ) : null}
