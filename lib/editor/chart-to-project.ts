@@ -62,7 +62,7 @@ function parseEvents(eventsSection: string): ChartProject["events"] {
   const events: ChartProject["events"] = []
 
   for (const line of lines) {
-    const eventMatch = line.match(/^(\d+)\s*=\s*E\s+"([\s\S]*)"$/)
+    const eventMatch = line.match(/^(\d+(?:\.\d+)?)\s*=\s*E\s+"([\s\S]*)"$/)
     if (!eventMatch) continue
 
     const tick = Number(eventMatch[1])

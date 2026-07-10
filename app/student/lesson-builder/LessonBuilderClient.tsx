@@ -271,7 +271,7 @@ function normalizeTick(value: unknown) {
     return 0;
   }
 
-  return Math.max(0, Math.round(nextTick));
+  return Math.max(0, Number(nextTick.toFixed(3)));
 }
 
 function normalizeMechanic(value: unknown): GameplayMechanic | null {
@@ -1313,7 +1313,13 @@ async function fileFromSignedUrl({
 }
 
 async function textFromSignedUrl(signedUrl: string) {
-  const response = await fetch(signedUrl);
+  const response = await fetch(signedUrl, {
+    cache: "no-store",
+    headers: {
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+  });
 
   if (!response.ok) {
     throw new Error(`Unable to load text file: ${response.status}`);
@@ -1323,7 +1329,13 @@ async function textFromSignedUrl(signedUrl: string) {
 }
 
 async function jsonFromSignedUrl(signedUrl: string) {
-  const response = await fetch(signedUrl);
+  const response = await fetch(signedUrl, {
+    cache: "no-store",
+    headers: {
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+  });
 
   if (!response.ok) {
     throw new Error(`Unable to load JSON file: ${response.status}`);
