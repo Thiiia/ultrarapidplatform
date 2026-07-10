@@ -4375,23 +4375,30 @@ function EquationTileStrip({
   emptyLabel = "Equation preview",
   compact = true,
   compactSize,
+  tokenGap = 6,
   selectedTokenIndex,
   onTokenClick,
   selectedOutlineColor = "#CFFF04",
   mechanicMode = null,
   selectedHitPair,
   onSelectHitPair,
+  fontSizeOverride,
 }: {
   tokens: EquationToken[];
   emptyLabel?: string;
   compact?: boolean;
   compactSize?: number;
+  tokenGap?: number;
   selectedTokenIndex?: number | null;
   onTokenClick?: (tokenIndex: number) => void;
   selectedOutlineColor?: string;
   mechanicMode?: GameplayMechanic | null;
   selectedHitPair?: HitBubblePair | null;
   onSelectHitPair?: (pair: HitBubblePair) => void;
+  fontSizeOverride?: {
+    operator: number;
+    nonOperator: number;
+  };
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const selectedTokenRef = useRef<HTMLSpanElement | null>(null);
@@ -4403,7 +4410,7 @@ function EquationTileStrip({
   const hitCircleOffset = Math.max(12, Math.round(baseTokenWidth * 0.38));
   const hitCircleSize = Math.max(10, Math.round(baseTokenWidth * 0.3));
   const hitCircleBorderWidth = Math.max(1.5, Math.round(baseTokenWidth * 0.04));
-  const spinInset = -Math.max(10, Math.round(baseTokenWidth * 0.34));
+  const spinInset = -Math.max(20, Math.round(baseTokenWidth * 0.58));
   const dragArcStrokeWidth = Math.max(2, Math.round(baseTokenWidth * 0.06));
   const dragArcDashLength = Math.max(6, Math.round(baseTokenWidth * 0.18));
   const dragArcGapLength = Math.max(5, Math.round(baseTokenWidth * 0.14));
@@ -4446,7 +4453,7 @@ function EquationTileStrip({
     const endY = destinationRect.top + destinationRect.height / 2 - surfaceRect.top;
     const deltaX = endX - startX;
     const controlY =
-      Math.min(startY, endY) - Math.max(baseTokenWidth * 1.1, Math.abs(deltaX) * 0.28);
+      Math.min(startY, endY) - Math.max(baseTokenWidth * 2.4, Math.abs(deltaX) * 1.2);
 
     pathNode.setAttribute(
       "d",
@@ -4479,7 +4486,7 @@ function EquationTileStrip({
       const endY = destinationRect.top + destinationRect.height / 2 - surfaceRect.top;
       const deltaX = endX - startX;
       const controlY =
-        Math.min(startY, endY) - Math.max(baseTokenWidth * 1.1, Math.abs(deltaX) * 0.28);
+        Math.min(startY, endY) - Math.max(baseTokenWidth * 2.4, Math.abs(deltaX) * 1.2);
 
       pathNode.setAttribute(
         "d",
@@ -4567,8 +4574,140 @@ function EquationTileStrip({
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
+          marginInline: Math.max(4, Math.round(tokenGap * 0.4)),
         }}
       />
+    );
+  }
+
+  function renderTokenNode(token: EquationToken, tokenIndex: number) {
+    const isOperator = isEquationOperator(token.label);
+    const isSelected = selectedTokenIndex === tokenIndex;
+    const isClickable = Boolean(onTokenClick) && !isOperator;
+    const baseStyle = getEquationTileStyle({
+      label: token.label,
+      compact,
+      compactSize,
+    });
+
+    const tileStyle = {
+      ...baseStyle,
+      fontSize: fontSizeOverride
+        ? isOperator
+          ? fontSizeOverride.operator
+          : fontSizeOverride.nonOperator
+        : baseStyle.fontSize,
+      cursor: isClickable ? "pointer" : "default",
+      boxShadow: isSelected
+        ? `0 0 0 2px ${selectedOutlineColor}, 0 0 16px ${selectedOutlineColor}66`
+        : undefined,
+      position: "relative" as const,
+      zIndex: 2,
+    };
+
+    if (!isClickable) {
+      return (
+        <span key={token.id} style={tileStyle}>
+          {token.label}
+        </span>
+      );
+    }
+
+    return (
+      <span
+        key={token.id}
+        ref={isSelected ? selectedTokenRef : null}
+        style={{ position: "relative", display: "inline-flex" }}
+      >
+        <button
+          type="button"
+          onClick={() => onTokenClick?.(tokenIndex)}
+          style={{
+            ...tileStyle,
+            border: "none",
+            padding: 0,
+          }}
+          aria-label={`Assign to token ${token.label}`}
+        >
+          {token.label}
+        </button>
+
+        {isSelected && mechanicMode === "spin" ? (
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: `${spinInset}px`,
+              pointerEvents: "none",
+              zIndex: 3,
+            }}
+          >
+            <svg
+              width="100%"
+              height="100%"
+              viewBox="0 0 100 100"
+              fill="none"
+              style={{ overflow: "visible" }}
+            >
+              <circle
+                cx="50"
+                cy="50"
+                r="41"
+                stroke="rgba(255,53,53,0.22)"
+                strokeWidth="4"
+              />
+              <circle
+                cx="50"
+                cy="50"
+                r="41"
+                stroke="#FF3535"
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeDasharray="64 258"
+                style={{ animation: "urSpinHighlightCcw 950ms linear infinite" }}
+              />
+            </svg>
+          </span>
+        ) : null}
+
+        {isSelected && mechanicMode === "hit" ? (
+          <>
+            {hitPairs.map((item) => {
+              const isPairSelected = selectedHitPair === item.pair;
+
+              return item.positions.map((position, circleIndex) => (
+                <button
+                  key={`${token.id}-${item.pair}-${circleIndex}`}
+                  type="button"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onSelectHitPair?.(item.pair);
+                  }}
+                  style={{
+                    position: "absolute",
+                    width: hitCircleSize,
+                    height: hitCircleSize,
+                    borderRadius: 999,
+                    border: `${hitCircleBorderWidth}px solid ${isPairSelected ? "#2EA7FF" : "#7CC8FF"}`,
+                    background: isPairSelected ? "#2EA7FF" : "rgba(46,167,255,0.3)",
+                    boxShadow: isPairSelected
+                      ? "0 0 10px rgba(46,167,255,0.65)"
+                      : "none",
+                    left: position.left,
+                    top: position.top,
+                    transform: position.transform,
+                    zIndex: 4,
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                  aria-label={`Set hit pair ${item.pair}`}
+                />
+              ));
+            })}
+          </>
+        ) : null}
+      </span>
     );
   }
 
@@ -4588,7 +4727,7 @@ function EquationTileStrip({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: 6,
+        gap: tokenGap,
         flexWrap: "wrap",
         maxWidth: "100%",
         minWidth: 0,
@@ -4619,123 +4758,59 @@ function EquationTileStrip({
         </svg>
       ) : null}
 
-      {!dragSelectionStartsOnLeft ? renderDragDestination() : null}
+      {(() => {
+        if (!isDragSelectionActive) {
+          return tokens.map((token, tokenIndex) => renderTokenNode(token, tokenIndex));
+        }
 
-      {tokens.map((token, tokenIndex) => {
-        const isOperator = isEquationOperator(token.label);
-        const isSelected = selectedTokenIndex === tokenIndex;
-        const isClickable = Boolean(onTokenClick) && !isOperator;
-        const tileStyle = {
-          ...getEquationTileStyle({
-            label: token.label,
-            compact,
-            compactSize,
-          }),
-          cursor: isClickable ? "pointer" : "default",
-          boxShadow: isSelected
-            ? `0 0 0 2px ${selectedOutlineColor}, 0 0 16px ${selectedOutlineColor}66`
-            : undefined,
-          position: "relative" as const,
-          zIndex: 2,
-        };
+        const actualEqualsIndex = tokens.findIndex((token) => token.label === "=");
 
-        if (!isClickable) {
+        if (actualEqualsIndex < 0) {
           return (
-            <span key={token.id} style={tileStyle}>
-              {token.label}
-            </span>
+            <>
+              {!dragSelectionStartsOnLeft ? renderDragDestination() : null}
+              {tokens.map((token, tokenIndex) => renderTokenNode(token, tokenIndex))}
+              {dragSelectionStartsOnLeft ? renderDragDestination() : null}
+            </>
+          );
+        }
+
+        const leftTokens = tokens
+          .map((token, tokenIndex) => ({ token, tokenIndex }))
+          .filter(({ tokenIndex }) => tokenIndex < actualEqualsIndex);
+        const rightTokens = tokens
+          .map((token, tokenIndex) => ({ token, tokenIndex }))
+          .filter(({ tokenIndex }) => tokenIndex > actualEqualsIndex);
+        const equalsToken = tokens[actualEqualsIndex];
+
+        if (dragSelectionStartsOnLeft) {
+          return (
+            <>
+              {leftTokens.map(({ token, tokenIndex }) =>
+                renderTokenNode(token, tokenIndex),
+              )}
+              {renderTokenNode(equalsToken, actualEqualsIndex)}
+              {renderDragDestination()}
+              {rightTokens.map(({ token, tokenIndex }) =>
+                renderTokenNode(token, tokenIndex),
+              )}
+            </>
           );
         }
 
         return (
-          <span
-            key={token.id}
-            ref={isSelected ? selectedTokenRef : null}
-            style={{ position: "relative", display: "inline-flex" }}
-          >
-            <button
-              type="button"
-              onClick={() => onTokenClick?.(tokenIndex)}
-              style={{
-                ...tileStyle,
-                border: "none",
-                padding: 0,
-              }}
-              aria-label={`Assign to token ${token.label}`}
-            >
-              {token.label}
-            </button>
-
-            {isSelected && mechanicMode === "spin" ? (
-              <span
-                aria-hidden="true"
-                style={{
-                  position: "absolute",
-                  inset: `${spinInset}px`,
-                  pointerEvents: "none",
-                  zIndex: 3,
-                }}
-              >
-                <svg
-                  width="100%"
-                  height="100%"
-                  viewBox="0 0 100 100"
-                  fill="none"
-                  style={{ overflow: "visible" }}
-                >
-                  <path
-                    d="M 28 20 A 34 34 0 1 1 20 62"
-                    stroke="#FF3535"
-                    strokeWidth="5"
-                    strokeLinecap="round"
-                  />
-                  <path d="M 20 62 L 18 50 L 30 54 Z" fill="#FF3535" />
-                </svg>
-              </span>
-            ) : null}
-
-            {isSelected && mechanicMode === "hit" ? (
-              <>
-                {hitPairs.map((item) => {
-                  const isPairSelected = selectedHitPair === item.pair;
-
-                  return item.positions.map((position, circleIndex) => (
-                    <button
-                      key={`${token.id}-${item.pair}-${circleIndex}`}
-                      type="button"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onSelectHitPair?.(item.pair);
-                      }}
-                      style={{
-                        position: "absolute",
-                        width: hitCircleSize,
-                        height: hitCircleSize,
-                        borderRadius: 999,
-                        border: `${hitCircleBorderWidth}px solid ${isPairSelected ? "#2EA7FF" : "#7CC8FF"}`,
-                        background: isPairSelected ? "#2EA7FF" : "rgba(46,167,255,0.3)",
-                        boxShadow: isPairSelected
-                          ? "0 0 10px rgba(46,167,255,0.65)"
-                          : "none",
-                        left: position.left,
-                        top: position.top,
-                        transform: position.transform,
-                        zIndex: 4,
-                        cursor: "pointer",
-                        padding: 0,
-                      }}
-                      aria-label={`Set hit pair ${item.pair}`}
-                    />
-                  ));
-                })}
-              </>
-            ) : null}
-          </span>
+          <>
+            {leftTokens.map(({ token, tokenIndex }) =>
+              renderTokenNode(token, tokenIndex),
+            )}
+            {renderDragDestination()}
+            {renderTokenNode(equalsToken, actualEqualsIndex)}
+            {rightTokens.map(({ token, tokenIndex }) =>
+              renderTokenNode(token, tokenIndex),
+            )}
+          </>
         );
-      })}
-
-      {dragSelectionStartsOnLeft ? renderDragDestination() : null}
+      })()}
     </div>
   );
 }
@@ -5122,12 +5197,17 @@ function CenterChoicePanel({
                 tokens={visibleEquationTokens}
                 compact
                 compactSize={equationViewerBlockSize * 1.18}
+                tokenGap={Math.max(16, Math.round(equationViewerBlockSize * 0.28))}
                 selectedTokenIndex={selectedTokenIndex}
                 onTokenClick={onSelectToken ?? undefined}
                 selectedOutlineColor={selectedTokenOutlineColor}
                 mechanicMode={selectedMechanic}
                 selectedHitPair={selectedHitPair}
                 onSelectHitPair={onSelectHitPair ?? undefined}
+                fontSizeOverride={{
+                  operator: 36,
+                  nonOperator: 44,
+                }}
               />
             ) : null}
           </div>
@@ -7575,6 +7655,10 @@ function handleToggleDragTarget(
         @keyframes urPulseDot {
           from { transform: scale(0.7); opacity: 0.45; }
           to { transform: scale(1.15); opacity: 1; }
+        }
+        @keyframes urSpinHighlightCcw {
+          from { stroke-dashoffset: 0; }
+          to { stroke-dashoffset: -322; }
         }
         .ur-hidden-horizontal-scroll {
           scrollbar-width: none;
