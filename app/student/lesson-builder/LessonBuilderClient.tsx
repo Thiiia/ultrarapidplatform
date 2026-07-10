@@ -4410,7 +4410,6 @@ function EquationTileStrip({
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const selectedTokenRef = useRef<HTMLSpanElement | null>(null);
   const destinationRef = useRef<HTMLSpanElement | null>(null);
-  const dragArcPathRef = useRef<SVGPathElement | null>(null);
 
   const baseTokenWidth = compact ? compactSize ?? 42 : 48;
   const baseTokenHeight = compact ? Math.max(34, Math.round(baseTokenWidth * 0.82)) : 42;
@@ -4436,19 +4435,88 @@ function EquationTileStrip({
     mechanicMode === "drag" && safeSelectedTokenIndex !== null;
   const dragSelectionStartsOnLeft =
     safeSelectedTokenIndex !== null ? safeSelectedTokenIndex < equalsIndex : false;
-  const shouldShowDragDestination = !(
+  const draggingOperatorIndex =
+    safeSelectedTokenIndex !== null
+      ? (() => {
+          const candidate = safeSelectedTokenIndex - 1;
+          if (candidate < 0) {
+            return null;
+          }
+
+          const label = tokens[candidate]?.label;
+
+          return label && ["+", "-", "×", "÷"].includes(label)
+            ? candidate
+            : null;
+        })()
+      : null;
+  const dragIsComplete =
     mechanicMode === "drag" &&
     typeof mechanicEndSeconds === "number" &&
     Number.isFinite(mechanicEndSeconds) &&
     typeof currentSongSeconds === "number" &&
     Number.isFinite(currentSongSeconds) &&
-    currentSongSeconds > mechanicEndSeconds
+    currentSongSeconds > mechanicEndSeconds;
+  const shouldShowDragDestination = !(
+    mechanicMode === "drag" && dragIsComplete
   );
 
   const slots: Array<
     | { kind: "token"; token: EquationToken; tokenIndex: number }
     | { kind: "destination" }
   > = (() => {
+    if (isDragSelectionActive && actualEqualsIndex >= 0 && dragIsComplete) {
+      const movingIndexes = new Set<number>();
+
+      if (safeSelectedTokenIndex !== null) {
+        movingIndexes.add(safeSelectedTokenIndex);
+      }
+
+      if (draggingOperatorIndex !== null) {
+        movingIndexes.add(draggingOperatorIndex);
+      }
+
+      const movingItems = tokens
+        .map((token, tokenIndex) => ({ token, tokenIndex }))
+        .filter((item) => movingIndexes.has(item.tokenIndex))
+        .map((item) => ({
+          ...item,
+          token:
+            draggingOperatorIndex !== null && item.tokenIndex === draggingOperatorIndex
+              ? { ...item.token, label: flipOperatorLabel(item.token.label) }
+              : item.token,
+        }));
+
+      const stationaryItems = tokens
+        .map((token, tokenIndex) => ({ token, tokenIndex }))
+        .filter((item) => !movingIndexes.has(item.tokenIndex));
+
+      if (dragSelectionStartsOnLeft) {
+        return [...stationaryItems, ...movingItems].map((item) => ({
+          kind: "token" as const,
+          token: item.token,
+          tokenIndex: item.tokenIndex,
+        }));
+      }
+
+      const insertionIndex = stationaryItems.findIndex(
+        (item) => item.tokenIndex === actualEqualsIndex,
+      );
+
+      const beforeEquals =
+        insertionIndex >= 0
+          ? stationaryItems.slice(0, insertionIndex)
+          : stationaryItems;
+      const afterEquals =
+        insertionIndex >= 0 ? stationaryItems.slice(insertionIndex) : [];
+
+      return [...beforeEquals, ...movingItems, ...afterEquals].map((item) => ({
+        kind: "token" as const,
+        token: item.token,
+        tokenIndex: item.tokenIndex,
+      }));
+    }
+
     if (!isDragSelectionActive || actualEqualsIndex < 0 || !shouldShowDragDestination) {
       return tokens.map((token, tokenIndex) => ({
         kind: "token" as const,
@@ -4626,19 +4694,8 @@ function EquationTileStrip({
     dragProgress !== null && selectedSlotIndex !== null && destinationSlotIndex !== null;
 
   const operatorToMoveIndex =
-    selectedTokenIsAnimatingDrag && safeSelectedTokenIndex !== null
-      ? (() => {
-          const candidate = safeSelectedTokenIndex - 1;
-          if (candidate < 0) {
-            return null;
-          }
-
-          const label = tokens[candidate]?.label;
-
-          return label && ["+", "-", "×", "÷"].includes(label)
-            ? candidate
-            : null;
-        })()
+    selectedTokenIsAnimatingDrag
+      ? draggingOperatorIndex
       : null;
 
   const operatorMovingSlotIndex =
@@ -4764,6 +4821,30 @@ function EquationTileStrip({
       opacity: hideForDragAnimation ? 0 : 1,
     };
 
+    if (hideForDragAnimation) {
+      return (
+        <span
+          key={token.id}
+          aria-hidden="true"
+          style={{
+            width: tokenWidthCss ?? baseStyle.width,
+            minWidth: tokenWidthCss ?? baseStyle.minWidth,
+            height: baseStyle.height,
+            borderRadius: 12,
+            border: "2px dashed rgba(180,92,255,0.85)",
+            background: "rgba(180,92,255,0.12)",
+            boxSizing: "border-box",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            position: "relative",
+            zIndex: 2,
+          }}
+        />
+      );
+    }
+
     if (!isClickable) {
       return (
         <span key={token.id} style={tileStyle}>
@@ -4808,35 +4889,48 @@ function EquationTileStrip({
               fill="none"
               style={{ overflow: "visible" }}
             >
-              <circle
-                cx="50"
-                cy="50"
-                r="41"
-                stroke="rgba(255,53,53,0.22)"
-                strokeWidth="4"
-              />
-              <circle
-                cx="50"
-                cy="50"
-                r="41"
-                stroke="#FF3535"
-                strokeWidth="5"
-                strokeLinecap="round"
-                strokeDasharray="64 258"
-                strokeDashoffset={spinProgress * 322}
-                transform="rotate(-90 50 50)"
-              />
-              <circle
-                cx="50"
-                cy="50"
-                r="41"
-                stroke="#FF3535"
-                strokeWidth="5"
-                strokeLinecap="round"
-                strokeDasharray="64 258"
-                strokeDashoffset={spinProgress * 322 + 161}
-                transform="rotate(-90 50 50)"
-              />
+              {(() => {
+                const spinRadius = 41;
+                const spinCircumference = 2 * Math.PI * spinRadius;
+                const spinHighlightLength = spinCircumference * 0.2;
+                const spinGapLength = spinCircumference - spinHighlightLength;
+                const spinOffset = -spinProgress * spinCircumference;
+                const oppositeSpinOffset = spinOffset + spinCircumference / 2;
+
+                return (
+                  <>
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r={spinRadius}
+                      stroke="rgba(255,53,53,0.22)"
+                      strokeWidth="4"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r={spinRadius}
+                      stroke="#FF3535"
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                      strokeDasharray={`${spinHighlightLength} ${spinGapLength}`}
+                      strokeDashoffset={spinOffset}
+                      transform="rotate(-90 50 50)"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r={spinRadius}
+                      stroke="#FF3535"
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                      strokeDasharray={`${spinHighlightLength} ${spinGapLength}`}
+                      strokeDashoffset={oppositeSpinOffset}
+                      transform="rotate(-90 50 50)"
+                    />
+                  </>
+                );
+              })()}
             </svg>
           </span>
         ) : null}
@@ -4884,16 +4978,28 @@ function EquationTileStrip({
                     Array<{ dx: number; dy: number }>
                   > = {
                     leftRight: [
-                      { dx: 0, dy: -hitCircleOffset },
-                      { dx: 0, dy: hitCircleOffset },
+                      { dx: 0, dy: -(baseTokenHeight * 0.5 + hitCircleOffset) },
+                      { dx: 0, dy: baseTokenHeight * 0.5 + hitCircleOffset },
                     ],
                     topLeftBottomRight: [
-                      { dx: -hitCircleOffset, dy: -hitCircleOffset },
-                      { dx: hitCircleOffset, dy: hitCircleOffset },
+                      {
+                        dx: -(baseTokenWidth * 0.5 + hitCircleOffset),
+                        dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
+                      },
+                      {
+                        dx: baseTokenWidth * 0.5 + hitCircleOffset,
+                        dy: baseTokenHeight * 0.5 + hitCircleOffset,
+                      },
                     ],
                     topRightBottomLeft: [
-                      { dx: hitCircleOffset, dy: -hitCircleOffset },
-                      { dx: -hitCircleOffset, dy: hitCircleOffset },
+                      {
+                        dx: baseTokenWidth * 0.5 + hitCircleOffset,
+                        dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
+                      },
+                      {
+                        dx: -(baseTokenWidth * 0.5 + hitCircleOffset),
+                        dy: baseTokenHeight * 0.5 + hitCircleOffset,
+                      },
                     ],
                   };
 
@@ -4957,7 +5063,9 @@ function EquationTileStrip({
         overflow: "visible",
       }}
     >
-      {isDragSelectionActive ? (
+      {selectedTokenIsAnimatingDrag &&
+      selectedSlotIndex !== null &&
+      destinationSlotIndex !== null ? (
         <svg
           aria-hidden="true"
           style={{
@@ -4970,10 +5078,11 @@ function EquationTileStrip({
             zIndex: 1,
           }}
         >
-          <path
-            ref={dragArcPathRef}
-            d=""
-            fill="none"
+          <line
+            x1={`${slotCenterX(selectedSlotIndex)}%`}
+            y1="50%"
+            x2={`${slotCenterX(destinationSlotIndex)}%`}
+            y2="50%"
             stroke="#B45CFF"
             strokeWidth={dragArcStrokeWidth}
             strokeDasharray={`${dragArcDashLength} ${dragArcGapLength}`}
