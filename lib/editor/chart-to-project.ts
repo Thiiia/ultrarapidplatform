@@ -10,7 +10,7 @@ type EditorRedirectPayload = {
     durationSeconds?: number
     uploadedFileName?: string
   }
-  rawResults?: any
+  rawResults?: unknown
 }
 
 function emptyDifficulty() {
@@ -40,6 +40,41 @@ function parseBpm(chartText: string) {
 function parseExpertSection(chartText: string) {
   const match = chartText.match(/\[ExpertSingle\]\s*\{([\s\S]*?)\}/)
   return match ? match[1] : ""
+}
+
+function parseEventsSection(chartText: string) {
+  const match = chartText.match(/\[Events\]\s*\{([\s\S]*?)\}/)
+  return match ? match[1] : ""
+}
+
+function parseEvents(eventsSection: string): ChartProject["events"] {
+  const lines = eventsSection
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  const events: ChartProject["events"] = []
+
+  for (const line of lines) {
+    const eventMatch = line.match(/^(\d+)\s*=\s*E\s+"([\s\S]*)"$/)
+    if (!eventMatch) continue
+
+    const tick = Number(eventMatch[1])
+    const payload = eventMatch[2]
+    const separatorIndex = payload.indexOf(":")
+    const eventType =
+      separatorIndex >= 0 ? payload.slice(0, separatorIndex) : payload
+    const value = separatorIndex >= 0 ? payload.slice(separatorIndex + 1) : ""
+
+    events.push({
+      id: nanoid(),
+      tick,
+      eventType,
+      value,
+    })
+  }
+
+  return events.sort((a, b) => a.tick - b.tick || a.eventType.localeCompare(b.eventType))
 }
 
 function parseNotes(expertSection: string): ChartNote[] {
@@ -83,6 +118,7 @@ export function chartToProject(payload: EditorRedirectPayload): ChartProject {
   const audioFilename = payload.analysisMetadata?.uploadedFileName || "audio.mp3"
 
   const notes = parseNotes(parseExpertSection(chartText))
+  const events = parseEvents(parseEventsSection(chartText))
   const now = new Date().toISOString()
 
   return {
@@ -103,7 +139,7 @@ export function chartToProject(payload: EditorRedirectPayload): ChartProject {
     },
     notes,
     blocks: [],
-    events: [],
+    events,
     difficulties: {
       expert: { noteIds: notes.map((n) => n.id), blockIds: [] },
       hard: emptyDifficulty(),

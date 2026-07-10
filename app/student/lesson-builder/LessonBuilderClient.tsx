@@ -1128,6 +1128,113 @@ function sidecarFromTimelineEvents(
   };
 }
 
+function chartEventsFromSidecar(sidecar: SidecarPayload) {
+  return sidecar.events.map((event, index) => ({
+    id: `alg-event-${index}-${event.tick}`,
+    tick: event.tick,
+    eventType: event.type,
+    value: JSON.stringify(event),
+  }));
+}
+
+function sidecarFromChartFile(
+  chartText: string,
+  analysisMetadata?: LessonBuilderPayload["analysisMetadata"],
+): SidecarPayload {
+  if (!chartText.trim()) {
+    return emptySidecar;
+  }
+
+  try {
+    const parsedProject = chartToProject({
+      chartFile: chartText,
+      analysisMetadata,
+      rawResults: emptySidecar,
+    });
+
+    const events = parsedProject.events.flatMap((event): SidecarEvent[] => {
+      if (
+        event.eventType !== "ALG_MECHANIC" &&
+        event.eventType !== "ALG_EQUATION_STATE"
+      ) {
+        return [];
+      }
+
+      try {
+        const parsedValue = JSON.parse(event.value) as Record<string, unknown>;
+
+        return [
+          {
+            ...parsedValue,
+            tick: event.tick,
+            type: event.eventType,
+          } as SidecarEvent,
+        ];
+      } catch {
+        if (event.eventType === "ALG_EQUATION_STATE" && event.value.trim()) {
+          return [
+            {
+              tick: event.tick,
+              type: "ALG_EQUATION_STATE",
+              equationId: `eq_${String(event.tick).padStart(3, "0")}`,
+              state: event.value,
+            },
+          ];
+        }
+
+        return [];
+      }
+    });
+
+    return normalizeSidecar({
+      version: 1,
+      events,
+    });
+  } catch {
+    return emptySidecar;
+  }
+}
+
+function mergeTimelineSidecarSources(
+  sidecarValue: unknown,
+  chartText: string,
+  analysisMetadata?: LessonBuilderPayload["analysisMetadata"],
+): SidecarPayload {
+  const normalizedSidecar = normalizeSidecar(sidecarValue ?? emptySidecar);
+  const chartSidecar = sidecarFromChartFile(chartText, analysisMetadata);
+
+  if (chartSidecar.events.length === 0) {
+    return normalizedSidecar;
+  }
+
+  if (normalizedSidecar.events.length === 0) {
+    return chartSidecar;
+  }
+
+  const mergedEvents = sortEvents([
+    ...normalizedSidecar.events,
+    ...chartSidecar.events,
+  ]);
+  const dedupedEvents: SidecarEvent[] = [];
+  const seen = new Set<string>();
+
+  mergedEvents.forEach((event) => {
+    const key = JSON.stringify(event);
+
+    if (seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    dedupedEvents.push(event);
+  });
+
+  return {
+    version: 1,
+    events: dedupedEvents,
+  };
+}
+
 function createBlankChartFile(
   analysisMetadata?: LessonBuilderPayload["analysisMetadata"],
 ) {
@@ -6884,8 +6991,8 @@ export default function LessonBuilderClient({
       return;
     }
 
-    setTimelineEvents((current) =>
-      current.map((eventSlot) => {
+    setTimelineEvents((current) => {
+      const nextEvents = current.map((eventSlot) => {
         if (eventSlot.id !== activeEventId) {
           return eventSlot;
         }
@@ -6898,8 +7005,11 @@ export default function LessonBuilderClient({
             drag: cloneEquationForAssignment(equation),
           },
         };
-      }),
-    );
+      });
+
+      syncTimelineFilesFromEvents(nextEvents);
+      return nextEvents;
+    });
   }
 
   function updateActiveMechanicInstance(
@@ -6911,8 +7021,8 @@ export default function LessonBuilderClient({
       return;
     }
 
-    setTimelineEvents((current) =>
-      current.map((eventSlot) => {
+    setTimelineEvents((current) => {
+      const nextEvents = current.map((eventSlot) => {
         if (eventSlot.id !== activeEventId) {
           return eventSlot;
         }
@@ -6928,8 +7038,11 @@ export default function LessonBuilderClient({
             ),
           },
         };
-      }),
-    );
+      });
+
+      syncTimelineFilesFromEvents(nextEvents);
+      return nextEvents;
+    });
   }
 
 function handleAddHitBubblePair(
@@ -7162,8 +7275,10 @@ function handleToggleDragTarget(
               : emptySidecar;
           const nextChartName =
             selectedSong.chart.path.split("/").pop() ?? "selected.chart";
-          const normalizedSidecar = normalizeSidecar(
+          const normalizedSidecar = mergeTimelineSidecarSources(
             sidecarJson ?? emptySidecar,
+            nextChartFile,
+            selectedSongMetadata,
           );
 
           if (
@@ -7214,8 +7329,10 @@ function handleToggleDragTarget(
 
     try {
       const payload: LessonBuilderPayload = JSON.parse(raw);
-      const normalizedSidecar = normalizeSidecar(
+      const normalizedSidecar = mergeTimelineSidecarSources(
         payload.rawResults ?? emptySidecar,
+        payload.chartFile ?? "",
+        payload.analysisMetadata,
       );
 
       if (payload?.analysisMetadata) {
@@ -7551,17 +7668,17 @@ function handleToggleDragTarget(
 
     setStoreSidecar(nextSidecar as StoreSidecarPayload);
 
-    if (!chartFile.trim()) {
-      setSaveStatus("Updated sidecar JSON");
-      return;
-    }
-
     try {
+      const baseChart = chartFile.trim()
+        ? chartFile
+        : createBlankChartFile(metadata);
       const nextProject = chartToProject({
-        chartFile,
+        chartFile: baseChart,
         analysisMetadata: metadata,
         rawResults: nextSidecar,
       });
+
+      nextProject.events = chartEventsFromSidecar(nextSidecar);
 
       setProject(nextProject);
       setChartFile(projectToChart(nextProject));
