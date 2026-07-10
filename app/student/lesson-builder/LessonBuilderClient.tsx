@@ -165,7 +165,15 @@ type SidecarEquationStateEvent = {
   state: string;
 };
 
-type SidecarEvent = SidecarMechanicEvent | SidecarEquationStateEvent;
+type SidecarEventSlotEvent = {
+  tick: number;
+  type: "ALG_EVENT_SLOT";
+};
+
+type SidecarEvent =
+  | SidecarMechanicEvent
+  | SidecarEquationStateEvent
+  | SidecarEventSlotEvent;
 
 type SidecarPayload = {
   version: 1;
@@ -430,6 +438,11 @@ function normalizeSidecar(value: unknown): SidecarPayload {
           });
         }
 
+        result.push({
+          tick,
+          type: "ALG_EVENT_SLOT",
+        });
+
         return result;
       },
     );
@@ -495,6 +508,15 @@ function normalizeSidecar(value: unknown): SidecarPayload {
           type: "ALG_EQUATION_STATE",
           equationId,
           state,
+        },
+      ];
+    }
+
+    if (event.type === "ALG_EVENT_SLOT") {
+      return [
+        {
+          tick: normalizeTick(event.tick),
+          type: "ALG_EVENT_SLOT",
         },
       ];
     }
@@ -897,15 +919,21 @@ function timelineEventsFromSidecar(
     (event): event is SidecarEquationStateEvent =>
       event.type === "ALG_EQUATION_STATE",
   );
+  const eventSlotEvents = normalized.events.filter(
+    (event): event is SidecarEventSlotEvent => event.type === "ALG_EVENT_SLOT",
+  );
   const mechanicEvents = normalized.events.filter(
     (event): event is SidecarMechanicEvent => event.type === "ALG_MECHANIC",
   );
 
   const eventStartTicks = Array.from(
     new Set([
+      ...eventSlotEvents.map((event) => event.tick),
       ...equationEvents.map((event) => event.tick),
       ...fallbackEventTicks,
-      ...(equationEvents.length === 0 && fallbackEventTicks.length === 0
+      ...(eventSlotEvents.length === 0 &&
+      equationEvents.length === 0 &&
+      fallbackEventTicks.length === 0
         ? mechanicEvents.map((event) => event.tick)
         : []),
     ]),
@@ -958,7 +986,7 @@ function timelineEventsFromSidecar(
     const slot = makeTimelineEvent(index, tick, counts);
     const firstEquationEvent = equationsAtTick[0];
 
-    if (firstEquationEvent) {
+    if (firstEquationEvent?.state.trim()) {
       const equation = savedEquationFromState(
         firstEquationEvent.equationId,
         firstEquationEvent.state,
@@ -1058,11 +1086,6 @@ function sidecarFromTimelineEvents(
 ): SidecarPayload {
   const sidecarEvents = events.flatMap((event, eventIndex): SidecarEvent[] => {
     const equation = getTimelineEventEquation(event);
-
-    if (!equation || equation.tokens.length === 0) {
-      return [];
-    }
-
     const equationId = `eq_${String(eventIndex + 1).padStart(3, "0")}`;
     const mechanicEvents = gameplayMechanics.flatMap(
       (mechanic): SidecarEvent[] => {
@@ -1083,7 +1106,8 @@ function sidecarFromTimelineEvents(
             type: "ALG_MECHANIC",
             mechanic,
             instanceIndex,
-            equationId,
+            equationId:
+              equation && equation.tokens.length > 0 ? equationId : undefined,
           };
 
           if (mechanic === "hit") {
@@ -1107,19 +1131,24 @@ function sidecarFromTimelineEvents(
       },
     );
 
-    if (mechanicEvents.length === 0) {
-      return [];
-    }
-
-    return [
-      ...mechanicEvents,
+    const serializedEvents: SidecarEvent[] = [
       {
+        tick: event.tick,
+        type: "ALG_EVENT_SLOT",
+      },
+      ...mechanicEvents,
+    ];
+
+    if (equation && equation.tokens.length > 0) {
+      serializedEvents.push({
         tick: event.tick,
         type: "ALG_EQUATION_STATE",
         equationId,
         state: tokensToEquationState(equation.tokens),
-      },
-    ];
+      });
+    }
+
+    return serializedEvents;
   });
 
   return {
@@ -1154,6 +1183,7 @@ function sidecarFromChartFile(
 
     const events = parsedProject.events.flatMap((event): SidecarEvent[] => {
       if (
+        event.eventType !== "ALG_EVENT_SLOT" &&
         event.eventType !== "ALG_MECHANIC" &&
         event.eventType !== "ALG_EQUATION_STATE"
       ) {
@@ -1171,6 +1201,15 @@ function sidecarFromChartFile(
           } as SidecarEvent,
         ];
       } catch {
+        if (event.eventType === "ALG_EVENT_SLOT") {
+          return [
+            {
+              tick: event.tick,
+              type: "ALG_EVENT_SLOT",
+            },
+          ];
+        }
+
         if (event.eventType === "ALG_EQUATION_STATE" && event.value.trim()) {
           return [
             {

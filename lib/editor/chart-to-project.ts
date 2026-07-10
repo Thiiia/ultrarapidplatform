@@ -47,6 +47,12 @@ function parseEventsSection(chartText: string) {
   return match ? match[1] : ""
 }
 
+function unescapeChartString(value: string) {
+  return value
+    .replace(/\\\\/g, "\\")
+    .replace(/\\"/g, '"')
+}
+
 function parseEvents(eventsSection: string): ChartProject["events"] {
   const lines = eventsSection
     .split("\n")
@@ -61,10 +67,16 @@ function parseEvents(eventsSection: string): ChartProject["events"] {
 
     const tick = Number(eventMatch[1])
     const payload = eventMatch[2]
-    const separatorIndex = payload.indexOf(":")
+    const unescapedPayload = unescapeChartString(payload)
+    const separatorIndex = unescapedPayload.indexOf(":")
     const eventType =
-      separatorIndex >= 0 ? payload.slice(0, separatorIndex) : payload
-    const value = separatorIndex >= 0 ? payload.slice(separatorIndex + 1) : ""
+      separatorIndex >= 0
+        ? unescapedPayload.slice(0, separatorIndex)
+        : unescapedPayload
+    const value =
+      separatorIndex >= 0
+        ? unescapedPayload.slice(separatorIndex + 1)
+        : ""
 
     events.push({
       id: nanoid(),
