@@ -5868,6 +5868,7 @@ function InspectorPanel({
   eventIndex,
   isAdvancedMode,
   currentSongSeconds,
+  onAddEventAtPlayhead,
   onAddHit,
   onAddSpin,
   onAddDrag,
@@ -5877,6 +5878,7 @@ function InspectorPanel({
   eventIndex: number;
   isAdvancedMode: boolean;
   currentSongSeconds: number;
+  onAddEventAtPlayhead: () => void;
   onAddHit: () => void;
   onAddSpin: () => void;
   onAddDrag: () => void;
@@ -5968,13 +5970,34 @@ function InspectorPanel({
           padding: "8px 8px 6px",
           borderBottom: `1px solid ${subtleBorderColor}`,
           boxSizing: "border-box",
-          display: "grid",
-          alignContent: "center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
         }}
       >
         <div style={{ textAlign: "left", fontSize: 13, fontWeight: 900 }}>
           Inspector
         </div>
+        <button
+          type="button"
+          onClick={onAddEventAtPlayhead}
+          style={{
+            minWidth: 86,
+            minHeight: 26,
+            borderRadius: 8,
+            border: `1px solid ${subtleBorderColor}`,
+            background: "#252525",
+            color: "#FFFFFF",
+            fontSize: 10,
+            fontWeight: 900,
+            cursor: "pointer",
+            fontFamily: "Space Grotesk, sans-serif",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Add Event
+        </button>
       </div>
 
       {renderInspectorRow(
@@ -7779,6 +7802,16 @@ function handleToggleDragTarget(
     const nextTick = Number(currentSongSeconds.toFixed(3));
 
     setTimelineEvents((current) => {
+      const overlappingEvent = findTimelineEventAtSeconds(
+        current,
+        currentSongSeconds,
+      );
+
+      if (overlappingEvent) {
+        setSaveStatus("Event not added: playhead overlaps an existing event window.");
+        return current;
+      }
+
       const nextEvent = makeTimelineEvent(current.length, nextTick);
       const nextEvents = [...current, nextEvent].sort(
         (left, right) => timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
@@ -8458,6 +8491,7 @@ function handleToggleDragTarget(
                   eventIndex={activeTimelineEventIndex}
                   isAdvancedMode={isAdvancedMode}
                   currentSongSeconds={currentSongSeconds}
+                  onAddEventAtPlayhead={handleAddTimelineEvent}
                   onAddHit={handleAddHitAtPlayhead}
                   onAddSpin={handleAddSpinAtPlayhead}
                   onAddDrag={handleAddDragAtPlayhead}
@@ -8491,7 +8525,7 @@ function handleToggleDragTarget(
             onSongUpload={handleTimelineSongUpload}
             onChartUpload={handleTimelineChartUpload}
             onSidecarUpload={handleTimelineSidecarUpload}
-            onSaveFiles={handleDownloadTimelineFiles}
+            onSaveFiles={handleSaveToSupabase}
           />
           <EquationTimeline
             events={timelineEvents}
