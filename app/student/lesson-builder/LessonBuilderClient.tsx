@@ -4702,6 +4702,31 @@ function EquationTileStrip({
     operatorToMoveIndex !== null
       ? tokenSlotIndexByTokenIndex.get(operatorToMoveIndex) ?? null
       : null;
+  const operatorArcOffsetX =
+    operatorMovingSlotIndex !== null && selectedSlotIndex !== null
+      ? slotCenterX(operatorMovingSlotIndex) - slotCenterX(selectedSlotIndex)
+      : null;
+
+  const dragArcMotion =
+    selectedTokenIsAnimatingDrag && selectedSlotIndex !== null && destinationSlotIndex !== null
+      ? (() => {
+          const startX = slotCenterX(selectedSlotIndex);
+          const endX = slotCenterX(destinationSlotIndex);
+          const controlX = startX + (endX - startX) * 0.5;
+          const horizontalDistance = Math.abs(endX - startX);
+        const baselineY = 50;
+        const arcLift = Math.max(22, Math.min(48, horizontalDistance * 0.92));
+
+          return {
+            startX,
+            endX,
+            controlX,
+          startY: baselineY,
+          endY: baselineY,
+          controlY: baselineY - arcLift,
+          };
+        })()
+      : null;
 
   function flipOperatorLabel(label: string) {
     if (label === "+") return "-";
@@ -4711,55 +4736,49 @@ function EquationTileStrip({
     return label;
   }
 
+  const hitPairOffsets: Record<HitBubblePair, Array<{ dx: number; dy: number }>> = {
+    leftRight: [
+      { dx: 0, dy: -(baseTokenHeight * 0.5 + hitCircleOffset) },
+      { dx: 0, dy: baseTokenHeight * 0.5 + hitCircleOffset },
+    ],
+    topLeftBottomRight: [
+      {
+        dx: -(baseTokenWidth * 0.5 + hitCircleOffset),
+        dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
+      },
+      {
+        dx: baseTokenWidth * 0.5 + hitCircleOffset,
+        dy: baseTokenHeight * 0.5 + hitCircleOffset,
+      },
+    ],
+    topRightBottomLeft: [
+      {
+        dx: baseTokenWidth * 0.5 + hitCircleOffset,
+        dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
+      },
+      {
+        dx: -(baseTokenWidth * 0.5 + hitCircleOffset),
+        dy: baseTokenHeight * 0.5 + hitCircleOffset,
+      },
+    ],
+  };
+
   const hitPairs: Array<{
     pair: HitBubblePair;
-    positions: Array<{ left: string; top: string; transform: string }>;
+    positions: Array<{ dx: number; dy: number }>;
   }> = [
     {
       pair: "leftRight",
       // Visually top/bottom while preserving existing stored pair semantics.
-      positions: [
-        {
-          left: "50%",
-          top: `-${hitCircleOffset}px`,
-          transform: "translate(-50%, -50%)",
-        },
-        {
-          left: "50%",
-          top: `calc(100% + ${hitCircleOffset}px)`,
-          transform: "translate(-50%, -50%)",
-        },
-      ],
+      positions: hitPairOffsets.leftRight,
     },
     {
       pair: "topLeftBottomRight",
-      positions: [
-        {
-          left: `-${hitCircleOffset}px`,
-          top: `-${hitCircleOffset}px`,
-          transform: "translate(-50%, -50%)",
-        },
-        {
-          left: `calc(100% + ${hitCircleOffset}px)`,
-          top: `calc(100% + ${hitCircleOffset}px)`,
-          transform: "translate(-50%, -50%)",
-        },
-      ],
+      positions: hitPairOffsets.topLeftBottomRight,
     },
     {
       pair: "topRightBottomLeft",
-      positions: [
-        {
-          left: `calc(100% + ${hitCircleOffset}px)`,
-          top: `-${hitCircleOffset}px`,
-          transform: "translate(-50%, -50%)",
-        },
-        {
-          left: `-${hitCircleOffset}px`,
-          top: `calc(100% + ${hitCircleOffset}px)`,
-          transform: "translate(-50%, -50%)",
-        },
-      ],
+      positions: hitPairOffsets.topRightBottomLeft,
     },
   ];
 
@@ -4959,9 +4978,9 @@ function EquationTileStrip({
                     boxShadow: isPairSelected
                       ? "0 0 10px rgba(46,167,255,0.65)"
                       : "none",
-                    left: position.left,
-                    top: position.top,
-                    transform: position.transform,
+                    left: `calc(50% + ${position.dx}px)`,
+                    top: `calc(50% + ${position.dy}px)`,
+                    transform: "translate(-50%, -50%)",
                     zIndex: 4,
                     cursor: "pointer",
                     padding: 0,
@@ -4973,37 +4992,7 @@ function EquationTileStrip({
 
             {hitAnimationProgress !== null && selectedHitPair
               ? (() => {
-                  const pairOffsets: Record<
-                    HitBubblePair,
-                    Array<{ dx: number; dy: number }>
-                  > = {
-                    leftRight: [
-                      { dx: 0, dy: -(baseTokenHeight * 0.5 + hitCircleOffset) },
-                      { dx: 0, dy: baseTokenHeight * 0.5 + hitCircleOffset },
-                    ],
-                    topLeftBottomRight: [
-                      {
-                        dx: -(baseTokenWidth * 0.5 + hitCircleOffset),
-                        dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
-                      },
-                      {
-                        dx: baseTokenWidth * 0.5 + hitCircleOffset,
-                        dy: baseTokenHeight * 0.5 + hitCircleOffset,
-                      },
-                    ],
-                    topRightBottomLeft: [
-                      {
-                        dx: baseTokenWidth * 0.5 + hitCircleOffset,
-                        dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
-                      },
-                      {
-                        dx: -(baseTokenWidth * 0.5 + hitCircleOffset),
-                        dy: baseTokenHeight * 0.5 + hitCircleOffset,
-                      },
-                    ],
-                  };
-
-                  const targets = pairOffsets[selectedHitPair];
+                  const targets = hitPairOffsets[selectedHitPair];
 
                   return targets.map((target, circleIndex) => {
                     const dx = target.dx * hitAnimationProgress;
@@ -5063,11 +5052,11 @@ function EquationTileStrip({
         overflow: "visible",
       }}
     >
-      {selectedTokenIsAnimatingDrag &&
-      selectedSlotIndex !== null &&
-      destinationSlotIndex !== null ? (
+      {dragArcMotion ? (
         <svg
           aria-hidden="true"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
           style={{
             position: "absolute",
             inset: 0,
@@ -5078,11 +5067,9 @@ function EquationTileStrip({
             zIndex: 1,
           }}
         >
-          <line
-            x1={`${slotCenterX(selectedSlotIndex)}%`}
-            y1="50%"
-            x2={`${slotCenterX(destinationSlotIndex)}%`}
-            y2="50%"
+          <path
+            d={`M ${dragArcMotion.startX} ${dragArcMotion.startY} Q ${dragArcMotion.controlX} ${dragArcMotion.controlY} ${dragArcMotion.endX} ${dragArcMotion.endY}`}
+            fill="none"
             stroke="#B45CFF"
             strokeWidth={dragArcStrokeWidth}
             strokeDasharray={`${dragArcDashLength} ${dragArcGapLength}`}
@@ -5091,27 +5078,19 @@ function EquationTileStrip({
         </svg>
       ) : null}
 
-      {selectedTokenIsAnimatingDrag &&
-      selectedSlotIndex !== null &&
-      destinationSlotIndex !== null &&
-      dragProgress !== null ? (
+      {dragArcMotion && dragProgress !== null ? (
         (() => {
-          const startX = slotCenterX(selectedSlotIndex);
-          const endX = slotCenterX(destinationSlotIndex);
-          const controlX = startX + (endX - startX) * 0.5;
-          const horizontalDistance = Math.abs(endX - startX);
-          const arcHeight = Math.max(
-            baseTokenHeight * 1.15,
-            Math.min(baseTokenHeight * 2.6, baseTokenHeight * 1.05 + horizontalDistance * 1.35),
-          );
-          const controlY = -arcHeight;
+          const { startX, endX, startY, endY, controlX, controlY } = dragArcMotion;
           const t = dragProgress;
           const oneMinus = 1 - t;
           const x =
             oneMinus * oneMinus * startX +
             2 * oneMinus * t * controlX +
             t * t * endX;
-          const y = 2 * oneMinus * t * controlY;
+          const y =
+            oneMinus * oneMinus * startY +
+            2 * oneMinus * t * controlY +
+            t * t * endY;
           const operatorLabel =
             operatorToMoveIndex !== null ? tokens[operatorToMoveIndex]?.label ?? "" : "";
           const showFlippedOperator = t >= 0.5;
@@ -5123,7 +5102,7 @@ function EquationTileStrip({
                 style={{
                   position: "absolute",
                   left: `${x}%`,
-                  top: `calc(50% + ${y}px)`,
+                  top: `${y}%`,
                   transform: "translate(-50%, -50%)",
                   zIndex: 6,
                   ...getEquationTileStyle({
@@ -5144,8 +5123,8 @@ function EquationTileStrip({
                   aria-hidden="true"
                   style={{
                     position: "absolute",
-                    left: `${x - Math.max(4, tokenGap * 0.9)}%`,
-                    top: `calc(50% + ${y}px)`,
+                    left: `${x + (operatorArcOffsetX ?? 0)}%`,
+                    top: `${y}%`,
                     transform: "translate(-50%, -50%)",
                     zIndex: 6,
                     ...getEquationTileStyle({
