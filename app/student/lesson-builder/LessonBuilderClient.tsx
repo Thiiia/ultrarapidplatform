@@ -4417,7 +4417,7 @@ function EquationTileStrip({
   const hitCircleSize = Math.max(10, Math.round(baseTokenWidth * 0.3));
   const hitCircleBorderWidth = Math.max(1.5, Math.round(baseTokenWidth * 0.04));
   const spinInset = -Math.max(24, Math.round(baseTokenWidth * 0.72));
-  const dragArcStrokeWidth = Math.max(2, Math.round(baseTokenWidth * 0.06));
+  const dragArcStrokeWidth = Math.max(1, Math.round(baseTokenWidth * 0.025));
   const dragArcDashLength = Math.max(6, Math.round(baseTokenWidth * 0.18));
   const dragArcGapLength = Math.max(5, Math.round(baseTokenWidth * 0.14));
 
@@ -4715,7 +4715,7 @@ function EquationTileStrip({
           const controlX = startX + (endX - startX) * 0.5;
           const horizontalDistance = Math.abs(endX - startX);
         const baselineY = 50;
-        const arcLift = Math.max(22, Math.min(48, horizontalDistance * 0.92));
+          const arcLift = Math.max(60, Math.min(86, 60 + horizontalDistance * 0.45));
 
           return {
             startX,
@@ -5072,8 +5072,9 @@ function EquationTileStrip({
             fill="none"
             stroke="#B45CFF"
             strokeWidth={dragArcStrokeWidth}
-            strokeDasharray="2.6 2.2"
+            strokeDasharray={`${dragArcDashLength * 0.6} ${dragArcGapLength * 0.8}`}
             strokeLinecap="butt"
+            vectorEffect="non-scaling-stroke"
           />
         </svg>
       ) : null}
