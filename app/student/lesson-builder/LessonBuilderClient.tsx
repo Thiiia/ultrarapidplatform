@@ -7119,11 +7119,20 @@ function handleToggleDragTarget(
         uploadedFileName:
           metadata?.uploadedFileName || uploadedSongName || "audio.mp3",
       };
-      const chartTextSource = project ? projectToChart(project) : chartFile;
-      const chartText = chartTextSource.trim()
-        ? chartTextSource
+      const timelineSidecar = sidecarFromTimelineEvents(timelineEvents);
+      const baseChart = chartFile.trim()
+        ? chartFile
         : createBlankChartFile(fallbackMetadata);
-      const sidecarJson = projectToSidecarJson(sidecar);
+      const nextProject = chartToProject({
+        chartFile: baseChart,
+        analysisMetadata: fallbackMetadata,
+        rawResults: timelineSidecar,
+      });
+
+      nextProject.events = chartEventsFromSidecar(timelineSidecar);
+
+      const chartText = projectToChart(nextProject);
+      const sidecarJson = projectToSidecarJson(timelineSidecar);
 
       const response = await fetch("/api/lesson-builder/save", {
         method: "POST",
@@ -7164,6 +7173,9 @@ function handleToggleDragTarget(
         throw new Error(result?.error ?? "Unable to save lesson files");
       }
 
+      setProject(nextProject);
+      setChartFile(chartText);
+      setStoreSidecar(timelineSidecar as StoreSidecarPayload);
       setSaveStatus("Saved");
     } catch (error) {
       setSaveStatus(
