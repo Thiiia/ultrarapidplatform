@@ -4492,8 +4492,68 @@ function EquationTileStrip({
 
   const slotCount = Math.max(1, slots.length);
   const tokenWidthCss = compact
-    ? `min(${baseTokenWidth}px, calc((100% - ${(slotCount - 1) * tokenGap}px) / ${slotCount}))`
+    ? `var(--equation-token-width, ${baseTokenWidth}px)`
     : undefined;
+
+  useLayoutEffect(() => {
+    const surface = surfaceRef.current;
+    if (!surface || !compact) {
+      return;
+    }
+
+    let frameId: number | null = null;
+
+    const updateWidthVariable = () => {
+      const availableWidth = surface.clientWidth;
+      const idealWidth = slotCount * baseTokenWidth + (slotCount - 1) * tokenGap;
+
+      if (availableWidth <= 0 || idealWidth <= availableWidth) {
+        surface.style.removeProperty("--equation-token-width");
+        return;
+      }
+
+      const shrunkWidth = Math.max(
+        22,
+        Math.floor((availableWidth - (slotCount - 1) * tokenGap) / slotCount),
+      );
+
+      surface.style.setProperty(
+        "--equation-token-width",
+        `${Math.min(baseTokenWidth, shrunkWidth)}px`,
+      );
+    };
+
+    const scheduleUpdate = () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+
+      frameId = requestAnimationFrame(updateWidthVariable);
+    };
+
+    scheduleUpdate();
+
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        if (frameId !== null) {
+          cancelAnimationFrame(frameId);
+        }
+      };
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      scheduleUpdate();
+    });
+
+    resizeObserver.observe(surface);
+
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+      resizeObserver.disconnect();
+    };
+  }, [baseTokenWidth, compact, slotCount, tokenGap]);
 
   const tokenSlotIndexByTokenIndex = new Map<number, number>();
   let destinationSlotIndex: number | null = null;
@@ -4653,8 +4713,8 @@ function EquationTileStrip({
         ref={destinationRef}
         aria-hidden="true"
         style={{
-          width: baseTokenWidth,
-          minWidth: baseTokenWidth,
+          width: tokenWidthCss ?? baseTokenWidth,
+          minWidth: tokenWidthCss ?? baseTokenWidth,
           height: baseTokenHeight,
           borderRadius: 12,
           border: "2px dashed rgba(180,92,255,0.85)",
@@ -4889,11 +4949,12 @@ function EquationTileStrip({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        width: "100%",
         gap: tokenGap,
         flexWrap: "nowrap",
         maxWidth: "100%",
         minWidth: 0,
-        overflow: "hidden",
+        overflow: "visible",
       }}
     >
       {isDragSelectionActive ? (
@@ -5265,7 +5326,7 @@ function CenterChoicePanel({
         background: row2Column2BackgroundColor,
         color: textColor,
         boxSizing: "border-box",
-        overflow: "hidden",
+        overflow: hideHeader ? "visible" : "hidden",
         display: "flex",
         alignItems: hideHeader ? "stretch" : "center",
         justifyContent: hideHeader ? "stretch" : "center",
@@ -5278,7 +5339,8 @@ function CenterChoicePanel({
           width: hideHeader ? "100%" : "min(720px, 92%)",
           height: hideHeader ? "100%" : "auto",
           display: "grid",
-          justifyItems: "center",
+          justifyItems: hideHeader ? "stretch" : "center",
+          alignItems: hideHeader ? "stretch" : "initial",
           gap: hideHeader ? 0 : 18,
           textAlign: "center",
         }}
@@ -5371,25 +5433,27 @@ function CenterChoicePanel({
               border: hideHeader ? "none" : `1px solid ${hasDraft ? "#CFFF04" : subtleBorderColor}`,
               background: hideHeader ? row2Column2BackgroundColor : "#202020",
               display: "grid",
-              alignContent: "center",
-              justifyItems: "center",
+              alignContent: hideHeader ? "stretch" : "center",
+              justifyItems: hideHeader ? "stretch" : "center",
               gap: 10,
-              padding: hideHeader ? 0 : 18,
+              padding: hideHeader ? "10px 16px 18px" : 18,
               boxSizing: "border-box",
-              overflow: hideHeader ? "auto" : "hidden",
+              overflow: hideHeader ? "visible" : "hidden",
             }}
           >
-            <div
-              style={{
-                color: hasDraft ? "#CFFF04" : "#FFFFFF99",
-                fontSize: 11,
-                fontWeight: 900,
-                textTransform: "uppercase",
-                letterSpacing: 0.4,
-              }}
-            >
-              {visibleEquationLabel}
-            </div>
+            {!hideHeader ? (
+              <div
+                style={{
+                  color: hasDraft ? "#CFFF04" : "#FFFFFF99",
+                  fontSize: 11,
+                  fontWeight: 900,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.4,
+                }}
+              >
+                {visibleEquationLabel}
+              </div>
+            ) : null}
             {visibleEquationTokens.length > 0 ? (
               <EquationTileStrip
                 tokens={visibleEquationTokens}
