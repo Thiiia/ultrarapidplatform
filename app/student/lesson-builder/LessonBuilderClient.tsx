@@ -184,8 +184,6 @@ type PendingMechanicRangeSelection = {
   startTick: number;
 };
 
-type HitDirection = "vert" | "leftDiag" | "rightDiag";
-
 type CenterChoice = "create" | "premade" | null;
 type LibraryTab = "mine" | "premade";
 
@@ -4379,6 +4377,10 @@ function EquationTileStrip({
   compactSize,
   selectedTokenIndex,
   onTokenClick,
+  selectedOutlineColor = "#CFFF04",
+  mechanicMode = null,
+  selectedHitPair,
+  onSelectHitPair,
 }: {
   tokens: EquationToken[];
   emptyLabel?: string;
@@ -4386,7 +4388,190 @@ function EquationTileStrip({
   compactSize?: number;
   selectedTokenIndex?: number | null;
   onTokenClick?: (tokenIndex: number) => void;
+  selectedOutlineColor?: string;
+  mechanicMode?: GameplayMechanic | null;
+  selectedHitPair?: HitBubblePair | null;
+  onSelectHitPair?: (pair: HitBubblePair) => void;
 }) {
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const selectedTokenRef = useRef<HTMLSpanElement | null>(null);
+  const destinationRef = useRef<HTMLSpanElement | null>(null);
+  const dragArcPathRef = useRef<SVGPathElement | null>(null);
+
+  const baseTokenWidth = compact ? compactSize ?? 42 : 48;
+  const baseTokenHeight = compact ? Math.max(34, Math.round(baseTokenWidth * 0.82)) : 42;
+  const hitCircleOffset = Math.max(12, Math.round(baseTokenWidth * 0.38));
+  const hitCircleSize = Math.max(10, Math.round(baseTokenWidth * 0.3));
+  const hitCircleBorderWidth = Math.max(1.5, Math.round(baseTokenWidth * 0.04));
+  const spinInset = -Math.max(10, Math.round(baseTokenWidth * 0.34));
+  const dragArcStrokeWidth = Math.max(2, Math.round(baseTokenWidth * 0.06));
+  const dragArcDashLength = Math.max(6, Math.round(baseTokenWidth * 0.18));
+  const dragArcGapLength = Math.max(5, Math.round(baseTokenWidth * 0.14));
+
+  const equalsIndex = findEqualsIndex(tokens);
+  const safeSelectedTokenIndex =
+    selectedTokenIndex !== null &&
+    selectedTokenIndex !== undefined &&
+    selectedTokenIndex >= 0 &&
+    selectedTokenIndex < tokens.length &&
+    !isEquationOperator(tokens[selectedTokenIndex]?.label ?? "")
+      ? selectedTokenIndex
+      : null;
+  const isDragSelectionActive =
+    mechanicMode === "drag" && safeSelectedTokenIndex !== null;
+  const dragSelectionStartsOnLeft =
+    safeSelectedTokenIndex !== null ? safeSelectedTokenIndex < equalsIndex : false;
+
+  useLayoutEffect(() => {
+    const surface = surfaceRef.current;
+    const tokenNode = selectedTokenRef.current;
+    const destinationNode = destinationRef.current;
+    const pathNode = dragArcPathRef.current;
+
+    if (!pathNode) {
+      return;
+    }
+
+    if (!isDragSelectionActive || !surface || !tokenNode || !destinationNode) {
+      pathNode.setAttribute("d", "");
+      return;
+    }
+
+    const surfaceRect = surface.getBoundingClientRect();
+    const tokenRect = tokenNode.getBoundingClientRect();
+    const destinationRect = destinationNode.getBoundingClientRect();
+    const startX = tokenRect.left + tokenRect.width / 2 - surfaceRect.left;
+    const startY = tokenRect.top + tokenRect.height / 2 - surfaceRect.top;
+    const endX = destinationRect.left + destinationRect.width / 2 - surfaceRect.left;
+    const endY = destinationRect.top + destinationRect.height / 2 - surfaceRect.top;
+    const deltaX = endX - startX;
+    const controlY =
+      Math.min(startY, endY) - Math.max(baseTokenWidth * 1.1, Math.abs(deltaX) * 0.28);
+
+    pathNode.setAttribute(
+      "d",
+      `M ${startX} ${startY} Q ${startX + deltaX * 0.5} ${controlY}, ${endX} ${endY}`,
+    );
+  }, [isDragSelectionActive, safeSelectedTokenIndex, tokens, baseTokenWidth]);
+
+  useEffect(() => {
+    function handleResize() {
+      const surface = surfaceRef.current;
+      const tokenNode = selectedTokenRef.current;
+      const destinationNode = destinationRef.current;
+      const pathNode = dragArcPathRef.current;
+
+      if (!pathNode) {
+        return;
+      }
+
+      if (!isDragSelectionActive || !surface || !tokenNode || !destinationNode) {
+        pathNode.setAttribute("d", "");
+        return;
+      }
+
+      const surfaceRect = surface.getBoundingClientRect();
+      const tokenRect = tokenNode.getBoundingClientRect();
+      const destinationRect = destinationNode.getBoundingClientRect();
+      const startX = tokenRect.left + tokenRect.width / 2 - surfaceRect.left;
+      const startY = tokenRect.top + tokenRect.height / 2 - surfaceRect.top;
+      const endX = destinationRect.left + destinationRect.width / 2 - surfaceRect.left;
+      const endY = destinationRect.top + destinationRect.height / 2 - surfaceRect.top;
+      const deltaX = endX - startX;
+      const controlY =
+        Math.min(startY, endY) - Math.max(baseTokenWidth * 1.1, Math.abs(deltaX) * 0.28);
+
+      pathNode.setAttribute(
+        "d",
+        `M ${startX} ${startY} Q ${startX + deltaX * 0.5} ${controlY}, ${endX} ${endY}`,
+      );
+    }
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [isDragSelectionActive, baseTokenWidth]);
+
+  const hitPairs: Array<{
+    pair: HitBubblePair;
+    positions: Array<{ left: string; top: string; transform: string }>;
+  }> = [
+    {
+      pair: "leftRight",
+      // Visually top/bottom while preserving existing stored pair semantics.
+      positions: [
+        {
+          left: "50%",
+          top: `-${hitCircleOffset}px`,
+          transform: "translate(-50%, -50%)",
+        },
+        {
+          left: "50%",
+          top: `calc(100% + ${hitCircleOffset}px)`,
+          transform: "translate(-50%, -50%)",
+        },
+      ],
+    },
+    {
+      pair: "topLeftBottomRight",
+      positions: [
+        {
+          left: `-${hitCircleOffset}px`,
+          top: `-${hitCircleOffset}px`,
+          transform: "translate(-50%, -50%)",
+        },
+        {
+          left: `calc(100% + ${hitCircleOffset}px)`,
+          top: `calc(100% + ${hitCircleOffset}px)`,
+          transform: "translate(-50%, -50%)",
+        },
+      ],
+    },
+    {
+      pair: "topRightBottomLeft",
+      positions: [
+        {
+          left: `calc(100% + ${hitCircleOffset}px)`,
+          top: `-${hitCircleOffset}px`,
+          transform: "translate(-50%, -50%)",
+        },
+        {
+          left: `-${hitCircleOffset}px`,
+          top: `calc(100% + ${hitCircleOffset}px)`,
+          transform: "translate(-50%, -50%)",
+        },
+      ],
+    },
+  ];
+
+  function renderDragDestination() {
+    if (!isDragSelectionActive) {
+      return null;
+    }
+
+    return (
+      <span
+        ref={destinationRef}
+        aria-hidden="true"
+        style={{
+          width: baseTokenWidth,
+          minWidth: baseTokenWidth,
+          height: baseTokenHeight,
+          borderRadius: 12,
+          border: "2px dashed rgba(180,92,255,0.85)",
+          background: "rgba(180,92,255,0.14)",
+          boxSizing: "border-box",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
+
   if (tokens.length === 0) {
     return (
       <span style={{ color: "#FFFFFF66", fontSize: 11, fontWeight: 800 }}>
@@ -4397,7 +4582,9 @@ function EquationTileStrip({
 
   return (
     <div
+      ref={surfaceRef}
       style={{
+        position: "relative",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -4407,6 +4594,33 @@ function EquationTileStrip({
         minWidth: 0,
       }}
     >
+      {isDragSelectionActive ? (
+        <svg
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            overflow: "visible",
+            pointerEvents: "none",
+            zIndex: 1,
+          }}
+        >
+          <path
+            ref={dragArcPathRef}
+            d=""
+            fill="none"
+            stroke="#B45CFF"
+            strokeWidth={dragArcStrokeWidth}
+            strokeDasharray={`${dragArcDashLength} ${dragArcGapLength}`}
+            strokeLinecap="round"
+          />
+        </svg>
+      ) : null}
+
+      {!dragSelectionStartsOnLeft ? renderDragDestination() : null}
+
       {tokens.map((token, tokenIndex) => {
         const isOperator = isEquationOperator(token.label);
         const isSelected = selectedTokenIndex === tokenIndex;
@@ -4419,8 +4633,10 @@ function EquationTileStrip({
           }),
           cursor: isClickable ? "pointer" : "default",
           boxShadow: isSelected
-            ? "0 0 0 2px #CFFF04, 0 0 16px rgba(207,255,4,0.35)"
+            ? `0 0 0 2px ${selectedOutlineColor}, 0 0 16px ${selectedOutlineColor}66`
             : undefined,
+          position: "relative" as const,
+          zIndex: 2,
         };
 
         if (!isClickable) {
@@ -4432,21 +4648,94 @@ function EquationTileStrip({
         }
 
         return (
-          <button
+          <span
             key={token.id}
-            type="button"
-            onClick={() => onTokenClick?.(tokenIndex)}
-            style={{
-              ...tileStyle,
-              border: "none",
-              padding: 0,
-            }}
-            aria-label={`Assign to token ${token.label}`}
+            ref={isSelected ? selectedTokenRef : null}
+            style={{ position: "relative", display: "inline-flex" }}
           >
-            {token.label}
-          </button>
+            <button
+              type="button"
+              onClick={() => onTokenClick?.(tokenIndex)}
+              style={{
+                ...tileStyle,
+                border: "none",
+                padding: 0,
+              }}
+              aria-label={`Assign to token ${token.label}`}
+            >
+              {token.label}
+            </button>
+
+            {isSelected && mechanicMode === "spin" ? (
+              <span
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  inset: `${spinInset}px`,
+                  pointerEvents: "none",
+                  zIndex: 3,
+                }}
+              >
+                <svg
+                  width="100%"
+                  height="100%"
+                  viewBox="0 0 100 100"
+                  fill="none"
+                  style={{ overflow: "visible" }}
+                >
+                  <path
+                    d="M 28 20 A 34 34 0 1 1 20 62"
+                    stroke="#FF3535"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                  />
+                  <path d="M 20 62 L 18 50 L 30 54 Z" fill="#FF3535" />
+                </svg>
+              </span>
+            ) : null}
+
+            {isSelected && mechanicMode === "hit" ? (
+              <>
+                {hitPairs.map((item) => {
+                  const isPairSelected = selectedHitPair === item.pair;
+
+                  return item.positions.map((position, circleIndex) => (
+                    <button
+                      key={`${token.id}-${item.pair}-${circleIndex}`}
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onSelectHitPair?.(item.pair);
+                      }}
+                      style={{
+                        position: "absolute",
+                        width: hitCircleSize,
+                        height: hitCircleSize,
+                        borderRadius: 999,
+                        border: `${hitCircleBorderWidth}px solid ${isPairSelected ? "#2EA7FF" : "#7CC8FF"}`,
+                        background: isPairSelected ? "#2EA7FF" : "rgba(46,167,255,0.3)",
+                        boxShadow: isPairSelected
+                          ? "0 0 10px rgba(46,167,255,0.65)"
+                          : "none",
+                        left: position.left,
+                        top: position.top,
+                        transform: position.transform,
+                        zIndex: 4,
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                      aria-label={`Set hit pair ${item.pair}`}
+                    />
+                  ));
+                })}
+              </>
+            ) : null}
+          </span>
         );
       })}
+
+      {dragSelectionStartsOnLeft ? renderDragDestination() : null}
     </div>
   );
 }
@@ -4640,8 +4929,10 @@ function CenterChoicePanel({
   hasSelectedEvent,
   selectedTokenIndex,
   onSelectToken,
+  selectedMechanic,
+  selectedHitPair,
+  onSelectHitPair,
   equationViewerBlockSize,
-  hasInspector,
   onCreateEquation,
   onBrowseLibrary,
   hideHeader = false,
@@ -4652,8 +4943,10 @@ function CenterChoicePanel({
   hasSelectedEvent: boolean;
   selectedTokenIndex: number | null;
   onSelectToken: ((tokenIndex: number) => void) | null;
+  selectedMechanic: GameplayMechanic | null;
+  selectedHitPair: HitBubblePair | null;
+  onSelectHitPair: ((pair: HitBubblePair) => void) | null;
   equationViewerBlockSize: number;
-  hasInspector: boolean;
   onCreateEquation: () => void;
   onBrowseLibrary: () => void;
   hideHeader?: boolean;
@@ -4679,6 +4972,14 @@ function CenterChoicePanel({
     : isPremade
       ? "Select an equation from the library, then click a timeline event to assign it."
       : "Create an equation from scratch or start with a curriculum-aligned equation";
+  const selectedTokenOutlineColor =
+    selectedMechanic === "hit"
+      ? "#2EA7FF"
+      : selectedMechanic === "spin"
+        ? "#FF3535"
+        : selectedMechanic === "drag"
+          ? "#B45CFF"
+          : "#CFFF04";
 
   return (
     <section
@@ -4820,9 +5121,13 @@ function CenterChoicePanel({
               <EquationTileStrip
                 tokens={visibleEquationTokens}
                 compact
-                compactSize={equationViewerBlockSize}
+                compactSize={equationViewerBlockSize * 1.18}
                 selectedTokenIndex={selectedTokenIndex}
                 onTokenClick={onSelectToken ?? undefined}
+                selectedOutlineColor={selectedTokenOutlineColor}
+                mechanicMode={selectedMechanic}
+                selectedHitPair={selectedHitPair}
+                onSelectHitPair={onSelectHitPair ?? undefined}
               />
             ) : null}
           </div>
@@ -5524,8 +5829,6 @@ export default function LessonBuilderClient({
     useState<PendingMechanicRangeSelection | null>(null);
   const [isPlayheadAutoSelectPaused, setIsPlayheadAutoSelectPaused] =
     useState(false);
-  const [selectedHitDirection, setSelectedHitDirection] =
-    useState<HitDirection>("vert");
 
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
@@ -5722,6 +6025,24 @@ export default function LessonBuilderClient({
     return instance.dragTargets[0]?.tokenIndex ?? null;
   }, [centerContextEvent, selectedCenterContextMechanic]);
 
+  const selectedContextHitPair = useMemo(() => {
+    if (
+      !centerContextEvent ||
+      !selectedCenterContextMechanic ||
+      selectedCenterContextMechanic.mechanic !== "hit"
+    ) {
+      return null;
+    }
+
+    const instance =
+      centerContextEvent.mechanicInstances?.[
+        selectedCenterContextMechanic.mechanic
+      ]?.[selectedCenterContextMechanic.instanceIndex];
+    const pad = instance?.hitBubbles[0]?.pads?.[0];
+
+    return pad ? getHitBubblePairFromPad(pad) : null;
+  }, [centerContextEvent, selectedCenterContextMechanic]);
+
   useEffect(() => {
     if (centerContextMechanicItems.length === 0) {
       if (selectedContextMechanicKey !== null) {
@@ -5741,8 +6062,6 @@ export default function LessonBuilderClient({
 
     setSelectedContextMechanicKey(centerContextMechanicItems[0].key);
   }, [centerContextMechanicItems, selectedContextMechanicKey]);
-
-  const isInspectorVisible = isAdvancedMode;
 
   const row2DisplayWidths = useMemo(() => {
     if (isAdvancedMode) {
@@ -5932,18 +6251,6 @@ export default function LessonBuilderClient({
     setHideEquationHeader(true);
   }
 
-  function getHitDirectionPads(direction: HitDirection): HitBubblePad[] {
-    if (direction === "leftDiag") {
-      return ["topRight", "bottomLeft"];
-    }
-
-    if (direction === "rightDiag") {
-      return ["topLeft", "bottomRight"];
-    }
-
-    return ["topLeft", "bottomLeft"];
-  }
-
   function handleAssignTokenToSelectedContextMechanic(tokenIndex: number) {
     if (!centerContextEvent || !selectedCenterContextMechanic) {
       return;
@@ -5964,7 +6271,9 @@ export default function LessonBuilderClient({
             }
 
             if (mechanic === "hit") {
-              const pads = getHitDirectionPads(selectedHitDirection);
+              const pads = getHitBubblePairPads(
+                selectedContextHitPair ?? "leftRight",
+              );
 
               return {
                 ...instance,
@@ -5998,6 +6307,57 @@ export default function LessonBuilderClient({
       syncTimelineFilesFromEvents(nextEvents);
       setSelectedContextMechanicKey(key);
 
+      return nextEvents;
+    });
+  }
+
+  function handleSetSelectedContextHitPair(pair: HitBubblePair) {
+    if (
+      !centerContextEvent ||
+      !selectedCenterContextMechanic ||
+      selectedCenterContextMechanic.mechanic !== "hit"
+    ) {
+      return;
+    }
+
+    const tokenIndex = selectedContextMechanicAssignedTokenIndex;
+
+    if (tokenIndex === null) {
+      return;
+    }
+
+    const { mechanic, instanceIndex } = selectedCenterContextMechanic;
+    const pads = getHitBubblePairPads(pair);
+
+    setTimelineEvents((current) => {
+      const nextEvents = current.map((eventSlot) => {
+        if (eventSlot.id !== centerContextEvent.id) {
+          return eventSlot;
+        }
+
+        const nextInstances = (eventSlot.mechanicInstances?.[mechanic] ?? []).map(
+          (instance, index) => {
+            if (index !== instanceIndex) {
+              return instance;
+            }
+
+            return {
+              ...instance,
+              hitBubbles: [{ tokenIndex, positions: pads, pads }],
+            };
+          },
+        );
+
+        return {
+          ...eventSlot,
+          mechanicInstances: {
+            ...eventSlot.mechanicInstances,
+            [mechanic]: nextInstances,
+          },
+        };
+      });
+
+      syncTimelineFilesFromEvents(nextEvents);
       return nextEvents;
     });
   }
@@ -6043,59 +6403,6 @@ export default function LessonBuilderClient({
         `Removed ${selectedCenterContextMechanic.mechanic} ${selectedCenterContextMechanic.instanceIndex + 1}.`,
       );
 
-      return nextEvents;
-    });
-  }
-
-  function handleSetSelectedHitDirection(direction: HitDirection) {
-    setSelectedHitDirection(direction);
-
-    if (
-      !centerContextEvent ||
-      !selectedCenterContextMechanic ||
-      selectedCenterContextMechanic.mechanic !== "hit"
-    ) {
-      return;
-    }
-
-    const tokenIndex = selectedContextMechanicAssignedTokenIndex;
-
-    if (tokenIndex === null) {
-      return;
-    }
-
-    const { mechanic, instanceIndex } = selectedCenterContextMechanic;
-    const pads = getHitDirectionPads(direction);
-
-    setTimelineEvents((current) => {
-      const nextEvents = current.map((eventSlot) => {
-        if (eventSlot.id !== centerContextEvent.id) {
-          return eventSlot;
-        }
-
-        const nextInstances = (eventSlot.mechanicInstances?.[mechanic] ?? []).map(
-          (instance, index) => {
-            if (index !== instanceIndex) {
-              return instance;
-            }
-
-            return {
-              ...instance,
-              hitBubbles: [{ tokenIndex, positions: pads, pads }],
-            };
-          },
-        );
-
-        return {
-          ...eventSlot,
-          mechanicInstances: {
-            ...eventSlot.mechanicInstances,
-            [mechanic]: nextInstances,
-          },
-        };
-      });
-
-      syncTimelineFilesFromEvents(nextEvents);
       return nextEvents;
     });
   }
@@ -7390,8 +7697,14 @@ function handleToggleDragTarget(
                       ? handleAssignTokenToSelectedContextMechanic
                       : null
                   }
+                  selectedMechanic={selectedCenterContextMechanic?.mechanic ?? null}
+                  selectedHitPair={selectedContextHitPair}
+                  onSelectHitPair={
+                    selectedCenterContextMechanic?.mechanic === "hit"
+                      ? handleSetSelectedContextHitPair
+                      : null
+                  }
                   equationViewerBlockSize={equationViewerBlockSize}
-                  hasInspector={isInspectorVisible}
                   onCreateEquation={handleCreateEquationChoice}
                   onBrowseLibrary={handleBrowsePremadeChoice}
                   hideHeader={hideEquationHeader}
@@ -7402,7 +7715,7 @@ function handleToggleDragTarget(
                 style={{
                   display: centerContextEvent ? "grid" : "none",
                   minHeight: 0,
-                  gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.2fr) auto",
+                  gridTemplateColumns: "minmax(0, 1fr) auto",
                   alignItems: "center",
                   gap: 10,
                   borderTop: `1px solid ${subtleBorderColor}`,
@@ -7413,24 +7726,6 @@ function handleToggleDragTarget(
                   overflow: "hidden",
                 }}
               >
-                <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ color: "#FFFFFF99", fontSize: 10, fontWeight: 900, textTransform: "uppercase" }}>
-                    Assigned
-                  </span>
-                  <EquationTileStrip
-                    tokens={centerContextEventEquation?.tokens ?? []}
-                    compact
-                    compactSize={20}
-                    selectedTokenIndex={selectedContextMechanicAssignedTokenIndex}
-                    onTokenClick={
-                      selectedCenterContextMechanic
-                        ? handleAssignTokenToSelectedContextMechanic
-                        : undefined
-                    }
-                    emptyLabel="No equation"
-                  />
-                </div>
-
                 <div style={{ minWidth: 0, overflow: "hidden" }}>
                   {selectedCenterContextMechanic ? (
                     <div
@@ -7530,56 +7825,6 @@ function handleToggleDragTarget(
                     );
                   })}
                 </div>
-
-                {selectedCenterContextMechanic && centerContextEventEquation ? (
-                  <div
-                    style={{
-                      gridColumn: "1 / -1",
-                      minWidth: 0,
-                      display: "flex",
-                      gap: 10,
-                      alignItems: "center",
-                    }}
-                  >
-                    {selectedCenterContextMechanic.mechanic === "hit" ? (
-                      <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
-                        {([
-                          ["vert", "Vert"],
-                          ["leftDiag", "Left Diag"],
-                          ["rightDiag", "Right Diag"],
-                        ] as Array<[HitDirection, string]>).map(([direction, label]) => {
-                          const isSelected = selectedHitDirection === direction;
-
-                          return (
-                            <button
-                              key={direction}
-                              type="button"
-                              onClick={() => handleSetSelectedHitDirection(direction)}
-                              style={{
-                                minWidth: 72,
-                                height: 22,
-                                borderRadius: 999,
-                                border: `1px solid ${isSelected ? "#CFFF04" : subtleBorderColor}`,
-                                background: isSelected
-                                  ? "rgba(207,255,4,0.12)"
-                                  : "#252525",
-                                color: isSelected ? "#CFFF04" : "#FFFFFF",
-                                fontSize: 9,
-                                fontWeight: 900,
-                                cursor: "pointer",
-                                padding: "0 8px",
-                                whiteSpace: "nowrap",
-                                fontFamily: "Space Grotesk, sans-serif",
-                              }}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
               </div>
             </div>
           </div>
