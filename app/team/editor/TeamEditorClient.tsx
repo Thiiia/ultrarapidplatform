@@ -13,6 +13,8 @@ import {
   projectToChart,
   projectToSidecarJson,
 } from "@/lib/editor/project-to-chart";
+import { loadSongPackageAssets } from "@/lib/editor/song-package";
+import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../../student/student.module.css";
 
@@ -1216,6 +1218,25 @@ function sidecarFromTimelineEvents(
   };
 }
 
+function fileFromBlob({
+  blob,
+  path,
+  name,
+  contentType,
+}: {
+  blob: Blob;
+  path: string;
+  name: string;
+  contentType: string | null;
+}) {
+  const extension = path.split(".").pop();
+  const fileName = extension ? `${name}.${extension}` : name;
+
+  return new File([blob], fileName, {
+    type: contentType ?? blob.type,
+  });
+}
+
 async function fileFromSignedUrl({
   signedUrl,
   path,
@@ -1233,12 +1254,11 @@ async function fileFromSignedUrl({
     throw new Error(`Unable to load file: ${response.status}`);
   }
 
-  const blob = await response.blob();
-  const extension = path.split(".").pop();
-  const fileName = extension ? `${name}.${extension}` : name;
-
-  return new File([blob], fileName, {
-    type: contentType ?? blob.type,
+  return fileFromBlob({
+    blob: await response.blob(),
+    path,
+    name,
+    contentType,
   });
 }
 
@@ -1463,6 +1483,8 @@ function EditorActionBar({
   onUploadSidecar,
   songs,
   onSelectSupabaseSong,
+  canLaunch,
+  onLaunch,
 }: {
   saveStatus: string;
   isSaving: boolean;
@@ -1472,6 +1494,8 @@ function EditorActionBar({
   onUploadSidecar: (file: File) => void;
   songs: SelectedSongPayload[];
   onSelectSupabaseSong: (song: SelectedSongPayload) => void;
+  canLaunch: boolean;
+  onLaunch: () => void;
 }) {
   const songInputRef = useRef<HTMLInputElement | null>(null);
   const chartInputRef = useRef<HTMLInputElement | null>(null);
@@ -1625,6 +1649,18 @@ function EditorActionBar({
           >
             {saveStatus}
           </div>
+
+          <EditorToolbarButton
+            onClick={onLaunch}
+            disabled={!canLaunch}
+            title={
+              canLaunch
+                ? "Launch the selected song in the game."
+                : "Choose a Supabase song before launching the game."
+            }
+          >
+            Play selected song
+          </EditorToolbarButton>
 
           <button
             type="button"
@@ -4648,6 +4684,12 @@ export default function LessonBuilderClient({
     chart: StorageFileRef;
     sidecar: StorageFileRef | null;
   } | null>(null);
+  const [selectedSongLaunch, setSelectedSongLaunch] = useState<{
+    songAssetId: string;
+    chartUrl: string;
+    sidecarUrl: string | null;
+    audioUrl: string;
+  } | null>(null);
 
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
@@ -4734,6 +4776,7 @@ export default function LessonBuilderClient({
   setPendingSongFile(file);
   setUploadedSongName(file.name);
   setSelectedSongStorage(null);
+  setSelectedSongLaunch(null);
   setSaveStatus(`Loaded song: ${file.name}`);
 
   setMetadata((current) => ({
@@ -4820,6 +4863,14 @@ async function handleSelectSupabaseSong(song: SelectedSongPayload) {
         : null,
     });
 
+    setSelectedSongLaunch({
+      songAssetId: song.id,
+      chartUrl: song.chart.signedUrl,
+      sidecarUrl: song.sidecar?.signedUrl ?? null,
+      audioUrl: song.song.signedUrl,
+    });
+
+    setPendingSongFile(null);
     setUploadedSongName(song.name);
 
     setMetadata((current) => ({
@@ -4829,32 +4880,35 @@ async function handleSelectSupabaseSong(song: SelectedSongPayload) {
       uploadedFileName: song.song.path,
     }));
 
-    const nextSongFile = await fileFromSignedUrl({
-      signedUrl: song.song.signedUrl,
-      path: song.song.path,
-      name: song.name,
-      contentType: song.song.contentType,
+    const loadedPackage = await loadSongPackageAssets({
+      chartUrl: song.chart.signedUrl,
+      sidecarUrl: song.sidecar?.signedUrl,
+      audioUrl: song.song.signedUrl,
     });
 
-    setPendingSongFile(nextSongFile);
+    if (loadedPackage.audioBlob) {
+      setPendingSongFile(
+        fileFromBlob({
+          blob: loadedPackage.audioBlob,
+          path: song.song.path,
+          name: song.name,
+          contentType: song.song.contentType,
+        }),
+      );
+    }
 
-    const [nextChartFile, sidecarJson] = await Promise.all([
-      textFromSignedUrl(song.chart.signedUrl),
-      song.sidecar
-        ? jsonFromSignedUrl(song.sidecar.signedUrl)
-        : Promise.resolve(null),
-    ]);
-
-    const normalizedSidecar = normalizeSidecar(sidecarJson ?? emptySidecar);
+    const normalizedSidecar = normalizeSidecar(
+      loadedPackage.sidecarJson ?? emptySidecar,
+    );
     const nextChartName = song.chart.path.split("/").pop() ?? "selected.chart";
 
-    setChartFile(nextChartFile);
+    setChartFile(loadedPackage.chartText);
     setUploadedChartName(nextChartName);
     loadSidecarIntoTimeline(normalizedSidecar, null);
 
     setProject(
       chartToProject({
-        chartFile: nextChartFile,
+        chartFile: loadedPackage.chartText,
         analysisMetadata: {
           songTitle: song.title ?? song.name,
           artist: song.artist ?? undefined,
@@ -4864,7 +4918,11 @@ async function handleSelectSupabaseSong(song: SelectedSongPayload) {
       }),
     );
 
-    setSaveStatus(`Loaded ${song.name}`);
+    setSaveStatus(
+      loadedPackage.audioError
+        ? `Loaded ${song.name}; audio unavailable (${loadedPackage.audioError})`
+        : `Loaded ${song.name}`,
+    );
   } catch (error) {
     setSaveStatus(
       error instanceof Error
@@ -5113,6 +5171,17 @@ function handleToggleDragTarget(
     router.push(`${navBasePath}/song-choice`);
   }
 
+  function handleLaunchGame() {
+    if (!selectedSongLaunch) {
+      setSaveStatus("Choose a Supabase song before launching the game.");
+      return;
+    }
+
+    const launchParams = createSongLaunchSearchParams(selectedSongLaunch);
+
+    router.push(navBasePath + "/game?" + launchParams.toString());
+  }
+
   async function handleSaveToSupabase() {
     if (!selectedSongStorage) {
       setSaveStatus("No selected song asset is loaded.");
@@ -5235,6 +5304,14 @@ function handleToggleDragTarget(
           : null,
       });
 
+      setSelectedSongLaunch({
+        songAssetId: selectedSong.id,
+        chartUrl: selectedSong.chart.signedUrl,
+        sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
+        audioUrl: selectedSong.song.signedUrl,
+      });
+
+      setPendingSongFile(null);
       applySongAssetEquationSlotCount(selectedSongEquationSlots);
       loadSidecarIntoTimeline(
         emptySidecar,
@@ -5413,6 +5490,8 @@ function handleToggleDragTarget(
   onUploadSidecar={handleUploadSidecarJsonFile}
   songs={songs}
   onSelectSupabaseSong={handleSelectSupabaseSong}
+  canLaunch={Boolean(selectedSongLaunch)}
+  onLaunch={handleLaunchGame}
 />
 
       <main

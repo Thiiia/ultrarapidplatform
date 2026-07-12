@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import type { FC, SVGProps } from "react";
+import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 import styles from "../student.module.css";
 
 /* Header Icon imports */
@@ -41,19 +42,8 @@ type GameEmbedPageProps = {
   navBasePath?: string;
 };
 
-function getEmbeddedGameUrl(launch: string | null) {
-  if (!launch) {
-    return GAME_URL;
-  }
-
-  try {
-    const url = new URL(GAME_URL);
-    url.searchParams.set("launch", launch);
-    return url.toString();
-  } catch {
-    const separator = GAME_URL.includes("?") ? "&" : "?";
-    return `${GAME_URL}${separator}launch=${encodeURIComponent(launch)}`;
-  }
+function getEmbeddedGameUrl(searchParams: Pick<URLSearchParams, "get">) {
+  return buildEmbeddedGameUrl(GAME_URL, searchParams);
 }
 
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
@@ -282,7 +272,7 @@ export default function GameEmbedPage({
   const topTabs = getTopTabs(navBasePath);
 
   const embeddedGameUrl = useMemo(() => {
-    return getEmbeddedGameUrl(searchParams.get("launch"));
+    return getEmbeddedGameUrl(searchParams);
   }, [searchParams]);
 
   return (
