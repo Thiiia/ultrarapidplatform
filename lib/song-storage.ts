@@ -12,19 +12,6 @@ export type SongChoice = {
   contentType: string | null;
   updatedAt: string | null;
   durationSeconds: number | null;
-  equationSlots: number;
-  equation_slots: number;
-  equationSlotTicks: number[];
-  equation_slot_ticks: number[];
-  hitCounts: number[];
-  hit_counts: number[];
-  hit_count: number[];
-  spinCounts: number[];
-  spin_counts: number[];
-  spin_count: number[];
-  dragCounts: number[];
-  drag_counts: number[];
-  drag_count: number[];
 
   song: {
     bucket: string;
@@ -150,19 +137,6 @@ createOptionalSignedUrl(songAsset.sidecarBucket, songAsset.sidecarPath),
         contentType: songContentType,
         updatedAt: songAsset.updatedAt.toISOString(),
         durationSeconds: songAsset.durationSeconds,
-        equationSlots: 0,
-        equation_slots: 0,
-        equationSlotTicks: [],
-        equation_slot_ticks: [],
-        hitCounts: [],
-        hit_counts: [],
-        hit_count: [],
-        spinCounts: [],
-        spin_counts: [],
-        spin_count: [],
-        dragCounts: [],
-        drag_counts: [],
-        drag_count: [],
 
         song: {
           bucket: songAsset.songBucket,

@@ -260,7 +260,6 @@ const emptySidecar: SidecarPayload = {
 };
 
 const gameplayMechanics: GameplayMechanic[] = ["hit", "spin", "drag"];
-const maxEditableEquationSlots = 5;
 
 const equationPalette = [
   "0",
@@ -908,14 +907,11 @@ function getSelectedSongEventCounts(
   const hitCounts = getSelectedSongMechanicCountArray(selectedSong, "hit");
   const spinCounts = getSelectedSongMechanicCountArray(selectedSong, "spin");
   const dragCounts = getSelectedSongMechanicCountArray(selectedSong, "drag");
-  const slotCount = Math.min(
-    maxEditableEquationSlots,
-    Math.max(
-      explicitSlotCount,
-      hitCounts.length,
-      spinCounts.length,
-      dragCounts.length,
-    ),
+  const slotCount = Math.max(
+    explicitSlotCount,
+    hitCounts.length,
+    spinCounts.length,
+    dragCounts.length,
   );
 
   return Array.from({ length: slotCount }, (_, index) => ({
@@ -931,10 +927,10 @@ function applySongAssetMechanicCountsToTimelineEvents(
   eventTicks: number[] = [],
 ): TimelineEventSlot[] {
   if (eventCounts.length === 0) {
-    return events.slice(0, maxEditableEquationSlots);
+    return events;
   }
 
-  return eventCounts.slice(0, maxEditableEquationSlots).map((counts, index) => {
+  return eventCounts.map((counts, index) => {
     const existing = events[index];
     const tick = eventTicks[index] ?? existing?.tick ?? 0;
     const nextCounts = {
@@ -1110,9 +1106,9 @@ function timelineEventsFromSidecar(
 
   const targetSlots =
     fallbackEventCounts.length > 0
-      ? Math.min(maxEditableEquationSlots, fallbackEventCounts.length)
+      ? fallbackEventCounts.length
       : typeof targetCount === "number" && targetCount > 0
-        ? Math.min(maxEditableEquationSlots, targetCount)
+        ? targetCount
         : null;
 
   const resizedSlots =
@@ -5277,16 +5273,6 @@ function handleToggleDragTarget(
 
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
-      const selectedSongEventCounts = getSelectedSongEventCounts(selectedSong);
-      const selectedSongEquationSlots =
-        selectedSongEventCounts.length ||
-        getSelectedSongEquationSlotCount(selectedSong);
-      const selectedSongEventTicks = getSelectedSongEquationSlotTicks(
-        selectedSong,
-        typeof selectedSongEquationSlots === "number"
-          ? selectedSongEquationSlots
-          : 0,
-      );
 
       setSelectedSongStorage({
         id: selectedSong.id,
@@ -5312,13 +5298,7 @@ function handleToggleDragTarget(
       });
 
       setPendingSongFile(null);
-      applySongAssetEquationSlotCount(selectedSongEquationSlots);
-      loadSidecarIntoTimeline(
-        emptySidecar,
-        selectedSongEquationSlots,
-        selectedSongEventCounts,
-        selectedSongEventTicks,
-      );
+      loadSidecarIntoTimeline(emptySidecar, null);
       setUploadedSongName(selectedSong.name);
       setMetadata((current) => ({
         ...current,
@@ -5355,12 +5335,7 @@ function handleToggleDragTarget(
 
           setChartFile(nextChartFile);
           setUploadedChartName(nextChartName);
-          loadSidecarIntoTimeline(
-            normalizedSidecar,
-            selectedSongEquationSlots,
-            selectedSongEventCounts,
-            selectedSongEventTicks,
-          );
+          loadSidecarIntoTimeline(normalizedSidecar, null);
 
           const payload: LessonBuilderPayload = {
             chartFile: nextChartFile,

@@ -7452,17 +7452,6 @@ function handleToggleDragTarget(
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
       appendSongFlowDebug("lesson-builder:session:selected-song", "Hydrated selected song payload from session storage.", selectedSong);
-      const selectedSongEventCounts = getSelectedSongEventCounts(selectedSong);
-      const selectedSongEquationSlots =
-        selectedSongEventCounts.length ||
-        getSelectedSongEquationSlotCount(selectedSong);
-      const selectedSongEventTicks = getSelectedSongEquationSlotTicks(
-        selectedSong,
-        typeof selectedSongEquationSlots === "number"
-          ? selectedSongEquationSlots
-          : 0,
-      );
-
       setSelectedSongStorage({
         id: selectedSong.id,
         chart: {
@@ -7486,13 +7475,7 @@ function handleToggleDragTarget(
         audioUrl: selectedSong.song.signedUrl,
       });
 
-      applySongAssetEquationSlotCount(selectedSongEquationSlots);
-      loadSidecarIntoTimeline(
-        emptySidecar,
-        selectedSongEquationSlots,
-        selectedSongEventCounts,
-        selectedSongEventTicks,
-      );
+      loadSidecarIntoTimeline(emptySidecar, null);
       setUploadedSongName(selectedSong.name);
       setMetadata((current) => ({
         ...current,
@@ -7557,8 +7540,8 @@ function handleToggleDragTarget(
             sidecarLoaded: sidecarResult.status === "fulfilled",
             chartLength: nextChartFile.length,
             normalizedSidecarEventCount: normalizedSidecar.events.length,
-            selectedSongEventCount: selectedSongEventCounts.length,
-            selectedSongEventTicks,
+            selectedSongEventCount: 0,
+            selectedSongEventTicks: [],
           });
 
           if (
@@ -7570,12 +7553,7 @@ function handleToggleDragTarget(
 
           setChartFile(nextChartFile);
           setUploadedChartName(nextChartName);
-          loadSidecarIntoTimeline(
-            normalizedSidecar,
-            selectedSongEquationSlots,
-            selectedSongEventCounts,
-            selectedSongEventTicks,
-          );
+          loadSidecarIntoTimeline(normalizedSidecar, null);
 
           const payload: LessonBuilderPayload = {
             chartFile: nextChartFile,
