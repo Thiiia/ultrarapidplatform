@@ -13,6 +13,7 @@ import {
   projectToChart,
   projectToSidecarJson,
 } from "@/lib/editor/project-to-chart";
+import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import styles from "../student.module.css";
 
 /* Header Icon imports */
@@ -1479,12 +1480,16 @@ function EditorActionBar({
   saveStatus,
   isSaving,
   onBack,
+  onLaunch,
   onSave,
+  canLaunch,
 }: {
   saveStatus: string;
   isSaving: boolean;
   onBack: () => void;
+  onLaunch: () => void;
   onSave: () => void;
+  canLaunch: boolean;
 }) {
   return (
     <section
@@ -1531,19 +1536,55 @@ function EditorActionBar({
         </button>
 
         <div
-          aria-live="polite"
           style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
             minWidth: 0,
-            color: saveStatus === "Saved" ? "#CFFF04" : "#FFFFFF99",
-            fontSize: 12,
-            fontWeight: 700,
-            textAlign: "right",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            flex: 1,
+            justifyContent: "flex-end",
           }}
         >
-          {saveStatus}
+          <button
+            type="button"
+            onClick={onLaunch}
+            disabled={!canLaunch}
+            title={
+              canLaunch
+                ? "Launch the selected song in the game."
+                : "Choose a song from song choice before launching the game."
+            }
+            style={{
+              minWidth: 124,
+              height: 42,
+              background: canLaunch ? "#CFFF04" : panelBackgroundColor,
+              color: canLaunch ? "#000000" : "#FFFFFF80",
+              border: `1px solid ${canLaunch ? "#CFFF04" : subtleBorderColor}`,
+              borderRadius: 12,
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 14,
+              fontWeight: 800,
+              cursor: canLaunch ? "pointer" : "not-allowed",
+            }}
+          >
+            Play
+          </button>
+
+          <div
+            aria-live="polite"
+            style={{
+              minWidth: 0,
+              color: saveStatus === "Saved" ? "#CFFF04" : "#FFFFFF99",
+              fontSize: 12,
+              fontWeight: 700,
+              textAlign: "right",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {saveStatus}
+          </div>
         </div>
 
         <button
@@ -6437,6 +6478,12 @@ export default function LessonBuilderClient({
     chart: StorageFileRef;
     sidecar: StorageFileRef | null;
   } | null>(null);
+  const [selectedSongLaunch, setSelectedSongLaunch] = useState<{
+    songAssetId: string;
+    chartUrl: string;
+    sidecarUrl: string | null;
+    audioUrl: string;
+  } | null>(null);
   const [isAdvancedMode, setIsAdvancedMode] = useState(false);
   const [selectedContextMechanicKey, setSelectedContextMechanicKey] =
     useState<string | null>(null);
@@ -7178,6 +7225,20 @@ function handleToggleDragTarget(
     router.push(`${navBasePath}/song-choice`);
   }
 
+  function handleLaunchGame() {
+    if (!selectedSongLaunch) {
+      setSaveStatus("Choose a song from song choice before launching the game.");
+      return;
+    }
+
+    const launchParams = createSongLaunchSearchParams(selectedSongLaunch);
+    const launchRoute = navBasePath.startsWith("/demo")
+      ? "/demo/launch"
+      : `${navBasePath}/game`;
+
+    router.push(`${launchRoute}?${launchParams.toString()}`);
+  }
+
   async function handleSaveToSupabase() {
     if (!selectedSongStorage) {
       setSaveStatus("No selected song asset is loaded.");
@@ -7308,6 +7369,13 @@ function handleToggleDragTarget(
               contentType: selectedSong.sidecar.contentType,
             }
           : null,
+      });
+
+      setSelectedSongLaunch({
+        songAssetId: selectedSong.id,
+        chartUrl: selectedSong.chart.signedUrl,
+        sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
+        audioUrl: selectedSong.song.signedUrl,
       });
 
       applySongAssetEquationSlotCount(selectedSongEquationSlots);
@@ -8257,17 +8325,14 @@ function handleToggleDragTarget(
         onToggleAdvancedMode={() => setIsAdvancedMode((current) => !current)}
       />
 
-      {/*
-        The action bar is preserved for later, but commented out because the
-        requested layout starts with the existing header as row 1, then uses
-        row 2 for the viewer and row 3 for the timeline.
-        <EditorActionBar
-          saveStatus={loadError || saveStatus}
-          isSaving={isSaving}
-          onBack={handleBackToSongChoice}
-          onSave={handleSaveToSupabase}
-        />
-      */}
+      <EditorActionBar
+        saveStatus={loadError || saveStatus}
+        isSaving={isSaving}
+        onBack={handleBackToSongChoice}
+        onLaunch={handleLaunchGame}
+        onSave={handleSaveToSupabase}
+        canLaunch={Boolean(selectedSongLaunch)}
+      />
 
       <main
         style={{
