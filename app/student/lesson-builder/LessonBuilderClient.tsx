@@ -14,6 +14,7 @@ import {
   projectToChart,
   projectToSidecarJson,
 } from "@/lib/editor/project-to-chart";
+import { persistLaunchParams } from "@/lib/launch-handoff";
 import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import styles from "../student.module.css";
@@ -5631,6 +5632,7 @@ function CenterChoicePanel({
   mechanicEndSeconds,
   onCreateEquation,
   onBrowseLibrary,
+  showWorkspacePrompt,
   hideHeader = false,
 }: {
   choice: CenterChoice;
@@ -5648,6 +5650,7 @@ function CenterChoicePanel({
   mechanicEndSeconds: number | null;
   onCreateEquation: () => void;
   onBrowseLibrary: () => void;
+  showWorkspacePrompt: boolean;
   hideHeader?: boolean;
 }) {
   const isCreate = choice === "create";
@@ -5710,7 +5713,7 @@ function CenterChoicePanel({
           textAlign: "center",
         }}
       >
-        {!hideHeader && (
+        {!hideHeader && showWorkspacePrompt && (
           <>
             <URIcon
               aria-label="UltraRapid"
@@ -7328,7 +7331,8 @@ function handleToggleDragTarget(
       ? "/demo/launch"
       : `${navBasePath}/game`;
 
-    router.push(`${launchRoute}?${launchParams.toString()}`);
+    persistLaunchParams(launchParams);
+    router.push(launchRoute);
   }
 
   async function handleSaveToSupabase() {
@@ -8399,6 +8403,8 @@ function handleToggleDragTarget(
   }
 
   const isTimelineInstructionVisible = centerChoice !== null;
+  const showCenterWorkspacePrompt =
+    chartFile.trim().length === 0 && sidecar.events.length === 0;
   return (
     <div
       className={styles.studentTypography}
@@ -8555,6 +8561,7 @@ function handleToggleDragTarget(
                   mechanicEndSeconds={selectedContextMechanicTimeWindow.endSeconds}
                   onCreateEquation={handleCreateEquationChoice}
                   onBrowseLibrary={handleBrowsePremadeChoice}
+                  showWorkspacePrompt={showCenterWorkspacePrompt}
                   hideHeader={hideEquationHeader}
                 />
               </div>

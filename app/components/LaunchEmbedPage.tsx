@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import { resolveLaunchParams } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 
 const GAME_URL =
@@ -11,7 +12,7 @@ export default function LaunchEmbedPage() {
   const searchParams = useSearchParams();
 
   const embeddedGameUrl = useMemo(() => {
-    return buildEmbeddedGameUrl(GAME_URL, searchParams);
+    return buildEmbeddedGameUrl(GAME_URL, resolveLaunchParams(searchParams));
   }, [searchParams]);
 
   return (

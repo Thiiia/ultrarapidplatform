@@ -13,6 +13,7 @@ import {
   projectToChart,
   projectToSidecarJson,
 } from "@/lib/editor/project-to-chart";
+import { persistLaunchParams } from "@/lib/launch-handoff";
 import { loadSongPackageAssets } from "@/lib/editor/song-package";
 import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import type { SongChoice } from "@/lib/song-storage";
@@ -5175,7 +5176,8 @@ function handleToggleDragTarget(
 
     const launchParams = createSongLaunchSearchParams(selectedSongLaunch);
 
-    router.push(navBasePath + "/game?" + launchParams.toString());
+    persistLaunchParams(launchParams);
+    router.push(navBasePath + "/game");
   }
 
   async function handleSaveToSupabase() {

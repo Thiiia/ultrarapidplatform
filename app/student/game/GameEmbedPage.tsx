@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import type { FC, SVGProps } from "react";
+import { resolveLaunchParams } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 import styles from "../student.module.css";
 
@@ -43,7 +44,7 @@ type GameEmbedPageProps = {
 };
 
 function getEmbeddedGameUrl(searchParams: Pick<URLSearchParams, "get">) {
-  return buildEmbeddedGameUrl(GAME_URL, searchParams);
+  return buildEmbeddedGameUrl(GAME_URL, resolveLaunchParams(searchParams));
 }
 
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
