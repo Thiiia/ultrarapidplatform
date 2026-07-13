@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FC, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
+import SongFlowDebugger from "@/app/components/SongFlowDebugger";
+import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
 
@@ -616,6 +618,36 @@ export default function SongChoiceClient({
   }, [selectedSongId, songs]);
 
   useEffect(() => {
+    appendSongFlowDebug("song-choice:loaded-song-assets", "Song assets were loaded into song choice.", {
+      songCount: songs.length,
+      songs: songs.map((song) => ({
+        id: song.id,
+        name: song.name,
+        artist: song.artist,
+        songPath: song.song.path,
+        chartPath: song.chart.path,
+        sidecarPath: song.sidecar?.path ?? null,
+        durationSeconds: song.durationSeconds,
+      })),
+    });
+  }, [songs]);
+
+  useEffect(() => {
+    if (!selectedSong) {
+      return;
+    }
+
+    appendSongFlowDebug("song-choice:selected-song", "User selected a song asset in song choice.", {
+      id: selectedSong.id,
+      name: selectedSong.name,
+      artist: selectedSong.artist,
+      song: selectedSong.song,
+      chart: selectedSong.chart,
+      sidecar: selectedSong.sidecar,
+    });
+  }, [selectedSong]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -696,13 +728,22 @@ export default function SongChoiceClient({
     );
     const mechanicCounts = getMechanicCounts(selectedSong);
 
-    window.sessionStorage.setItem(
-      "ultrarapid_selected_song",
-      JSON.stringify({
-        id: selectedSong.id,
-        name: selectedSong.name,
-        title: selectedSong.title,
-        artist: selectedSong.artist,
+    const selectedSongPayload = {
+      id: selectedSong.id,
+      name: selectedSong.name,
+      title: selectedSong.title,
+      artist: selectedSong.artist,
+      equation_slots: equationSlots,
+      equationSlots,
+      equation_slot_ticks: equationSlotTicks,
+      equationSlotTicks,
+      hit_counts: mechanicCounts.hit_counts,
+      hitCounts: mechanicCounts.hitCounts,
+      spin_counts: mechanicCounts.spin_counts,
+      spinCounts: mechanicCounts.spinCounts,
+      drag_counts: mechanicCounts.drag_counts,
+      dragCounts: mechanicCounts.dragCounts,
+      songAsset: {
         equation_slots: equationSlots,
         equationSlots,
         equation_slot_ticks: equationSlotTicks,
@@ -713,66 +754,66 @@ export default function SongChoiceClient({
         spinCounts: mechanicCounts.spinCounts,
         drag_counts: mechanicCounts.drag_counts,
         dragCounts: mechanicCounts.dragCounts,
-        songAsset: {
-          equation_slots: equationSlots,
-          equationSlots,
-          equation_slot_ticks: equationSlotTicks,
-          equationSlotTicks,
-          hit_counts: mechanicCounts.hit_counts,
-          hitCounts: mechanicCounts.hitCounts,
-          spin_counts: mechanicCounts.spin_counts,
-          spinCounts: mechanicCounts.spinCounts,
-          drag_counts: mechanicCounts.drag_counts,
-          dragCounts: mechanicCounts.dragCounts,
-        },
+      },
 
-        song: {
-          bucket: selectedSong.song.bucket,
-          path: selectedSong.song.path,
-          signedUrl: selectedSong.song.signedUrl,
-          contentType: selectedSong.song.contentType,
-        },
+      song: {
+        bucket: selectedSong.song.bucket,
+        path: selectedSong.song.path,
+        signedUrl: selectedSong.song.signedUrl,
+        contentType: selectedSong.song.contentType,
+      },
 
-        chart: {
-          bucket: selectedSong.chart.bucket,
-          path: selectedSong.chart.path,
-          signedUrl: selectedSong.chart.signedUrl,
-          contentType: selectedSong.chart.contentType,
-        },
+      chart: {
+        bucket: selectedSong.chart.bucket,
+        path: selectedSong.chart.path,
+        signedUrl: selectedSong.chart.signedUrl,
+        contentType: selectedSong.chart.contentType,
+      },
 
-        sidecar: selectedSong.sidecar
-          ? {
-              bucket: selectedSong.sidecar.bucket,
-              path: selectedSong.sidecar.path,
-              signedUrl: selectedSong.sidecar.signedUrl,
-              contentType: selectedSong.sidecar.contentType,
-            }
-          : null,
-      }),
+      sidecar: selectedSong.sidecar
+        ? {
+            bucket: selectedSong.sidecar.bucket,
+            path: selectedSong.sidecar.path,
+            signedUrl: selectedSong.sidecar.signedUrl,
+            contentType: selectedSong.sidecar.contentType,
+          }
+        : null,
+    };
+
+    appendSongFlowDebug("song-choice:continue", "Persisting selected song payload into session storage and routing to lesson builder.", {
+      navBasePath,
+      lessonBuilderRoute: `${navBasePath}/lesson-builder`,
+      payload: selectedSongPayload,
+    });
+
+    window.sessionStorage.setItem(
+      "ultrarapid_selected_song",
+      JSON.stringify(selectedSongPayload),
     );
 
     router.push(`${navBasePath}/lesson-builder`);
   }
 
   return (
-    <div
-      className={styles.studentTypography}
-      style={{
-        minHeight: "100vh",
-        background: "#082733",
-        color: "#FFFFFF",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-      }}
-    >
+    <>
       <div
+        className={styles.studentTypography}
         style={{
-          height: "91.5vh",
-          background: "linear-gradient(180deg, #082733 0%, #030E14 100%)",
+          minHeight: "100vh",
+          background: "#082733",
+          color: "#FFFFFF",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            height: "91.5vh",
+            background: "linear-gradient(180deg, #082733 0%, #030E14 100%)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
           justifyContent: "flex-start",
           padding: "24px 24px 20px",
           boxSizing: "border-box",
@@ -1124,32 +1165,35 @@ export default function SongChoiceClient({
         </button>
       </div>
 
-      <style jsx global>{`
-        .songChoiceRow:hover {
-          background: rgba(207, 255, 4, 0.12) !important;
-          border-bottom-color: #cfff04 !important;
-          border-left-color: #cfff04 !important;
-        }
+        <style jsx global>{`
+          .songChoiceRow:hover {
+            background: rgba(207, 255, 4, 0.12) !important;
+            border-bottom-color: #cfff04 !important;
+            border-left-color: #cfff04 !important;
+          }
 
-        .songChoiceRow[data-selected="true"] {
-          background: rgba(207, 255, 4, 0.12) !important;
-          border-bottom-color: #cfff04 !important;
-          border-left-color: #cfff04 !important;
-        }
+          .songChoiceRow[data-selected="true"] {
+            background: rgba(207, 255, 4, 0.12) !important;
+            border-bottom-color: #cfff04 !important;
+            border-left-color: #cfff04 !important;
+          }
 
-        .songChoiceRow[data-selected="false"] {
-          border-left-color: transparent !important;
-        }
+          .songChoiceRow[data-selected="false"] {
+            border-left-color: transparent !important;
+          }
 
-        input[type="search"]::placeholder {
-          color: #d1d5db;
-          opacity: 1;
-        }
+          input[type="search"]::placeholder {
+            color: #d1d5db;
+            opacity: 1;
+          }
 
-        input[type="search"]::-webkit-search-cancel-button {
-          filter: invert(1);
-        }
-      `}</style>
-    </div>
+          input[type="search"]::-webkit-search-cancel-button {
+            filter: invert(1);
+          }
+        `}</style>
+      </div>
+
+      <SongFlowDebugger title="Song Choice Flow" />
+    </>
   );
 }

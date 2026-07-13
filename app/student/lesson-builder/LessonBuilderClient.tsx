@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { ChangeEvent, DragEvent, PointerEvent, ReactNode } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import WaveSurfer from "wavesurfer.js";
 import {
   useEditorStore,
@@ -14,6 +15,7 @@ import {
   projectToSidecarJson,
 } from "@/lib/editor/project-to-chart";
 import { createSongLaunchSearchParams } from "@/lib/platform-launch";
+import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import styles from "../student.module.css";
 
 /* Header Icon imports */
@@ -1292,13 +1294,32 @@ async function fileFromSignedUrl({
   path,
   name,
   contentType,
+  debugLabel,
 }: {
   signedUrl: string;
   path: string;
   name: string;
   contentType: string | null;
+  debugLabel?: string;
 }) {
+  appendSongFlowDebug(
+    `lesson-builder:${debugLabel ?? "file"}:fetch:start`,
+    "Fetching binary asset from signed URL.",
+    { path, signedUrl, contentType },
+  );
+
   const response = await fetch(signedUrl);
+
+  appendSongFlowDebug(
+    `lesson-builder:${debugLabel ?? "file"}:fetch:response`,
+    "Received binary asset response from signed URL.",
+    {
+      path,
+      status: response.status,
+      ok: response.ok,
+      responseContentType: response.headers.get("content-type"),
+    },
+  );
 
   if (!response.ok) {
     throw new Error(`Unable to load file: ${response.status}`);
@@ -1314,22 +1335,43 @@ async function fileFromSignedUrl({
 }
 
 async function textFromSignedUrl(signedUrl: string) {
+  appendSongFlowDebug("lesson-builder:chart:fetch:start", "Fetching chart text from signed URL.", {
+    signedUrl,
+  });
+
   const response = await fetch(signedUrl, {
     cache: "no-store",
     headers: {
       "Cache-Control": "no-cache",
       Pragma: "no-cache",
     },
+  });
+
+  appendSongFlowDebug("lesson-builder:chart:fetch:response", "Received chart response from signed URL.", {
+    status: response.status,
+    ok: response.ok,
+    responseContentType: response.headers.get("content-type"),
   });
 
   if (!response.ok) {
     throw new Error(`Unable to load text file: ${response.status}`);
   }
 
-  return response.text();
+  const text = await response.text();
+
+  appendSongFlowDebug("lesson-builder:chart:fetch:complete", "Chart text was read from the signed URL response.", {
+    length: text.length,
+    preview: text.slice(0, 240),
+  });
+
+  return text;
 }
 
 async function jsonFromSignedUrl(signedUrl: string) {
+  appendSongFlowDebug("lesson-builder:sidecar:fetch:start", "Fetching sidecar JSON from signed URL.", {
+    signedUrl,
+  });
+
   const response = await fetch(signedUrl, {
     cache: "no-store",
     headers: {
@@ -1338,11 +1380,27 @@ async function jsonFromSignedUrl(signedUrl: string) {
     },
   });
 
+  appendSongFlowDebug("lesson-builder:sidecar:fetch:response", "Received sidecar response from signed URL.", {
+    status: response.status,
+    ok: response.ok,
+    responseContentType: response.headers.get("content-type"),
+  });
+
   if (!response.ok) {
     throw new Error(`Unable to load JSON file: ${response.status}`);
   }
 
-  return response.json();
+  const payload = await response.json();
+
+  appendSongFlowDebug("lesson-builder:sidecar:fetch:complete", "Sidecar JSON was parsed from the signed URL response.", {
+    eventCount:
+      payload && typeof payload === "object" && Array.isArray((payload as { events?: unknown[] }).events)
+        ? (payload as { events: unknown[] }).events.length
+        : null,
+    payload,
+  });
+
+  return payload;
 }
 
 function HeaderBar({
@@ -6790,10 +6848,25 @@ export default function LessonBuilderClient({
       eventCounts,
       eventTicks,
     );
+    const importedEquations = savedEquationsFromTimelineEvents(nextEvents);
+
+    appendSongFlowDebug("lesson-builder:timeline:hydrate", "Converted chart/sidecar content into timeline events.", {
+      sidecarEventCount: nextSidecar.events.length,
+      timelineEventCount: nextEvents.length,
+      importedEquationCount: importedEquations.length,
+      equationSlotCount,
+      fallbackEventCount: eventCounts.length,
+      fallbackTickCount: eventTicks.length,
+      firstTimelineTick: nextEvents[0]?.tick ?? null,
+      timeline: nextEvents.map((eventSlot) => ({
+        id: eventSlot.id,
+        tick: eventSlot.tick,
+        counts: eventSlot.counts,
+      })),
+    });
 
     setTimelineEvents(nextEvents);
     setSavedEquations((current) => {
-      const importedEquations = savedEquationsFromTimelineEvents(nextEvents);
       const existingStates = new Set(
         current.map((equation) => tokensToEquationState(equation.tokens)),
       );
@@ -7269,6 +7342,16 @@ function handleToggleDragTarget(
       const chartText = projectToChart(nextProject);
       const sidecarJson = projectToSidecarJson(timelineSidecar);
 
+      appendSongFlowDebug("lesson-builder:save:start", "Saving edited chart and sidecar back to Supabase.", {
+        songAssetId: selectedSongStorage.id,
+        chartPath: selectedSongStorage.chart.path,
+        sidecarPath:
+          selectedSongStorage.sidecar?.path ??
+          selectedSongStorage.chart.path.replace(/\.chart$/i, ".json"),
+        chartLength: chartText.length,
+        sidecarEventCount: timelineSidecar.events.length,
+      });
+
       const response = await fetch("/api/lesson-builder/save", {
         method: "POST",
         headers: {
@@ -7308,6 +7391,11 @@ function handleToggleDragTarget(
         throw new Error(result?.error ?? "Unable to save lesson files");
       }
 
+      appendSongFlowDebug("lesson-builder:save:complete", "Supabase save completed successfully.", {
+        songAssetId: selectedSongStorage.id,
+        result,
+      });
+
       setProject(nextProject);
       setChartFile(chartText);
       setStoreSidecar(timelineSidecar as StoreSidecarPayload);
@@ -7344,6 +7432,7 @@ function handleToggleDragTarget(
 
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
+      appendSongFlowDebug("lesson-builder:session:selected-song", "Hydrated selected song payload from session storage.", selectedSong);
       const selectedSongEventCounts = getSelectedSongEventCounts(selectedSong);
       const selectedSongEquationSlots =
         selectedSongEventCounts.length ||
@@ -7398,12 +7487,21 @@ function handleToggleDragTarget(
         path: selectedSong.song.path,
         name: selectedSong.name,
         contentType: selectedSong.song.contentType,
+        debugLabel: "audio",
       })
         .then((file) => {
+          appendSongFlowDebug("lesson-builder:audio:file-ready", "Audio blob was converted into a File for the editor.", {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+          });
           setPendingSongFile(file);
         })
         .catch((error) => {
           console.error("Failed to load selected song file", error);
+          appendSongFlowDebug("lesson-builder:audio:file-error", "Audio fetch failed while hydrating the selected song.", {
+            message: error instanceof Error ? error.message : String(error),
+          });
         });
 
       Promise.allSettled([
@@ -7435,6 +7533,15 @@ function handleToggleDragTarget(
             selectedSongMetadata,
           );
 
+          appendSongFlowDebug("lesson-builder:merge:chart-sidecar", "Merged sidecar JSON with chart-derived events before populating the timeline.", {
+            chartLoaded: chartResult.status === "fulfilled",
+            sidecarLoaded: sidecarResult.status === "fulfilled",
+            chartLength: nextChartFile.length,
+            normalizedSidecarEventCount: normalizedSidecar.events.length,
+            selectedSongEventCount: selectedSongEventCounts.length,
+            selectedSongEventTicks,
+          });
+
           if (
             chartResult.status !== "fulfilled" ||
             sidecarResult.status !== "fulfilled"
@@ -7458,9 +7565,16 @@ function handleToggleDragTarget(
           };
 
           setProject(chartToProject(payload));
+          appendSongFlowDebug("lesson-builder:project:rebuilt", "Chart project was rebuilt after chart and sidecar hydration.", {
+            chartName: nextChartName,
+            timelineEvents: normalizedSidecar.events.length,
+          });
         })
         .catch((error) => {
           console.error("Failed to load selected chart or sidecar JSON", error);
+          appendSongFlowDebug("lesson-builder:hydrate:error", "Failed while loading chart or sidecar from signed URLs.", {
+            message: error instanceof Error ? error.message : String(error),
+          });
           setLoadError(
             error instanceof Error
               ? error.message
@@ -7469,6 +7583,10 @@ function handleToggleDragTarget(
         });
     } catch (error) {
       console.error("Failed to parse selected song package", error);
+      appendSongFlowDebug("lesson-builder:session:parse-error", "Failed to parse the selected song payload from session storage.", {
+        message: error instanceof Error ? error.message : String(error),
+        raw,
+      });
       setLoadError(
         error instanceof Error
           ? error.message
@@ -8661,6 +8779,8 @@ function handleToggleDragTarget(
           />
         </section>
       </main>
+
+      <SongFlowDebugger title="Lesson Builder Flow" />
     </div>
   );
 }
