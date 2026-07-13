@@ -961,7 +961,7 @@ function timelineEventsFromSidecar(
   function eventStartTickForMechanicTick(mechanicTick: number) {
     const mechanicSeconds = timelineTickToSeconds(mechanicTick);
 
-    return [...eventStartTicks]
+    const matchedEventTick = [...eventStartTicks]
       .reverse()
       .find((eventTick) => {
         const eventSeconds = timelineTickToSeconds(eventTick);
@@ -971,6 +971,25 @@ function timelineEventsFromSidecar(
           mechanicSeconds < eventSeconds + timelineEventDurationSeconds
         );
       });
+
+    if (typeof matchedEventTick === "number") {
+      return matchedEventTick;
+    }
+
+    if (eventStartTicks.length === 0) {
+      return undefined;
+    }
+
+    // Fallback: keep mechanics attached to the nearest slot instead of dropping
+    // them when timing units or window assumptions do not line up.
+    return eventStartTicks.reduce((closestTick, tick) => {
+      const closestDistance = Math.abs(
+        timelineTickToSeconds(closestTick) - mechanicSeconds,
+      );
+      const nextDistance = Math.abs(timelineTickToSeconds(tick) - mechanicSeconds);
+
+      return nextDistance < closestDistance ? tick : closestTick;
+    });
   }
 
   const slots = eventStartTicks.map((tick, index) => {
@@ -1048,7 +1067,7 @@ function timelineEventsFromSidecar(
   const targetSlots =
     fallbackEventCounts.length > 0
       ? fallbackEventCounts.length
-      : typeof targetCount === "number"
+      : typeof targetCount === "number" && targetCount > 0
         ? targetCount
         : null;
 

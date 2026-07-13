@@ -1111,7 +1111,7 @@ function timelineEventsFromSidecar(
   const targetSlots =
     fallbackEventCounts.length > 0
       ? Math.min(maxEditableEquationSlots, fallbackEventCounts.length)
-      : typeof targetCount === "number"
+      : typeof targetCount === "number" && targetCount > 0
         ? Math.min(maxEditableEquationSlots, targetCount)
         : null;
 
