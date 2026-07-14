@@ -210,10 +210,10 @@ export default function StudentDashboard({
             width: pagePanelWidth,
             display: "grid",
             gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: 0,
+            gap: 4,
             padding: 0,
-            borderRadius: 28,
-            background: "linear-gradient(0deg, #F9FAFB, #F9FAFB), linear-gradient(180deg, #082733 0%, #030E14 100%)",
+            borderRadius: 0,
+            background: "transparent",
             boxShadow: "0 18px 40px rgba(0, 0, 0, 0.14)",
           }}
         >

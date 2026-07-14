@@ -78,6 +78,8 @@ export default async function HomePage() {
             zIndex: 0,
             pointerEvents: "none",
             background: "#000000",
+            opacity: 0,
+            animation: "landingVideoFadeIn 1100ms ease-out 120ms forwards",
           }}
         >
           <iframe
@@ -109,6 +111,8 @@ export default async function HomePage() {
             pointerEvents: "none",
             background:
               "linear-gradient(180deg, rgba(3, 14, 20, 0.82) 0%, rgba(0, 0, 0, 0.30) 48%, rgba(0, 0, 0, 0.72) 100%)",
+            opacity: 0,
+            animation: "landingUiFadeIn 900ms ease-out 300ms forwards",
           }}
         />
 
@@ -132,6 +136,9 @@ export default async function HomePage() {
             alignItems: "center",
             position: "relative",
             zIndex: 2,
+            opacity: 0,
+            transform: "translateY(12px)",
+            animation: "landingUiFadeIn 950ms ease-out 450ms forwards",
           }}
         >
           <LandingSoundButton src={landingAudioUrl} />
@@ -221,6 +228,28 @@ export default async function HomePage() {
 
             body {
               overscroll-behavior: none;
+            }
+
+            @keyframes landingVideoFadeIn {
+              from {
+                opacity: 0;
+              }
+
+              to {
+                opacity: 1;
+              }
+            }
+
+            @keyframes landingUiFadeIn {
+              from {
+                opacity: 0;
+                transform: translateY(12px);
+              }
+
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
             }
           `,
         }}
