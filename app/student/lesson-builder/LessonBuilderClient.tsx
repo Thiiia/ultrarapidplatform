@@ -4664,6 +4664,8 @@ function EquationTileStrip({
   currentSongSeconds,
   mechanicStartSeconds,
   mechanicEndSeconds,
+  isSongPlaying = false,
+  onQuickAddHit,
 }: {
   tokens: EquationToken[];
   emptyLabel?: string;
@@ -4683,6 +4685,8 @@ function EquationTileStrip({
   currentSongSeconds?: number;
   mechanicStartSeconds?: number | null;
   mechanicEndSeconds?: number | null;
+  isSongPlaying?: boolean;
+  onQuickAddHit?: () => void;
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const selectedTokenRef = useRef<HTMLSpanElement | null>(null);
@@ -5243,6 +5247,9 @@ function EquationTileStrip({
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
+                    if (mechanicMode === "hit" && isSongPlaying) {
+                      onQuickAddHit?.();
+                    }
                     onSelectHitPair?.(item.pair);
                   }}
                   style={{
@@ -5630,6 +5637,8 @@ function CenterChoicePanel({
   currentSongSeconds,
   mechanicStartSeconds,
   mechanicEndSeconds,
+  isSongPlaying,
+  onQuickAddHit,
   onCreateEquation,
   onBrowseLibrary,
   showWorkspacePrompt,
@@ -5648,6 +5657,8 @@ function CenterChoicePanel({
   currentSongSeconds: number;
   mechanicStartSeconds: number | null;
   mechanicEndSeconds: number | null;
+  isSongPlaying: boolean;
+  onQuickAddHit: (() => void) | null;
   onCreateEquation: () => void;
   onBrowseLibrary: () => void;
   showWorkspacePrompt: boolean;
@@ -5657,6 +5668,7 @@ function CenterChoicePanel({
   const isPremade = choice === "premade";
   const hasDraft = draftTokens.length > 0;
   const visibleEquationTokens = hasDraft ? draftTokens : activeEventEquation?.tokens ?? [];
+  const hasVisibleEquation = visibleEquationTokens.length > 0;
   const visibleEquationLabel = hasDraft
     ? "Current equation being built"
     : activeEventEquation
@@ -5707,13 +5719,13 @@ function CenterChoicePanel({
           width: hideHeader ? "100%" : "min(720px, 92%)",
           height: hideHeader ? "100%" : "auto",
           display: "grid",
-          justifyItems: hideHeader ? "stretch" : "center",
-          alignItems: hideHeader ? "stretch" : "initial",
+          justifyItems: "center",
+          alignItems: "center",
           gap: hideHeader ? 0 : 18,
           textAlign: "center",
         }}
       >
-        {!hideHeader && showWorkspacePrompt && (
+          {!hideHeader && showWorkspacePrompt && !hasVisibleEquation && (
           <>
             <URIcon
               aria-label="UltraRapid"
@@ -5794,34 +5806,21 @@ function CenterChoicePanel({
             aria-label={visibleEquationLabel || "Selected equation"}
             style={{
               marginTop: hideHeader ? 0 : 8,
-              width: hideHeader ? "100%" : "min(620px, 100%)",
+              width: "100%",
               height: hideHeader ? "100%" : "auto",
               minHeight: hideHeader ? 0 : 96,
-              borderRadius: hideHeader ? 0 : 18,
-              border: hideHeader ? "none" : `1px solid ${hasDraft ? "#CFFF04" : subtleBorderColor}`,
-              background: hideHeader ? row2Column2BackgroundColor : "#202020",
+              borderRadius: 0,
+              border: "none",
+              background: "transparent",
               display: "grid",
-              alignContent: hideHeader ? "stretch" : "center",
-              justifyItems: hideHeader ? "stretch" : "center",
+              alignContent: "center",
+              justifyItems: "center",
               gap: 10,
-              padding: hideHeader ? "10px 16px 18px" : 18,
+              padding: hideHeader ? "10px 16px 18px" : 0,
               boxSizing: "border-box",
               overflow: hideHeader ? "visible" : "hidden",
             }}
           >
-            {!hideHeader ? (
-              <div
-                style={{
-                  color: hasDraft ? "#CFFF04" : "#FFFFFF99",
-                  fontSize: 11,
-                  fontWeight: 900,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.4,
-                }}
-              >
-                {visibleEquationLabel}
-              </div>
-            ) : null}
             {visibleEquationTokens.length > 0 ? (
               <EquationTileStrip
                 tokens={visibleEquationTokens}
@@ -5841,6 +5840,8 @@ function CenterChoicePanel({
                 currentSongSeconds={currentSongSeconds}
                 mechanicStartSeconds={mechanicStartSeconds}
                 mechanicEndSeconds={mechanicEndSeconds}
+                isSongPlaying={isSongPlaying}
+                onQuickAddHit={onQuickAddHit ?? undefined}
               />
             ) : null}
           </div>
@@ -6665,12 +6666,7 @@ export default function LessonBuilderClient({
     return activeTimelineEvent ? getTimelineEventEquation(activeTimelineEvent) : null;
   }, [activeTimelineEvent]);
 
-  const playheadTimelineEvent = useMemo(
-    () => findTimelineEventAtSeconds(timelineEvents, currentSongSeconds) ?? null,
-    [currentSongSeconds, timelineEvents],
-  );
-
-  const centerContextEvent = activeTimelineEvent ?? playheadTimelineEvent;
+  const centerContextEvent = activeTimelineEvent;
 
   const centerContextEventIndex = useMemo(() => {
     if (!centerContextEvent) {
@@ -7741,10 +7737,10 @@ function handleToggleDragTarget(
   ]);
 
   useEffect(() => {
-    if (!activeEventId && timelineEvents.length > 0) {
+    if (!activeEventId && timelineEvents.length > 0 && !isPlayheadAutoSelectPaused) {
       setActiveEventId(timelineEvents[0].id);
     }
-  }, [activeEventId, timelineEvents]);
+  }, [activeEventId, isPlayheadAutoSelectPaused, timelineEvents]);
 
   useEffect(() => {
     const eventAtPlayhead = findTimelineEventAtSeconds(
@@ -8559,6 +8555,8 @@ function handleToggleDragTarget(
                   currentSongSeconds={currentSongSeconds}
                   mechanicStartSeconds={selectedContextMechanicTimeWindow.startSeconds}
                   mechanicEndSeconds={selectedContextMechanicTimeWindow.endSeconds}
+                  isSongPlaying={isSongPlaying}
+                  onQuickAddHit={handleAddHitAtPlayhead}
                   onCreateEquation={handleCreateEquationChoice}
                   onBrowseLibrary={handleBrowsePremadeChoice}
                   showWorkspacePrompt={showCenterWorkspacePrompt}
