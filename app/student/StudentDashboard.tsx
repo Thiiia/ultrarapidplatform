@@ -263,7 +263,7 @@ export default function StudentDashboard({
                   src={panel.src}
                   alt={panel.alt}
                   fill
-                  style={{ objectFit: "contain", objectPosition: "center", padding: 0 }}
+                  style={{ objectFit: "cover", objectPosition: "center" }}
                   priority={panel.title === "Number Bonds"}
                 />
               </div>
