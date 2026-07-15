@@ -8523,35 +8523,8 @@ function handleToggleDragTarget(
     timelineEvents.length,
   ]);
 
-  useEffect(() => {
-    if (!activeEventId && timelineEvents.length > 0 && !isPlayheadAutoSelectPaused) {
-      setActiveEventId(timelineEvents[0].id);
-    }
-  }, [activeEventId, isPlayheadAutoSelectPaused, timelineEvents]);
-
-  useEffect(() => {
-    const eventAtPlayhead = findTimelineEventAtSeconds(
-      timelineEvents,
-      currentSongSeconds,
-    );
-
-    if (isPlayheadAutoSelectPaused) {
-      if (!eventAtPlayhead) {
-        setIsPlayheadAutoSelectPaused(false);
-      }
-
-      return;
-    }
-
-    if (eventAtPlayhead && eventAtPlayhead.id !== activeEventId) {
-      setActiveEventId(eventAtPlayhead.id);
-    }
-  }, [
-    activeEventId,
-    currentSongSeconds,
-    isPlayheadAutoSelectPaused,
-    timelineEvents,
-  ]);
+  // Event selection is intentionally manual.
+  // Playback and playhead movement should not force-select an event.
 
   useEffect(() => {
     if (!pendingRangeSelection) {
