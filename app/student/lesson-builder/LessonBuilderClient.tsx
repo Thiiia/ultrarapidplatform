@@ -3772,6 +3772,7 @@ function getTimelineMarkerShapeStyles(mechanic: GameplayMechanic) {
 /* VERIFIED_LAYOUT_PATCH_2026_06_23: row2 shrinks; timeline has no horizontal scrollbar; draggable playhead controls song time; shared equation tiles. */
 function EquationTimeline({
   events,
+  rtcmDraftMechanics = [],
   activeEventId,
   onSelectEvent,
   currentSongSeconds,
@@ -3785,6 +3786,7 @@ function EquationTimeline({
   isAdvancedMode,
 }: {
   events: TimelineEventSlot[];
+  rtcmDraftMechanics?: RtcmDraftMechanic[];
   activeEventId: string | null;
   onSelectEvent: (eventId: string) => void;
   currentSongSeconds: number;
@@ -4380,6 +4382,7 @@ function EquationTimeline({
             const color =
               mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF";
             const markerShapeStyle = getTimelineMarkerShapeStyles(mechanic);
+            const draftMechanics = rtcmDraftMechanics.filter((draft) => draft.mechanic === mechanic);
 
             return (
               <div
@@ -4397,6 +4400,7 @@ function EquationTimeline({
                     (eventSlot.counts?.[mechanic] ?? 0) - instances.length,
                   );
                   const renderedInstances = [
+
                     ...instances,
                     ...Array.from({ length: fallbackCount }, () => ({
                       id: "fallback",
@@ -4536,6 +4540,102 @@ function EquationTimeline({
                     </span>
                   );
                 })}
+
+                {draftMechanics.length > 0
+                  ? draftMechanics.map((draft) => {
+                      const markerSeconds = timelineTickToSeconds(draft.tick);
+                      const markerLeft = Math.min(
+                        trackWidth,
+                        Math.max(0, markerSeconds * pixelsPerSecond),
+                      );
+
+                      if (mechanic === "hit") {
+                        return (
+                          <button
+                            key={draft.id}
+                            type="button"
+                            aria-hidden="true"
+                            tabIndex={-1}
+                            style={{
+                              position: "absolute",
+                              left: markerLeft,
+                              top: "50%",
+                              width: 10,
+                              height: 10,
+                              border: "none",
+                              background: color,
+                              boxShadow: `0 0 12px ${color}`,
+                              ...markerShapeStyle,
+                              cursor: "default",
+                              touchAction: "none",
+                              padding: 0,
+                              opacity: 0.92,
+                            }}
+                          />
+                        );
+                      }
+
+                      const window = {
+                        startSeconds: timelineTickToSeconds(draft.tick),
+                        endSeconds: timelineTickToSeconds(draft.endTick ?? draft.tick),
+                      };
+                      const startLeft = Math.min(
+                        trackWidth,
+                        Math.max(0, window.startSeconds * pixelsPerSecond),
+                      );
+                      const endLeft = Math.min(
+                        trackWidth,
+                        Math.max(0, window.endSeconds * pixelsPerSecond),
+                      );
+                      const pathLeft = Math.min(startLeft, endLeft);
+                      const pathWidth = Math.max(2, Math.abs(endLeft - startLeft));
+
+                      return (
+                        <span key={draft.id}>
+                          <span
+                            aria-hidden="true"
+                            style={{
+                              position: "absolute",
+                              left: pathLeft,
+                              top: "50%",
+                              width: pathWidth,
+                              height: 4,
+                              borderRadius: 999,
+                              background: `${color}55`,
+                              transform: "translateY(-50%)",
+                              opacity: 0.92,
+                            }}
+                          />
+                          {([
+                            ["start", startLeft],
+                            ["end", endLeft],
+                          ] as Array<[TimelineMarkerEdge, number]>).map(([edge, left]) => (
+                            <button
+                              key={`${draft.id}-${edge}`}
+                              type="button"
+                              aria-hidden="true"
+                              tabIndex={-1}
+                              style={{
+                                position: "absolute",
+                                left,
+                                top: "50%",
+                                width: 10,
+                                height: 10,
+                                border: "none",
+                                background: color,
+                                boxShadow: `0 0 12px ${color}`,
+                                ...markerShapeStyle,
+                                cursor: "default",
+                                touchAction: "none",
+                                padding: 0,
+                                opacity: 0.92,
+                              }}
+                            />
+                          ))}
+                        </span>
+                      );
+                    })
+                  : null}
               </div>
             );
           })}
@@ -6180,6 +6280,12 @@ function RtcmModePanel({
   eventRangeStartTick: number | null;
 }) {
   const isHolding = pendingRangeMechanic !== null;
+  const blankToken: EquationToken = { id: "rtcm-blank", label: "" };
+  const dragPreviewTokens: EquationToken[] = [
+    { id: "rtcm-drag-left", label: "" },
+    { id: "rtcm-drag-equals", label: "=" },
+    { id: "rtcm-drag-right", label: "" },
+  ];
 
   return (
     <section
@@ -6295,6 +6401,51 @@ function RtcmModePanel({
           {draftCount > 0
             ? `${draftCount} RTCM mechanic${draftCount === 1 ? "" : "s"} waiting to be grouped into an event.`
             : "No drafted mechanics yet."}
+        </div>
+
+        <div
+          style={{
+            width: "100%",
+            minHeight: 220,
+            borderRadius: 18,
+            border: `1px solid ${subtleBorderColor}`,
+            background: "#141414",
+            display: "grid",
+            placeItems: "center",
+            overflow: "visible",
+            padding: 16,
+            boxSizing: "border-box",
+          }}
+        >
+          {selectedTool === "hit" ? (
+            <HitEquationEditor
+              tokens={[blankToken]}
+              hitBubbles={[]}
+              onAddHitBubblePair={() => {
+                onAddHit();
+              }}
+            />
+          ) : selectedTool === "spin" ? (
+            <SpinEquationEditor
+              tokens={[blankToken]}
+              spinTargets={isHolding ? [{ tokenIndex: 0 }] : []}
+              onToggleSpinTarget={() => {
+                if (!isHolding) {
+                  onStartHold("spin");
+                }
+              }}
+            />
+          ) : (
+            <DragEquationEditor
+              tokens={dragPreviewTokens}
+              dragTargets={isHolding ? [{ tokenIndex: 0 }] : []}
+              onToggleDragTarget={() => {
+                if (!isHolding) {
+                  onStartHold("drag");
+                }
+              }}
+            />
+          )}
         </div>
       </div>
     </section>
@@ -9514,6 +9665,7 @@ function handleToggleDragTarget(
           />
           <EquationTimeline
             events={timelineEvents}
+            rtcmDraftMechanics={rtcmDraftMechanics}
             activeEventId={activeEventId}
             onSelectEvent={handleSelectEvent}
             currentSongSeconds={currentSongSeconds}
