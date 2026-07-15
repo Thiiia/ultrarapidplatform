@@ -40,13 +40,25 @@ type UtilityTab = {
 
 type GameEmbedPageProps = {
   navBasePath?: string;
+  launchSearch?: string;
+  playHref?: string;
 };
 
 function getEmbeddedGameUrl(searchParams: Pick<URLSearchParams, "get">) {
   return buildEmbeddedGameUrl(GAME_URL, searchParams);
 }
 
-function getTopTabs(navBasePath = "/student"): HeaderTab[] {
+function getTopTabs(
+  navBasePath = "/student",
+  playHref = `${navBasePath}/game`,
+): HeaderTab[] {
+  if (navBasePath === "/admin") {
+    return [
+      { label: "Home", href: navBasePath, Icon: HomeIcon, width: 99 },
+      { label: "Play", href: playHref, Icon: PlayTab, width: 99 },
+    ];
+  }
+
   return [
     { label: "Home", href: navBasePath, Icon: HomeIcon, width: 99 },
     {
@@ -67,18 +79,22 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
       Icon: ProgressTab,
       width: 120,
     },
-        {
+    {
       label: "Play",
-      href: `${navBasePath}/game`,
+      href: playHref,
       Icon: PlayTab,
       width: 99,
     },
   ];
 }
 
-const utilityTabs: UtilityTab[] = [
+const studentUtilityTabs: UtilityTab[] = [
   { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 134.45 },
 ];
+
+function getUtilityTabs(navBasePath: string): UtilityTab[] {
+  return navBasePath === "/student" ? studentUtilityTabs : [];
+}
 
 const pagePanelWidth = "92vw";
 const headerBackgroundColor = "#2B2B2B";
@@ -89,9 +105,11 @@ const textColor = "#FFFFFF";
 function HeaderBar({
   pathname,
   topTabs,
+  utilityTabs,
 }: {
   pathname: string;
   topTabs: HeaderTab[];
+  utilityTabs: UtilityTab[];
 }) {
   return (
     <header
@@ -154,7 +172,7 @@ function HeaderBar({
           </div>
 
           <nav
-            aria-label="Student navigation"
+            aria-label="Primary navigation"
             style={{
               display: "flex",
               alignItems: "center",
@@ -265,15 +283,24 @@ const isActive =
 
 export default function GameEmbedPage({
   navBasePath = "/student",
+  launchSearch,
+  playHref,
 }: GameEmbedPageProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const serverLaunchParams = useMemo(
+    () => new URLSearchParams(launchSearch ?? ""),
+    [launchSearch],
+  );
 
-  const topTabs = getTopTabs(navBasePath);
+  const topTabs = getTopTabs(navBasePath, playHref);
+  const utilityTabs = getUtilityTabs(navBasePath);
 
   const embeddedGameUrl = useMemo(() => {
-    return getEmbeddedGameUrl(searchParams);
-  }, [searchParams]);
+    return getEmbeddedGameUrl(
+      launchSearch ? serverLaunchParams : searchParams,
+    );
+  }, [launchSearch, searchParams, serverLaunchParams]);
 
   return (
     <div
@@ -287,7 +314,11 @@ export default function GameEmbedPage({
         overflowX: "hidden",
       }}
     >
-      <HeaderBar pathname={pathname} topTabs={topTabs} />
+      <HeaderBar
+        pathname={pathname}
+        topTabs={topTabs}
+        utilityTabs={utilityTabs}
+      />
 
       <main
         style={{
