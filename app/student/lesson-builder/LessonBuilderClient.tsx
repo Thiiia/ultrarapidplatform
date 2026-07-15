@@ -3187,7 +3187,7 @@ function MechanicInstanceRow({
         minHeight: 196,
         display: "grid",
         gridTemplateColumns: "140px minmax(0, 1fr)",
-        overflow: "hidden",
+        overflow: "visible",
       }}
     >
       <div
@@ -3283,7 +3283,7 @@ function MechanicInstanceRow({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            overflow: "auto",
+            overflow: "visible",
           }}
         >
           <MechanicEquationEditor
@@ -5723,6 +5723,7 @@ function CenterChoicePanel({
           alignItems: "center",
           gap: hideHeader ? 0 : 18,
           textAlign: "center",
+          overflow: "visible",
         }}
       >
           {!hideHeader && showWorkspacePrompt && !hasVisibleEquation && (
@@ -5818,7 +5819,7 @@ function CenterChoicePanel({
               gap: 10,
               padding: hideHeader ? "10px 16px 18px" : 0,
               boxSizing: "border-box",
-              overflow: hideHeader ? "visible" : "hidden",
+              overflow: "visible",
             }}
           >
             {visibleEquationTokens.length > 0 ? (
