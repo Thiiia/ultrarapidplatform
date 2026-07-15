@@ -144,9 +144,20 @@ type MechanicCounts = Record<GameplayMechanic, number>;
 type TimelineEventSlot = {
   id: string;
   tick: number;
+  endTick?: number;
   counts: MechanicCounts;
   assignments: Record<GameplayMechanic, SavedEquation | null>;
   mechanicInstances: Record<GameplayMechanic, MechanicInstanceState[]>;
+};
+
+type RtcmDraftMechanic = {
+  id: string;
+  mechanic: GameplayMechanic;
+  tick: number;
+  endTick?: number;
+  hitBubbles: HitBubblePlacement[];
+  spinTargets: SpinTarget[];
+  dragTargets: DragTarget[];
 };
 
 type SidecarMechanicEvent = {
@@ -172,6 +183,7 @@ type SidecarEquationStateEvent = {
 type SidecarEventSlotEvent = {
   tick: number;
   type: "ALG_EVENT_SLOT";
+  endTick?: number;
 };
 
 type SidecarEvent =
@@ -204,9 +216,9 @@ type TimelineMarkerEdge = "start" | "end";
 /* VERIFIED_TIMELINE_HIDDEN_SCROLL_DRAG_HANDLE_PATCH */
 /* VERIFIED_TIMELINE_UPLOAD_BUTTONS_PATCH: row 3 subrow 2 supports song/chart/sidecar uploads and updates timeline data. */
 const pagePanelWidth = "92vw";
-const headerHeight = "5.5vh";
-const viewerRowHeight = "65vh";
-const timelineRowHeight = "29.5vh";
+const headerHeight = "5vh";
+const viewerRowHeight = "61vh";
+const timelineRowHeight = "25vh";
 const headerBackgroundColor = "#060B15FC";
 const row2Column1BackgroundColor = "#0A1222FA";
 const row2Column2BackgroundColor = "#070C16FA";
@@ -520,6 +532,9 @@ function normalizeSidecar(value: unknown): SidecarPayload {
       return [
         {
           tick: normalizeTick(event.tick),
+          ...(typeof event.endTick === "number"
+            ? { endTick: normalizeTick(event.endTick) }
+            : {}),
           type: "ALG_EVENT_SLOT",
         },
       ];
@@ -639,6 +654,7 @@ function makeTimelineEvent(
   index: number,
   tick = 0,
   counts: Partial<MechanicCounts> = {},
+  endTick?: number,
 ): TimelineEventSlot {
   const normalizedCounts = {
     ...makeEmptyMechanicCounts(),
@@ -648,6 +664,7 @@ function makeTimelineEvent(
   return {
     id: makeId("event"),
     tick,
+    ...(typeof endTick === "number" ? { endTick } : {}),
     counts: normalizedCounts,
     assignments: makeEmptyAssignments(),
     mechanicInstances: {
@@ -1110,54 +1127,55 @@ function sidecarFromTimelineEvents(
   const sidecarEvents = events.flatMap((event, eventIndex): SidecarEvent[] => {
     const equation = getTimelineEventEquation(event);
     const equationId = `eq_${String(eventIndex + 1).padStart(3, "0")}`;
-    const mechanicEvents = gameplayMechanics.flatMap(
-      (mechanic): SidecarEvent[] => {
-        const count = event.counts?.[mechanic] ?? 0;
+    const mechanicEvents = gameplayMechanics.flatMap((mechanic): SidecarEvent[] => {
+      const count = event.counts?.[mechanic] ?? 0;
 
-        if (count <= 0) {
-          return [];
+      if (count <= 0) {
+        return [];
+      }
+
+      return Array.from({ length: count }, (_, instanceIndex) => {
+        const instance = event.mechanicInstances?.[mechanic]?.[instanceIndex];
+        const mechanicEvent: SidecarMechanicEvent = {
+          tick: instance?.tick ?? event.tick,
+          endTick:
+            mechanic === "hit"
+              ? undefined
+              : instance?.endTick ?? instance?.tick ?? event.tick,
+          type: "ALG_MECHANIC",
+          mechanic,
+          instanceIndex,
+          equationId:
+            equation && equation.tokens.length > 0 ? equationId : undefined,
+        };
+
+        if (mechanic === "hit") {
+          mechanicEvent.hits = 1;
+
+          if (instance?.hitBubbles.length) {
+            mechanicEvent.hitBubbles = instance.hitBubbles;
+          }
         }
 
-        return Array.from({ length: count }, (_, instanceIndex) => {
-          const instance = event.mechanicInstances?.[mechanic]?.[instanceIndex];
-          const mechanicEvent: SidecarMechanicEvent = {
-            tick: instance?.tick ?? event.tick,
-            endTick:
-              mechanic === "hit"
-                ? undefined
-                : instance?.endTick ?? instance?.tick ?? event.tick,
-            type: "ALG_MECHANIC",
-            mechanic,
-            instanceIndex,
-            equationId:
-              equation && equation.tokens.length > 0 ? equationId : undefined,
-          };
+        if (mechanic === "spin" && instance?.spinTargets.length) {
+          mechanicEvent.spinTargets = instance.spinTargets;
+        }
 
-          if (mechanic === "hit") {
-            mechanicEvent.hits = 1;
+        if (mechanic === "drag" && instance?.dragTargets.length) {
+          mechanicEvent.dragTargets = instance.dragTargets;
+        }
 
-            if (instance?.hitBubbles.length) {
-              mechanicEvent.hitBubbles = instance.hitBubbles;
-            }
-          }
-
-          if (mechanic === "spin" && instance?.spinTargets.length) {
-            mechanicEvent.spinTargets = instance.spinTargets;
-          }
-
-          if (mechanic === "drag" && instance?.dragTargets.length) {
-            mechanicEvent.dragTargets = instance.dragTargets;
-          }
-
-          return mechanicEvent;
-        });
-      },
-    );
+        return mechanicEvent;
+      });
+    });
 
     const serializedEvents: SidecarEvent[] = [
       {
         tick: event.tick,
         type: "ALG_EVENT_SLOT",
+        ...(typeof event.endTick === "number"
+          ? { endTick: normalizeTick(event.endTick) }
+          : {}),
       },
       ...mechanicEvents,
     ];
@@ -1426,11 +1444,15 @@ async function jsonFromSignedUrl(signedUrl: string) {
 function HeaderBar({
   studentName,
   isAdvancedMode,
+  isRtcmMode,
   onToggleAdvancedMode,
+  onToggleRtcmMode,
 }: {
   studentName: string;
   isAdvancedMode: boolean;
+  isRtcmMode: boolean;
   onToggleAdvancedMode: () => void;
+  onToggleRtcmMode: () => void;
 }) {
   return (
     <header
@@ -1506,6 +1528,27 @@ function HeaderBar({
             }}
           >
             Advanced
+          </button>
+
+          <button
+            type="button"
+            onClick={onToggleRtcmMode}
+            aria-pressed={isRtcmMode}
+            style={{
+              minWidth: 106,
+              height: 38,
+              borderRadius: 999,
+              border: "1px solid #7A8FA8",
+              background: isRtcmMode ? "#CFFF04" : "#060B15FC",
+              color: isRtcmMode ? "#071222" : "#7A8FA8",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              padding: "0 16px",
+              fontFamily: "Space Grotesk, sans-serif",
+            }}
+          >
+            RTCM
           </button>
         </div>
 
@@ -3059,13 +3102,65 @@ function MechanicEquationEditor({
     return (
       <div
         style={{
-          color: "#FFFFFF80",
-          fontSize: 13,
-          fontWeight: 700,
-          textAlign: "center",
+          position: "relative",
+          minWidth: 140,
+          minHeight: 140,
+          display: "grid",
+          placeItems: "center",
+          overflow: "visible",
         }}
       >
-        Drag an equation into this event to assign it to all {mechanic}s.
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <EquationCircle label="" draggable={false} size={68} />
+        </div>
+
+        {mechanic === "hit" ? (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "grid",
+              placeItems: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <span style={{ color: "#FFFFFF66", fontSize: 11, fontWeight: 700 }}>
+              Empty hit token
+            </span>
+          </div>
+        ) : mechanic === "spin" ? (
+          <SpinOverlay />
+        ) : (
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 240 180"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              overflow: "visible",
+              pointerEvents: "none",
+            }}
+          >
+            <path
+              d="M 70 115 C 110 55, 150 55, 190 115"
+              fill="none"
+              stroke="#B45CFF"
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray="18 12"
+            />
+          </svg>
+        )}
       </div>
     );
   }
@@ -3530,6 +3625,16 @@ function getMechanicInstanceTimeWindowSeconds(
 }
 
 function getTimelineEventTimeWindowSeconds(eventSlot: TimelineEventSlot) {
+  if (typeof eventSlot.endTick === "number") {
+    const startSeconds = timelineTickToSeconds(eventSlot.tick);
+    const endSeconds = timelineTickToSeconds(eventSlot.endTick);
+
+    return {
+      startSeconds,
+      endSeconds: Math.max(startSeconds, endSeconds),
+    };
+  }
+
   const hasMechanics = gameplayMechanics.some(
     (mechanic) => (eventSlot.counts?.[mechanic] ?? 0) > 0,
   );
@@ -3589,7 +3694,7 @@ function findTimelineEventAtSeconds(
       (mechanic) => (eventSlot.counts?.[mechanic] ?? 0) > 0,
     );
 
-    if (hasMechanics) {
+    if (hasMechanics || typeof eventSlot.endTick === "number") {
       return (
         safeSeconds >= eventWindow.startSeconds &&
         safeSeconds <= eventWindow.endSeconds
@@ -5852,6 +5957,350 @@ function CenterChoicePanel({
   );
 }
 
+function RtcmToolButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        minWidth: 104,
+        minHeight: 40,
+        borderRadius: 12,
+        border: `1px solid ${active ? "#CFFF04" : subtleBorderColor}`,
+        background: active ? "#CFFF04" : "#252525",
+        color: active ? "#000000" : "#FFFFFF99",
+        fontSize: 12,
+        fontWeight: 900,
+        cursor: "pointer",
+        padding: "0 14px",
+        fontFamily: "Space Grotesk, sans-serif",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function RtcmHitPadToken({
+  onAddHit,
+  isSongPlaying,
+}: {
+  onAddHit: () => void;
+  isSongPlaying: boolean;
+}) {
+  const pads: HitBubblePad[] = [
+    "topLeft",
+    "topRight",
+    "left",
+    "right",
+    "bottomLeft",
+    "bottomRight",
+  ];
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: 176,
+        height: 176,
+        display: "grid",
+        placeItems: "center",
+        overflow: "visible",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "grid",
+          placeItems: "center",
+          pointerEvents: "none",
+        }}
+      >
+        <EquationCircle label="" draggable={false} size={74} />
+      </div>
+
+      {pads.map((pad) => {
+        const padStyle = getHitBubblePadStyle(pad, 22);
+
+        return (
+          <button
+            key={pad}
+            type="button"
+            onClick={isSongPlaying ? onAddHit : undefined}
+            aria-label={`Add hit at ${pad}`}
+            disabled={!isSongPlaying}
+            style={{
+              position: "absolute",
+              width: 22,
+              height: 22,
+              borderRadius: 999,
+              border: "1px solid #7CC8FF",
+              background: isSongPlaying ? "#2EA7FF" : "rgba(46,167,255,0.4)",
+              boxShadow: "0 0 10px rgba(46,167,255,0.3)",
+              cursor: isSongPlaying ? "pointer" : "not-allowed",
+              padding: 0,
+              opacity: isSongPlaying ? 1 : 0.65,
+              ...padStyle,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function RtcmHoldToken({
+  mechanic,
+  isArmed,
+  onPointerDown,
+  onPointerUp,
+  onPointerCancel,
+}: {
+  mechanic: Exclude<GameplayMechanic, "hit">;
+  isArmed: boolean;
+  onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
+  onPointerUp: (event: PointerEvent<HTMLButtonElement>) => void;
+  onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: 240,
+        height: 180,
+        display: "grid",
+        placeItems: "center",
+        overflow: "visible",
+      }}
+    >
+      <button
+        type="button"
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        style={{
+          width: 84,
+          height: 84,
+          borderRadius: 999,
+          border: `2px solid ${mechanic === "spin" ? "#FF3535" : "#B45CFF"}`,
+          background: "#191919",
+          cursor: "pointer",
+          padding: 0,
+          position: "relative",
+          zIndex: 2,
+          boxShadow: isArmed
+            ? mechanic === "spin"
+              ? "0 0 26px rgba(255,53,53,0.35)"
+              : "0 0 26px rgba(180,92,255,0.35)"
+            : "none",
+        }}
+        aria-label={`Start ${mechanic}`}
+      >
+        <EquationCircle label="" draggable={false} size={68} />
+      </button>
+
+      {isArmed ? (
+        mechanic === "spin" ? (
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "grid",
+              placeItems: "center",
+              pointerEvents: "none",
+              zIndex: 1,
+            }}
+          >
+            <SpinOverlay />
+          </span>
+        ) : (
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 240 180"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              overflow: "visible",
+              pointerEvents: "none",
+              zIndex: 1,
+            }}
+          >
+            <path
+              d="M 70 115 C 110 55, 150 55, 190 115"
+              fill="none"
+              stroke="#B45CFF"
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray="18 12"
+            />
+            <circle cx="70" cy="115" r="7" fill="#B45CFF" />
+            <circle cx="190" cy="115" r="7" fill="#B45CFF" />
+          </svg>
+        )
+      ) : null}
+    </div>
+  );
+}
+
+function RtcmModePanel({
+  selectedTool,
+  onSelectTool,
+  onAddHit,
+  onStartHold,
+  onEndHold,
+  onCreateEvent,
+  currentSongSeconds,
+  isSongPlaying,
+  pendingRangeMechanic,
+  draftCount,
+  eventRangeStartTick,
+}: {
+  selectedTool: GameplayMechanic;
+  onSelectTool: (tool: GameplayMechanic) => void;
+  onAddHit: () => void;
+  onStartHold: (tool: Exclude<GameplayMechanic, "hit">) => void;
+  onEndHold: () => void;
+  onCreateEvent: () => void;
+  currentSongSeconds: number;
+  isSongPlaying: boolean;
+  pendingRangeMechanic: "spin" | "drag" | null;
+  draftCount: number;
+  eventRangeStartTick: number | null;
+}) {
+  const isHolding = pendingRangeMechanic !== null;
+
+  return (
+    <section
+      aria-label="Real-time chart maker"
+      style={{
+        width: "100%",
+        height: "100%",
+        minHeight: 0,
+        minWidth: 0,
+        background: row2Column2BackgroundColor,
+        color: textColor,
+        boxSizing: "border-box",
+        overflow: "visible",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        fontFamily: "Space Grotesk, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          width: "min(760px, 100%)",
+          display: "grid",
+          justifyItems: "center",
+          gap: 18,
+          overflow: "visible",
+        }}
+      >
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          <RtcmToolButton label="Hit Addition" active={selectedTool === "hit"} onClick={() => onSelectTool("hit")} />
+          <RtcmToolButton label="Spin Addition" active={selectedTool === "spin"} onClick={() => onSelectTool("spin")} />
+          <RtcmToolButton label="Drag Addition" active={selectedTool === "drag"} onClick={() => onSelectTool("drag")} />
+        </div>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          <RtcmToolButton
+            label={eventRangeStartTick === null ? "Create Event" : "Finalize Event"}
+            active={eventRangeStartTick !== null}
+            onClick={onCreateEvent}
+          />
+        </div>
+
+        {selectedTool === "hit" ? (
+          <RtcmHitPadToken onAddHit={onAddHit} isSongPlaying={isSongPlaying} />
+        ) : selectedTool === "spin" ? (
+          <RtcmHoldToken
+            mechanic="spin"
+            isArmed={isHolding}
+            onPointerDown={(event) => {
+              if (!isSongPlaying) {
+                return;
+              }
+              event.preventDefault();
+              onStartHold("spin");
+            }}
+            onPointerUp={(event) => {
+              event.preventDefault();
+              onEndHold();
+            }}
+            onPointerCancel={(event) => {
+              event.preventDefault();
+              onEndHold();
+            }}
+          />
+        ) : (
+          <RtcmHoldToken
+            mechanic="drag"
+            isArmed={isHolding}
+            onPointerDown={(event) => {
+              if (!isSongPlaying) {
+                return;
+              }
+              event.preventDefault();
+              onStartHold("drag");
+            }}
+            onPointerUp={(event) => {
+              event.preventDefault();
+              onEndHold();
+            }}
+            onPointerCancel={(event) => {
+              event.preventDefault();
+              onEndHold();
+            }}
+          />
+        )}
+
+        <div
+          style={{
+            color: "#FFFFFF99",
+            fontSize: 12,
+            fontWeight: 700,
+            textAlign: "center",
+            lineHeight: 1.35,
+            maxWidth: 560,
+          }}
+        >
+          {selectedTool === "hit"
+            ? "Click any dot while the song is playing to add a hit at the current timestamp."
+            : selectedTool === "spin"
+              ? `Hold the token to mark spin start and release to set the end time at ${formatSongTime(currentSongSeconds)}.`
+              : `Hold the token to mark drag start and release to set the end time at ${formatSongTime(currentSongSeconds)}.`}
+        </div>
+
+        <div
+          style={{
+            color: "#FFFFFF80",
+            fontSize: 11,
+            fontWeight: 700,
+            textAlign: "center",
+          }}
+        >
+          {draftCount > 0
+            ? `${draftCount} RTCM mechanic${draftCount === 1 ? "" : "s"} waiting to be grouped into an event.`
+            : "No drafted mechanics yet."}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function LibraryPanel({
   activeTab,
   savedEquations,
@@ -6536,11 +6985,19 @@ export default function LessonBuilderClient({
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventSlot[]>([]);
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [savedEquations, setSavedEquations] = useState<SavedEquation[]>([]);
-  const [mode, setMode] = useState<"event" | "equation">("event");
+  const [mode, setMode] = useState<"event" | "equation" | "rtcm">("event");
   const [centerChoice, setCenterChoice] = useState<CenterChoice>(null);
   const [libraryTab, setLibraryTab] = useState<LibraryTab>("mine");
   const [selectedEquationId, setSelectedEquationId] = useState<string | null>(null);
   const [hideEquationHeader, setHideEquationHeader] = useState(false);
+  const [rtcmSelectedTool, setRtcmSelectedTool] = useState<GameplayMechanic>("hit");
+  const [rtcmDraftMechanics, setRtcmDraftMechanics] = useState<RtcmDraftMechanic[]>([]);
+  const [rtcmEventRangeStartTick, setRtcmEventRangeStartTick] = useState<number | null>(null);
+  const [rtcmPendingHold, setRtcmPendingHold] = useState<{
+    draftId: string;
+    mechanic: "spin" | "drag";
+    startTick: number;
+  } | null>(null);
   const [currentSongSeconds, setCurrentSongSeconds] = useState(0);
   const [isSongPlaying, setIsSongPlaying] = useState(false);
   const [audioObjectUrl, setAudioObjectUrl] = useState("");
@@ -6975,6 +7432,184 @@ export default function LessonBuilderClient({
     setCenterChoice("create");
     setMode("equation");
     setHideEquationHeader(true);
+  }
+
+  function handleToggleRtcmMode() {
+    setMode((current) => (current === "rtcm" ? "event" : "rtcm"));
+    setCenterChoice(null);
+  }
+
+  function handleSelectRtcmTool(tool: GameplayMechanic) {
+    setRtcmSelectedTool(tool);
+    setMode("rtcm");
+    setCenterChoice(null);
+  }
+
+  function addRtcmDraftMechanic(
+    mechanic: GameplayMechanic,
+    seconds: number,
+    options: { endSeconds?: number } = {},
+  ) {
+    const tick = Number(seconds.toFixed(3));
+    const endTick =
+      typeof options.endSeconds === "number"
+        ? Number(options.endSeconds.toFixed(3))
+        : mechanic === "hit"
+          ? undefined
+          : tick;
+    const draftId = makeId("rtcm");
+
+    setRtcmDraftMechanics((current) => [
+      ...current,
+      {
+        id: draftId,
+        mechanic,
+        tick,
+        ...(typeof endTick === "number" ? { endTick } : {}),
+        hitBubbles: [],
+        spinTargets: [],
+        dragTargets: [],
+      },
+    ]);
+    setSaveStatus(`${mechanic.toUpperCase()} drafted at ${formatSongTime(seconds, isAdvancedMode)}.`);
+
+    return draftId;
+  }
+
+  function handleStartRtcmEventCreation() {
+    setMode("rtcm");
+    setCenterChoice(null);
+    setRtcmEventRangeStartTick(Number(currentSongSeconds.toFixed(3)));
+    setSaveStatus(`Event start set at ${formatSongTime(currentSongSeconds, isAdvancedMode)}. Drag the playhead to choose the end time.`);
+  }
+
+  function handleToggleRtcmEventCreation() {
+    if (rtcmEventRangeStartTick === null) {
+      handleStartRtcmEventCreation();
+      return;
+    }
+
+    handleFinalizeRtcmEventCreation();
+  }
+
+  function handleStartRtcmHold(mechanic: "spin" | "drag") {
+    const tick = Number(currentSongSeconds.toFixed(3));
+    const draftId = addRtcmDraftMechanic(mechanic, currentSongSeconds, {
+      endSeconds: currentSongSeconds,
+    });
+
+    setRtcmPendingHold({
+      draftId,
+      mechanic,
+      startTick: tick,
+    });
+  }
+
+  function handleFinalizeRtcmHold() {
+    if (!rtcmPendingHold) {
+      return;
+    }
+
+    const endTick = Number(currentSongSeconds.toFixed(3));
+
+    setRtcmDraftMechanics((current) =>
+      current.map((draft) => {
+        if (draft.id !== rtcmPendingHold.draftId) {
+          return draft;
+        }
+
+        return {
+          ...draft,
+          endTick: Math.max(rtcmPendingHold.startTick, endTick),
+        };
+      }),
+    );
+
+    setRtcmPendingHold(null);
+    setSaveStatus(`${rtcmPendingHold.mechanic.toUpperCase()} drafted to ${formatSongTime(currentSongSeconds, isAdvancedMode)}.`);
+  }
+
+  function handleFinalizeRtcmEventCreation() {
+    if (rtcmEventRangeStartTick === null) {
+      return;
+    }
+
+    const endTick = Number(currentSongSeconds.toFixed(3));
+    const startTick = Math.min(rtcmEventRangeStartTick, endTick);
+    const finalEndTick = Math.max(rtcmEventRangeStartTick, endTick);
+
+    if (Math.abs(finalEndTick - startTick) < 0.001) {
+      setSaveStatus("Drag the playhead to give the event a non-zero duration.");
+      return;
+    }
+
+    const selectedDrafts = rtcmDraftMechanics.filter((draft) => {
+      if (draft.tick < startTick || draft.tick > finalEndTick) {
+        return false;
+      }
+
+      if (draft.mechanic === "hit") {
+        return true;
+      }
+
+      return typeof draft.endTick === "number"
+        ? draft.endTick <= finalEndTick
+        : true;
+    });
+
+    setTimelineEvents((current) => {
+      const nextEvent = makeTimelineEvent(
+        current.length,
+        startTick,
+        selectedDrafts.reduce<Partial<MechanicCounts>>((counts, draft) => {
+          counts[draft.mechanic] = (counts[draft.mechanic] ?? 0) + 1;
+          return counts;
+        }, {}),
+        finalEndTick,
+      );
+
+      const nextDraftsByMechanic: Record<GameplayMechanic, MechanicInstanceState[]> = {
+        hit: [],
+        spin: [],
+        drag: [],
+      };
+
+      selectedDrafts.forEach((draft) => {
+        const instance = {
+          id: draft.id,
+          tick: draft.tick,
+          ...(draft.mechanic === "hit" ? {} : { endTick: draft.endTick ?? draft.tick }),
+          hitBubbles: draft.hitBubbles,
+          spinTargets: draft.spinTargets,
+          dragTargets: draft.dragTargets,
+        } satisfies MechanicInstanceState;
+
+        nextDraftsByMechanic[draft.mechanic].push(instance);
+      });
+
+      nextEvent.mechanicInstances = {
+        hit: nextDraftsByMechanic.hit,
+        spin: nextDraftsByMechanic.spin,
+        drag: nextDraftsByMechanic.drag,
+      };
+
+      const nextEvents = [...current, nextEvent].sort(
+        (left, right) => timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
+      );
+
+      syncTimelineFilesFromEvents(nextEvents);
+      setActiveEventId(nextEvent.id);
+      setMode("event");
+      return nextEvents;
+    });
+
+    setRtcmDraftMechanics((current) =>
+      current.filter((draft) => !selectedDrafts.some((selected) => selected.id === draft.id)),
+    );
+    setRtcmEventRangeStartTick(null);
+    setSaveStatus(
+      `Created event ${formatSongTime(startTick, isAdvancedMode)} - ${formatSongTime(finalEndTick, isAdvancedMode)}.`,
+    );
   }
 
   function handleBrowsePremadeChoice() {
@@ -7826,7 +8461,55 @@ function handleToggleDragTarget(
       return;
     }
 
+    const finalEndTick = Number(currentSongSeconds.toFixed(3));
+
+    setTimelineEvents((current) => {
+      const nextEvents = current.map((eventSlot) => {
+        if (eventSlot.id !== pendingRangeSelection.eventId) {
+          return eventSlot;
+        }
+
+        const nextInstances = (eventSlot.mechanicInstances?.[
+          pendingRangeSelection.mechanic
+        ] ?? []).map((instance) => {
+          if (instance.id !== pendingRangeSelection.instanceId) {
+            return instance;
+          }
+
+          return {
+            ...instance,
+            endTick: Math.max(pendingRangeSelection.startTick, finalEndTick),
+          };
+        });
+
+        return {
+          ...eventSlot,
+          mechanicInstances: {
+            ...eventSlot.mechanicInstances,
+            [pendingRangeSelection.mechanic]: nextInstances,
+          },
+        };
+      });
+
+      syncTimelineFilesFromEvents(nextEvents);
+      return nextEvents;
+    });
+
     setPendingRangeSelection(null);
+  }
+
+  function handleFinalizeAnyPendingHold() {
+    handleFinalizePendingRangeSelection();
+    handleFinalizeRtcmHold();
+  }
+
+  function handleFinalizeTimelineInteraction() {
+    if (rtcmEventRangeStartTick !== null) {
+      handleFinalizeRtcmEventCreation();
+      return;
+    }
+
+    handleFinalizeAnyPendingHold();
   }
 
   useEffect(() => {
@@ -8081,27 +8764,45 @@ function handleToggleDragTarget(
     });
   }
 
-  function handleAddMechanicAtPlayhead(mechanic: GameplayMechanic) {
+  function handleAddMechanicAtPlayhead(
+    mechanic: GameplayMechanic,
+    options: {
+      allowActiveEvent?: boolean;
+      allowPlayheadEvent?: boolean;
+      draftIfNoEvent?: boolean;
+    } = {},
+  ) {
+    const allowActiveEvent = options.allowActiveEvent ?? true;
+    const allowPlayheadEvent = options.allowPlayheadEvent ?? true;
+    const draftIfNoEvent = options.draftIfNoEvent ?? false;
     const mechanicSeconds = currentSongSeconds;
     const mechanicTick = Number(mechanicSeconds.toFixed(3));
     let nextAddedInstanceId: string | null = null;
 
     setTimelineEvents((current) => {
       const selectedEvent =
-        activeEventId
+        allowActiveEvent && activeEventId
           ? current.find((eventSlot) => eventSlot.id === activeEventId) ?? null
           : null;
-      const playheadEvent = findTimelineEventAtSeconds(current, mechanicSeconds);
+      const playheadEvent =
+        allowPlayheadEvent ? findTimelineEventAtSeconds(current, mechanicSeconds) : null;
       const targetEvent =
         selectedEvent ??
         playheadEvent ??
-        makeTimelineEvent(current.length, mechanicTick);
+        (draftIfNoEvent ? null : makeTimelineEvent(current.length, mechanicTick));
       const baseEvents = selectedEvent || playheadEvent
         ? current
-        : [...current, targetEvent].sort(
+        : targetEvent
+          ? [...current, targetEvent].sort(
             (left, right) =>
               timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
-          );
+            )
+          : current;
+
+      if (!targetEvent) {
+        addRtcmDraftMechanic(mechanic, mechanicSeconds);
+        return current;
+      }
 
       const nextEvents = baseEvents.map((eventSlot) => {
         if (eventSlot.id !== targetEvent.id) {
@@ -8158,12 +8859,28 @@ function handleToggleDragTarget(
     handleAddMechanicAtPlayhead("hit");
   }
 
+  function handleRtcmAddHitAtPlayhead() {
+    handleAddMechanicAtPlayhead("hit", {
+      allowActiveEvent: false,
+      allowPlayheadEvent: true,
+      draftIfNoEvent: true,
+    });
+  }
+
   function handleAddSpinAtPlayhead() {
     handleAddMechanicAtPlayhead("spin");
   }
 
+  function handleRtcmStartSpinAtPlayhead() {
+    handleStartRtcmHold("spin");
+  }
+
   function handleAddDragAtPlayhead() {
     handleAddMechanicAtPlayhead("drag");
+  }
+
+  function handleRtcmStartDragAtPlayhead() {
+    handleStartRtcmHold("drag");
   }
 
 
@@ -8402,6 +9119,7 @@ function handleToggleDragTarget(
   const isTimelineInstructionVisible = centerChoice !== null;
   const showCenterWorkspacePrompt =
     chartFile.trim().length === 0 && sidecar.events.length === 0;
+  const isRtcmMode = mode === "rtcm";
   return (
     <div
       className={styles.studentTypography}
@@ -8440,7 +9158,9 @@ function handleToggleDragTarget(
       <HeaderBar
         studentName={studentFirstName}
         isAdvancedMode={isAdvancedMode}
+        isRtcmMode={isRtcmMode}
         onToggleAdvancedMode={() => setIsAdvancedMode((current) => !current)}
+        onToggleRtcmMode={handleToggleRtcmMode}
       />
 
       <EditorActionBar
@@ -8503,183 +9223,211 @@ function handleToggleDragTarget(
                 height: "100%",
                 minHeight: 0,
                 display: "grid",
-                gridTemplateRows: centerContextEvent ? "7% 80% 13%" : "0 100% 0",
+                gridTemplateRows: isRtcmMode
+                  ? "100%"
+                  : centerContextEvent
+                    ? "7% 80% 13%"
+                    : "0 100% 0",
                 background: row2Column2BackgroundColor,
                 overflow: "hidden",
               }}
             >
-              <div
-                style={{
-                  display: centerContextEvent ? "grid" : "none",
-                  minHeight: 0,
-                  alignItems: "center",
-                  borderBottom: `1px solid ${subtleBorderColor}`,
-                  padding: "0 12px",
-                  boxSizing: "border-box",
-                  color: "#FFFFFF",
-                  fontFamily: "Space Grotesk, sans-serif",
-                  fontSize: 11,
-                  fontWeight: 800,
-                }}
-              >
-                {centerContextEvent && centerContextEventIndex >= 0 ? (
-                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                    <span>{`Event ${centerContextEventIndex + 1}`}</span>
-                    <span>{`Start ${formatTimelineTime(getTimelineEventTimeWindowSeconds(centerContextEvent).startSeconds, isAdvancedMode)}`}</span>
-                    <span>{`Spins ${centerContextEvent.counts?.spin ?? 0}`}</span>
-                    <span>{`Hits ${centerContextEvent.counts?.hit ?? 0}`}</span>
-                    <span>{`Drags ${centerContextEvent.counts?.drag ?? 0}`}</span>
-                  </div>
-                ) : null}
-              </div>
-
-              <div style={{ minHeight: 0 }}>
-                <CenterChoicePanel
-                  choice={centerChoice}
-                  draftTokens={draftTokens}
-                  activeEventEquation={centerContextEventEquation ?? activeEventEquation}
-                  hasSelectedEvent={Boolean(centerContextEvent)}
-                  selectedTokenIndex={selectedContextMechanicAssignedTokenIndex}
-                  onSelectToken={
-                    selectedCenterContextMechanic && centerContextEventEquation
-                      ? handleAssignTokenToSelectedContextMechanic
-                      : null
-                  }
-                  selectedMechanic={selectedCenterContextMechanic?.mechanic ?? null}
-                  selectedHitPair={selectedContextHitPair}
-                  onSelectHitPair={
-                    selectedCenterContextMechanic?.mechanic === "hit"
-                      ? handleSetSelectedContextHitPair
-                      : null
-                  }
-                  equationViewerBlockSize={equationViewerBlockSize}
+              {isRtcmMode ? (
+                <RtcmModePanel
+                  selectedTool={rtcmSelectedTool}
+                  onSelectTool={handleSelectRtcmTool}
+                  onAddHit={handleRtcmAddHitAtPlayhead}
+                  onStartHold={(tool) => {
+                    if (tool === "spin") {
+                      handleRtcmStartSpinAtPlayhead();
+                    } else {
+                      handleRtcmStartDragAtPlayhead();
+                    }
+                  }}
+                  onEndHold={handleFinalizeAnyPendingHold}
+                  onCreateEvent={handleToggleRtcmEventCreation}
                   currentSongSeconds={currentSongSeconds}
-                  mechanicStartSeconds={selectedContextMechanicTimeWindow.startSeconds}
-                  mechanicEndSeconds={selectedContextMechanicTimeWindow.endSeconds}
                   isSongPlaying={isSongPlaying}
-                  onQuickAddHit={handleAddHitAtPlayhead}
-                  onCreateEquation={handleCreateEquationChoice}
-                  onBrowseLibrary={handleBrowsePremadeChoice}
-                  showWorkspacePrompt={showCenterWorkspacePrompt}
-                  hideHeader={hideEquationHeader}
+                  pendingRangeMechanic={rtcmPendingHold?.mechanic ?? null}
+                  draftCount={rtcmDraftMechanics.length}
+                  eventRangeStartTick={rtcmEventRangeStartTick}
                 />
-              </div>
+              ) : (
+                <>
+                  <div
+                    style={{
+                      display: centerContextEvent ? "grid" : "none",
+                      minHeight: 0,
+                      alignItems: "center",
+                      borderBottom: `1px solid ${subtleBorderColor}`,
+                      padding: "0 12px",
+                      boxSizing: "border-box",
+                      color: "#FFFFFF",
+                      fontFamily: "Space Grotesk, sans-serif",
+                      fontSize: 11,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {centerContextEvent && centerContextEventIndex >= 0 ? (
+                      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                        <span>{`Event ${centerContextEventIndex + 1}`}</span>
+                        <span>{`Start ${formatTimelineTime(getTimelineEventTimeWindowSeconds(centerContextEvent).startSeconds, isAdvancedMode)}`}</span>
+                        <span>{`Spins ${centerContextEvent.counts?.spin ?? 0}`}</span>
+                        <span>{`Hits ${centerContextEvent.counts?.hit ?? 0}`}</span>
+                        <span>{`Drags ${centerContextEvent.counts?.drag ?? 0}`}</span>
+                      </div>
+                    ) : null}
+                  </div>
 
-              <div
-                style={{
-                  display: centerContextEvent ? "grid" : "none",
-                  minHeight: 0,
-                  gridTemplateColumns: "minmax(0, 1fr) auto",
-                  alignItems: "center",
-                  gap: 10,
-                  borderTop: `1px solid ${subtleBorderColor}`,
-                  padding: "0 12px",
-                  boxSizing: "border-box",
-                  color: "#FFFFFF",
-                  fontFamily: "Space Grotesk, sans-serif",
-                  overflow: "hidden",
-                }}
-              >
-                <div style={{ minWidth: 0, overflow: "hidden" }}>
-                  {selectedCenterContextMechanic ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        flexWrap: "wrap",
-                        gap: 10,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: 11,
-                        fontWeight: 800,
-                      }}
-                    >
-                      <span style={{ color: "#CFFF04" }}>
-                        {`${selectedCenterContextMechanic.mechanic.toUpperCase()} ${selectedCenterContextMechanic.instanceIndex + 1}`}
-                      </span>
-                      <span>
-                        {selectedCenterContextMechanic.mechanic === "hit"
-                          ? formatTimelineTime(
-                              timelineTickToSeconds(
-                                selectedCenterContextMechanic.startTick,
-                              ),
-                              isAdvancedMode,
-                            )
-                          : `${formatTimelineTime(
-                              timelineTickToSeconds(
-                                selectedCenterContextMechanic.startTick,
-                              ),
-                              isAdvancedMode,
-                            )} -> ${formatTimelineTime(
-                              timelineTickToSeconds(
-                                selectedCenterContextMechanic.endTick,
-                              ),
-                              isAdvancedMode,
-                            )}`}
-                      </span>
+                  <div style={{ minHeight: 0 }}>
+                    <CenterChoicePanel
+                      choice={centerChoice}
+                      draftTokens={draftTokens}
+                      activeEventEquation={centerContextEventEquation ?? activeEventEquation}
+                      hasSelectedEvent={Boolean(centerContextEvent)}
+                      selectedTokenIndex={selectedContextMechanicAssignedTokenIndex}
+                      onSelectToken={
+                        selectedCenterContextMechanic && centerContextEventEquation
+                          ? handleAssignTokenToSelectedContextMechanic
+                          : null
+                      }
+                      selectedMechanic={selectedCenterContextMechanic?.mechanic ?? null}
+                      selectedHitPair={selectedContextHitPair}
+                      onSelectHitPair={
+                        selectedCenterContextMechanic?.mechanic === "hit"
+                          ? handleSetSelectedContextHitPair
+                          : null
+                      }
+                      equationViewerBlockSize={equationViewerBlockSize}
+                      currentSongSeconds={currentSongSeconds}
+                      mechanicStartSeconds={selectedContextMechanicTimeWindow.startSeconds}
+                      mechanicEndSeconds={selectedContextMechanicTimeWindow.endSeconds}
+                      isSongPlaying={isSongPlaying}
+                      onQuickAddHit={handleAddHitAtPlayhead}
+                      onCreateEquation={handleCreateEquationChoice}
+                      onBrowseLibrary={handleBrowsePremadeChoice}
+                      showWorkspacePrompt={showCenterWorkspacePrompt}
+                      hideHeader={hideEquationHeader}
+                    />
+                  </div>
 
-                      <button
-                        type="button"
-                        onClick={handleRemoveSelectedContextMechanic}
-                        style={{
-                          minWidth: 74,
-                          height: 22,
-                          borderRadius: 999,
-                          border: `1px solid ${subtleBorderColor}`,
-                          background: "#3A1818",
-                          color: "#FFFFFF",
-                          fontSize: 9,
-                          fontWeight: 900,
-                          cursor: "pointer",
-                          padding: "0 8px",
-                          whiteSpace: "nowrap",
-                          fontFamily: "Space Grotesk, sans-serif",
-                        }}
-                      >
-                        Remove
-                      </button>
+                  <div
+                    style={{
+                      display: centerContextEvent ? "grid" : "none",
+                      minHeight: 0,
+                      gridTemplateColumns: "minmax(0, 1fr) auto",
+                      alignItems: "center",
+                      gap: 10,
+                      borderTop: `1px solid ${subtleBorderColor}`,
+                      padding: "0 12px",
+                      boxSizing: "border-box",
+                      color: "#FFFFFF",
+                      fontFamily: "Space Grotesk, sans-serif",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div style={{ minWidth: 0, overflow: "hidden" }}>
+                      {selectedCenterContextMechanic ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            gap: 10,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            fontSize: 11,
+                            fontWeight: 800,
+                          }}
+                        >
+                          <span style={{ color: "#CFFF04" }}>
+                            {`${selectedCenterContextMechanic.mechanic.toUpperCase()} ${selectedCenterContextMechanic.instanceIndex + 1}`}
+                          </span>
+                          <span>
+                            {selectedCenterContextMechanic.mechanic === "hit"
+                              ? formatTimelineTime(
+                                  timelineTickToSeconds(
+                                    selectedCenterContextMechanic.startTick,
+                                  ),
+                                  isAdvancedMode,
+                                )
+                              : `${formatTimelineTime(
+                                  timelineTickToSeconds(
+                                    selectedCenterContextMechanic.startTick,
+                                  ),
+                                  isAdvancedMode,
+                                )} -> ${formatTimelineTime(
+                                  timelineTickToSeconds(
+                                    selectedCenterContextMechanic.endTick,
+                                  ),
+                                  isAdvancedMode,
+                                )}`}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={handleRemoveSelectedContextMechanic}
+                            style={{
+                              minWidth: 74,
+                              height: 22,
+                              borderRadius: 999,
+                              border: `1px solid ${subtleBorderColor}`,
+                              background: "#3A1818",
+                              color: "#FFFFFF",
+                              fontSize: 9,
+                              fontWeight: 900,
+                              cursor: "pointer",
+                              padding: "0 8px",
+                              whiteSpace: "nowrap",
+                              fontFamily: "Space Grotesk, sans-serif",
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700 }}>
+                          No hit/spin/drag assigned
+                        </span>
+                      )}
                     </div>
-                  ) : (
-                    <span style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700 }}>
-                      No hit/spin/drag assigned
-                    </span>
-                  )}
-                </div>
 
-                <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 6, overflowX: "auto" }}>
-                  {centerContextMechanicItems.map((item) => {
-                    const isSelected = item.key === selectedCenterContextMechanic?.key;
+                    <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 6, overflowX: "auto" }}>
+                      {centerContextMechanicItems.map((item) => {
+                        const isSelected = item.key === selectedCenterContextMechanic?.key;
 
-                    return (
-                      <button
-                        key={item.key}
-                        type="button"
-                        onClick={() => {
-                          setSelectedContextMechanicKey(item.key);
-                          seekSong(timelineTickToSeconds(item.startTick));
-                        }}
-                        style={{
-                          minWidth: 44,
-                          height: 22,
-                          borderRadius: 999,
-                          border: `1px solid ${isSelected ? "#CFFF04" : subtleBorderColor}`,
-                          background: isSelected ? "rgba(207,255,4,0.12)" : "#252525",
-                          color: isSelected ? "#CFFF04" : "#FFFFFF99",
-                          fontSize: 9,
-                          fontWeight: 900,
-                          cursor: "pointer",
-                          padding: "0 8px",
-                          whiteSpace: "nowrap",
-                          fontFamily: "Space Grotesk, sans-serif",
-                        }}
-                        aria-label={`Select ${item.mechanic} ${item.instanceIndex + 1}`}
-                      >
-                        {`${item.mechanic[0].toUpperCase()}${item.instanceIndex + 1}`}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                        return (
+                          <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => {
+                              setSelectedContextMechanicKey(item.key);
+                              seekSong(timelineTickToSeconds(item.startTick));
+                            }}
+                            style={{
+                              minWidth: 44,
+                              height: 22,
+                              borderRadius: 999,
+                              border: `1px solid ${isSelected ? "#CFFF04" : subtleBorderColor}`,
+                              background: isSelected ? "rgba(207,255,4,0.12)" : "#252525",
+                              color: isSelected ? "#CFFF04" : "#FFFFFF99",
+                              fontSize: 9,
+                              fontWeight: 900,
+                              cursor: "pointer",
+                              padding: "0 8px",
+                              whiteSpace: "nowrap",
+                              fontFamily: "Space Grotesk, sans-serif",
+                            }}
+                            aria-label={`Select ${item.mechanic} ${item.instanceIndex + 1}`}
+                          >
+                            {`${item.mechanic[0].toUpperCase()}${item.instanceIndex + 1}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -8775,7 +9523,7 @@ function handleToggleDragTarget(
             onPlayheadDragStart={() => {
               // no-op hook for now; used to align lifecycle with drag-end finalize.
             }}
-            onPlayheadDragEnd={handleFinalizePendingRangeSelection}
+            onPlayheadDragEnd={handleFinalizeTimelineInteraction}
             onRetimeMechanicMarker={handleRetimeMechanicMarker}
             audioObjectUrl={audioObjectUrl}
             isAdvancedMode={isAdvancedMode}
