@@ -6061,31 +6061,69 @@ function RtcmToolButton({
   label,
   active,
   onClick,
+  disabled = false,
 }: {
   label: string;
   active: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       style={{
         minWidth: 104,
         minHeight: 40,
         borderRadius: 12,
         border: `1px solid ${active ? "#CFFF04" : subtleBorderColor}`,
-        background: active ? "#CFFF04" : "#252525",
-        color: active ? "#000000" : "#FFFFFF99",
+        background: disabled ? "#1D1D1D" : active ? "#CFFF04" : "#252525",
+        color: disabled ? "#FFFFFF55" : active ? "#000000" : "#FFFFFF99",
         fontSize: 12,
         fontWeight: 900,
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         padding: "0 14px",
         fontFamily: "Space Grotesk, sans-serif",
+        opacity: disabled ? 0.7 : 1,
       }}
     >
       {label}
     </button>
+  );
+}
+
+function RtcmBlankNumberToken({
+  size = 68,
+  borderColor = "#64A0FF73",
+  background = "#1B3668",
+}: {
+  size?: number;
+  borderColor?: string;
+  background?: string;
+}) {
+  const baseStyle = getEquationTileStyle({
+    label: "0",
+    compact: true,
+    compactSize: size,
+  });
+
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        ...baseStyle,
+        width: size,
+        minWidth: size,
+        height: Math.max(34, Math.round(size * 0.82)),
+        borderTop: `1px solid ${borderColor}`,
+        background,
+        color: "transparent",
+        textShadow: "none",
+      }}
+    >
+      0
+    </span>
   );
 }
 
@@ -6109,8 +6147,8 @@ function RtcmHitPadToken({
     <div
       style={{
         position: "relative",
-        width: 176,
-        height: 176,
+        width: 212,
+        height: 188,
         display: "grid",
         placeItems: "center",
         overflow: "visible",
@@ -6125,11 +6163,11 @@ function RtcmHitPadToken({
           pointerEvents: "none",
         }}
       >
-        <EquationCircle label="" draggable={false} size={74} />
+        <RtcmBlankNumberToken size={74} />
       </div>
 
       {pads.map((pad) => {
-        const padStyle = getHitBubblePadStyle(pad, 22);
+        const padStyle = getHitBubblePadStyle(pad, 26);
 
         return (
           <button
@@ -6140,8 +6178,8 @@ function RtcmHitPadToken({
             disabled={!isSongPlaying}
             style={{
               position: "absolute",
-              width: 22,
-              height: 22,
+              width: 26,
+              height: 26,
               borderRadius: 999,
               border: "1px solid #7CC8FF",
               background: isSongPlaying ? "#2EA7FF" : "rgba(46,167,255,0.4)",
@@ -6182,13 +6220,39 @@ function RtcmHoldToken({
         overflow: "visible",
       }}
     >
+      <style>
+        {`
+          @keyframes rtcm-spin-orbit {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          @keyframes rtcm-drag-token-travel {
+            0% {
+              transform: translate(-50%, -50%) translate(0px, 0px);
+            }
+            25% {
+              transform: translate(-50%, -50%) translate(28px, -22px);
+            }
+            50% {
+              transform: translate(-50%, -50%) translate(58px, -30px);
+            }
+            75% {
+              transform: translate(-50%, -50%) translate(90px, -22px);
+            }
+            100% {
+              transform: translate(-50%, -50%) translate(120px, 0px);
+            }
+          }
+        `}
+      </style>
+
       <button
         type="button"
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
         style={{
-          width: 84,
+          width: 96,
           height: 84,
           borderRadius: 999,
           border: `2px solid ${mechanic === "spin" ? "#FF3535" : "#B45CFF"}`,
@@ -6205,25 +6269,31 @@ function RtcmHoldToken({
         }}
         aria-label={`Start ${mechanic}`}
       >
-        <EquationCircle label="" draggable={false} size={68} />
+        <RtcmBlankNumberToken
+          size={72}
+          borderColor={mechanic === "spin" ? "#FF8A8A99" : "#D2A9FF99"}
+          background={mechanic === "spin" ? "#4A1D22" : "#2D1A47"}
+        />
       </button>
 
-      {isArmed ? (
-        mechanic === "spin" ? (
-          <span
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "grid",
-              placeItems: "center",
-              pointerEvents: "none",
-              zIndex: 1,
-            }}
-          >
-            <SpinOverlay />
-          </span>
-        ) : (
+      {mechanic === "spin" ? (
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            pointerEvents: "none",
+            zIndex: 1,
+            animation: isArmed ? "rtcm-spin-orbit 900ms linear infinite" : "none",
+            transformOrigin: "50% 50%",
+          }}
+        >
+          <SpinOverlay />
+        </span>
+      ) : (
+        <>
           <svg
             aria-hidden="true"
             viewBox="0 0 240 180"
@@ -6245,11 +6315,48 @@ function RtcmHoldToken({
               strokeLinecap="round"
               strokeDasharray="18 12"
             />
-            <circle cx="70" cy="115" r="7" fill="#B45CFF" />
-            <circle cx="190" cy="115" r="7" fill="#B45CFF" />
           </svg>
-        )
-      ) : null}
+
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: 190,
+              top: 90,
+              transform: "translate(-50%, -50%)",
+              zIndex: 2,
+              pointerEvents: "none",
+            }}
+          >
+            <RtcmBlankNumberToken
+              size={72}
+              borderColor="#D2A9FF99"
+              background="#2D1A47"
+            />
+          </span>
+
+          {isArmed ? (
+            <span
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: 70,
+                top: 90,
+                transform: "translate(-50%, -50%)",
+                zIndex: 3,
+                pointerEvents: "none",
+                animation: "rtcm-drag-token-travel 850ms linear infinite",
+              }}
+            >
+              <RtcmBlankNumberToken
+                size={72}
+                borderColor="#D2A9FFCC"
+                background="#3C225E"
+              />
+            </span>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
@@ -6261,11 +6368,14 @@ function RtcmModePanel({
   onStartHold,
   onEndHold,
   onCreateEvent,
+  onDeleteEvent,
   currentSongSeconds,
   isSongPlaying,
   pendingRangeMechanic,
   draftCount,
   eventRangeStartTick,
+  canDeleteEvent,
+  previewEquation,
 }: {
   selectedTool: GameplayMechanic;
   onSelectTool: (tool: GameplayMechanic) => void;
@@ -6273,19 +6383,17 @@ function RtcmModePanel({
   onStartHold: (tool: Exclude<GameplayMechanic, "hit">) => void;
   onEndHold: () => void;
   onCreateEvent: () => void;
+  onDeleteEvent: () => void;
   currentSongSeconds: number;
   isSongPlaying: boolean;
   pendingRangeMechanic: "spin" | "drag" | null;
   draftCount: number;
   eventRangeStartTick: number | null;
+  canDeleteEvent: boolean;
+  previewEquation: SavedEquation | null;
 }) {
   const isHolding = pendingRangeMechanic !== null;
-  const blankToken: EquationToken = { id: "rtcm-blank", label: "" };
-  const dragPreviewTokens: EquationToken[] = [
-    { id: "rtcm-drag-left", label: "" },
-    { id: "rtcm-drag-equals", label: "=" },
-    { id: "rtcm-drag-right", label: "" },
-  ];
+  const previewTokens = previewEquation?.tokens ?? [];
 
   return (
     <section
@@ -6326,6 +6434,12 @@ function RtcmModePanel({
             label={eventRangeStartTick === null ? "Create Event" : "Finalize Event"}
             active={eventRangeStartTick !== null}
             onClick={onCreateEvent}
+          />
+          <RtcmToolButton
+            label="Delete Event"
+            active={false}
+            onClick={onDeleteEvent}
+            disabled={!canDeleteEvent}
           />
         </div>
 
@@ -6403,50 +6517,38 @@ function RtcmModePanel({
             : "No drafted mechanics yet."}
         </div>
 
-        <div
-          style={{
-            width: "100%",
-            minHeight: 220,
-            borderRadius: 18,
-            border: `1px solid ${subtleBorderColor}`,
-            background: "#141414",
-            display: "grid",
-            placeItems: "center",
-            overflow: "visible",
-            padding: 16,
-            boxSizing: "border-box",
-          }}
-        >
-          {selectedTool === "hit" ? (
-            <HitEquationEditor
-              tokens={[blankToken]}
-              hitBubbles={[]}
-              onAddHitBubblePair={() => {
-                onAddHit();
+        {previewTokens.length > 0 ? (
+          <div
+            style={{
+              width: "100%",
+              borderRadius: 14,
+              border: `1px solid ${subtleBorderColor}`,
+              background: "#161616",
+              padding: "10px 12px",
+              boxSizing: "border-box",
+            }}
+          >
+            <div
+              style={{
+                color: "#FFFFFFA6",
+                fontSize: 10,
+                fontWeight: 800,
+                textTransform: "uppercase",
+                letterSpacing: 0.4,
+                marginBottom: 8,
+                textAlign: "center",
               }}
+            >
+              Selected Event Equation
+            </div>
+            <EquationTileStrip
+              tokens={previewTokens}
+              compact={true}
+              compactSize={40}
+              tokenGap={6}
             />
-          ) : selectedTool === "spin" ? (
-            <SpinEquationEditor
-              tokens={[blankToken]}
-              spinTargets={isHolding ? [{ tokenIndex: 0 }] : []}
-              onToggleSpinTarget={() => {
-                if (!isHolding) {
-                  onStartHold("spin");
-                }
-              }}
-            />
-          ) : (
-            <DragEquationEditor
-              tokens={dragPreviewTokens}
-              dragTargets={isHolding ? [{ tokenIndex: 0 }] : []}
-              onToggleDragTarget={() => {
-                if (!isHolding) {
-                  onStartHold("drag");
-                }
-              }}
-            />
-          )}
-        </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -7179,8 +7281,6 @@ export default function LessonBuilderClient({
     useState<string | null>(null);
   const [pendingRangeSelection, setPendingRangeSelection] =
     useState<PendingMechanicRangeSelection | null>(null);
-  const [isPlayheadAutoSelectPaused, setIsPlayheadAutoSelectPaused] =
-    useState(false);
 
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
@@ -7792,17 +7892,32 @@ export default function LessonBuilderClient({
   }
 
   function handleSelectEvent(eventId: string) {
-    setActiveEventId((current) => {
-      if (current === eventId) {
-        setIsPlayheadAutoSelectPaused(true);
-        return null;
+    setActiveEventId((current) => (current === eventId ? null : eventId));
+    setHideEquationHeader(true);
+  }
+
+  function handleDeleteActiveEvent() {
+    if (!activeEventId) {
+      setSaveStatus("Select an event to delete.");
+      return;
+    }
+
+    setTimelineEvents((current) => {
+      const deleteIndex = current.findIndex((eventSlot) => eventSlot.id === activeEventId);
+
+      if (deleteIndex < 0) {
+        return current;
       }
 
-      setIsPlayheadAutoSelectPaused(false);
-      return eventId;
+      const nextEvents = current.filter((eventSlot) => eventSlot.id !== activeEventId);
+      syncTimelineFilesFromEvents(nextEvents);
+
+      const nextActiveEvent = nextEvents[deleteIndex] ?? nextEvents[deleteIndex - 1] ?? null;
+      setActiveEventId(nextActiveEvent?.id ?? null);
+      setSaveStatus(`Deleted event ${deleteIndex + 1}.`);
+
+      return nextEvents;
     });
-    setMode("event");
-    setHideEquationHeader(true);
   }
 
   function handleAssignTokenToSelectedContextMechanic(tokenIndex: number) {
@@ -9370,11 +9485,14 @@ function handleToggleDragTarget(
                   }}
                   onEndHold={handleFinalizeAnyPendingHold}
                   onCreateEvent={handleToggleRtcmEventCreation}
+                  onDeleteEvent={handleDeleteActiveEvent}
                   currentSongSeconds={currentSongSeconds}
                   isSongPlaying={isSongPlaying}
                   pendingRangeMechanic={rtcmPendingHold?.mechanic ?? null}
                   draftCount={rtcmDraftMechanics.length}
                   eventRangeStartTick={rtcmEventRangeStartTick}
+                  canDeleteEvent={Boolean(activeEventId)}
+                  previewEquation={activeEventEquation}
                 />
               ) : (
                 <>
