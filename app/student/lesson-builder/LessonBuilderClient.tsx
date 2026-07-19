@@ -21,6 +21,8 @@ import styles from "../student.module.css";
 
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
+import DragUnderIcon from "@/public/lesson_builder_icons/Drag_under.svg";
+import SpinIcon from "@/public/lesson_builder_icons/Spin.svg";
 
 type LessonBuilderPayload = {
   chartFile: string;
@@ -6057,42 +6059,6 @@ function CenterChoicePanel({
   );
 }
 
-function RtcmToolButton({
-  label,
-  active,
-  onClick,
-  disabled = false,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        minWidth: 104,
-        minHeight: 40,
-        borderRadius: 12,
-        border: `1px solid ${active ? "#CFFF04" : subtleBorderColor}`,
-        background: disabled ? "#1D1D1D" : active ? "#CFFF04" : "#252525",
-        color: disabled ? "#FFFFFF55" : active ? "#000000" : "#FFFFFF99",
-        fontSize: 12,
-        fontWeight: 900,
-        cursor: disabled ? "not-allowed" : "pointer",
-        padding: "0 14px",
-        fontFamily: "Space Grotesk, sans-serif",
-        opacity: disabled ? 0.7 : 1,
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
 function RtcmBlankNumberToken({
   size = 68,
   borderColor = "#64A0FF73",
@@ -6198,84 +6164,120 @@ function RtcmHitPadToken({
 
 function RtcmHoldToken({
   mechanic,
+  isSongPlaying,
   isArmed,
-  onPointerDown,
-  onPointerUp,
-  onPointerCancel,
+  onStartHold,
+  onEndHold,
 }: {
   mechanic: Exclude<GameplayMechanic, "hit">;
+  isSongPlaying: boolean;
   isArmed: boolean;
-  onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
-  onPointerUp: (event: PointerEvent<HTMLButtonElement>) => void;
-  onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => void;
+  onStartHold: (mechanic: Exclude<GameplayMechanic, "hit">) => void;
+  onEndHold: () => void;
 }) {
+  const [tokenOffset, setTokenOffset] = useState({ x: 0, y: 0 });
+  const [isDraggingToken, setIsDraggingToken] = useState(false);
+  const pointerStateRef = useRef<{
+    pointerId: number;
+    originX: number;
+    originY: number;
+    startOffsetX: number;
+    startOffsetY: number;
+    startedHold: boolean;
+  } | null>(null);
+
+  const tokenBasePosition =
+    mechanic === "drag"
+      ? {
+          left: 54,
+          top: 80,
+        }
+      : {
+          left: 130,
+          top: 98,
+        };
+
+  function clamp(value: number, min: number, max: number) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function handleTokenPointerDown(event: PointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    const startedHold = isSongPlaying;
+
+    pointerStateRef.current = {
+      pointerId: event.pointerId,
+      originX: event.clientX,
+      originY: event.clientY,
+      startOffsetX: tokenOffset.x,
+      startOffsetY: tokenOffset.y,
+      startedHold,
+    };
+
+    setIsDraggingToken(true);
+
+    if (startedHold) {
+      onStartHold(mechanic);
+    }
+  }
+
+  function handleTokenPointerMove(event: PointerEvent<HTMLButtonElement>) {
+    const pointerState = pointerStateRef.current;
+
+    if (!pointerState || pointerState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const deltaX = event.clientX - pointerState.originX;
+    const deltaY = event.clientY - pointerState.originY;
+
+    setTokenOffset({
+      x: clamp(
+        pointerState.startOffsetX + deltaX,
+        mechanic === "drag" ? -26 : -56,
+        mechanic === "drag" ? 146 : 56,
+      ),
+      y: clamp(pointerState.startOffsetY + deltaY, -58, 58),
+    });
+  }
+
+  function finishTokenGesture(event: PointerEvent<HTMLButtonElement>) {
+    const pointerState = pointerStateRef.current;
+
+    if (!pointerState || pointerState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    pointerStateRef.current = null;
+    setIsDraggingToken(false);
+    setTokenOffset({ x: 0, y: 0 });
+
+    if (pointerState.startedHold) {
+      onEndHold();
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
   return (
     <div
       style={{
         position: "relative",
-        width: 240,
-        height: 180,
+        width: 260,
+        height: 198,
         display: "grid",
         placeItems: "center",
         overflow: "visible",
       }}
     >
-      <style>
-        {`
-          @keyframes rtcm-spin-orbit {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-          @keyframes rtcm-drag-token-travel {
-            0% {
-              transform: translate(-50%, -50%) translate(0px, 0px);
-            }
-            25% {
-              transform: translate(-50%, -50%) translate(28px, -22px);
-            }
-            50% {
-              transform: translate(-50%, -50%) translate(58px, -30px);
-            }
-            75% {
-              transform: translate(-50%, -50%) translate(90px, -22px);
-            }
-            100% {
-              transform: translate(-50%, -50%) translate(120px, 0px);
-            }
-          }
-        `}
-      </style>
-
-      <button
-        type="button"
-        onPointerDown={onPointerDown}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
-        style={{
-          width: 96,
-          height: 84,
-          borderRadius: 999,
-          border: `2px solid ${mechanic === "spin" ? "#FF3535" : "#B45CFF"}`,
-          background: "#191919",
-          cursor: "pointer",
-          padding: 0,
-          position: "relative",
-          zIndex: 2,
-          boxShadow: isArmed
-            ? mechanic === "spin"
-              ? "0 0 26px rgba(255,53,53,0.35)"
-              : "0 0 26px rgba(180,92,255,0.35)"
-            : "none",
-        }}
-        aria-label={`Start ${mechanic}`}
-      >
-        <RtcmBlankNumberToken
-          size={72}
-          borderColor={mechanic === "spin" ? "#FF8A8A99" : "#D2A9FF99"}
-          background={mechanic === "spin" ? "#4A1D22" : "#2D1A47"}
-        />
-      </button>
-
       {mechanic === "spin" ? (
         <span
           aria-hidden="true"
@@ -6286,84 +6288,96 @@ function RtcmHoldToken({
             placeItems: "center",
             pointerEvents: "none",
             zIndex: 1,
-            animation: isArmed ? "rtcm-spin-orbit 900ms linear infinite" : "none",
-            transformOrigin: "50% 50%",
           }}
         >
-          <SpinOverlay />
+          <SpinIcon
+            style={{
+              width: 172,
+              height: 180,
+              opacity: 0.95,
+              filter: isArmed ? "drop-shadow(0 0 22px rgba(255,255,255,0.15))" : "none",
+            }}
+          />
         </span>
       ) : (
         <>
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 240 180"
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              overflow: "visible",
-              pointerEvents: "none",
-              zIndex: 1,
-            }}
-          >
-            <path
-              d="M 70 115 C 110 55, 150 55, 190 115"
-              fill="none"
-              stroke="#B45CFF"
-              strokeWidth="8"
-              strokeLinecap="round"
-              strokeDasharray="18 12"
-            />
-          </svg>
-
           <span
             aria-hidden="true"
             style={{
               position: "absolute",
-              left: 190,
-              top: 90,
+              left: "50%",
+              top: "50%",
               transform: "translate(-50%, -50%)",
-              zIndex: 2,
+              width: 238,
+              height: 140,
               pointerEvents: "none",
+              zIndex: 1,
+              opacity: 0.95,
             }}
           >
-            <RtcmBlankNumberToken
-              size={72}
-              borderColor="#D2A9FF99"
-              background="#2D1A47"
-            />
+            <DragUnderIcon style={{ width: "100%", height: "100%", display: "block" }} />
           </span>
-
-          {isArmed ? (
-            <span
-              aria-hidden="true"
-              style={{
-                position: "absolute",
-                left: 70,
-                top: 90,
-                transform: "translate(-50%, -50%)",
-                zIndex: 3,
-                pointerEvents: "none",
-                animation: "rtcm-drag-token-travel 850ms linear infinite",
-              }}
-            >
-              <RtcmBlankNumberToken
-                size={72}
-                borderColor="#D2A9FFCC"
-                background="#3C225E"
-              />
-            </span>
-          ) : null}
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%) scaleX(-1)",
+              width: 238,
+              height: 140,
+              pointerEvents: "none",
+              zIndex: 1,
+              opacity: 0.86,
+            }}
+          >
+            <DragUnderIcon style={{ width: "100%", height: "100%", display: "block" }} />
+          </span>
         </>
       )}
+
+      <button
+        type="button"
+        onPointerDown={handleTokenPointerDown}
+        onPointerMove={handleTokenPointerMove}
+        onPointerUp={finishTokenGesture}
+        onPointerCancel={finishTokenGesture}
+        style={{
+          position: "absolute",
+          left: tokenBasePosition.left,
+          top: tokenBasePosition.top,
+          transform: `translate(-50%, -50%) translate(${tokenOffset.x}px, ${tokenOffset.y}px)`,
+          transition: isDraggingToken ? "none" : "transform 180ms ease-out",
+          border: "none",
+          background: "transparent",
+          cursor: "grab",
+          padding: 0,
+          zIndex: 3,
+          touchAction: "none",
+          filter: isArmed
+            ? mechanic === "spin"
+              ? "drop-shadow(0 0 20px rgba(255,53,53,0.36))"
+              : "drop-shadow(0 0 20px rgba(180,92,255,0.42))"
+            : "none",
+        }}
+        aria-label={`Hold to add ${mechanic} timing`}
+        title={
+          isSongPlaying
+            ? `Hold to create ${mechanic} timing, then release to end.`
+            : "Play song to capture timing while dragging this token."
+        }
+      >
+        <RtcmBlankNumberToken
+          size={72}
+          borderColor={mechanic === "spin" ? "#FF8A8A99" : "#D2A9FF99"}
+          background={mechanic === "spin" ? "#4A1D22" : "#2D1A47"}
+        />
+      </button>
     </div>
   );
 }
 
 function RtcmModePanel({
-  selectedTool,
-  onSelectTool,
   onAddHit,
   onStartHold,
   onEndHold,
@@ -6377,8 +6391,6 @@ function RtcmModePanel({
   canDeleteEvent,
   previewEquation,
 }: {
-  selectedTool: GameplayMechanic;
-  onSelectTool: (tool: GameplayMechanic) => void;
   onAddHit: () => void;
   onStartHold: (tool: Exclude<GameplayMechanic, "hit">) => void;
   onEndHold: () => void;
@@ -6392,7 +6404,6 @@ function RtcmModePanel({
   canDeleteEvent: boolean;
   previewEquation: SavedEquation | null;
 }) {
-  const isHolding = pendingRangeMechanic !== null;
   const previewTokens = previewEquation?.tokens ?? [];
 
   return (
@@ -6424,68 +6435,128 @@ function RtcmModePanel({
         }}
       >
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-          <RtcmToolButton label="Hit Addition" active={selectedTool === "hit"} onClick={() => onSelectTool("hit")} />
-          <RtcmToolButton label="Spin Addition" active={selectedTool === "spin"} onClick={() => onSelectTool("spin")} />
-          <RtcmToolButton label="Drag Addition" active={selectedTool === "drag"} onClick={() => onSelectTool("drag")} />
-        </div>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-          <RtcmToolButton
-            label={eventRangeStartTick === null ? "Create Event" : "Finalize Event"}
-            active={eventRangeStartTick !== null}
+          <button
+            type="button"
             onClick={onCreateEvent}
-          />
-          <RtcmToolButton
-            label="Delete Event"
-            active={false}
+            style={{
+              minWidth: 132,
+              minHeight: 38,
+              borderRadius: 10,
+              border: `1px solid ${eventRangeStartTick !== null ? "#CFFF04" : subtleBorderColor}`,
+              background: eventRangeStartTick !== null ? "rgba(207,255,4,0.14)" : "#252525",
+              color: eventRangeStartTick !== null ? "#CFFF04" : "#FFFFFFDD",
+              fontSize: 11,
+              fontWeight: 900,
+              cursor: "pointer",
+              padding: "0 12px",
+            }}
+          >
+            {eventRangeStartTick === null ? "Create Event" : "Finalize Event"}
+          </button>
+          <button
+            type="button"
             onClick={onDeleteEvent}
             disabled={!canDeleteEvent}
-          />
+            style={{
+              minWidth: 120,
+              minHeight: 38,
+              borderRadius: 10,
+              border: `1px solid ${subtleBorderColor}`,
+              background: canDeleteEvent ? "#252525" : "#1D1D1D",
+              color: canDeleteEvent ? "#FFFFFFDD" : "#FFFFFF55",
+              fontSize: 11,
+              fontWeight: 900,
+              cursor: canDeleteEvent ? "pointer" : "not-allowed",
+              padding: "0 12px",
+            }}
+          >
+            Delete Event
+          </button>
         </div>
 
-        {selectedTool === "hit" ? (
-          <RtcmHitPadToken onAddHit={onAddHit} isSongPlaying={isSongPlaying} />
-        ) : selectedTool === "spin" ? (
-          <RtcmHoldToken
-            mechanic="spin"
-            isArmed={isHolding}
-            onPointerDown={(event) => {
-              if (!isSongPlaying) {
-                return;
-              }
-              event.preventDefault();
-              onStartHold("spin");
+        <div
+          style={{
+            width: "100%",
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 14,
+          }}
+        >
+          <div
+            style={{
+              borderRadius: 14,
+              border: `1px solid ${subtleBorderColor}`,
+              background: "#141414",
+              padding: "12px 8px 14px",
+              boxSizing: "border-box",
+              display: "grid",
+              justifyItems: "center",
+              gap: 10,
             }}
-            onPointerUp={(event) => {
-              event.preventDefault();
-              onEndHold();
+          >
+            <div style={{ color: "#2EA7FF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
+              Hit
+            </div>
+            <RtcmHitPadToken onAddHit={onAddHit} isSongPlaying={isSongPlaying} />
+            <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
+              Click any bubble while playing.
+            </div>
+          </div>
+
+          <div
+            style={{
+              borderRadius: 14,
+              border: `1px solid ${pendingRangeMechanic === "spin" ? "#FF3535AA" : subtleBorderColor}`,
+              background: "#141414",
+              padding: "12px 8px 14px",
+              boxSizing: "border-box",
+              display: "grid",
+              justifyItems: "center",
+              gap: 10,
             }}
-            onPointerCancel={(event) => {
-              event.preventDefault();
-              onEndHold();
+          >
+            <div style={{ color: "#FF3535", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
+              Spin
+            </div>
+            <RtcmHoldToken
+              mechanic="spin"
+              isSongPlaying={isSongPlaying}
+              isArmed={pendingRangeMechanic === "spin"}
+              onStartHold={onStartHold}
+              onEndHold={onEndHold}
+            />
+            <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
+              Press to start timing, release to end.
+            </div>
+          </div>
+
+          <div
+            style={{
+              borderRadius: 14,
+              border: `1px solid ${pendingRangeMechanic === "drag" ? "#B45CFFAA" : subtleBorderColor}`,
+              background: "#141414",
+              padding: "12px 8px 14px",
+              boxSizing: "border-box",
+              display: "grid",
+              justifyItems: "center",
+              gap: 10,
             }}
-          />
-        ) : (
-          <RtcmHoldToken
-            mechanic="drag"
-            isArmed={isHolding}
-            onPointerDown={(event) => {
-              if (!isSongPlaying) {
-                return;
-              }
-              event.preventDefault();
-              onStartHold("drag");
-            }}
-            onPointerUp={(event) => {
-              event.preventDefault();
-              onEndHold();
-            }}
-            onPointerCancel={(event) => {
-              event.preventDefault();
-              onEndHold();
-            }}
-          />
-        )}
+          >
+            <div style={{ color: "#B45CFF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
+              Drag
+            </div>
+            <RtcmHoldToken
+              mechanic="drag"
+              isSongPlaying={isSongPlaying}
+              isArmed={pendingRangeMechanic === "drag"}
+              onStartHold={onStartHold}
+              onEndHold={onEndHold}
+            />
+            <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
+              Press to start timing, release to end.
+            </div>
+          </div>
+        </div>
 
         <div
           style={{
@@ -6497,11 +6568,7 @@ function RtcmModePanel({
             maxWidth: 560,
           }}
         >
-          {selectedTool === "hit"
-            ? "Click any dot while the song is playing to add a hit at the current timestamp."
-            : selectedTool === "spin"
-              ? `Hold the token to mark spin start and release to set the end time at ${formatSongTime(currentSongSeconds)}.`
-              : `Hold the token to mark drag start and release to set the end time at ${formatSongTime(currentSongSeconds)}.`}
+          {`Playhead is at ${formatSongTime(currentSongSeconds)}. Spin/Drag start on press and end on release.`}
         </div>
 
         <div
@@ -7243,7 +7310,6 @@ export default function LessonBuilderClient({
   const [libraryTab, setLibraryTab] = useState<LibraryTab>("mine");
   const [selectedEquationId, setSelectedEquationId] = useState<string | null>(null);
   const [hideEquationHeader, setHideEquationHeader] = useState(false);
-  const [rtcmSelectedTool, setRtcmSelectedTool] = useState<GameplayMechanic>("hit");
   const [rtcmDraftMechanics, setRtcmDraftMechanics] = useState<RtcmDraftMechanic[]>([]);
   const [rtcmEventRangeStartTick, setRtcmEventRangeStartTick] = useState<number | null>(null);
   const [rtcmPendingHold, setRtcmPendingHold] = useState<{
@@ -7687,12 +7753,6 @@ export default function LessonBuilderClient({
 
   function handleToggleRtcmMode() {
     setMode((current) => (current === "rtcm" ? "event" : "rtcm"));
-    setCenterChoice(null);
-  }
-
-  function handleSelectRtcmTool(tool: GameplayMechanic) {
-    setRtcmSelectedTool(tool);
-    setMode("rtcm");
     setCenterChoice(null);
   }
 
@@ -9434,6 +9494,31 @@ function handleToggleDragTarget(
             overflow: "hidden",
           }}
         >
+          {isRtcmMode ? (
+            <div style={{ flex: 1, minWidth: 0, height: "100%" }}>
+              <RtcmModePanel
+                onAddHit={handleRtcmAddHitAtPlayhead}
+                onStartHold={(tool) => {
+                  if (tool === "spin") {
+                    handleRtcmStartSpinAtPlayhead();
+                  } else {
+                    handleRtcmStartDragAtPlayhead();
+                  }
+                }}
+                onEndHold={handleFinalizeAnyPendingHold}
+                onCreateEvent={handleToggleRtcmEventCreation}
+                onDeleteEvent={handleDeleteActiveEvent}
+                currentSongSeconds={currentSongSeconds}
+                isSongPlaying={isSongPlaying}
+                pendingRangeMechanic={rtcmPendingHold?.mechanic ?? null}
+                draftCount={rtcmDraftMechanics.length}
+                eventRangeStartTick={rtcmEventRangeStartTick}
+                canDeleteEvent={Boolean(activeEventId)}
+                previewEquation={activeEventEquation}
+              />
+            </div>
+          ) : (
+            <>
           <div style={{ flex: `0 0 ${row2DisplayWidths.column1}px`, minWidth: 0, height: "100%" }}>
             <LeftEquationBuilderPanel
               draftTokens={draftTokens}
@@ -9462,39 +9547,11 @@ function handleToggleDragTarget(
                 height: "100%",
                 minHeight: 0,
                 display: "grid",
-                gridTemplateRows: isRtcmMode
-                  ? "100%"
-                  : centerContextEvent
-                    ? "7% 80% 13%"
-                    : "0 100% 0",
+                gridTemplateRows: centerContextEvent ? "7% 80% 13%" : "0 100% 0",
                 background: row2Column2BackgroundColor,
                 overflow: "hidden",
               }}
             >
-              {isRtcmMode ? (
-                <RtcmModePanel
-                  selectedTool={rtcmSelectedTool}
-                  onSelectTool={handleSelectRtcmTool}
-                  onAddHit={handleRtcmAddHitAtPlayhead}
-                  onStartHold={(tool) => {
-                    if (tool === "spin") {
-                      handleRtcmStartSpinAtPlayhead();
-                    } else {
-                      handleRtcmStartDragAtPlayhead();
-                    }
-                  }}
-                  onEndHold={handleFinalizeAnyPendingHold}
-                  onCreateEvent={handleToggleRtcmEventCreation}
-                  onDeleteEvent={handleDeleteActiveEvent}
-                  currentSongSeconds={currentSongSeconds}
-                  isSongPlaying={isSongPlaying}
-                  pendingRangeMechanic={rtcmPendingHold?.mechanic ?? null}
-                  draftCount={rtcmDraftMechanics.length}
-                  eventRangeStartTick={rtcmEventRangeStartTick}
-                  canDeleteEvent={Boolean(activeEventId)}
-                  previewEquation={activeEventEquation}
-                />
-              ) : (
                 <>
                   <div
                     style={{
@@ -9669,7 +9726,6 @@ function handleToggleDragTarget(
                     </div>
                   </div>
                 </>
-              )}
             </div>
           </div>
 
@@ -9727,6 +9783,8 @@ function handleToggleDragTarget(
               </div>
             </>
           ) : null}
+            </>
+          )}
         </section>
 
         <section
