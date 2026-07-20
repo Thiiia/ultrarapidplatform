@@ -6383,29 +6383,21 @@ function RtcmModePanel({
   onEndHold,
   onCreateEvent,
   onDeleteEvent,
-  currentSongSeconds,
   isSongPlaying,
   pendingRangeMechanic,
-  draftCount,
   eventRangeStartTick,
   canDeleteEvent,
-  previewEquation,
 }: {
   onAddHit: () => void;
   onStartHold: (tool: Exclude<GameplayMechanic, "hit">) => void;
   onEndHold: () => void;
   onCreateEvent: () => void;
   onDeleteEvent: () => void;
-  currentSongSeconds: number;
   isSongPlaying: boolean;
   pendingRangeMechanic: "spin" | "drag" | null;
-  draftCount: number;
   eventRangeStartTick: number | null;
   canDeleteEvent: boolean;
-  previewEquation: SavedEquation | null;
 }) {
-  const previewTokens = previewEquation?.tokens ?? [];
-
   return (
     <section
       aria-label="Real-time chart maker"
@@ -6418,19 +6410,21 @@ function RtcmModePanel({
         color: textColor,
         boxSizing: "border-box",
         overflow: "visible",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
+        display: "grid",
+        gridTemplateRows: "auto 1fr",
+        justifyItems: "center",
+        alignItems: "start",
+        padding: "16px 0 0",
         fontFamily: "Space Grotesk, sans-serif",
       }}
     >
       <div
         style={{
-          width: "min(760px, 100%)",
-          display: "grid",
-          justifyItems: "center",
-          gap: 18,
+          width: "90vw",
+          display: "flex",
+          justifyContent: "center",
+          paddingBottom: 12,
+          boxSizing: "border-box",
           overflow: "visible",
         }}
       >
@@ -6473,25 +6467,31 @@ function RtcmModePanel({
             Delete Event
           </button>
         </div>
+      </div>
 
-        <div
-          style={{
-            width: "100%",
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: 14,
-          }}
-        >
+      <div
+        style={{
+          width: "90vw",
+          height: "75%",
+          minHeight: 0,
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: 14,
+        }}
+      >
           <div
             style={{
+              height: "100%",
               borderRadius: 14,
               border: `1px solid ${subtleBorderColor}`,
               background: "#141414",
               padding: "12px 8px 14px",
               boxSizing: "border-box",
               display: "grid",
+              gridTemplateRows: "auto 1fr auto",
               justifyItems: "center",
               gap: 10,
+              alignItems: "center",
             }}
           >
             <div style={{ color: "#2EA7FF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
@@ -6505,14 +6505,17 @@ function RtcmModePanel({
 
           <div
             style={{
+              height: "100%",
               borderRadius: 14,
               border: `1px solid ${pendingRangeMechanic === "spin" ? "#FF3535AA" : subtleBorderColor}`,
               background: "#141414",
               padding: "12px 8px 14px",
               boxSizing: "border-box",
               display: "grid",
+              gridTemplateRows: "auto 1fr auto",
               justifyItems: "center",
               gap: 10,
+              alignItems: "center",
             }}
           >
             <div style={{ color: "#FF3535", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
@@ -6532,14 +6535,17 @@ function RtcmModePanel({
 
           <div
             style={{
+              height: "100%",
               borderRadius: 14,
               border: `1px solid ${pendingRangeMechanic === "drag" ? "#B45CFFAA" : subtleBorderColor}`,
               background: "#141414",
               padding: "12px 8px 14px",
               boxSizing: "border-box",
               display: "grid",
+              gridTemplateRows: "auto 1fr auto",
               justifyItems: "center",
               gap: 10,
+              alignItems: "center",
             }}
           >
             <div style={{ color: "#B45CFF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
@@ -6556,66 +6562,6 @@ function RtcmModePanel({
               Press to start timing, release to end.
             </div>
           </div>
-        </div>
-
-        <div
-          style={{
-            color: "#FFFFFF99",
-            fontSize: 12,
-            fontWeight: 700,
-            textAlign: "center",
-            lineHeight: 1.35,
-            maxWidth: 560,
-          }}
-        >
-          {`Playhead is at ${formatSongTime(currentSongSeconds)}. Spin/Drag start on press and end on release.`}
-        </div>
-
-        <div
-          style={{
-            color: "#FFFFFF80",
-            fontSize: 11,
-            fontWeight: 700,
-            textAlign: "center",
-          }}
-        >
-          {draftCount > 0
-            ? `${draftCount} RTCM mechanic${draftCount === 1 ? "" : "s"} waiting to be grouped into an event.`
-            : "No drafted mechanics yet."}
-        </div>
-
-        {previewTokens.length > 0 ? (
-          <div
-            style={{
-              width: "100%",
-              borderRadius: 14,
-              border: `1px solid ${subtleBorderColor}`,
-              background: "#161616",
-              padding: "10px 12px",
-              boxSizing: "border-box",
-            }}
-          >
-            <div
-              style={{
-                color: "#FFFFFFA6",
-                fontSize: 10,
-                fontWeight: 800,
-                textTransform: "uppercase",
-                letterSpacing: 0.4,
-                marginBottom: 8,
-                textAlign: "center",
-              }}
-            >
-              Selected Event Equation
-            </div>
-            <EquationTileStrip
-              tokens={previewTokens}
-              compact={true}
-              compactSize={40}
-              tokenGap={6}
-            />
-          </div>
-        ) : null}
       </div>
     </section>
   );
@@ -7752,7 +7698,15 @@ export default function LessonBuilderClient({
   }
 
   function handleToggleRtcmMode() {
-    setMode((current) => (current === "rtcm" ? "event" : "rtcm"));
+    setMode((current) => {
+      const nextMode = current === "rtcm" ? "event" : "rtcm";
+
+      if (nextMode === "rtcm") {
+        setActiveEventId(null);
+      }
+
+      return nextMode;
+    });
     setCenterChoice(null);
   }
 
@@ -7952,6 +7906,10 @@ export default function LessonBuilderClient({
   }
 
   function handleSelectEvent(eventId: string) {
+    if (mode === "rtcm") {
+      return;
+    }
+
     setActiveEventId((current) => (current === eventId ? null : eventId));
     setHideEquationHeader(true);
   }
@@ -9415,6 +9373,12 @@ function handleToggleDragTarget(
     }
   }
 
+  useEffect(() => {
+    if (mode === "rtcm") {
+      setActiveEventId(null);
+    }
+  }, [mode]);
+
   const isTimelineInstructionVisible = centerChoice !== null;
   const showCenterWorkspacePrompt =
     chartFile.trim().length === 0 && sidecar.events.length === 0;
@@ -9508,13 +9472,10 @@ function handleToggleDragTarget(
                 onEndHold={handleFinalizeAnyPendingHold}
                 onCreateEvent={handleToggleRtcmEventCreation}
                 onDeleteEvent={handleDeleteActiveEvent}
-                currentSongSeconds={currentSongSeconds}
                 isSongPlaying={isSongPlaying}
                 pendingRangeMechanic={rtcmPendingHold?.mechanic ?? null}
-                draftCount={rtcmDraftMechanics.length}
                 eventRangeStartTick={rtcmEventRangeStartTick}
                 canDeleteEvent={Boolean(activeEventId)}
-                previewEquation={activeEventEquation}
               />
             </div>
           ) : (
