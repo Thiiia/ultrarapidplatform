@@ -6099,6 +6099,8 @@ function RtcmHitPadToken({
   onAddHit: () => void;
   isSongPlaying: boolean;
 }) {
+  const emptyTokenSize = 74;
+  const hitPadDiameter = Math.max(34, Math.round(emptyTokenSize * 0.82));
   const pads: HitBubblePad[] = [
     "topLeft",
     "topRight",
@@ -6128,7 +6130,7 @@ function RtcmHitPadToken({
           pointerEvents: "none",
         }}
       >
-        <RtcmBlankNumberToken size={74} />
+        <RtcmBlankNumberToken size={emptyTokenSize} />
       </div>
 
       {pads.map((pad) => {
@@ -6143,8 +6145,8 @@ function RtcmHitPadToken({
             disabled={!isSongPlaying}
             style={{
               position: "absolute",
-              width: 26,
-              height: 26,
+              width: hitPadDiameter,
+              height: hitPadDiameter,
               borderRadius: 999,
               border: "1px solid #7CC8FF",
               background: isSongPlaying ? "#2EA7FF" : "rgba(46,167,255,0.4)",
@@ -6176,6 +6178,8 @@ function RtcmHoldToken({
 }) {
   const [tokenOffset, setTokenOffset] = useState({ x: 0, y: 0 });
   const [isDraggingToken, setIsDraggingToken] = useState(false);
+  const [spinHandleAngle, setSpinHandleAngle] = useState(-90);
+  const [isDraggingSpinHandle, setIsDraggingSpinHandle] = useState(false);
   const pointerStateRef = useRef<{
     pointerId: number;
     originX: number;
@@ -6184,11 +6188,19 @@ function RtcmHoldToken({
     startOffsetY: number;
     startedHold: boolean;
   } | null>(null);
+  const spinHandleStateRef = useRef<{
+    pointerId: number;
+    startedHold: boolean;
+  } | null>(null);
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const spinRingDiameter = 230;
+  const spinHandleDiameter = Math.max(34, Math.round(74 * 0.82));
+  const spinRingRadius = spinRingDiameter / 2;
 
   const tokenBasePosition =
     mechanic === "drag"
       ? {
-          left: 36,
+          left: 5,
           top: 148.5,
         }
       : {
@@ -6201,6 +6213,10 @@ function RtcmHoldToken({
   }
 
   function handleTokenPointerDown(event: PointerEvent<HTMLButtonElement>) {
+    if (mechanic === "spin") {
+      return;
+    }
+
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -6224,6 +6240,10 @@ function RtcmHoldToken({
   }
 
   function handleTokenPointerMove(event: PointerEvent<HTMLButtonElement>) {
+    if (mechanic === "spin") {
+      return;
+    }
+
     const pointerState = pointerStateRef.current;
 
     if (!pointerState || pointerState.pointerId !== event.pointerId) {
@@ -6246,6 +6266,10 @@ function RtcmHoldToken({
   }
 
   function finishTokenGesture(event: PointerEvent<HTMLButtonElement>) {
+    if (mechanic === "spin") {
+      return;
+    }
+
     const pointerState = pointerStateRef.current;
 
     if (!pointerState || pointerState.pointerId !== event.pointerId) {
@@ -6266,8 +6290,79 @@ function RtcmHoldToken({
     }
   }
 
+  function angleFromClientPosition(clientX: number, clientY: number) {
+    const surface = surfaceRef.current;
+
+    if (!surface) {
+      return spinHandleAngle;
+    }
+
+    const rect = surface.getBoundingClientRect();
+    const centerX = rect.left + tokenBasePosition.left;
+    const centerY = rect.top + tokenBasePosition.top;
+
+    return (Math.atan2(clientY - centerY, clientX - centerX) * 180) / Math.PI;
+  }
+
+  function handleSpinHandlePointerDown(event: PointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    const startedHold = isSongPlaying;
+
+    spinHandleStateRef.current = {
+      pointerId: event.pointerId,
+      startedHold,
+    };
+
+    setIsDraggingSpinHandle(true);
+    setSpinHandleAngle(angleFromClientPosition(event.clientX, event.clientY));
+
+    if (startedHold) {
+      onStartHold("spin");
+    }
+  }
+
+  function handleSpinHandlePointerMove(event: PointerEvent<HTMLButtonElement>) {
+    const state = spinHandleStateRef.current;
+
+    if (!state || state.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    setSpinHandleAngle(angleFromClientPosition(event.clientX, event.clientY));
+  }
+
+  function finishSpinHandleGesture(event: PointerEvent<HTMLButtonElement>) {
+    const state = spinHandleStateRef.current;
+
+    if (!state || state.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    spinHandleStateRef.current = null;
+    setIsDraggingSpinHandle(false);
+
+    if (state.startedHold) {
+      onEndHold();
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  const spinHandleX =
+    tokenBasePosition.left + spinRingRadius * Math.cos((spinHandleAngle * Math.PI) / 180);
+  const spinHandleY =
+    tokenBasePosition.top + spinRingRadius * Math.sin((spinHandleAngle * Math.PI) / 180);
+
   return (
     <div
+      ref={surfaceRef}
       style={{
         position: "relative",
         width: 260,
@@ -6318,7 +6413,13 @@ function RtcmHoldToken({
             style={{ display: "block", overflow: "visible" }}
           >
             <path
-              d="M 36 148.5 A 94 49.5 0 0 1 224 148.5"
+              d="M 5 148.5 A 125 72 0 0 1 255 148.5"
+              stroke="rgba(180, 92, 255, 0.32)"
+              strokeWidth="72"
+              strokeLinecap="round"
+            />
+            <path
+              d="M 5 148.5 A 125 72 0 0 0 255 148.5"
               stroke="rgba(180, 92, 255, 0.32)"
               strokeWidth="72"
               strokeLinecap="round"
@@ -6334,14 +6435,49 @@ function RtcmHoldToken({
             position: "absolute",
             left: tokenBasePosition.left,
             top: tokenBasePosition.top,
-            width: 160,
-            height: 160,
+            width: spinRingDiameter,
+            height: spinRingDiameter,
             borderRadius: 999,
             border: "5px solid rgba(255, 138, 138, 0.7)",
             transform: "translate(-50%, -50%)",
             pointerEvents: "none",
             zIndex: 2,
           }}
+        />
+      ) : null}
+
+      {mechanic === "spin" ? (
+        <button
+          type="button"
+          onPointerDown={handleSpinHandlePointerDown}
+          onPointerMove={handleSpinHandlePointerMove}
+          onPointerUp={finishSpinHandleGesture}
+          onPointerCancel={finishSpinHandleGesture}
+          disabled={!isSongPlaying}
+          style={{
+            position: "absolute",
+            left: spinHandleX,
+            top: spinHandleY,
+            width: spinHandleDiameter,
+            height: spinHandleDiameter,
+            borderRadius: 999,
+            border: "1px solid #7CC8FF",
+            background: isSongPlaying ? "#2EA7FF" : "rgba(46,167,255,0.4)",
+            boxShadow: "0 0 10px rgba(46,167,255,0.3)",
+            cursor: isSongPlaying ? "grab" : "not-allowed",
+            padding: 0,
+            transform: "translate(-50%, -50%)",
+            zIndex: 4,
+            touchAction: "none",
+            opacity: isSongPlaying ? 1 : 0.65,
+            transition: isDraggingSpinHandle ? "none" : "left 120ms linear, top 120ms linear",
+          }}
+          aria-label="Hold to add spin timing"
+          title={
+            isSongPlaying
+              ? "Hold and drag around the ring to create spin timing, then release to end."
+              : "Play song to capture timing while dragging this circle around the ring."
+          }
         />
       ) : null}
 
@@ -6359,7 +6495,7 @@ function RtcmHoldToken({
           transition: isDraggingToken ? "none" : "transform 180ms ease-out",
           border: "none",
           background: "transparent",
-          cursor: "grab",
+          cursor: mechanic === "spin" ? "default" : "grab",
           padding: 0,
           zIndex: 3,
           touchAction: "none",
@@ -6368,6 +6504,7 @@ function RtcmHoldToken({
               ? "drop-shadow(0 0 20px rgba(255,53,53,0.36))"
               : "drop-shadow(0 0 20px rgba(180,92,255,0.42))"
             : "none",
+            pointerEvents: mechanic === "spin" ? "none" : "auto",
         }}
         aria-label={`Hold to add ${mechanic} timing`}
         title={
