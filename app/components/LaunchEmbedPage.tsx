@@ -25,21 +25,6 @@ export default function LaunchEmbedPage() {
         boxSizing: "border-box",
       }}
     >
-      <div
-        style={{
-          marginBottom: 8,
-          padding: "8px 10px",
-          border: "1px solid #FFFFFF14",
-          borderRadius: 8,
-          background: "#0F172A",
-          color: "#D1D5DB",
-          fontSize: 12,
-          lineHeight: 1.4,
-          wordBreak: "break-all",
-        }}
-      >
-        <strong style={{ color: "#FFFFFF" }}>Launch URL:</strong> {embeddedGameUrl}
-      </div>
       <iframe
         src={embeddedGameUrl}
         title="UltraRapid Game"

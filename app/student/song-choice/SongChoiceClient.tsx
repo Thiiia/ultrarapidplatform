@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FC, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
-import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
@@ -1032,7 +1031,6 @@ export default function SongChoiceClient({
         `}</style>
       </div>
 
-      <SongFlowDebugger title="Song Choice Flow" />
     </>
   );
 }

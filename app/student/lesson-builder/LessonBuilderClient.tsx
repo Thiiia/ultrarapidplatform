@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import type { ChangeEvent, DragEvent, PointerEvent, ReactNode } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import WaveSurfer from "wavesurfer.js";
 import {
   useEditorStore,
@@ -9991,7 +9990,6 @@ function handleToggleDragTarget(
         </section>
       </main>
 
-      <SongFlowDebugger title="Lesson Builder Flow" />
     </div>
   );
 }
