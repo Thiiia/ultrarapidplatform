@@ -6188,8 +6188,8 @@ function RtcmHoldToken({
   const tokenBasePosition =
     mechanic === "drag"
       ? {
-          left: 54,
-          top: 80,
+          left: 36,
+          top: 148.5,
         }
       : {
           left: 130,
@@ -6309,9 +6309,16 @@ function RtcmHoldToken({
             opacity: 0.95,
           }}
         >
-          <svg width="100%" height="100%" viewBox="0 0 260 198" fill="none" preserveAspectRatio="none">
+          <svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 260 198"
+            fill="none"
+            preserveAspectRatio="none"
+            style={{ display: "block", overflow: "visible" }}
+          >
             <path
-              d="M 0 148.5 A 130 49.5 0 0 1 260 148.5"
+              d="M 36 148.5 A 94 49.5 0 0 1 224 148.5"
               stroke="rgba(180, 92, 255, 0.32)"
               strokeWidth="72"
               strokeLinecap="round"
@@ -6327,8 +6334,8 @@ function RtcmHoldToken({
             position: "absolute",
             left: tokenBasePosition.left,
             top: tokenBasePosition.top,
-            width: 92,
-            height: 92,
+            width: 160,
+            height: 160,
             borderRadius: 999,
             border: "5px solid rgba(255, 138, 138, 0.7)",
             transform: "translate(-50%, -50%)",
