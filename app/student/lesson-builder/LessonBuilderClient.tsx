@@ -21,7 +21,6 @@ import styles from "../student.module.css";
 
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
-import DragUnderIcon from "@/public/lesson_builder_icons/Drag_under.svg";
 import SpinIcon from "@/public/lesson_builder_icons/Spin.svg";
 
 type LessonBuilderPayload = {
@@ -6300,41 +6299,44 @@ function RtcmHoldToken({
           />
         </span>
       ) : (
-        <>
-          <span
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: "50%",
-              transform: "translate(-50%, -50%)",
-              width: 238,
-              height: 140,
-              pointerEvents: "none",
-              zIndex: 1,
-              opacity: 0.95,
-            }}
-          >
-            <DragUnderIcon style={{ width: "100%", height: "100%", display: "block" }} />
-          </span>
-          <span
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: "50%",
-              transform: "translate(-50%, -50%) scaleX(-1)",
-              width: 238,
-              height: 140,
-              pointerEvents: "none",
-              zIndex: 1,
-              opacity: 0.86,
-            }}
-          >
-            <DragUnderIcon style={{ width: "100%", height: "100%", display: "block" }} />
-          </span>
-        </>
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            zIndex: 1,
+            opacity: 0.95,
+          }}
+        >
+          <svg width="100%" height="100%" viewBox="0 0 260 198" fill="none" preserveAspectRatio="none">
+            <path
+              d="M 0 148.5 A 130 49.5 0 0 1 260 148.5"
+              stroke="rgba(180, 92, 255, 0.32)"
+              strokeWidth="72"
+              strokeLinecap="round"
+            />
+          </svg>
+        </span>
       )}
+
+      {mechanic === "spin" ? (
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            left: tokenBasePosition.left,
+            top: tokenBasePosition.top,
+            width: 92,
+            height: 92,
+            borderRadius: 999,
+            border: "5px solid rgba(255, 138, 138, 0.7)",
+            transform: "translate(-50%, -50%)",
+            pointerEvents: "none",
+            zIndex: 2,
+          }}
+        />
+      ) : null}
 
       <button
         type="button"
@@ -7863,8 +7865,6 @@ export default function LessonBuilderClient({
       );
 
       syncTimelineFilesFromEvents(nextEvents);
-      setActiveEventId(nextEvent.id);
-      setMode("event");
       return nextEvents;
     });
 
@@ -7915,23 +7915,38 @@ export default function LessonBuilderClient({
   }
 
   function handleDeleteActiveEvent() {
-    if (!activeEventId) {
-      setSaveStatus("Select an event to delete.");
+    const playheadEvent =
+      mode === "rtcm"
+        ? findTimelineEventAtSeconds(timelineEvents, currentSongSeconds)
+        : null;
+    const targetEventId = mode === "rtcm" ? playheadEvent?.id ?? null : activeEventId;
+
+    if (!targetEventId) {
+      setSaveStatus(
+        mode === "rtcm"
+          ? "Move the playhead over an event to delete it."
+          : "Select an event to delete.",
+      );
       return;
     }
 
     setTimelineEvents((current) => {
-      const deleteIndex = current.findIndex((eventSlot) => eventSlot.id === activeEventId);
+      const deleteIndex = current.findIndex((eventSlot) => eventSlot.id === targetEventId);
 
       if (deleteIndex < 0) {
         return current;
       }
 
-      const nextEvents = current.filter((eventSlot) => eventSlot.id !== activeEventId);
+      const nextEvents = current.filter((eventSlot) => eventSlot.id !== targetEventId);
       syncTimelineFilesFromEvents(nextEvents);
 
-      const nextActiveEvent = nextEvents[deleteIndex] ?? nextEvents[deleteIndex - 1] ?? null;
-      setActiveEventId(nextActiveEvent?.id ?? null);
+      if (mode === "rtcm") {
+        setActiveEventId(null);
+      } else {
+        const nextActiveEvent = nextEvents[deleteIndex] ?? nextEvents[deleteIndex - 1] ?? null;
+        setActiveEventId(nextActiveEvent?.id ?? null);
+      }
+
       setSaveStatus(`Deleted event ${deleteIndex + 1}.`);
 
       return nextEvents;
@@ -9383,6 +9398,10 @@ function handleToggleDragTarget(
   const showCenterWorkspacePrompt =
     chartFile.trim().length === 0 && sidecar.events.length === 0;
   const isRtcmMode = mode === "rtcm";
+  const rtcmPlayheadEvent = findTimelineEventAtSeconds(
+    timelineEvents,
+    currentSongSeconds,
+  );
   return (
     <div
       className={styles.studentTypography}
@@ -9475,7 +9494,7 @@ function handleToggleDragTarget(
                 isSongPlaying={isSongPlaying}
                 pendingRangeMechanic={rtcmPendingHold?.mechanic ?? null}
                 eventRangeStartTick={rtcmEventRangeStartTick}
-                canDeleteEvent={Boolean(activeEventId)}
+                canDeleteEvent={Boolean(rtcmPlayheadEvent)}
               />
             </div>
           ) : (
