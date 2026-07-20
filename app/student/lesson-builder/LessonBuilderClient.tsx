@@ -6176,16 +6176,12 @@ function RtcmHoldToken({
   onStartHold: (mechanic: Exclude<GameplayMechanic, "hit">) => void;
   onEndHold: () => void;
 }) {
-  const [tokenOffset, setTokenOffset] = useState({ x: 0, y: 0 });
+  const [dragArcProgress, setDragArcProgress] = useState(0);
   const [isDraggingToken, setIsDraggingToken] = useState(false);
   const [spinHandleAngle, setSpinHandleAngle] = useState(-90);
   const [isDraggingSpinHandle, setIsDraggingSpinHandle] = useState(false);
   const pointerStateRef = useRef<{
     pointerId: number;
-    originX: number;
-    originY: number;
-    startOffsetX: number;
-    startOffsetY: number;
     startedHold: boolean;
   } | null>(null);
   const spinHandleStateRef = useRef<{
@@ -6196,20 +6192,35 @@ function RtcmHoldToken({
   const spinRingDiameter = 230;
   const spinHandleDiameter = Math.max(34, Math.round(74 * 0.82));
   const spinRingRadius = spinRingDiameter / 2;
+  const dragArcCenterX = 130;
+  const dragArcCenterY = 148.5;
+  const dragArcRadiusX = 125;
+  const dragArcRadiusY = 72;
 
-  const tokenBasePosition =
-    mechanic === "drag"
-      ? {
-          left: 5,
-          top: 148.5,
-        }
-      : {
-          left: 130,
-          top: 98,
-        };
+  const tokenBasePosition = {
+    left: 130,
+    top: 98,
+  };
 
   function clamp(value: number, min: number, max: number) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  function dragProgressFromClientPosition(clientX: number, clientY: number) {
+    const surface = surfaceRef.current;
+
+    if (!surface) {
+      return dragArcProgress;
+    }
+
+    const rect = surface.getBoundingClientRect();
+    const localX = clientX - rect.left;
+    const localY = clientY - rect.top;
+    const normalizedX = (localX - dragArcCenterX) / dragArcRadiusX;
+    const normalizedY = Math.abs((dragArcCenterY - localY) / dragArcRadiusY);
+    const theta = Math.atan2(normalizedY, normalizedX);
+
+    return clamp(1 - theta / Math.PI, 0, 1);
   }
 
   function handleTokenPointerDown(event: PointerEvent<HTMLButtonElement>) {
@@ -6223,12 +6234,12 @@ function RtcmHoldToken({
 
     const startedHold = isSongPlaying;
 
+    if (mechanic === "drag") {
+      setDragArcProgress(dragProgressFromClientPosition(event.clientX, event.clientY));
+    }
+
     pointerStateRef.current = {
       pointerId: event.pointerId,
-      originX: event.clientX,
-      originY: event.clientY,
-      startOffsetX: tokenOffset.x,
-      startOffsetY: tokenOffset.y,
       startedHold,
     };
 
@@ -6251,18 +6262,9 @@ function RtcmHoldToken({
     }
 
     event.preventDefault();
-
-    const deltaX = event.clientX - pointerState.originX;
-    const deltaY = event.clientY - pointerState.originY;
-
-    setTokenOffset({
-      x: clamp(
-        pointerState.startOffsetX + deltaX,
-        mechanic === "drag" ? -26 : -56,
-        mechanic === "drag" ? 146 : 56,
-      ),
-      y: clamp(pointerState.startOffsetY + deltaY, -58, 58),
-    });
+    if (mechanic === "drag") {
+      setDragArcProgress(dragProgressFromClientPosition(event.clientX, event.clientY));
+    }
   }
 
   function finishTokenGesture(event: PointerEvent<HTMLButtonElement>) {
@@ -6279,7 +6281,9 @@ function RtcmHoldToken({
     event.preventDefault();
     pointerStateRef.current = null;
     setIsDraggingToken(false);
-    setTokenOffset({ x: 0, y: 0 });
+    if (mechanic === "drag") {
+      setDragArcProgress(0);
+    }
 
     if (pointerState.startedHold) {
       onEndHold();
@@ -6345,6 +6349,7 @@ function RtcmHoldToken({
     event.preventDefault();
     spinHandleStateRef.current = null;
     setIsDraggingSpinHandle(false);
+    setSpinHandleAngle(-90);
 
     if (state.startedHold) {
       onEndHold();
@@ -6359,6 +6364,9 @@ function RtcmHoldToken({
     tokenBasePosition.left + spinRingRadius * Math.cos((spinHandleAngle * Math.PI) / 180);
   const spinHandleY =
     tokenBasePosition.top + spinRingRadius * Math.sin((spinHandleAngle * Math.PI) / 180);
+  const dragTokenAngle = Math.PI * (1 - dragArcProgress);
+  const dragTokenX = dragArcCenterX + dragArcRadiusX * Math.cos(dragTokenAngle);
+  const dragTokenY = dragArcCenterY - dragArcRadiusY * Math.sin(dragTokenAngle);
 
   return (
     <div
@@ -6489,13 +6497,20 @@ function RtcmHoldToken({
         onPointerCancel={finishTokenGesture}
         style={{
           position: "absolute",
-          left: tokenBasePosition.left,
-          top: tokenBasePosition.top,
-          transform: `translate(-50%, -50%) translate(${tokenOffset.x}px, ${tokenOffset.y}px)`,
-          transition: isDraggingToken ? "none" : "transform 180ms ease-out",
+          left: mechanic === "drag" ? dragTokenX : tokenBasePosition.left,
+          top: mechanic === "drag" ? dragTokenY : tokenBasePosition.top,
+          transform: "translate(-50%, -50%)",
+          transition:
+            mechanic === "drag"
+              ? isDraggingToken
+                ? "none"
+                : "left 180ms ease-out, top 180ms ease-out"
+              : isDraggingToken
+                ? "none"
+                : "transform 180ms ease-out",
           border: "none",
           background: "transparent",
-          cursor: mechanic === "spin" ? "default" : "grab",
+          cursor: mechanic === "spin" ? "default" : isDraggingToken ? "grabbing" : "grab",
           padding: 0,
           zIndex: 3,
           touchAction: "none",
