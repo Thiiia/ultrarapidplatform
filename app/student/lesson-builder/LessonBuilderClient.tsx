@@ -6347,7 +6347,7 @@ function RtcmHoldToken({
   } | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const spinRingDiameter = 230;
-  const spinHandleDiameter = Math.max(34, Math.round(74 * 0.82));
+  const spinHandleDiameter = Math.max(68, Math.round(74 * 0.82 * 2));
   const spinRingRadius = spinRingDiameter / 2;
   const dragArcCenterX = 130;
   const dragArcCenterY = 99;
@@ -6705,7 +6705,7 @@ function RtcmHoldToken({
         }
       >
         <RtcmBlankNumberToken
-          size={72}
+          size={mechanic === "drag" ? 144 : 72}
           borderColor={mechanic === "spin" ? "#FF8A8A99" : "#D2A9FF99"}
           background={mechanic === "spin" ? "#4A1D22" : "#2D1A47"}
         />
@@ -8282,17 +8282,15 @@ export default function LessonBuilderClient({
       }
 
       const deletedEvent = current[deleteIndex];
-      const remainingEvents = current.filter((eventSlot) => eventSlot.id !== targetEventId);
-      const preservedMechanicEvents = spawnMechanicEventsFromDeletedEvent(
-        deletedEvent,
-        remainingEvents,
-      );
-      const nextEvents = [
-        ...remainingEvents,
-        ...preservedMechanicEvents,
-      ].sort(
+      const extractedDrafts = extractDraftMechanicsFromEvent(deletedEvent);
+      const nextEvents = current.filter((eventSlot) => eventSlot.id !== targetEventId).sort(
         (left, right) => timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
       );
+
+      if (extractedDrafts.length > 0) {
+        setRtcmDraftMechanics((drafts) => [...drafts, ...extractedDrafts]);
+      }
+
       syncTimelineFilesFromEvents(nextEvents);
 
       if (mode === "rtcm") {
@@ -8303,7 +8301,7 @@ export default function LessonBuilderClient({
       }
 
       setSaveStatus(
-        `Deleted event ${deleteIndex + 1} and preserved ${preservedMechanicEvents.length} mechanics.`,
+        `Deleted event ${deleteIndex + 1}; moved ${extractedDrafts.length} mechanics to free timeline items.`,
       );
 
       return nextEvents;
@@ -9437,18 +9435,15 @@ function handleToggleDragTarget(
       }
 
       const deletedEvent = current[selectedIndex];
-      const remainingEvents = current.filter((eventSlot) => eventSlot.id !== activeEventId);
-      const preservedMechanicEvents = spawnMechanicEventsFromDeletedEvent(
-        deletedEvent,
-        remainingEvents,
-      );
-      const nextEvents = [
-        ...remainingEvents,
-        ...preservedMechanicEvents,
-      ].sort(
+      const extractedDrafts = extractDraftMechanicsFromEvent(deletedEvent);
+      const nextEvents = current.filter((eventSlot) => eventSlot.id !== activeEventId).sort(
         (left, right) => timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
       );
       const nextActiveEvent = nextEvents[Math.min(selectedIndex, nextEvents.length - 1)] ?? null;
+
+      if (extractedDrafts.length > 0) {
+        setRtcmDraftMechanics((drafts) => [...drafts, ...extractedDrafts]);
+      }
 
       setActiveEventId(nextActiveEvent?.id ?? null);
       syncTimelineFilesFromEvents(nextEvents);
@@ -9591,11 +9586,8 @@ function handleToggleDragTarget(
     handleStartRtcmHold("drag");
   }
 
-  function spawnMechanicEventsFromDeletedEvent(
-    eventSlot: TimelineEventSlot,
-    existingEvents: TimelineEventSlot[],
-  ) {
-    const nextEvents: TimelineEventSlot[] = [];
+  function extractDraftMechanicsFromEvent(eventSlot: TimelineEventSlot) {
+    const extractedDrafts: RtcmDraftMechanic[] = [];
 
     gameplayMechanics.forEach((mechanic) => {
       const count = Math.max(0, eventSlot.counts?.[mechanic] ?? 0);
@@ -9607,51 +9599,21 @@ function handleToggleDragTarget(
       for (let index = 0; index < count; index += 1) {
         const instance = instances[index];
         const tick = Number((instance.tick ?? eventSlot.tick).toFixed(3));
-        const occupiedEvent = findTimelineEventAtSeconds(existingEvents, tick);
+        const rawEndTick = Number((instance.endTick ?? tick).toFixed(3));
 
-        if (occupiedEvent) {
-          continue;
-        }
-
-        const rawEndTick = Number(
-          (instance.endTick ?? instance.tick ?? eventSlot.tick).toFixed(3),
-        );
-        const endTick = Math.max(tick, rawEndTick);
-        const nextEvent = makeTimelineEvent(
-          0,
+        extractedDrafts.push({
+          id: makeId("rtcm"),
+          mechanic,
           tick,
-          { [mechanic]: 1 },
-          mechanic === "hit" ? undefined : endTick,
-        );
-
-        nextEvent.assignments = makeEmptyAssignments();
-        const assignedEquation = eventSlot.assignments?.[mechanic];
-        if (assignedEquation) {
-          nextEvent.assignments[mechanic] = cloneEquationForAssignment(assignedEquation);
-        }
-
-        nextEvent.mechanicInstances = {
-          hit: [],
-          spin: [],
-          drag: [],
-        };
-        nextEvent.mechanicInstances[mechanic] = [
-          {
-            ...instance,
-            id: makeId("mechanic"),
-            tick,
-            ...(mechanic === "hit" ? {} : { endTick }),
-            hitBubbles: instance.hitBubbles ?? [],
-            spinTargets: instance.spinTargets ?? [],
-            dragTargets: instance.dragTargets ?? [],
-          },
-        ];
-
-        nextEvents.push(nextEvent);
+          ...(mechanic === "hit" ? {} : { endTick: Math.max(tick, rawEndTick) }),
+          hitBubbles: instance.hitBubbles ?? [],
+          spinTargets: instance.spinTargets ?? [],
+          dragTargets: instance.dragTargets ?? [],
+        });
       }
     });
 
-    return nextEvents;
+    return extractedDrafts;
   }
 
 
