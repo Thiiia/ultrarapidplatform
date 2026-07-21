@@ -4485,16 +4485,13 @@ function EquationTimeline({
                           position: "absolute",
                           top: -1,
                           bottom: -1,
-                          width: 10,
-                          [edge === "start" ? "left" : "right"]: -5,
+                          width: 16,
+                          [edge === "start" ? "left" : "right"]: -8,
                           border: "none",
-                          borderRadius: 999,
-                          background: isActive
-                            ? "rgba(207,255,4,0.8)"
-                            : "rgba(255,255,255,0.42)",
-                          boxShadow: isActive
-                            ? "0 0 8px rgba(207,255,4,0.48)"
-                            : "none",
+                          borderRadius: 0,
+                          background: "transparent",
+                          boxShadow: "none",
+                          opacity: 0,
                           cursor: "ew-resize",
                           padding: 0,
                           touchAction: "none",
@@ -6245,7 +6242,7 @@ function RtcmHitPadToken({
 }) {
   const emptyTokenSize = 74;
   const hitPadDiameter = Math.max(34, Math.round(emptyTokenSize * 0.82 * 2));
-  const hitPadAnchorSize = 52;
+  const hitPadAnchorSize = 84;
   const pads: HitBubblePad[] = [
     "topLeft",
     "topRight",
@@ -8285,9 +8282,13 @@ export default function LessonBuilderClient({
       }
 
       const deletedEvent = current[deleteIndex];
-      const preservedMechanicEvents = spawnMechanicEventsFromDeletedEvent(deletedEvent);
+      const remainingEvents = current.filter((eventSlot) => eventSlot.id !== targetEventId);
+      const preservedMechanicEvents = spawnMechanicEventsFromDeletedEvent(
+        deletedEvent,
+        remainingEvents,
+      );
       const nextEvents = [
-        ...current.filter((eventSlot) => eventSlot.id !== targetEventId),
+        ...remainingEvents,
         ...preservedMechanicEvents,
       ].sort(
         (left, right) => timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
@@ -9371,16 +9372,20 @@ function handleToggleDragTarget(
         didUpdate = true;
 
         if (edge === "start") {
+          const clampedStartTick = Math.min(nextTick, currentEndTick);
+
           return {
             ...eventSlot,
-            tick: Math.min(nextTick, currentStartTick),
-            endTick: Math.max(currentEndTick, currentStartTick),
+            tick: clampedStartTick,
+            endTick: currentEndTick,
           };
         }
 
+        const clampedEndTick = Math.max(nextTick, currentStartTick);
+
         return {
           ...eventSlot,
-          endTick: Math.max(nextTick, currentEndTick, currentStartTick),
+          endTick: clampedEndTick,
         };
       });
 
@@ -9432,9 +9437,13 @@ function handleToggleDragTarget(
       }
 
       const deletedEvent = current[selectedIndex];
-      const preservedMechanicEvents = spawnMechanicEventsFromDeletedEvent(deletedEvent);
+      const remainingEvents = current.filter((eventSlot) => eventSlot.id !== activeEventId);
+      const preservedMechanicEvents = spawnMechanicEventsFromDeletedEvent(
+        deletedEvent,
+        remainingEvents,
+      );
       const nextEvents = [
-        ...current.filter((eventSlot) => eventSlot.id !== activeEventId),
+        ...remainingEvents,
         ...preservedMechanicEvents,
       ].sort(
         (left, right) => timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
@@ -9582,7 +9591,10 @@ function handleToggleDragTarget(
     handleStartRtcmHold("drag");
   }
 
-  function spawnMechanicEventsFromDeletedEvent(eventSlot: TimelineEventSlot) {
+  function spawnMechanicEventsFromDeletedEvent(
+    eventSlot: TimelineEventSlot,
+    existingEvents: TimelineEventSlot[],
+  ) {
     const nextEvents: TimelineEventSlot[] = [];
 
     gameplayMechanics.forEach((mechanic) => {
@@ -9595,6 +9607,12 @@ function handleToggleDragTarget(
       for (let index = 0; index < count; index += 1) {
         const instance = instances[index];
         const tick = Number((instance.tick ?? eventSlot.tick).toFixed(3));
+        const occupiedEvent = findTimelineEventAtSeconds(existingEvents, tick);
+
+        if (occupiedEvent) {
+          continue;
+        }
+
         const rawEndTick = Number(
           (instance.endTick ?? instance.tick ?? eventSlot.tick).toFixed(3),
         );
