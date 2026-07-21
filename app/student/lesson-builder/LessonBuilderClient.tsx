@@ -2381,6 +2381,23 @@ function getHitBubblePadStyle(pad: HitBubblePad, bubbleSize: number) {
   }
 }
 
+function getHitPadNumber(pad: HitBubblePad): 1 | 2 | 3 | 4 | 5 | 6 {
+  if (pad === "topLeft") return 1;
+  if (pad === "topRight") return 2;
+  if (pad === "left") return 3;
+  if (pad === "right") return 4;
+  if (pad === "bottomLeft") return 5;
+  return 6;
+}
+
+function getHitPadNumberFromPlacement(
+  placement: HitBubblePlacement | undefined,
+): number | null {
+  const pad = placement?.pads?.[0] ?? placement?.positions?.[0];
+
+  return pad ? getHitPadNumber(pad) : null;
+}
+
 function EmptyEquationBubble({
   size = 34,
   borderColor = "rgba(255, 255, 255, 0.42)",
@@ -6095,11 +6112,12 @@ function RtcmHitPadToken({
   onAddHit,
   isSongPlaying,
 }: {
-  onAddHit: () => void;
+  onAddHit: (pad: HitBubblePad) => void;
   isSongPlaying: boolean;
 }) {
   const emptyTokenSize = 74;
-  const hitPadDiameter = Math.max(34, Math.round(emptyTokenSize * 0.82));
+  const hitPadDiameter = Math.max(34, Math.round(emptyTokenSize * 0.82 * 2));
+  const hitPadAnchorSize = 52;
   const pads: HitBubblePad[] = [
     "topLeft",
     "topRight",
@@ -6113,8 +6131,8 @@ function RtcmHitPadToken({
     <div
       style={{
         position: "relative",
-        width: 212,
-        height: 188,
+        width: 300,
+        height: 260,
         display: "grid",
         placeItems: "center",
         overflow: "visible",
@@ -6133,14 +6151,15 @@ function RtcmHitPadToken({
       </div>
 
       {pads.map((pad) => {
-        const padStyle = getHitBubblePadStyle(pad, 26);
+        const padStyle = getHitBubblePadStyle(pad, hitPadAnchorSize);
+        const padNumber = getHitPadNumber(pad);
 
         return (
           <button
             key={pad}
             type="button"
-            onClick={isSongPlaying ? onAddHit : undefined}
-            aria-label={`Add hit at ${pad}`}
+            onClick={isSongPlaying ? () => onAddHit(pad) : undefined}
+            aria-label={`Add hit at pad ${padNumber}`}
             disabled={!isSongPlaying}
             style={{
               position: "absolute",
@@ -6155,7 +6174,20 @@ function RtcmHitPadToken({
               opacity: isSongPlaying ? 1 : 0.65,
               ...padStyle,
             }}
-          />
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                color: "#FFFFFF",
+                fontSize: 24,
+                fontWeight: 900,
+                lineHeight: 1,
+                textShadow: "0 0 8px rgba(0,0,0,0.28)",
+              }}
+            >
+              {padNumber}
+            </span>
+          </button>
         );
       })}
     </div>
@@ -6193,7 +6225,7 @@ function RtcmHoldToken({
   const spinHandleDiameter = Math.max(34, Math.round(74 * 0.82));
   const spinRingRadius = spinRingDiameter / 2;
   const dragArcCenterX = 130;
-  const dragArcCenterY = 148.5;
+  const dragArcCenterY = 99;
   const dragArcRadiusX = 125;
   const dragArcRadiusY = 72;
 
@@ -6440,13 +6472,13 @@ function RtcmHoldToken({
             style={{ display: "block", overflow: "visible" }}
           >
             <path
-              d="M 5 148.5 A 125 72 0 0 1 255 148.5"
+              d="M 5 99 A 125 72 0 0 1 255 99"
               stroke="rgba(180, 92, 255, 0.32)"
               strokeWidth="72"
               strokeLinecap="round"
             />
             <path
-              d="M 5 148.5 A 125 72 0 0 0 255 148.5"
+              d="M 5 99 A 125 72 0 0 0 255 99"
               stroke="rgba(180, 92, 255, 0.32)"
               strokeWidth="72"
               strokeLinecap="round"
@@ -7893,7 +7925,7 @@ export default function LessonBuilderClient({
   function addRtcmDraftMechanic(
     mechanic: GameplayMechanic,
     seconds: number,
-    options: { endSeconds?: number } = {},
+    options: { endSeconds?: number; hitPad?: HitBubblePad } = {},
   ) {
     const tick = Number(seconds.toFixed(3));
     const endTick =
@@ -7911,7 +7943,16 @@ export default function LessonBuilderClient({
         mechanic,
         tick,
         ...(typeof endTick === "number" ? { endTick } : {}),
-        hitBubbles: [],
+        hitBubbles:
+          mechanic === "hit" && options.hitPad
+            ? [
+                {
+                  tokenIndex: 0,
+                  positions: [options.hitPad],
+                  pads: [options.hitPad],
+                },
+              ]
+            : [],
         spinTargets: [],
         dragTargets: [],
       },
@@ -9220,6 +9261,7 @@ function handleToggleDragTarget(
       allowActiveEvent?: boolean;
       allowPlayheadEvent?: boolean;
       draftIfNoEvent?: boolean;
+      hitPad?: HitBubblePad;
     } = {},
   ) {
     const allowActiveEvent = options.allowActiveEvent ?? true;
@@ -9250,7 +9292,9 @@ function handleToggleDragTarget(
           : current;
 
       if (!targetEvent) {
-        addRtcmDraftMechanic(mechanic, mechanicSeconds);
+        addRtcmDraftMechanic(mechanic, mechanicSeconds, {
+          hitPad: options.hitPad,
+        });
         return current;
       }
 
@@ -9268,6 +9312,17 @@ function handleToggleDragTarget(
           ...nextInstances[nextCount - 1],
           tick: mechanicTick,
           ...(mechanic === "hit" ? {} : { endTick: mechanicTick }),
+          ...(mechanic === "hit" && options.hitPad
+            ? {
+                hitBubbles: [
+                  {
+                    tokenIndex: 0,
+                    positions: [options.hitPad],
+                    pads: [options.hitPad],
+                  },
+                ],
+              }
+            : {}),
         };
         nextInstances[nextCount - 1] = nextInstance;
         nextAddedInstanceId = nextInstance.id;
@@ -9309,11 +9364,12 @@ function handleToggleDragTarget(
     handleAddMechanicAtPlayhead("hit");
   }
 
-  function handleRtcmAddHitAtPlayhead() {
+  function handleRtcmAddHitAtPlayhead(hitPad: HitBubblePad) {
     handleAddMechanicAtPlayhead("hit", {
       allowActiveEvent: false,
       allowPlayheadEvent: true,
       draftIfNoEvent: true,
+      hitPad,
     });
   }
 
