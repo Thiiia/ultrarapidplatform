@@ -3799,6 +3799,7 @@ function EquationTimeline({
   onPlayheadDragStart,
   onPlayheadDragEnd,
   onRetimeMechanicMarker,
+  onRetimeEventEdge,
   audioObjectUrl,
   isAdvancedMode,
 }: {
@@ -3819,6 +3820,11 @@ function EquationTimeline({
     edge: TimelineMarkerEdge,
     seconds: number,
   ) => void;
+  onRetimeEventEdge: (
+    eventId: string,
+    edge: TimelineMarkerEdge,
+    seconds: number,
+  ) => void;
   audioObjectUrl: string;
   isAdvancedMode: boolean;
 }) {
@@ -3830,6 +3836,10 @@ function EquationTimeline({
     eventId: string;
     mechanic: GameplayMechanic;
     instanceIndex: number;
+    edge: TimelineMarkerEdge;
+  } | null>(null);
+  const [draggedEventEdge, setDraggedEventEdge] = useState<{
+    eventId: string;
     edge: TimelineMarkerEdge;
   } | null>(null);
   const [viewportWidth, setViewportWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1280);
@@ -3989,6 +3999,25 @@ function EquationTimeline({
     );
   }
 
+  function retimeDraggedEventEdge(
+    edgeDrag: {
+      eventId: string;
+      edge: TimelineMarkerEdge;
+    },
+    clientX: number,
+    options: { autoScroll?: boolean } = {},
+  ) {
+    const seconds = getSecondsFromClientX(clientX, {
+      autoScroll: options.autoScroll,
+    });
+
+    onRetimeEventEdge(
+      edgeDrag.eventId,
+      edgeDrag.edge,
+      snapTimelineSeconds(seconds),
+    );
+  }
+
   function handleMechanicMarkerPointerDown(
     event: PointerEvent<HTMLButtonElement>,
     marker: {
@@ -4024,6 +4053,47 @@ function EquationTimeline({
         autoScroll: true,
       });
       setDraggedMechanicMarker(null);
+      onPlayheadDragEnd();
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function handleEventEdgePointerDown(
+    event: PointerEvent<HTMLButtonElement>,
+    edgeDrag: {
+      eventId: string;
+      edge: TimelineMarkerEdge;
+    },
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    onPlayheadDragStart();
+    setDraggedEventEdge(edgeDrag);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    retimeDraggedEventEdge(edgeDrag, event.clientX);
+  }
+
+  function handleEventEdgePointerMove(event: PointerEvent<HTMLButtonElement>) {
+    if (!draggedEventEdge) {
+      return;
+    }
+
+    event.preventDefault();
+    retimeDraggedEventEdge(draggedEventEdge, event.clientX, {
+      autoScroll: true,
+    });
+  }
+
+  function handleEventEdgePointerUp(event: PointerEvent<HTMLButtonElement>) {
+    if (draggedEventEdge) {
+      event.preventDefault();
+      retimeDraggedEventEdge(draggedEventEdge, event.clientX, {
+        autoScroll: true,
+      });
+      setDraggedEventEdge(null);
       onPlayheadDragEnd();
     }
 
@@ -4358,12 +4428,9 @@ function EquationTimeline({
                 const isActive = eventSlot.id === activeEventId;
 
                 return (
-                  <button
+                  <div
                     key={eventSlot.id}
-                    type="button"
                     data-timeline-interactive="true"
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onClick={() => onSelectEvent(eventSlot.id)}
                     style={{
                       position: "absolute",
                       left: eventLeft,
@@ -4372,24 +4439,69 @@ function EquationTimeline({
                       minWidth: 44,
                       minHeight: 30,
                       transform: "translateY(-50%)",
-                      borderRadius: 10,
-                      border: `2px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
-                      background: isActive ? "#252525" : "#202020",
-                      color: "#FFFFFF",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                      padding: "4px 8px",
-                      boxSizing: "border-box",
-                      cursor: "pointer",
-                      overflow: "hidden",
                     }}
                   >
-                    <span style={{ fontSize: 11, fontWeight: 900 }}>
-                      Event {index + 1}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={() => onSelectEvent(eventSlot.id)}
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        borderRadius: 10,
+                        border: `2px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
+                        background: isActive ? "#252525" : "#202020",
+                        color: "#FFFFFF",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 8,
+                        padding: "4px 8px",
+                        boxSizing: "border-box",
+                        cursor: "pointer",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <span style={{ fontSize: 11, fontWeight: 900 }}>
+                        Event {index + 1}
+                      </span>
+                    </button>
+
+                    {(["start", "end"] as TimelineMarkerEdge[]).map((edge) => (
+                      <button
+                        key={`${eventSlot.id}-event-edge-${edge}`}
+                        type="button"
+                        aria-label={`Drag event ${edge} edge`}
+                        onPointerDown={(event) =>
+                          handleEventEdgePointerDown(event, {
+                            eventId: eventSlot.id,
+                            edge,
+                          })
+                        }
+                        onPointerMove={handleEventEdgePointerMove}
+                        onPointerUp={handleEventEdgePointerUp}
+                        onPointerCancel={handleEventEdgePointerUp}
+                        style={{
+                          position: "absolute",
+                          top: -1,
+                          bottom: -1,
+                          width: 10,
+                          [edge === "start" ? "left" : "right"]: -5,
+                          border: "none",
+                          borderRadius: 999,
+                          background: isActive
+                            ? "rgba(207,255,4,0.8)"
+                            : "rgba(255,255,255,0.42)",
+                          boxShadow: isActive
+                            ? "0 0 8px rgba(207,255,4,0.48)"
+                            : "none",
+                          cursor: "ew-resize",
+                          padding: 0,
+                          touchAction: "none",
+                        }}
+                      />
+                    ))}
+                  </div>
                 );
               })
             )}
@@ -4461,18 +4573,26 @@ function EquationTimeline({
                                 position: "absolute",
                                 left: markerLeft,
                                 top: "50%",
-                                width: 10,
-                                height: 10,
-                                border: "none",
+                                width: 20,
+                                height: 20,
+                                border: `1px solid ${color}`,
+                                borderRadius: 999,
                                 background: color,
                                 boxShadow: `0 0 12px ${color}`,
-                                ...markerShapeStyle,
+                                transform: "translate(-50%, -50%)",
                                 cursor: "grab",
                                 touchAction: "none",
                                 padding: 0,
+                                color: "#071222",
+                                fontSize: 10,
+                                fontWeight: 900,
+                                lineHeight: "20px",
+                                textAlign: "center",
                               }}
                               aria-label={`Drag ${mechanic} timing`}
-                            />
+                            >
+                              {getHitPadNumberFromPlacement(instance.hitBubbles?.[0]) ?? ""}
+                            </button>
                           );
                         })}
                       </span>
@@ -4577,18 +4697,26 @@ function EquationTimeline({
                               position: "absolute",
                               left: markerLeft,
                               top: "50%",
-                              width: 10,
-                              height: 10,
-                              border: "none",
+                              width: 20,
+                              height: 20,
+                              border: `1px solid ${color}`,
+                              borderRadius: 999,
                               background: color,
                               boxShadow: `0 0 12px ${color}`,
-                              ...markerShapeStyle,
+                              transform: "translate(-50%, -50%)",
                               cursor: "default",
                               touchAction: "none",
                               padding: 0,
                               opacity: 0.92,
+                              color: "#071222",
+                              fontSize: 10,
+                              fontWeight: 900,
+                              lineHeight: "20px",
+                              textAlign: "center",
                             }}
-                          />
+                          >
+                            {getHitPadNumberFromPlacement(draft.hitBubbles?.[0]) ?? ""}
+                          </button>
                         );
                       }
 
@@ -6600,7 +6728,7 @@ function RtcmModePanel({
   eventRangeStartTick,
   canDeleteEvent,
 }: {
-  onAddHit: () => void;
+  onAddHit: (pad: HitBubblePad) => void;
   onStartHold: (tool: Exclude<GameplayMechanic, "hit">) => void;
   onEndHold: () => void;
   onCreateEvent: () => void;
@@ -8156,7 +8284,14 @@ export default function LessonBuilderClient({
         return current;
       }
 
-      const nextEvents = current.filter((eventSlot) => eventSlot.id !== targetEventId);
+      const deletedEvent = current[deleteIndex];
+      const preservedMechanicEvents = spawnMechanicEventsFromDeletedEvent(deletedEvent);
+      const nextEvents = [
+        ...current.filter((eventSlot) => eventSlot.id !== targetEventId),
+        ...preservedMechanicEvents,
+      ].sort(
+        (left, right) => timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
+      );
       syncTimelineFilesFromEvents(nextEvents);
 
       if (mode === "rtcm") {
@@ -8166,7 +8301,9 @@ export default function LessonBuilderClient({
         setActiveEventId(nextActiveEvent?.id ?? null);
       }
 
-      setSaveStatus(`Deleted event ${deleteIndex + 1}.`);
+      setSaveStatus(
+        `Deleted event ${deleteIndex + 1} and preserved ${preservedMechanicEvents.length} mechanics.`,
+      );
 
       return nextEvents;
     });
@@ -9207,6 +9344,55 @@ function handleToggleDragTarget(
     });
   }
 
+  function handleRetimeEventEdge(
+    eventId: string,
+    edge: TimelineMarkerEdge,
+    seconds: number,
+  ) {
+    const nextTick = Number(seconds.toFixed(3));
+
+    setTimelineEvents((current) => {
+      let didUpdate = false;
+
+      const nextEvents = current.map((eventSlot) => {
+        if (eventSlot.id !== eventId) {
+          return eventSlot;
+        }
+
+        const currentStartTick = Number(eventSlot.tick.toFixed(3));
+        const currentEndTick = Number(
+          (
+            typeof eventSlot.endTick === "number"
+              ? eventSlot.endTick
+              : getTimelineEventTimeWindowSeconds(eventSlot).endSeconds
+          ).toFixed(3),
+        );
+
+        didUpdate = true;
+
+        if (edge === "start") {
+          return {
+            ...eventSlot,
+            tick: Math.min(nextTick, currentStartTick),
+            endTick: Math.max(currentEndTick, currentStartTick),
+          };
+        }
+
+        return {
+          ...eventSlot,
+          endTick: Math.max(nextTick, currentEndTick, currentStartTick),
+        };
+      });
+
+      if (!didUpdate) {
+        return current;
+      }
+
+      syncTimelineFilesFromEvents(nextEvents);
+      return nextEvents;
+    });
+  }
+
   function handleAddTimelineEvent() {
     const nextTick = Number(currentSongSeconds.toFixed(3));
 
@@ -9245,7 +9431,14 @@ function handleToggleDragTarget(
         return current;
       }
 
-      const nextEvents = current.filter((eventSlot) => eventSlot.id !== activeEventId);
+      const deletedEvent = current[selectedIndex];
+      const preservedMechanicEvents = spawnMechanicEventsFromDeletedEvent(deletedEvent);
+      const nextEvents = [
+        ...current.filter((eventSlot) => eventSlot.id !== activeEventId),
+        ...preservedMechanicEvents,
+      ].sort(
+        (left, right) => timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
+      );
       const nextActiveEvent = nextEvents[Math.min(selectedIndex, nextEvents.length - 1)] ?? null;
 
       setActiveEventId(nextActiveEvent?.id ?? null);
@@ -9387,6 +9580,60 @@ function handleToggleDragTarget(
 
   function handleRtcmStartDragAtPlayhead() {
     handleStartRtcmHold("drag");
+  }
+
+  function spawnMechanicEventsFromDeletedEvent(eventSlot: TimelineEventSlot) {
+    const nextEvents: TimelineEventSlot[] = [];
+
+    gameplayMechanics.forEach((mechanic) => {
+      const count = Math.max(0, eventSlot.counts?.[mechanic] ?? 0);
+      const instances = resizeMechanicInstances(
+        eventSlot.mechanicInstances?.[mechanic],
+        count,
+      );
+
+      for (let index = 0; index < count; index += 1) {
+        const instance = instances[index];
+        const tick = Number((instance.tick ?? eventSlot.tick).toFixed(3));
+        const rawEndTick = Number(
+          (instance.endTick ?? instance.tick ?? eventSlot.tick).toFixed(3),
+        );
+        const endTick = Math.max(tick, rawEndTick);
+        const nextEvent = makeTimelineEvent(
+          0,
+          tick,
+          { [mechanic]: 1 },
+          mechanic === "hit" ? undefined : endTick,
+        );
+
+        nextEvent.assignments = makeEmptyAssignments();
+        const assignedEquation = eventSlot.assignments?.[mechanic];
+        if (assignedEquation) {
+          nextEvent.assignments[mechanic] = cloneEquationForAssignment(assignedEquation);
+        }
+
+        nextEvent.mechanicInstances = {
+          hit: [],
+          spin: [],
+          drag: [],
+        };
+        nextEvent.mechanicInstances[mechanic] = [
+          {
+            ...instance,
+            id: makeId("mechanic"),
+            tick,
+            ...(mechanic === "hit" ? {} : { endTick }),
+            hitBubbles: instance.hitBubbles ?? [],
+            spinTargets: instance.spinTargets ?? [],
+            dragTargets: instance.dragTargets ?? [],
+          },
+        ];
+
+        nextEvents.push(nextEvent);
+      }
+    });
+
+    return nextEvents;
   }
 
 
@@ -10040,6 +10287,7 @@ function handleToggleDragTarget(
             }}
             onPlayheadDragEnd={handleFinalizeTimelineInteraction}
             onRetimeMechanicMarker={handleRetimeMechanicMarker}
+            onRetimeEventEdge={handleRetimeEventEdge}
             audioObjectUrl={audioObjectUrl}
             isAdvancedMode={isAdvancedMode}
           />
