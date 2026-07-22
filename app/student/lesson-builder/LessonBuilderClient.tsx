@@ -1617,8 +1617,8 @@ function EditorActionBar({
       aria-label="Lesson builder actions"
       style={{
         width: "100%",
-        height: 72,
-        minHeight: 72,
+        height: 36,
+        minHeight: 36,
         background: pageBackgroundColor,
         borderBottom: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
@@ -1642,14 +1642,14 @@ function EditorActionBar({
           onClick={onBack}
           style={{
             minWidth: 96,
-            height: 42,
+              height: 24,
             background: panelBackgroundColor,
             color: "#FFFFFF",
             border: `1px solid ${subtleBorderColor}`,
             borderRadius: 12,
             fontFamily: "Space Grotesk, sans-serif",
-            fontSize: 14,
-            fontWeight: 800,
+              fontSize: 11,
+              fontWeight: 800,
             cursor: "pointer",
           }}
         >
@@ -1677,13 +1677,13 @@ function EditorActionBar({
             }
             style={{
               minWidth: 124,
-              height: 42,
+              height: 24,
               background: canLaunch ? "#CFFF04" : panelBackgroundColor,
               color: canLaunch ? "#000000" : "#FFFFFF80",
               border: `1px solid ${canLaunch ? "#CFFF04" : subtleBorderColor}`,
               borderRadius: 12,
               fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 14,
+              fontSize: 11,
               fontWeight: 800,
               cursor: canLaunch ? "pointer" : "not-allowed",
             }}
@@ -1715,8 +1715,8 @@ function EditorActionBar({
           aria-label="Save lesson to Supabase"
           title="Save lesson"
           style={{
-          width: 119,
-          height: 58,
+            width: 60,
+            height: 29,
             border: "none",
             borderRadius: 12,
             background: "transparent",
@@ -1734,8 +1734,8 @@ function EditorActionBar({
             alt=""
             aria-hidden="true"
             style={{
-              width: 119,
-              height: 58,
+              width: 60,
+              height: 29,
               display: "block",
               objectFit: "contain",
             }}
@@ -6240,7 +6240,7 @@ function RtcmHitPadToken({
   onAddHit: (pad: HitBubblePad) => void;
   isSongPlaying: boolean;
 }) {
-  const emptyTokenSize = 74;
+  const emptyTokenSize = Math.round(74 * 0.75);
   const hitPadDiameter = Math.max(34, Math.round(emptyTokenSize * 0.82 * 2));
   const hitPadAnchorSize = 84;
   const pads: HitBubblePad[] = [
@@ -6347,7 +6347,7 @@ function RtcmHoldToken({
   } | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const spinRingDiameter = 230;
-  const spinHandleDiameter = Math.max(68, Math.round(74 * 0.82 * 2));
+  const spinHandleDiameter = Math.max(34, Math.round(68 * 0.75));
   const spinRingRadius = spinRingDiameter / 2;
   const dragArcCenterX = 130;
   const dragArcCenterY = 99;
