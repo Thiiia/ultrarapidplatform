@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FC, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { persistLaunchParams } from "@/lib/launch-handoff";
+import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
@@ -460,6 +462,7 @@ export default function SongChoiceClient({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
+  const [isCustomizePromptOpen, setIsCustomizePromptOpen] = useState(false);
   const [durationsById, setDurationsById] = useState<Record<string, number>>(
     {},
   );
@@ -583,40 +586,52 @@ export default function SongChoiceClient({
     };
   }, [songs, durationsById]);
 
+  function buildSelectedSongPayload(song: SongChoiceWithEquationSlots) {
+    return {
+      id: song.id,
+      name: song.name,
+      title: song.title,
+      artist: song.artist,
+
+      song: {
+        bucket: song.song.bucket,
+        path: song.song.path,
+        signedUrl: song.song.signedUrl,
+        contentType: song.song.contentType,
+      },
+
+      chart: {
+        bucket: song.chart.bucket,
+        path: song.chart.path,
+        signedUrl: song.chart.signedUrl,
+        contentType: song.chart.contentType,
+      },
+
+      sidecar: song.sidecar
+        ? {
+            bucket: song.sidecar.bucket,
+            path: song.sidecar.path,
+            signedUrl: song.sidecar.signedUrl,
+            contentType: song.sidecar.contentType,
+          }
+        : null,
+    };
+  }
+
   function handleContinue() {
     if (!selectedSong) {
       return;
     }
 
-    const selectedSongPayload = {
-      id: selectedSong.id,
-      name: selectedSong.name,
-      title: selectedSong.title,
-      artist: selectedSong.artist,
+    setIsCustomizePromptOpen(true);
+  }
 
-      song: {
-        bucket: selectedSong.song.bucket,
-        path: selectedSong.song.path,
-        signedUrl: selectedSong.song.signedUrl,
-        contentType: selectedSong.song.contentType,
-      },
+  function handleCustomizeYes() {
+    if (!selectedSong) {
+      return;
+    }
 
-      chart: {
-        bucket: selectedSong.chart.bucket,
-        path: selectedSong.chart.path,
-        signedUrl: selectedSong.chart.signedUrl,
-        contentType: selectedSong.chart.contentType,
-      },
-
-      sidecar: selectedSong.sidecar
-        ? {
-            bucket: selectedSong.sidecar.bucket,
-            path: selectedSong.sidecar.path,
-            signedUrl: selectedSong.sidecar.signedUrl,
-            contentType: selectedSong.sidecar.contentType,
-          }
-        : null,
-    };
+    const selectedSongPayload = buildSelectedSongPayload(selectedSong);
 
     appendSongFlowDebug("song-choice:continue", "Persisting selected song payload into session storage and routing to lesson builder.", {
       navBasePath,
@@ -629,7 +644,46 @@ export default function SongChoiceClient({
       JSON.stringify(selectedSongPayload),
     );
 
+    setIsCustomizePromptOpen(false);
     router.push(`${navBasePath}/lesson-builder`);
+  }
+
+  function handleCustomizeNo() {
+    if (!selectedSong) {
+      return;
+    }
+
+    const selectedSongPayload = buildSelectedSongPayload(selectedSong);
+    const launchParams = createSongLaunchSearchParams({
+      songAssetId: selectedSong.id,
+      chartUrl: selectedSong.chart.signedUrl,
+      sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
+      audioUrl: selectedSong.song.signedUrl,
+    });
+    const launchRoute = navBasePath.startsWith("/demo")
+      ? "/demo/launch"
+      : `${navBasePath}/game`;
+    const launchUrl = `${launchRoute}?${launchParams.toString()}`;
+
+    appendSongFlowDebug(
+      "song-choice:continue:no-customize",
+      "Skipping gameplay customization and launching with play-formatted URL.",
+      {
+        navBasePath,
+        launchRoute,
+        launchUrl,
+        selectedSongPayload,
+      },
+    );
+
+    window.sessionStorage.setItem(
+      "ultrarapid_selected_song",
+      JSON.stringify(selectedSongPayload),
+    );
+    persistLaunchParams(launchParams);
+
+    setIsCustomizePromptOpen(false);
+    router.push(launchUrl);
   }
 
   return (
@@ -1002,6 +1056,92 @@ export default function SongChoiceClient({
           Next
         </button>
       </div>
+
+      {isCustomizePromptOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Customize Gameplay"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.64)",
+            zIndex: 1200,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            style={{
+              width: "min(420px, 92vw)",
+              background: "#2B2B2B",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              borderRadius: 16,
+              boxShadow: "0 24px 80px rgba(0, 0, 0, 0.46)",
+              padding: "22px 20px",
+              display: "grid",
+              gap: 18,
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                color: "#FFFFFF",
+                fontSize: 22,
+                fontWeight: 800,
+                textAlign: "center",
+              }}
+            >
+              Customize Gameplay?
+            </h2>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 12,
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleCustomizeYes}
+                style={{
+                  border: "none",
+                  borderRadius: 999,
+                  background: "#CFFF04",
+                  color: "#082733",
+                  padding: "10px 18px",
+                  fontSize: 14,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                Yes
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCustomizeNo}
+                style={{
+                  border: "1px solid #7A8FA8",
+                  borderRadius: 999,
+                  background: "transparent",
+                  color: "#FFFFFF",
+                  padding: "10px 18px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                No
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
         <style jsx global>{`
           .songChoiceRow:hover {

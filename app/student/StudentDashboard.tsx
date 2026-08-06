@@ -2,10 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { StudentDashboardData } from "@/lib/student-dashboard";
 import styles from "./student.module.css";
 
 import URIcon from "@/public/header_icons/URIcon.svg";
+import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
+import MyLessonsPressedTab from "@/public/header_icons/my_lessons_tab_pressed.svg";
+import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab.svg";
+import LessonBuilderPressedTab from "@/public/header_icons/lesson_builder_tab_pressed.svg";
 import numberBondsImage from "@/public/numeracy_icons/number_bonds.png";
 import missingNumbersImage from "@/public/numeracy_icons/missing_numbers.png";
 import equationsImage from "@/public/numeracy_icons/equations.png";
@@ -34,7 +39,32 @@ const pagePanelWidth = "85vw";
 const pageBackgroundStyle =
   "linear-gradient(180deg, #082733 0%, #030E14 100%)";
 
-function HeaderBar({ profileLabel }: { profileLabel: string }) {
+function HeaderBar({
+  profileLabel,
+  navBasePath,
+  pathname,
+}: {
+  profileLabel: string;
+  navBasePath: string;
+  pathname: string;
+}) {
+  const topTabs = [
+    {
+      label: "My Lessons",
+      href: `${navBasePath}/lessons`,
+      Icon: MyLessonsTab,
+      ActiveIcon: MyLessonsPressedTab,
+      width: 139,
+    },
+    {
+      label: "Lesson Builder",
+      href: `${navBasePath}/song-choice`,
+      Icon: LessonBuilderTab,
+      ActiveIcon: LessonBuilderPressedTab,
+      width: 159,
+    },
+  ];
+
   return (
     <header
       style={{
@@ -94,6 +124,59 @@ function HeaderBar({ profileLabel }: { profileLabel: string }) {
               }}
             />
           </div>
+
+          <nav
+            aria-label="Student dashboard navigation"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              minWidth: 0,
+            }}
+          >
+            {topTabs.map((tab) => {
+              const lessonBuilderPath = tab.href.replace(
+                "/song-choice",
+                "/lesson-builder",
+              );
+              const isActive =
+                pathname === tab.href ||
+                (tab.label === "Lesson Builder" &&
+                  (pathname === lessonBuilderPath ||
+                    pathname.startsWith(`${lessonBuilderPath}/`))) ||
+                pathname.startsWith(`${tab.href}/`);
+
+              const Icon = isActive ? tab.ActiveIcon : tab.Icon;
+
+              return (
+                <Link
+                  key={tab.label}
+                  href={tab.href}
+                  aria-label={tab.label}
+                  className={`${styles.headerTabButton} ${
+                    isActive ? styles.headerTabButtonActive : ""
+                  }`}
+                  style={{
+                    width: tab.width,
+                    height: 45.5,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textDecoration: "none",
+                    background: "#060B15FC",
+                  }}
+                >
+                  <Icon
+                    style={{
+                      width: tab.width,
+                      height: 45.5,
+                      display: "block",
+                    }}
+                  />
+                </Link>
+              );
+            })}
+          </nav>
         </div>
 
         <div
@@ -151,7 +234,9 @@ function HeaderBar({ profileLabel }: { profileLabel: string }) {
 
 export default function StudentDashboard({
   dashboardData,
+  navBasePath = "/student",
 }: StudentDashboardProps) {
+  const pathname = usePathname();
   const displayName = dashboardData.name ?? "Student";
   const profileLabel = getDisplayFirstName(displayName);
 
@@ -195,7 +280,11 @@ export default function StudentDashboard({
         overflowX: "hidden",
       }}
     >
-      <HeaderBar profileLabel={profileLabel} />
+      <HeaderBar
+        profileLabel={profileLabel}
+        navBasePath={navBasePath}
+        pathname={pathname}
+      />
 
       <main
         style={{
@@ -208,72 +297,102 @@ export default function StudentDashboard({
         <div
           style={{
             width: pagePanelWidth,
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: 4,
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
             padding: 0,
             borderRadius: 0,
             background: "transparent",
             boxShadow: "0 18px 40px rgba(0, 0, 0, 0.14)",
           }}
         >
-          {numeracyPanels.map((panel) => (
-            <Link
-              key={panel.title}
-              href={{ pathname: "/demo/student/song-choice", query: { activity: panel.selection } }}
-              aria-label={`Open ${panel.alt}`}
-              onClick={() => {
-                if (typeof window !== "undefined") {
-                  window.sessionStorage.setItem(
-                    "selectedDashboardActivity",
-                    JSON.stringify({ key: panel.selection, label: panel.title }),
-                  );
-                }
-              }}
-              style={{
-                background: "#CFFF04",
-                border: "2px solid #CFFF04",
-                borderRadius: 0,
-                padding: 0,
-                minHeight: 280,
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                boxShadow: "0 16px 35px rgba(0, 0, 0, 0.16)",
-                boxSizing: "border-box",
-                textDecoration: "none",
-                cursor: "pointer",
-                overflow: "hidden",
-              }}
-            >
-              <div
+          <section
+            aria-label="Numeracy activities"
+            style={{
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+              gap: 6,
+            }}
+          >
+            {numeracyPanels.map((panel) => (
+              <Link
+                key={panel.title}
+                href={{ pathname: "/demo/student/song-choice", query: { activity: panel.selection } }}
+                aria-label={`Open ${panel.alt}`}
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.sessionStorage.setItem(
+                      "selectedDashboardActivity",
+                      JSON.stringify({ key: panel.selection, label: panel.title }),
+                    );
+                  }
+                }}
                 style={{
-                  width: "100%",
-                  aspectRatio: "4 / 3",
-                  position: "relative",
-                  borderRadius: 0,
-                  overflow: "hidden",
                   background: "#CFFF04",
+                  border: "2px solid #CFFF04",
+                  borderRadius: 0,
+                  padding: 0,
+                  minHeight: 128,
+                  maxHeight: 148,
                   display: "flex",
-                  alignItems: "center",
+                  flexDirection: "column",
                   justifyContent: "center",
+                  alignItems: "center",
+                  boxShadow: "0 12px 26px rgba(0, 0, 0, 0.16)",
+                  boxSizing: "border-box",
+                  textDecoration: "none",
+                  cursor: "pointer",
+                  overflow: "hidden",
                 }}
               >
-                <Image
-                  src={panel.src}
-                  alt={panel.alt}
-                  fill
+                <div
                   style={{
-                    objectFit: "cover",
-                    objectPosition: "center",
-                    inset: "-4px 0",
+                    width: "100%",
+                    height: "100%",
+                    position: "relative",
+                    borderRadius: 0,
+                    overflow: "hidden",
+                    background: "#CFFF04",
                   }}
-                  priority={panel.title === "Number Bonds"}
-                />
-              </div>
-            </Link>
-          ))}
+                >
+                  <Image
+                    src={panel.src}
+                    alt={panel.alt}
+                    fill
+                    style={{
+                      objectFit: "cover",
+                      objectPosition: "center",
+                    }}
+                    priority={panel.title === "Number Bonds"}
+                  />
+                </div>
+              </Link>
+            ))}
+          </section>
+
+          <section
+            aria-label="Your Learning Queue"
+            style={{
+              background: "rgba(6, 11, 21, 0.72)",
+              border: "1px solid #FFFFFF1F",
+              minHeight: 160,
+              padding: "18px 20px",
+              boxSizing: "border-box",
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                color: "#FFFFFF",
+                fontSize: 24,
+                fontWeight: 700,
+                textAlign: "left",
+              }}
+            >
+              Your Learning Queue
+            </h2>
+          </section>
         </div>
       </main>
     </div>
