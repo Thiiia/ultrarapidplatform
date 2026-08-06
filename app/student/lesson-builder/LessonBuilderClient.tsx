@@ -13,6 +13,7 @@ import {
   projectToChart,
   projectToSidecarJson,
 } from "@/lib/editor/project-to-chart";
+import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { persistLaunchParams } from "@/lib/launch-handoff";
 import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
@@ -1598,14 +1599,12 @@ function HeaderBar({
 }
 
 function EditorActionBar({
-  saveStatus,
   isSaving,
   onBack,
   onLaunch,
   onSave,
   canLaunch,
 }: {
-  saveStatus: string;
   isSaving: boolean;
   onBack: () => void;
   onLaunch: () => void;
@@ -1690,22 +1689,6 @@ function EditorActionBar({
           >
             Play
           </button>
-
-          <div
-            aria-live="polite"
-            style={{
-              minWidth: 0,
-              color: saveStatus === "Saved" ? "#CFFF04" : "#FFFFFF99",
-              fontSize: 12,
-              fontWeight: 700,
-              textAlign: "right",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {saveStatus}
-          </div>
         </div>
 
         <button
@@ -3830,7 +3813,10 @@ function EquationTimeline({
 }) {
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
   const waveformContainerRef = useRef<HTMLDivElement | null>(null);
-  const wavesurferRef = useRef<WaveSurfer | null>(null);
+  const wavesurferRef = useRef<{
+    load(url: string): void;
+    destroy(): void;
+  } | null>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [draggedMechanicMarker, setDraggedMechanicMarker] = useState<{
     eventId: string;
@@ -7573,10 +7559,16 @@ export default function LessonBuilderClient({
   studentName = "Student",
   navBasePath = "/student",
 }: LessonBuilderClientProps) {
+  type EditorStoreState = ReturnType<typeof useEditorStore.getState>;
+
   const router = useRouter();
-  const project = useEditorStore((s) => s.project);
-  const setProject = useEditorStore((s) => s.setProject);
-  const setStoreSidecar = useEditorStore((s) => s.setSidecar);
+  const project = useEditorStore((state: EditorStoreState) => state.project);
+  const setProject = useEditorStore(
+    (state: EditorStoreState) => state.setProject,
+  );
+  const setStoreSidecar = useEditorStore(
+    (state: EditorStoreState) => state.setSidecar,
+  );
 
   const [chartFile, setChartFile] = useState("");
   const [metadata, setMetadata] =
@@ -8606,9 +8598,15 @@ function handleToggleDragTarget(
     router.push(`${navBasePath}/song-choice`);
   }
 
-  function handleLaunchGame() {
+  async function handleLaunchGame() {
     if (!selectedSongLaunch) {
       setSaveStatus("Choose a song from song choice before launching the game.");
+      return;
+    }
+
+    const didSave = await handleSaveToSupabase();
+
+    if (!didSave) {
       return;
     }
 
@@ -8616,6 +8614,19 @@ function handleToggleDragTarget(
     const launchRoute = navBasePath.startsWith("/demo")
       ? "/demo/launch"
       : `${navBasePath}/game`;
+    const launchQuery = launchParams.toString();
+    const launchUrl = `${launchRoute}?${launchQuery}`;
+
+    appendSongFlowDebug(
+      "lesson-builder:launch:play",
+      "Play pressed. Launch URL and params prepared.",
+      {
+        launchRoute,
+        launchQuery,
+        launchUrl,
+        selectedSongLaunch,
+      },
+    );
 
     persistLaunchParams(launchParams);
     router.push(launchRoute);
@@ -8624,7 +8635,7 @@ function handleToggleDragTarget(
   async function handleSaveToSupabase() {
     if (!selectedSongStorage) {
       setSaveStatus("No selected song asset is loaded.");
-      return;
+      return false;
     }
 
     setIsSaving(true);
@@ -8709,10 +8720,12 @@ function handleToggleDragTarget(
       setChartFile(chartText);
       setStoreSidecar(timelineSidecar as StoreSidecarPayload);
       setSaveStatus("Saved");
+      return true;
     } catch (error) {
       setSaveStatus(
         error instanceof Error ? error.message : "Unable to save lesson files",
       );
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -9907,7 +9920,6 @@ function handleToggleDragTarget(
       />
 
       <EditorActionBar
-        saveStatus={loadError || saveStatus}
         isSaving={isSaving}
         onBack={handleBackToSongChoice}
         onLaunch={handleLaunchGame}
@@ -10273,6 +10285,8 @@ function handleToggleDragTarget(
           />
         </section>
       </main>
+
+      <SongFlowDebugger title="Lesson Builder Launch Debugger" />
 
     </div>
   );
