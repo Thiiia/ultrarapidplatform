@@ -7202,7 +7202,10 @@ function Rctm2ModePanel({
       }
 
       if (draft.mechanic === "drag") {
-        const sourceHitId = dragSourceHitIds[draft.id] ?? draft.dragTargets?.[0]?.sourceHitId;
+        const hasCompletedTarget = Array.isArray(draft.dragTargets) && draft.dragTargets.length > 0;
+        const sourceHitId = hasCompletedTarget
+          ? dragSourceHitIds[draft.id] ?? draft.dragTargets?.[0]?.sourceHitId
+          : undefined;
 
         if (!sourceHitId) {
           return;
@@ -7250,6 +7253,10 @@ function Rctm2ModePanel({
       const dragInstances = eventSlot.mechanicInstances?.drag ?? [];
 
       dragInstances.forEach((instance) => {
+        if (!instance.dragTargets?.length) {
+          return;
+        }
+
         const dragStart = timelineTickToSeconds(instance.tick ?? eventSlot.tick);
         const dragEnd = timelineTickToSeconds(instance.endTick ?? instance.tick ?? eventSlot.tick);
 
@@ -7265,6 +7272,10 @@ function Rctm2ModePanel({
     rtcmDraftMechanics
       .filter((draft) => draft.mechanic === "drag")
       .forEach((draft) => {
+        if (!draft.dragTargets?.length) {
+          return;
+        }
+
         const dragStart = timelineTickToSeconds(draft.tick);
         const dragEnd = timelineTickToSeconds(draft.endTick ?? draft.tick);
 
@@ -7272,7 +7283,7 @@ function Rctm2ModePanel({
           return;
         }
 
-        const tokenIndex = draft.dragTargets?.[0]?.tokenIndex ?? 1;
+        const tokenIndex = draft.dragTargets[0]?.tokenIndex ?? 1;
         counts[tokenIndex === 0 ? "leftBond" : "rightBond"] += 1;
       });
 
@@ -7297,6 +7308,10 @@ function Rctm2ModePanel({
       const instances = eventSlot.mechanicInstances?.drag ?? [];
 
       instances.forEach((instance, instanceIndex) => {
+        if (!instance.dragTargets?.length) {
+          return;
+        }
+
         const window = getMechanicInstanceTimeWindowSeconds(
           eventSlot,
           "drag",
@@ -7317,7 +7332,7 @@ function Rctm2ModePanel({
         const progress =
           (currentSongSeconds - window.startSeconds) /
           (window.endSeconds - window.startSeconds);
-        const tokenIndex = instance.dragTargets?.[0]?.tokenIndex ?? 1;
+        const tokenIndex = instance.dragTargets[0]?.tokenIndex ?? 1;
         const startPoint = dragStartPoints[instance.id];
 
         if (!startPoint) {
@@ -7336,6 +7351,10 @@ function Rctm2ModePanel({
     rtcmDraftMechanics
       .filter((draft) => draft.mechanic === "drag" && typeof draft.endTick === "number")
       .forEach((draft) => {
+        if (!draft.dragTargets?.length) {
+          return;
+        }
+
         const startSeconds = timelineTickToSeconds(draft.tick);
         const endSeconds = timelineTickToSeconds(draft.endTick ?? draft.tick);
 
@@ -7348,7 +7367,7 @@ function Rctm2ModePanel({
         }
 
         const progress = (currentSongSeconds - startSeconds) / (endSeconds - startSeconds);
-        const tokenIndex = draft.dragTargets?.[0]?.tokenIndex ?? 1;
+        const tokenIndex = draft.dragTargets[0]?.tokenIndex ?? 1;
         const startPoint = dragStartPoints[draft.id];
 
         if (!startPoint) {
@@ -7413,8 +7432,23 @@ function Rctm2ModePanel({
     onAddHitMarker(toNormalizedPoint(nextPoint));
   }
 
-  function handleDropIntoBond(zone: Rctm2BondZone) {
+  function handleDropIntoBond(
+    zone: Rctm2BondZone,
+    event: React.DragEvent<HTMLDivElement>,
+  ) {
     if (!draggingHitId) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const centerInsideInterior =
+      event.clientX >= rect.left + circleRadius &&
+      event.clientX <= rect.right - circleRadius &&
+      event.clientY >= rect.top + circleRadius &&
+      event.clientY <= rect.bottom - circleRadius;
+
+    if (!centerInsideInterior) {
+      didDropRef.current = false;
       return;
     }
 
@@ -7443,7 +7477,7 @@ function Rctm2ModePanel({
         }}
         onDrop={(event) => {
           event.preventDefault();
-          handleDropIntoBond(zone);
+          handleDropIntoBond(zone, event);
         }}
         style={{
           width: bondBoxWidth,
