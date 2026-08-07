@@ -146,6 +146,7 @@ type TimelineEventSlot = {
   id: string;
   tick: number;
   endTick?: number;
+  rctm2Number?: number;
   counts: MechanicCounts;
   assignments: Record<GameplayMechanic, SavedEquation | null>;
   mechanicInstances: Record<GameplayMechanic, MechanicInstanceState[]>;
@@ -221,12 +222,6 @@ type Rctm2Circle = {
   x: number;
   y: number;
   zone: Rctm2CircleZone;
-};
-
-type Rctm2TimelineMarker = {
-  id: string;
-  mechanic: "hit" | "drag";
-  seconds: number;
 };
 
 /* VERIFIED_TIMELINE_HIDDEN_SCROLL_DRAG_HANDLE_PATCH */
@@ -3813,7 +3808,6 @@ function getTimelineMarkerShapeStyles(mechanic: GameplayMechanic) {
 function EquationTimeline({
   events,
   rtcmDraftMechanics = [],
-  rctm2TimelineMarkers = [],
   activeEventId,
   onSelectEvent,
   currentSongSeconds,
@@ -3829,7 +3823,6 @@ function EquationTimeline({
 }: {
   events: TimelineEventSlot[];
   rtcmDraftMechanics?: RtcmDraftMechanic[];
-  rctm2TimelineMarkers?: Rctm2TimelineMarker[];
   activeEventId: string | null;
   onSelectEvent: (eventId: string) => void;
   currentSongSeconds: number;
@@ -4491,7 +4484,9 @@ function EquationTimeline({
                       }}
                     >
                       <span style={{ fontSize: 11, fontWeight: 900 }}>
-                        Event {index + 1}
+                        {eventSlot.rctm2Number
+                          ? `Event ${index + 1} · #${eventSlot.rctm2Number}`
+                          : `Event ${index + 1}`}
                       </span>
                     </button>
 
@@ -4537,10 +4532,6 @@ function EquationTimeline({
               mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF";
             const markerShapeStyle = getTimelineMarkerShapeStyles(mechanic);
             const draftMechanics = rtcmDraftMechanics.filter((draft) => draft.mechanic === mechanic);
-            const rctm2MarkersForMechanic =
-              mechanic === "hit" || mechanic === "drag"
-                ? rctm2TimelineMarkers.filter((marker) => marker.mechanic === mechanic)
-                : [];
 
             return (
               <div
@@ -4811,32 +4802,6 @@ function EquationTimeline({
                     })
                   : null}
 
-                {rctm2MarkersForMechanic.map((marker) => {
-                  const markerLeft = Math.min(
-                    trackWidth,
-                    Math.max(0, marker.seconds * pixelsPerSecond),
-                  );
-
-                  return (
-                    <span
-                      key={marker.id}
-                      aria-hidden="true"
-                      style={{
-                        position: "absolute",
-                        left: markerLeft,
-                        top: "50%",
-                        width: 12,
-                        height: 12,
-                        border: `1px solid ${color}`,
-                        background: "rgba(255,255,255,0.12)",
-                        boxShadow: `0 0 10px ${color}88`,
-                        ...markerShapeStyle,
-                        opacity: 0.95,
-                        pointerEvents: "none",
-                      }}
-                    />
-                  );
-                })}
               </div>
             );
           })}
@@ -6964,18 +6929,30 @@ function RtcmModePanel({
 }
 
 function Rctm2ModePanel({
-  currentSongSeconds,
   onAddHitMarker,
-  onAddDragMarker,
+  onBeginDragMarker,
+  onCompleteDragMarker,
+  onCancelDragMarker,
+  onCreateEvent,
+  onDeleteEvent,
+  eventRangeStartTick,
+  canDeleteEvent,
 }: {
-  currentSongSeconds: number;
   onAddHitMarker: () => void;
-  onAddDragMarker: () => void;
+  onBeginDragMarker: () => string;
+  onCompleteDragMarker: (draftId: string) => void;
+  onCancelDragMarker: (draftId: string) => void;
+  onCreateEvent: (numberValue: number) => void;
+  onDeleteEvent: () => void;
+  eventRangeStartTick: number | null;
+  canDeleteEvent: boolean;
 }) {
   const [numberValue, setNumberValue] = useState("1");
   const [circles, setCircles] = useState<Rctm2Circle[]>([]);
   const [hoverPoint, setHoverPoint] = useState<{ x: number; y: number } | null>(null);
   const [draggingCircleId, setDraggingCircleId] = useState<string | null>(null);
+  const draggingDraftIdRef = useRef<string | null>(null);
+  const didDropRef = useRef(false);
   const displayWindowRef = useRef<HTMLDivElement | null>(null);
 
   const circleRadius = 16;
@@ -7045,8 +7022,13 @@ function Rctm2ModePanel({
       }),
     );
 
-    onAddDragMarker();
+    if (draggingDraftIdRef.current) {
+      onCompleteDragMarker(draggingDraftIdRef.current);
+    }
+
+    didDropRef.current = true;
     setDraggingCircleId(null);
+    draggingDraftIdRef.current = null;
   }
 
   function renderBondBox(
@@ -7124,15 +7106,52 @@ function Rctm2ModePanel({
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: "center",
           gap: 16,
           color: "#FFFFFF",
           fontSize: 12,
           fontWeight: 800,
         }}
       >
-        <span>{`Time ${formatSongTime(currentSongSeconds)}`}</span>
-        <span>{`bond_size = ${bondSize}`}</span>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          <button
+            type="button"
+            onClick={() => onCreateEvent(safeNumber)}
+            style={{
+              minWidth: 132,
+              minHeight: 38,
+              borderRadius: 10,
+              border: `1px solid ${eventRangeStartTick !== null ? "#CFFF04" : subtleBorderColor}`,
+              background: eventRangeStartTick !== null ? "rgba(207,255,4,0.14)" : "#252525",
+              color: eventRangeStartTick !== null ? "#CFFF04" : "#FFFFFFDD",
+              fontSize: 11,
+              fontWeight: 900,
+              cursor: "pointer",
+              padding: "0 12px",
+            }}
+          >
+            {eventRangeStartTick === null ? "Create Event" : "Finalize Event"}
+          </button>
+          <button
+            type="button"
+            onClick={onDeleteEvent}
+            disabled={!canDeleteEvent}
+            style={{
+              minWidth: 120,
+              minHeight: 38,
+              borderRadius: 10,
+              border: `1px solid ${subtleBorderColor}`,
+              background: canDeleteEvent ? "#252525" : "#1D1D1D",
+              color: canDeleteEvent ? "#FFFFFFDD" : "#FFFFFF55",
+              fontSize: 11,
+              fontWeight: 900,
+              cursor: canDeleteEvent ? "pointer" : "not-allowed",
+              padding: "0 12px",
+            }}
+          >
+            Delete Event
+          </button>
+        </div>
       </div>
 
       <div
@@ -7277,12 +7296,28 @@ function Rctm2ModePanel({
               type="button"
               data-rctm2-circle="true"
               draggable
+              onMouseDown={() => {
+                if (!draggingDraftIdRef.current) {
+                  draggingDraftIdRef.current = onBeginDragMarker();
+                }
+              }}
               onDragStart={(event) => {
                 setDraggingCircleId(circle.id);
+                didDropRef.current = false;
                 event.dataTransfer.setData("text/plain", circle.id);
                 event.dataTransfer.effectAllowed = "move";
+                if (!draggingDraftIdRef.current) {
+                  draggingDraftIdRef.current = onBeginDragMarker();
+                }
               }}
-              onDragEnd={() => setDraggingCircleId(null)}
+              onDragEnd={() => {
+                setDraggingCircleId(null);
+                if (!didDropRef.current && draggingDraftIdRef.current) {
+                  onCancelDragMarker(draggingDraftIdRef.current);
+                }
+                draggingDraftIdRef.current = null;
+                didDropRef.current = false;
+              }}
               style={{
                 position: "absolute",
                 left: circle.x,
@@ -8057,8 +8092,9 @@ export default function LessonBuilderClient({
     useState<string | null>(null);
   const [pendingRangeSelection, setPendingRangeSelection] =
     useState<PendingMechanicRangeSelection | null>(null);
-  const [rctm2TimelineMarkers, setRctm2TimelineMarkers] =
-    useState<Rctm2TimelineMarker[]>([]);
+  const [rctm2PendingEventNumber, setRctm2PendingEventNumber] =
+    useState<number | null>(null);
+  const timelineRehydrateSourceRef = useRef<SidecarPayload>(emptySidecar);
 
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
@@ -8346,6 +8382,7 @@ export default function LessonBuilderClient({
     equationSlotCount: number | null,
     eventCounts: MechanicCounts[] = [],
     eventTicks: number[] = [],
+    nextMode: "event" | "equation" | "rctm1" | "rctm2" = "event",
   ) {
     const nextEvents = timelineEventsFromSidecar(
       nextSidecar,
@@ -8371,6 +8408,7 @@ export default function LessonBuilderClient({
     });
 
     setTimelineEvents(nextEvents);
+    timelineRehydrateSourceRef.current = nextSidecar;
     setSavedEquations((current) => {
       const existingStates = new Set(
         current.map((equation) => tokensToEquationState(equation.tokens)),
@@ -8389,7 +8427,7 @@ export default function LessonBuilderClient({
       return merged;
     });
     setActiveEventId(nextEvents[0]?.id ?? null);
-    setMode("event");
+    setMode(nextMode);
     setStoreSidecar(
       sidecarFromTimelineEvents(nextEvents) as StoreSidecarPayload,
     );
@@ -8464,28 +8502,44 @@ export default function LessonBuilderClient({
   }
 
   function handleToggleRctm1Mode() {
-    setMode((current) => {
-      const nextMode = current === "rctm1" ? "event" : "rctm1";
+    if (mode === "rctm1") {
+      setMode("event");
+      return;
+    }
 
-      if (nextMode === "rctm1") {
-        setActiveEventId(null);
-      }
+    setTimelineEvents([]);
+    setRtcmDraftMechanics([]);
+    setRtcmEventRangeStartTick(null);
+    setRtcmPendingHold(null);
+    setRctm2PendingEventNumber(null);
+    setPendingRangeSelection(null);
+    setActiveEventId(null);
 
-      return nextMode;
-    });
+    const rehydratedSidecar = mergeTimelineSidecarSources(
+      timelineRehydrateSourceRef.current,
+      chartFile,
+      metadata,
+    );
+
+    loadSidecarIntoTimeline(rehydratedSidecar, null, [], [], "rctm1");
     setCenterChoice(null);
   }
 
   function handleToggleRctm2Mode() {
-    setMode((current) => {
-      const nextMode = current === "rctm2" ? "event" : "rctm2";
+    if (mode === "rctm2") {
+      setMode("event");
+      return;
+    }
 
-      if (nextMode === "rctm2") {
-        setActiveEventId(null);
-      }
-
-      return nextMode;
-    });
+    timelineRehydrateSourceRef.current = sidecarFromTimelineEvents(timelineEvents);
+    setTimelineEvents([]);
+    setRtcmDraftMechanics([]);
+    setRtcmEventRangeStartTick(null);
+    setRtcmPendingHold(null);
+    setRctm2PendingEventNumber(null);
+    setPendingRangeSelection(null);
+    setActiveEventId(null);
+    setMode("rctm2");
     setCenterChoice(null);
   }
 
@@ -8529,20 +8583,25 @@ export default function LessonBuilderClient({
     return draftId;
   }
 
-  function handleStartRtcmEventCreation() {
-    setMode("rctm1");
+  function handleStartRtcmEventCreation(pendingRctm2Number: number | null = null) {
     setCenterChoice(null);
     setRtcmEventRangeStartTick(Number(currentSongSeconds.toFixed(3)));
+    setRctm2PendingEventNumber(pendingRctm2Number);
     setSaveStatus(`Event start set at ${formatSongTime(currentSongSeconds, isAdvancedMode)}. Drag the playhead to choose the end time.`);
   }
 
-  function handleToggleRtcmEventCreation() {
+  function handleToggleRtcmEventCreation(pendingRctm2Number: number | null = null) {
     if (rtcmEventRangeStartTick === null) {
-      handleStartRtcmEventCreation();
+      handleStartRtcmEventCreation(pendingRctm2Number);
       return;
     }
 
-    handleFinalizeRtcmEventCreation();
+    handleFinalizeRtcmEventCreation({
+      rctm2Number:
+        mode === "rctm2"
+          ? (rctm2PendingEventNumber ?? pendingRctm2Number ?? undefined)
+          : undefined,
+    });
   }
 
   function handleStartRtcmHold(mechanic: "spin" | "drag") {
@@ -8582,7 +8641,7 @@ export default function LessonBuilderClient({
     setSaveStatus(`${rtcmPendingHold.mechanic.toUpperCase()} drafted to ${formatSongTime(currentSongSeconds, isAdvancedMode)}.`);
   }
 
-  function handleFinalizeRtcmEventCreation() {
+  function handleFinalizeRtcmEventCreation(options: { rctm2Number?: number } = {}) {
     if (rtcmEventRangeStartTick === null) {
       return;
     }
@@ -8621,6 +8680,13 @@ export default function LessonBuilderClient({
         finalEndTick,
       );
 
+      if (typeof options.rctm2Number === "number") {
+        nextEvent.rctm2Number = Math.max(
+          1,
+          Math.min(20, Math.round(options.rctm2Number)),
+        );
+      }
+
       const nextDraftsByMechanic: Record<GameplayMechanic, MechanicInstanceState[]> = {
         hit: [],
         spin: [],
@@ -8658,6 +8724,7 @@ export default function LessonBuilderClient({
       current.filter((draft) => !selectedDrafts.some((selected) => selected.id === draft.id)),
     );
     setRtcmEventRangeStartTick(null);
+    setRctm2PendingEventNumber(null);
     setSaveStatus(
       `Created event ${formatSongTime(startTick, isAdvancedMode)} - ${formatSongTime(finalEndTick, isAdvancedMode)}.`,
     );
@@ -8702,14 +8769,17 @@ export default function LessonBuilderClient({
 
   function handleDeleteActiveEvent() {
     const playheadEvent =
-      mode === "rctm1"
+      mode === "rctm1" || mode === "rctm2"
         ? findTimelineEventAtSeconds(timelineEvents, currentSongSeconds)
         : null;
-    const targetEventId = mode === "rctm1" ? playheadEvent?.id ?? null : activeEventId;
+    const targetEventId =
+      mode === "rctm1" || mode === "rctm2"
+        ? playheadEvent?.id ?? null
+        : activeEventId;
 
     if (!targetEventId) {
       setSaveStatus(
-        mode === "rctm1"
+        mode === "rctm1" || mode === "rctm2"
           ? "Move the playhead over an event to delete it."
           : "Select an event to delete.",
       );
@@ -8735,7 +8805,7 @@ export default function LessonBuilderClient({
 
       syncTimelineFilesFromEvents(nextEvents);
 
-      if (mode === "rctm1") {
+      if (mode === "rctm1" || mode === "rctm2") {
         setActiveEventId(null);
       } else {
         const nextActiveEvent = nextEvents[deleteIndex] ?? nextEvents[deleteIndex - 1] ?? null;
@@ -9595,7 +9665,12 @@ function handleToggleDragTarget(
 
   function handleFinalizeTimelineInteraction() {
     if (rtcmEventRangeStartTick !== null) {
-      handleFinalizeRtcmEventCreation();
+      handleFinalizeRtcmEventCreation({
+        rctm2Number:
+          mode === "rctm2" && rctm2PendingEventNumber !== null
+            ? rctm2PendingEventNumber
+            : undefined,
+      });
       return;
     }
 
@@ -9708,6 +9783,7 @@ function handleToggleDragTarget(
 
   function syncTimelineFilesFromEvents(nextEvents: TimelineEventSlot[]) {
     const nextSidecar = sidecarFromTimelineEvents(nextEvents);
+    timelineRehydrateSourceRef.current = nextSidecar;
 
     setStoreSidecar(nextSidecar as StoreSidecarPayload);
 
@@ -10050,14 +10126,38 @@ function handleToggleDragTarget(
   }
 
   function handleAddRctm2TimelineMarker(mechanic: "hit" | "drag") {
-    setRctm2TimelineMarkers((current) => [
-      ...current,
-      {
-        id: makeId(`rctm2-${mechanic}`),
-        mechanic,
-        seconds: Number(currentSongSeconds.toFixed(3)),
-      },
-    ]);
+    if (mechanic === "hit") {
+      addRtcmDraftMechanic("hit", currentSongSeconds);
+    }
+  }
+
+  function handleBeginRctm2DragMarker() {
+    return addRtcmDraftMechanic("drag", currentSongSeconds, {
+      endSeconds: currentSongSeconds,
+    });
+  }
+
+  function handleCompleteRctm2DragMarker(draftId: string) {
+    const endTick = Number(currentSongSeconds.toFixed(3));
+
+    setRtcmDraftMechanics((current) =>
+      current.map((draft) => {
+        if (draft.id !== draftId || draft.mechanic !== "drag") {
+          return draft;
+        }
+
+        return {
+          ...draft,
+          endTick: Math.max(draft.tick, endTick),
+        };
+      }),
+    );
+  }
+
+  function handleCancelRctm2DragMarker(draftId: string) {
+    setRtcmDraftMechanics((current) =>
+      current.filter((draft) => draft.id !== draftId),
+    );
   }
 
   function extractDraftMechanicsFromEvent(eventSlot: TimelineEventSlot) {
@@ -10437,9 +10537,14 @@ function handleToggleDragTarget(
           ) : isRctm2Mode ? (
             <div style={{ flex: 1, minWidth: 0, height: "100%" }}>
               <Rctm2ModePanel
-                currentSongSeconds={currentSongSeconds}
                 onAddHitMarker={() => handleAddRctm2TimelineMarker("hit")}
-                onAddDragMarker={() => handleAddRctm2TimelineMarker("drag")}
+                onBeginDragMarker={handleBeginRctm2DragMarker}
+                onCompleteDragMarker={handleCompleteRctm2DragMarker}
+                onCancelDragMarker={handleCancelRctm2DragMarker}
+                onCreateEvent={handleToggleRtcmEventCreation}
+                onDeleteEvent={handleDeleteActiveEvent}
+                eventRangeStartTick={rtcmEventRangeStartTick}
+                canDeleteEvent={Boolean(rtcmPlayheadEvent)}
               />
             </div>
           ) : (
@@ -10740,7 +10845,6 @@ function handleToggleDragTarget(
           <EquationTimeline
             events={timelineEvents}
             rtcmDraftMechanics={rtcmDraftMechanics}
-            rctm2TimelineMarkers={rctm2TimelineMarkers}
             activeEventId={activeEventId}
             onSelectEvent={handleSelectEvent}
             currentSongSeconds={currentSongSeconds}
