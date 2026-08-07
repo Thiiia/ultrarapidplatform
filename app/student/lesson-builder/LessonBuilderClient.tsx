@@ -6986,9 +6986,11 @@ function Rctm2ModePanel({
   const [isDragTimingArmed, setIsDragTimingArmed] = useState(false);
   const draggingDraftIdRef = useRef<string | null>(null);
   const didDropRef = useRef(false);
+  const dragOverlayRef = useRef<HTMLDivElement | null>(null);
   const displayWindowRef = useRef<HTMLDivElement | null>(null);
   const dragPathSurfaceRef = useRef<HTMLDivElement | null>(null);
   const [dragPathSurfaceSize, setDragPathSurfaceSize] = useState({ width: 0, height: 0 });
+  const [dragOverlaySize, setDragOverlaySize] = useState({ width: 0, height: 0 });
   const leftBondRef = useRef<HTMLDivElement | null>(null);
   const rightBondRef = useRef<HTMLDivElement | null>(null);
   const [displayWindowSize, setDisplayWindowSize] = useState({ width: 0, height: 0 });
@@ -7000,7 +7002,7 @@ function Rctm2ModePanel({
   const safeNumber = Number.isFinite(parsedNumber)
     ? Math.max(1, Math.min(20, parsedNumber))
     : 1;
-  const bondSize = Math.ceil(safeNumber / 2);
+  const bondSize = Math.ceil(safeNumber / 2) + 1;
   const bondColumns = Math.max(1, Math.min(5, bondSize));
   const bondRows = Math.max(1, Math.ceil(bondSize / bondColumns));
   const bondBoxWidth = bondColumns * circleDiameter + (bondColumns - 1) * circleGap + 24;
@@ -7024,6 +7026,29 @@ function Rctm2ModePanel({
 
     updateSurfaceSize();
     const resizeObserver = new ResizeObserver(() => updateSurfaceSize());
+    resizeObserver.observe(element);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    const element = dragOverlayRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    const updateOverlaySize = () => {
+      setDragOverlaySize({
+        width: element.clientWidth,
+        height: element.clientHeight,
+      });
+    };
+
+    updateOverlaySize();
+    const resizeObserver = new ResizeObserver(() => updateOverlaySize());
     resizeObserver.observe(element);
 
     return () => {
@@ -7078,38 +7103,38 @@ function Rctm2ModePanel({
     };
   }
 
-  function projectDisplayPointToSurface(point: Rctm2Point) {
-    const surface = dragPathSurfaceRef.current;
+  function projectDisplayPointToOverlay(point: Rctm2Point) {
+    const overlay = dragOverlayRef.current;
     const display = displayWindowRef.current;
 
-    if (!surface || !display) {
+    if (!overlay || !display) {
       return null;
     }
 
-    const surfaceRect = surface.getBoundingClientRect();
+    const overlayRect = overlay.getBoundingClientRect();
     const displayRect = display.getBoundingClientRect();
     const localPoint = fromNormalizedPoint(point);
 
     return {
-      x: displayRect.left - surfaceRect.left + localPoint.x,
-      y: displayRect.top - surfaceRect.top + localPoint.y,
+      x: displayRect.left - overlayRect.left + localPoint.x,
+      y: displayRect.top - overlayRect.top + localPoint.y,
     };
   }
 
-  function getBondCenterInSurface(zone: Rctm2BondZone) {
-    const surface = dragPathSurfaceRef.current;
+  function getBondCenterInOverlay(zone: Rctm2BondZone) {
+    const overlay = dragOverlayRef.current;
     const target = zone === "leftBond" ? leftBondRef.current : rightBondRef.current;
 
-    if (!surface || !target) {
+    if (!overlay || !target) {
       return null;
     }
 
-    const surfaceRect = surface.getBoundingClientRect();
+    const overlayRect = overlay.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
 
     return {
-      x: targetRect.left - surfaceRect.left + targetRect.width / 2,
-      y: targetRect.top - surfaceRect.top + targetRect.height / 2,
+      x: targetRect.left - overlayRect.left + targetRect.width / 2,
+      y: targetRect.top - overlayRect.top + targetRect.height / 2,
     };
   }
 
@@ -7534,6 +7559,7 @@ function Rctm2ModePanel({
       </div>
 
       <div
+        ref={dragOverlayRef}
         style={{
           minHeight: 0,
           borderRadius: 14,
@@ -7543,8 +7569,59 @@ function Rctm2ModePanel({
           display: "grid",
           gridTemplateRows: "auto minmax(0, 1fr)",
           gap: 14,
+          position: "relative",
         }}
       >
+        {dragOverlaySize.width > 0 && dragOverlaySize.height > 0 ? (
+          <svg
+            aria-hidden="true"
+            width={dragOverlaySize.width}
+            height={dragOverlaySize.height}
+            viewBox={`0 0 ${dragOverlaySize.width} ${dragOverlaySize.height}`}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              overflow: "visible",
+              pointerEvents: "none",
+              zIndex: 4,
+            }}
+          >
+            {activeDragAnimations.map((animation) => {
+              const start = projectDisplayPointToOverlay(animation.startPoint);
+              const end = getBondCenterInOverlay(animation.zone);
+
+              if (!start || !end) {
+                return null;
+              }
+
+              const control = {
+                x: (start.x + end.x) / 2,
+                y: Math.max(16, Math.min(start.y, end.y) - Math.max(48, Math.abs(end.x - start.x) * 0.28)),
+              };
+              const point = pointOnQuadraticPath(
+                start,
+                control,
+                end,
+                animation.progress,
+              );
+
+              return (
+                <circle
+                  key={animation.id}
+                  cx={point.x}
+                  cy={point.y}
+                  r={circleRadius}
+                  fill="#B45CFF"
+                  stroke="#E9D4FF"
+                  strokeWidth="1.5"
+                />
+              );
+            })}
+          </svg>
+        ) : null}
+
         <div
           ref={dragPathSurfaceRef}
           style={{
@@ -7554,58 +7631,9 @@ function Rctm2ModePanel({
             alignItems: "center",
             gap: 12,
             position: "relative",
+            zIndex: 1,
           }}
         >
-          {dragPathSurfaceSize.width > 0 && dragPathSurfaceSize.height > 0 ? (
-            <svg
-              aria-hidden="true"
-              width={dragPathSurfaceSize.width}
-              height={dragPathSurfaceSize.height}
-              viewBox={`0 0 ${dragPathSurfaceSize.width} ${dragPathSurfaceSize.height}`}
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                overflow: "visible",
-                pointerEvents: "none",
-                zIndex: 0,
-              }}
-            >
-              {activeDragAnimations.map((animation) => {
-                const start = projectDisplayPointToSurface(animation.startPoint);
-                const end = getBondCenterInSurface(animation.zone);
-
-                if (!start || !end) {
-                  return null;
-                }
-
-                const control = {
-                  x: (start.x + end.x) / 2,
-                  y: Math.max(16, Math.min(start.y, end.y) - Math.max(48, Math.abs(end.x - start.x) * 0.28)),
-                };
-                const point = pointOnQuadraticPath(
-                  start,
-                  control,
-                  end,
-                  animation.progress,
-                );
-
-                return (
-                  <circle
-                    key={animation.id}
-                    cx={point.x}
-                    cy={point.y}
-                    r={circleRadius}
-                    fill="#B45CFF"
-                    stroke="#E9D4FF"
-                    strokeWidth="1.5"
-                  />
-                );
-              })}
-            </svg>
-          ) : null}
-
           <div style={{ display: "grid", justifyItems: "center", gap: 8, position: "relative", zIndex: 1 }}>
             <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>
               left bond
@@ -7723,6 +7751,7 @@ function Rctm2ModePanel({
             overflow: "hidden",
             cursor: "crosshair",
             boxShadow: isDraggingGesture ? "inset 0 0 0 1px rgba(180,92,255,0.35)" : "none",
+            zIndex: 1,
           }}
         >
           {hitDisplayStates.solid.map((circle) => {
@@ -7734,7 +7763,6 @@ function Rctm2ModePanel({
               type="button"
               data-rctm2-circle="true"
               draggable
-              onMouseDown={() => beginDragTiming(circle.point, circle.id)}
               onDragStart={(event) => {
                 setDraggingHitId(circle.id);
                 didDropRef.current = false;
