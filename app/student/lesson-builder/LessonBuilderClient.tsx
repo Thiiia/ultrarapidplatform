@@ -7613,8 +7613,8 @@ function Rctm2ModePanel({
                   cx={point.x}
                   cy={point.y}
                   r={circleRadius}
-                  fill="#B45CFF"
-                  stroke="#E9D4FF"
+                  fill="#2EA7FF"
+                  stroke="#BDE4FF"
                   strokeWidth="1.5"
                 />
               );
@@ -7665,7 +7665,7 @@ function Rctm2ModePanel({
                 width: 110,
                 height: 52,
                 borderRadius: 12,
-                border: `1px solid ${isDraggingGesture ? "#B45CFFAA" : subtleBorderColor}`,
+                border: `1px solid ${isDraggingGesture ? "rgba(46,167,255,0.65)" : subtleBorderColor}`,
                 background: "#192232",
                 display: "grid",
                 placeItems: "center",
@@ -7675,7 +7675,7 @@ function Rctm2ModePanel({
                 textTransform: "uppercase",
                 gap: 3,
                 paddingTop: 4,
-                boxShadow: isDraggingGesture ? "0 0 16px rgba(180,92,255,0.35)" : "none",
+                boxShadow: isDraggingGesture ? "0 0 16px rgba(46,167,255,0.35)" : "none",
               }}
             >
               <span>number box</span>
@@ -7745,12 +7745,12 @@ function Rctm2ModePanel({
           style={{
             minHeight: 0,
             borderRadius: 14,
-            border: `1px solid ${isDraggingGesture ? "#B45CFFAA" : subtleBorderColor}`,
+            border: `1px solid ${isDraggingGesture ? "rgba(46,167,255,0.65)" : subtleBorderColor}`,
             background: "#0A0F18",
             position: "relative",
             overflow: "hidden",
             cursor: "crosshair",
-            boxShadow: isDraggingGesture ? "inset 0 0 0 1px rgba(180,92,255,0.35)" : "none",
+            boxShadow: isDraggingGesture ? "inset 0 0 0 1px rgba(46,167,255,0.35)" : "none",
             zIndex: 1,
           }}
         >
@@ -7786,11 +7786,9 @@ function Rctm2ModePanel({
                 width: circleDiameter,
                 height: circleDiameter,
                 borderRadius: 999,
-                border: `1px solid ${isDragTimingArmed ? "#D2A9FF" : "rgba(46,167,255,0.85)"}`,
-                background: isDragTimingArmed ? "#B45CFF" : "#2EA7FF",
-                boxShadow: isDragTimingArmed
-                  ? "0 0 16px rgba(180,92,255,0.62)"
-                  : "0 0 10px rgba(46,167,255,0.55)",
+                border: "1px solid rgba(46,167,255,0.85)",
+                background: "#2EA7FF",
+                boxShadow: "0 0 10px rgba(46,167,255,0.55)",
                 transform: "translate(-50%, -50%)",
                 cursor: "grab",
                 padding: 0,
