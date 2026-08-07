@@ -217,6 +217,10 @@ type TimelineMarkerEdge = "start" | "end";
 
 type Rctm2CircleZone = "display" | "leftBond" | "rightBond";
 type Rctm2BondZone = "leftBond" | "rightBond";
+type Rctm2Point = {
+  x: number;
+  y: number;
+};
 
 type Rctm2Circle = {
   id: string;
@@ -3809,6 +3813,7 @@ function getTimelineMarkerShapeStyles(mechanic: GameplayMechanic) {
 function EquationTimeline({
   events,
   rtcmDraftMechanics = [],
+  hideSpinouts = false,
   activeEventId,
   onSelectEvent,
   currentSongSeconds,
@@ -3824,6 +3829,7 @@ function EquationTimeline({
 }: {
   events: TimelineEventSlot[];
   rtcmDraftMechanics?: RtcmDraftMechanic[];
+  hideSpinouts?: boolean;
   activeEventId: string | null;
   onSelectEvent: (eventId: string) => void;
   currentSongSeconds: number;
@@ -3929,12 +3935,21 @@ function EquationTimeline({
     playheadMaxLeft,
     Math.max(0, currentSongSeconds * pixelsPerSecond),
   );
+  const mechanicsForTimeline = hideSpinouts
+    ? (["hit", "drag"] as GameplayMechanic[])
+    : (["hit", "spin", "drag"] as GameplayMechanic[]);
+  const rowCountAfterHeader = 2 + mechanicsForTimeline.length;
+  const rowHeightPercent = (100 - 15) / rowCountAfterHeader;
+  const timelineGridRows = `15% repeat(${rowCountAfterHeader}, ${rowHeightPercent}%)`;
+
   const labelRows = [
     { key: "merged", label: "", color: "#FFFFFF" },
     { key: "equations", label: "Equations", color: "#CFFF04" },
-    { key: "hits", label: "Hits", color: "#2EA7FF" },
-    { key: "spinouts", label: "Spinouts", color: "#FF3535" },
-    { key: "drags", label: "Drags", color: "#B45CFF" },
+    ...mechanicsForTimeline.map((mechanic) => ({
+      key: mechanic,
+      label: mechanic === "hit" ? "Hits" : mechanic === "spin" ? "Spinouts" : "Drags",
+      color: mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF",
+    })),
   ];
 
   function getSecondsFromClientX(clientX: number, options: { autoScroll?: boolean } = {}) {
@@ -4190,7 +4205,7 @@ function EquationTimeline({
           minHeight: 0,
           height: "100%",
           display: "grid",
-          gridTemplateRows: "15% repeat(5, 17%)",
+          gridTemplateRows: timelineGridRows,
           background: row3BackgroundColor,
           borderRight: `1px solid ${subtleBorderColor}`,
           boxSizing: "border-box",
@@ -4245,7 +4260,7 @@ function EquationTimeline({
             minWidth: "100%",
             height: "100%",
             display: "grid",
-            gridTemplateRows: "15% repeat(5, 17%)",
+            gridTemplateRows: timelineGridRows,
             cursor: "crosshair",
           }}
         >
@@ -4528,7 +4543,7 @@ function EquationTimeline({
             )}
           </div>
 
-          {(["hit", "spin", "drag"] as GameplayMechanic[]).map((mechanic) => {
+          {mechanicsForTimeline.map((mechanic) => {
             const color =
               mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF";
             const markerShapeStyle = getTimelineMarkerShapeStyles(mechanic);
@@ -6942,9 +6957,11 @@ function Rctm2ModePanel({
   isSongPlaying,
   events,
   rtcmDraftMechanics,
+  hitPlacements,
+  dragStartPoints,
 }: {
-  onAddHitMarker: () => void;
-  onBeginDragMarker: () => string;
+  onAddHitMarker: (point: Rctm2Point) => void;
+  onBeginDragMarker: (startPoint: Rctm2Point) => string;
   onCompleteDragMarker: (draftId: string, zone: Rctm2BondZone) => void;
   onCancelDragMarker: (draftId: string) => void;
   onCreateEvent: (numberValue: number) => void;
@@ -6955,6 +6972,8 @@ function Rctm2ModePanel({
   isSongPlaying: boolean;
   events: TimelineEventSlot[];
   rtcmDraftMechanics: RtcmDraftMechanic[];
+  hitPlacements: Record<string, Rctm2Point>;
+  dragStartPoints: Record<string, Rctm2Point>;
 }) {
   const [numberValue, setNumberValue] = useState("1");
   const [circles, setCircles] = useState<Rctm2Circle[]>([]);
@@ -7010,10 +7029,15 @@ function Rctm2ModePanel({
 
   const activeDragAnimations = useMemo(() => {
     if (!isSongPlaying) {
-      return [] as Array<{ id: string; progress: number; zone: Rctm2BondZone }>;
+      return [] as Array<{
+        id: string;
+        progress: number;
+        zone: Rctm2BondZone;
+        startPoint: Rctm2Point;
+      }>;
     }
 
-    const items: Array<{ id: string; progress: number; zone: Rctm2BondZone }> = [];
+    const items: Array<{ id: string; progress: number; zone: Rctm2BondZone; startPoint: Rctm2Point }> = [];
 
     events.forEach((eventSlot) => {
       const instances = eventSlot.mechanicInstances?.drag ?? [];
@@ -7040,11 +7064,17 @@ function Rctm2ModePanel({
           (currentSongSeconds - window.startSeconds) /
           (window.endSeconds - window.startSeconds);
         const tokenIndex = instance.dragTargets?.[0]?.tokenIndex ?? 1;
+        const startPoint = dragStartPoints[instance.id];
+
+        if (!startPoint) {
+          return;
+        }
 
         items.push({
           id: `${eventSlot.id}-drag-${instanceIndex}`,
           progress: Math.max(0, Math.min(1, progress)),
           zone: tokenIndex === 0 ? "leftBond" : "rightBond",
+          startPoint,
         });
       });
     });
@@ -7065,16 +7095,84 @@ function Rctm2ModePanel({
 
         const progress = (currentSongSeconds - startSeconds) / (endSeconds - startSeconds);
         const tokenIndex = draft.dragTargets?.[0]?.tokenIndex ?? 1;
+        const startPoint = dragStartPoints[draft.id];
+
+        if (!startPoint) {
+          return;
+        }
 
         items.push({
           id: draft.id,
           progress: Math.max(0, Math.min(1, progress)),
           zone: tokenIndex === 0 ? "leftBond" : "rightBond",
+          startPoint,
         });
       });
 
     return items;
-  }, [currentSongSeconds, events, isSongPlaying, rtcmDraftMechanics]);
+  }, [currentSongSeconds, dragStartPoints, events, isSongPlaying, rtcmDraftMechanics]);
+
+  const timelineHitMarkers = useMemo(() => {
+    const hitIds = new Set<string>();
+
+    events.forEach((eventSlot) => {
+      const hitInstances = eventSlot.mechanicInstances?.hit ?? [];
+      hitInstances.forEach((instance) => {
+        if (instance.id && hitPlacements[instance.id]) {
+          hitIds.add(instance.id);
+        }
+      });
+    });
+
+    rtcmDraftMechanics
+      .filter((draft) => draft.mechanic === "hit")
+      .forEach((draft) => {
+        if (hitPlacements[draft.id]) {
+          hitIds.add(draft.id);
+        }
+      });
+
+    return Array.from(hitIds).map((id) => ({ id, point: hitPlacements[id] }));
+  }, [events, hitPlacements, rtcmDraftMechanics]);
+
+  const activeHitReplay = useMemo(() => {
+    if (!isSongPlaying) {
+      return [] as Array<{ id: string; point: Rctm2Point }>;
+    }
+
+    const activeIds = new Set<string>();
+
+    events.forEach((eventSlot) => {
+      const hitInstances = eventSlot.mechanicInstances?.hit ?? [];
+      hitInstances.forEach((instance) => {
+        const hitTime = timelineTickToSeconds(instance.tick ?? eventSlot.tick);
+
+        if (
+          currentSongSeconds >= hitTime &&
+          currentSongSeconds <= hitTime + 0.24 &&
+          hitPlacements[instance.id]
+        ) {
+          activeIds.add(instance.id);
+        }
+      });
+    });
+
+    rtcmDraftMechanics
+      .filter((draft) => draft.mechanic === "hit")
+      .forEach((draft) => {
+        const hitTime = timelineTickToSeconds(draft.tick);
+
+        if (
+          currentSongSeconds >= hitTime &&
+          currentSongSeconds <= hitTime + 0.24 &&
+          hitPlacements[draft.id]
+        ) {
+          activeIds.add(draft.id);
+        }
+      });
+
+    return Array.from(activeIds).map((id) => ({ id, point: hitPlacements[id] }));
+  }, [currentSongSeconds, events, hitPlacements, isSongPlaying, rtcmDraftMechanics]);
 
   const dragPathGeometry = useMemo(() => {
     const width = dragPathSurfaceSize.width;
@@ -7127,12 +7225,12 @@ function Rctm2ModePanel({
     };
   }
 
-  function beginDragTiming() {
+  function beginDragTiming(startPoint: Rctm2Point) {
     if (draggingDraftIdRef.current) {
       return;
     }
 
-    draggingDraftIdRef.current = onBeginDragMarker();
+    draggingDraftIdRef.current = onBeginDragMarker(startPoint);
     setIsDragTimingArmed(true);
   }
 
@@ -7165,7 +7263,7 @@ function Rctm2ModePanel({
         zone: "display",
       },
     ]);
-    onAddHitMarker();
+    onAddHitMarker({ x: nextPoint.x, y: nextPoint.y });
   }
 
   function handleDropIntoBond(zone: Rctm2BondZone) {
@@ -7382,13 +7480,13 @@ function Rctm2ModePanel({
                 const point =
                   animation.zone === "leftBond"
                     ? pointOnQuadraticPath(
-                        dragPathGeometry.start,
+                        animation.startPoint,
                         dragPathGeometry.leftControl,
                         dragPathGeometry.leftEnd,
                         animation.progress,
                       )
                     : pointOnQuadraticPath(
-                        dragPathGeometry.start,
+                        animation.startPoint,
                         dragPathGeometry.rightControl,
                         dragPathGeometry.rightEnd,
                         animation.progress,
@@ -7534,13 +7632,13 @@ function Rctm2ModePanel({
               type="button"
               data-rctm2-circle="true"
               draggable
-              onMouseDown={() => beginDragTiming()}
+              onMouseDown={() => beginDragTiming({ x: circle.x, y: circle.y })}
               onDragStart={(event) => {
                 setDraggingCircleId(circle.id);
                 didDropRef.current = false;
                 event.dataTransfer.setData("text/plain", circle.id);
                 event.dataTransfer.effectAllowed = "move";
-                beginDragTiming();
+                beginDragTiming({ x: circle.x, y: circle.y });
               }}
               onDragEnd={() => {
                 setDraggingCircleId(null);
@@ -7589,6 +7687,45 @@ function Rctm2ModePanel({
               }}
             />
           ) : null}
+
+          {timelineHitMarkers.map((marker) => (
+            <span
+              key={`rctm2-hit-marker-${marker.id}`}
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: marker.point.x,
+                top: marker.point.y,
+                width: Math.max(8, circleRadius * 0.9),
+                height: Math.max(8, circleRadius * 0.9),
+                borderRadius: 999,
+                border: "2px solid rgba(46,167,255,0.7)",
+                background: "rgba(46,167,255,0.2)",
+                transform: "translate(-50%, -50%)",
+                pointerEvents: "none",
+              }}
+            />
+          ))}
+
+          {activeHitReplay.map((marker) => (
+            <span
+              key={`rctm2-hit-replay-${marker.id}`}
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: marker.point.x,
+                top: marker.point.y,
+                width: circleDiameter,
+                height: circleDiameter,
+                borderRadius: 999,
+                border: "1px solid #BDE4FF",
+                background: "#2EA7FF",
+                boxShadow: "0 0 16px rgba(46,167,255,0.8)",
+                transform: "translate(-50%, -50%)",
+                pointerEvents: "none",
+              }}
+            />
+          ))}
         </div>
       </div>
     </section>
@@ -8329,6 +8466,10 @@ export default function LessonBuilderClient({
     useState<PendingMechanicRangeSelection | null>(null);
   const [rctm2PendingEventNumber, setRctm2PendingEventNumber] =
     useState<number | null>(null);
+  const [rctm2HitPlacements, setRctm2HitPlacements] =
+    useState<Record<string, Rctm2Point>>({});
+  const [rctm2DragStartPoints, setRctm2DragStartPoints] =
+    useState<Record<string, Rctm2Point>>({});
   const timelineRehydrateSourceRef = useRef<SidecarPayload>(emptySidecar);
   const rctm2EntrySidecarRef = useRef<SidecarPayload>(emptySidecar);
   const rctm2EntryChartFileRef = useRef("");
@@ -8749,6 +8890,8 @@ export default function LessonBuilderClient({
     setRtcmEventRangeStartTick(null);
     setRtcmPendingHold(null);
     setRctm2PendingEventNumber(null);
+    setRctm2HitPlacements({});
+    setRctm2DragStartPoints({});
     setPendingRangeSelection(null);
     setActiveEventId(null);
 
@@ -8807,6 +8950,8 @@ export default function LessonBuilderClient({
     setRtcmEventRangeStartTick(null);
     setRtcmPendingHold(null);
     setRctm2PendingEventNumber(null);
+    setRctm2HitPlacements({});
+    setRctm2DragStartPoints({});
     setPendingRangeSelection(null);
     setActiveEventId(null);
     setMode("rctm2");
@@ -9064,10 +9209,36 @@ export default function LessonBuilderClient({
       }
 
       const deletedEvent = current[deleteIndex];
+      const deletedHitIds = (deletedEvent.mechanicInstances?.hit ?? [])
+        .map((instance) => instance.id)
+        .filter((id): id is string => Boolean(id));
+      const deletedDragIds = (deletedEvent.mechanicInstances?.drag ?? [])
+        .map((instance) => instance.id)
+        .filter((id): id is string => Boolean(id));
       const extractedDrafts = extractDraftMechanicsFromEvent(deletedEvent);
       const nextEvents = current.filter((eventSlot) => eventSlot.id !== targetEventId).sort(
         (left, right) => timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
       );
+
+      if (deletedHitIds.length > 0) {
+        setRctm2HitPlacements((placements) => {
+          const next = { ...placements };
+          deletedHitIds.forEach((id) => {
+            delete next[id];
+          });
+          return next;
+        });
+      }
+
+      if (deletedDragIds.length > 0) {
+        setRctm2DragStartPoints((points) => {
+          const next = { ...points };
+          deletedDragIds.forEach((id) => {
+            delete next[id];
+          });
+          return next;
+        });
+      }
 
       if (extractedDrafts.length > 0) {
         setRtcmDraftMechanics((drafts) => [...drafts, ...extractedDrafts]);
@@ -10395,16 +10566,30 @@ function handleToggleDragTarget(
     handleStartRtcmHold("drag");
   }
 
-  function handleAddRctm2TimelineMarker(mechanic: "hit" | "drag") {
+  function handleAddRctm2TimelineMarker(
+    mechanic: "hit" | "drag",
+    point: Rctm2Point,
+  ) {
     if (mechanic === "hit") {
-      addRtcmDraftMechanic("hit", currentSongSeconds);
+      const draftId = addRtcmDraftMechanic("hit", currentSongSeconds);
+      setRctm2HitPlacements((current) => ({
+        ...current,
+        [draftId]: point,
+      }));
     }
   }
 
-  function handleBeginRctm2DragMarker() {
-    return addRtcmDraftMechanic("drag", currentSongSeconds, {
+  function handleBeginRctm2DragMarker(startPoint: Rctm2Point) {
+    const draftId = addRtcmDraftMechanic("drag", currentSongSeconds, {
       endSeconds: currentSongSeconds,
     });
+
+    setRctm2DragStartPoints((current) => ({
+      ...current,
+      [draftId]: startPoint,
+    }));
+
+    return draftId;
   }
 
   function handleCompleteRctm2DragMarker(draftId: string, zone: Rctm2BondZone) {
@@ -10430,6 +10615,11 @@ function handleToggleDragTarget(
     setRtcmDraftMechanics((current) =>
       current.filter((draft) => draft.id !== draftId),
     );
+    setRctm2DragStartPoints((current) => {
+      const next = { ...current };
+      delete next[draftId];
+      return next;
+    });
   }
 
   function extractDraftMechanicsFromEvent(eventSlot: TimelineEventSlot) {
@@ -10809,7 +10999,7 @@ function handleToggleDragTarget(
           ) : isRctm2Mode ? (
             <div style={{ flex: 1, minWidth: 0, height: "100%" }}>
               <Rctm2ModePanel
-                onAddHitMarker={() => handleAddRctm2TimelineMarker("hit")}
+                onAddHitMarker={(point) => handleAddRctm2TimelineMarker("hit", point)}
                 onBeginDragMarker={handleBeginRctm2DragMarker}
                 onCompleteDragMarker={handleCompleteRctm2DragMarker}
                 onCancelDragMarker={handleCancelRctm2DragMarker}
@@ -10821,6 +11011,8 @@ function handleToggleDragTarget(
                 isSongPlaying={isSongPlaying}
                 events={timelineEvents}
                 rtcmDraftMechanics={rtcmDraftMechanics}
+                hitPlacements={rctm2HitPlacements}
+                dragStartPoints={rctm2DragStartPoints}
               />
             </div>
           ) : (
@@ -11121,6 +11313,7 @@ function handleToggleDragTarget(
           <EquationTimeline
             events={timelineEvents}
             rtcmDraftMechanics={rtcmDraftMechanics}
+            hideSpinouts={isRctm2Mode}
             activeEventId={activeEventId}
             onSelectEvent={handleSelectEvent}
             currentSongSeconds={currentSongSeconds}
