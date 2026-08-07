@@ -214,6 +214,21 @@ type LibraryTab = "mine" | "premade";
 
 type TimelineMarkerEdge = "start" | "end";
 
+type Rctm2CircleZone = "display" | "leftBond" | "rightBond";
+
+type Rctm2Circle = {
+  id: string;
+  x: number;
+  y: number;
+  zone: Rctm2CircleZone;
+};
+
+type Rctm2TimelineMarker = {
+  id: string;
+  mechanic: "hit" | "drag";
+  seconds: number;
+};
+
 /* VERIFIED_TIMELINE_HIDDEN_SCROLL_DRAG_HANDLE_PATCH */
 /* VERIFIED_TIMELINE_UPLOAD_BUTTONS_PATCH: row 3 subrow 2 supports song/chart/sidecar uploads and updates timeline data. */
 const pagePanelWidth = "92vw";
@@ -1445,15 +1460,19 @@ async function jsonFromSignedUrl(signedUrl: string) {
 function HeaderBar({
   studentName,
   isAdvancedMode,
-  isRtcmMode,
+  isRctm1Mode,
+  isRctm2Mode,
   onToggleAdvancedMode,
-  onToggleRtcmMode,
+  onToggleRctm1Mode,
+  onToggleRctm2Mode,
 }: {
   studentName: string;
   isAdvancedMode: boolean;
-  isRtcmMode: boolean;
+  isRctm1Mode: boolean;
+  isRctm2Mode: boolean;
   onToggleAdvancedMode: () => void;
-  onToggleRtcmMode: () => void;
+  onToggleRctm1Mode: () => void;
+  onToggleRctm2Mode: () => void;
 }) {
   return (
     <header
@@ -1533,15 +1552,15 @@ function HeaderBar({
 
           <button
             type="button"
-            onClick={onToggleRtcmMode}
-            aria-pressed={isRtcmMode}
+            onClick={onToggleRctm1Mode}
+            aria-pressed={isRctm1Mode}
             style={{
               minWidth: 106,
               height: 38,
               borderRadius: 999,
               border: "1px solid #7A8FA8",
-              background: isRtcmMode ? "#CFFF04" : "#060B15FC",
-              color: isRtcmMode ? "#071222" : "#7A8FA8",
+              background: isRctm1Mode ? "#CFFF04" : "#060B15FC",
+              color: isRctm1Mode ? "#071222" : "#7A8FA8",
               fontSize: 14,
               fontWeight: 700,
               cursor: "pointer",
@@ -1549,7 +1568,28 @@ function HeaderBar({
               fontFamily: "Space Grotesk, sans-serif",
             }}
           >
-            RTCM
+            RCTM1
+          </button>
+
+          <button
+            type="button"
+            onClick={onToggleRctm2Mode}
+            aria-pressed={isRctm2Mode}
+            style={{
+              minWidth: 106,
+              height: 38,
+              borderRadius: 999,
+              border: "1px solid #7A8FA8",
+              background: isRctm2Mode ? "#CFFF04" : "#060B15FC",
+              color: isRctm2Mode ? "#071222" : "#7A8FA8",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              padding: "0 16px",
+              fontFamily: "Space Grotesk, sans-serif",
+            }}
+          >
+            RCTM2
           </button>
         </div>
 
@@ -3773,6 +3813,7 @@ function getTimelineMarkerShapeStyles(mechanic: GameplayMechanic) {
 function EquationTimeline({
   events,
   rtcmDraftMechanics = [],
+  rctm2TimelineMarkers = [],
   activeEventId,
   onSelectEvent,
   currentSongSeconds,
@@ -3788,6 +3829,7 @@ function EquationTimeline({
 }: {
   events: TimelineEventSlot[];
   rtcmDraftMechanics?: RtcmDraftMechanic[];
+  rctm2TimelineMarkers?: Rctm2TimelineMarker[];
   activeEventId: string | null;
   onSelectEvent: (eventId: string) => void;
   currentSongSeconds: number;
@@ -4495,6 +4537,10 @@ function EquationTimeline({
               mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF";
             const markerShapeStyle = getTimelineMarkerShapeStyles(mechanic);
             const draftMechanics = rtcmDraftMechanics.filter((draft) => draft.mechanic === mechanic);
+            const rctm2MarkersForMechanic =
+              mechanic === "hit" || mechanic === "drag"
+                ? rctm2TimelineMarkers.filter((marker) => marker.mechanic === mechanic)
+                : [];
 
             return (
               <div
@@ -4764,6 +4810,33 @@ function EquationTimeline({
                       );
                     })
                   : null}
+
+                {rctm2MarkersForMechanic.map((marker) => {
+                  const markerLeft = Math.min(
+                    trackWidth,
+                    Math.max(0, marker.seconds * pixelsPerSecond),
+                  );
+
+                  return (
+                    <span
+                      key={marker.id}
+                      aria-hidden="true"
+                      style={{
+                        position: "absolute",
+                        left: markerLeft,
+                        top: "50%",
+                        width: 12,
+                        height: 12,
+                        border: `1px solid ${color}`,
+                        background: "rgba(255,255,255,0.12)",
+                        boxShadow: `0 0 10px ${color}88`,
+                        ...markerShapeStyle,
+                        opacity: 0.95,
+                        pointerEvents: "none",
+                      }}
+                    />
+                  );
+                })}
               </div>
             );
           })}
@@ -6890,6 +6963,368 @@ function RtcmModePanel({
   );
 }
 
+function Rctm2ModePanel({
+  currentSongSeconds,
+  onAddHitMarker,
+  onAddDragMarker,
+}: {
+  currentSongSeconds: number;
+  onAddHitMarker: () => void;
+  onAddDragMarker: () => void;
+}) {
+  const [numberValue, setNumberValue] = useState("1");
+  const [circles, setCircles] = useState<Rctm2Circle[]>([]);
+  const [hoverPoint, setHoverPoint] = useState<{ x: number; y: number } | null>(null);
+  const [draggingCircleId, setDraggingCircleId] = useState<string | null>(null);
+  const displayWindowRef = useRef<HTMLDivElement | null>(null);
+
+  const circleRadius = 16;
+  const circleDiameter = circleRadius * 2;
+  const circleGap = 10;
+  const parsedNumber = Number.parseInt(numberValue, 10);
+  const safeNumber = Number.isFinite(parsedNumber)
+    ? Math.max(1, Math.min(20, parsedNumber))
+    : 1;
+  const bondSize = Math.ceil(safeNumber / 2);
+  const bondColumns = Math.max(1, Math.min(5, bondSize));
+  const bondRows = Math.max(1, Math.ceil(bondSize / bondColumns));
+  const bondBoxWidth = bondColumns * circleDiameter + (bondColumns - 1) * circleGap + 24;
+  const bondBoxHeight = bondRows * circleDiameter + (bondRows - 1) * circleGap + 24;
+
+  const leftBondCircles = circles.filter((circle) => circle.zone === "leftBond");
+  const rightBondCircles = circles.filter((circle) => circle.zone === "rightBond");
+  const displayCircles = circles.filter((circle) => circle.zone === "display");
+
+  function getLocalPoint(event: React.MouseEvent<HTMLDivElement, MouseEvent>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    return {
+      x: Math.max(circleRadius, Math.min(rect.width - circleRadius, x)),
+      y: Math.max(circleRadius, Math.min(rect.height - circleRadius, y)),
+    };
+  }
+
+  function handleDisplayClick(event: React.MouseEvent<HTMLDivElement, MouseEvent>) {
+    const target = event.target as HTMLElement;
+
+    if (target.closest("[data-rctm2-circle='true']")) {
+      return;
+    }
+
+    const nextPoint = getLocalPoint(event);
+
+    setCircles((current) => [
+      ...current,
+      {
+        id: makeId("rctm2-circle"),
+        x: nextPoint.x,
+        y: nextPoint.y,
+        zone: "display",
+      },
+    ]);
+    onAddHitMarker();
+  }
+
+  function handleDropIntoBond(zone: Extract<Rctm2CircleZone, "leftBond" | "rightBond">) {
+    if (!draggingCircleId) {
+      return;
+    }
+
+    setCircles((current) =>
+      current.map((circle) => {
+        if (circle.id !== draggingCircleId || circle.zone !== "display") {
+          return circle;
+        }
+
+        return {
+          ...circle,
+          zone,
+        };
+      }),
+    );
+
+    onAddDragMarker();
+    setDraggingCircleId(null);
+  }
+
+  function renderBondBox(
+    title: "left bond" | "right bond",
+    zone: "leftBond" | "rightBond",
+    zoneCircles: Rctm2Circle[],
+  ) {
+    return (
+      <div
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          handleDropIntoBond(zone);
+        }}
+        style={{
+          width: bondBoxWidth,
+          minWidth: bondBoxWidth,
+          height: bondBoxHeight,
+          borderRadius: 12,
+          border: `1px solid ${subtleBorderColor}`,
+          background: "#141414",
+          display: "flex",
+          flexWrap: "wrap",
+          alignContent: "flex-start",
+          gap: circleGap,
+          padding: 12,
+          boxSizing: "border-box",
+          overflow: "hidden",
+        }}
+      >
+        {Array.from({ length: bondSize }).map((_, slotIndex) => {
+          const circle = zoneCircles[slotIndex];
+
+          return (
+            <span
+              key={`${title}-slot-${slotIndex}`}
+              style={{
+                width: circleDiameter,
+                height: circleDiameter,
+                borderRadius: 999,
+                border: "1px dashed rgba(255,255,255,0.26)",
+                background: circle ? "#2EA7FF" : "transparent",
+                boxShadow: circle ? "0 0 10px rgba(46,167,255,0.42)" : "none",
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <section
+      aria-label="RCTM2"
+      style={{
+        width: "100%",
+        height: "100%",
+        minHeight: 0,
+        minWidth: 0,
+        background: row2Column2BackgroundColor,
+        color: textColor,
+        boxSizing: "border-box",
+        overflow: "hidden",
+        display: "grid",
+        gridTemplateRows: "auto minmax(0, 1fr)",
+        gap: 12,
+        padding: "14px 16px 16px",
+        fontFamily: "Space Grotesk, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          color: "#FFFFFF",
+          fontSize: 12,
+          fontWeight: 800,
+        }}
+      >
+        <span>{`Time ${formatSongTime(currentSongSeconds)}`}</span>
+        <span>{`bond_size = ${bondSize}`}</span>
+      </div>
+
+      <div
+        style={{
+          minHeight: 0,
+          borderRadius: 14,
+          border: `1px solid ${subtleBorderColor}`,
+          background: "#101621",
+          padding: 14,
+          display: "grid",
+          gridTemplateRows: "auto minmax(0, 1fr)",
+          gap: 14,
+        }}
+      >
+        <div
+          style={{
+            minHeight: 0,
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div style={{ display: "grid", justifyItems: "center", gap: 8 }}>
+            <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>
+              left bond
+            </div>
+            {renderBondBox("left bond", "leftBond", leftBondCircles)}
+          </div>
+
+          <div
+            style={{
+              minWidth: 240,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                width: 66,
+                height: 2,
+                background: "rgba(255,255,255,0.4)",
+              }}
+            />
+            <label
+              style={{
+                width: 110,
+                height: 52,
+                borderRadius: 12,
+                border: `1px solid ${subtleBorderColor}`,
+                background: "#192232",
+                display: "grid",
+                placeItems: "center",
+                color: "#FFFFFF",
+                fontSize: 11,
+                fontWeight: 900,
+                textTransform: "uppercase",
+                gap: 3,
+                paddingTop: 4,
+              }}
+            >
+              <span>number box</span>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={numberValue}
+                onChange={(event) => {
+                  const rawValue = event.target.value;
+
+                  if (rawValue === "") {
+                    setNumberValue("");
+                    return;
+                  }
+
+                  const parsed = Number.parseInt(rawValue, 10);
+
+                  if (!Number.isFinite(parsed)) {
+                    return;
+                  }
+
+                  setNumberValue(String(Math.max(1, Math.min(20, parsed))));
+                }}
+                onBlur={() => {
+                  if (numberValue.trim() === "") {
+                    setNumberValue("1");
+                  }
+                }}
+                style={{
+                  width: 56,
+                  borderRadius: 8,
+                  border: `1px solid ${subtleBorderColor}`,
+                  background: "#0D1320",
+                  color: "#FFFFFF",
+                  textAlign: "center",
+                  fontSize: 14,
+                  fontWeight: 900,
+                }}
+              />
+            </label>
+            <span
+              aria-hidden="true"
+              style={{
+                width: 66,
+                height: 2,
+                background: "rgba(255,255,255,0.4)",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "grid", justifyItems: "center", gap: 8 }}>
+            <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>
+              right bond
+            </div>
+            {renderBondBox("right bond", "rightBond", rightBondCircles)}
+          </div>
+        </div>
+
+        <div
+          ref={displayWindowRef}
+          onMouseMove={(event) => {
+            setHoverPoint(getLocalPoint(event));
+          }}
+          onMouseLeave={() => setHoverPoint(null)}
+          onClick={handleDisplayClick}
+          style={{
+            minHeight: 0,
+            borderRadius: 14,
+            border: `1px solid ${subtleBorderColor}`,
+            background: "#0A0F18",
+            position: "relative",
+            overflow: "hidden",
+            cursor: "crosshair",
+          }}
+        >
+          {displayCircles.map((circle) => (
+            <button
+              key={circle.id}
+              type="button"
+              data-rctm2-circle="true"
+              draggable
+              onDragStart={(event) => {
+                setDraggingCircleId(circle.id);
+                event.dataTransfer.setData("text/plain", circle.id);
+                event.dataTransfer.effectAllowed = "move";
+              }}
+              onDragEnd={() => setDraggingCircleId(null)}
+              style={{
+                position: "absolute",
+                left: circle.x,
+                top: circle.y,
+                width: circleDiameter,
+                height: circleDiameter,
+                borderRadius: 999,
+                border: "1px solid rgba(46,167,255,0.85)",
+                background: "#2EA7FF",
+                boxShadow: "0 0 10px rgba(46,167,255,0.55)",
+                transform: "translate(-50%, -50%)",
+                cursor: "grab",
+                padding: 0,
+              }}
+              aria-label="Drag circle to bond box"
+              title="Drag to left bond or right bond"
+            />
+          ))}
+
+          {hoverPoint ? (
+            <span
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: hoverPoint.x,
+                top: hoverPoint.y,
+                width: circleDiameter,
+                height: circleDiameter,
+                borderRadius: 999,
+                border: "1px solid rgba(255,255,255,0.48)",
+                background: "rgba(255,255,255,0.12)",
+                transform: "translate(-50%, -50%)",
+                pointerEvents: "none",
+              }}
+            />
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function LibraryPanel({
   activeTab,
   savedEquations,
@@ -7580,7 +8015,7 @@ export default function LessonBuilderClient({
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventSlot[]>([]);
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [savedEquations, setSavedEquations] = useState<SavedEquation[]>([]);
-  const [mode, setMode] = useState<"event" | "equation" | "rtcm">("event");
+  const [mode, setMode] = useState<"event" | "equation" | "rctm1" | "rctm2">("event");
   const [centerChoice, setCenterChoice] = useState<CenterChoice>(null);
   const [libraryTab, setLibraryTab] = useState<LibraryTab>("mine");
   const [selectedEquationId, setSelectedEquationId] = useState<string | null>(null);
@@ -7622,6 +8057,8 @@ export default function LessonBuilderClient({
     useState<string | null>(null);
   const [pendingRangeSelection, setPendingRangeSelection] =
     useState<PendingMechanicRangeSelection | null>(null);
+  const [rctm2TimelineMarkers, setRctm2TimelineMarkers] =
+    useState<Rctm2TimelineMarker[]>([]);
 
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
@@ -8026,11 +8463,24 @@ export default function LessonBuilderClient({
     setHideEquationHeader(true);
   }
 
-  function handleToggleRtcmMode() {
+  function handleToggleRctm1Mode() {
     setMode((current) => {
-      const nextMode = current === "rtcm" ? "event" : "rtcm";
+      const nextMode = current === "rctm1" ? "event" : "rctm1";
 
-      if (nextMode === "rtcm") {
+      if (nextMode === "rctm1") {
+        setActiveEventId(null);
+      }
+
+      return nextMode;
+    });
+    setCenterChoice(null);
+  }
+
+  function handleToggleRctm2Mode() {
+    setMode((current) => {
+      const nextMode = current === "rctm2" ? "event" : "rctm2";
+
+      if (nextMode === "rctm2") {
         setActiveEventId(null);
       }
 
@@ -8080,7 +8530,7 @@ export default function LessonBuilderClient({
   }
 
   function handleStartRtcmEventCreation() {
-    setMode("rtcm");
+    setMode("rctm1");
     setCenterChoice(null);
     setRtcmEventRangeStartTick(Number(currentSongSeconds.toFixed(3)));
     setSaveStatus(`Event start set at ${formatSongTime(currentSongSeconds, isAdvancedMode)}. Drag the playhead to choose the end time.`);
@@ -8242,7 +8692,7 @@ export default function LessonBuilderClient({
   }
 
   function handleSelectEvent(eventId: string) {
-    if (mode === "rtcm") {
+    if (mode === "rctm1" || mode === "rctm2") {
       return;
     }
 
@@ -8252,14 +8702,14 @@ export default function LessonBuilderClient({
 
   function handleDeleteActiveEvent() {
     const playheadEvent =
-      mode === "rtcm"
+      mode === "rctm1"
         ? findTimelineEventAtSeconds(timelineEvents, currentSongSeconds)
         : null;
-    const targetEventId = mode === "rtcm" ? playheadEvent?.id ?? null : activeEventId;
+    const targetEventId = mode === "rctm1" ? playheadEvent?.id ?? null : activeEventId;
 
     if (!targetEventId) {
       setSaveStatus(
-        mode === "rtcm"
+        mode === "rctm1"
           ? "Move the playhead over an event to delete it."
           : "Select an event to delete.",
       );
@@ -8285,7 +8735,7 @@ export default function LessonBuilderClient({
 
       syncTimelineFilesFromEvents(nextEvents);
 
-      if (mode === "rtcm") {
+      if (mode === "rctm1") {
         setActiveEventId(null);
       } else {
         const nextActiveEvent = nextEvents[deleteIndex] ?? nextEvents[deleteIndex - 1] ?? null;
@@ -9599,6 +10049,17 @@ function handleToggleDragTarget(
     handleStartRtcmHold("drag");
   }
 
+  function handleAddRctm2TimelineMarker(mechanic: "hit" | "drag") {
+    setRctm2TimelineMarkers((current) => [
+      ...current,
+      {
+        id: makeId(`rctm2-${mechanic}`),
+        mechanic,
+        seconds: Number(currentSongSeconds.toFixed(3)),
+      },
+    ]);
+  }
+
   function extractDraftMechanicsFromEvent(eventSlot: TimelineEventSlot) {
     const extractedDrafts: RtcmDraftMechanic[] = [];
 
@@ -9863,7 +10324,7 @@ function handleToggleDragTarget(
   }
 
   useEffect(() => {
-    if (mode === "rtcm") {
+    if (mode === "rctm1" || mode === "rctm2") {
       setActiveEventId(null);
     }
   }, [mode]);
@@ -9871,7 +10332,8 @@ function handleToggleDragTarget(
   const isTimelineInstructionVisible = centerChoice !== null;
   const showCenterWorkspacePrompt =
     chartFile.trim().length === 0 && sidecar.events.length === 0;
-  const isRtcmMode = mode === "rtcm";
+  const isRctm1Mode = mode === "rctm1";
+  const isRctm2Mode = mode === "rctm2";
   const rtcmPlayheadEvent = findTimelineEventAtSeconds(
     timelineEvents,
     currentSongSeconds,
@@ -9914,9 +10376,11 @@ function handleToggleDragTarget(
       <HeaderBar
         studentName={studentFirstName}
         isAdvancedMode={isAdvancedMode}
-        isRtcmMode={isRtcmMode}
+        isRctm1Mode={isRctm1Mode}
+        isRctm2Mode={isRctm2Mode}
         onToggleAdvancedMode={() => setIsAdvancedMode((current) => !current)}
-        onToggleRtcmMode={handleToggleRtcmMode}
+        onToggleRctm1Mode={handleToggleRctm1Mode}
+        onToggleRctm2Mode={handleToggleRctm2Mode}
       />
 
       <EditorActionBar
@@ -9950,7 +10414,7 @@ function handleToggleDragTarget(
             overflow: "hidden",
           }}
         >
-          {isRtcmMode ? (
+          {isRctm1Mode ? (
             <div style={{ flex: 1, minWidth: 0, height: "100%" }}>
               <RtcmModePanel
                 onAddHit={handleRtcmAddHitAtPlayhead}
@@ -9968,6 +10432,14 @@ function handleToggleDragTarget(
                 pendingRangeMechanic={rtcmPendingHold?.mechanic ?? null}
                 eventRangeStartTick={rtcmEventRangeStartTick}
                 canDeleteEvent={Boolean(rtcmPlayheadEvent)}
+              />
+            </div>
+          ) : isRctm2Mode ? (
+            <div style={{ flex: 1, minWidth: 0, height: "100%" }}>
+              <Rctm2ModePanel
+                currentSongSeconds={currentSongSeconds}
+                onAddHitMarker={() => handleAddRctm2TimelineMarker("hit")}
+                onAddDragMarker={() => handleAddRctm2TimelineMarker("drag")}
               />
             </div>
           ) : (
@@ -10268,6 +10740,7 @@ function handleToggleDragTarget(
           <EquationTimeline
             events={timelineEvents}
             rtcmDraftMechanics={rtcmDraftMechanics}
+            rctm2TimelineMarkers={rctm2TimelineMarkers}
             activeEventId={activeEventId}
             onSelectEvent={handleSelectEvent}
             currentSongSeconds={currentSongSeconds}
