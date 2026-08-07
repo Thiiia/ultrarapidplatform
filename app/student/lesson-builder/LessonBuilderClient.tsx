@@ -127,6 +127,7 @@ type SpinTarget = {
 
 type DragTarget = {
   tokenIndex: number;
+  sourceHitId?: string;
 };
 
 type HitBubblePair = "topLeftBottomRight" | "topRightBottomLeft" | "leftRight";
@@ -215,18 +216,10 @@ type LibraryTab = "mine" | "premade";
 
 type TimelineMarkerEdge = "start" | "end";
 
-type Rctm2CircleZone = "display" | "leftBond" | "rightBond";
 type Rctm2BondZone = "leftBond" | "rightBond";
 type Rctm2Point = {
   x: number;
   y: number;
-};
-
-type Rctm2Circle = {
-  id: string;
-  x: number;
-  y: number;
-  zone: Rctm2CircleZone;
 };
 
 /* VERIFIED_TIMELINE_HIDDEN_SCROLL_DRAG_HANDLE_PATCH */
@@ -390,7 +383,17 @@ function normalizeTokenTargets<T extends SpinTarget | DragTarget>(
       return [];
     }
 
-    return [{ tokenIndex } as T];
+    const sourceHitId =
+      typeof target.sourceHitId === "string" && target.sourceHitId.trim().length > 0
+        ? target.sourceHitId
+        : undefined;
+
+    return [
+      {
+        tokenIndex,
+        ...(sourceHitId ? { sourceHitId } : {}),
+      } as T,
+    ];
   });
 }
 
@@ -3944,7 +3947,7 @@ function EquationTimeline({
 
   const labelRows = [
     { key: "merged", label: "", color: "#FFFFFF" },
-    { key: "equations", label: "Equations", color: "#CFFF04" },
+    { key: "equations", label: hideSpinouts ? "Bonds" : "Equations", color: "#CFFF04" },
     ...mechanicsForTimeline.map((mechanic) => ({
       key: mechanic,
       label: mechanic === "hit" ? "Hits" : mechanic === "spin" ? "Spinouts" : "Drags",
@@ -6959,9 +6962,10 @@ function Rctm2ModePanel({
   rtcmDraftMechanics,
   hitPlacements,
   dragStartPoints,
+  dragSourceHitIds,
 }: {
   onAddHitMarker: (point: Rctm2Point) => void;
-  onBeginDragMarker: (startPoint: Rctm2Point) => string;
+  onBeginDragMarker: (startPoint: Rctm2Point, sourceHitId: string) => string;
   onCompleteDragMarker: (draftId: string, zone: Rctm2BondZone) => void;
   onCancelDragMarker: (draftId: string) => void;
   onCreateEvent: (numberValue: number) => void;
@@ -6974,17 +6978,20 @@ function Rctm2ModePanel({
   rtcmDraftMechanics: RtcmDraftMechanic[];
   hitPlacements: Record<string, Rctm2Point>;
   dragStartPoints: Record<string, Rctm2Point>;
+  dragSourceHitIds: Record<string, string>;
 }) {
   const [numberValue, setNumberValue] = useState("1");
-  const [circles, setCircles] = useState<Rctm2Circle[]>([]);
   const [hoverPoint, setHoverPoint] = useState<{ x: number; y: number } | null>(null);
-  const [draggingCircleId, setDraggingCircleId] = useState<string | null>(null);
+  const [draggingHitId, setDraggingHitId] = useState<string | null>(null);
   const [isDragTimingArmed, setIsDragTimingArmed] = useState(false);
   const draggingDraftIdRef = useRef<string | null>(null);
   const didDropRef = useRef(false);
   const displayWindowRef = useRef<HTMLDivElement | null>(null);
   const dragPathSurfaceRef = useRef<HTMLDivElement | null>(null);
   const [dragPathSurfaceSize, setDragPathSurfaceSize] = useState({ width: 0, height: 0 });
+  const leftBondRef = useRef<HTMLDivElement | null>(null);
+  const rightBondRef = useRef<HTMLDivElement | null>(null);
+  const [displayWindowSize, setDisplayWindowSize] = useState({ width: 0, height: 0 });
 
   const circleRadius = 16;
   const circleDiameter = circleRadius * 2;
@@ -6999,10 +7006,7 @@ function Rctm2ModePanel({
   const bondBoxWidth = bondColumns * circleDiameter + (bondColumns - 1) * circleGap + 24;
   const bondBoxHeight = bondRows * circleDiameter + (bondRows - 1) * circleGap + 24;
 
-  const leftBondCircles = circles.filter((circle) => circle.zone === "leftBond");
-  const rightBondCircles = circles.filter((circle) => circle.zone === "rightBond");
-  const displayCircles = circles.filter((circle) => circle.zone === "display");
-  const isDraggingGesture = draggingCircleId !== null || isDragTimingArmed;
+  const isDraggingGesture = draggingHitId !== null || isDragTimingArmed;
 
   useEffect(() => {
     const element = dragPathSurfaceRef.current;
@@ -7027,14 +7031,239 @@ function Rctm2ModePanel({
     };
   }, []);
 
+  useEffect(() => {
+    const element = displayWindowRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    const updateDisplaySize = () => {
+      setDisplayWindowSize({
+        width: element.clientWidth,
+        height: element.clientHeight,
+      });
+    };
+
+    updateDisplaySize();
+    const resizeObserver = new ResizeObserver(() => updateDisplaySize());
+    resizeObserver.observe(element);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  function toNormalizedPoint(point: { x: number; y: number }) {
+    const safeWidth = Math.max(1, displayWindowSize.width);
+    const safeHeight = Math.max(1, displayWindowSize.height);
+
+    return {
+      x: Math.max(0, Math.min(1, point.x / safeWidth)),
+      y: Math.max(0, Math.min(1, point.y / safeHeight)),
+    } satisfies Rctm2Point;
+  }
+
+  function fromNormalizedPoint(point: Rctm2Point) {
+    if (point.x > 1 || point.y > 1) {
+      return {
+        x: point.x,
+        y: point.y,
+      };
+    }
+
+    return {
+      x: point.x * Math.max(1, displayWindowSize.width),
+      y: point.y * Math.max(1, displayWindowSize.height),
+    };
+  }
+
+  function projectDisplayPointToSurface(point: Rctm2Point) {
+    const surface = dragPathSurfaceRef.current;
+    const display = displayWindowRef.current;
+
+    if (!surface || !display) {
+      return null;
+    }
+
+    const surfaceRect = surface.getBoundingClientRect();
+    const displayRect = display.getBoundingClientRect();
+    const localPoint = fromNormalizedPoint(point);
+
+    return {
+      x: displayRect.left - surfaceRect.left + localPoint.x,
+      y: displayRect.top - surfaceRect.top + localPoint.y,
+    };
+  }
+
+  function getBondCenterInSurface(zone: Rctm2BondZone) {
+    const surface = dragPathSurfaceRef.current;
+    const target = zone === "leftBond" ? leftBondRef.current : rightBondRef.current;
+
+    if (!surface || !target) {
+      return null;
+    }
+
+    const surfaceRect = surface.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+
+    return {
+      x: targetRect.left - surfaceRect.left + targetRect.width / 2,
+      y: targetRect.top - surfaceRect.top + targetRect.height / 2,
+    };
+  }
+
+  const hitDisplayStates = useMemo(() => {
+    type HitSnapshot = {
+      id: string;
+      hitTime: number;
+      point: Rctm2Point;
+      dragStartTime: number | null;
+    };
+
+    const hits = new Map<string, HitSnapshot>();
+    const dragStartByHit = new Map<string, number>();
+
+    events.forEach((eventSlot) => {
+      const hitInstances = eventSlot.mechanicInstances?.hit ?? [];
+      hitInstances.forEach((instance) => {
+        const point = hitPlacements[instance.id];
+
+        if (!point) {
+          return;
+        }
+
+        hits.set(instance.id, {
+          id: instance.id,
+          hitTime: timelineTickToSeconds(instance.tick ?? eventSlot.tick),
+          point,
+          dragStartTime: null,
+        });
+      });
+
+      const dragInstances = eventSlot.mechanicInstances?.drag ?? [];
+      dragInstances.forEach((instance) => {
+        const sourceHitId = instance.dragTargets?.[0]?.sourceHitId;
+
+        if (!sourceHitId) {
+          return;
+        }
+
+        const dragStart = timelineTickToSeconds(instance.tick ?? eventSlot.tick);
+        const currentStart = dragStartByHit.get(sourceHitId);
+
+        if (typeof currentStart !== "number" || dragStart < currentStart) {
+          dragStartByHit.set(sourceHitId, dragStart);
+        }
+      });
+    });
+
+    rtcmDraftMechanics.forEach((draft) => {
+      if (draft.mechanic === "hit") {
+        const point = hitPlacements[draft.id];
+
+        if (!point) {
+          return;
+        }
+
+        hits.set(draft.id, {
+          id: draft.id,
+          hitTime: timelineTickToSeconds(draft.tick),
+          point,
+          dragStartTime: null,
+        });
+
+        return;
+      }
+
+      if (draft.mechanic === "drag") {
+        const sourceHitId = dragSourceHitIds[draft.id] ?? draft.dragTargets?.[0]?.sourceHitId;
+
+        if (!sourceHitId) {
+          return;
+        }
+
+        const dragStart = timelineTickToSeconds(draft.tick);
+        const currentStart = dragStartByHit.get(sourceHitId);
+
+        if (typeof currentStart !== "number" || dragStart < currentStart) {
+          dragStartByHit.set(sourceHitId, dragStart);
+        }
+      }
+    });
+
+    const visibleStates = Array.from(hits.values())
+      .map((hit) => {
+        const dragStartTime = dragStartByHit.get(hit.id) ?? null;
+
+        return {
+          ...hit,
+          dragStartTime,
+          state:
+            currentSongSeconds < hit.hitTime
+              ? "hidden"
+              : dragStartTime !== null && currentSongSeconds >= dragStartTime
+                ? "hollow"
+                : "solid",
+        };
+      })
+      .filter((hit) => hit.state !== "hidden");
+
+    return {
+      solid: visibleStates.filter((hit) => hit.state === "solid"),
+      hollow: visibleStates.filter((hit) => hit.state === "hollow"),
+    };
+  }, [currentSongSeconds, dragSourceHitIds, events, hitPlacements, rtcmDraftMechanics]);
+
+  const bondCircleCounts = useMemo(() => {
+    const counts = {
+      leftBond: 0,
+      rightBond: 0,
+    };
+
+    events.forEach((eventSlot) => {
+      const dragInstances = eventSlot.mechanicInstances?.drag ?? [];
+
+      dragInstances.forEach((instance) => {
+        const dragStart = timelineTickToSeconds(instance.tick ?? eventSlot.tick);
+        const dragEnd = timelineTickToSeconds(instance.endTick ?? instance.tick ?? eventSlot.tick);
+
+        if (currentSongSeconds < dragEnd || dragEnd < dragStart) {
+          return;
+        }
+
+        const tokenIndex = instance.dragTargets?.[0]?.tokenIndex ?? 1;
+        counts[tokenIndex === 0 ? "leftBond" : "rightBond"] += 1;
+      });
+    });
+
+    rtcmDraftMechanics
+      .filter((draft) => draft.mechanic === "drag")
+      .forEach((draft) => {
+        const dragStart = timelineTickToSeconds(draft.tick);
+        const dragEnd = timelineTickToSeconds(draft.endTick ?? draft.tick);
+
+        if (currentSongSeconds < dragEnd || dragEnd < dragStart) {
+          return;
+        }
+
+        const tokenIndex = draft.dragTargets?.[0]?.tokenIndex ?? 1;
+        counts[tokenIndex === 0 ? "leftBond" : "rightBond"] += 1;
+      });
+
+    return counts;
+  }, [currentSongSeconds, events, rtcmDraftMechanics]);
+
   const activeDragAnimations = useMemo(() => {
-    if (!isSongPlaying) {
-      return [] as Array<{
-        id: string;
-        progress: number;
-        zone: Rctm2BondZone;
-        startPoint: Rctm2Point;
-      }>;
+    const empty: Array<{
+      id: string;
+      progress: number;
+      zone: Rctm2BondZone;
+      startPoint: Rctm2Point;
+    }> = [];
+
+    if (events.length === 0 && rtcmDraftMechanics.length === 0) {
+      return empty;
     }
 
     const items: Array<{ id: string; progress: number; zone: Rctm2BondZone; startPoint: Rctm2Point }> = [];
@@ -7110,105 +7339,7 @@ function Rctm2ModePanel({
       });
 
     return items;
-  }, [currentSongSeconds, dragStartPoints, events, isSongPlaying, rtcmDraftMechanics]);
-
-  const timelineHitMarkers = useMemo(() => {
-    const hitIds = new Set<string>();
-
-    events.forEach((eventSlot) => {
-      const hitInstances = eventSlot.mechanicInstances?.hit ?? [];
-      hitInstances.forEach((instance) => {
-        if (instance.id && hitPlacements[instance.id]) {
-          hitIds.add(instance.id);
-        }
-      });
-    });
-
-    rtcmDraftMechanics
-      .filter((draft) => draft.mechanic === "hit")
-      .forEach((draft) => {
-        if (hitPlacements[draft.id]) {
-          hitIds.add(draft.id);
-        }
-      });
-
-    return Array.from(hitIds).map((id) => ({ id, point: hitPlacements[id] }));
-  }, [events, hitPlacements, rtcmDraftMechanics]);
-
-  const activeHitReplay = useMemo(() => {
-    if (!isSongPlaying) {
-      return [] as Array<{ id: string; point: Rctm2Point }>;
-    }
-
-    const activeIds = new Set<string>();
-
-    events.forEach((eventSlot) => {
-      const hitInstances = eventSlot.mechanicInstances?.hit ?? [];
-      hitInstances.forEach((instance) => {
-        const hitTime = timelineTickToSeconds(instance.tick ?? eventSlot.tick);
-
-        if (
-          currentSongSeconds >= hitTime &&
-          currentSongSeconds <= hitTime + 0.24 &&
-          hitPlacements[instance.id]
-        ) {
-          activeIds.add(instance.id);
-        }
-      });
-    });
-
-    rtcmDraftMechanics
-      .filter((draft) => draft.mechanic === "hit")
-      .forEach((draft) => {
-        const hitTime = timelineTickToSeconds(draft.tick);
-
-        if (
-          currentSongSeconds >= hitTime &&
-          currentSongSeconds <= hitTime + 0.24 &&
-          hitPlacements[draft.id]
-        ) {
-          activeIds.add(draft.id);
-        }
-      });
-
-    return Array.from(activeIds).map((id) => ({ id, point: hitPlacements[id] }));
-  }, [currentSongSeconds, events, hitPlacements, isSongPlaying, rtcmDraftMechanics]);
-
-  const dragPathGeometry = useMemo(() => {
-    const width = dragPathSurfaceSize.width;
-    const height = dragPathSurfaceSize.height;
-
-    if (width <= 0 || height <= 0) {
-      return null;
-    }
-
-    const start = {
-      x: width * 0.5,
-      y: height * 0.52,
-    };
-    const leftEnd = {
-      x: Math.max(36, (width - bondBoxWidth) * 0.25 + bondBoxWidth * 0.5),
-      y: height * 0.53,
-    };
-    const rightEnd = {
-      x: width - leftEnd.x,
-      y: height * 0.53,
-    };
-
-    return {
-      start,
-      leftEnd,
-      rightEnd,
-      leftControl: {
-        x: (start.x + leftEnd.x) / 2,
-        y: Math.max(20, height * 0.16),
-      },
-      rightControl: {
-        x: (start.x + rightEnd.x) / 2,
-        y: Math.max(20, height * 0.16),
-      },
-    };
-  }, [bondBoxWidth, dragPathSurfaceSize.height, dragPathSurfaceSize.width]);
+  }, [currentSongSeconds, dragStartPoints, events, rtcmDraftMechanics]);
 
   function pointOnQuadraticPath(
     start: { x: number; y: number },
@@ -7225,12 +7356,12 @@ function Rctm2ModePanel({
     };
   }
 
-  function beginDragTiming(startPoint: Rctm2Point) {
+  function beginDragTiming(startPoint: Rctm2Point, sourceHitId: string) {
     if (draggingDraftIdRef.current) {
       return;
     }
 
-    draggingDraftIdRef.current = onBeginDragMarker(startPoint);
+    draggingDraftIdRef.current = onBeginDragMarker(startPoint, sourceHitId);
     setIsDragTimingArmed(true);
   }
 
@@ -7254,42 +7385,20 @@ function Rctm2ModePanel({
 
     const nextPoint = getLocalPoint(event);
 
-    setCircles((current) => [
-      ...current,
-      {
-        id: makeId("rctm2-circle"),
-        x: nextPoint.x,
-        y: nextPoint.y,
-        zone: "display",
-      },
-    ]);
-    onAddHitMarker({ x: nextPoint.x, y: nextPoint.y });
+    onAddHitMarker(toNormalizedPoint(nextPoint));
   }
 
   function handleDropIntoBond(zone: Rctm2BondZone) {
-    if (!draggingCircleId) {
+    if (!draggingHitId) {
       return;
     }
-
-    setCircles((current) =>
-      current.map((circle) => {
-        if (circle.id !== draggingCircleId || circle.zone !== "display") {
-          return circle;
-        }
-
-        return {
-          ...circle,
-          zone,
-        };
-      }),
-    );
 
     if (draggingDraftIdRef.current) {
       onCompleteDragMarker(draggingDraftIdRef.current, zone);
     }
 
     didDropRef.current = true;
-    setDraggingCircleId(null);
+    setDraggingHitId(null);
     draggingDraftIdRef.current = null;
     setIsDragTimingArmed(false);
   }
@@ -7297,10 +7406,12 @@ function Rctm2ModePanel({
   function renderBondBox(
     title: "left bond" | "right bond",
     zone: Rctm2BondZone,
-    zoneCircles: Rctm2Circle[],
+    circleCount: number,
+    bondRef: React.MutableRefObject<HTMLDivElement | null>,
   ) {
     return (
       <div
+        ref={bondRef}
         onDragOver={(event) => {
           event.preventDefault();
           event.dataTransfer.dropEffect = "move";
@@ -7331,7 +7442,7 @@ function Rctm2ModePanel({
         }}
       >
         {Array.from({ length: bondSize }).map((_, slotIndex) => {
-          const circle = zoneCircles[slotIndex];
+          const hasCircle = slotIndex < circleCount;
 
           return (
             <span
@@ -7341,8 +7452,8 @@ function Rctm2ModePanel({
                 height: circleDiameter,
                 borderRadius: 999,
                 border: "1px dashed rgba(255,255,255,0.26)",
-                background: circle ? "#2EA7FF" : "transparent",
-                boxShadow: circle ? "0 0 10px rgba(46,167,255,0.42)" : "none",
+                background: hasCircle ? "#2EA7FF" : "transparent",
+                boxShadow: hasCircle ? "0 0 10px rgba(46,167,255,0.42)" : "none",
               }}
             />
           );
@@ -7445,7 +7556,7 @@ function Rctm2ModePanel({
             position: "relative",
           }}
         >
-          {dragPathGeometry ? (
+          {dragPathSurfaceSize.width > 0 && dragPathSurfaceSize.height > 0 ? (
             <svg
               aria-hidden="true"
               width={dragPathSurfaceSize.width}
@@ -7461,36 +7572,24 @@ function Rctm2ModePanel({
                 zIndex: 0,
               }}
             >
-              <path
-                d={`M ${dragPathGeometry.start.x} ${dragPathGeometry.start.y} Q ${dragPathGeometry.leftControl.x} ${dragPathGeometry.leftControl.y} ${dragPathGeometry.leftEnd.x} ${dragPathGeometry.leftEnd.y}`}
-                fill="none"
-                stroke="rgba(180,92,255,0.24)"
-                strokeWidth="3"
-                strokeDasharray="8 7"
-              />
-              <path
-                d={`M ${dragPathGeometry.start.x} ${dragPathGeometry.start.y} Q ${dragPathGeometry.rightControl.x} ${dragPathGeometry.rightControl.y} ${dragPathGeometry.rightEnd.x} ${dragPathGeometry.rightEnd.y}`}
-                fill="none"
-                stroke="rgba(180,92,255,0.24)"
-                strokeWidth="3"
-                strokeDasharray="8 7"
-              />
-
               {activeDragAnimations.map((animation) => {
-                const point =
-                  animation.zone === "leftBond"
-                    ? pointOnQuadraticPath(
-                        animation.startPoint,
-                        dragPathGeometry.leftControl,
-                        dragPathGeometry.leftEnd,
-                        animation.progress,
-                      )
-                    : pointOnQuadraticPath(
-                        animation.startPoint,
-                        dragPathGeometry.rightControl,
-                        dragPathGeometry.rightEnd,
-                        animation.progress,
-                      );
+                const start = projectDisplayPointToSurface(animation.startPoint);
+                const end = getBondCenterInSurface(animation.zone);
+
+                if (!start || !end) {
+                  return null;
+                }
+
+                const control = {
+                  x: (start.x + end.x) / 2,
+                  y: Math.max(16, Math.min(start.y, end.y) - Math.max(48, Math.abs(end.x - start.x) * 0.28)),
+                };
+                const point = pointOnQuadraticPath(
+                  start,
+                  control,
+                  end,
+                  animation.progress,
+                );
 
                 return (
                   <circle
@@ -7511,7 +7610,7 @@ function Rctm2ModePanel({
             <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>
               left bond
             </div>
-            {renderBondBox("left bond", "leftBond", leftBondCircles)}
+            {renderBondBox("left bond", "leftBond", bondCircleCounts.leftBond, leftBondRef)}
           </div>
 
           <div
@@ -7604,7 +7703,7 @@ function Rctm2ModePanel({
             <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 900, textTransform: "uppercase" }}>
               right bond
             </div>
-            {renderBondBox("right bond", "rightBond", rightBondCircles)}
+            {renderBondBox("right bond", "rightBond", bondCircleCounts.rightBond, rightBondRef)}
           </div>
         </div>
 
@@ -7626,22 +7725,25 @@ function Rctm2ModePanel({
             boxShadow: isDraggingGesture ? "inset 0 0 0 1px rgba(180,92,255,0.35)" : "none",
           }}
         >
-          {displayCircles.map((circle) => (
+          {hitDisplayStates.solid.map((circle) => {
+            const localPoint = fromNormalizedPoint(circle.point);
+
+            return (
             <button
               key={circle.id}
               type="button"
               data-rctm2-circle="true"
               draggable
-              onMouseDown={() => beginDragTiming({ x: circle.x, y: circle.y })}
+              onMouseDown={() => beginDragTiming(circle.point, circle.id)}
               onDragStart={(event) => {
-                setDraggingCircleId(circle.id);
+                setDraggingHitId(circle.id);
                 didDropRef.current = false;
                 event.dataTransfer.setData("text/plain", circle.id);
                 event.dataTransfer.effectAllowed = "move";
-                beginDragTiming({ x: circle.x, y: circle.y });
+                beginDragTiming(circle.point, circle.id);
               }}
               onDragEnd={() => {
-                setDraggingCircleId(null);
+                setDraggingHitId(null);
                 if (!didDropRef.current && draggingDraftIdRef.current) {
                   onCancelDragMarker(draggingDraftIdRef.current);
                 }
@@ -7651,8 +7753,8 @@ function Rctm2ModePanel({
               }}
               style={{
                 position: "absolute",
-                left: circle.x,
-                top: circle.y,
+                left: localPoint.x,
+                top: localPoint.y,
                 width: circleDiameter,
                 height: circleDiameter,
                 borderRadius: 999,
@@ -7668,7 +7770,8 @@ function Rctm2ModePanel({
               aria-label="Drag circle to bond box"
               title="Drag to left bond or right bond"
             />
-          ))}
+            );
+          })}
 
           {hoverPoint ? (
             <span
@@ -7688,14 +7791,17 @@ function Rctm2ModePanel({
             />
           ) : null}
 
-          {timelineHitMarkers.map((marker) => (
+          {hitDisplayStates.hollow.map((marker) => {
+            const localPoint = fromNormalizedPoint(marker.point);
+
+            return (
             <span
               key={`rctm2-hit-marker-${marker.id}`}
               aria-hidden="true"
               style={{
                 position: "absolute",
-                left: marker.point.x,
-                top: marker.point.y,
+                left: localPoint.x,
+                top: localPoint.y,
                 width: Math.max(8, circleRadius * 0.9),
                 height: Math.max(8, circleRadius * 0.9),
                 borderRadius: 999,
@@ -7705,27 +7811,8 @@ function Rctm2ModePanel({
                 pointerEvents: "none",
               }}
             />
-          ))}
-
-          {activeHitReplay.map((marker) => (
-            <span
-              key={`rctm2-hit-replay-${marker.id}`}
-              aria-hidden="true"
-              style={{
-                position: "absolute",
-                left: marker.point.x,
-                top: marker.point.y,
-                width: circleDiameter,
-                height: circleDiameter,
-                borderRadius: 999,
-                border: "1px solid #BDE4FF",
-                background: "#2EA7FF",
-                boxShadow: "0 0 16px rgba(46,167,255,0.8)",
-                transform: "translate(-50%, -50%)",
-                pointerEvents: "none",
-              }}
-            />
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
@@ -8470,6 +8557,8 @@ export default function LessonBuilderClient({
     useState<Record<string, Rctm2Point>>({});
   const [rctm2DragStartPoints, setRctm2DragStartPoints] =
     useState<Record<string, Rctm2Point>>({});
+  const [rctm2DragSourceHitIds, setRctm2DragSourceHitIds] =
+    useState<Record<string, string>>({});
   const timelineRehydrateSourceRef = useRef<SidecarPayload>(emptySidecar);
   const rctm2EntrySidecarRef = useRef<SidecarPayload>(emptySidecar);
   const rctm2EntryChartFileRef = useRef("");
@@ -8892,6 +8981,7 @@ export default function LessonBuilderClient({
     setRctm2PendingEventNumber(null);
     setRctm2HitPlacements({});
     setRctm2DragStartPoints({});
+    setRctm2DragSourceHitIds({});
     setPendingRangeSelection(null);
     setActiveEventId(null);
 
@@ -8952,6 +9042,7 @@ export default function LessonBuilderClient({
     setRctm2PendingEventNumber(null);
     setRctm2HitPlacements({});
     setRctm2DragStartPoints({});
+    setRctm2DragSourceHitIds({});
     setPendingRangeSelection(null);
     setActiveEventId(null);
     setMode("rctm2");
@@ -9233,6 +9324,13 @@ export default function LessonBuilderClient({
       if (deletedDragIds.length > 0) {
         setRctm2DragStartPoints((points) => {
           const next = { ...points };
+          deletedDragIds.forEach((id) => {
+            delete next[id];
+          });
+          return next;
+        });
+        setRctm2DragSourceHitIds((mappings) => {
+          const next = { ...mappings };
           deletedDragIds.forEach((id) => {
             delete next[id];
           });
@@ -10579,7 +10677,7 @@ function handleToggleDragTarget(
     }
   }
 
-  function handleBeginRctm2DragMarker(startPoint: Rctm2Point) {
+  function handleBeginRctm2DragMarker(startPoint: Rctm2Point, sourceHitId: string) {
     const draftId = addRtcmDraftMechanic("drag", currentSongSeconds, {
       endSeconds: currentSongSeconds,
     });
@@ -10588,6 +10686,10 @@ function handleToggleDragTarget(
       ...current,
       [draftId]: startPoint,
     }));
+    setRctm2DragSourceHitIds((current) => ({
+      ...current,
+      [draftId]: sourceHitId,
+    }));
 
     return draftId;
   }
@@ -10595,6 +10697,7 @@ function handleToggleDragTarget(
   function handleCompleteRctm2DragMarker(draftId: string, zone: Rctm2BondZone) {
     const endTick = Number(currentSongSeconds.toFixed(3));
     const tokenIndex = zone === "leftBond" ? 0 : 1;
+    const sourceHitId = rctm2DragSourceHitIds[draftId];
 
     setRtcmDraftMechanics((current) =>
       current.map((draft) => {
@@ -10605,7 +10708,7 @@ function handleToggleDragTarget(
         return {
           ...draft,
           endTick: Math.max(draft.tick, endTick),
-          dragTargets: [{ tokenIndex }],
+          dragTargets: [{ tokenIndex, ...(sourceHitId ? { sourceHitId } : {}) }],
         };
       }),
     );
@@ -10616,6 +10719,11 @@ function handleToggleDragTarget(
       current.filter((draft) => draft.id !== draftId),
     );
     setRctm2DragStartPoints((current) => {
+      const next = { ...current };
+      delete next[draftId];
+      return next;
+    });
+    setRctm2DragSourceHitIds((current) => {
       const next = { ...current };
       delete next[draftId];
       return next;
@@ -11013,6 +11121,7 @@ function handleToggleDragTarget(
                 rtcmDraftMechanics={rtcmDraftMechanics}
                 hitPlacements={rctm2HitPlacements}
                 dragStartPoints={rctm2DragStartPoints}
+                dragSourceHitIds={rctm2DragSourceHitIds}
               />
             </div>
           ) : (
