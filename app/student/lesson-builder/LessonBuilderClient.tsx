@@ -1036,13 +1036,19 @@ function timelineEventsFromSidecar(
     const equationsAtTick = equationEvents.filter(
       (event) => event.tick === tick,
     );
+    const eventSlotEvent = eventSlotEvents.find((event) => event.tick === tick);
     const counts = makeEmptyMechanicCounts();
 
     mechanicsInEvent.forEach((mechanicEvent) => {
       counts[mechanicEvent.mechanic] += 1;
     });
 
-    const slot = makeTimelineEvent(index, tick, counts);
+    const slot = makeTimelineEvent(
+      index,
+      tick,
+      counts,
+      typeof eventSlotEvent?.endTick === "number" ? eventSlotEvent.endTick : undefined,
+    );
     const firstEquationEvent = equationsAtTick[0];
 
     if (firstEquationEvent?.state.trim()) {
@@ -9325,7 +9331,7 @@ export default function LessonBuilderClient({
   }
 
   function handleSelectEvent(eventId: string) {
-    if (mode === "rctm1" || mode === "rctm2") {
+    if (mode === "rctm2") {
       return;
     }
 
