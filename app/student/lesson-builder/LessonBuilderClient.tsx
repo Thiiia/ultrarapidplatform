@@ -9396,7 +9396,6 @@ export default function LessonBuilderClient({
       const deletedDragIds = (deletedEvent.mechanicInstances?.drag ?? [])
         .map((instance) => instance.id)
         .filter((id): id is string => Boolean(id));
-      const extractedDrafts = extractDraftMechanicsFromEvent(deletedEvent);
       const nextEvents = current.filter((eventSlot) => eventSlot.id !== targetEventId).sort(
         (left, right) => timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
       );
@@ -9428,10 +9427,6 @@ export default function LessonBuilderClient({
         });
       }
 
-      if (extractedDrafts.length > 0) {
-        setRtcmDraftMechanics((drafts) => [...drafts, ...extractedDrafts]);
-      }
-
       syncTimelineFilesFromEvents(nextEvents);
 
       if (mode === "rctm1" || mode === "rctm2") {
@@ -9441,9 +9436,7 @@ export default function LessonBuilderClient({
         setActiveEventId(nextActiveEvent?.id ?? null);
       }
 
-      setSaveStatus(
-        `Deleted event ${deleteIndex + 1}; moved ${extractedDrafts.length} mechanics to free timeline items.`,
-      );
+      setSaveStatus(`Deleted event ${deleteIndex + 1}.`);
 
       return nextEvents;
     });
@@ -10602,16 +10595,10 @@ function handleToggleDragTarget(
         return current;
       }
 
-      const deletedEvent = current[selectedIndex];
-      const extractedDrafts = extractDraftMechanicsFromEvent(deletedEvent);
       const nextEvents = current.filter((eventSlot) => eventSlot.id !== activeEventId).sort(
         (left, right) => timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
       );
       const nextActiveEvent = nextEvents[Math.min(selectedIndex, nextEvents.length - 1)] ?? null;
-
-      if (extractedDrafts.length > 0) {
-        setRtcmDraftMechanics((drafts) => [...drafts, ...extractedDrafts]);
-      }
 
       setActiveEventId(nextActiveEvent?.id ?? null);
       syncTimelineFilesFromEvents(nextEvents);
