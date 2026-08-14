@@ -3757,6 +3757,28 @@ function findTimelineEventAtSeconds(
   });
 }
 
+function getRctmDeleteTargetEventId({
+  mode,
+  activeEventId,
+  playheadEventId,
+  eventIds,
+}: {
+  mode: string;
+  activeEventId: string | null;
+  playheadEventId: string | null;
+  eventIds: string[];
+}) {
+  if (mode === "rctm1" || mode === "rctm2") {
+    if (activeEventId && eventIds.includes(activeEventId)) {
+      return activeEventId;
+    }
+
+    return playheadEventId ?? null;
+  }
+
+  return activeEventId ?? null;
+}
+
 function getDownloadBaseName(name: string, fallback: string) {
   const trimmedName = name.trim();
 
@@ -9344,10 +9366,12 @@ export default function LessonBuilderClient({
       mode === "rctm1" || mode === "rctm2"
         ? findTimelineEventAtSeconds(timelineEvents, currentSongSeconds)
         : null;
-    const targetEventId =
-      mode === "rctm1" || mode === "rctm2"
-        ? playheadEvent?.id ?? null
-        : activeEventId;
+    const targetEventId = getRctmDeleteTargetEventId({
+      mode,
+      activeEventId,
+      playheadEventId: playheadEvent?.id ?? null,
+      eventIds: timelineEvents.map((eventSlot) => eventSlot.id),
+    });
 
     if (!targetEventId) {
       setSaveStatus(
@@ -11074,6 +11098,12 @@ function handleToggleDragTarget(
     timelineEvents,
     currentSongSeconds,
   );
+  const rtcmDeleteTargetEventId = getRctmDeleteTargetEventId({
+    mode,
+    activeEventId,
+    playheadEventId: rtcmPlayheadEvent?.id ?? null,
+    eventIds: timelineEvents.map((eventSlot) => eventSlot.id),
+  });
   return (
     <div
       className={styles.studentTypography}
@@ -11167,7 +11197,7 @@ function handleToggleDragTarget(
                 isSongPlaying={isSongPlaying}
                 pendingRangeMechanic={rtcmPendingHold?.mechanic ?? null}
                 eventRangeStartTick={rtcmEventRangeStartTick}
-                canDeleteEvent={Boolean(rtcmPlayheadEvent)}
+                canDeleteEvent={Boolean(rtcmDeleteTargetEventId)}
               />
             </div>
           ) : isRctm2Mode ? (
@@ -11180,7 +11210,7 @@ function handleToggleDragTarget(
                 onCreateEvent={handleToggleRtcmEventCreation}
                 onDeleteEvent={handleDeleteActiveEvent}
                 eventRangeStartTick={rtcmEventRangeStartTick}
-                canDeleteEvent={Boolean(rtcmPlayheadEvent)}
+                canDeleteEvent={Boolean(rtcmDeleteTargetEventId)}
                 currentSongSeconds={currentSongSeconds}
                 isSongPlaying={isSongPlaying}
                 events={timelineEvents}
