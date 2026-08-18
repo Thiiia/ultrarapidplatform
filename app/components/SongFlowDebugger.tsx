@@ -36,8 +36,9 @@ export default function SongFlowDebugger({
     <aside
       style={{
         position: "fixed",
-        right: 16,
-        bottom: 16,
+        left: "50%",
+        top: "50%",
+        transform: "translate(-50%, -50%)",
         width: isOpen ? "min(440px, calc(100vw - 32px))" : 220,
         maxHeight: isOpen ? "70vh" : 56,
         background: "rgba(6, 11, 21, 0.96)",

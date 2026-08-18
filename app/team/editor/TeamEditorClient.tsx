@@ -2513,6 +2513,36 @@ function getHitBubblePairPads(pair: HitBubblePair): HitBubblePad[] {
   return ["left", "right"];
 }
 
+function getHitBubblePairFromPads(pads: HitBubblePad[]): HitBubblePair | null {
+  const uniquePads = Array.from(new Set(pads));
+  const padSet = new Set(uniquePads);
+
+  if (padSet.has("topLeft") && padSet.has("bottomRight")) {
+    return "topLeftBottomRight";
+  }
+
+  if (padSet.has("topRight") && padSet.has("bottomLeft")) {
+    return "topRightBottomLeft";
+  }
+
+  if (padSet.has("left") && padSet.has("right")) {
+    return "leftRight";
+  }
+
+  if (uniquePads.length > 0) {
+    return getHitBubblePairFromPad(uniquePads[0]);
+  }
+
+  return null;
+}
+
+function getHitBubblePairFromPlacement(
+  placement: HitBubblePlacement | undefined,
+): HitBubblePair | null {
+  const pads = placement?.pads ?? placement?.positions ?? [];
+  return getHitBubblePairFromPads(pads);
+}
+
 function getHitBubblePairFromPad(pad: HitBubblePad): HitBubblePair {
   if (pad === "topLeft" || pad === "bottomRight") return "topLeftBottomRight";
   if (pad === "topRight" || pad === "bottomLeft") return "topRightBottomLeft";
