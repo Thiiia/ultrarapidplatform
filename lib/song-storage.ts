@@ -43,6 +43,10 @@ function getErrorMessage(error: unknown) {
   return String(error);
 }
 
+function isNonNull<T>(value: T | null): value is T {
+  return value !== null;
+}
+
 async function createOptionalSignedUrl(bucket: string | null, path: string | null) {
   if (!bucket || !path) {
     return null;
@@ -111,8 +115,8 @@ export async function getSongChoices(): Promise<SongChoice[]> {
     },
   });
 
-  const songs = await Promise.all(
-    songAssets.map(async (songAsset) => {
+  const songs: Array<SongChoice | null> = await Promise.all(
+    songAssets.map(async (songAsset): Promise<SongChoice | null> => {
       const hasSidecar = Boolean(songAsset.sidecarBucket && songAsset.sidecarPath);
       try {
         const [songSignedUrl, chartSignedUrl, sidecarSignedUrl, songMetadata] =
@@ -183,5 +187,5 @@ export async function getSongChoices(): Promise<SongChoice[]> {
     }),
   );
 
-  return songs.filter((song): song is SongChoice => song !== null);
+  return songs.filter(isNonNull);
 }
