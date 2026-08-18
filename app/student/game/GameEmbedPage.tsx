@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import type { FC, SVGProps } from "react";
+import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { resolveLaunchParams } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 import styles from "../student.module.css";
@@ -326,6 +327,8 @@ export default function GameEmbedPage({
           />
         </section>
       </main>
+
+      <SongFlowDebugger title="Game Launch Debugger" />
     </div>
   );
 }
