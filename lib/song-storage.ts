@@ -35,6 +35,14 @@ export type SongChoice = {
   } | null;
 };
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
 async function createOptionalSignedUrl(bucket: string | null, path: string | null) {
   if (!bucket || !path) {
     return null;
@@ -106,64 +114,74 @@ export async function getSongChoices(): Promise<SongChoice[]> {
   const songs = await Promise.all(
     songAssets.map(async (songAsset) => {
       const hasSidecar = Boolean(songAsset.sidecarBucket && songAsset.sidecarPath);
+      try {
+        const [songSignedUrl, chartSignedUrl, sidecarSignedUrl, songMetadata] =
+          await Promise.all([
+            createSignedUrl(songAsset.songBucket, songAsset.songPath),
+            createSignedUrl(songAsset.chartBucket, songAsset.chartPath),
+            createOptionalSignedUrl(songAsset.sidecarBucket, songAsset.sidecarPath),
+            getFileMetadata(songAsset.songBucket, songAsset.songPath),
+          ]);
 
-      const [
-        songSignedUrl,
-        chartSignedUrl,
-        sidecarSignedUrl,
-        songMetadata,
-      ] = await Promise.all([
-        createSignedUrl(songAsset.songBucket, songAsset.songPath),
-        createSignedUrl(songAsset.chartBucket, songAsset.chartPath),
-createOptionalSignedUrl(songAsset.sidecarBucket, songAsset.sidecarPath),
-        getFileMetadata(songAsset.songBucket, songAsset.songPath),
-      ]);
+        const metadata = songMetadata?.metadata as Record<string, unknown> | undefined;
 
-      const metadata = songMetadata?.metadata as Record<string, unknown> | undefined;
+        const songContentType =
+          typeof metadata?.mimetype === "string"
+            ? metadata.mimetype
+            : getContentTypeFromPath(songAsset.songPath);
 
-      const songContentType =
-        typeof metadata?.mimetype === "string"
-          ? metadata.mimetype
-          : getContentTypeFromPath(songAsset.songPath);
-
-      return {
-        id: songAsset.id,
-        name: songAsset.title,
-        title: songAsset.title,
-        artist: songAsset.artist,
-        path: songAsset.songPath,
-        signedUrl: songSignedUrl,
-        size: typeof metadata?.size === "number" ? metadata.size : null,
-        contentType: songContentType,
-        updatedAt: songAsset.updatedAt.toISOString(),
-        durationSeconds: songAsset.durationSeconds,
-
-        song: {
-          bucket: songAsset.songBucket,
+        return {
+          id: songAsset.id,
+          name: songAsset.title,
+          title: songAsset.title,
+          artist: songAsset.artist,
           path: songAsset.songPath,
           signedUrl: songSignedUrl,
+          size: typeof metadata?.size === "number" ? metadata.size : null,
           contentType: songContentType,
-        },
+          updatedAt: songAsset.updatedAt.toISOString(),
+          durationSeconds: songAsset.durationSeconds,
 
-        chart: {
-          bucket: songAsset.chartBucket,
-          path: songAsset.chartPath,
-          signedUrl: chartSignedUrl,
-          contentType: getContentTypeFromPath(songAsset.chartPath),
-        },
+          song: {
+            bucket: songAsset.songBucket,
+            path: songAsset.songPath,
+            signedUrl: songSignedUrl,
+            contentType: songContentType,
+          },
 
-        sidecar:
-          hasSidecar && sidecarSignedUrl
-            ? {
-                bucket: songAsset.sidecarBucket!,
-                path: songAsset.sidecarPath!,
-                signedUrl: sidecarSignedUrl,
-                contentType: getContentTypeFromPath(songAsset.sidecarPath!),
-              }
-            : null,
-      };
+          chart: {
+            bucket: songAsset.chartBucket,
+            path: songAsset.chartPath,
+            signedUrl: chartSignedUrl,
+            contentType: getContentTypeFromPath(songAsset.chartPath),
+          },
+
+          sidecar:
+            hasSidecar && sidecarSignedUrl
+              ? {
+                  bucket: songAsset.sidecarBucket!,
+                  path: songAsset.sidecarPath!,
+                  signedUrl: sidecarSignedUrl,
+                  contentType: getContentTypeFromPath(songAsset.sidecarPath!),
+                }
+              : null,
+        };
+      } catch (error) {
+        console.error(
+          "Skipping invalid song asset while loading song choices",
+          {
+            songAssetId: songAsset.id,
+            title: songAsset.title,
+            songPath: songAsset.songPath,
+            chartPath: songAsset.chartPath,
+            error: getErrorMessage(error),
+          },
+        );
+
+        return null;
+      }
     }),
   );
 
-  return songs;
+  return songs.filter((song): song is SongChoice => song !== null);
 }
