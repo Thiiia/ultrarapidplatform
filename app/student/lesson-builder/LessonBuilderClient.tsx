@@ -15,7 +15,10 @@ import {
 } from "@/lib/editor/project-to-chart";
 import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { persistLaunchParams } from "@/lib/launch-handoff";
-import { createSongLaunchSearchParams } from "@/lib/platform-launch";
+import {
+  buildEmbeddedGameUrl,
+  createSongLaunchSearchParams,
+} from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import styles from "../student.module.css";
 
@@ -9788,6 +9791,10 @@ function handleToggleDragTarget(
       : `${navBasePath}/game`;
     const launchQuery = launchParams.toString();
     const launchUrl = `${launchRoute}?${launchQuery}`;
+    const fullGameUrl = buildEmbeddedGameUrl(
+      process.env.NEXT_PUBLIC_GAME_URL ?? "https://ultrarapidtest.netlify.app/",
+      launchParams,
+    );
 
     appendSongFlowDebug(
       "lesson-builder:launch:play",
@@ -9796,6 +9803,7 @@ function handleToggleDragTarget(
         launchRoute,
         launchQuery,
         launchUrl,
+        fullGameUrl,
         selectedSongLaunch,
       },
     );
