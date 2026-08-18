@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getCurrentAppUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
-import { resolveSongSaveTargets } from "@/lib/song-save";
-import { canAccessTeamPreview } from "@/lib/team-preview-access";
 
 type SaveFilePayload = {
+  bucket?: unknown;
+  path?: unknown;
   content?: unknown;
+  contentType?: unknown;
 };
 
 type SavePayload = {
@@ -47,38 +47,32 @@ function getSupabaseServerClient() {
 
 async function uploadTextFile(
   file: SaveFilePayload,
-  target: UploadedFileRef,
+  fallbackContentType: string,
 ): Promise<UploadedFileRef> {
+  const bucket = readRequiredString(file.bucket, "bucket");
+  const path = readRequiredString(file.path, "path");
   const content = readRequiredString(file.content, "content");
+  const contentType =
+    typeof file.contentType === "string" && file.contentType.trim().length > 0
+      ? file.contentType.trim()
+      : fallbackContentType;
 
   const supabase = getSupabaseServerClient();
 
-  const { error } = await supabase.storage
-    .from(target.bucket)
-    .upload(target.path, content, {
-      contentType: target.contentType,
-      upsert: true,
-    });
+  const { error } = await supabase.storage.from(bucket).upload(path, content, {
+    contentType,
+    upsert: true,
+  });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return target;
+  return { bucket, path, contentType };
 }
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentAppUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!canAccessTeamPreview(user)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const payload = (await request.json()) as SavePayload;
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId");
 
@@ -89,33 +83,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const existingSongAsset = await prisma.songAsset.findFirst({
-      where: {
-        id: songAssetId,
-        isActive: true,
-      },
-      select: {
-        chartBucket: true,
-        chartPath: true,
-        sidecarBucket: true,
-        sidecarPath: true,
-      },
-    });
-
-    if (!existingSongAsset) {
-      return NextResponse.json({ error: "Song not found" }, { status: 404 });
-    }
-
-    const targets = resolveSongSaveTargets(existingSongAsset);
-
     const chartRef = await uploadTextFile(
       payload.chart,
-      { ...targets.chart, contentType: "text/plain;charset=utf-8" },
+      "text/plain;charset=utf-8",
     );
 
     const sidecarRef = await uploadTextFile(
       payload.sidecar,
-      { ...targets.sidecar, contentType: "application/json;charset=utf-8" },
+      "application/json;charset=utf-8",
     );
 
     const songAsset = await prisma.songAsset.update({
@@ -145,7 +120,12 @@ export async function POST(request: Request) {
     console.error("Unable to save lesson files:", error);
 
     return NextResponse.json(
-      { error: "Unable to save lesson files" },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to save lesson files",
+      },
       { status: 500 },
     );
   }

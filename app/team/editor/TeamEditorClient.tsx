@@ -15,6 +15,7 @@ import {
 } from "@/lib/editor/project-to-chart";
 import { persistLaunchParams } from "@/lib/launch-handoff";
 import { loadSongPackageAssets } from "@/lib/editor/song-package";
+import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../../student/student.module.css";
 
@@ -30,6 +31,9 @@ import ProgressTab from "@/public/header_icons/progress_tab.svg";
 import ProgressPressedTab from "@/public/header_icons/progress_tab_pressed.svg";
 import PlayTab from "@/public/header_icons/play_tab.svg";
 import PlayPressedTab from "@/public/header_icons/play_tab_pressed.svg";
+
+/* Utility Icon Imports */
+import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
 
 type LessonBuilderPayload = {
   chartFile: string;
@@ -192,6 +196,13 @@ type HeaderTab = {
   width: number;
 };
 
+type UtilityTab = {
+  label: string;
+  href: string;
+  Icon: TabIcon;
+  width: number;
+};
+
 type TeamSongChoice = SongChoice & {
   equation_slots?: number | string | null;
   equationSlots?: number | string | null;
@@ -232,7 +243,6 @@ type TeamSongChoice = SongChoice & {
 type LessonBuilderClientProps = {
   navBasePath?: string;
   songs?: SelectedSongPayload[];
-  launchPath?: string;
 };
 
 type EditorWorkspaceMode = "equationEditor" | "chartEditor";
@@ -336,11 +346,17 @@ function normalizePromptedCount(value: string | null) {
   return Math.round(parsed);
 }
 
-function getTopTabs(
-  navBasePath = "/teacher",
-  playHref?: string,
-): HeaderTab[] {
-  const tabs: HeaderTab[] = [
+const utilityTabs: UtilityTab[] = [
+  {
+    label: "Profile",
+    href: "/student/profile",
+    Icon: ProfileIcon,
+    width: 134.45,
+  },
+];
+
+function getTopTabs(navBasePath = "/student"): HeaderTab[] {
+  return [
     {
       label: "Home",
       href: navBasePath,
@@ -348,45 +364,35 @@ function getTopTabs(
       ActiveIcon: HomePressedIcon,
       width: 99,
     },
-  ];
-
-  if (navBasePath !== "/admin") {
-    tabs.push(
-      {
-        label: "My Lessons",
-        href: `${navBasePath}/lessons`,
-        Icon: MyLessonsTab,
-        ActiveIcon: MyLessonsPressedTab,
-        width: 139,
-      },
-      {
-        label: "Lesson Builder",
-        href: `${navBasePath}/song-choice`,
-        Icon: LessonBuilderTab,
-        ActiveIcon: LessonBuilderPressedTab,
-        width: 159,
-      },
-      {
-        label: "Progress",
-        href: `${navBasePath}/progress`,
-        Icon: ProgressTab,
-        ActiveIcon: ProgressPressedTab,
-        width: 120,
-      },
-    );
-  }
-
-  if (playHref) {
-    tabs.push({
+    {
+      label: "My Lessons",
+      href: `${navBasePath}/lessons`,
+      Icon: MyLessonsTab,
+      ActiveIcon: MyLessonsPressedTab,
+      width: 139,
+    },
+    {
+      label: "Lesson Builder",
+      href: `${navBasePath}/song-choice`,
+      Icon: LessonBuilderTab,
+      ActiveIcon: LessonBuilderPressedTab,
+      width: 159,
+    },
+    {
+      label: "Progress",
+      href: `${navBasePath}/progress`,
+      Icon: ProgressTab,
+      ActiveIcon: ProgressPressedTab,
+      width: 120,
+    },
+    {
       label: "Play",
-      href: playHref,
+      href: `${navBasePath}/game`,
       Icon: PlayTab,
       ActiveIcon: PlayPressedTab,
       width: 99,
-    });
-  }
-
-  return tabs;
+    },
+  ];
 }
 
 function makeId(prefix: string) {
@@ -1336,7 +1342,7 @@ function HeaderBar({
           </div>
 
           <nav
-            aria-label="Primary navigation"
+            aria-label="Student navigation"
             style={{
               display: "flex",
               alignItems: "center",
@@ -1401,6 +1407,20 @@ function HeaderBar({
             overflow: "visible",
           }}
         >
+          {utilityTabs.map((tab) => (
+            <Link
+              key={tab.label}
+              href={tab.href}
+              aria-label={tab.label}
+              className={styles.utilityButton}
+              style={{ width: tab.width, height: 38 }}
+            >
+              <tab.Icon
+                style={{ width: tab.width, height: 38, display: "block" }}
+              />
+            </Link>
+          ))}
+
           <a
             href="/auth/logout"
             aria-label="Log out"
@@ -4622,12 +4642,12 @@ function CenterEditorPanel({
 }
 
 export default function LessonBuilderClient({
-  navBasePath = "/teacher",
+  navBasePath = "/student",
   songs = [],
-  launchPath = "/team/game",
 }: LessonBuilderClientProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const topTabs = useMemo(() => getTopTabs(navBasePath), [navBasePath]);
   const project = useEditorStore((s) => s.project);
   const setProject = useEditorStore((s) => s.setProject);
   const setStoreSidecar = useEditorStore((s) => s.setSidecar);
@@ -4661,24 +4681,12 @@ export default function LessonBuilderClient({
     chart: StorageFileRef;
     sidecar: StorageFileRef | null;
   } | null>(null);
-  const [selectedSongLaunchId, setSelectedSongLaunchId] = useState<
-    string | null
-  >(null);
-
-  const playHref = useMemo(() => {
-    if (!selectedSongLaunchId) {
-      return undefined;
-    }
-
-    const params = new URLSearchParams({
-      songAssetId: selectedSongLaunchId,
-    });
-    return launchPath + "?" + params.toString();
-  }, [launchPath, selectedSongLaunchId]);
-  const topTabs = useMemo(
-    () => getTopTabs(navBasePath, playHref),
-    [navBasePath, playHref],
-  );
+  const [selectedSongLaunch, setSelectedSongLaunch] = useState<{
+    songAssetId: string;
+    chartUrl: string;
+    sidecarUrl: string | null;
+    audioUrl: string;
+  } | null>(null);
 
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
@@ -4765,7 +4773,7 @@ export default function LessonBuilderClient({
   setPendingSongFile(file);
   setUploadedSongName(file.name);
   setSelectedSongStorage(null);
-  setSelectedSongLaunchId(null);
+  setSelectedSongLaunch(null);
   setSaveStatus(`Loaded song: ${file.name}`);
 
   setMetadata((current) => ({
@@ -4852,7 +4860,12 @@ async function handleSelectSupabaseSong(song: SelectedSongPayload) {
         : null,
     });
 
-    setSelectedSongLaunchId(song.id);
+    setSelectedSongLaunch({
+      songAssetId: song.id,
+      chartUrl: song.chart.signedUrl,
+      sidecarUrl: song.sidecar?.signedUrl ?? null,
+      audioUrl: song.song.signedUrl,
+    });
 
     setPendingSongFile(null);
     setUploadedSongName(song.name);
@@ -5156,14 +5169,15 @@ function handleToggleDragTarget(
   }
 
   function handleLaunchGame() {
-    if (!playHref) {
+    if (!selectedSongLaunch) {
       setSaveStatus("Choose a Supabase song before launching the game.");
       return;
     }
 
     const launchParams = createSongLaunchSearchParams(selectedSongLaunch);
 
-    router.push(navBasePath + "/game?" + launchParams.toString());
+    persistLaunchParams(launchParams);
+    router.push(navBasePath + "/game");
   }
 
   async function handleSaveToSupabase() {
@@ -5197,10 +5211,25 @@ function handleToggleDragTarget(
         body: JSON.stringify({
           songAssetId: selectedSongStorage.id,
           chart: {
+            ...selectedSongStorage.chart,
             content: chartText,
+            contentType:
+              selectedSongStorage.chart.contentType ??
+              "text/plain;charset=utf-8",
           },
           sidecar: {
+            ...(selectedSongStorage.sidecar ?? {
+              bucket: "SidecarJsons",
+              path: selectedSongStorage.chart.path.replace(
+                /\.chart$/i,
+                ".json",
+              ),
+              contentType: "application/json;charset=utf-8",
+            }),
             content: sidecarJson,
+            contentType:
+              selectedSongStorage.sidecar?.contentType ??
+              "application/json;charset=utf-8",
           },
         }),
       });
@@ -5244,20 +5273,8 @@ function handleToggleDragTarget(
       return;
     }
 
-    sessionStorage.removeItem("ultrarapid_selected_song");
-
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
-      const selectedSongEventCounts = getSelectedSongEventCounts(selectedSong);
-      const selectedSongEquationSlots =
-        selectedSongEventCounts.length ||
-        getSelectedSongEquationSlotCount(selectedSong);
-      const selectedSongEventTicks = getSelectedSongEquationSlotTicks(
-        selectedSong,
-        typeof selectedSongEquationSlots === "number"
-          ? selectedSongEquationSlots
-          : 0,
-      );
 
       setSelectedSongStorage({
         id: selectedSong.id,
@@ -5275,7 +5292,12 @@ function handleToggleDragTarget(
           : null,
       });
 
-      setSelectedSongLaunchId(selectedSong.id);
+      setSelectedSongLaunch({
+        songAssetId: selectedSong.id,
+        chartUrl: selectedSong.chart.signedUrl,
+        sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
+        audioUrl: selectedSong.song.signedUrl,
+      });
 
       setPendingSongFile(null);
       loadSidecarIntoTimeline(emptySidecar, null);
@@ -5345,7 +5367,7 @@ function handleToggleDragTarget(
           : "Failed to parse selected song package",
       );
     }
-  }, [setProject, songs]);
+  }, [setProject]);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_editor_payload");
@@ -5445,7 +5467,7 @@ function handleToggleDragTarget(
   onUploadSidecar={handleUploadSidecarJsonFile}
   songs={songs}
   onSelectSupabaseSong={handleSelectSupabaseSong}
-  canLaunch={Boolean(selectedSongLaunchId)}
+  canLaunch={Boolean(selectedSongLaunch)}
   onLaunch={handleLaunchGame}
 />
 

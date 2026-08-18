@@ -1,9 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import {
-  createFreshSongLaunchInput,
-  type FreshSongLaunchInput,
-} from "@/lib/song-launch";
 
 export type SongChoice = {
   id: string;
@@ -64,16 +60,12 @@ async function createOptionalSignedUrl(bucket: string | null, path: string | nul
   }
 }
 
-async function createSignedUrl(
-  bucket: string,
-  path: string,
-  expiresInSeconds = 60 * 60,
-) {
+async function createSignedUrl(bucket: string, path: string) {
   const supabaseAdmin = getSupabaseAdmin();
 
   const { data, error } = await supabaseAdmin.storage
     .from(bucket)
-    .createSignedUrl(path, expiresInSeconds);
+    .createSignedUrl(path, 60 * 60);
 
   if (error || !data?.signedUrl) {
     throw new Error(
@@ -111,38 +103,6 @@ function getContentTypeFromPath(path: string) {
   if (extension === "json") return "application/json";
 
   return null;
-}
-
-export async function getSongLaunchPayload(
-  songAssetId: string,
-): Promise<FreshSongLaunchInput | null> {
-  songAssetId = songAssetId.trim();
-
-  if (!songAssetId) {
-    return null;
-  }
-
-  const songAsset = await prisma.songAsset.findFirst({
-    where: {
-      id: songAssetId,
-      isActive: true,
-    },
-    select: {
-      id: true,
-      songBucket: true,
-      songPath: true,
-      chartBucket: true,
-      chartPath: true,
-      sidecarBucket: true,
-      sidecarPath: true,
-    },
-  });
-
-  if (!songAsset) {
-    return null;
-  }
-
-  return createFreshSongLaunchInput(songAsset, createSignedUrl);
 }
 
 export async function getSongChoices(): Promise<SongChoice[]> {
