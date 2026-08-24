@@ -589,11 +589,19 @@ export default function SongChoiceClient({
   }, [songs, durationsById]);
 
   function buildSelectedSongPayload(song: SongChoiceWithEquationSlots) {
+    const activityContext = selectedActivity
+      ? {
+          key: selectedActivity.key,
+          label: selectedActivity.label,
+        }
+      : null;
+
     return {
       id: song.id,
       name: song.name,
       title: song.title,
       artist: song.artist,
+      activity: activityContext,
 
       song: {
         bucket: song.song.bucket,
@@ -638,6 +646,7 @@ export default function SongChoiceClient({
     appendSongFlowDebug("song-choice:continue", "Persisting selected song payload into session storage and routing to lesson builder.", {
       navBasePath,
       lessonBuilderRoute: `${navBasePath}/lesson-builder`,
+      selectedActivity,
       payload: selectedSongPayload,
     });
 
@@ -674,6 +683,7 @@ export default function SongChoiceClient({
         navBasePath,
         launchRoute,
         launchUrl,
+        selectedActivity,
         selectedSongPayload,
       },
     );

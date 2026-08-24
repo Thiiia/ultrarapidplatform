@@ -13,7 +13,7 @@ import {
   projectToChart,
   projectToSidecarJson,
 } from "@/lib/editor/project-to-chart";
-// import SongFlowDebugger from "@/app/components/SongFlowDebugger";
+import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { persistLaunchParams } from "@/lib/launch-handoff";
 import {
   buildEmbeddedGameUrl,
@@ -22,6 +22,7 @@ import {
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import {
   inferSongActivityKeyFromChartPath,
+  normalizeSongActivityKey,
   resolveSongAssetStoragePaths,
 } from "@/lib/song-activity-storage";
 import styles from "../student.module.css";
@@ -54,6 +55,10 @@ type SelectedSongPayload = {
   name: string;
   title?: string;
   artist?: string | null;
+  activity?: {
+    key?: string;
+    label?: string;
+  } | null;
   equationSlots?: unknown;
   equation_slots?: unknown;
   equationSlotTicks?: unknown;
@@ -9947,6 +9952,52 @@ function handleToggleDragTarget(
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
       appendSongFlowDebug("lesson-builder:session:selected-song", "Hydrated selected song payload from session storage.", selectedSong);
+
+      const storedActivityRaw = sessionStorage.getItem("selectedDashboardActivity");
+      let storedActivity: { key?: string; label?: string } | null = null;
+
+      if (storedActivityRaw) {
+        try {
+          storedActivity = JSON.parse(storedActivityRaw) as {
+            key?: string;
+            label?: string;
+          };
+        } catch {
+          storedActivity = null;
+        }
+      }
+
+      const resolvedActivityKey =
+        selectedSong.activity?.key ?? storedActivity?.key ?? null;
+      const expectedPaths = resolvedActivityKey
+        ? resolveSongAssetStoragePaths({
+            activityKey: normalizeSongActivityKey(resolvedActivityKey),
+            chartPath: selectedSong.chart.path,
+            sidecarPath: selectedSong.sidecar?.path ?? null,
+          })
+        : null;
+
+      appendSongFlowDebug(
+        "lesson-builder:activity:path-check",
+        "Comparing selected activity with chart/sidecar payload paths before fetch.",
+        {
+          selectedSongId: selectedSong.id,
+          selectedSongName: selectedSong.name,
+          payloadActivity: selectedSong.activity ?? null,
+          storedActivity,
+          resolvedActivityKey,
+          payloadChartPath: selectedSong.chart.path,
+          payloadSidecarPath: selectedSong.sidecar?.path ?? null,
+          expectedPaths,
+          chartMatchesExpected:
+            expectedPaths ? expectedPaths.chartPath === selectedSong.chart.path : null,
+          sidecarMatchesExpected:
+            expectedPaths
+              ? expectedPaths.sidecarPath === (selectedSong.sidecar?.path ?? null)
+              : null,
+        },
+      );
+
       setSelectedSongStorage({
         id: selectedSong.id,
         chart: {
@@ -10008,6 +10059,19 @@ function handleToggleDragTarget(
           : Promise.resolve(emptySidecar),
       ])
         .then(([chartResult, sidecarResult]) => {
+          appendSongFlowDebug(
+            "lesson-builder:hydrate:fetch-results",
+            "Recorded chart and sidecar fetch outcomes for selected song payload.",
+            {
+              chartStatus: chartResult.status,
+              sidecarStatus: sidecarResult.status,
+              chartPath: selectedSong.chart.path,
+              sidecarPath: selectedSong.sidecar?.path ?? null,
+              chartUrl: selectedSong.chart.signedUrl,
+              sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
+            },
+          );
+
           const selectedSongMetadata = {
             songTitle: selectedSong.title ?? selectedSong.name,
             artist: selectedSong.artist ?? undefined,
@@ -11574,7 +11638,7 @@ function handleToggleDragTarget(
         </section>
       </main>
 
-      {/* <SongFlowDebugger title="Lesson Builder Launch Debugger" /> */}
+      <SongFlowDebugger title="Lesson Builder Launch Debugger" />
 
     </div>
   );
