@@ -1,10 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import {
+  defaultSongActivityKey,
   getSongAssetPathsForActivity,
   normalizeSongActivityKey,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+
+const allSongActivityKeys: SongActivityKey[] = [
+  "number-bonds",
+  "equations",
+  "missing-numbers",
+  "early-algebra",
+];
 
 export type SongChoice = {
   id: string;
@@ -81,6 +89,69 @@ async function createSignedUrl(bucket: string, path: string) {
   }
 
   return data.signedUrl;
+}
+
+function dedupePaths(paths: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+
+  return paths.filter((path): path is string => {
+    if (!path) {
+      return false;
+    }
+
+    const trimmed = path.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      return false;
+    }
+
+    seen.add(trimmed);
+    return true;
+  });
+}
+
+async function createSignedUrlFromCandidates(bucket: string, candidatePaths: string[]) {
+  let lastError: unknown = null;
+
+  for (const candidatePath of dedupePaths(candidatePaths)) {
+    try {
+      const signedUrl = await createSignedUrl(bucket, candidatePath);
+      return {
+        path: candidatePath,
+        signedUrl,
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError instanceof Error) {
+    throw lastError;
+  }
+
+  throw new Error(`Unable to create signed URL from candidate paths for ${bucket}`);
+}
+
+async function createOptionalSignedUrlFromCandidates(
+  bucket: string | null,
+  candidatePaths: string[],
+) {
+  if (!bucket) {
+    return null;
+  }
+
+  for (const candidatePath of dedupePaths(candidatePaths)) {
+    try {
+      const signedUrl = await createSignedUrl(bucket, candidatePath);
+      return {
+        path: candidatePath,
+        signedUrl,
+      };
+    } catch {
+      // Continue trying other candidate paths.
+    }
+  }
+
+  return null;
 }
 
 async function getFileMetadata(bucket: string, path: string) {
@@ -192,6 +263,7 @@ export async function getSongChoices(
   const activityKey: SongActivityKey | null = normalizeSongActivityKey(
     requestedActivityKey,
   );
+  const preferredActivityKey = activityKey ?? defaultSongActivityKey;
 
   const songAssets = await prisma.songAsset.findMany({
     where: {
@@ -222,11 +294,24 @@ export async function getSongChoices(
       const songAssetRecord = songAsset as unknown as Record<string, unknown>;
       const selectedPaths = getSongAssetPathsForActivity(
         songAssetRecord,
-        activityKey,
+        preferredActivityKey,
       );
-      const hasSidecar = Boolean(
-        songAsset.sidecarBucket && selectedPaths.sidecarPath,
-      );
+
+      const candidateActivityOrder: SongActivityKey[] = [
+        preferredActivityKey,
+        ...allSongActivityKeys.filter((key) => key !== preferredActivityKey),
+      ];
+
+      const chartPathCandidates = candidateActivityOrder
+        .map((key) =>
+          getSongAssetPathsForActivity(songAssetRecord, key).chartPath,
+        )
+        .filter(Boolean);
+      const sidecarPathCandidates = candidateActivityOrder
+        .map((key) =>
+          getSongAssetPathsForActivity(songAssetRecord, key).sidecarPath,
+        )
+        .filter(Boolean) as string[];
 
       if (!selectedPaths.chartPath) {
         console.warn(
@@ -241,13 +326,16 @@ export async function getSongChoices(
       }
 
       try {
-        const [songSignedUrl, chartSignedUrl, sidecarSignedUrl, songMetadata] =
+        const [songSignedUrl, chartRef, sidecarRef, songMetadata] =
           await Promise.all([
             createSignedUrl(songAsset.songBucket, storageSong.path),
-            createSignedUrl(songAsset.chartBucket, selectedPaths.chartPath),
-            createOptionalSignedUrl(
+            createSignedUrlFromCandidates(
+              songAsset.chartBucket,
+              chartPathCandidates,
+            ),
+            createOptionalSignedUrlFromCandidates(
               songAsset.sidecarBucket,
-              hasSidecar ? selectedPaths.sidecarPath : null,
+              sidecarPathCandidates,
             ),
             getFileMetadata(songAsset.songBucket, storageSong.path),
           ]);
@@ -283,18 +371,18 @@ export async function getSongChoices(
 
           chart: {
             bucket: songAsset.chartBucket,
-            path: selectedPaths.chartPath,
-            signedUrl: chartSignedUrl,
-            contentType: getContentTypeFromPath(selectedPaths.chartPath),
+            path: chartRef.path,
+            signedUrl: chartRef.signedUrl,
+            contentType: getContentTypeFromPath(chartRef.path),
           },
 
           sidecar:
-            hasSidecar && sidecarSignedUrl
+            sidecarRef
               ? {
                   bucket: songAsset.sidecarBucket!,
-                  path: selectedPaths.sidecarPath!,
-                  signedUrl: sidecarSignedUrl,
-                  contentType: getContentTypeFromPath(selectedPaths.sidecarPath!),
+                  path: sidecarRef.path,
+                  signedUrl: sidecarRef.signedUrl,
+                  contentType: getContentTypeFromPath(sidecarRef.path),
                 }
               : null,
         };
