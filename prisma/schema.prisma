@@ -211,10 +211,16 @@ model SongAsset {
   songPath   String
 
   chartBucket String @default("Charts")
-  chartPath   String
+  numberBondsChartPath   String
+  equationsChartPath     String
+  missingNumbersChartPath String
+  earlyAlgebraChartPath   String
 
   sidecarBucket String? @default("SidecarJsons")
-  sidecarPath   String?
+  numberBondsSidecarPath    String?
+  equationsSidecarPath      String?
+  missingNumbersSidecarPath String?
+  earlyAlgebraSidecarPath   String?
 
   isActive Boolean @default(true)
 

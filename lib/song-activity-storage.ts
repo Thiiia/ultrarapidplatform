@@ -4,6 +4,13 @@ export type SongActivityKey =
   | "missing-numbers"
   | "early-algebra";
 
+export const defaultSongActivityKey: SongActivityKey = "number-bonds";
+
+type ActivityPathFieldNames = {
+  chartField: string;
+  sidecarField: string;
+};
+
 type SongActivityFolders = {
   chartFolder: string;
   sidecarFolder: string;
@@ -25,6 +32,25 @@ const songActivityFoldersByKey: Record<SongActivityKey, SongActivityFolders> = {
   "early-algebra": {
     chartFolder: "Early_Algebra",
     sidecarFolder: "Missing_Numbers",
+  },
+};
+
+const songAssetPathFieldsByKey: Record<SongActivityKey, ActivityPathFieldNames> = {
+  "number-bonds": {
+    chartField: "numberBondsChartPath",
+    sidecarField: "numberBondsSidecarPath",
+  },
+  equations: {
+    chartField: "equationsChartPath",
+    sidecarField: "equationsSidecarPath",
+  },
+  "missing-numbers": {
+    chartField: "missingNumbersChartPath",
+    sidecarField: "missingNumbersSidecarPath",
+  },
+  "early-algebra": {
+    chartField: "earlyAlgebraChartPath",
+    sidecarField: "earlyAlgebraSidecarPath",
   },
 };
 
@@ -106,5 +132,59 @@ export function resolveSongAssetStoragePaths({
   return {
     chartPath: `${folders.chartFolder}/${chartFileName}`,
     sidecarPath: `${folders.sidecarFolder}/${sidecarFileName}`,
+  };
+}
+
+function readStringProperty(
+  record: Record<string, unknown>,
+  key: string,
+): string | null {
+  const value = record[key];
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function getSongAssetPathsForActivity(
+  songAssetRecord: Record<string, unknown>,
+  requestedActivityKey: SongActivityKey | null,
+) {
+  const activityKey = requestedActivityKey ?? defaultSongActivityKey;
+  const { chartField, sidecarField } = songAssetPathFieldsByKey[activityKey];
+
+  const chartPath =
+    readStringProperty(songAssetRecord, chartField) ??
+    readStringProperty(songAssetRecord, "chartPath") ??
+    "";
+  const sidecarPath =
+    readStringProperty(songAssetRecord, sidecarField) ??
+    readStringProperty(songAssetRecord, "sidecarPath") ??
+    null;
+
+  return {
+    activityKey,
+    chartPath,
+    sidecarPath,
+  };
+}
+
+export function buildSongAssetActivityPathUpdate({
+  activityKey,
+  chartPath,
+  sidecarPath,
+}: {
+  activityKey: SongActivityKey;
+  chartPath: string;
+  sidecarPath: string;
+}) {
+  const { chartField, sidecarField } = songAssetPathFieldsByKey[activityKey];
+
+  return {
+    [chartField]: chartPath,
+    [sidecarField]: sidecarPath,
   };
 }

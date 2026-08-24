@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
 import {
+  buildSongAssetActivityPathUpdate,
+  defaultSongActivityKey,
   inferSongActivityKeyFromChartPath,
   normalizeSongActivityKey,
   resolveSongAssetStoragePaths,
@@ -97,7 +99,9 @@ export async function POST(request: Request) {
     const activityKey =
       normalizeSongActivityKey(
         typeof payload.activityKey === "string" ? payload.activityKey : null,
-      ) ?? inferSongActivityKeyFromChartPath(requestedChartPath);
+      ) ??
+      inferSongActivityKeyFromChartPath(requestedChartPath) ??
+      defaultSongActivityKey;
     const resolvedPaths = resolveSongAssetStoragePaths({
       activityKey,
       chartPath: requestedChartPath,
@@ -124,21 +128,20 @@ export async function POST(request: Request) {
       "application/json;charset=utf-8",
     );
 
+    const activityPathUpdate = buildSongAssetActivityPathUpdate({
+      activityKey,
+      chartPath: chartRef.path,
+      sidecarPath: sidecarRef.path,
+    });
+
     const songAsset = await prisma.songAsset.update({
       where: { id: songAssetId },
       data: {
         chartBucket: chartRef.bucket,
-        chartPath: chartRef.path,
         sidecarBucket: sidecarRef.bucket,
-        sidecarPath: sidecarRef.path,
+        ...activityPathUpdate,
       },
-      select: {
-        id: true,
-        chartBucket: true,
-        chartPath: true,
-        sidecarBucket: true,
-        sidecarPath: true,
-      },
+      select: { id: true, chartBucket: true, sidecarBucket: true },
     });
 
     return NextResponse.json({

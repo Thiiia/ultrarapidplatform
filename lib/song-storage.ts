@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
+  getSongAssetPathsForActivity,
   normalizeSongActivityKey,
-  resolveSongAssetStoragePaths,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
@@ -128,21 +128,35 @@ export async function getSongChoices(
 
   const songs: Array<SongChoice | null> = await Promise.all(
     songAssets.map(async (songAsset): Promise<SongChoice | null> => {
-      const hasSidecar = Boolean(songAsset.sidecarBucket && songAsset.sidecarPath);
-      const resolvedPaths = resolveSongAssetStoragePaths({
+      const songAssetRecord = songAsset as unknown as Record<string, unknown>;
+      const selectedPaths = getSongAssetPathsForActivity(
+        songAssetRecord,
         activityKey,
-        chartPath: songAsset.chartPath,
-        sidecarPath: songAsset.sidecarPath,
-      });
+      );
+      const hasSidecar = Boolean(
+        songAsset.sidecarBucket && selectedPaths.sidecarPath,
+      );
+
+      if (!selectedPaths.chartPath) {
+        console.warn(
+          "Skipping song asset with missing chart path for activity",
+          {
+            songAssetId: songAsset.id,
+            title: songAsset.title,
+            activityKey: selectedPaths.activityKey,
+          },
+        );
+        return null;
+      }
 
       try {
         const [songSignedUrl, chartSignedUrl, sidecarSignedUrl, songMetadata] =
           await Promise.all([
             createSignedUrl(songAsset.songBucket, songAsset.songPath),
-            createSignedUrl(songAsset.chartBucket, resolvedPaths.chartPath),
+            createSignedUrl(songAsset.chartBucket, selectedPaths.chartPath),
             createOptionalSignedUrl(
               songAsset.sidecarBucket,
-              hasSidecar ? resolvedPaths.sidecarPath : songAsset.sidecarPath,
+              hasSidecar ? selectedPaths.sidecarPath : null,
             ),
             getFileMetadata(songAsset.songBucket, songAsset.songPath),
           ]);
@@ -175,18 +189,18 @@ export async function getSongChoices(
 
           chart: {
             bucket: songAsset.chartBucket,
-            path: resolvedPaths.chartPath,
+            path: selectedPaths.chartPath,
             signedUrl: chartSignedUrl,
-            contentType: getContentTypeFromPath(resolvedPaths.chartPath),
+            contentType: getContentTypeFromPath(selectedPaths.chartPath),
           },
 
           sidecar:
             hasSidecar && sidecarSignedUrl
               ? {
                   bucket: songAsset.sidecarBucket!,
-                  path: resolvedPaths.sidecarPath,
+                  path: selectedPaths.sidecarPath!,
                   signedUrl: sidecarSignedUrl,
-                  contentType: getContentTypeFromPath(resolvedPaths.sidecarPath),
+                  contentType: getContentTypeFromPath(selectedPaths.sidecarPath!),
                 }
               : null,
         };
@@ -197,7 +211,7 @@ export async function getSongChoices(
             songAssetId: songAsset.id,
             title: songAsset.title,
             songPath: songAsset.songPath,
-            chartPath: songAsset.chartPath,
+            chartPath: selectedPaths.chartPath,
             error: getErrorMessage(error),
           },
         );
