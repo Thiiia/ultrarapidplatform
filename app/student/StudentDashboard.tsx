@@ -17,9 +17,9 @@ import CheckIcon from "@/public/check.svg";
 import CircleCheckIcon from "@/public/circle_check.svg";
 import ControllerIcon from "@/public/controller.svg";
 import PlayIcon from "@/public/Next_Button.svg";
-import numberBondsImage from "@/public/numeracy_icons/number_bonds.svg";
-import missingNumbersImage from "@/public/numeracy_icons/missing_numbers.svg";
-import equationsImage from "@/public/numeracy_icons/equations.svg";
+import numberBondsImage from "@/public/numeracy_icons/number_bonds.png";
+import missingNumbersImage from "@/public/numeracy_icons/missing_numbers.png";
+import equationsImage from "@/public/numeracy_icons/equations.png";
 import earlyAlgebraImage from "@/public/numeracy_icons/early_algebra.png";
 
 type StudentDashboardProps = {
