@@ -412,8 +412,10 @@ export default function StudentDashboard({
                 flex: "0 0 42%",
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "flex-start",
+                alignItems: "stretch",
                 minWidth: 0,
+                width: "88%",
+                margin: "0 auto",
               }}
             >
               <div
@@ -433,7 +435,7 @@ export default function StudentDashboard({
 
               <div
                 style={{
-                  width: "88%",
+                  width: "100%",
                   height: "23vh",
                   minHeight: 180,
                   background: "#2B2B2B",
@@ -445,7 +447,7 @@ export default function StudentDashboard({
                   textAlign: "center",
                   padding: "20px 18px",
                   boxSizing: "border-box",
-                  margin: "0 auto",
+                  margin: 0,
                 }}
               >
                 <CircleCheckIcon style={{ width: 64, height: 64, display: "block" }} />
@@ -488,6 +490,8 @@ export default function StudentDashboard({
                 display: "flex",
                 flexDirection: "column",
                 minWidth: 0,
+                width: "88%",
+                margin: "0 auto",
               }}
             >
               <div
