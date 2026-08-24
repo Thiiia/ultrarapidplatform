@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { StudentDashboardData } from "@/lib/student-dashboard";
 import styles from "./student.module.css";
 
@@ -44,6 +44,13 @@ function getDisplayFirstName(value?: string | null) {
 const pagePanelWidth = "85vw";
 const pageBackgroundStyle =
   "linear-gradient(180deg, #082733 0%, #030E14 100%)";
+
+const activityKeyByTitle: Record<string, string> = {
+  "Number Bonds": "number-bonds",
+  Equations: "equations",
+  "Missing Numbers": "missing-numbers",
+  "Early Algebra": "early-algebra",
+};
 
 function HeaderBar({
   profileLabel,
@@ -253,6 +260,7 @@ export default function StudentDashboard({
   navBasePath = "/student",
 }: StudentDashboardProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const displayName = dashboardData.name ?? "Student";
   const profileLabel = getDisplayFirstName(displayName);
 
@@ -294,6 +302,25 @@ export default function StudentDashboard({
       disabled: false,
     },
   ];
+
+  function handlePlayClick(activityLabel: string) {
+    const activityKey = activityKeyByTitle[activityLabel] ?? "number-bonds";
+    const selectedActivity = {
+      key: activityKey,
+      label: activityLabel,
+    };
+
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(
+        "selectedDashboardActivity",
+        JSON.stringify(selectedActivity),
+      );
+    }
+
+    router.push(
+      `${navBasePath}/song-choice?activity=${encodeURIComponent(activityKey)}`,
+    );
+  }
 
   return (
     <div
@@ -604,6 +631,8 @@ export default function StudentDashboard({
 
                         <button
                           type="button"
+                          onClick={() => handlePlayClick(game.title)}
+                          disabled={isDisabled}
                           style={{
                             width: "90%",
                             margin: "10px auto 0",

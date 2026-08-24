@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FC, SVGProps } from "react";
@@ -25,6 +26,7 @@ import PlayPressedTab from "@/public/header_icons/play_tab_pressed.svg";
 
 /* Utility Icon Imports */
 import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
+import SongChoiceIcon from "@/public/song-choice_icons/song_choice_icon.png";
 
 /* Song Choice Icon Imports */
 import NoteIcon from "@/public/song_choice_icons/Note.svg";
@@ -699,73 +701,127 @@ export default function SongChoiceClient({
           overflow: "hidden",
         }}
       >
+        <HeaderBar
+          pathname={pathname}
+          topTabs={topTabs}
+          navBasePath={navBasePath}
+          dashboardType={dashboardType}
+        />
+
         <div
           style={{
-            height: "91.5vh",
+            height: "15vh",
+            minHeight: 110,
+            width: "100%",
+            background: "#2B2B2B",
+            borderBottom: "1px solid #FFFFFF14",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              width: pagePanelWidth,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "flex-start",
+              textAlign: "left",
+              gap: 4,
+            }}
+          >
+            {selectedActivity ? (
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  color: "#CFFF04",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.02em",
+                }}
+              >
+                <Image
+                  src={SongChoiceIcon}
+                  alt="Song choice"
+                  width={16}
+                  height={16}
+                  style={{ width: 16, height: 16, display: "block" }}
+                  unoptimized
+                />
+                <span>{selectedActivity.label}</span>
+              </div>
+            ) : null}
+
+            <h1
+              style={{
+                margin: 0,
+                fontSize: 32,
+                fontWeight: 700,
+                textAlign: "left",
+                color: "#FFFFFF",
+                lineHeight: 1.1,
+              }}
+            >
+              Choose Song
+            </h1>
+
+            <p
+              style={{
+                margin: 0,
+                color: "rgba(255,255,255,0.55)",
+                fontSize: 14,
+                fontWeight: 500,
+                lineHeight: "20px",
+                textAlign: "left",
+              }}
+            >
+              Pick a song to play alongside your game
+            </p>
+          </div>
+        </div>
+
+        <div
+          style={{
+            flex: 1,
             background: "linear-gradient(180deg, #082733 0%, #030E14 100%)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-          justifyContent: "flex-start",
-          padding: "24px 24px 20px",
-          boxSizing: "border-box",
-        }}
-      >
-        <div
-          style={{
-            width: "min(960px, 100%)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
-            minHeight: 0,
-            flex: 1,
+            justifyContent: "flex-start",
+            padding: "24px 24px 20px",
+            boxSizing: "border-box",
           }}
         >
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 32,
-              fontWeight: 700,
-              textAlign: "center",
-              color: "#FFFFFF",
-            }}
-          >
-            Choose a song
-          </h1>
-
-          {selectedActivity ? (
-            <div
-              style={{
-                alignSelf: "center",
-                padding: "8px 12px",
-                borderRadius: 999,
-                background: "rgba(207,255,4,0.14)",
-                color: "#CFFF04",
-                fontSize: 13,
-                fontWeight: 600,
-                letterSpacing: "0.02em",
-              }}
-            >
-              Selected activity: {selectedActivity.label}
-            </div>
-          ) : null}
-
           <div
             style={{
-              width: "100%",
-              height: 44,
-              background: "rgba(255,255,255,0.08)",
-              border: "1px solid rgba(255,255,255,0.16)",
-              borderRadius: 12,
-              color: "#FFFFFF",
-              padding: "0 16px",
-              boxSizing: "border-box",
+              width: "min(960px, 100%)",
               display: "flex",
-              alignItems: "center",
-              gap: 10,
-              flexShrink: 0,
+              flexDirection: "column",
+              gap: 16,
+              minHeight: 0,
+              flex: 1,
             }}
           >
+
+            <div
+              style={{
+                width: "100%",
+                height: 44,
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.16)",
+                borderRadius: 12,
+                color: "#FFFFFF",
+                padding: "0 16px",
+                boxSizing: "border-box",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                flexShrink: 0,
+              }}
+            >
             <svg
               aria-hidden="true"
               width="16"
@@ -790,39 +846,39 @@ export default function SongChoiceClient({
               />
             </svg>
 
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search for a song"
-              aria-label="Search for a song"
-              style={{
-                width: "100%",
-                height: "100%",
-                background: "transparent",
-                border: "none",
-                color: "#FFFFFF",
-                padding: 0,
-                outline: "none",
-                fontSize: 13,
-                fontWeight: 500,
-                lineHeight: "19.5px",
-                textAlign: "left",
-              }}
-            />
-          </div>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search for a song"
+                aria-label="Search for a song"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  background: "transparent",
+                  border: "none",
+                  color: "#FFFFFF",
+                  padding: 0,
+                  outline: "none",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  lineHeight: "19.5px",
+                  textAlign: "left",
+                }}
+              />
+            </div>
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 0,
-              flex: 1,
-              minHeight: 0,
-              overflowY: "auto",
-              paddingBottom: 12,
-            }}
-          >
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 0,
+                flex: 1,
+                minHeight: 0,
+                overflowY: "auto",
+                paddingBottom: 12,
+              }}
+            >
             {filteredSongs.length > 0 ? (
               filteredSongs.map((song, index) => {
                 const isSelected = selectedSongId === song.id;
@@ -1003,9 +1059,10 @@ export default function SongChoiceClient({
                 </p>
               </div>
             )}
+            </div>
           </div>
         </div>
-      </div>
+      
 
       <div
         style={{
