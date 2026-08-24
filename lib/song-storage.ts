@@ -110,6 +110,82 @@ function getContentTypeFromPath(path: string) {
   return null;
 }
 
+type StorageFileEntry = {
+  path: string;
+  name: string;
+  size: number | null;
+  mimeType: string | null;
+  updatedAt: string | null;
+};
+
+function isAudioStoragePath(path: string) {
+  const extension = path.split(".").pop()?.toLowerCase();
+  return extension === "mp3" || extension === "wav" || extension === "ogg" || extension === "m4a";
+}
+
+async function listSongStorageFiles(bucket: string): Promise<StorageFileEntry[]> {
+  const supabaseAdmin = getSupabaseAdmin();
+  const files: StorageFileEntry[] = [];
+  const queue: string[] = [""];
+
+  while (queue.length > 0) {
+    const prefix = queue.shift() ?? "";
+    let offset = 0;
+
+    while (true) {
+      const { data, error } = await supabaseAdmin.storage.from(bucket).list(prefix || undefined, {
+        limit: 100,
+        offset,
+        sortBy: { column: "name", order: "asc" },
+      });
+
+      if (error) {
+        throw new Error(`Unable to list files for ${bucket}/${prefix}: ${error.message}`);
+      }
+
+      const entries = data ?? [];
+
+      entries.forEach((entry) => {
+        const name = entry.name ?? "";
+        if (!name) {
+          return;
+        }
+
+        const fullPath = prefix ? `${prefix}/${name}` : name;
+        const isFolder = !entry.id;
+
+        if (isFolder) {
+          queue.push(fullPath);
+          return;
+        }
+
+        const metadata = (entry.metadata ?? null) as
+          | {
+              size?: number;
+              mimetype?: string;
+            }
+          | null;
+
+        files.push({
+          path: fullPath,
+          name,
+          size: typeof metadata?.size === "number" ? metadata.size : null,
+          mimeType: typeof metadata?.mimetype === "string" ? metadata.mimetype : null,
+          updatedAt: entry.updated_at ?? null,
+        });
+      });
+
+      if (entries.length < 100) {
+        break;
+      }
+
+      offset += entries.length;
+    }
+  }
+
+  return files;
+}
+
 export async function getSongChoices(
   requestedActivityKey?: string | null,
 ): Promise<SongChoice[]> {
@@ -126,8 +202,23 @@ export async function getSongChoices(
     },
   });
 
+  const songAssetByPath = new Map(songAssets.map((songAsset) => [songAsset.songPath, songAsset]));
+  const storageSongs = await listSongStorageFiles("Songs");
+  const audioSongs = storageSongs
+    .filter((entry) => isAudioStoragePath(entry.path))
+    .sort((left, right) => left.path.localeCompare(right.path));
+
   const songs: Array<SongChoice | null> = await Promise.all(
-    songAssets.map(async (songAsset): Promise<SongChoice | null> => {
+    audioSongs.map(async (storageSong): Promise<SongChoice | null> => {
+      const songAsset = songAssetByPath.get(storageSong.path);
+
+      if (!songAsset) {
+        console.warn("Skipping song in storage because no matching SongAsset row was found", {
+          songPath: storageSong.path,
+        });
+        return null;
+      }
+
       const songAssetRecord = songAsset as unknown as Record<string, unknown>;
       const selectedPaths = getSongAssetPathsForActivity(
         songAssetRecord,
@@ -152,37 +243,40 @@ export async function getSongChoices(
       try {
         const [songSignedUrl, chartSignedUrl, sidecarSignedUrl, songMetadata] =
           await Promise.all([
-            createSignedUrl(songAsset.songBucket, songAsset.songPath),
+            createSignedUrl(songAsset.songBucket, storageSong.path),
             createSignedUrl(songAsset.chartBucket, selectedPaths.chartPath),
             createOptionalSignedUrl(
               songAsset.sidecarBucket,
               hasSidecar ? selectedPaths.sidecarPath : null,
             ),
-            getFileMetadata(songAsset.songBucket, songAsset.songPath),
+            getFileMetadata(songAsset.songBucket, storageSong.path),
           ]);
 
         const metadata = songMetadata?.metadata as Record<string, unknown> | undefined;
 
         const songContentType =
-          typeof metadata?.mimetype === "string"
+          storageSong.mimeType ??
+          (typeof metadata?.mimetype === "string"
             ? metadata.mimetype
-            : getContentTypeFromPath(songAsset.songPath);
+            : getContentTypeFromPath(storageSong.path));
 
         return {
           id: songAsset.id,
           name: songAsset.title,
           title: songAsset.title,
           artist: songAsset.artist,
-          path: songAsset.songPath,
+          path: storageSong.path,
           signedUrl: songSignedUrl,
-          size: typeof metadata?.size === "number" ? metadata.size : null,
+          size:
+            storageSong.size ??
+            (typeof metadata?.size === "number" ? metadata.size : null),
           contentType: songContentType,
-          updatedAt: songAsset.updatedAt.toISOString(),
+          updatedAt: storageSong.updatedAt ?? songAsset.updatedAt.toISOString(),
           durationSeconds: songAsset.durationSeconds,
 
           song: {
             bucket: songAsset.songBucket,
-            path: songAsset.songPath,
+            path: storageSong.path,
             signedUrl: songSignedUrl,
             contentType: songContentType,
           },
@@ -210,7 +304,7 @@ export async function getSongChoices(
           {
             songAssetId: songAsset.id,
             title: songAsset.title,
-            songPath: songAsset.songPath,
+            songPath: storageSong.path,
             chartPath: selectedPaths.chartPath,
             error: getErrorMessage(error),
           },
