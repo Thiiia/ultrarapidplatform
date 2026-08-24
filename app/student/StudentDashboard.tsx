@@ -262,7 +262,7 @@ export default function StudentDashboard({
       icon: numberBondsImage,
       alt: "Number bonds",
       description:
-        "Build target numbers using smaller numbers as building blocks. Build fluency in addition through fast-paced rounds.",
+        "Use smaller numbers to build bigger numbers.",
       action: "play",
       disabled: false,
     },
