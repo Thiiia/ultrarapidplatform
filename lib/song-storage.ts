@@ -154,6 +154,80 @@ async function createOptionalSignedUrlFromCandidates(
   return null;
 }
 
+type ResolvedChartAndSidecar = {
+  chart: {
+    path: string;
+    signedUrl: string;
+  };
+  sidecar: {
+    path: string;
+    signedUrl: string;
+  } | null;
+};
+
+async function resolveChartAndSidecarForSongAsset({
+  songAssetRecord,
+  chartBucket,
+  sidecarBucket,
+  preferredActivityKey,
+}: {
+  songAssetRecord: Record<string, unknown>;
+  chartBucket: string;
+  sidecarBucket: string | null;
+  preferredActivityKey: SongActivityKey;
+}): Promise<ResolvedChartAndSidecar> {
+  const candidateActivityOrder: SongActivityKey[] = [
+    preferredActivityKey,
+    ...allSongActivityKeys.filter((key) => key !== preferredActivityKey),
+  ];
+
+  let lastChartError: unknown = null;
+
+  for (const candidateActivityKey of candidateActivityOrder) {
+    const candidatePaths = getSongAssetPathsForActivity(
+      songAssetRecord,
+      candidateActivityKey,
+    );
+
+    if (!candidatePaths.chartPath) {
+      continue;
+    }
+
+    try {
+      const chartSignedUrl = await createSignedUrl(
+        chartBucket,
+        candidatePaths.chartPath,
+      );
+
+      const sidecar = await createOptionalSignedUrlFromCandidates(
+        sidecarBucket,
+        candidatePaths.sidecarPath ? [candidatePaths.sidecarPath] : [],
+      );
+
+      return {
+        chart: {
+          path: candidatePaths.chartPath,
+          signedUrl: chartSignedUrl,
+        },
+        sidecar: sidecar
+          ? {
+              path: sidecar.path,
+              signedUrl: sidecar.signedUrl,
+            }
+          : null,
+      };
+    } catch (error) {
+      lastChartError = error;
+    }
+  }
+
+  if (lastChartError instanceof Error) {
+    throw lastChartError;
+  }
+
+  throw new Error(`Unable to resolve chart for song asset from activity paths`);
+}
+
 async function getFileMetadata(bucket: string, path: string) {
   const supabaseAdmin = getSupabaseAdmin();
 
@@ -292,26 +366,7 @@ export async function getSongChoices(
       }
 
       const songAssetRecord = songAsset as unknown as Record<string, unknown>;
-      const selectedPaths = getSongAssetPathsForActivity(
-        songAssetRecord,
-        preferredActivityKey,
-      );
-
-      const candidateActivityOrder: SongActivityKey[] = [
-        preferredActivityKey,
-        ...allSongActivityKeys.filter((key) => key !== preferredActivityKey),
-      ];
-
-      const chartPathCandidates = candidateActivityOrder
-        .map((key) =>
-          getSongAssetPathsForActivity(songAssetRecord, key).chartPath,
-        )
-        .filter(Boolean);
-      const sidecarPathCandidates = candidateActivityOrder
-        .map((key) =>
-          getSongAssetPathsForActivity(songAssetRecord, key).sidecarPath,
-        )
-        .filter(Boolean) as string[];
+      const selectedPaths = getSongAssetPathsForActivity(songAssetRecord, preferredActivityKey);
 
       if (!selectedPaths.chartPath) {
         console.warn(
@@ -326,17 +381,15 @@ export async function getSongChoices(
       }
 
       try {
-        const [songSignedUrl, chartRef, sidecarRef, songMetadata] =
+        const [songSignedUrl, resolvedChartAndSidecar, songMetadata] =
           await Promise.all([
             createSignedUrl(songAsset.songBucket, storageSong.path),
-            createSignedUrlFromCandidates(
-              songAsset.chartBucket,
-              chartPathCandidates,
-            ),
-            createOptionalSignedUrlFromCandidates(
-              songAsset.sidecarBucket,
-              sidecarPathCandidates,
-            ),
+            resolveChartAndSidecarForSongAsset({
+              songAssetRecord,
+              chartBucket: songAsset.chartBucket,
+              sidecarBucket: songAsset.sidecarBucket,
+              preferredActivityKey,
+            }),
             getFileMetadata(songAsset.songBucket, storageSong.path),
           ]);
 
@@ -371,18 +424,18 @@ export async function getSongChoices(
 
           chart: {
             bucket: songAsset.chartBucket,
-            path: chartRef.path,
-            signedUrl: chartRef.signedUrl,
-            contentType: getContentTypeFromPath(chartRef.path),
+            path: resolvedChartAndSidecar.chart.path,
+            signedUrl: resolvedChartAndSidecar.chart.signedUrl,
+            contentType: getContentTypeFromPath(resolvedChartAndSidecar.chart.path),
           },
 
           sidecar:
-            sidecarRef
+            resolvedChartAndSidecar.sidecar
               ? {
                   bucket: songAsset.sidecarBucket!,
-                  path: sidecarRef.path,
-                  signedUrl: sidecarRef.signedUrl,
-                  contentType: getContentTypeFromPath(sidecarRef.path),
+                  path: resolvedChartAndSidecar.sidecar.path,
+                  signedUrl: resolvedChartAndSidecar.sidecar.signedUrl,
+                  contentType: getContentTypeFromPath(resolvedChartAndSidecar.sidecar.path),
                 }
               : null,
         };
