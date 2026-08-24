@@ -170,16 +170,20 @@ async function resolveChartAndSidecarForSongAsset({
   chartBucket,
   sidecarBucket,
   preferredActivityKey,
+  allowActivityFallback,
 }: {
   songAssetRecord: Record<string, unknown>;
   chartBucket: string;
   sidecarBucket: string | null;
   preferredActivityKey: SongActivityKey;
+  allowActivityFallback: boolean;
 }): Promise<ResolvedChartAndSidecar> {
-  const candidateActivityOrder: SongActivityKey[] = [
-    preferredActivityKey,
-    ...allSongActivityKeys.filter((key) => key !== preferredActivityKey),
-  ];
+  const candidateActivityOrder: SongActivityKey[] = allowActivityFallback
+    ? [
+        preferredActivityKey,
+        ...allSongActivityKeys.filter((key) => key !== preferredActivityKey),
+      ]
+    : [preferredActivityKey];
 
   let lastChartError: unknown = null;
 
@@ -338,6 +342,7 @@ export async function getSongChoices(
     requestedActivityKey,
   );
   const preferredActivityKey = activityKey ?? defaultSongActivityKey;
+  const allowActivityFallback = activityKey === null;
 
   const songAssets = await prisma.songAsset.findMany({
     where: {
@@ -389,6 +394,7 @@ export async function getSongChoices(
               chartBucket: songAsset.chartBucket,
               sidecarBucket: songAsset.sidecarBucket,
               preferredActivityKey,
+              allowActivityFallback,
             }),
             getFileMetadata(songAsset.songBucket, storageSong.path),
           ]);
