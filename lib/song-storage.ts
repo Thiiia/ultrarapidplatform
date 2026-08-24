@@ -165,10 +165,42 @@ type ResolvedChartAndSidecar = {
     signedUrl: string;
   };
   sidecar: {
+    bucket: string;
     path: string;
     signedUrl: string;
   } | null;
 };
+
+function buildSidecarBucketCandidates(bucket: string | null) {
+  return dedupePaths([
+    bucket,
+    "SidecarJsons",
+    "Sidecar jsons",
+    "SidecarJSONs",
+  ]);
+}
+
+async function createOptionalSignedUrlFromBucketAndPathCandidates(
+  bucketCandidates: string[],
+  pathCandidates: string[],
+) {
+  for (const candidateBucket of bucketCandidates) {
+    const signed = await createOptionalSignedUrlFromCandidates(
+      candidateBucket,
+      pathCandidates,
+    );
+
+    if (signed) {
+      return {
+        bucket: candidateBucket,
+        path: signed.path,
+        signedUrl: signed.signedUrl,
+      };
+    }
+  }
+
+  return null;
+}
 
 async function resolveChartAndSidecarForSongAsset({
   songAssetRecord,
@@ -222,9 +254,10 @@ async function resolveChartAndSidecarForSongAsset({
         inferredSidecarPath,
         inferredEncountersSidecarPath,
       ]);
+      const sidecarBucketCandidates = buildSidecarBucketCandidates(sidecarBucket);
 
-      const sidecar = await createOptionalSignedUrlFromCandidates(
-        sidecarBucket,
+      const sidecar = await createOptionalSignedUrlFromBucketAndPathCandidates(
+        sidecarBucketCandidates,
         sidecarCandidatePaths,
       );
 
@@ -235,6 +268,7 @@ async function resolveChartAndSidecarForSongAsset({
         },
         sidecar: sidecar
           ? {
+              bucket: sidecar.bucket,
               path: sidecar.path,
               signedUrl: sidecar.signedUrl,
             }
@@ -458,7 +492,7 @@ export async function getSongChoices(
           sidecar:
             resolvedChartAndSidecar.sidecar
               ? {
-                  bucket: songAsset.sidecarBucket!,
+                  bucket: resolvedChartAndSidecar.sidecar.bucket,
                   path: resolvedChartAndSidecar.sidecar.path,
                   signedUrl: resolvedChartAndSidecar.sidecar.signedUrl,
                   contentType: getContentTypeFromPath(resolvedChartAndSidecar.sidecar.path),

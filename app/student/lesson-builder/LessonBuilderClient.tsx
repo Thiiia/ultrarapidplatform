@@ -13,7 +13,7 @@ import {
   projectToChart,
   projectToSidecarJson,
 } from "@/lib/editor/project-to-chart";
-import SongFlowDebugger from "@/app/components/SongFlowDebugger";
+// import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { persistLaunchParams } from "@/lib/launch-handoff";
 import {
   buildEmbeddedGameUrl,
@@ -11638,7 +11638,7 @@ function handleToggleDragTarget(
         </section>
       </main>
 
-      <SongFlowDebugger title="Lesson Builder Launch Debugger" />
+      {/* <SongFlowDebugger title="Lesson Builder Launch Debugger" /> */}
 
     </div>
   );

@@ -498,6 +498,7 @@ export default function SongChoiceClient({
         artist: song.artist,
         songPath: song.song.path,
         chartPath: song.chart.path,
+        sidecarBucket: song.sidecar?.bucket ?? null,
         sidecarPath: song.sidecar?.path ?? null,
         durationSeconds: song.durationSeconds,
       })),
