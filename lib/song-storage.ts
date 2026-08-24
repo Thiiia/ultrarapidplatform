@@ -110,6 +110,10 @@ function dedupePaths(paths: Array<string | null | undefined>) {
   });
 }
 
+function toEncountersSidecarPath(chartPath: string) {
+  return chartPath.replace(/\.chart$/i, ".encounters.json");
+}
+
 async function createSignedUrlFromCandidates(bucket: string, candidatePaths: string[]) {
   let lastError: unknown = null;
 
@@ -209,10 +213,14 @@ async function resolveChartAndSidecarForSongAsset({
         chartPath: candidatePaths.chartPath,
         sidecarPath: null,
       }).sidecarPath;
+      const inferredEncountersSidecarPath = toEncountersSidecarPath(
+        inferredSidecarPath,
+      );
 
       const sidecarCandidatePaths = dedupePaths([
         candidatePaths.sidecarPath,
         inferredSidecarPath,
+        inferredEncountersSidecarPath,
       ]);
 
       const sidecar = await createOptionalSignedUrlFromCandidates(
