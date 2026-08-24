@@ -7,13 +7,19 @@ import type { StudentDashboardData } from "@/lib/student-dashboard";
 import styles from "./student.module.css";
 
 import URIcon from "@/public/header_icons/URIcon.svg";
+import HomeIcon from "@/public/header_icons/Home.svg";
+import HomePressedIcon from "@/public/header_icons/Home_pressed.svg";
 import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
 import MyLessonsPressedTab from "@/public/header_icons/my_lessons_tab_pressed.svg";
 import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab.svg";
 import LessonBuilderPressedTab from "@/public/header_icons/lesson_builder_tab_pressed.svg";
-import numberBondsImage from "@/public/numeracy_icons/number_bonds.png";
-import missingNumbersImage from "@/public/numeracy_icons/missing_numbers.png";
-import equationsImage from "@/public/numeracy_icons/equations.png";
+import CheckIcon from "@/public/check.svg";
+import CircleCheckIcon from "@/public/circle_check.svg";
+import ControllerIcon from "@/public/controller.svg";
+import PlayIcon from "@/public/Next_Button.svg";
+import numberBondsImage from "@/public/numeracy_icons/number_bonds.svg";
+import missingNumbersImage from "@/public/numeracy_icons/missing_numbers.svg";
+import equationsImage from "@/public/numeracy_icons/equations.svg";
 import earlyAlgebraImage from "@/public/numeracy_icons/early_algebra.png";
 
 type StudentDashboardProps = {
@@ -50,6 +56,13 @@ function HeaderBar({
 }) {
   const topTabs = [
     {
+      label: "Home",
+      href: navBasePath,
+      Icon: HomeIcon,
+      ActiveIcon: HomePressedIcon,
+      width: 99,
+    },
+    {
       label: "My Lessons",
       href: `${navBasePath}/lessons`,
       Icon: MyLessonsTab,
@@ -68,7 +81,7 @@ function HeaderBar({
   return (
     <header
       style={{
-        background: "#060B15FC",
+        background: "#2B2B2B",
         width: "100%",
         boxSizing: "border-box",
         height: 70,
@@ -139,12 +152,15 @@ function HeaderBar({
                 "/song-choice",
                 "/lesson-builder",
               );
+              const isHomeTab = tab.label === "Home";
+              const isLessonBuilderTab = tab.label === "Lesson Builder";
               const isActive =
                 pathname === tab.href ||
-                (tab.label === "Lesson Builder" &&
+                (isHomeTab && pathname === navBasePath) ||
+                (isLessonBuilderTab &&
                   (pathname === lessonBuilderPath ||
                     pathname.startsWith(`${lessonBuilderPath}/`))) ||
-                pathname.startsWith(`${tab.href}/`);
+                (!isHomeTab && !isLessonBuilderTab && pathname.startsWith(`${tab.href}/`));
 
               const Icon = isActive ? tab.ActiveIcon : tab.Icon;
 
@@ -163,7 +179,7 @@ function HeaderBar({
                     alignItems: "center",
                     justifyContent: "center",
                     textDecoration: "none",
-                    background: "#060B15FC",
+                    background: "#2B2B2B",
                   }}
                 >
                   <Icon
@@ -206,7 +222,7 @@ function HeaderBar({
               fontSize: 14,
               fontWeight: 600,
               borderRadius: 999,
-              background: "#060B15FC",
+              background: "#2B2B2B",
               border: "1px solid #7A8FA8",
             }}
           >
@@ -218,7 +234,7 @@ function HeaderBar({
             aria-label="Log out"
             className={`${styles.utilityButton} ${styles.logoutButton}`}
             style={{
-              background: "#060B15FC",
+              background: "#2B2B2B",
               color: "#7A8FA8",
               border: "1px solid #7A8FA8",
               borderRadius: 999,
@@ -240,30 +256,42 @@ export default function StudentDashboard({
   const displayName = dashboardData.name ?? "Student";
   const profileLabel = getDisplayFirstName(displayName);
 
-  const numeracyPanels = [
+  const gameCards = [
     {
       title: "Number Bonds",
-      src: numberBondsImage,
+      icon: numberBondsImage,
       alt: "Number bonds",
-      selection: "number-bonds",
-    },
-    {
-      title: "Missing Numbers",
-      src: missingNumbersImage,
-      alt: "Missing numbers",
-      selection: "missing-numbers",
+      description:
+        "Build target numbers using smaller numbers as building blocks. Build fluency in addition through fast-paced rounds.",
+      action: "play",
+      disabled: false,
     },
     {
       title: "Equations",
-      src: equationsImage,
+      icon: equationsImage,
       alt: "Equations",
-      selection: "equations",
+      description:
+        "Learn the language of equations to see when two quantities are equal to each other.",
+      action: "coming-soon",
+      disabled: true,
+    },
+    {
+      title: "Missing Numbers",
+      icon: missingNumbersImage,
+      alt: "Missing numbers",
+      description:
+        "Use knowledge of number bonds and equations to find the missing quantities that make the equations true.",
+      action: "coming-soon",
+      disabled: true,
     },
     {
       title: "Early Algebra",
-      src: earlyAlgebraImage,
+      icon: earlyAlgebraImage,
       alt: "Early algebra",
-      selection: "early-algebra",
+      description:
+        "Solve equations utilizing variables that stand for unknown quantities.",
+      action: "play",
+      disabled: false,
     },
   ];
 
@@ -286,12 +314,71 @@ export default function StudentDashboard({
         pathname={pathname}
       />
 
+      <div
+        style={{
+          background: "#2B2B2B",
+          width: "100%",
+          height: "11vh",
+          minHeight: 72,
+          borderBottom: "1px solid #FFFFFF14",
+          boxSizing: "border-box",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <div
+          style={{
+            width: pagePanelWidth,
+            margin: "0 auto",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "flex-start",
+            paddingLeft: "0",
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 12,
+              color: "#CFFF04",
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              marginLeft: 0,
+            }}
+          >
+            NEW ACCOUNT
+          </div>
+          <div
+            style={{
+              fontSize: 18,
+              color: "#FFFFFF",
+              marginTop: 4,
+              lineHeight: 1.2,
+            }}
+          >
+            Welcome to Ultra Rapid, Layla
+          </div>
+          <div
+            style={{
+              fontSize: 14,
+              color: "rgba(255,255,255,0.55)",
+              marginTop: 4,
+              lineHeight: 1.4,
+            }}
+          >
+            Your dashboard is ready - lessons will appear here once your teacher assigns them
+          </div>
+        </div>
+      </div>
+
       <main
         style={{
           width: "100%",
           display: "flex",
           justifyContent: "center",
-          padding: "28px 0 40px",
+          padding: 0,
         }}
       >
         <div
@@ -299,99 +386,250 @@ export default function StudentDashboard({
             width: pagePanelWidth,
             display: "flex",
             flexDirection: "column",
-            gap: 14,
+            gap: 0,
             padding: 0,
             borderRadius: 0,
             background: "transparent",
-            boxShadow: "0 18px 40px rgba(0, 0, 0, 0.14)",
           }}
         >
           <section
-            aria-label="Numeracy activities"
+            aria-label="Queue and games"
             style={{
               width: "100%",
-              display: "grid",
-              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-              gap: 6,
-            }}
-          >
-            {numeracyPanels.map((panel) => (
-              <Link
-                key={panel.title}
-                href={{ pathname: "/demo/student/song-choice", query: { activity: panel.selection } }}
-                aria-label={`Open ${panel.alt}`}
-                onClick={() => {
-                  if (typeof window !== "undefined") {
-                    window.sessionStorage.setItem(
-                      "selectedDashboardActivity",
-                      JSON.stringify({ key: panel.selection, label: panel.title }),
-                    );
-                  }
-                }}
-                style={{
-                  background: "#CFFF04",
-                  border: "2px solid #CFFF04",
-                  borderRadius: 0,
-                  padding: 0,
-                  minHeight: 250,
-                  maxHeight: 300,
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  boxShadow: "0 12px 26px rgba(0, 0, 0, 0.16)",
-                  boxSizing: "border-box",
-                  textDecoration: "none",
-                  cursor: "pointer",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    position: "relative",
-                    borderRadius: 0,
-                    overflow: "hidden",
-                    background: "#CFFF04",
-                  }}
-                >
-                  <Image
-                    src={panel.src}
-                    alt={panel.alt}
-                    fill
-                    style={{
-                      objectFit: "cover",
-                      objectPosition: "center",
-                    }}
-                    priority={panel.title === "Number Bonds"}
-                  />
-                </div>
-              </Link>
-            ))}
-          </section>
-
-          <section
-            aria-label="Your Learning Queue"
-            style={{
+              display: "flex",
+              gap: 18,
               background: "rgba(6, 11, 21, 0.72)",
               border: "1px solid #FFFFFF1F",
-              minHeight: 160,
-              padding: "18px 20px",
+              borderTop: "none",
               boxSizing: "border-box",
+              minHeight: "calc(100vh - 70px - 11vh)",
+              padding: "18px 20px",
             }}
           >
-            <h2
+            <div
               style={{
-                margin: 0,
-                color: "#FFFFFF",
-                fontSize: 24,
-                fontWeight: 700,
-                textAlign: "left",
+                flex: "0 0 42%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                minWidth: 0,
               }}
             >
-              Your Learning Queue
-            </h2>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  color: "#FFFFFF",
+                  fontSize: 24,
+                  fontWeight: 700,
+                  margin: "0 0 18px 0",
+                }}
+              >
+                <CheckIcon style={{ width: 18, height: 18, flexShrink: 0 }} />
+                <span>Your Learning Queue</span>
+              </div>
+
+              <div
+                style={{
+                  width: "88%",
+                  height: "23vh",
+                  minHeight: 180,
+                  background: "#2B2B2B",
+                  borderRadius: 20,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  textAlign: "center",
+                  padding: "20px 18px",
+                  boxSizing: "border-box",
+                  margin: "0 auto",
+                }}
+              >
+                <CircleCheckIcon style={{ width: 64, height: 64, display: "block" }} />
+                <div
+                  style={{
+                    marginTop: 18,
+                    color: "#FFFFFF",
+                    fontSize: 18,
+                    fontWeight: 600,
+                  }}
+                >
+                  Your queue is empty
+                </div>
+                <div
+                  style={{
+                    marginTop: 10,
+                    color: "rgba(255,255,255,0.55)",
+                    fontSize: 14,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Lessons assigned by your teacher will appear here.
+                </div>
+                <div
+                  style={{
+                    marginTop: 6,
+                    color: "rgba(255,255,255,0.55)",
+                    fontSize: 14,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Jump into the games below while you wait.
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                flex: "1 1 0",
+                display: "flex",
+                flexDirection: "column",
+                minWidth: 0,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  color: "#FFFFFF",
+                  fontSize: 24,
+                  fontWeight: 700,
+                  margin: "0 0 18px 0",
+                }}
+              >
+                <ControllerIcon style={{ width: 22, height: 22, flexShrink: 0 }} />
+                <span>Games</span>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, minmax(0, 21vw))",
+                  columnGap: 14,
+                  rowGap: 20,
+                  alignItems: "stretch",
+                  width: "100%",
+                  height: "34.5vh",
+                  minHeight: 250,
+                }}
+              >
+                {gameCards.map((game) => {
+                  const isDisabled = game.disabled;
+
+                  return (
+                    <div
+                      key={game.title}
+                      style={{
+                        width: "21vw",
+                        height: "34.5vh",
+                        minHeight: 250,
+                        display: "flex",
+                        flexDirection: "column",
+                        overflow: "hidden",
+                        borderRadius: 12,
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: "55.5%",
+                          width: "100%",
+                          position: "relative",
+                          background: "#CFFF04",
+                          border: "1px solid #CFFF04",
+                          borderBottom: "none",
+                          opacity: isDisabled ? 0.5 : 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: 10,
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        <Image
+                          src={game.icon}
+                          alt={game.alt}
+                          fill
+                          style={{
+                            objectFit: "contain",
+                            objectPosition: "center",
+                            padding: 10,
+                          }}
+                          priority={game.title === "Number Bonds"}
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          flex: 1,
+                          background: "#2B2B2B",
+                          border: "1px solid #FFFFFF14",
+                          borderRadius: 0,
+                          display: "flex",
+                          flexDirection: "column",
+                          padding: "12px 12px 14px",
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        <div
+                          style={{
+                            color: "#FFFFFF",
+                            fontSize: 16,
+                            fontWeight: 600,
+                            marginBottom: 8,
+                          }}
+                        >
+                          {game.title}
+                        </div>
+                        <div
+                          style={{
+                            color: "rgba(255,255,255,0.55)",
+                            fontSize: 13,
+                            lineHeight: 1.45,
+                            marginBottom: "auto",
+                          }}
+                        >
+                          {game.description}
+                        </div>
+
+                        <button
+                          type="button"
+                          style={{
+                            width: "90%",
+                            margin: "10px auto 0",
+                            minHeight: 38,
+                            borderRadius: 999,
+                            border: "none",
+                            background: game.action === "play" ? "#CFFF04" : "#7A7F86",
+                            color: game.action === "play" ? "#0B1A1F" : "#D9D9D9",
+                            fontWeight: 700,
+                            fontSize: 13,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8,
+                            cursor: "pointer",
+                            opacity: isDisabled ? 0.75 : 1,
+                          }}
+                        >
+                          {game.action === "play" ? (
+                            <>
+                              <PlayIcon style={{ width: 16, height: 16, display: "block" }} />
+                              <span>Play</span>
+                            </>
+                          ) : (
+                            "Coming Soon"
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </section>
         </div>
       </main>
