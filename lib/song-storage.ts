@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import {
+  normalizeSongActivityKey,
+  resolveSongAssetStoragePaths,
+  type SongActivityKey,
+} from "@/lib/song-activity-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export type SongChoice = {
@@ -105,7 +110,13 @@ function getContentTypeFromPath(path: string) {
   return null;
 }
 
-export async function getSongChoices(): Promise<SongChoice[]> {
+export async function getSongChoices(
+  requestedActivityKey?: string | null,
+): Promise<SongChoice[]> {
+  const activityKey: SongActivityKey | null = normalizeSongActivityKey(
+    requestedActivityKey,
+  );
+
   const songAssets = await prisma.songAsset.findMany({
     where: {
       isActive: true,
@@ -118,12 +129,21 @@ export async function getSongChoices(): Promise<SongChoice[]> {
   const songs: Array<SongChoice | null> = await Promise.all(
     songAssets.map(async (songAsset): Promise<SongChoice | null> => {
       const hasSidecar = Boolean(songAsset.sidecarBucket && songAsset.sidecarPath);
+      const resolvedPaths = resolveSongAssetStoragePaths({
+        activityKey,
+        chartPath: songAsset.chartPath,
+        sidecarPath: songAsset.sidecarPath,
+      });
+
       try {
         const [songSignedUrl, chartSignedUrl, sidecarSignedUrl, songMetadata] =
           await Promise.all([
             createSignedUrl(songAsset.songBucket, songAsset.songPath),
-            createSignedUrl(songAsset.chartBucket, songAsset.chartPath),
-            createOptionalSignedUrl(songAsset.sidecarBucket, songAsset.sidecarPath),
+            createSignedUrl(songAsset.chartBucket, resolvedPaths.chartPath),
+            createOptionalSignedUrl(
+              songAsset.sidecarBucket,
+              hasSidecar ? resolvedPaths.sidecarPath : songAsset.sidecarPath,
+            ),
             getFileMetadata(songAsset.songBucket, songAsset.songPath),
           ]);
 
@@ -155,18 +175,18 @@ export async function getSongChoices(): Promise<SongChoice[]> {
 
           chart: {
             bucket: songAsset.chartBucket,
-            path: songAsset.chartPath,
+            path: resolvedPaths.chartPath,
             signedUrl: chartSignedUrl,
-            contentType: getContentTypeFromPath(songAsset.chartPath),
+            contentType: getContentTypeFromPath(resolvedPaths.chartPath),
           },
 
           sidecar:
             hasSidecar && sidecarSignedUrl
               ? {
                   bucket: songAsset.sidecarBucket!,
-                  path: songAsset.sidecarPath!,
+                  path: resolvedPaths.sidecarPath,
                   signedUrl: sidecarSignedUrl,
-                  contentType: getContentTypeFromPath(songAsset.sidecarPath!),
+                  contentType: getContentTypeFromPath(resolvedPaths.sidecarPath),
                 }
               : null,
         };

@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
+import {
+  inferSongActivityKeyFromChartPath,
+  normalizeSongActivityKey,
+  resolveSongAssetStoragePaths,
+} from "@/lib/song-activity-storage";
 
 type SaveFilePayload = {
   bucket?: unknown;
@@ -11,6 +16,7 @@ type SaveFilePayload = {
 
 type SavePayload = {
   songAssetId?: unknown;
+  activityKey?: unknown;
   chart?: SaveFilePayload;
   sidecar?: SaveFilePayload;
 };
@@ -83,13 +89,38 @@ export async function POST(request: Request) {
       );
     }
 
+    const requestedChartPath = readRequiredString(payload.chart.path, "chart.path");
+    const requestedSidecarPath = readRequiredString(
+      payload.sidecar.path,
+      "sidecar.path",
+    );
+    const activityKey =
+      normalizeSongActivityKey(
+        typeof payload.activityKey === "string" ? payload.activityKey : null,
+      ) ?? inferSongActivityKeyFromChartPath(requestedChartPath);
+    const resolvedPaths = resolveSongAssetStoragePaths({
+      activityKey,
+      chartPath: requestedChartPath,
+      sidecarPath: requestedSidecarPath,
+    });
+
+    const normalizedChartPayload: SaveFilePayload = {
+      ...payload.chart,
+      path: resolvedPaths.chartPath,
+    };
+
+    const normalizedSidecarPayload: SaveFilePayload = {
+      ...payload.sidecar,
+      path: resolvedPaths.sidecarPath,
+    };
+
     const chartRef = await uploadTextFile(
-      payload.chart,
+      normalizedChartPayload,
       "text/plain;charset=utf-8",
     );
 
     const sidecarRef = await uploadTextFile(
-      payload.sidecar,
+      normalizedSidecarPayload,
       "application/json;charset=utf-8",
     );
 

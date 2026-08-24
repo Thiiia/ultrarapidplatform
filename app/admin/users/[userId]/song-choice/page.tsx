@@ -8,9 +8,15 @@ type PageProps = {
   params: Promise<{
     userId: string;
   }>;
+  searchParams: Promise<{
+    activity?: string | string[];
+  }>;
 };
 
-export default async function AdminSongChoicePreviewPage({ params }: PageProps) {
+export default async function AdminSongChoicePreviewPage({
+  params,
+  searchParams,
+}: PageProps) {
   const adminUser = await getCurrentAppUser();
 
   if (!adminUser) {
@@ -33,7 +39,11 @@ export default async function AdminSongChoicePreviewPage({ params }: PageProps) 
     notFound();
   }
 
-  const songs = await getSongChoices();
+  const query = await searchParams;
+  const activityParam = Array.isArray(query.activity)
+    ? query.activity[0]
+    : query.activity;
+  const songs = await getSongChoices(activityParam);
 
   return (
     <SongChoiceClient

@@ -20,6 +20,10 @@ import {
   createSongLaunchSearchParams,
 } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
+import {
+  inferSongActivityKeyFromChartPath,
+  resolveSongAssetStoragePaths,
+} from "@/lib/song-activity-storage";
 import styles from "../student.module.css";
 
 /* Header Icon imports */
@@ -9841,13 +9845,21 @@ function handleToggleDragTarget(
 
       const chartText = projectToChart(nextProject);
       const sidecarJson = projectToSidecarJson(timelineSidecar);
-
-      appendSongFlowDebug("lesson-builder:save:start", "Saving edited chart and sidecar back to Supabase.", {
-        songAssetId: selectedSongStorage.id,
+      const activityKey = inferSongActivityKeyFromChartPath(
+        selectedSongStorage.chart.path,
+      );
+      const resolvedPaths = resolveSongAssetStoragePaths({
+        activityKey,
         chartPath: selectedSongStorage.chart.path,
         sidecarPath:
           selectedSongStorage.sidecar?.path ??
           selectedSongStorage.chart.path.replace(/\.chart$/i, ".json"),
+      });
+
+      appendSongFlowDebug("lesson-builder:save:start", "Saving edited chart and sidecar back to Supabase.", {
+        songAssetId: selectedSongStorage.id,
+        chartPath: resolvedPaths.chartPath,
+        sidecarPath: resolvedPaths.sidecarPath,
         chartLength: chartText.length,
         sidecarEventCount: timelineSidecar.events.length,
       });
@@ -9859,8 +9871,10 @@ function handleToggleDragTarget(
         },
         body: JSON.stringify({
           songAssetId: selectedSongStorage.id,
+          activityKey,
           chart: {
             ...selectedSongStorage.chart,
+            path: resolvedPaths.chartPath,
             content: chartText,
             contentType:
               selectedSongStorage.chart.contentType ??
@@ -9869,12 +9883,10 @@ function handleToggleDragTarget(
           sidecar: {
             ...(selectedSongStorage.sidecar ?? {
               bucket: "SidecarJsons",
-              path: selectedSongStorage.chart.path.replace(
-                /\.chart$/i,
-                ".json",
-              ),
+              path: resolvedPaths.sidecarPath,
               contentType: "application/json;charset=utf-8",
             }),
+            path: resolvedPaths.sidecarPath,
             content: sidecarJson,
             contentType:
               selectedSongStorage.sidecar?.contentType ??

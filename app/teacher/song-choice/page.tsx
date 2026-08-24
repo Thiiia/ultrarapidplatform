@@ -5,7 +5,13 @@ import SongChoiceClient from "@/app/student/song-choice/SongChoiceClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function TeacherSongChoicePage() {
+type PageProps = {
+  searchParams: Promise<{
+    activity?: string | string[];
+  }>;
+};
+
+export default async function TeacherSongChoicePage({ searchParams }: PageProps) {
   const user = await getCurrentAppUser();
 
   if (!user) {
@@ -20,7 +26,11 @@ export default async function TeacherSongChoicePage() {
     redirect("/student");
   }
 
-  const songs = await getSongChoices();
+  const params = await searchParams;
+  const activityParam = Array.isArray(params.activity)
+    ? params.activity[0]
+    : params.activity;
+  const songs = await getSongChoices(activityParam);
 
   return (
     <SongChoiceClient

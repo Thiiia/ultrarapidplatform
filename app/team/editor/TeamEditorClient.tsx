@@ -16,6 +16,10 @@ import {
 import { persistLaunchParams } from "@/lib/launch-handoff";
 import { loadSongPackageAssets } from "@/lib/editor/song-package";
 import { createSongLaunchSearchParams } from "@/lib/platform-launch";
+import {
+  inferSongActivityKeyFromChartPath,
+  resolveSongAssetStoragePaths,
+} from "@/lib/song-activity-storage";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../../student/student.module.css";
 
@@ -5232,6 +5236,16 @@ function handleToggleDragTarget(
       }
 
       const sidecarJson = projectToSidecarJson(sidecar);
+      const activityKey = inferSongActivityKeyFromChartPath(
+        selectedSongStorage.chart.path,
+      );
+      const resolvedPaths = resolveSongAssetStoragePaths({
+        activityKey,
+        chartPath: selectedSongStorage.chart.path,
+        sidecarPath:
+          selectedSongStorage.sidecar?.path ??
+          selectedSongStorage.chart.path.replace(/\.chart$/i, ".json"),
+      });
 
       const response = await fetch("/api/lesson-builder/save", {
         method: "POST",
@@ -5240,8 +5254,10 @@ function handleToggleDragTarget(
         },
         body: JSON.stringify({
           songAssetId: selectedSongStorage.id,
+          activityKey,
           chart: {
             ...selectedSongStorage.chart,
+            path: resolvedPaths.chartPath,
             content: chartText,
             contentType:
               selectedSongStorage.chart.contentType ??
@@ -5250,12 +5266,10 @@ function handleToggleDragTarget(
           sidecar: {
             ...(selectedSongStorage.sidecar ?? {
               bucket: "SidecarJsons",
-              path: selectedSongStorage.chart.path.replace(
-                /\.chart$/i,
-                ".json",
-              ),
+              path: resolvedPaths.sidecarPath,
               contentType: "application/json;charset=utf-8",
             }),
+            path: resolvedPaths.sidecarPath,
             content: sidecarJson,
             contentType:
               selectedSongStorage.sidecar?.contentType ??
