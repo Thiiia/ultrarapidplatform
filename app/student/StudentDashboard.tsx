@@ -377,13 +377,13 @@ export default function StudentDashboard({
         style={{
           width: "100%",
           display: "flex",
-          justifyContent: "center",
+          justifyContent: "stretch",
           padding: 0,
         }}
       >
         <div
           style={{
-            width: pagePanelWidth,
+            width: "100%",
             display: "flex",
             flexDirection: "column",
             gap: 0,
@@ -399,7 +399,7 @@ export default function StudentDashboard({
               display: "flex",
               flexDirection: "column",
               gap: 18,
-              background: "rgba(6, 11, 21, 0.72)",
+              background: pageBackgroundStyle,
               border: "1px solid #FFFFFF1F",
               borderTop: "none",
               boxSizing: "border-box",
@@ -508,9 +508,8 @@ export default function StudentDashboard({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(4, minmax(0, 21vw))",
-                  columnGap: 14,
-                  rowGap: 20,
+                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                  gap: 18,
                   alignItems: "stretch",
                   width: "100%",
                   height: "34.5vh",
@@ -524,7 +523,7 @@ export default function StudentDashboard({
                     <div
                       key={game.title}
                       style={{
-                        width: "21vw",
+                        width: "100%",
                         height: "34.5vh",
                         minHeight: 250,
                         display: "flex",
@@ -538,7 +537,6 @@ export default function StudentDashboard({
                         style={{
                           height: "55.5%",
                           width: "100%",
-                          position: "relative",
                           background: "#222222",
                           border: "1px solid #222222",
                           borderBottom: "none",
@@ -553,10 +551,14 @@ export default function StudentDashboard({
                         <Image
                           src={game.icon}
                           alt={game.alt}
-                          fill
+                          width={320}
+                          height={220}
+                          unoptimized
                           style={{
                             objectFit: "contain",
                             objectPosition: "center",
+                            width: "100%",
+                            height: "100%",
                             padding: 10,
                           }}
                           priority={game.title === "Number Bonds"}
