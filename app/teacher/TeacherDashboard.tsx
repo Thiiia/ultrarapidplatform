@@ -6,9 +6,9 @@ import type { TeacherDashboardData } from "@/lib/teacher-dashboard";
 import styles from "../student/student.module.css";
 
 import URIcon from "@/public/header_icons/URIcon.svg";
-import numberBondsImage from "@/public/numeracy_icons/number_bonds.png";
-import missingNumbersImage from "@/public/numeracy_icons/missing_numbers.png";
-import equationsImage from "@/public/numeracy_icons/equations.png";
+import numberBondsImage from "@/public/numeracy_icons/number_bonds.svg";
+import missingNumbersImage from "@/public/numeracy_icons/missing_numbers.svg";
+import equationsImage from "@/public/numeracy_icons/equations.svg";
 import earlyAlgebraImage from "@/public/numeracy_icons/early_algebra.png";
 
 type HeaderTab = {
