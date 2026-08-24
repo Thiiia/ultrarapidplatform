@@ -9,6 +9,7 @@ export const defaultSongActivityKey: SongActivityKey = "number-bonds";
 type ActivityPathFieldNames = {
   chartField: string;
   sidecarField: string;
+  fallbackSidecarField?: string;
 };
 
 type SongActivityFolders = {
@@ -51,6 +52,7 @@ const songAssetPathFieldsByKey: Record<SongActivityKey, ActivityPathFieldNames> 
   "early-algebra": {
     chartField: "earlyAlgebraChartPath",
     sidecarField: "earlyAlgebraSidecarPath",
+    fallbackSidecarField: "missingNumbersSidecarPath",
   },
 };
 
@@ -154,7 +156,8 @@ export function getSongAssetPathsForActivity(
   requestedActivityKey: SongActivityKey | null,
 ) {
   const activityKey = requestedActivityKey ?? defaultSongActivityKey;
-  const { chartField, sidecarField } = songAssetPathFieldsByKey[activityKey];
+  const { chartField, sidecarField, fallbackSidecarField } =
+    songAssetPathFieldsByKey[activityKey];
 
   const chartPath =
     readStringProperty(songAssetRecord, chartField) ??
@@ -162,6 +165,9 @@ export function getSongAssetPathsForActivity(
     "";
   const sidecarPath =
     readStringProperty(songAssetRecord, sidecarField) ??
+    (fallbackSidecarField
+      ? readStringProperty(songAssetRecord, fallbackSidecarField)
+      : null) ??
     readStringProperty(songAssetRecord, "sidecarPath") ??
     null;
 

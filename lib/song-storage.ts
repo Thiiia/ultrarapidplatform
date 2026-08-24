@@ -3,6 +3,7 @@ import {
   defaultSongActivityKey,
   getSongAssetPathsForActivity,
   normalizeSongActivityKey,
+  resolveSongAssetStoragePaths,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
@@ -203,9 +204,20 @@ async function resolveChartAndSidecarForSongAsset({
         candidatePaths.chartPath,
       );
 
+      const inferredSidecarPath = resolveSongAssetStoragePaths({
+        activityKey: candidateActivityKey,
+        chartPath: candidatePaths.chartPath,
+        sidecarPath: null,
+      }).sidecarPath;
+
+      const sidecarCandidatePaths = dedupePaths([
+        candidatePaths.sidecarPath,
+        inferredSidecarPath,
+      ]);
+
       const sidecar = await createOptionalSignedUrlFromCandidates(
         sidecarBucket,
-        candidatePaths.sidecarPath ? [candidatePaths.sidecarPath] : [],
+        sidecarCandidatePaths,
       );
 
       return {
