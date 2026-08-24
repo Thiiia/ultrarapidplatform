@@ -397,6 +397,7 @@ export default function StudentDashboard({
             style={{
               width: "100%",
               display: "flex",
+              flexDirection: "column",
               gap: 18,
               background: "rgba(6, 11, 21, 0.72)",
               border: "1px solid #FFFFFF1F",
@@ -538,8 +539,8 @@ export default function StudentDashboard({
                           height: "55.5%",
                           width: "100%",
                           position: "relative",
-                          background: "#CFFF04",
-                          border: "1px solid #CFFF04",
+                          background: "#222222",
+                          border: "1px solid #222222",
                           borderBottom: "none",
                           opacity: isDisabled ? 0.5 : 1,
                           display: "flex",
