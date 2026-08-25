@@ -32,7 +32,6 @@ import styles from "../student.module.css";
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
 import SpinIcon from "@/public/lesson_builder_icons/Spin.svg";
-import NoteIcon from "@/public/song_choice_icons/Note.svg";
 
 type LessonBuilderPayload = {
   chartFile: string;
@@ -1514,17 +1513,27 @@ async function jsonFromSignedUrl(signedUrl: string) {
 }
 
 function HeaderBar({
-  studentName,
   selectedSongTitle,
   selectedSongArtist,
+  selectedActivityLabel,
+  isSaving,
+  onOpenFile,
+  onLaunch,
+  onSave,
+  canLaunch,
   isRctm1Mode,
   isRctm2Mode,
   onToggleRctm1Mode,
   onToggleRctm2Mode,
 }: {
-  studentName: string;
   selectedSongTitle: string;
   selectedSongArtist: string;
+  selectedActivityLabel: string;
+  isSaving: boolean;
+  onOpenFile: () => void;
+  onLaunch: () => void;
+  onSave: () => void;
+  canLaunch: boolean;
   isRctm1Mode: boolean;
   isRctm2Mode: boolean;
   onToggleRctm1Mode: () => void;
@@ -1591,7 +1600,7 @@ function HeaderBar({
               height: 38,
               display: "inline-flex",
               alignItems: "center",
-              gap: 10,
+              gap: 8,
               padding: "0 14px",
               borderRadius: 999,
               border: "1px solid #7A8FA8",
@@ -1602,21 +1611,6 @@ function HeaderBar({
               overflow: "hidden",
             }}
           >
-            <span
-              style={{
-                width: 18,
-                height: 18,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <NoteIcon
-                aria-hidden="true"
-                style={{ width: 14, height: 14, display: "block" }}
-              />
-            </span>
             <span
               style={{
                 minWidth: 0,
@@ -1657,6 +1651,33 @@ function HeaderBar({
               </span>
             </span>
           </div>
+
+          <span
+            aria-label="Selected activity"
+            style={{
+              minWidth: 0,
+              maxWidth: 200,
+              height: 38,
+              padding: "0 14px",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#CFFF04",
+              fontSize: 12,
+              fontWeight: 700,
+              borderRadius: 999,
+              background: "#060B15FC",
+              border: "1px solid #7A8FA8",
+              fontFamily: "Space Grotesk, sans-serif",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+            title={selectedActivityLabel}
+          >
+            {selectedActivityLabel}
+          </span>
 
           <button
             type="button"
@@ -1711,152 +1732,14 @@ function HeaderBar({
             overflow: "visible",
           }}
         >
-          <span
-            aria-label="Student name"
-            style={{
-              minWidth: 112,
-              height: 38,
-              padding: "0 16px",
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#7A8FA8",
-              fontSize: 14,
-              fontWeight: 600,
-              borderRadius: 999,
-              background: "#060B15FC",
-              border: "1px solid #7A8FA8",
-              fontFamily: "Space Grotesk, sans-serif",
-            }}
-          >
-            {studentName}
-          </span>
-
-          <a
-            href="/auth/logout"
-            aria-label="Log out"
-            className={`${styles.utilityButton} ${styles.logoutButton}`}
-          >
-            Log out
-          </a>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-function EditorActionBar({
-  isSaving,
-  onBack,
-  onOpenFile,
-  onLaunch,
-  onSave,
-  canLaunch,
-}: {
-  isSaving: boolean;
-  onBack: () => void;
-  onOpenFile: () => void;
-  onLaunch: () => void;
-  onSave: () => void;
-  canLaunch: boolean;
-}) {
-  return (
-    <section
-      aria-label="Lesson builder actions"
-      style={{
-        width: "100%",
-        height: 36,
-        minHeight: 36,
-        background: pageBackgroundColor,
-        borderBottom: `1px solid ${subtleBorderColor}`,
-        boxSizing: "border-box",
-        color: textColor,
-        fontFamily: "Space Grotesk, sans-serif",
-      }}
-    >
-      <div
-        style={{
-          width: pagePanelWidth,
-          height: "100%",
-          margin: "0 auto",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-        }}
-      >
-        <button
-          type="button"
-          onClick={onBack}
-          style={{
-            minWidth: 96,
-              height: 24,
-            background: panelBackgroundColor,
-            color: "#FFFFFF",
-            border: `1px solid ${subtleBorderColor}`,
-            borderRadius: 12,
-            fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 11,
-              fontWeight: 800,
-            cursor: "pointer",
-          }}
-        >
-          Back
-        </button>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            minWidth: 0,
-            flex: 1,
-            justifyContent: "flex-end",
-          }}
-        >
-          <button
-            type="button"
-            onClick={onLaunch}
-            disabled={!canLaunch}
-            title={
-              canLaunch
-                ? "Launch the selected song in the game."
-                : "Choose a song from song choice before launching the game."
-            }
-            style={{
-              minWidth: 124,
-              height: 24,
-              background: canLaunch ? "#CFFF04" : panelBackgroundColor,
-              color: canLaunch ? "#000000" : "#FFFFFF80",
-              border: `1px solid ${canLaunch ? "#CFFF04" : subtleBorderColor}`,
-              borderRadius: 12,
-              fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 11,
-              fontWeight: 800,
-              cursor: canLaunch ? "pointer" : "not-allowed",
-            }}
-          >
-            Play
-          </button>
-        </div>
-
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            flexShrink: 0,
-          }}
-        >
           <button
             type="button"
             onClick={onOpenFile}
             aria-label="Open file picker"
             title="Choose a different song or activity"
             style={{
-              width: 60,
-              height: 29,
+              width: 64,
+              height: 30,
               borderRadius: 12,
               border: `1px solid ${subtleBorderColor}`,
               background: panelBackgroundColor,
@@ -1869,6 +1752,7 @@ function EditorActionBar({
               alignItems: "center",
               justifyContent: "center",
               gap: 5,
+              fontFamily: "Space Grotesk, sans-serif",
             }}
           >
             <img
@@ -1878,6 +1762,31 @@ function EditorActionBar({
               style={{ width: 12, height: 12, display: "block" }}
             />
             File
+          </button>
+
+          <button
+            type="button"
+            onClick={onLaunch}
+            disabled={!canLaunch}
+            title={
+              canLaunch
+                ? "Launch the selected song in the game."
+                : "Choose a song from song choice before launching the game."
+            }
+            style={{
+              minWidth: 86,
+              height: 30,
+              background: canLaunch ? "#CFFF04" : panelBackgroundColor,
+              color: canLaunch ? "#000000" : "#FFFFFF80",
+              border: `1px solid ${canLaunch ? "#CFFF04" : subtleBorderColor}`,
+              borderRadius: 12,
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 11,
+              fontWeight: 800,
+              cursor: canLaunch ? "pointer" : "not-allowed",
+            }}
+          >
+            Play
           </button>
 
           <button
@@ -1914,7 +1823,7 @@ function EditorActionBar({
           </button>
         </div>
       </div>
-    </section>
+    </header>
   );
 }
 
@@ -9078,7 +8987,7 @@ export default function LessonBuilderClient({
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const separatorsWidth = 18;
+    const separatorsWidth = 12;
 
     const calcWidths = () => {
       const w = window.innerWidth;
@@ -9267,24 +9176,13 @@ export default function LessonBuilderClient({
   }, [centerContextMechanicItems, selectedContextMechanicKey]);
 
   const row2DisplayWidths = useMemo(() => {
-    if (isAdvancedMode) {
-      return {
-        column1: row2ColumnWidths[0],
-        column2: row2ColumnWidths[1],
-        column3: row2ColumnWidths[2],
-        column4: row2ColumnWidths[3],
-      };
-    }
-
-    const sharedSideWidth = Math.round((row2ColumnWidths[0] + row2ColumnWidths[2]) / 2);
-
     return {
-      column1: sharedSideWidth,
-      column2: row2ColumnWidths[1] + row2ColumnWidths[3],
-      column3: sharedSideWidth,
+      column1: row2ColumnWidths[0],
+      column2: row2ColumnWidths[1],
+      column3: row2ColumnWidths[2],
       column4: 0,
     };
-  }, [isAdvancedMode, row2ColumnWidths]);
+  }, [row2ColumnWidths]);
 
   const studentFirstName = useMemo(
     () => getDisplayFirstName(studentName),
@@ -11785,26 +11683,24 @@ function handleToggleDragTarget(
         }
       `}</style>
       <HeaderBar
-        studentName={studentFirstName}
         selectedSongTitle={
           metadata?.songTitle?.trim() || uploadedSongName || "No song selected"
         }
         selectedSongArtist={metadata?.artist?.trim() || "Unknown artist"}
-        isRctm1Mode={isRctm1Mode}
-        isRctm2Mode={isRctm2Mode}
-        onToggleRctm1Mode={handleToggleRctm1Mode}
-        onToggleRctm2Mode={handleToggleRctm2Mode}
-      />
-
-      <EditorActionBar
+        selectedActivityLabel={
+          selectedSongActivity?.label ?? getActivityLabel(defaultSongActivityKey)
+        }
         isSaving={isSaving}
-        onBack={handleBackToSongChoice}
         onOpenFile={handleOpenFilePicker}
         onLaunch={handleLaunchGame}
         onSave={() => {
           void handleSaveToSupabase({ showNotice: true });
         }}
         canLaunch={Boolean(selectedSongLaunch)}
+        isRctm1Mode={isRctm1Mode}
+        isRctm2Mode={isRctm2Mode}
+        onToggleRctm1Mode={handleToggleRctm1Mode}
+        onToggleRctm2Mode={handleToggleRctm2Mode}
       />
 
       <main
@@ -12107,35 +12003,6 @@ function handleToggleDragTarget(
             />
           </div>
 
-          {isAdvancedMode ? (
-            <>
-              <div
-                role="separator"
-                aria-orientation="vertical"
-                onPointerDown={(event) => beginColumnResize(2, event)}
-                style={{
-                  width: 6,
-                  flex: "0 0 6px",
-                  cursor: "col-resize",
-                  background: activeResizeHandle === 2 ? "rgba(207,255,4,0.22)" : "transparent",
-                }}
-              />
-
-              <div style={{ flex: `0 0 ${row2DisplayWidths.column4}px`, minWidth: 0, height: "100%" }}>
-                <InspectorPanel
-                  eventSlot={activeTimelineEvent}
-                  eventIndex={activeTimelineEventIndex}
-                  isAdvancedMode={isAdvancedMode}
-                  currentSongSeconds={currentSongSeconds}
-                  onAddEventAtPlayhead={handleAddTimelineEvent}
-                  onAddHit={handleAddHitAtPlayhead}
-                  onAddSpin={handleAddSpinAtPlayhead}
-                  onAddDrag={handleAddDragAtPlayhead}
-                  pendingRangeMechanic={pendingRangeSelection?.mechanic ?? null}
-                />
-              </div>
-            </>
-          ) : null}
             </>
           )}
         </section>
