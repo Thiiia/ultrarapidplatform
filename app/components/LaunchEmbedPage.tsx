@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import SongFlowDebugger from "@/app/components/SongFlowDebugger";
+// import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { resolveLaunchParams } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 
@@ -41,7 +41,7 @@ export default function LaunchEmbedPage() {
         }}
       />
 
-      <SongFlowDebugger title="Game Launch Debugger" />
+      {/* <SongFlowDebugger title="Game Launch Debugger" /> */}
     </main>
   );
 }

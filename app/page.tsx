@@ -1,33 +1,8 @@
 import Link from "next/link";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import LandingSoundButton from "./LandingSoundButton";
 // import { redirect } from "next/navigation";
 // import { getAuth0 } from "@/lib/auth0";
 
 export const dynamic = "force-dynamic";
-
-async function getLandingAudioUrl() {
-  try {
-    const supabaseAdmin = getSupabaseAdmin();
-
-    const { data, error } = await supabaseAdmin.storage
-      .from("Songs")
-      .createSignedUrl("Lofries_New_Orleanz_title.mp3", 60 * 60);
-
-    if (error || !data?.signedUrl) {
-      console.error(
-        "Failed to create signed URL for landing audio:",
-        error?.message ?? "Unknown error",
-      );
-      return null;
-    }
-
-    return data.signedUrl;
-  } catch (error) {
-    console.error("Failed to load landing audio:", error);
-    return null;
-  }
-}
 
 export default async function HomePage() {
   /*
@@ -43,8 +18,6 @@ export default async function HomePage() {
    *
    * redirect("/api/post-login");
    */
-
-  const landingAudioUrl = await getLandingAudioUrl();
 
   return (
     <>
@@ -141,8 +114,6 @@ export default async function HomePage() {
             animation: "landingUiFadeIn 950ms ease-out 450ms forwards",
           }}
         >
-          <LandingSoundButton src={landingAudioUrl} />
-
           <img
             src="/Logo.svg"
             alt="UltraRapid"

@@ -280,8 +280,8 @@ export default function StudentDashboard({
       alt: "Equations",
       description:
         "Learn the language of equations to see when two quantities are equal to each other.",
-      action: "play",
-      disabled: false,
+      action: "coming-soon",
+      disabled: true,
     },
     {
       title: "Missing Numbers",
@@ -289,8 +289,8 @@ export default function StudentDashboard({
       alt: "Missing numbers",
       description:
         "Use knowledge of number bonds and equations to find the missing quantities that make the equations true.",
-      action: "play",
-      disabled: false,
+      action: "coming-soon",
+      disabled: true,
     },
     {
       title: "Early Algebra",

@@ -21,15 +21,18 @@ import {
 } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import {
+  defaultSongActivityKey,
   inferSongActivityKeyFromChartPath,
   normalizeSongActivityKey,
   resolveSongAssetStoragePaths,
+  type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import styles from "../student.module.css";
 
 /* Header Icon imports */
 import URIcon from "@/public/header_icons/URIcon.svg";
 import SpinIcon from "@/public/lesson_builder_icons/Spin.svg";
+import NoteIcon from "@/public/song_choice_icons/Note.svg";
 
 type LessonBuilderPayload = {
   chartFile: string;
@@ -102,6 +105,16 @@ type SelectedSongPayload = {
     drag_counts?: unknown;
     drag_count?: unknown;
   } | null;
+  song: StorageFileRef & { signedUrl: string };
+  chart: StorageFileRef & { signedUrl: string };
+  sidecar: (StorageFileRef & { signedUrl: string }) | null;
+};
+
+type SongChoiceOption = {
+  id: string;
+  name: string;
+  title?: string;
+  artist?: string | null;
   song: StorageFileRef & { signedUrl: string };
   chart: StorageFileRef & { signedUrl: string };
   sidecar: (StorageFileRef & { signedUrl: string }) | null;
@@ -277,6 +290,28 @@ const equationPalette = [
   "÷",
   "=",
 ];
+
+const activityLabelByKey: Record<SongActivityKey, string> = {
+  "number-bonds": "Number Bonds",
+  equations: "Equations",
+  "missing-numbers": "Missing Numbers",
+  "early-algebra": "Early Algebra",
+};
+
+const activityKeys: SongActivityKey[] = [
+  "number-bonds",
+  "equations",
+  "missing-numbers",
+  "early-algebra",
+];
+
+function getActivityLabel(activityKey: SongActivityKey | null | undefined) {
+  if (!activityKey) {
+    return activityLabelByKey[defaultSongActivityKey];
+  }
+
+  return activityLabelByKey[activityKey] ?? activityKey;
+}
 
 function getDisplayFirstName(value?: string | null) {
   if (!value) {
@@ -1480,18 +1515,18 @@ async function jsonFromSignedUrl(signedUrl: string) {
 
 function HeaderBar({
   studentName,
-  isAdvancedMode,
+  selectedSongTitle,
+  selectedSongArtist,
   isRctm1Mode,
   isRctm2Mode,
-  onToggleAdvancedMode,
   onToggleRctm1Mode,
   onToggleRctm2Mode,
 }: {
   studentName: string;
-  isAdvancedMode: boolean;
+  selectedSongTitle: string;
+  selectedSongArtist: string;
   isRctm1Mode: boolean;
   isRctm2Mode: boolean;
-  onToggleAdvancedMode: () => void;
   onToggleRctm1Mode: () => void;
   onToggleRctm2Mode: () => void;
 }) {
@@ -1530,7 +1565,7 @@ function HeaderBar({
         >
           <div
             style={{
-              width: 164,
+              width: 156,
               height: 35,
               display: "inline-flex",
               alignItems: "center",
@@ -1550,26 +1585,78 @@ function HeaderBar({
             />
           </div>
 
-          <button
-            type="button"
-            onClick={onToggleAdvancedMode}
-            aria-pressed={isAdvancedMode}
+          <div
             style={{
-              minWidth: 106,
+              minWidth: 0,
               height: 38,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "0 14px",
               borderRadius: 999,
               border: "1px solid #7A8FA8",
-              background: isAdvancedMode ? "#CFFF04" : "#060B15FC",
-              color: isAdvancedMode ? "#071222" : "#7A8FA8",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-              padding: "0 16px",
+              background: "#060B15FC",
+              color: "#FFFFFF",
               fontFamily: "Space Grotesk, sans-serif",
+              maxWidth: 320,
+              overflow: "hidden",
             }}
           >
-            Advanced
-          </button>
+            <span
+              style={{
+                width: 18,
+                height: 18,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <NoteIcon
+                aria-hidden="true"
+                style={{ width: 14, height: 14, display: "block" }}
+              />
+            </span>
+            <span
+              style={{
+                minWidth: 0,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                justifyContent: "center",
+                lineHeight: 1.05,
+              }}
+            >
+              <span
+                style={{
+                  width: "100%",
+                  color: "#FFFFFF",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+                title={selectedSongTitle}
+              >
+                {selectedSongTitle}
+              </span>
+              <span
+                style={{
+                  width: "100%",
+                  color: "#D1D5DB",
+                  fontSize: 10,
+                  fontWeight: 500,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+                title={selectedSongArtist}
+              >
+                {selectedSongArtist}
+              </span>
+            </span>
+          </div>
 
           <button
             type="button"
@@ -1662,12 +1749,14 @@ function HeaderBar({
 function EditorActionBar({
   isSaving,
   onBack,
+  onOpenFile,
   onLaunch,
   onSave,
   canLaunch,
 }: {
   isSaving: boolean;
   onBack: () => void;
+  onOpenFile: () => void;
   onLaunch: () => void;
   onSave: () => void;
   canLaunch: boolean;
@@ -1752,41 +1841,254 @@ function EditorActionBar({
           </button>
         </div>
 
-        <button
-          type="button"
-          disabled={isSaving}
-          onClick={onSave}
-          aria-label="Save lesson to Supabase"
-          title="Save lesson"
+        <div
           style={{
-            width: 60,
-            height: 29,
-            border: "none",
-            borderRadius: 12,
-            background: "transparent",
-            padding: 0,
-            cursor: isSaving ? "not-allowed" : "pointer",
-            opacity: isSaving ? 0.55 : 1,
-            flexShrink: 0,
             display: "inline-flex",
             alignItems: "center",
-            justifyContent: "center",
+            gap: 8,
+            flexShrink: 0,
           }}
         >
-          <img
-            src="/Save_Button.svg"
-            alt=""
-            aria-hidden="true"
+          <button
+            type="button"
+            onClick={onOpenFile}
+            aria-label="Open file picker"
+            title="Choose a different song or activity"
             style={{
               width: 60,
               height: 29,
-              display: "block",
-              objectFit: "contain",
+              borderRadius: 12,
+              border: `1px solid ${subtleBorderColor}`,
+              background: panelBackgroundColor,
+              padding: "0 8px",
+              color: "#FFFFFF",
+              fontSize: 10,
+              fontWeight: 800,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 5,
             }}
-          />
-        </button>
+          >
+            <img
+              src="/file.svg"
+              alt=""
+              aria-hidden="true"
+              style={{ width: 12, height: 12, display: "block" }}
+            />
+            File
+          </button>
+
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={onSave}
+            aria-label="Save lesson to Supabase"
+            title="Save lesson"
+            style={{
+              width: 60,
+              height: 29,
+              border: "none",
+              borderRadius: 12,
+              background: "transparent",
+              padding: 0,
+              cursor: isSaving ? "not-allowed" : "pointer",
+              opacity: isSaving ? 0.55 : 1,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <img
+              src="/Save_Button.svg"
+              alt=""
+              aria-hidden="true"
+              style={{
+                width: 60,
+                height: 29,
+                display: "block",
+                objectFit: "contain",
+              }}
+            />
+          </button>
+        </div>
       </div>
     </section>
+  );
+}
+
+function SongFilePickerModal({
+  isOpen,
+  isLoading,
+  error,
+  activityKey,
+  songs,
+  selectedSongId,
+  onActivityChange,
+  onSelectSong,
+  onClose,
+  onLoad,
+}: {
+  isOpen: boolean;
+  isLoading: boolean;
+  error: string;
+  activityKey: SongActivityKey;
+  songs: SongChoiceOption[];
+  selectedSongId: string | null;
+  onActivityChange: (value: SongActivityKey) => void;
+  onSelectSong: (songId: string) => void;
+  onClose: () => void;
+  onLoad: () => void;
+}) {
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.6)",
+        display: "grid",
+        placeItems: "center",
+        zIndex: 1000,
+        padding: 20,
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Select song and activity"
+        style={{
+          width: "min(580px, 92vw)",
+          borderRadius: 14,
+          border: `1px solid ${subtleBorderColor}`,
+          background: "#101621",
+          color: "#FFFFFF",
+          padding: 16,
+          boxSizing: "border-box",
+          fontFamily: "Space Grotesk, sans-serif",
+          display: "grid",
+          gap: 12,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Choose Song File</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              border: `1px solid ${subtleBorderColor}`,
+              borderRadius: 8,
+              background: "#1D2533",
+              color: "#FFFFFF",
+              fontSize: 12,
+              fontWeight: 700,
+              height: 30,
+              padding: "0 10px",
+              cursor: "pointer",
+            }}
+          >
+            Close
+          </button>
+        </div>
+
+        <div style={{ display: "grid", gap: 6 }}>
+          <label htmlFor="lesson-builder-activity-select" style={{ fontSize: 12, fontWeight: 700, color: "#D1D5DB" }}>
+            Activity
+          </label>
+          <select
+            id="lesson-builder-activity-select"
+            value={activityKey}
+            onChange={(event) => onActivityChange(event.target.value as SongActivityKey)}
+            style={{
+              height: 34,
+              borderRadius: 10,
+              border: `1px solid ${subtleBorderColor}`,
+              background: "#151E2B",
+              color: "#FFFFFF",
+              padding: "0 10px",
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            {activityKeys.map((key) => (
+              <option key={key} value={key}>
+                {getActivityLabel(key)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: "grid", gap: 6 }}>
+          <label htmlFor="lesson-builder-song-select" style={{ fontSize: 12, fontWeight: 700, color: "#D1D5DB" }}>
+            Song
+          </label>
+          <select
+            id="lesson-builder-song-select"
+            value={selectedSongId ?? ""}
+            onChange={(event) => onSelectSong(event.target.value)}
+            disabled={isLoading || songs.length === 0}
+            style={{
+              height: 34,
+              borderRadius: 10,
+              border: `1px solid ${subtleBorderColor}`,
+              background: "#151E2B",
+              color: "#FFFFFF",
+              padding: "0 10px",
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            {songs.length === 0 ? (
+              <option value="">No songs found</option>
+            ) : (
+              songs.map((song) => (
+                <option key={song.id} value={song.id}>
+                  {`${song.name}${song.artist ? ` - ${song.artist}` : ""}`}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+
+        {isLoading ? (
+          <div style={{ color: "#D1D5DB", fontSize: 12, fontWeight: 600 }}>
+            Loading songs...
+          </div>
+        ) : null}
+
+        {error ? (
+          <div style={{ color: "#FF9B9B", fontSize: 12, fontWeight: 600 }}>
+            {error}
+          </div>
+        ) : null}
+
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button
+            type="button"
+            onClick={onLoad}
+            disabled={isLoading || !selectedSongId}
+            style={{
+              minWidth: 132,
+              height: 34,
+              borderRadius: 999,
+              border: "1px solid #CFFF04",
+              background: "#CFFF04",
+              color: "#071222",
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: isLoading || !selectedSongId ? "not-allowed" : "pointer",
+              opacity: isLoading || !selectedSongId ? 0.6 : 1,
+            }}
+          >
+            Load Song
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -8666,6 +8968,10 @@ export default function LessonBuilderClient({
   const [loadError, setLoadError] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [saveNotice, setSaveNotice] = useState<{
+    kind: "success" | "error";
+    message: string;
+  } | null>(null);
   const [selectedSongStorage, setSelectedSongStorage] = useState<{
     id: string;
     chart: StorageFileRef;
@@ -8677,7 +8983,18 @@ export default function LessonBuilderClient({
     sidecarUrl: string | null;
     audioUrl: string;
   } | null>(null);
-  const [isAdvancedMode, setIsAdvancedMode] = useState(false);
+  const [selectedSongActivity, setSelectedSongActivity] = useState<{
+    key: SongActivityKey;
+    label: string;
+  } | null>(null);
+  const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
+  const [isFilePickerLoading, setIsFilePickerLoading] = useState(false);
+  const [filePickerError, setFilePickerError] = useState("");
+  const [filePickerSongs, setFilePickerSongs] = useState<SongChoiceOption[]>([]);
+  const [filePickerSongId, setFilePickerSongId] = useState<string | null>(null);
+  const [filePickerActivityKey, setFilePickerActivityKey] =
+    useState<SongActivityKey>(defaultSongActivityKey);
+  const isAdvancedMode = true;
   const [selectedContextMechanicKey, setSelectedContextMechanicKey] =
     useState<string | null>(null);
   const [pendingRangeSelection, setPendingRangeSelection] =
@@ -8703,6 +9020,20 @@ export default function LessonBuilderClient({
     () => row2ColumnWidths[1] * 0.12,
     [row2ColumnWidths],
   );
+
+  useEffect(() => {
+    if (!saveNotice) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSaveNotice(null);
+    }, 2600);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [saveNotice]);
 
   useEffect(() => {
     if (activeResizeHandle === null) {
@@ -9821,9 +10152,14 @@ function handleToggleDragTarget(
     router.push(launchRoute);
   }
 
-  async function handleSaveToSupabase() {
+  async function handleSaveToSupabase(options: { showNotice?: boolean } = {}) {
+    const { showNotice = false } = options;
+
     if (!selectedSongStorage) {
       setSaveStatus("No selected song asset is loaded.");
+      if (showNotice) {
+        setSaveNotice({ kind: "error", message: "Save failed." });
+      }
       return false;
     }
 
@@ -9902,10 +10238,22 @@ function handleToggleDragTarget(
 
       const result = (await response.json().catch(() => null)) as {
         error?: string;
+        chart?: { path?: string };
+        sidecar?: { path?: string };
       } | null;
 
       if (!response.ok) {
         throw new Error(result?.error ?? "Unable to save lesson files");
+      }
+
+      const savedChartPath = result?.chart?.path ?? null;
+      const savedSidecarPath = result?.sidecar?.path ?? null;
+
+      if (
+        savedChartPath !== resolvedPaths.chartPath ||
+        savedSidecarPath !== resolvedPaths.sidecarPath
+      ) {
+        throw new Error("Saved files could not be verified");
       }
 
       appendSongFlowDebug("lesson-builder:save:complete", "Supabase save completed successfully.", {
@@ -9917,15 +10265,388 @@ function handleToggleDragTarget(
       setChartFile(chartText);
       setStoreSidecar(timelineSidecar as StoreSidecarPayload);
       setSaveStatus("Saved");
+
+      if (showNotice) {
+        const activityKey =
+          normalizeSongActivityKey(selectedSongActivity?.key ?? null) ??
+          inferSongActivityKeyFromChartPath(selectedSongStorage.chart.path) ??
+          defaultSongActivityKey;
+        const activityLabel = getActivityLabel(activityKey);
+        const songLabel =
+          metadata?.songTitle?.trim() || uploadedSongName || "Selected song";
+
+        setSaveNotice({
+          kind: "success",
+          message: `Saved ${songLabel} as ${activityLabel} chart/sidecar.`,
+        });
+      }
+
       return true;
     } catch (error) {
       setSaveStatus(
         error instanceof Error ? error.message : "Unable to save lesson files",
       );
+      if (showNotice) {
+        setSaveNotice({ kind: "error", message: "Save failed." });
+      }
       return false;
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function buildSelectedSongPayloadFromChoice(
+    song: SongChoiceOption,
+    activityKey: SongActivityKey,
+  ): SelectedSongPayload {
+    return {
+      id: song.id,
+      name: song.name,
+      title: song.title,
+      artist: song.artist,
+      activity: {
+        key: activityKey,
+        label: getActivityLabel(activityKey),
+      },
+      song: {
+        bucket: song.song.bucket,
+        path: song.song.path,
+        signedUrl: song.song.signedUrl,
+        contentType: song.song.contentType,
+      },
+      chart: {
+        bucket: song.chart.bucket,
+        path: song.chart.path,
+        signedUrl: song.chart.signedUrl,
+        contentType: song.chart.contentType,
+      },
+      sidecar: song.sidecar
+        ? {
+            bucket: song.sidecar.bucket,
+            path: song.sidecar.path,
+            signedUrl: song.sidecar.signedUrl,
+            contentType: song.sidecar.contentType,
+          }
+        : null,
+    };
+  }
+
+  async function fetchSongChoicesForActivity(activityKey: SongActivityKey) {
+    setIsFilePickerLoading(true);
+    setFilePickerError("");
+
+    try {
+      const response = await fetch(
+        `/api/song-choice?activity=${encodeURIComponent(activityKey)}`,
+      );
+      const payload = (await response.json().catch(() => null)) as {
+        songs?: SongChoiceOption[];
+        error?: string;
+      } | null;
+
+      if (!response.ok || !payload?.songs) {
+        throw new Error(payload?.error ?? "Unable to load songs for activity");
+      }
+
+      const availableSongs = payload.songs;
+
+      setFilePickerSongs(availableSongs);
+      setFilePickerSongId((current) => {
+        if (current && availableSongs.some((song) => song.id === current)) {
+          return current;
+        }
+
+        if (
+          selectedSongStorage &&
+          availableSongs.some((song) => song.id === selectedSongStorage.id)
+        ) {
+          return selectedSongStorage.id;
+        }
+
+        return availableSongs[0]?.id ?? null;
+      });
+    } catch (error) {
+      setFilePickerSongs([]);
+      setFilePickerSongId(null);
+      setFilePickerError(
+        error instanceof Error ? error.message : "Unable to load songs",
+      );
+    } finally {
+      setIsFilePickerLoading(false);
+    }
+  }
+
+  function handleOpenFilePicker() {
+    setIsFilePickerOpen(true);
+    setFilePickerError("");
+
+    if (selectedSongActivity?.key) {
+      setFilePickerActivityKey(selectedSongActivity.key);
+      return;
+    }
+
+    const inferredActivity = normalizeSongActivityKey(
+      inferSongActivityKeyFromChartPath(selectedSongStorage?.chart.path ?? ""),
+    );
+
+    setFilePickerActivityKey(inferredActivity ?? defaultSongActivityKey);
+  }
+
+  function hydrateSelectedSong(selectedSong: SelectedSongPayload) {
+    appendSongFlowDebug(
+      "lesson-builder:session:selected-song",
+      "Hydrated selected song payload from session storage.",
+      selectedSong,
+    );
+
+    const storedActivityRaw = sessionStorage.getItem("selectedDashboardActivity");
+    let storedActivity: { key?: string; label?: string } | null = null;
+
+    if (storedActivityRaw) {
+      try {
+        storedActivity = JSON.parse(storedActivityRaw) as {
+          key?: string;
+          label?: string;
+        };
+      } catch {
+        storedActivity = null;
+      }
+    }
+
+    const resolvedActivityKey =
+      normalizeSongActivityKey(selectedSong.activity?.key ?? storedActivity?.key ?? null) ??
+      defaultSongActivityKey;
+    const resolvedActivityLabel =
+      selectedSong.activity?.label ??
+      storedActivity?.label ??
+      getActivityLabel(resolvedActivityKey);
+
+    setSelectedSongActivity({
+      key: resolvedActivityKey,
+      label: resolvedActivityLabel,
+    });
+    setFilePickerActivityKey(resolvedActivityKey);
+
+    const expectedPaths = resolveSongAssetStoragePaths({
+      activityKey: resolvedActivityKey,
+      chartPath: selectedSong.chart.path,
+      sidecarPath: selectedSong.sidecar?.path ?? null,
+    });
+
+    appendSongFlowDebug(
+      "lesson-builder:activity:path-check",
+      "Comparing selected activity with chart/sidecar payload paths before fetch.",
+      {
+        selectedSongId: selectedSong.id,
+        selectedSongName: selectedSong.name,
+        payloadActivity: selectedSong.activity ?? null,
+        storedActivity,
+        resolvedActivityKey,
+        payloadChartPath: selectedSong.chart.path,
+        payloadSidecarPath: selectedSong.sidecar?.path ?? null,
+        expectedPaths,
+        chartMatchesExpected:
+          expectedPaths.chartPath === selectedSong.chart.path,
+        sidecarMatchesExpected:
+          expectedPaths.sidecarPath === (selectedSong.sidecar?.path ?? null),
+      },
+    );
+
+    setSelectedSongStorage({
+      id: selectedSong.id,
+      chart: {
+        bucket: selectedSong.chart.bucket,
+        path: selectedSong.chart.path,
+        contentType: selectedSong.chart.contentType,
+      },
+      sidecar: selectedSong.sidecar
+        ? {
+            bucket: selectedSong.sidecar.bucket,
+            path: selectedSong.sidecar.path,
+            contentType: selectedSong.sidecar.contentType,
+          }
+        : null,
+    });
+
+    setSelectedSongLaunch({
+      songAssetId: selectedSong.id,
+      chartUrl: selectedSong.chart.signedUrl,
+      sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
+      audioUrl: selectedSong.song.signedUrl,
+    });
+
+    loadSidecarIntoTimeline(emptySidecar, null);
+    setUploadedSongName(selectedSong.name);
+    setMetadata((current) => ({
+      ...current,
+      songTitle: selectedSong.title ?? selectedSong.name,
+      artist: selectedSong.artist ?? current?.artist,
+      uploadedFileName: selectedSong.song.path,
+    }));
+
+    fileFromSignedUrl({
+      signedUrl: selectedSong.song.signedUrl,
+      path: selectedSong.song.path,
+      name: selectedSong.name,
+      contentType: selectedSong.song.contentType,
+      debugLabel: "audio",
+    })
+      .then((file) => {
+        appendSongFlowDebug(
+          "lesson-builder:audio:file-ready",
+          "Audio blob was converted into a File for the editor.",
+          {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+          },
+        );
+        setPendingSongFile(file);
+      })
+      .catch((error) => {
+        console.error("Failed to load selected song file", error);
+        appendSongFlowDebug(
+          "lesson-builder:audio:file-error",
+          "Audio fetch failed while hydrating the selected song.",
+          {
+            message: error instanceof Error ? error.message : String(error),
+          },
+        );
+      });
+
+    Promise.allSettled([
+      textFromSignedUrl(selectedSong.chart.signedUrl),
+      selectedSong.sidecar
+        ? jsonFromSignedUrl(selectedSong.sidecar.signedUrl)
+        : Promise.resolve(emptySidecar),
+    ])
+      .then(([chartResult, sidecarResult]) => {
+        appendSongFlowDebug(
+          "lesson-builder:hydrate:fetch-results",
+          "Recorded chart and sidecar fetch outcomes for selected song payload.",
+          {
+            chartStatus: chartResult.status,
+            sidecarStatus: sidecarResult.status,
+            chartPath: selectedSong.chart.path,
+            sidecarPath: selectedSong.sidecar?.path ?? null,
+            chartUrl: selectedSong.chart.signedUrl,
+            sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
+          },
+        );
+
+        const selectedSongMetadata = {
+          songTitle: selectedSong.title ?? selectedSong.name,
+          artist: selectedSong.artist ?? undefined,
+          uploadedFileName: selectedSong.song.path,
+        };
+        const fallbackChartFile = createBlankChartFile(selectedSongMetadata);
+        const nextChartFile =
+          chartResult.status === "fulfilled" && chartResult.value.trim()
+            ? chartResult.value
+            : fallbackChartFile;
+        const sidecarJson =
+          sidecarResult.status === "fulfilled"
+            ? sidecarResult.value
+            : emptySidecar;
+        const nextChartName =
+          selectedSong.chart.path.split("/").pop() ?? "selected.chart";
+        const normalizedSidecar = mergeTimelineSidecarSources(
+          sidecarJson ?? emptySidecar,
+          nextChartFile,
+          selectedSongMetadata,
+        );
+
+        appendSongFlowDebug(
+          "lesson-builder:merge:chart-sidecar",
+          "Merged sidecar JSON with chart-derived events before populating the timeline.",
+          {
+            chartLoaded: chartResult.status === "fulfilled",
+            sidecarLoaded: sidecarResult.status === "fulfilled",
+            chartLength: nextChartFile.length,
+            normalizedSidecarEventCount: normalizedSidecar.events.length,
+            selectedSongEventCount: 0,
+            selectedSongEventTicks: [],
+          },
+        );
+
+        if (
+          chartResult.status !== "fulfilled" ||
+          sidecarResult.status !== "fulfilled"
+        ) {
+          setSaveStatus("Using blank .chart/JSON fallback files");
+        }
+
+        setChartFile(nextChartFile);
+        setUploadedChartName(nextChartName);
+        loadSidecarIntoTimeline(normalizedSidecar, null);
+
+        const payload: LessonBuilderPayload = {
+          chartFile: nextChartFile,
+          analysisMetadata: selectedSongMetadata,
+          rawResults: normalizedSidecar,
+        };
+
+        setProject(chartToProject(payload));
+        appendSongFlowDebug(
+          "lesson-builder:project:rebuilt",
+          "Chart project was rebuilt after chart and sidecar hydration.",
+          {
+            chartName: nextChartName,
+            timelineEvents: normalizedSidecar.events.length,
+          },
+        );
+      })
+      .catch((error) => {
+        console.error("Failed to load selected chart or sidecar JSON", error);
+        appendSongFlowDebug(
+          "lesson-builder:hydrate:error",
+          "Failed while loading chart or sidecar from signed URLs.",
+          {
+            message: error instanceof Error ? error.message : String(error),
+          },
+        );
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : "Failed to load selected song package",
+        );
+      });
+  }
+
+  function handleLoadSongFromFilePicker() {
+    if (!filePickerSongId) {
+      return;
+    }
+
+    const selectedSong = filePickerSongs.find((song) => song.id === filePickerSongId);
+
+    if (!selectedSong) {
+      setFilePickerError("Select a song to continue.");
+      return;
+    }
+
+    const selectedSongPayload = buildSelectedSongPayloadFromChoice(
+      selectedSong,
+      filePickerActivityKey,
+    );
+
+    window.sessionStorage.setItem(
+      "ultrarapid_selected_song",
+      JSON.stringify(selectedSongPayload),
+    );
+    window.sessionStorage.setItem(
+      "selectedDashboardActivity",
+      JSON.stringify({
+        key: filePickerActivityKey,
+        label: getActivityLabel(filePickerActivityKey),
+      }),
+    );
+
+    hydrateSelectedSong(selectedSongPayload);
+    setIsFilePickerOpen(false);
+    setSaveStatus(
+      `Loaded ${selectedSong.name} (${getActivityLabel(filePickerActivityKey)}).`,
+    );
   }
 
   useEffect(() => {
@@ -9951,192 +10672,7 @@ function handleToggleDragTarget(
 
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
-      appendSongFlowDebug("lesson-builder:session:selected-song", "Hydrated selected song payload from session storage.", selectedSong);
-
-      const storedActivityRaw = sessionStorage.getItem("selectedDashboardActivity");
-      let storedActivity: { key?: string; label?: string } | null = null;
-
-      if (storedActivityRaw) {
-        try {
-          storedActivity = JSON.parse(storedActivityRaw) as {
-            key?: string;
-            label?: string;
-          };
-        } catch {
-          storedActivity = null;
-        }
-      }
-
-      const resolvedActivityKey =
-        selectedSong.activity?.key ?? storedActivity?.key ?? null;
-      const expectedPaths = resolvedActivityKey
-        ? resolveSongAssetStoragePaths({
-            activityKey: normalizeSongActivityKey(resolvedActivityKey),
-            chartPath: selectedSong.chart.path,
-            sidecarPath: selectedSong.sidecar?.path ?? null,
-          })
-        : null;
-
-      appendSongFlowDebug(
-        "lesson-builder:activity:path-check",
-        "Comparing selected activity with chart/sidecar payload paths before fetch.",
-        {
-          selectedSongId: selectedSong.id,
-          selectedSongName: selectedSong.name,
-          payloadActivity: selectedSong.activity ?? null,
-          storedActivity,
-          resolvedActivityKey,
-          payloadChartPath: selectedSong.chart.path,
-          payloadSidecarPath: selectedSong.sidecar?.path ?? null,
-          expectedPaths,
-          chartMatchesExpected:
-            expectedPaths ? expectedPaths.chartPath === selectedSong.chart.path : null,
-          sidecarMatchesExpected:
-            expectedPaths
-              ? expectedPaths.sidecarPath === (selectedSong.sidecar?.path ?? null)
-              : null,
-        },
-      );
-
-      setSelectedSongStorage({
-        id: selectedSong.id,
-        chart: {
-          bucket: selectedSong.chart.bucket,
-          path: selectedSong.chart.path,
-          contentType: selectedSong.chart.contentType,
-        },
-        sidecar: selectedSong.sidecar
-          ? {
-              bucket: selectedSong.sidecar.bucket,
-              path: selectedSong.sidecar.path,
-              contentType: selectedSong.sidecar.contentType,
-            }
-          : null,
-      });
-
-      setSelectedSongLaunch({
-        songAssetId: selectedSong.id,
-        chartUrl: selectedSong.chart.signedUrl,
-        sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
-        audioUrl: selectedSong.song.signedUrl,
-      });
-
-      loadSidecarIntoTimeline(emptySidecar, null);
-      setUploadedSongName(selectedSong.name);
-      setMetadata((current) => ({
-        ...current,
-        songTitle: selectedSong.title ?? selectedSong.name,
-        artist: selectedSong.artist ?? current?.artist,
-        uploadedFileName: selectedSong.song.path,
-      }));
-
-      fileFromSignedUrl({
-        signedUrl: selectedSong.song.signedUrl,
-        path: selectedSong.song.path,
-        name: selectedSong.name,
-        contentType: selectedSong.song.contentType,
-        debugLabel: "audio",
-      })
-        .then((file) => {
-          appendSongFlowDebug("lesson-builder:audio:file-ready", "Audio blob was converted into a File for the editor.", {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-          });
-          setPendingSongFile(file);
-        })
-        .catch((error) => {
-          console.error("Failed to load selected song file", error);
-          appendSongFlowDebug("lesson-builder:audio:file-error", "Audio fetch failed while hydrating the selected song.", {
-            message: error instanceof Error ? error.message : String(error),
-          });
-        });
-
-      Promise.allSettled([
-        textFromSignedUrl(selectedSong.chart.signedUrl),
-        selectedSong.sidecar
-          ? jsonFromSignedUrl(selectedSong.sidecar.signedUrl)
-          : Promise.resolve(emptySidecar),
-      ])
-        .then(([chartResult, sidecarResult]) => {
-          appendSongFlowDebug(
-            "lesson-builder:hydrate:fetch-results",
-            "Recorded chart and sidecar fetch outcomes for selected song payload.",
-            {
-              chartStatus: chartResult.status,
-              sidecarStatus: sidecarResult.status,
-              chartPath: selectedSong.chart.path,
-              sidecarPath: selectedSong.sidecar?.path ?? null,
-              chartUrl: selectedSong.chart.signedUrl,
-              sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
-            },
-          );
-
-          const selectedSongMetadata = {
-            songTitle: selectedSong.title ?? selectedSong.name,
-            artist: selectedSong.artist ?? undefined,
-            uploadedFileName: selectedSong.song.path,
-          };
-          const fallbackChartFile = createBlankChartFile(selectedSongMetadata);
-          const nextChartFile =
-            chartResult.status === "fulfilled" && chartResult.value.trim()
-              ? chartResult.value
-              : fallbackChartFile;
-          const sidecarJson =
-            sidecarResult.status === "fulfilled"
-              ? sidecarResult.value
-              : emptySidecar;
-          const nextChartName =
-            selectedSong.chart.path.split("/").pop() ?? "selected.chart";
-          const normalizedSidecar = mergeTimelineSidecarSources(
-            sidecarJson ?? emptySidecar,
-            nextChartFile,
-            selectedSongMetadata,
-          );
-
-          appendSongFlowDebug("lesson-builder:merge:chart-sidecar", "Merged sidecar JSON with chart-derived events before populating the timeline.", {
-            chartLoaded: chartResult.status === "fulfilled",
-            sidecarLoaded: sidecarResult.status === "fulfilled",
-            chartLength: nextChartFile.length,
-            normalizedSidecarEventCount: normalizedSidecar.events.length,
-            selectedSongEventCount: 0,
-            selectedSongEventTicks: [],
-          });
-
-          if (
-            chartResult.status !== "fulfilled" ||
-            sidecarResult.status !== "fulfilled"
-          ) {
-            setSaveStatus("Using blank .chart/JSON fallback files");
-          }
-
-          setChartFile(nextChartFile);
-          setUploadedChartName(nextChartName);
-          loadSidecarIntoTimeline(normalizedSidecar, null);
-
-          const payload: LessonBuilderPayload = {
-            chartFile: nextChartFile,
-            analysisMetadata: selectedSongMetadata,
-            rawResults: normalizedSidecar,
-          };
-
-          setProject(chartToProject(payload));
-          appendSongFlowDebug("lesson-builder:project:rebuilt", "Chart project was rebuilt after chart and sidecar hydration.", {
-            chartName: nextChartName,
-            timelineEvents: normalizedSidecar.events.length,
-          });
-        })
-        .catch((error) => {
-          console.error("Failed to load selected chart or sidecar JSON", error);
-          appendSongFlowDebug("lesson-builder:hydrate:error", "Failed while loading chart or sidecar from signed URLs.", {
-            message: error instanceof Error ? error.message : String(error),
-          });
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : "Failed to load selected song package",
-          );
-        });
+      hydrateSelectedSong(selectedSong);
     } catch (error) {
       console.error("Failed to parse selected song package", error);
       appendSongFlowDebug("lesson-builder:session:parse-error", "Failed to parse the selected song payload from session storage.", {
@@ -10150,6 +10686,14 @@ function handleToggleDragTarget(
       );
     }
   }, [setProject]);
+
+  useEffect(() => {
+    if (!isFilePickerOpen) {
+      return;
+    }
+
+    void fetchSongChoicesForActivity(filePickerActivityKey);
+  }, [filePickerActivityKey, isFilePickerOpen]);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_editor_payload");
@@ -11242,10 +11786,12 @@ function handleToggleDragTarget(
       `}</style>
       <HeaderBar
         studentName={studentFirstName}
-        isAdvancedMode={isAdvancedMode}
+        selectedSongTitle={
+          metadata?.songTitle?.trim() || uploadedSongName || "No song selected"
+        }
+        selectedSongArtist={metadata?.artist?.trim() || "Unknown artist"}
         isRctm1Mode={isRctm1Mode}
         isRctm2Mode={isRctm2Mode}
-        onToggleAdvancedMode={() => setIsAdvancedMode((current) => !current)}
         onToggleRctm1Mode={handleToggleRctm1Mode}
         onToggleRctm2Mode={handleToggleRctm2Mode}
       />
@@ -11253,8 +11799,11 @@ function handleToggleDragTarget(
       <EditorActionBar
         isSaving={isSaving}
         onBack={handleBackToSongChoice}
+        onOpenFile={handleOpenFilePicker}
         onLaunch={handleLaunchGame}
-        onSave={handleSaveToSupabase}
+        onSave={() => {
+          void handleSaveToSupabase({ showNotice: true });
+        }}
         canLaunch={Boolean(selectedSongLaunch)}
       />
 
@@ -11614,7 +12163,9 @@ function handleToggleDragTarget(
             onSongUpload={handleTimelineSongUpload}
             onChartUpload={handleTimelineChartUpload}
             onSidecarUpload={handleTimelineSidecarUpload}
-            onSaveFiles={handleSaveToSupabase}
+            onSaveFiles={() => {
+              void handleSaveToSupabase({ showNotice: true });
+            }}
           />
           <EquationTimeline
             events={timelineEvents}
@@ -11639,6 +12190,44 @@ function handleToggleDragTarget(
       </main>
 
       {/* <SongFlowDebugger title="Lesson Builder Launch Debugger" /> */}
+
+      {saveNotice ? (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            right: 18,
+            top: 84,
+            zIndex: 1001,
+            minWidth: 260,
+            maxWidth: 420,
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: `1px solid ${saveNotice.kind === "success" ? "#CFFF04" : "#FF7F7F"}`,
+            background: saveNotice.kind === "success" ? "#111D0F" : "#2A1414",
+            color: "#FFFFFF",
+            fontSize: 12,
+            fontWeight: 700,
+            boxShadow: "0 12px 24px rgba(0,0,0,0.35)",
+          }}
+        >
+          {saveNotice.message}
+        </div>
+      ) : null}
+
+      <SongFilePickerModal
+        isOpen={isFilePickerOpen}
+        isLoading={isFilePickerLoading}
+        error={filePickerError}
+        activityKey={filePickerActivityKey}
+        songs={filePickerSongs}
+        selectedSongId={filePickerSongId}
+        onActivityChange={setFilePickerActivityKey}
+        onSelectSong={setFilePickerSongId}
+        onClose={() => setIsFilePickerOpen(false)}
+        onLoad={handleLoadSongFromFilePicker}
+      />
 
     </div>
   );

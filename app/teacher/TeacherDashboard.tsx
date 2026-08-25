@@ -174,24 +174,28 @@ export default function TeacherDashboard({
       src: numberBondsImage,
       alt: "Number bonds",
       selection: "number-bonds",
+      disabled: false,
     },
     {
       title: "Missing Numbers",
       src: missingNumbersImage,
       alt: "Missing numbers",
       selection: "missing-numbers",
+      disabled: true,
     },
     {
       title: "Equations",
       src: equationsImage,
       alt: "Equations",
       selection: "equations",
+      disabled: true,
     },
     {
       title: "Early Algebra",
       src: earlyAlgebraImage,
       alt: "Early algebra",
       selection: "early-algebra",
+      disabled: false,
     },
   ];
 
@@ -230,58 +234,117 @@ export default function TeacherDashboard({
             boxShadow: "0 18px 40px rgba(0, 0, 0, 0.14)",
           }}
         >
-          {numeracyPanels.map((panel) => (
-            <Link
-              key={panel.title}
-              href={{ pathname: "/demo/student/song-choice", query: { activity: panel.selection } }}
-              aria-label={`Open ${panel.alt}`}
-              onClick={() => {
-                if (typeof window !== "undefined") {
-                  window.sessionStorage.setItem(
-                    "selectedDashboardActivity",
-                    JSON.stringify({ key: panel.selection, label: panel.title }),
-                  );
-                }
-              }}
-              style={{
-                background: "#CFFF04",
-                border: "none",
-                borderRadius: 0,
-                padding: 0,
-                minHeight: 280,
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                boxShadow: "0 16px 35px rgba(0, 0, 0, 0.16)",
-                textDecoration: "none",
-                cursor: "pointer",
-                overflow: "hidden",
-              }}
-            >
-              <div
+          {numeracyPanels.map((panel) => {
+            const panelBody = (
+              <>
+                <div
+                  style={{
+                    width: "100%",
+                    aspectRatio: "4 / 3",
+                    position: "relative",
+                    borderRadius: 0,
+                    overflow: "hidden",
+                    background: "#CFFF04",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    opacity: panel.disabled ? 0.55 : 1,
+                  }}
+                >
+                  <Image
+                    src={panel.src}
+                    alt={panel.alt}
+                    fill
+                    style={{ objectFit: "contain", objectPosition: "center", padding: 0 }}
+                    priority={panel.title === "Number Bonds"}
+                  />
+                </div>
+
+                {panel.disabled ? (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "grid",
+                      placeItems: "center",
+                      color: "#FFFFFF",
+                      fontSize: 18,
+                      fontWeight: 800,
+                      letterSpacing: "0.02em",
+                      textTransform: "uppercase",
+                      textShadow: "0 4px 16px rgba(0,0,0,0.55)",
+                      pointerEvents: "none",
+                      background: "linear-gradient(180deg, rgba(8,12,16,0.22) 0%, rgba(8,12,16,0.46) 100%)",
+                    }}
+                  >
+                    Coming Soon
+                  </div>
+                ) : null}
+              </>
+            );
+
+            if (panel.disabled) {
+              return (
+                <button
+                  key={panel.title}
+                  type="button"
+                  aria-label={`${panel.alt} coming soon`}
+                  disabled
+                  style={{
+                    background: "#CFFF04",
+                    border: "none",
+                    borderRadius: 0,
+                    padding: 0,
+                    minHeight: 280,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    boxShadow: "0 16px 35px rgba(0, 0, 0, 0.16)",
+                    cursor: "not-allowed",
+                    overflow: "hidden",
+                    position: "relative",
+                  }}
+                >
+                  {panelBody}
+                </button>
+              );
+            }
+
+            return (
+              <Link
+                key={panel.title}
+                href={{ pathname: "/demo/student/song-choice", query: { activity: panel.selection } }}
+                aria-label={`Open ${panel.alt}`}
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.sessionStorage.setItem(
+                      "selectedDashboardActivity",
+                      JSON.stringify({ key: panel.selection, label: panel.title }),
+                    );
+                  }
+                }}
                 style={{
-                  width: "100%",
-                  aspectRatio: "4 / 3",
-                  position: "relative",
-                  borderRadius: 0,
-                  overflow: "hidden",
                   background: "#CFFF04",
+                  border: "none",
+                  borderRadius: 0,
+                  padding: 0,
+                  minHeight: 280,
                   display: "flex",
-                  alignItems: "center",
+                  flexDirection: "column",
                   justifyContent: "center",
+                  alignItems: "center",
+                  boxShadow: "0 16px 35px rgba(0, 0, 0, 0.16)",
+                  textDecoration: "none",
+                  cursor: "pointer",
+                  overflow: "hidden",
+                  position: "relative",
                 }}
               >
-                <Image
-                  src={panel.src}
-                  alt={panel.alt}
-                  fill
-                  style={{ objectFit: "contain", objectPosition: "center", padding: 0 }}
-                  priority={panel.title === "Number Bonds"}
-                />
-              </div>
-            </Link>
-          ))}
+                {panelBody}
+              </Link>
+            );
+          })}
         </div>
       </main>
     </div>
