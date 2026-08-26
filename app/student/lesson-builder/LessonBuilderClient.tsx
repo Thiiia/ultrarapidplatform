@@ -814,22 +814,22 @@ function getSelectedSongMechanicCountArray(
     selectedSong[snakePluralKey],
     selectedSong[snakeSingularKey],
     selectedSong.songAsset?.[
-      camelKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
+    camelKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
     ],
     selectedSong.songAsset?.[
-      snakePluralKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
+    snakePluralKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
     ],
     selectedSong.songAsset?.[
-      snakeSingularKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
+    snakeSingularKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
     ],
     selectedSong.song_asset?.[
-      camelKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
+    camelKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
     ],
     selectedSong.song_asset?.[
-      snakePluralKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
+    snakePluralKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
     ],
     selectedSong.song_asset?.[
-      snakeSingularKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
+    snakeSingularKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
     ],
   ];
 
@@ -1018,8 +1018,8 @@ function timelineEventsFromSidecar(
       ...equationEvents.map((event) => event.tick),
       ...fallbackEventTicks,
       ...(eventSlotEvents.length === 0 &&
-      equationEvents.length === 0 &&
-      fallbackEventTicks.length === 0
+        equationEvents.length === 0 &&
+        fallbackEventTicks.length === 0
         ? mechanicEvents.map((event) => event.tick)
         : []),
     ]),
@@ -2101,11 +2101,11 @@ function EquationInsertionSlot({
   onLeave: () => void;
   onInsertToken: (index: number, label: string) => void;
 }) {
-function acceptsPaletteToken(event: DragEvent<HTMLElement>) {
-  return Array.from(event.dataTransfer.types).includes(
-    "application/x-equation-token",
-  );
-}
+  function acceptsPaletteToken(event: DragEvent<HTMLElement>) {
+    return Array.from(event.dataTransfer.types).includes(
+      "application/x-equation-token",
+    );
+  }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -2211,11 +2211,11 @@ function EquationTrashDropZone({
   onActiveChange: (isActive: boolean) => void;
   onRemoveToken: (id: string) => void;
 }) {
-function acceptsDraftToken(event: DragEvent<HTMLElement>) {
-  return Array.from(event.dataTransfer.types).includes(
-    "application/x-draft-equation-token",
-  );
-}
+  function acceptsDraftToken(event: DragEvent<HTMLElement>) {
+    return Array.from(event.dataTransfer.types).includes(
+      "application/x-draft-equation-token",
+    );
+  }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -2271,9 +2271,8 @@ function acceptsDraftToken(event: DragEvent<HTMLElement>) {
         height: 62,
         borderRadius: 18,
         background: isActive ? "rgba(255, 53, 53, 0.22)" : "#111111",
-        border: `2px solid ${
-          isActive ? "rgba(255, 53, 53, 0.72)" : "rgba(255,255,255,0.18)"
-        }`,
+        border: `2px solid ${isActive ? "rgba(255, 53, 53, 0.72)" : "rgba(255,255,255,0.18)"
+          }`,
         boxShadow: isActive
           ? "0 0 26px rgba(255, 53, 53, 0.24)"
           : "0 12px 26px rgba(0,0,0,0.24)",
@@ -2577,9 +2576,8 @@ function EquationBuilderArea({
             minHeight: 40,
             background: draftTokens.length > 0 ? "#CFFF04" : "#2B2B2B",
             color: draftTokens.length > 0 ? "#000000" : "#FFFFFF80",
-            border: `1px solid ${
-              draftTokens.length > 0 ? "#CFFF04" : subtleBorderColor
-            }`,
+            border: `1px solid ${draftTokens.length > 0 ? "#CFFF04" : subtleBorderColor
+              }`,
             borderRadius: 10,
             fontFamily: "Space Grotesk, sans-serif",
             fontSize: 13,
@@ -2823,21 +2821,21 @@ function HitEquationEditor({
           >
             {!isOperator && placement?.pads.length
               ? placement.pads.map((pad) => (
-                  <span
-                    key={pad}
-                    style={{
-                      position: "absolute",
-                      ...getHitBubblePadStyle(pad, bubbleSize),
-                      zIndex: 1,
-                    }}
-                  >
-                    <EmptyEquationBubble
-                      size={bubbleSize}
-                      borderColor="#CFFF04"
-                      background="rgba(207, 255, 4, 0.08)"
-                    />
-                  </span>
-                ))
+                <span
+                  key={pad}
+                  style={{
+                    position: "absolute",
+                    ...getHitBubblePadStyle(pad, bubbleSize),
+                    zIndex: 1,
+                  }}
+                >
+                  <EmptyEquationBubble
+                    size={bubbleSize}
+                    borderColor="#CFFF04"
+                    background="rgba(207, 255, 4, 0.08)"
+                  />
+                </span>
+              ))
               : null}
 
             {!isOperator && selectedTokenIndex === tokenIndex ? (
@@ -3084,11 +3082,9 @@ function DragArcSvg({ arcs }: { arcs: DragArcGeometry[] }) {
         const horizontalDistance = Math.abs(deltaX);
         const lift = Math.max(64, Math.min(212, 52 + horizontalDistance * 0.46));
         const controlY = Math.min(arc.startY, arc.endY) - lift;
-        const path = `M ${arc.startX} ${arc.startY} C ${
-          arc.startX + deltaX * 0.18
-        } ${controlY}, ${arc.startX + deltaX * 0.82} ${controlY}, ${
-          arc.endX
-        } ${arc.endY}`;
+        const path = `M ${arc.startX} ${arc.startY} C ${arc.startX + deltaX * 0.18
+          } ${controlY}, ${arc.startX + deltaX * 0.82} ${controlY}, ${arc.endX
+          } ${arc.endY}`;
 
         return (
           <g key={arc.targetIndex}>
@@ -3656,9 +3652,8 @@ function MechanicInstanceRow({
                   minHeight: 44,
                   border: "none",
                   borderRight: `1px solid ${subtleBorderColor}`,
-                  borderBottom: `3px solid ${
-                    isActive ? "#CFFF04" : "transparent"
-                  }`,
+                  borderBottom: `3px solid ${isActive ? "#CFFF04" : "transparent"
+                    }`,
                   background: isActive ? "#252525" : "transparent",
                   color: isActive ? "#FFFFFF" : "#FFFFFF99",
                   fontFamily: "Space Grotesk, sans-serif",
@@ -3810,11 +3805,11 @@ function EventBuilderArea({
         overflow: "hidden",
       }}
     >
-<div
-  style={{
-    display: "none",
-  }}
-/>
+      <div
+        style={{
+          display: "none",
+        }}
+      />
 
       <div
         style={{
@@ -3827,22 +3822,22 @@ function EventBuilderArea({
       >
         {visibleMechanics.length === 0 ? (
           <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          // Previous embedded-center-panel sizing kept this at 60vh.
-          // height: "60vh",
-          // maxHeight: "60vh",
-          height: "100%",
-          maxHeight: "100%",
-          background: "#191919",
-          padding: 18,
-          boxSizing: "border-box",
-          display: "grid",
-          gridTemplateRows: "1fr",
-          gap: 0,
-          overflow: "hidden",
-        }}
+            style={{
+              flex: 1,
+              minHeight: 0,
+              // Previous embedded-center-panel sizing kept this at 60vh.
+              // height: "60vh",
+              // maxHeight: "60vh",
+              height: "100%",
+              maxHeight: "100%",
+              background: "#191919",
+              padding: 18,
+              boxSizing: "border-box",
+              display: "grid",
+              gridTemplateRows: "1fr",
+              gap: 0,
+              overflow: "hidden",
+            }}
           >
             This event does not have any hits, spins, or drags.
           </div>
@@ -4638,30 +4633,30 @@ function EquationTimeline({
 
             {isAdvancedMode
               ? Array.from(
-                  {
-                    length:
-                      Math.ceil(visualDurationSeconds / fineGridIntervalSeconds) +
-                      1,
-                  },
-                  (_, gridIndex) => {
-                    const markerLeft = gridIndex * fineGridIntervalSeconds * pixelsPerSecond;
+                {
+                  length:
+                    Math.ceil(visualDurationSeconds / fineGridIntervalSeconds) +
+                    1,
+                },
+                (_, gridIndex) => {
+                  const markerLeft = gridIndex * fineGridIntervalSeconds * pixelsPerSecond;
 
-                    return (
-                      <span
-                        key={`timeline-fine-grid-${gridIndex}`}
-                        style={{
-                          position: "absolute",
-                          left: markerLeft,
-                          top: 0,
-                          bottom: 0,
-                          width: 1,
-                          background: "rgba(255,255,255,0.12)",
-                          transform: "translateX(-0.5px)",
-                        }}
-                      />
-                    );
-                  },
-                )
+                  return (
+                    <span
+                      key={`timeline-fine-grid-${gridIndex}`}
+                      style={{
+                        position: "absolute",
+                        left: markerLeft,
+                        top: 0,
+                        bottom: 0,
+                        width: 1,
+                        background: "rgba(255,255,255,0.12)",
+                        transform: "translateX(-0.5px)",
+                      }}
+                    />
+                  );
+                },
+              )
               : null}
           </div>
 
@@ -4745,7 +4740,7 @@ function EquationTimeline({
                 const eventWidth = Math.max(
                   44,
                   (eventWindow.endSeconds - eventWindow.startSeconds) *
-                    pixelsPerSecond,
+                  pixelsPerSecond,
                 );
                 const isActive = eventSlot.id === activeEventId;
 
@@ -5001,106 +4996,106 @@ function EquationTimeline({
 
                 {draftMechanics.length > 0
                   ? draftMechanics.map((draft) => {
-                      const markerSeconds = timelineTickToSeconds(draft.tick);
-                      const markerLeft = Math.min(
-                        trackWidth,
-                        Math.max(0, markerSeconds * pixelsPerSecond),
-                      );
+                    const markerSeconds = timelineTickToSeconds(draft.tick);
+                    const markerLeft = Math.min(
+                      trackWidth,
+                      Math.max(0, markerSeconds * pixelsPerSecond),
+                    );
 
-                      if (mechanic === "hit") {
-                        return (
+                    if (mechanic === "hit") {
+                      return (
+                        <button
+                          key={draft.id}
+                          type="button"
+                          aria-hidden="true"
+                          tabIndex={-1}
+                          style={{
+                            position: "absolute",
+                            left: markerLeft,
+                            top: "50%",
+                            width: 20,
+                            height: 20,
+                            border: `1px solid ${color}`,
+                            borderRadius: 999,
+                            background: color,
+                            boxShadow: `0 0 12px ${color}`,
+                            transform: "translate(-50%, -50%)",
+                            cursor: "default",
+                            touchAction: "none",
+                            padding: 0,
+                            opacity: 0.92,
+                            color: "#071222",
+                            fontSize: 10,
+                            fontWeight: 900,
+                            lineHeight: "20px",
+                            textAlign: "center",
+                          }}
+                        >
+                          {getHitPadNumberFromPlacement(draft.hitBubbles?.[0]) ?? ""}
+                        </button>
+                      );
+                    }
+
+                    const window = {
+                      startSeconds: timelineTickToSeconds(draft.tick),
+                      endSeconds: timelineTickToSeconds(draft.endTick ?? draft.tick),
+                    };
+                    const startLeft = Math.min(
+                      trackWidth,
+                      Math.max(0, window.startSeconds * pixelsPerSecond),
+                    );
+                    const endLeft = Math.min(
+                      trackWidth,
+                      Math.max(0, window.endSeconds * pixelsPerSecond),
+                    );
+                    const pathLeft = Math.min(startLeft, endLeft);
+                    const pathWidth = Math.max(2, Math.abs(endLeft - startLeft));
+
+                    return (
+                      <span key={draft.id}>
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            position: "absolute",
+                            left: pathLeft,
+                            top: "50%",
+                            width: pathWidth,
+                            height: 4,
+                            borderRadius: 999,
+                            background: `${color}55`,
+                            transform: "translateY(-50%)",
+                            opacity: 0.92,
+                          }}
+                        />
+                        {([
+                          ["start", startLeft],
+                          ["end", endLeft],
+                        ] as Array<[TimelineMarkerEdge, number]>).map(([edge, left]) => (
                           <button
-                            key={draft.id}
+                            key={`${draft.id}-${edge}`}
                             type="button"
                             aria-hidden="true"
                             tabIndex={-1}
                             style={{
                               position: "absolute",
-                              left: markerLeft,
+                              left,
                               top: "50%",
-                              width: 20,
-                              height: 20,
-                              border: `1px solid ${color}`,
-                              borderRadius: 999,
+                              width: 10,
+                              height: 10,
+                              border: "none",
                               background: color,
                               boxShadow: `0 0 12px ${color}`,
-                              transform: "translate(-50%, -50%)",
+                              ...markerShapeStyle,
                               cursor: "default",
                               touchAction: "none",
                               padding: 0,
                               opacity: 0.92,
-                              color: "#071222",
-                              fontSize: 10,
-                              fontWeight: 900,
-                              lineHeight: "20px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {getHitPadNumberFromPlacement(draft.hitBubbles?.[0]) ?? ""}
-                          </button>
-                        );
-                      }
-
-                      const window = {
-                        startSeconds: timelineTickToSeconds(draft.tick),
-                        endSeconds: timelineTickToSeconds(draft.endTick ?? draft.tick),
-                      };
-                      const startLeft = Math.min(
-                        trackWidth,
-                        Math.max(0, window.startSeconds * pixelsPerSecond),
-                      );
-                      const endLeft = Math.min(
-                        trackWidth,
-                        Math.max(0, window.endSeconds * pixelsPerSecond),
-                      );
-                      const pathLeft = Math.min(startLeft, endLeft);
-                      const pathWidth = Math.max(2, Math.abs(endLeft - startLeft));
-
-                      return (
-                        <span key={draft.id}>
-                          <span
-                            aria-hidden="true"
-                            style={{
-                              position: "absolute",
-                              left: pathLeft,
-                              top: "50%",
-                              width: pathWidth,
-                              height: 4,
-                              borderRadius: 999,
-                              background: `${color}55`,
-                              transform: "translateY(-50%)",
-                              opacity: 0.92,
                             }}
                           />
-                          {([
-                            ["start", startLeft],
-                            ["end", endLeft],
-                          ] as Array<[TimelineMarkerEdge, number]>).map(([edge, left]) => (
-                            <button
-                              key={`${draft.id}-${edge}`}
-                              type="button"
-                              aria-hidden="true"
-                              tabIndex={-1}
-                              style={{
-                                position: "absolute",
-                                left,
-                                top: "50%",
-                                width: 10,
-                                height: 10,
-                                border: "none",
-                                background: color,
-                                boxShadow: `0 0 12px ${color}`,
-                                ...markerShapeStyle,
-                                cursor: "default",
-                                touchAction: "none",
-                                padding: 0,
-                                opacity: 0.92,
-                              }}
-                            />
-                          ))}
-                        </span>
-                      );
-                    })
+                        ))}
+                      </span>
+                    );
+                  })
                   : null}
 
               </div>
@@ -5189,46 +5184,46 @@ function EquationsPanel({
           fontFamily: "Space Grotesk, sans-serif",
         }}
       >
-      {savedEquations.length === 0 ? (
-        <div
-          style={{
-            color: "#FFFFFF80",
-            fontSize: 12,
-            fontWeight: 700,
-            lineHeight: 1.4,
-          }}
-        >
-          Build equations here, then drag them into an event.
-        </div>
-      ) : (
-        savedEquations.map((equation) => (
+        {savedEquations.length === 0 ? (
           <div
-            key={equation.id}
-            draggable
-            onDragStart={(event) => {
-              event.dataTransfer.setData(
-                "application/x-saved-equation",
-                JSON.stringify(equation),
-              );
-              event.dataTransfer.effectAllowed = "copy";
-            }}
             style={{
-              width: "100%",
-              minHeight: 42,
-              padding: "4px 0",
-              boxSizing: "border-box",
-              color: textColor,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "grab",
+              color: "#FFFFFF80",
+              fontSize: 12,
+              fontWeight: 700,
+              lineHeight: 1.4,
             }}
-            title={tokensToEquationState(equation.tokens)}
           >
-            <EquationPreview tokens={equation.tokens} circleSize={24} />
+            Build equations here, then drag them into an event.
           </div>
-        ))
-      )}
+        ) : (
+          savedEquations.map((equation) => (
+            <div
+              key={equation.id}
+              draggable
+              onDragStart={(event) => {
+                event.dataTransfer.setData(
+                  "application/x-saved-equation",
+                  JSON.stringify(equation),
+                );
+                event.dataTransfer.effectAllowed = "copy";
+              }}
+              style={{
+                width: "100%",
+                minHeight: 42,
+                padding: "4px 0",
+                boxSizing: "border-box",
+                color: textColor,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "grab",
+              }}
+              title={tokensToEquationState(equation.tokens)}
+            >
+              <EquationPreview tokens={equation.tokens} circleSize={24} />
+            </div>
+          ))
+        )}
       </div>
     </section>
   );
@@ -5265,13 +5260,13 @@ function getEquationTileStyle({
   const borderTop = isOperator
     ? "1px solid #FF8C3C73"
     : isNumber
-    ? "1px solid #64A0FF73"
-    : "1px solid #B478FF73";
+      ? "1px solid #64A0FF73"
+      : "1px solid #B478FF73";
   const boxShadow = isOperator
     ? "0px 0px 8px 0px #FF823C4D"
     : isNumber
-    ? "0px 0px 8px 0px #3C82FF4D"
-    : "0px 0px 8px 0px #A064FF4D";
+      ? "0px 0px 8px 0px #3C82FF4D"
+      : "0px 0px 8px 0px #A064FF4D";
 
   return {
     width: compact ? compactSize ?? 42 : "100%",
@@ -5378,10 +5373,10 @@ function EquationTileStrip({
   const actualEqualsIndex = tokens.findIndex((token) => token.label === "=");
   const safeSelectedTokenIndex =
     selectedTokenIndex !== null &&
-    selectedTokenIndex !== undefined &&
-    selectedTokenIndex >= 0 &&
-    selectedTokenIndex < tokens.length &&
-    !isEquationOperator(tokens[selectedTokenIndex]?.label ?? "")
+      selectedTokenIndex !== undefined &&
+      selectedTokenIndex >= 0 &&
+      selectedTokenIndex < tokens.length &&
+      !isEquationOperator(tokens[selectedTokenIndex]?.label ?? "")
       ? selectedTokenIndex
       : null;
   const isDragSelectionActive =
@@ -5391,17 +5386,17 @@ function EquationTileStrip({
   const draggingOperatorIndex =
     safeSelectedTokenIndex !== null
       ? (() => {
-          const candidate = safeSelectedTokenIndex - 1;
-          if (candidate < 0) {
-            return null;
-          }
+        const candidate = safeSelectedTokenIndex - 1;
+        if (candidate < 0) {
+          return null;
+        }
 
-          const label = tokens[candidate]?.label;
+        const label = tokens[candidate]?.label;
 
-          return label && ["+", "-", "×", "÷"].includes(label)
-            ? candidate
-            : null;
-        })()
+        return label && ["+", "-", "×", "÷"].includes(label)
+          ? candidate
+          : null;
+      })()
       : null;
   const dragIsComplete =
     mechanicMode === "drag" &&
@@ -5614,32 +5609,32 @@ function EquationTileStrip({
 
   const dragProgress =
     mechanicMode === "drag" &&
-    timingStart !== null &&
-    timingEnd !== null &&
-    nowSeconds !== null &&
-    timingEnd > timingStart &&
-    nowSeconds >= timingStart &&
-    nowSeconds <= timingEnd
+      timingStart !== null &&
+      timingEnd !== null &&
+      nowSeconds !== null &&
+      timingEnd > timingStart &&
+      nowSeconds >= timingStart &&
+      nowSeconds <= timingEnd
       ? clamp01((nowSeconds - timingStart) / (timingEnd - timingStart))
       : null;
 
   const spinProgress =
     mechanicMode === "spin" &&
-    timingStart !== null &&
-    timingEnd !== null &&
-    nowSeconds !== null &&
-    timingEnd > timingStart &&
-    nowSeconds >= timingStart &&
-    nowSeconds <= timingEnd
+      timingStart !== null &&
+      timingEnd !== null &&
+      nowSeconds !== null &&
+      timingEnd > timingStart &&
+      nowSeconds >= timingStart &&
+      nowSeconds <= timingEnd
       ? clamp01((nowSeconds - timingStart) / (timingEnd - timingStart))
       : null;
 
   const hitAnimationProgress =
     mechanicMode === "hit" &&
-    timingStart !== null &&
-    nowSeconds !== null &&
-    nowSeconds >= timingStart - 0.5 &&
-    nowSeconds <= timingStart + 0.2
+      timingStart !== null &&
+      nowSeconds !== null &&
+      nowSeconds >= timingStart - 0.5 &&
+      nowSeconds <= timingStart + 0.2
       ? clamp01((nowSeconds - (timingStart - 0.5)) / 0.5)
       : null;
 
@@ -5663,22 +5658,22 @@ function EquationTileStrip({
   const dragArcMotion =
     selectedTokenIsAnimatingDrag && selectedSlotIndex !== null && destinationSlotIndex !== null
       ? (() => {
-          const startX = slotCenterX(selectedSlotIndex);
-          const endX = slotCenterX(destinationSlotIndex);
-          const controlX = startX + (endX - startX) * 0.5;
-          const horizontalDistance = Math.abs(endX - startX);
+        const startX = slotCenterX(selectedSlotIndex);
+        const endX = slotCenterX(destinationSlotIndex);
+        const controlX = startX + (endX - startX) * 0.5;
+        const horizontalDistance = Math.abs(endX - startX);
         const baselineY = 50;
-          const arcLift = Math.max(60, Math.min(86, 60 + horizontalDistance * 0.45));
+        const arcLift = Math.max(60, Math.min(86, 60 + horizontalDistance * 0.45));
 
-          return {
-            startX,
-            endX,
-            controlX,
+        return {
+          startX,
+          endX,
+          controlX,
           startY: baselineY,
           endY: baselineY,
           controlY: baselineY - arcLift,
-          };
-        })()
+        };
+      })()
       : null;
 
   function flipOperatorLabel(label: string) {
@@ -5720,20 +5715,20 @@ function EquationTileStrip({
     pair: HitBubblePair;
     positions: Array<{ dx: number; dy: number }>;
   }> = [
-    {
-      pair: "leftRight",
-      // Visually top/bottom while preserving existing stored pair semantics.
-      positions: hitPairOffsets.leftRight,
-    },
-    {
-      pair: "topLeftBottomRight",
-      positions: hitPairOffsets.topLeftBottomRight,
-    },
-    {
-      pair: "topRightBottomLeft",
-      positions: hitPairOffsets.topRightBottomLeft,
-    },
-  ];
+      {
+        pair: "leftRight",
+        // Visually top/bottom while preserving existing stored pair semantics.
+        positions: hitPairOffsets.leftRight,
+      },
+      {
+        pair: "topLeftBottomRight",
+        positions: hitPairOffsets.topLeftBottomRight,
+      },
+      {
+        pair: "topRightBottomLeft",
+        positions: hitPairOffsets.topRightBottomLeft,
+      },
+    ];
 
   function renderDragDestination(key: string) {
     return (
@@ -5948,35 +5943,35 @@ function EquationTileStrip({
 
             {hitAnimationProgress !== null && selectedHitPair
               ? (() => {
-                  const targets = hitPairOffsets[selectedHitPair];
+                const targets = hitPairOffsets[selectedHitPair];
 
-                  return targets.map((target, circleIndex) => {
-                    const dx = target.dx * hitAnimationProgress;
-                    const dy = target.dy * hitAnimationProgress;
-                    const size = Math.max(2, hitCircleSize * hitAnimationProgress);
+                return targets.map((target, circleIndex) => {
+                  const dx = target.dx * hitAnimationProgress;
+                  const dy = target.dy * hitAnimationProgress;
+                  const size = Math.max(2, hitCircleSize * hitAnimationProgress);
 
-                    return (
-                      <span
-                        key={`hit-anim-${slotIndex}-${circleIndex}`}
-                        aria-hidden="true"
-                        style={{
-                          position: "absolute",
-                          left: `calc(50% + ${dx}px)`,
-                          top: `calc(50% + ${dy}px)`,
-                          width: size,
-                          height: size,
-                          borderRadius: 999,
-                          border: `${hitCircleBorderWidth}px solid #2EA7FF`,
-                          background: "rgba(46,167,255,0.26)",
-                          transform: "translate(-50%, -50%)",
-                          boxSizing: "border-box",
-                          pointerEvents: "none",
-                          zIndex: 5,
-                        }}
-                      />
-                    );
-                  });
-                })()
+                  return (
+                    <span
+                      key={`hit-anim-${slotIndex}-${circleIndex}`}
+                      aria-hidden="true"
+                      style={{
+                        position: "absolute",
+                        left: `calc(50% + ${dx}px)`,
+                        top: `calc(50% + ${dy}px)`,
+                        width: size,
+                        height: size,
+                        borderRadius: 999,
+                        border: `${hitCircleBorderWidth}px solid #2EA7FF`,
+                        background: "rgba(46,167,255,0.26)",
+                        transform: "translate(-50%, -50%)",
+                        boxSizing: "border-box",
+                        pointerEvents: "none",
+                        zIndex: 5,
+                      }}
+                    />
+                  );
+                });
+              })()
               : null}
           </>
         ) : null}
@@ -6132,7 +6127,7 @@ function LeftEquationBuilderPanel({
   function renderTile(label: string, kind: "number" | "operator" | "variable") {
     return <EquationTileButton key={`${kind}-${label}`} label={label} onClick={() => onAddToken(label)} />;
   }
-  
+
   return (
     <section
       aria-label="Equation builder column"
@@ -6347,7 +6342,7 @@ function CenterChoicePanel({
       ? ""
       : hasSelectedEvent
         ? "No equation is assigned to this event."
-      : "";
+        : "";
   const title = isCreate
     ? "Build your equation"
     : isPremade
@@ -6398,7 +6393,7 @@ function CenterChoicePanel({
           overflow: "visible",
         }}
       >
-          {!hideHeader && showWorkspacePrompt && !hasVisibleEquation && (
+        {!hideHeader && showWorkspacePrompt && !hasVisibleEquation && (
           <>
             <URIcon
               aria-label="UltraRapid"
@@ -7020,7 +7015,7 @@ function RtcmHoldToken({
               ? "drop-shadow(0 0 20px rgba(255,53,53,0.36))"
               : "drop-shadow(0 0 20px rgba(180,92,255,0.42))"
             : "none",
-            pointerEvents: mechanic === "spin" ? "none" : "auto",
+          pointerEvents: mechanic === "spin" ? "none" : "auto",
         }}
         aria-label={`Hold to add ${mechanic} timing`}
         title={
@@ -7141,89 +7136,89 @@ function RtcmModePanel({
           gap: 14,
         }}
       >
-          <div
-            style={{
-              height: "100%",
-              borderRadius: 14,
-              border: `1px solid ${subtleBorderColor}`,
-              background: "#141414",
-              padding: "12px 8px 14px",
-              boxSizing: "border-box",
-              display: "grid",
-              gridTemplateRows: "auto 1fr auto",
-              justifyItems: "center",
-              gap: 10,
-              alignItems: "center",
-            }}
-          >
-            <div style={{ color: "#2EA7FF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
-              Hit
-            </div>
-            <RtcmHitPadToken onAddHit={onAddHit} isSongPlaying={isSongPlaying} />
-            <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
-              Click any bubble while playing.
-            </div>
+        <div
+          style={{
+            height: "100%",
+            borderRadius: 14,
+            border: `1px solid ${subtleBorderColor}`,
+            background: "#141414",
+            padding: "12px 8px 14px",
+            boxSizing: "border-box",
+            display: "grid",
+            gridTemplateRows: "auto 1fr auto",
+            justifyItems: "center",
+            gap: 10,
+            alignItems: "center",
+          }}
+        >
+          <div style={{ color: "#2EA7FF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
+            Hit
           </div>
+          <RtcmHitPadToken onAddHit={onAddHit} isSongPlaying={isSongPlaying} />
+          <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
+            Click any bubble while playing.
+          </div>
+        </div>
 
-          <div
-            style={{
-              height: "100%",
-              borderRadius: 14,
-              border: `1px solid ${pendingRangeMechanic === "spin" ? "#FF3535AA" : subtleBorderColor}`,
-              background: "#141414",
-              padding: "12px 8px 14px",
-              boxSizing: "border-box",
-              display: "grid",
-              gridTemplateRows: "auto 1fr auto",
-              justifyItems: "center",
-              gap: 10,
-              alignItems: "center",
-            }}
-          >
-            <div style={{ color: "#FF3535", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
-              Spin
-            </div>
-            <RtcmHoldToken
-              mechanic="spin"
-              isSongPlaying={isSongPlaying}
-              isArmed={pendingRangeMechanic === "spin"}
-              onStartHold={onStartHold}
-              onEndHold={onEndHold}
-            />
-            <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
-              Press to start timing, release to end.
-            </div>
+        <div
+          style={{
+            height: "100%",
+            borderRadius: 14,
+            border: `1px solid ${pendingRangeMechanic === "spin" ? "#FF3535AA" : subtleBorderColor}`,
+            background: "#141414",
+            padding: "12px 8px 14px",
+            boxSizing: "border-box",
+            display: "grid",
+            gridTemplateRows: "auto 1fr auto",
+            justifyItems: "center",
+            gap: 10,
+            alignItems: "center",
+          }}
+        >
+          <div style={{ color: "#FF3535", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
+            Spin
           </div>
+          <RtcmHoldToken
+            mechanic="spin"
+            isSongPlaying={isSongPlaying}
+            isArmed={pendingRangeMechanic === "spin"}
+            onStartHold={onStartHold}
+            onEndHold={onEndHold}
+          />
+          <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
+            Press to start timing, release to end.
+          </div>
+        </div>
 
-          <div
-            style={{
-              height: "100%",
-              borderRadius: 14,
-              border: `1px solid ${pendingRangeMechanic === "drag" ? "#B45CFFAA" : subtleBorderColor}`,
-              background: "#141414",
-              padding: "12px 8px 14px",
-              boxSizing: "border-box",
-              display: "grid",
-              gridTemplateRows: "auto 1fr auto",
-              justifyItems: "center",
-              gap: 10,
-              alignItems: "center",
-            }}
-          >
-            <div style={{ color: "#B45CFF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
-              Drag
-            </div>
-            <RtcmHoldToken
-              mechanic="drag"
-              isSongPlaying={isSongPlaying}
-              isArmed={pendingRangeMechanic === "drag"}
-              onStartHold={onStartHold}
-              onEndHold={onEndHold}
-            />
-            <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
-              Press to start timing, release to end.
-            </div>
+        <div
+          style={{
+            height: "100%",
+            borderRadius: 14,
+            border: `1px solid ${pendingRangeMechanic === "drag" ? "#B45CFFAA" : subtleBorderColor}`,
+            background: "#141414",
+            padding: "12px 8px 14px",
+            boxSizing: "border-box",
+            display: "grid",
+            gridTemplateRows: "auto 1fr auto",
+            justifyItems: "center",
+            gap: 10,
+            alignItems: "center",
+          }}
+        >
+          <div style={{ color: "#B45CFF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
+            Drag
           </div>
+          <RtcmHoldToken
+            mechanic="drag"
+            isSongPlaying={isSongPlaying}
+            isArmed={pendingRangeMechanic === "drag"}
+            onStartHold={onStartHold}
+            onEndHold={onEndHold}
+          />
+          <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
+            Press to start timing, release to end.
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -7766,9 +7761,8 @@ function Rctm2ModePanel({
           minWidth: bondBoxWidth,
           height: bondBoxHeight,
           borderRadius: 12,
-          border: `1px solid ${
-            isDraggingGesture ? "#B45CFFAA" : subtleBorderColor
-          }`,
+          border: `1px solid ${isDraggingGesture ? "#B45CFFAA" : subtleBorderColor
+            }`,
           background: "#141414",
           display: "flex",
           flexWrap: "wrap",
@@ -8074,44 +8068,44 @@ function Rctm2ModePanel({
             const localPoint = fromNormalizedPoint(circle.point);
 
             return (
-            <button
-              key={circle.id}
-              type="button"
-              data-rctm2-circle="true"
-              draggable
-              onDragStart={(event) => {
-                setDraggingHitId(circle.id);
-                didDropRef.current = false;
-                event.dataTransfer.setData("text/plain", circle.id);
-                event.dataTransfer.effectAllowed = "move";
-                beginDragTiming(circle.point, circle.id);
-              }}
-              onDragEnd={() => {
-                setDraggingHitId(null);
-                if (!didDropRef.current && draggingDraftIdRef.current) {
-                  onCancelDragMarker(draggingDraftIdRef.current);
-                }
-                draggingDraftIdRef.current = null;
-                didDropRef.current = false;
-                setIsDragTimingArmed(false);
-              }}
-              style={{
-                position: "absolute",
-                left: localPoint.x,
-                top: localPoint.y,
-                width: circleDiameter,
-                height: circleDiameter,
-                borderRadius: 999,
-                border: "1px solid rgba(46,167,255,0.85)",
-                background: "#2EA7FF",
-                boxShadow: "0 0 10px rgba(46,167,255,0.55)",
-                transform: "translate(-50%, -50%)",
-                cursor: "grab",
-                padding: 0,
-              }}
-              aria-label="Drag circle to bond box"
-              title="Drag to left bond or right bond"
-            />
+              <button
+                key={circle.id}
+                type="button"
+                data-rctm2-circle="true"
+                draggable
+                onDragStart={(event) => {
+                  setDraggingHitId(circle.id);
+                  didDropRef.current = false;
+                  event.dataTransfer.setData("text/plain", circle.id);
+                  event.dataTransfer.effectAllowed = "move";
+                  beginDragTiming(circle.point, circle.id);
+                }}
+                onDragEnd={() => {
+                  setDraggingHitId(null);
+                  if (!didDropRef.current && draggingDraftIdRef.current) {
+                    onCancelDragMarker(draggingDraftIdRef.current);
+                  }
+                  draggingDraftIdRef.current = null;
+                  didDropRef.current = false;
+                  setIsDragTimingArmed(false);
+                }}
+                style={{
+                  position: "absolute",
+                  left: localPoint.x,
+                  top: localPoint.y,
+                  width: circleDiameter,
+                  height: circleDiameter,
+                  borderRadius: 999,
+                  border: "1px solid rgba(46,167,255,0.85)",
+                  background: "#2EA7FF",
+                  boxShadow: "0 0 10px rgba(46,167,255,0.55)",
+                  transform: "translate(-50%, -50%)",
+                  cursor: "grab",
+                  padding: 0,
+                }}
+                aria-label="Drag circle to bond box"
+                title="Drag to left bond or right bond"
+              />
             );
           })}
 
@@ -8137,22 +8131,22 @@ function Rctm2ModePanel({
             const localPoint = fromNormalizedPoint(marker.point);
 
             return (
-            <span
-              key={`rctm2-hit-marker-${marker.id}`}
-              aria-hidden="true"
-              style={{
-                position: "absolute",
-                left: localPoint.x,
-                top: localPoint.y,
-                width: Math.max(8, circleRadius * 0.9),
-                height: Math.max(8, circleRadius * 0.9),
-                borderRadius: 999,
-                border: "2px solid rgba(46,167,255,0.7)",
-                background: "rgba(46,167,255,0.2)",
-                transform: "translate(-50%, -50%)",
-                pointerEvents: "none",
-              }}
-            />
+              <span
+                key={`rctm2-hit-marker-${marker.id}`}
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: localPoint.x,
+                  top: localPoint.y,
+                  width: Math.max(8, circleRadius * 0.9),
+                  height: Math.max(8, circleRadius * 0.9),
+                  borderRadius: 999,
+                  border: "2px solid rgba(46,167,255,0.7)",
+                  background: "rgba(46,167,255,0.2)",
+                  transform: "translate(-50%, -50%)",
+                  pointerEvents: "none",
+                }}
+              />
             );
           })}
         </div>
@@ -8842,6 +8836,7 @@ export default function LessonBuilderClient({
   );
 
   const [chartFile, setChartFile] = useState("");
+  const originalChartFileRef = useRef("");
   const [metadata, setMetadata] =
     useState<LessonBuilderPayload["analysisMetadata"]>();
   const [uploadedSongName, setUploadedSongName] = useState("");
@@ -9106,7 +9101,7 @@ export default function LessonBuilderClient({
 
     const instance =
       centerContextEvent.mechanicInstances?.[
-        selectedCenterContextMechanic.mechanic
+      selectedCenterContextMechanic.mechanic
       ]?.[selectedCenterContextMechanic.instanceIndex];
 
     if (!instance) {
@@ -9135,7 +9130,7 @@ export default function LessonBuilderClient({
 
     const instance =
       centerContextEvent.mechanicInstances?.[
-        selectedCenterContextMechanic.mechanic
+      selectedCenterContextMechanic.mechanic
       ]?.[selectedCenterContextMechanic.instanceIndex];
 
     return getHitBubblePairFromPlacement(instance?.hitBubbles[0]);
@@ -9432,12 +9427,12 @@ export default function LessonBuilderClient({
         hitBubbles:
           mechanic === "hit" && options.hitPad
             ? [
-                {
-                  tokenIndex: 0,
-                  positions: [options.hitPad],
-                  pads: [options.hitPad],
-                },
-              ]
+              {
+                tokenIndex: 0,
+                positions: [options.hitPad],
+                pads: [options.hitPad],
+              },
+            ]
             : [],
         spinTargets: [],
         dragTargets: [],
@@ -9952,60 +9947,60 @@ export default function LessonBuilderClient({
     });
   }
 
-function handleAddHitBubblePair(
-  mechanic: GameplayMechanic,
-  instanceIndex: number,
-  tokenIndex: number,
-  pair: HitBubblePair,
-) {
-  const pads = getHitBubblePairPads(pair);
+  function handleAddHitBubblePair(
+    mechanic: GameplayMechanic,
+    instanceIndex: number,
+    tokenIndex: number,
+    pair: HitBubblePair,
+  ) {
+    const pads = getHitBubblePairPads(pair);
 
-  updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
-    return {
-      ...instance,
-      // Only keep the newly selected hit token.
-      hitBubbles: [{ tokenIndex, positions: pads, pads }],
-    };
-  });
-}
+    updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
+      return {
+        ...instance,
+        // Only keep the newly selected hit token.
+        hitBubbles: [{ tokenIndex, positions: pads, pads }],
+      };
+    });
+  }
 
-function handleToggleSpinTarget(
-  mechanic: GameplayMechanic,
-  instanceIndex: number,
-  tokenIndex: number,
-) {
-  updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
-    const isSameTokenAlreadySelected =
-      instance.spinTargets.length === 1 &&
-      instance.spinTargets[0]?.tokenIndex === tokenIndex;
+  function handleToggleSpinTarget(
+    mechanic: GameplayMechanic,
+    instanceIndex: number,
+    tokenIndex: number,
+  ) {
+    updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
+      const isSameTokenAlreadySelected =
+        instance.spinTargets.length === 1 &&
+        instance.spinTargets[0]?.tokenIndex === tokenIndex;
 
-    return {
-      ...instance,
-      // Clicking the same token again clears it.
-      // Clicking a different token replaces the old one.
-      spinTargets: isSameTokenAlreadySelected ? [] : [{ tokenIndex }],
-    };
-  });
-}
+      return {
+        ...instance,
+        // Clicking the same token again clears it.
+        // Clicking a different token replaces the old one.
+        spinTargets: isSameTokenAlreadySelected ? [] : [{ tokenIndex }],
+      };
+    });
+  }
 
-function handleToggleDragTarget(
-  mechanic: GameplayMechanic,
-  instanceIndex: number,
-  tokenIndex: number,
-) {
-  updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
-    const isSameTokenAlreadySelected =
-      instance.dragTargets.length === 1 &&
-      instance.dragTargets[0]?.tokenIndex === tokenIndex;
+  function handleToggleDragTarget(
+    mechanic: GameplayMechanic,
+    instanceIndex: number,
+    tokenIndex: number,
+  ) {
+    updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
+      const isSameTokenAlreadySelected =
+        instance.dragTargets.length === 1 &&
+        instance.dragTargets[0]?.tokenIndex === tokenIndex;
 
-    return {
-      ...instance,
-      // Clicking the same token again clears it.
-      // Clicking a different token replaces the old one.
-      dragTargets: isSameTokenAlreadySelected ? [] : [{ tokenIndex }],
-    };
-  });
-}
+      return {
+        ...instance,
+        // Clicking the same token again clears it.
+        // Clicking a different token replaces the old one.
+        dragTargets: isSameTokenAlreadySelected ? [] : [{ tokenIndex }],
+      };
+    });
+  }
 
   function handleBackToSongChoice() {
     router.push(`${navBasePath}/song-choice`);
@@ -10070,19 +10065,27 @@ function handleToggleDragTarget(
         uploadedFileName:
           metadata?.uploadedFileName || uploadedSongName || "audio.mp3",
       };
+
       const timelineSidecar = sidecarFromTimelineEvents(timelineEvents);
-      const baseChart = chartFile.trim()
-        ? chartFile
-        : createBlankChartFile(fallbackMetadata);
-      const nextProject = chartToProject({
-        chartFile: baseChart,
-        analysisMetadata: fallbackMetadata,
-        rawResults: timelineSidecar,
-      });
 
-      nextProject.events = chartEventsFromSidecar(timelineSidecar);
+      /*
+       * IMPORTANT:
+       * The source .chart is treated as immutable gameplay data.
+       *
+       * The lesson editor owns the sidecar, not the chart serializer.
+       *
+       * Do NOT perform:
+       * chart -> project -> chart
+       *
+       * because the project model is not guaranteed to preserve every
+       * chart difficulty / section / metadata block.
+       */
+      const chartText = originalChartFileRef.current;
 
-      const chartText = projectToChart(nextProject);
+      if (!chartText.trim()) {
+        throw new Error("Cannot save lesson: original chart content is empty.");
+      }
+
       const sidecarJson = projectToSidecarJson(timelineSidecar);
       const activityKey = inferSongActivityKeyFromChartPath(
         selectedSongStorage.chart.path,
@@ -10092,7 +10095,10 @@ function handleToggleDragTarget(
         chartPath: selectedSongStorage.chart.path,
         sidecarPath:
           selectedSongStorage.sidecar?.path ??
-          selectedSongStorage.chart.path.replace(/\.chart$/i, ".json"),
+          selectedSongStorage.chart.path.replace(
+            /\.chart$/i,
+            ".encounters.json",
+          ),
       });
 
       appendSongFlowDebug("lesson-builder:save:start", "Saving edited chart and sidecar back to Supabase.", {
@@ -10159,7 +10165,6 @@ function handleToggleDragTarget(
         result,
       });
 
-      setProject(nextProject);
       setChartFile(chartText);
       setStoreSidecar(timelineSidecar as StoreSidecarPayload);
       setSaveStatus("Saved");
@@ -10220,11 +10225,11 @@ function handleToggleDragTarget(
       },
       sidecar: song.sidecar
         ? {
-            bucket: song.sidecar.bucket,
-            path: song.sidecar.path,
-            signedUrl: song.sidecar.signedUrl,
-            contentType: song.sidecar.contentType,
-          }
+          bucket: song.sidecar.bucket,
+          path: song.sidecar.path,
+          signedUrl: song.sidecar.signedUrl,
+          contentType: song.sidecar.contentType,
+        }
         : null,
     };
   }
@@ -10359,10 +10364,10 @@ function handleToggleDragTarget(
       },
       sidecar: selectedSong.sidecar
         ? {
-            bucket: selectedSong.sidecar.bucket,
-            path: selectedSong.sidecar.path,
-            contentType: selectedSong.sidecar.contentType,
-          }
+          bucket: selectedSong.sidecar.bucket,
+          path: selectedSong.sidecar.path,
+          contentType: selectedSong.sidecar.contentType,
+        }
         : null,
     });
 
@@ -10438,10 +10443,13 @@ function handleToggleDragTarget(
           uploadedFileName: selectedSong.song.path,
         };
         const fallbackChartFile = createBlankChartFile(selectedSongMetadata);
-        const nextChartFile =
-          chartResult.status === "fulfilled" && chartResult.value.trim()
-            ? chartResult.value
-            : fallbackChartFile;
+        if (chartResult.status !== "fulfilled" || !chartResult.value.trim()) {
+          throw new Error(
+            "Unable to load the original .chart file. The lesson editor will not use a blank chart fallback.",
+          );
+        }
+
+        const nextChartFile = chartResult.value;
         const sidecarJson =
           sidecarResult.status === "fulfilled"
             ? sidecarResult.value
@@ -10471,9 +10479,9 @@ function handleToggleDragTarget(
           chartResult.status !== "fulfilled" ||
           sidecarResult.status !== "fulfilled"
         ) {
-          setSaveStatus("Using blank .chart/JSON fallback files");
+          
         }
-
+        originalChartFileRef.current = nextChartFile;
         setChartFile(nextChartFile);
         setUploadedChartName(nextChartName);
         loadSidecarIntoTimeline(normalizedSidecar, null);
@@ -11196,7 +11204,7 @@ function handleToggleDragTarget(
           ? [...current, targetEvent].sort(
             (left, right) =>
               timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
-            )
+          )
           : current;
 
       if (!targetEvent) {
@@ -11222,14 +11230,14 @@ function handleToggleDragTarget(
           ...(mechanic === "hit" ? {} : { endTick: mechanicTick }),
           ...(mechanic === "hit" && options.hitPad
             ? {
-                hitBubbles: [
-                  {
-                    tokenIndex: 0,
-                    positions: [options.hitPad],
-                    pads: [options.hitPad],
-                  },
-                ],
-              }
+              hitBubbles: [
+                {
+                  tokenIndex: 0,
+                  positions: [options.hitPad],
+                  pads: [options.hitPad],
+                },
+              ],
+            }
             : {}),
         };
         nextInstances[nextCount - 1] = nextInstance;
@@ -11768,138 +11776,138 @@ function handleToggleDragTarget(
             </div>
           ) : (
             <>
-          <div style={{ flex: `0 0 ${row2DisplayWidths.column1}px`, minWidth: 0, height: "100%" }}>
-            <LeftEquationBuilderPanel
-              draftTokens={draftTokens}
-              onAddToken={handleAppendEquationToken}
-              onClearEquation={handleClearEquationDraft}
-              onSaveEquation={handleSaveEquation}
-            />
-          </div>
+              <div style={{ flex: `0 0 ${row2DisplayWidths.column1}px`, minWidth: 0, height: "100%" }}>
+                <LeftEquationBuilderPanel
+                  draftTokens={draftTokens}
+                  onAddToken={handleAppendEquationToken}
+                  onClearEquation={handleClearEquationDraft}
+                  onSaveEquation={handleSaveEquation}
+                />
+              </div>
 
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            onPointerDown={(event) => beginColumnResize(0, event)}
-            style={{
-              width: 6,
-              flex: "0 0 6px",
-              cursor: "col-resize",
-              background: activeResizeHandle === 0 ? "rgba(207,255,4,0.22)" : "transparent",
-            }}
-          />
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                onPointerDown={(event) => beginColumnResize(0, event)}
+                style={{
+                  width: 6,
+                  flex: "0 0 6px",
+                  cursor: "col-resize",
+                  background: activeResizeHandle === 0 ? "rgba(207,255,4,0.22)" : "transparent",
+                }}
+              />
 
-          <div style={{ flex: `0 0 ${row2DisplayWidths.column2}px`, minWidth: 0, height: "100%" }}>
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                minHeight: 0,
-                display: "grid",
-                gridTemplateRows: centerContextEvent ? "7% 80% 13%" : "0 100% 0",
-                background: row2Column2BackgroundColor,
-                overflow: "hidden",
-              }}
-            >
-                <>
-                  <div
-                    style={{
-                      display: centerContextEvent ? "grid" : "none",
-                      minHeight: 0,
-                      alignItems: "center",
-                      borderBottom: `1px solid ${subtleBorderColor}`,
-                      padding: "0 12px",
-                      boxSizing: "border-box",
-                      color: "#FFFFFF",
-                      fontFamily: "Space Grotesk, sans-serif",
-                      fontSize: 11,
-                      fontWeight: 800,
-                    }}
-                  >
-                    {centerContextEvent && centerContextEventIndex >= 0 ? (
-                      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                        <span>{`Event ${centerContextEventIndex + 1}`}</span>
-                        <span>{`Start ${formatTimelineTime(getTimelineEventTimeWindowSeconds(centerContextEvent).startSeconds, isAdvancedMode)}`}</span>
-                        <span>{`Spins ${centerContextEvent.counts?.spin ?? 0}`}</span>
-                        <span>{`Hits ${centerContextEvent.counts?.hit ?? 0}`}</span>
-                        <span>{`Drags ${centerContextEvent.counts?.drag ?? 0}`}</span>
-                      </div>
-                    ) : null}
-                  </div>
+              <div style={{ flex: `0 0 ${row2DisplayWidths.column2}px`, minWidth: 0, height: "100%" }}>
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    minHeight: 0,
+                    display: "grid",
+                    gridTemplateRows: centerContextEvent ? "7% 80% 13%" : "0 100% 0",
+                    background: row2Column2BackgroundColor,
+                    overflow: "hidden",
+                  }}
+                >
+                  <>
+                    <div
+                      style={{
+                        display: centerContextEvent ? "grid" : "none",
+                        minHeight: 0,
+                        alignItems: "center",
+                        borderBottom: `1px solid ${subtleBorderColor}`,
+                        padding: "0 12px",
+                        boxSizing: "border-box",
+                        color: "#FFFFFF",
+                        fontFamily: "Space Grotesk, sans-serif",
+                        fontSize: 11,
+                        fontWeight: 800,
+                      }}
+                    >
+                      {centerContextEvent && centerContextEventIndex >= 0 ? (
+                        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                          <span>{`Event ${centerContextEventIndex + 1}`}</span>
+                          <span>{`Start ${formatTimelineTime(getTimelineEventTimeWindowSeconds(centerContextEvent).startSeconds, isAdvancedMode)}`}</span>
+                          <span>{`Spins ${centerContextEvent.counts?.spin ?? 0}`}</span>
+                          <span>{`Hits ${centerContextEvent.counts?.hit ?? 0}`}</span>
+                          <span>{`Drags ${centerContextEvent.counts?.drag ?? 0}`}</span>
+                        </div>
+                      ) : null}
+                    </div>
 
-                  <div style={{ minHeight: 0 }}>
-                    <CenterChoicePanel
-                      choice={centerChoice}
-                      draftTokens={draftTokens}
-                      activeEventEquation={centerContextEventEquation ?? activeEventEquation}
-                      hasSelectedEvent={Boolean(centerContextEvent)}
-                      selectedTokenIndex={selectedContextMechanicAssignedTokenIndex}
-                      onSelectToken={
-                        selectedCenterContextMechanic && centerContextEventEquation
-                          ? handleAssignTokenToSelectedContextMechanic
-                          : null
-                      }
-                      selectedMechanic={selectedCenterContextMechanic?.mechanic ?? null}
-                      selectedHitPair={selectedContextHitPair}
-                      onSelectHitPair={
-                        selectedCenterContextMechanic?.mechanic === "hit"
-                          ? handleSetSelectedContextHitPair
-                          : null
-                      }
-                      equationViewerBlockSize={equationViewerBlockSize}
-                      currentSongSeconds={currentSongSeconds}
-                      mechanicStartSeconds={selectedContextMechanicTimeWindow.startSeconds}
-                      mechanicEndSeconds={selectedContextMechanicTimeWindow.endSeconds}
-                      isSongPlaying={isSongPlaying}
-                      onQuickAddHit={handleAddHitAtPlayhead}
-                      onCreateEquation={handleCreateEquationChoice}
-                      onBrowseLibrary={handleBrowsePremadeChoice}
-                      showWorkspacePrompt={showCenterWorkspacePrompt}
-                      hideHeader={hideEquationHeader}
-                    />
-                  </div>
+                    <div style={{ minHeight: 0 }}>
+                      <CenterChoicePanel
+                        choice={centerChoice}
+                        draftTokens={draftTokens}
+                        activeEventEquation={centerContextEventEquation ?? activeEventEquation}
+                        hasSelectedEvent={Boolean(centerContextEvent)}
+                        selectedTokenIndex={selectedContextMechanicAssignedTokenIndex}
+                        onSelectToken={
+                          selectedCenterContextMechanic && centerContextEventEquation
+                            ? handleAssignTokenToSelectedContextMechanic
+                            : null
+                        }
+                        selectedMechanic={selectedCenterContextMechanic?.mechanic ?? null}
+                        selectedHitPair={selectedContextHitPair}
+                        onSelectHitPair={
+                          selectedCenterContextMechanic?.mechanic === "hit"
+                            ? handleSetSelectedContextHitPair
+                            : null
+                        }
+                        equationViewerBlockSize={equationViewerBlockSize}
+                        currentSongSeconds={currentSongSeconds}
+                        mechanicStartSeconds={selectedContextMechanicTimeWindow.startSeconds}
+                        mechanicEndSeconds={selectedContextMechanicTimeWindow.endSeconds}
+                        isSongPlaying={isSongPlaying}
+                        onQuickAddHit={handleAddHitAtPlayhead}
+                        onCreateEquation={handleCreateEquationChoice}
+                        onBrowseLibrary={handleBrowsePremadeChoice}
+                        showWorkspacePrompt={showCenterWorkspacePrompt}
+                        hideHeader={hideEquationHeader}
+                      />
+                    </div>
 
-                  <div
-                    style={{
-                      display: centerContextEvent ? "grid" : "none",
-                      minHeight: 0,
-                      gridTemplateColumns: "minmax(0, 1fr) auto",
-                      alignItems: "center",
-                      gap: 10,
-                      borderTop: `1px solid ${subtleBorderColor}`,
-                      padding: "0 12px",
-                      boxSizing: "border-box",
-                      color: "#FFFFFF",
-                      fontFamily: "Space Grotesk, sans-serif",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div style={{ minWidth: 0, overflow: "hidden" }}>
-                      {selectedCenterContextMechanic ? (
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            flexWrap: "wrap",
-                            gap: 10,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            fontSize: 11,
-                            fontWeight: 800,
-                          }}
-                        >
-                          <span style={{ color: "#CFFF04" }}>
-                            {`${selectedCenterContextMechanic.mechanic.toUpperCase()} ${selectedCenterContextMechanic.instanceIndex + 1}`}
-                          </span>
-                          <span>
-                            {selectedCenterContextMechanic.mechanic === "hit"
-                              ? formatTimelineTime(
+                    <div
+                      style={{
+                        display: centerContextEvent ? "grid" : "none",
+                        minHeight: 0,
+                        gridTemplateColumns: "minmax(0, 1fr) auto",
+                        alignItems: "center",
+                        gap: 10,
+                        borderTop: `1px solid ${subtleBorderColor}`,
+                        padding: "0 12px",
+                        boxSizing: "border-box",
+                        color: "#FFFFFF",
+                        fontFamily: "Space Grotesk, sans-serif",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div style={{ minWidth: 0, overflow: "hidden" }}>
+                        {selectedCenterContextMechanic ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              flexWrap: "wrap",
+                              gap: 10,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              fontSize: 11,
+                              fontWeight: 800,
+                            }}
+                          >
+                            <span style={{ color: "#CFFF04" }}>
+                              {`${selectedCenterContextMechanic.mechanic.toUpperCase()} ${selectedCenterContextMechanic.instanceIndex + 1}`}
+                            </span>
+                            <span>
+                              {selectedCenterContextMechanic.mechanic === "hit"
+                                ? formatTimelineTime(
                                   timelineTickToSeconds(
                                     selectedCenterContextMechanic.startTick,
                                   ),
                                   isAdvancedMode,
                                 )
-                              : `${formatTimelineTime(
+                                : `${formatTimelineTime(
                                   timelineTickToSeconds(
                                     selectedCenterContextMechanic.startTick,
                                   ),
@@ -11910,98 +11918,98 @@ function handleToggleDragTarget(
                                   ),
                                   isAdvancedMode,
                                 )}`}
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={handleRemoveSelectedContextMechanic}
+                              style={{
+                                minWidth: 74,
+                                height: 22,
+                                borderRadius: 999,
+                                border: `1px solid ${subtleBorderColor}`,
+                                background: "#3A1818",
+                                color: "#FFFFFF",
+                                fontSize: 9,
+                                fontWeight: 900,
+                                cursor: "pointer",
+                                padding: "0 8px",
+                                whiteSpace: "nowrap",
+                                fontFamily: "Space Grotesk, sans-serif",
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <span style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700 }}>
+                            No hit/spin/drag assigned
                           </span>
+                        )}
+                      </div>
 
-                          <button
-                            type="button"
-                            onClick={handleRemoveSelectedContextMechanic}
-                            style={{
-                              minWidth: 74,
-                              height: 22,
-                              borderRadius: 999,
-                              border: `1px solid ${subtleBorderColor}`,
-                              background: "#3A1818",
-                              color: "#FFFFFF",
-                              fontSize: 9,
-                              fontWeight: 900,
-                              cursor: "pointer",
-                              padding: "0 8px",
-                              whiteSpace: "nowrap",
-                              fontFamily: "Space Grotesk, sans-serif",
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ) : (
-                        <span style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700 }}>
-                          No hit/spin/drag assigned
-                        </span>
-                      )}
+                      <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 6, overflowX: "auto" }}>
+                        {centerContextMechanicItems.map((item) => {
+                          const isSelected = item.key === selectedCenterContextMechanic?.key;
+
+                          return (
+                            <button
+                              key={item.key}
+                              type="button"
+                              onClick={() => {
+                                setSelectedContextMechanicKey(item.key);
+                                seekSong(timelineTickToSeconds(item.startTick));
+                              }}
+                              style={{
+                                minWidth: 44,
+                                height: 22,
+                                borderRadius: 999,
+                                border: `1px solid ${isSelected ? "#CFFF04" : subtleBorderColor}`,
+                                background: isSelected ? "rgba(207,255,4,0.12)" : "#252525",
+                                color: isSelected ? "#CFFF04" : "#FFFFFF99",
+                                fontSize: 9,
+                                fontWeight: 900,
+                                cursor: "pointer",
+                                padding: "0 8px",
+                                whiteSpace: "nowrap",
+                                fontFamily: "Space Grotesk, sans-serif",
+                              }}
+                              aria-label={`Select ${item.mechanic} ${item.instanceIndex + 1}`}
+                            >
+                              {`${item.mechanic[0].toUpperCase()}${item.instanceIndex + 1}`}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
+                  </>
+                </div>
+              </div>
 
-                    <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 6, overflowX: "auto" }}>
-                      {centerContextMechanicItems.map((item) => {
-                        const isSelected = item.key === selectedCenterContextMechanic?.key;
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                onPointerDown={(event) => beginColumnResize(1, event)}
+                style={{
+                  width: 6,
+                  flex: "0 0 6px",
+                  cursor: "col-resize",
+                  background: activeResizeHandle === 1 ? "rgba(207,255,4,0.22)" : "transparent",
+                }}
+              />
 
-                        return (
-                          <button
-                            key={item.key}
-                            type="button"
-                            onClick={() => {
-                              setSelectedContextMechanicKey(item.key);
-                              seekSong(timelineTickToSeconds(item.startTick));
-                            }}
-                            style={{
-                              minWidth: 44,
-                              height: 22,
-                              borderRadius: 999,
-                              border: `1px solid ${isSelected ? "#CFFF04" : subtleBorderColor}`,
-                              background: isSelected ? "rgba(207,255,4,0.12)" : "#252525",
-                              color: isSelected ? "#CFFF04" : "#FFFFFF99",
-                              fontSize: 9,
-                              fontWeight: 900,
-                              cursor: "pointer",
-                              padding: "0 8px",
-                              whiteSpace: "nowrap",
-                              fontFamily: "Space Grotesk, sans-serif",
-                            }}
-                            aria-label={`Select ${item.mechanic} ${item.instanceIndex + 1}`}
-                          >
-                            {`${item.mechanic[0].toUpperCase()}${item.instanceIndex + 1}`}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </>
-            </div>
-          </div>
-
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            onPointerDown={(event) => beginColumnResize(1, event)}
-            style={{
-              width: 6,
-              flex: "0 0 6px",
-              cursor: "col-resize",
-              background: activeResizeHandle === 1 ? "rgba(207,255,4,0.22)" : "transparent",
-            }}
-          />
-
-          <div style={{ flex: `0 0 ${row2DisplayWidths.column3}px`, minWidth: 0, height: "100%" }}>
-            <LibraryPanel
-              activeTab={libraryTab}
-              savedEquations={savedEquations}
-              activeEventId={activeEventId}
-              selectedEquationId={selectedEquationId}
-              onTabChange={setLibraryTab}
-              onSelectEquation={handleSelectLibraryEquation}
-              onAddSelectedEquationToEvent={handleAddSelectedEquationToEvent}
-              shouldScrollLibrary={isTimelineInstructionVisible}
-            />
-          </div>
+              <div style={{ flex: `0 0 ${row2DisplayWidths.column3}px`, minWidth: 0, height: "100%" }}>
+                <LibraryPanel
+                  activeTab={libraryTab}
+                  savedEquations={savedEquations}
+                  activeEventId={activeEventId}
+                  selectedEquationId={selectedEquationId}
+                  onTabChange={setLibraryTab}
+                  onSelectEquation={handleSelectLibraryEquation}
+                  onAddSelectedEquationToEvent={handleAddSelectedEquationToEvent}
+                  shouldScrollLibrary={isTimelineInstructionVisible}
+                />
+              </div>
 
             </>
           )}

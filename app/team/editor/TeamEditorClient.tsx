@@ -848,22 +848,22 @@ function getSelectedSongMechanicCountArray(
     selectedSong[snakePluralKey],
     selectedSong[snakeSingularKey],
     selectedSong.songAsset?.[
-      camelKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
+    camelKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
     ],
     selectedSong.songAsset?.[
-      snakePluralKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
+    snakePluralKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
     ],
     selectedSong.songAsset?.[
-      snakeSingularKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
+    snakeSingularKey as keyof NonNullable<SelectedSongPayload["songAsset"]>
     ],
     selectedSong.song_asset?.[
-      camelKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
+    camelKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
     ],
     selectedSong.song_asset?.[
-      snakePluralKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
+    snakePluralKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
     ],
     selectedSong.song_asset?.[
-      snakeSingularKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
+    snakeSingularKey as keyof NonNullable<SelectedSongPayload["song_asset"]>
     ],
   ];
 
@@ -2008,11 +2008,11 @@ function EquationInsertionSlot({
   onLeave: () => void;
   onInsertToken: (index: number, label: string) => void;
 }) {
-function acceptsPaletteToken(event: DragEvent<HTMLElement>) {
-  return Array.from(event.dataTransfer.types).includes(
-    "application/x-equation-token",
-  );
-}
+  function acceptsPaletteToken(event: DragEvent<HTMLElement>) {
+    return Array.from(event.dataTransfer.types).includes(
+      "application/x-equation-token",
+    );
+  }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -2118,11 +2118,11 @@ function EquationTrashDropZone({
   onActiveChange: (isActive: boolean) => void;
   onRemoveToken: (id: string) => void;
 }) {
-function acceptsDraftToken(event: DragEvent<HTMLElement>) {
-  return Array.from(event.dataTransfer.types).includes(
-    "application/x-draft-equation-token",
-  );
-}
+  function acceptsDraftToken(event: DragEvent<HTMLElement>) {
+    return Array.from(event.dataTransfer.types).includes(
+      "application/x-draft-equation-token",
+    );
+  }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -2178,9 +2178,8 @@ function acceptsDraftToken(event: DragEvent<HTMLElement>) {
         height: 62,
         borderRadius: 18,
         background: isActive ? "rgba(255, 53, 53, 0.22)" : "#111111",
-        border: `2px solid ${
-          isActive ? "rgba(255, 53, 53, 0.72)" : "rgba(255,255,255,0.18)"
-        }`,
+        border: `2px solid ${isActive ? "rgba(255, 53, 53, 0.72)" : "rgba(255,255,255,0.18)"
+          }`,
         boxShadow: isActive
           ? "0 0 26px rgba(255, 53, 53, 0.24)"
           : "0 12px 26px rgba(0,0,0,0.24)",
@@ -2484,9 +2483,8 @@ function EquationBuilderArea({
             minHeight: 40,
             background: draftTokens.length > 0 ? "#CFFF04" : "#2B2B2B",
             color: draftTokens.length > 0 ? "#000000" : "#FFFFFF80",
-            border: `1px solid ${
-              draftTokens.length > 0 ? "#CFFF04" : subtleBorderColor
-            }`,
+            border: `1px solid ${draftTokens.length > 0 ? "#CFFF04" : subtleBorderColor
+              }`,
             borderRadius: 10,
             fontFamily: "Space Grotesk, sans-serif",
             fontSize: 13,
@@ -2712,21 +2710,21 @@ function HitEquationEditor({
           >
             {!isOperator && placement?.pads.length
               ? placement.pads.map((pad) => (
-                  <span
-                    key={pad}
-                    style={{
-                      position: "absolute",
-                      ...getHitBubblePadStyle(pad, bubbleSize),
-                      zIndex: 1,
-                    }}
-                  >
-                    <EmptyEquationBubble
-                      size={bubbleSize}
-                      borderColor="#CFFF04"
-                      background="rgba(207, 255, 4, 0.08)"
-                    />
-                  </span>
-                ))
+                <span
+                  key={pad}
+                  style={{
+                    position: "absolute",
+                    ...getHitBubblePadStyle(pad, bubbleSize),
+                    zIndex: 1,
+                  }}
+                >
+                  <EmptyEquationBubble
+                    size={bubbleSize}
+                    borderColor="#CFFF04"
+                    background="rgba(207, 255, 4, 0.08)"
+                  />
+                </span>
+              ))
               : null}
 
             {!isOperator && selectedTokenIndex === tokenIndex ? (
@@ -2972,11 +2970,9 @@ function DragArcSvg({ arcs }: { arcs: DragArcGeometry[] }) {
         const deltaX = arc.endX - arc.startX;
         const lift = Math.max(76, Math.min(170, Math.abs(deltaX) * 0.32));
         const controlY = Math.min(arc.startY, arc.endY) - lift;
-        const path = `M ${arc.startX} ${arc.startY} C ${
-          arc.startX + deltaX * 0.25
-        } ${controlY}, ${arc.startX + deltaX * 0.75} ${controlY}, ${
-          arc.endX
-        } ${arc.endY}`;
+        const path = `M ${arc.startX} ${arc.startY} C ${arc.startX + deltaX * 0.25
+          } ${controlY}, ${arc.startX + deltaX * 0.75} ${controlY}, ${arc.endX
+          } ${arc.endY}`;
 
         return (
           <g key={arc.targetIndex}>
@@ -3492,9 +3488,8 @@ function MechanicInstanceRow({
                   minHeight: 44,
                   border: "none",
                   borderRight: `1px solid ${subtleBorderColor}`,
-                  borderBottom: `3px solid ${
-                    isActive ? "#CFFF04" : "transparent"
-                  }`,
+                  borderBottom: `3px solid ${isActive ? "#CFFF04" : "transparent"
+                    }`,
                   background: isActive ? "#252525" : "transparent",
                   color: isActive ? "#FFFFFF" : "#FFFFFF99",
                   fontFamily: "Space Grotesk, sans-serif",
@@ -3643,11 +3638,11 @@ function EventBuilderArea({
         overflow: "hidden",
       }}
     >
-<div
-  style={{
-    display: "none",
-  }}
-/>
+      <div
+        style={{
+          display: "none",
+        }}
+      />
 
       <div
         style={{
@@ -3660,19 +3655,19 @@ function EventBuilderArea({
       >
         {visibleMechanics.length === 0 ? (
           <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          height: "60vh",
-          maxHeight: "60vh",
-          background: "#191919",
-          padding: 18,
-          boxSizing: "border-box",
-          display: "grid",
-          gridTemplateRows: "1fr",
-          gap: 0,
-          overflow: "hidden",
-        }}
+            style={{
+              flex: 1,
+              minHeight: 0,
+              height: "60vh",
+              maxHeight: "60vh",
+              background: "#191919",
+              padding: 18,
+              boxSizing: "border-box",
+              display: "grid",
+              gridTemplateRows: "1fr",
+              gap: 0,
+              overflow: "hidden",
+            }}
           >
             This event does not have any hits, spins, or drags.
           </div>
@@ -4439,46 +4434,46 @@ function EquationsPanel({
           fontFamily: "Space Grotesk, sans-serif",
         }}
       >
-      {savedEquations.length === 0 ? (
-        <div
-          style={{
-            color: "#FFFFFF80",
-            fontSize: 12,
-            fontWeight: 700,
-            lineHeight: 1.4,
-          }}
-        >
-          Build equations here, then drag them into an event.
-        </div>
-      ) : (
-        savedEquations.map((equation) => (
+        {savedEquations.length === 0 ? (
           <div
-            key={equation.id}
-            draggable
-            onDragStart={(event) => {
-              event.dataTransfer.setData(
-                "application/x-saved-equation",
-                JSON.stringify(equation),
-              );
-              event.dataTransfer.effectAllowed = "copy";
-            }}
             style={{
-              width: "100%",
-              minHeight: 42,
-              padding: "4px 0",
-              boxSizing: "border-box",
-              color: textColor,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "grab",
+              color: "#FFFFFF80",
+              fontSize: 12,
+              fontWeight: 700,
+              lineHeight: 1.4,
             }}
-            title={tokensToEquationState(equation.tokens)}
           >
-            <EquationPreview tokens={equation.tokens} circleSize={24} />
+            Build equations here, then drag them into an event.
           </div>
-        ))
-      )}
+        ) : (
+          savedEquations.map((equation) => (
+            <div
+              key={equation.id}
+              draggable
+              onDragStart={(event) => {
+                event.dataTransfer.setData(
+                  "application/x-saved-equation",
+                  JSON.stringify(equation),
+                );
+                event.dataTransfer.effectAllowed = "copy";
+              }}
+              style={{
+                width: "100%",
+                minHeight: 42,
+                padding: "4px 0",
+                boxSizing: "border-box",
+                color: textColor,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "grab",
+              }}
+              title={tokensToEquationState(equation.tokens)}
+            >
+              <EquationPreview tokens={equation.tokens} circleSize={24} />
+            </div>
+          ))
+        )}
       </div>
     </section>
   );
@@ -4804,164 +4799,164 @@ export default function LessonBuilderClient({
   }
 
   async function handleUploadSongFile(file: File) {
-  setPendingSongFile(file);
-  setUploadedSongName(file.name);
-  setSelectedSongStorage(null);
-  setSelectedSongLaunch(null);
-  setSaveStatus(`Loaded song: ${file.name}`);
+    setPendingSongFile(file);
+    setUploadedSongName(file.name);
+    setSelectedSongStorage(null);
+    setSelectedSongLaunch(null);
+    setSaveStatus(`Loaded song: ${file.name}`);
 
-  setMetadata((current) => ({
-    ...current,
-    songTitle: file.name.replace(/\.[^/.]+$/, ""),
-    uploadedFileName: file.name,
-  }));
-}
-
-async function handleUploadChartFile(file: File) {
-  try {
-    const nextChartFile = await file.text();
-
-    setChartFile(nextChartFile);
-    setUploadedChartName(file.name);
-    setSaveStatus(`Loaded chart: ${file.name}`);
-
-    try {
-      setProject(
-        chartToProject({
-          chartFile: nextChartFile,
-          analysisMetadata: metadata,
-          rawResults: sidecar,
-        }),
-      );
-    } catch (error) {
-      console.error("Failed to rebuild project from uploaded chart", error);
-    }
-  } catch (error) {
-    setSaveStatus(
-      error instanceof Error ? error.message : "Unable to load .chart file",
-    );
+    setMetadata((current) => ({
+      ...current,
+      songTitle: file.name.replace(/\.[^/.]+$/, ""),
+      uploadedFileName: file.name,
+    }));
   }
-}
 
-async function handleUploadSidecarJsonFile(file: File) {
-  try {
-    const text = await file.text();
-    const parsed = JSON.parse(text) as unknown;
-    const normalizedSidecar = normalizeSidecar(parsed);
+  async function handleUploadChartFile(file: File) {
+    try {
+      const nextChartFile = await file.text();
 
-    loadSidecarIntoTimeline(normalizedSidecar, null);
-    setSaveStatus(`Loaded sidecar JSON: ${file.name}`);
+      setChartFile(nextChartFile);
+      setUploadedChartName(file.name);
+      setSaveStatus(`Loaded chart: ${file.name}`);
 
-    if (chartFile.trim()) {
       try {
         setProject(
           chartToProject({
-            chartFile,
+            chartFile: nextChartFile,
             analysisMetadata: metadata,
-            rawResults: normalizedSidecar,
+            rawResults: sidecar,
           }),
         );
       } catch (error) {
-        console.error("Failed to rebuild project from uploaded sidecar", error);
+        console.error("Failed to rebuild project from uploaded chart", error);
       }
+    } catch (error) {
+      setSaveStatus(
+        error instanceof Error ? error.message : "Unable to load .chart file",
+      );
     }
-  } catch (error) {
-    setSaveStatus(
-      error instanceof Error
-        ? error.message
-        : "Unable to load sidecar JSON file",
-    );
   }
-}
 
-async function handleSelectSupabaseSong(song: SelectedSongPayload) {
-  setSaveStatus(`Loading ${song.name}...`);
+  async function handleUploadSidecarJsonFile(file: File) {
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as unknown;
+      const normalizedSidecar = normalizeSidecar(parsed);
 
-  try {
-    setSelectedSongStorage({
-      id: song.id,
-      chart: {
-        bucket: song.chart.bucket,
-        path: song.chart.path,
-        contentType: song.chart.contentType,
-      },
-      sidecar: song.sidecar
-        ? {
+      loadSidecarIntoTimeline(normalizedSidecar, null);
+      setSaveStatus(`Loaded sidecar JSON: ${file.name}`);
+
+      if (chartFile.trim()) {
+        try {
+          setProject(
+            chartToProject({
+              chartFile,
+              analysisMetadata: metadata,
+              rawResults: normalizedSidecar,
+            }),
+          );
+        } catch (error) {
+          console.error("Failed to rebuild project from uploaded sidecar", error);
+        }
+      }
+    } catch (error) {
+      setSaveStatus(
+        error instanceof Error
+          ? error.message
+          : "Unable to load sidecar JSON file",
+      );
+    }
+  }
+
+  async function handleSelectSupabaseSong(song: SelectedSongPayload) {
+    setSaveStatus(`Loading ${song.name}...`);
+
+    try {
+      setSelectedSongStorage({
+        id: song.id,
+        chart: {
+          bucket: song.chart.bucket,
+          path: song.chart.path,
+          contentType: song.chart.contentType,
+        },
+        sidecar: song.sidecar
+          ? {
             bucket: song.sidecar.bucket,
             path: song.sidecar.path,
             contentType: song.sidecar.contentType,
           }
-        : null,
-    });
+          : null,
+      });
 
-    setSelectedSongLaunch({
-      songAssetId: song.id,
-      chartUrl: song.chart.signedUrl,
-      sidecarUrl: song.sidecar?.signedUrl ?? null,
-      audioUrl: song.song.signedUrl,
-    });
+      setSelectedSongLaunch({
+        songAssetId: song.id,
+        chartUrl: song.chart.signedUrl,
+        sidecarUrl: song.sidecar?.signedUrl ?? null,
+        audioUrl: song.song.signedUrl,
+      });
 
-    setPendingSongFile(null);
-    setUploadedSongName(song.name);
+      setPendingSongFile(null);
+      setUploadedSongName(song.name);
 
-    setMetadata((current) => ({
-      ...current,
-      songTitle: song.title ?? song.name,
-      artist: song.artist ?? current?.artist,
-      uploadedFileName: song.song.path,
-    }));
+      setMetadata((current) => ({
+        ...current,
+        songTitle: song.title ?? song.name,
+        artist: song.artist ?? current?.artist,
+        uploadedFileName: song.song.path,
+      }));
 
-    const loadedPackage = await loadSongPackageAssets({
-      chartUrl: song.chart.signedUrl,
-      sidecarUrl: song.sidecar?.signedUrl,
-      audioUrl: song.song.signedUrl,
-    });
+      const loadedPackage = await loadSongPackageAssets({
+        chartUrl: song.chart.signedUrl,
+        sidecarUrl: song.sidecar?.signedUrl,
+        audioUrl: song.song.signedUrl,
+      });
 
-    if (loadedPackage.audioBlob) {
-      setPendingSongFile(
-        fileFromBlob({
-          blob: loadedPackage.audioBlob,
-          path: song.song.path,
-          name: song.name,
-          contentType: song.song.contentType,
+      if (loadedPackage.audioBlob) {
+        setPendingSongFile(
+          fileFromBlob({
+            blob: loadedPackage.audioBlob,
+            path: song.song.path,
+            name: song.name,
+            contentType: song.song.contentType,
+          }),
+        );
+      }
+
+      const normalizedSidecar = normalizeSidecar(
+        loadedPackage.sidecarJson ?? emptySidecar,
+      );
+      const nextChartName = song.chart.path.split("/").pop() ?? "selected.chart";
+
+      setChartFile(loadedPackage.chartText);
+      setUploadedChartName(nextChartName);
+      loadSidecarIntoTimeline(normalizedSidecar, null);
+
+      setProject(
+        chartToProject({
+          chartFile: loadedPackage.chartText,
+          analysisMetadata: {
+            songTitle: song.title ?? song.name,
+            artist: song.artist ?? undefined,
+            uploadedFileName: song.song.path,
+          },
+          rawResults: normalizedSidecar,
         }),
       );
+
+      setSaveStatus(
+        loadedPackage.audioError
+          ? `Loaded ${song.name}; audio unavailable (${loadedPackage.audioError})`
+          : `Loaded ${song.name}`,
+      );
+    } catch (error) {
+      setSaveStatus(
+        error instanceof Error
+          ? error.message
+          : "Unable to download selected song package",
+      );
     }
-
-    const normalizedSidecar = normalizeSidecar(
-      loadedPackage.sidecarJson ?? emptySidecar,
-    );
-    const nextChartName = song.chart.path.split("/").pop() ?? "selected.chart";
-
-    setChartFile(loadedPackage.chartText);
-    setUploadedChartName(nextChartName);
-    loadSidecarIntoTimeline(normalizedSidecar, null);
-
-    setProject(
-      chartToProject({
-        chartFile: loadedPackage.chartText,
-        analysisMetadata: {
-          songTitle: song.title ?? song.name,
-          artist: song.artist ?? undefined,
-          uploadedFileName: song.song.path,
-        },
-        rawResults: normalizedSidecar,
-      }),
-    );
-
-    setSaveStatus(
-      loadedPackage.audioError
-        ? `Loaded ${song.name}; audio unavailable (${loadedPackage.audioError})`
-        : `Loaded ${song.name}`,
-    );
-  } catch (error) {
-    setSaveStatus(
-      error instanceof Error
-        ? error.message
-        : "Unable to download selected song package",
-    );
   }
-}
 
   function handleNewEquation() {
     setDraftTokens([]);
@@ -5068,60 +5063,60 @@ async function handleSelectSupabaseSong(song: SelectedSongPayload) {
     );
   }
 
-function handleAddHitBubblePair(
-  mechanic: GameplayMechanic,
-  instanceIndex: number,
-  tokenIndex: number,
-  pair: HitBubblePair,
-) {
-  const pads = getHitBubblePairPads(pair);
+  function handleAddHitBubblePair(
+    mechanic: GameplayMechanic,
+    instanceIndex: number,
+    tokenIndex: number,
+    pair: HitBubblePair,
+  ) {
+    const pads = getHitBubblePairPads(pair);
 
-  updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
-    return {
-      ...instance,
-      // Only keep the newly selected hit token.
-      hitBubbles: [{ tokenIndex, positions: pads, pads }],
-    };
-  });
-}
+    updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
+      return {
+        ...instance,
+        // Only keep the newly selected hit token.
+        hitBubbles: [{ tokenIndex, positions: pads, pads }],
+      };
+    });
+  }
 
-function handleToggleSpinTarget(
-  mechanic: GameplayMechanic,
-  instanceIndex: number,
-  tokenIndex: number,
-) {
-  updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
-    const isSameTokenAlreadySelected =
-      instance.spinTargets.length === 1 &&
-      instance.spinTargets[0]?.tokenIndex === tokenIndex;
+  function handleToggleSpinTarget(
+    mechanic: GameplayMechanic,
+    instanceIndex: number,
+    tokenIndex: number,
+  ) {
+    updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
+      const isSameTokenAlreadySelected =
+        instance.spinTargets.length === 1 &&
+        instance.spinTargets[0]?.tokenIndex === tokenIndex;
 
-    return {
-      ...instance,
-      // Clicking the same token again clears it.
-      // Clicking a different token replaces the old one.
-      spinTargets: isSameTokenAlreadySelected ? [] : [{ tokenIndex }],
-    };
-  });
-}
+      return {
+        ...instance,
+        // Clicking the same token again clears it.
+        // Clicking a different token replaces the old one.
+        spinTargets: isSameTokenAlreadySelected ? [] : [{ tokenIndex }],
+      };
+    });
+  }
 
-function handleToggleDragTarget(
-  mechanic: GameplayMechanic,
-  instanceIndex: number,
-  tokenIndex: number,
-) {
-  updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
-    const isSameTokenAlreadySelected =
-      instance.dragTargets.length === 1 &&
-      instance.dragTargets[0]?.tokenIndex === tokenIndex;
+  function handleToggleDragTarget(
+    mechanic: GameplayMechanic,
+    instanceIndex: number,
+    tokenIndex: number,
+  ) {
+    updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
+      const isSameTokenAlreadySelected =
+        instance.dragTargets.length === 1 &&
+        instance.dragTargets[0]?.tokenIndex === tokenIndex;
 
-    return {
-      ...instance,
-      // Clicking the same token again clears it.
-      // Clicking a different token replaces the old one.
-      dragTargets: isSameTokenAlreadySelected ? [] : [{ tokenIndex }],
-    };
-  });
-}
+      return {
+        ...instance,
+        // Clicking the same token again clears it.
+        // Clicking a different token replaces the old one.
+        dragTargets: isSameTokenAlreadySelected ? [] : [{ tokenIndex }],
+      };
+    });
+  }
 
   function handleAddChartEventAtCurrentTick() {
     const hit = normalizePromptedCount(window.prompt("How many hits should this event have?", "0"));
@@ -5224,21 +5219,31 @@ function handleToggleDragTarget(
     setSaveStatus("Saving...");
 
     try {
-      let chartText = chartFile;
+      /*
+       * IMPORTANT:
+       * The .chart file is canonical gameplay data.
+       *
+       * The editor should NOT deserialize the chart into the project model
+       * and serialize it back out. That round-trip can discard chart
+       * difficulties/sections/metadata that the project model does not own.
+       *
+       * The editor saves the chart exactly as it was loaded and saves
+       * lesson-specific changes through the sidecar.
+       */
+      const chartText = chartFile;
 
-      try {
-        chartText = projectToChart(
-          chartToProject({ ...payloadForProject, rawResults: sidecar }),
+      if (!chartText.trim()) {
+        throw new Error(
+          "Cannot save lesson: original chart content is empty.",
         );
-      } catch (error) {
-        console.error("Failed to rebuild chart text from edited timeline", error);
-        chartText = project ? projectToChart(project) : chartFile;
       }
 
       const sidecarJson = projectToSidecarJson(sidecar);
+
       const activityKey = inferSongActivityKeyFromChartPath(
         selectedSongStorage.chart.path,
       );
+
       const resolvedPaths = resolveSongAssetStoragePaths({
         activityKey,
         chartPath: selectedSongStorage.chart.path,
@@ -5255,6 +5260,7 @@ function handleToggleDragTarget(
         body: JSON.stringify({
           songAssetId: selectedSongStorage.id,
           activityKey,
+
           chart: {
             ...selectedSongStorage.chart,
             path: resolvedPaths.chartPath,
@@ -5263,6 +5269,7 @@ function handleToggleDragTarget(
               selectedSongStorage.chart.contentType ??
               "text/plain;charset=utf-8",
           },
+
           sidecar: {
             ...(selectedSongStorage.sidecar ?? {
               bucket: "SidecarJsons",
@@ -5283,13 +5290,17 @@ function handleToggleDragTarget(
       } | null;
 
       if (!response.ok) {
-        throw new Error(result?.error ?? "Unable to save lesson files");
+        throw new Error(
+          result?.error ?? "Unable to save lesson files",
+        );
       }
 
       setSaveStatus("Saved");
     } catch (error) {
       setSaveStatus(
-        error instanceof Error ? error.message : "Unable to save lesson files",
+        error instanceof Error
+          ? error.message
+          : "Unable to save lesson files",
       );
     } finally {
       setIsSaving(false);
@@ -5329,10 +5340,10 @@ function handleToggleDragTarget(
         },
         sidecar: selectedSong.sidecar
           ? {
-              bucket: selectedSong.sidecar.bucket,
-              path: selectedSong.sidecar.path,
-              contentType: selectedSong.sidecar.contentType,
-            }
+            bucket: selectedSong.sidecar.bucket,
+            path: selectedSong.sidecar.path,
+            contentType: selectedSong.sidecar.contentType,
+          }
           : null,
       });
 
@@ -5502,18 +5513,18 @@ function handleToggleDragTarget(
     >
       <HeaderBar pathname={pathname} topTabs={topTabs} />
 
-<EditorActionBar
-  saveStatus={loadError || saveStatus}
-  isSaving={isSaving}
-  onSave={handleSaveToSupabase}
-  onUploadSong={handleUploadSongFile}
-  onUploadChart={handleUploadChartFile}
-  onUploadSidecar={handleUploadSidecarJsonFile}
-  songs={songs}
-  onSelectSupabaseSong={handleSelectSupabaseSong}
-  canLaunch={Boolean(selectedSongLaunch)}
-  onLaunch={handleLaunchGame}
-/>
+      <EditorActionBar
+        saveStatus={loadError || saveStatus}
+        isSaving={isSaving}
+        onSave={handleSaveToSupabase}
+        onUploadSong={handleUploadSongFile}
+        onUploadChart={handleUploadChartFile}
+        onUploadSidecar={handleUploadSidecarJsonFile}
+        songs={songs}
+        onSelectSupabaseSong={handleSelectSupabaseSong}
+        canLaunch={Boolean(selectedSongLaunch)}
+        onLaunch={handleLaunchGame}
+      />
 
       <main
         style={{
