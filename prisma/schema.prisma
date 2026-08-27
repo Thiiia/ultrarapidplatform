@@ -40,10 +40,6 @@ model User {
   authoredMissions Mission[] @relation("MissionAuthor")
   progressRecords  Progress[]
 
-  songAssets SongAsset[] @relation("SongAssetCreator")
-  managedSongAssetVariants SongAssetVariant[] @relation("SongAssetVariantOwner")
-  songAssetVariantShares SongAssetVariantShare[] @relation("SongAssetVariantShareRecipient")
-
   /*
    * Existing one-to-many teacher/class relationship.
    * This can be treated as the primary teacher relationship.
@@ -205,13 +201,6 @@ model Progress {
   @@index([status])
 }
 
-enum SongGameType {
-  number_bonds
-  equations
-  missing_numbers
-  early_algebra
-}
-
 model SongAsset {
   id              String @id @default(cuid())
   title           String
@@ -221,57 +210,25 @@ model SongAsset {
   songBucket String @default("Songs")
   songPath   String
 
-  createdByUserId String?
-  createdBy       User?   @relation("SongAssetCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  chartBucket String @default("Charts")
+  numberBondsChartPath   String
+  equationsChartPath     String
+  missingNumbersChartPath String
+  earlyAlgebraChartPath   String
+
+  sidecarBucket String? @default("SidecarJsons")
+  numberBondsSidecarPath    String?
+  equationsSidecarPath      String?
+  missingNumbersSidecarPath String?
+  earlyAlgebraSidecarPath   String?
 
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  variants SongAssetVariant[]
-
   @@index([isActive])
   @@index([title])
-  @@index([createdByUserId])
-}
-
-model SongAssetVariant {
-  id            String      @id @default(cuid())
-  songAssetId   String
-  ownerUserId   String
-  gameType      SongGameType
-  chartBucket   String      @default("Charts")
-  chartPath     String
-  sidecarBucket String?     @default("SidecarJsons")
-  sidecarPath   String?
-  isPublic      Boolean     @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  songAsset SongAsset @relation(fields: [songAssetId], references: [id], onDelete: Cascade)
-  owner     User      @relation("SongAssetVariantOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
-  shares    SongAssetVariantShare[]
-
-  @@unique([songAssetId, ownerUserId, gameType, chartPath, sidecarPath], name: "songAsset_variant_unique")
-  @@index([songAssetId])
-  @@index([ownerUserId, gameType])
-  @@index([isPublic, gameType])
-}
-
-model SongAssetVariantShare {
-  id               String @id @default(cuid())
-  variantId        String
-  sharedWithUserId String
-
-  createdAt DateTime @default(now())
-
-  variant     SongAssetVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  sharedWith  User             @relation("SongAssetVariantShareRecipient", fields: [sharedWithUserId], references: [id], onDelete: Cascade)
-
-  @@unique([variantId, sharedWithUserId], name: "song_asset_variant_share_unique")
-  @@index([sharedWithUserId])
 }
 
 enum Role {

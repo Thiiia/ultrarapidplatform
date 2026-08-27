@@ -17,8 +17,6 @@ const allSongActivityKeys: SongActivityKey[] = [
 
 export type SongChoice = {
   id: string;
-  songAssetId: string;
-  variantId: string;
   name: string;
   title: string;
   artist: string | null;
@@ -63,20 +61,13 @@ function isNonNull<T>(value: T | null): value is T {
   return value !== null;
 }
 
-async function createOptionalSignedUrl(
-  bucket: string | null,
-  path: string | null,
-): Promise<{ bucket: string; path: string; signedUrl: string } | null> {
+async function createOptionalSignedUrl(bucket: string | null, path: string | null) {
   if (!bucket || !path) {
     return null;
   }
 
   try {
-    return {
-      bucket,
-      path,
-      signedUrl: await createSignedUrl(bucket, path),
-    };
+    return await createSignedUrl(bucket, path);
   } catch (error) {
     console.warn(`Skipping missing optional sidecar ${bucket}/${path}:`, error);
     return null;
@@ -398,135 +389,124 @@ async function listSongStorageFiles(bucket: string): Promise<StorageFileEntry[]>
   return files;
 }
 
-function toVariantGameType(
-  activityKey: SongActivityKey | null,
-): "number_bonds" | "equations" | "missing_numbers" | "early_algebra" | null {
-  switch (activityKey) {
-    case "number-bonds":
-      return "number_bonds";
-    case "equations":
-      return "equations";
-    case "missing-numbers":
-      return "missing_numbers";
-    case "early-algebra":
-      return "early_algebra";
-    default:
-      return null;
-  }
-}
-
 export async function getSongChoices(
   requestedActivityKey?: string | null,
-  currentUserId?: string | null,
 ): Promise<SongChoice[]> {
   const activityKey: SongActivityKey | null = normalizeSongActivityKey(
     requestedActivityKey,
   );
-  const gameTypeFilter = toVariantGameType(activityKey);
+  const preferredActivityKey = activityKey ?? defaultSongActivityKey;
+  const allowActivityFallback = activityKey === null;
 
-  const where = currentUserId
-    ? {
-        AND: [
-          {
-            OR: [
-              { ownerUserId: currentUserId },
-              { isPublic: true },
-              { shares: { some: { sharedWithUserId: currentUserId } } },
-            ],
-          },
-          ...(gameTypeFilter ? [{ gameType: gameTypeFilter }] : []),
-        ],
-      }
-    : {
-        ...(gameTypeFilter ? { gameType: gameTypeFilter } : {}),
-        isPublic: true,
-      };
-
-  const variants = await prisma.songAssetVariant.findMany({
-    where,
-    include: {
-      songAsset: true,
+  const songAssets = await prisma.songAsset.findMany({
+    where: {
+      isActive: true,
     },
-    orderBy: [{ songAsset: { title: "asc" } }, { createdAt: "desc" }],
+    orderBy: {
+      title: "asc",
+    },
   });
 
-  const songs: Array<SongChoice | null> = await Promise.all(
-    variants.map(async (variant): Promise<SongChoice | null> => {
-      const songAsset = variant.songAsset;
+  const songAssetByPath = new Map(songAssets.map((songAsset) => [songAsset.songPath, songAsset]));
+  const storageSongs = await listSongStorageFiles("Songs");
+  const audioSongs = storageSongs
+    .filter((entry) => isAudioStoragePath(entry.path))
+    .sort((left, right) => left.path.localeCompare(right.path));
 
-      if (!songAsset || !songAsset.isActive) {
+  const songs: Array<SongChoice | null> = await Promise.all(
+    audioSongs.map(async (storageSong): Promise<SongChoice | null> => {
+      const songAsset = songAssetByPath.get(storageSong.path);
+
+      if (!songAsset) {
+        console.warn("Skipping song in storage because no matching SongAsset row was found", {
+          songPath: storageSong.path,
+        });
+        return null;
+      }
+
+      const songAssetRecord = songAsset as unknown as Record<string, unknown>;
+      const selectedPaths = getSongAssetPathsForActivity(songAssetRecord, preferredActivityKey);
+
+      if (!selectedPaths.chartPath) {
+        console.warn(
+          "Skipping song asset with missing chart path for activity",
+          {
+            songAssetId: songAsset.id,
+            title: songAsset.title,
+            activityKey: selectedPaths.activityKey,
+          },
+        );
         return null;
       }
 
       try {
-        const [songSignedUrl, songMetadata] = await Promise.all([
-          createSignedUrl(songAsset.songBucket, songAsset.songPath),
-          getFileMetadata(songAsset.songBucket, songAsset.songPath),
-        ]);
+        const [songSignedUrl, resolvedChartAndSidecar, songMetadata] =
+          await Promise.all([
+            createSignedUrl(songAsset.songBucket, storageSong.path),
+            resolveChartAndSidecarForSongAsset({
+              songAssetRecord,
+              chartBucket: songAsset.chartBucket,
+              sidecarBucket: songAsset.sidecarBucket,
+              preferredActivityKey,
+              allowActivityFallback,
+            }),
+            getFileMetadata(songAsset.songBucket, storageSong.path),
+          ]);
 
-        const metadata = (songMetadata?.metadata ?? null) as
-          | Record<string, unknown>
-          | null;
+        const metadata = songMetadata?.metadata as Record<string, unknown> | undefined;
+
         const songContentType =
-          typeof metadata?.mimetype === "string"
+          storageSong.mimeType ??
+          (typeof metadata?.mimetype === "string"
             ? metadata.mimetype
-            : getContentTypeFromPath(songAsset.songPath);
-
-        const chartSignedUrl = await createSignedUrl(
-          variant.chartBucket,
-          variant.chartPath,
-        );
-
-        const sidecarSignedUrl = variant.sidecarPath
-          ? await createOptionalSignedUrl(variant.sidecarBucket, variant.sidecarPath)
-          : null;
+            : getContentTypeFromPath(storageSong.path));
 
         return {
           id: songAsset.id,
-          songAssetId: songAsset.id,
-          variantId: variant.id,
           name: songAsset.title,
           title: songAsset.title,
           artist: songAsset.artist,
-          path: songAsset.songPath,
+          path: storageSong.path,
           signedUrl: songSignedUrl,
           size:
-            typeof metadata?.size === "number" ? metadata.size : null,
+            storageSong.size ??
+            (typeof metadata?.size === "number" ? metadata.size : null),
           contentType: songContentType,
-          updatedAt: songAsset.updatedAt.toISOString(),
+          updatedAt: storageSong.updatedAt ?? songAsset.updatedAt.toISOString(),
           durationSeconds: songAsset.durationSeconds,
 
           song: {
             bucket: songAsset.songBucket,
-            path: songAsset.songPath,
+            path: storageSong.path,
             signedUrl: songSignedUrl,
             contentType: songContentType,
           },
 
           chart: {
-            bucket: variant.chartBucket,
-            path: variant.chartPath,
-            signedUrl: chartSignedUrl,
-            contentType: getContentTypeFromPath(variant.chartPath),
+            bucket: songAsset.chartBucket,
+            path: resolvedChartAndSidecar.chart.path,
+            signedUrl: resolvedChartAndSidecar.chart.signedUrl,
+            contentType: getContentTypeFromPath(resolvedChartAndSidecar.chart.path),
           },
 
-          sidecar: sidecarSignedUrl
-            ? {
-                bucket: sidecarSignedUrl.bucket,
-                path: sidecarSignedUrl.path,
-                signedUrl: sidecarSignedUrl.signedUrl,
-                contentType: getContentTypeFromPath(sidecarSignedUrl.path),
-              }
-            : null,
+          sidecar:
+            resolvedChartAndSidecar.sidecar
+              ? {
+                  bucket: resolvedChartAndSidecar.sidecar.bucket,
+                  path: resolvedChartAndSidecar.sidecar.path,
+                  signedUrl: resolvedChartAndSidecar.sidecar.signedUrl,
+                  contentType: getContentTypeFromPath(resolvedChartAndSidecar.sidecar.path),
+                }
+              : null,
         };
       } catch (error) {
         console.error(
-          "Skipping invalid song asset variant while loading song choices",
+          "Skipping invalid song asset while loading song choices",
           {
-            variantId: variant.id,
             songAssetId: songAsset.id,
             title: songAsset.title,
-            gameType: variant.gameType,
+            songPath: storageSong.path,
+            chartPath: selectedPaths.chartPath,
             error: getErrorMessage(error),
           },
         );
@@ -536,11 +516,5 @@ export async function getSongChoices(
     }),
   );
 
-  const deduped = new Map<string, SongChoice>();
-  songs.forEach((song) => {
-    if (!song) return;
-    deduped.set(`${song.songAssetId}:${song.variantId}`, song);
-  });
-
-  return Array.from(deduped.values());
+  return songs.filter(isNonNull);
 }
