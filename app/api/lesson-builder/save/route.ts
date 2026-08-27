@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
+import { getCurrentAppUser } from "@/lib/current-user";
 import {
-  buildSongAssetActivityPathUpdate,
   defaultSongActivityKey,
   inferSongActivityKeyFromChartPath,
   normalizeSongActivityKey,
-  resolveSongAssetStoragePaths,
 } from "@/lib/song-activity-storage";
 
 type SaveFilePayload = {
@@ -18,6 +17,7 @@ type SaveFilePayload = {
 
 type SavePayload = {
   songAssetId?: unknown;
+  variantId?: unknown;
   activityKey?: unknown;
   chart?: SaveFilePayload;
   sidecar?: SaveFilePayload;
@@ -79,9 +79,34 @@ async function uploadTextFile(
   return { bucket, path, contentType };
 }
 
+function normalizeGameType(
+  activityKey: string | null,
+): "number_bonds" | "equations" | "missing_numbers" | "early_algebra" {
+  const normalized = normalizeSongActivityKey(activityKey) ?? defaultSongActivityKey;
+
+  switch (normalized) {
+    case "number-bonds":
+      return "number_bonds";
+    case "equations":
+      return "equations";
+    case "missing-numbers":
+      return "missing_numbers";
+    case "early-algebra":
+      return "early_algebra";
+    default:
+      return "number_bonds";
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const payload = (await request.json()) as SavePayload;
+    const currentUser = await getCurrentAppUser();
+
+    if (!currentUser) {
+      return NextResponse.json({ error: "User is not authenticated" }, { status: 401 });
+    }
+
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId");
 
     if (!payload.chart || !payload.sidecar) {
@@ -102,51 +127,81 @@ export async function POST(request: Request) {
       ) ??
       inferSongActivityKeyFromChartPath(requestedChartPath) ??
       defaultSongActivityKey;
-    const resolvedPaths = resolveSongAssetStoragePaths({
-      activityKey,
-      chartPath: requestedChartPath,
-      sidecarPath: requestedSidecarPath,
-    });
-
-    const normalizedChartPayload: SaveFilePayload = {
-      ...payload.chart,
-      path: resolvedPaths.chartPath,
-    };
-
-    const normalizedSidecarPayload: SaveFilePayload = {
-      ...payload.sidecar,
-      path: resolvedPaths.sidecarPath,
-    };
+    const gameType = normalizeGameType(activityKey);
 
     const chartRef = await uploadTextFile(
-      normalizedChartPayload,
+      {
+        ...payload.chart,
+        path: requestedChartPath,
+      },
       "text/plain;charset=utf-8",
     );
 
     const sidecarRef = await uploadTextFile(
-      normalizedSidecarPayload,
+      {
+        ...payload.sidecar,
+        path: requestedSidecarPath,
+      },
       "application/json;charset=utf-8",
     );
 
-    const activityPathUpdate = buildSongAssetActivityPathUpdate({
-      activityKey,
-      chartPath: chartRef.path,
-      sidecarPath: sidecarRef.path,
-    });
+    const variant =
+      payload.variantId && typeof payload.variantId === "string"
+        ? await prisma.songAssetVariant.update({
+            where: { id: payload.variantId },
+            data: {
+              chartBucket: chartRef.bucket,
+              chartPath: chartRef.path,
+              sidecarBucket: sidecarRef.bucket,
+              sidecarPath: sidecarRef.path,
+              gameType,
+            },
+          })
+        : await (async () => {
+            const existingVariant = await prisma.songAssetVariant.findFirst({
+              where: {
+                songAssetId,
+                ownerUserId: currentUser.id,
+                gameType,
+                chartPath: chartRef.path,
+                sidecarPath: sidecarRef.path,
+              },
+            });
 
-    const songAsset = await prisma.songAsset.update({
+            if (existingVariant) {
+              return prisma.songAssetVariant.update({
+                where: { id: existingVariant.id },
+                data: {
+                  chartBucket: chartRef.bucket,
+                  sidecarBucket: sidecarRef.bucket,
+                  isPublic: false,
+                },
+              });
+            }
+
+            return prisma.songAssetVariant.create({
+              data: {
+                songAssetId,
+                ownerUserId: currentUser.id,
+                gameType,
+                chartBucket: chartRef.bucket,
+                chartPath: chartRef.path,
+                sidecarBucket: sidecarRef.bucket,
+                sidecarPath: sidecarRef.path,
+                isPublic: false,
+              },
+            });
+          })();
+
+    const songAsset = await prisma.songAsset.findUnique({
       where: { id: songAssetId },
-      data: {
-        chartBucket: chartRef.bucket,
-        sidecarBucket: sidecarRef.bucket,
-        ...activityPathUpdate,
-      },
-      select: { id: true, chartBucket: true, sidecarBucket: true },
+      select: { id: true, title: true, songPath: true },
     });
 
     return NextResponse.json({
       ok: true,
       songAsset,
+      variant,
       chart: chartRef,
       sidecar: sidecarRef,
     });

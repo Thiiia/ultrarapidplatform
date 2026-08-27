@@ -30,7 +30,7 @@ export default async function TeacherSongChoicePage({ searchParams }: PageProps)
   const activityParam = Array.isArray(params.activity)
     ? params.activity[0]
     : params.activity;
-  const songs = await getSongChoices(activityParam);
+  const songs = await getSongChoices(activityParam, user.id);
 
   return (
     <SongChoiceClient
