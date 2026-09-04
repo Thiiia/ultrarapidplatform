@@ -9,7 +9,7 @@ import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 const GAME_URL =
   process.env.NEXT_PUBLIC_GAME_URL ?? "https://ultrarapidtest.netlify.app/";
 
-export default function LaunchEmbedPage() {
+export default function LaunchEmbedPage({ videoUrl }: { videoUrl: string | null }) {
   const searchParams = useSearchParams();
 
   const embeddedGameUrl = useMemo(() => {
@@ -26,6 +26,23 @@ export default function LaunchEmbedPage() {
         boxSizing: "border-box",
       }}
     >
+      {videoUrl ? (
+        <video
+          src={videoUrl}
+          autoPlay
+          muted
+          loop
+          playsInline
+          controls
+          style={{
+            width: "100%",
+            maxHeight: "42vh",
+            objectFit: "contain",
+            marginBottom: 16,
+            background: "#000000",
+          }}
+        />
+      ) : null}
       <iframe
         src={embeddedGameUrl}
         title="UltraRapid Game"

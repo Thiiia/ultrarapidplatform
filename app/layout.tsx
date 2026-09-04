@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Grandstander } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import GlobalSiteMusic from "@/app/GlobalSiteMusic";
+import { getStorageSignedUrl } from "@/lib/storage-media";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,11 +25,16 @@ export const metadata: Metadata = {
   description: "Platform shell",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const siteMusicUrl = await getStorageSignedUrl(
+    "Songs",
+    "Lofries _New_Orleanz_title.mp3",
+  );
+
   return (
     <html lang="en">
       <head>
@@ -42,6 +49,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${grandstander.variable} antialiased`}
       >
         {children}
+        <GlobalSiteMusic src={siteMusicUrl} />
         <Analytics />
       </body>
     </html>

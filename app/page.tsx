@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { getStorageSignedUrl } from "@/lib/storage-media";
 // import { redirect } from "next/navigation";
 // import { getAuth0 } from "@/lib/auth0";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const videoUrl = await getStorageSignedUrl("Videos", "Bars.mp4");
+
   /*
    * Auth0 login flow temporarily disabled.
    *
@@ -55,10 +58,12 @@ export default async function HomePage() {
             animation: "landingVideoFadeIn 1100ms ease-out 120ms forwards",
           }}
         >
-          <iframe
-            src="https://player.vimeo.com/video/1154741176?h=bab231ff46&badge=0&autopause=0&player_id=0&app_id=58479&autoplay=1&muted=1&loop=1&background=1"
-            allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
-            referrerPolicy="strict-origin-when-cross-origin"
+          <video
+            src={videoUrl ?? undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
             title="UltraRapid landing background video"
             style={{
               position: "absolute",
@@ -69,7 +74,7 @@ export default async function HomePage() {
               minWidth: "calc(72vh * 1.7778)",
               minHeight: "72vh",
               transform: "translateX(-50%)",
-              border: "none",
+              objectFit: "cover",
               filter: "brightness(1.15) contrast(1.08) saturate(1.05)",
             }}
           />
@@ -224,7 +229,3 @@ export default async function HomePage() {
             }
           `,
         }}
-      />
-    </>
-  );
-}
