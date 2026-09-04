@@ -19,6 +19,7 @@ import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import {
   inferSongActivityKeyFromChartPath,
   resolveSongAssetStoragePaths,
+  type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../../student/student.module.css";
@@ -60,6 +61,7 @@ type StorageFileRef = {
 
 type SelectedSongPayload = {
   id: string;
+  activityKey?: SongActivityKey;
   name: string;
   title?: string;
   artist?: string | null;
@@ -4712,6 +4714,7 @@ export default function LessonBuilderClient({
   } | null>(null);
   const [selectedSongLaunch, setSelectedSongLaunch] = useState<{
     songAssetId: string;
+    activityKey: SongActivityKey;
     chartUrl: string;
     sidecarUrl: string | null;
     audioUrl: string;
@@ -4891,6 +4894,10 @@ export default function LessonBuilderClient({
 
       setSelectedSongLaunch({
         songAssetId: song.id,
+        activityKey:
+          song.activityKey ??
+          inferSongActivityKeyFromChartPath(song.chart.path) ??
+          "number-bonds",
         chartUrl: song.chart.signedUrl,
         sidecarUrl: song.sidecar?.signedUrl ?? null,
         audioUrl: song.song.signedUrl,
@@ -5349,6 +5356,10 @@ export default function LessonBuilderClient({
 
       setSelectedSongLaunch({
         songAssetId: selectedSong.id,
+        activityKey:
+          selectedSong.activityKey ??
+          inferSongActivityKeyFromChartPath(selectedSong.chart.path) ??
+          "number-bonds",
         chartUrl: selectedSong.chart.signedUrl,
         sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
         audioUrl: selectedSong.song.signedUrl,

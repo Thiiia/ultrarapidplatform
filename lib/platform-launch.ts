@@ -6,6 +6,7 @@ const platformLaunchParamKeys = [
   "scene",
   "songId",
   "songAssetId",
+  "activityKey",
   "trackId",
   "song",
   "manifestUrl",
@@ -32,6 +33,7 @@ const platformLaunchParamKeys = [
 
 type SongLaunchInput = {
   songAssetId: string;
+  activityKey: string;
   chartUrl: string;
   sidecarUrl?: string | null;
   audioUrl: string;
@@ -39,6 +41,7 @@ type SongLaunchInput = {
 
 export function createSongLaunchSearchParams({
   songAssetId,
+  activityKey,
   chartUrl,
   sidecarUrl,
   audioUrl,
@@ -46,6 +49,7 @@ export function createSongLaunchSearchParams({
   const params = new URLSearchParams({
     launch: "PlayNow",
     songAssetId,
+    activityKey,
     chartUrl,
     audioUrl,
   });

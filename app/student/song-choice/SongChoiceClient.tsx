@@ -590,12 +590,10 @@ export default function SongChoiceClient({
   }, [songs, durationsById]);
 
   function buildSelectedSongPayload(song: SongChoiceWithEquationSlots) {
-    const activityContext = selectedActivity
-      ? {
-          key: selectedActivity.key,
-          label: selectedActivity.label,
-        }
-      : null;
+    const activityContext = {
+      key: song.activityKey,
+      label: selectedActivity?.label ?? song.activityKey,
+    };
 
     return {
       id: song.id,
@@ -668,6 +666,7 @@ export default function SongChoiceClient({
     const selectedSongPayload = buildSelectedSongPayload(selectedSong);
     const launchParams = createSongLaunchSearchParams({
       songAssetId: selectedSong.id,
+      activityKey: selectedSong.activityKey,
       chartUrl: selectedSong.chart.signedUrl,
       sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
       audioUrl: selectedSong.song.signedUrl,

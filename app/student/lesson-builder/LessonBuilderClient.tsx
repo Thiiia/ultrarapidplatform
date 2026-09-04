@@ -111,6 +111,7 @@ type SelectedSongPayload = {
 
 type SongChoiceOption = {
   id: string;
+  activityKey: SongActivityKey;
   name: string;
   title?: string;
   artist?: string | null;
@@ -8883,6 +8884,7 @@ export default function LessonBuilderClient({
   } | null>(null);
   const [selectedSongLaunch, setSelectedSongLaunch] = useState<{
     songAssetId: string;
+    activityKey: SongActivityKey;
     chartUrl: string;
     sidecarUrl: string | null;
     audioUrl: string;
@@ -10200,7 +10202,6 @@ export default function LessonBuilderClient({
 
   function buildSelectedSongPayloadFromChoice(
     song: SongChoiceOption,
-    activityKey: SongActivityKey,
   ): SelectedSongPayload {
     return {
       id: song.id,
@@ -10208,8 +10209,8 @@ export default function LessonBuilderClient({
       title: song.title,
       artist: song.artist,
       activity: {
-        key: activityKey,
-        label: getActivityLabel(activityKey),
+        key: song.activityKey,
+        label: getActivityLabel(song.activityKey),
       },
       song: {
         bucket: song.song.bucket,
@@ -10373,6 +10374,7 @@ export default function LessonBuilderClient({
 
     setSelectedSongLaunch({
       songAssetId: selectedSong.id,
+      activityKey: resolvedActivityKey,
       chartUrl: selectedSong.chart.signedUrl,
       sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
       audioUrl: selectedSong.song.signedUrl,
@@ -10533,7 +10535,6 @@ export default function LessonBuilderClient({
 
     const selectedSongPayload = buildSelectedSongPayloadFromChoice(
       selectedSong,
-      filePickerActivityKey,
     );
 
     window.sessionStorage.setItem(

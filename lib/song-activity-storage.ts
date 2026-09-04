@@ -9,7 +9,6 @@ export const defaultSongActivityKey: SongActivityKey = "number-bonds";
 type ActivityPathFieldNames = {
   chartField: string;
   sidecarField: string;
-  fallbackSidecarField?: string;
 };
 
 type SongActivityFolders = {
@@ -32,7 +31,7 @@ const songActivityFoldersByKey: Record<SongActivityKey, SongActivityFolders> = {
   },
   "early-algebra": {
     chartFolder: "Early_Algebra",
-    sidecarFolder: "Missing_Numbers",
+    sidecarFolder: "Early_Algebra",
   },
 };
 
@@ -52,7 +51,6 @@ const songAssetPathFieldsByKey: Record<SongActivityKey, ActivityPathFieldNames> 
   "early-algebra": {
     chartField: "earlyAlgebraChartPath",
     sidecarField: "earlyAlgebraSidecarPath",
-    fallbackSidecarField: "missingNumbersSidecarPath",
   },
 };
 
@@ -99,6 +97,16 @@ export function normalizeSongActivityKey(
   }
 
   return null;
+}
+
+export function resolveRequestedSongActivityKey(
+  value: string | null | undefined,
+): SongActivityKey | null {
+  if (value === null || value === undefined || value.trim().length === 0) {
+    return defaultSongActivityKey;
+  }
+
+  return normalizeSongActivityKey(value);
 }
 
 export function inferSongActivityKeyFromChartPath(
@@ -153,23 +161,12 @@ function readStringProperty(
 
 export function getSongAssetPathsForActivity(
   songAssetRecord: Record<string, unknown>,
-  requestedActivityKey: SongActivityKey | null,
+  activityKey: SongActivityKey,
 ) {
-  const activityKey = requestedActivityKey ?? defaultSongActivityKey;
-  const { chartField, sidecarField, fallbackSidecarField } =
-    songAssetPathFieldsByKey[activityKey];
+  const { chartField, sidecarField } = songAssetPathFieldsByKey[activityKey];
 
-  const chartPath =
-    readStringProperty(songAssetRecord, chartField) ??
-    readStringProperty(songAssetRecord, "chartPath") ??
-    "";
-  const sidecarPath =
-    readStringProperty(songAssetRecord, sidecarField) ??
-    (fallbackSidecarField
-      ? readStringProperty(songAssetRecord, fallbackSidecarField)
-      : null) ??
-    readStringProperty(songAssetRecord, "sidecarPath") ??
-    null;
+  const chartPath = readStringProperty(songAssetRecord, chartField) ?? "";
+  const sidecarPath = readStringProperty(songAssetRecord, sidecarField);
 
   return {
     activityKey,

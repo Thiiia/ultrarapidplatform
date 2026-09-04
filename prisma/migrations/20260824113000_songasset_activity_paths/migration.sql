@@ -32,7 +32,7 @@ SET
   "numberBondsSidecarPath" = 'Number_Bonds/' || paths.sidecar_file,
   "equationsSidecarPath" = 'Equations/' || paths.sidecar_file,
   "missingNumbersSidecarPath" = 'Missing_Numbers/' || paths.sidecar_file,
-  "earlyAlgebraSidecarPath" = 'Missing_Numbers/' || paths.sidecar_file
+  "earlyAlgebraSidecarPath" = 'Early_Algebra/' || paths.sidecar_file
 FROM normalized_paths AS paths
 WHERE asset."id" = paths."id";
 
