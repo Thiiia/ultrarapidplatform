@@ -1,4 +1,5 @@
 "use client";
+import { requestFreshSongLaunchParams } from "@/lib/song-launch-client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -15,10 +16,10 @@ import {
 } from "@/lib/editor/project-to-chart";
 import { persistLaunchParams } from "@/lib/launch-handoff";
 import { loadSongPackageAssets } from "@/lib/editor/song-package";
-import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import {
   inferSongActivityKeyFromChartPath,
   resolveSongAssetStoragePaths,
+  type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../../student/student.module.css";
@@ -60,6 +61,7 @@ type StorageFileRef = {
 
 type SelectedSongPayload = {
   id: string;
+  activityKey?: SongActivityKey;
   name: string;
   title?: string;
   artist?: string | null;
@@ -4712,6 +4714,7 @@ export default function LessonBuilderClient({
   } | null>(null);
   const [selectedSongLaunch, setSelectedSongLaunch] = useState<{
     songAssetId: string;
+    activityKey: SongActivityKey;
     chartUrl: string;
     sidecarUrl: string | null;
     audioUrl: string;
@@ -4891,6 +4894,10 @@ export default function LessonBuilderClient({
 
       setSelectedSongLaunch({
         songAssetId: song.id,
+        activityKey:
+          song.activityKey ??
+          inferSongActivityKeyFromChartPath(song.chart.path) ??
+          "number-bonds",
         chartUrl: song.chart.signedUrl,
         sidecarUrl: song.sidecar?.signedUrl ?? null,
         audioUrl: song.song.signedUrl,
@@ -5197,16 +5204,19 @@ export default function LessonBuilderClient({
     router.push(`${navBasePath}/song-choice`);
   }
 
-  function handleLaunchGame() {
+  async function handleLaunchGame() {
     if (!selectedSongLaunch) {
       setSaveStatus("Choose a Supabase song before launching the game.");
       return;
     }
 
-    const launchParams = createSongLaunchSearchParams(selectedSongLaunch);
+    if (!(await handleSaveToSupabase())) return;
+    try {
+    const launchParams = await requestFreshSongLaunchParams({ ...selectedSongLaunch, rhythmDifficultyKey: "ExpertSingle" });
 
     persistLaunchParams(launchParams);
     router.push(navBasePath + "/game");
+    } catch (error) { setSaveStatus(error instanceof Error ? error.message : "Unable to prepare game"); }
   }
 
   async function handleSaveToSupabase() {
@@ -5230,7 +5240,7 @@ export default function LessonBuilderClient({
        * The editor saves the chart exactly as it was loaded and saves
        * lesson-specific changes through the sidecar.
        */
-      const chartText = chartFile;
+      const chartText = project?.sourceChart ? projectToChart(project) : chartFile;
 
       if (!chartText.trim()) {
         throw new Error(
@@ -5287,6 +5297,8 @@ export default function LessonBuilderClient({
 
       const result = (await response.json().catch(() => null)) as {
         error?: string;
+        chart?: { bucket: string; path: string };
+        sidecar?: { bucket: string; path: string };
       } | null;
 
       if (!response.ok) {
@@ -5295,7 +5307,13 @@ export default function LessonBuilderClient({
         );
       }
 
+      if (!result?.chart?.path || !result?.sidecar?.path) throw new Error("Saved package references are missing");
+      setSelectedSongStorage({ ...selectedSongStorage,
+        chart: { ...selectedSongStorage.chart, ...result.chart },
+        sidecar: { ...selectedSongStorage.sidecar, ...result.sidecar, contentType: "application/json;charset=utf-8" },
+      });
       setSaveStatus("Saved");
+      return true;
     } catch (error) {
       setSaveStatus(
         error instanceof Error
@@ -5349,6 +5367,10 @@ export default function LessonBuilderClient({
 
       setSelectedSongLaunch({
         songAssetId: selectedSong.id,
+        activityKey:
+          selectedSong.activityKey ??
+          inferSongActivityKeyFromChartPath(selectedSong.chart.path) ??
+          "number-bonds",
         chartUrl: selectedSong.chart.signedUrl,
         sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
         audioUrl: selectedSong.song.signedUrl,

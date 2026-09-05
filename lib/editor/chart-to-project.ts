@@ -134,6 +134,7 @@ export function chartToProject(payload: EditorRedirectPayload): ChartProject {
   const now = new Date().toISOString()
 
   return {
+    sourceChart: chartText,
     version: 1,
     song: {
       title,

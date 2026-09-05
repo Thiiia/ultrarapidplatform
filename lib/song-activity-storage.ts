@@ -9,7 +9,6 @@ export const defaultSongActivityKey: SongActivityKey = "number-bonds";
 type ActivityPathFieldNames = {
   chartField: string;
   sidecarField: string;
-  fallbackSidecarField?: string;
 };
 
 type SongActivityFolders = {
@@ -32,7 +31,7 @@ const songActivityFoldersByKey: Record<SongActivityKey, SongActivityFolders> = {
   },
   "early-algebra": {
     chartFolder: "Early_Algebra",
-    sidecarFolder: "Missing_Numbers",
+    sidecarFolder: "Early_Algebra",
   },
 };
 
@@ -52,7 +51,6 @@ const songAssetPathFieldsByKey: Record<SongActivityKey, ActivityPathFieldNames> 
   "early-algebra": {
     chartField: "earlyAlgebraChartPath",
     sidecarField: "earlyAlgebraSidecarPath",
-    fallbackSidecarField: "missingNumbersSidecarPath",
   },
 };
 
@@ -101,6 +99,80 @@ export function normalizeSongActivityKey(
   return null;
 }
 
+export function resolveRequestedSongActivityKey(
+  value: string | null | undefined,
+): SongActivityKey | null {
+  if (value === null || value === undefined || value.trim().length === 0) {
+    return defaultSongActivityKey;
+  }
+
+  return normalizeSongActivityKey(value);
+}
+
+function assertStoragePathBelongsToActivity({
+  activityKey,
+  path,
+  pathKind,
+}: {
+  activityKey: SongActivityKey;
+  path: string;
+  pathKind: "chart" | "sidecar";
+}) {
+  const expectedFolder = songActivityFoldersByKey[activityKey][
+    pathKind === "chart" ? "chartFolder" : "sidecarFolder"
+  ];
+
+  if (!path.startsWith(`${expectedFolder}/`)) {
+    throw new Error(`${pathKind} path does not belong to ${activityKey}`);
+  }
+}
+
+export function resolveRequestedSongActivityPackage({
+  requestedActivityKey,
+  chartPath,
+  sidecarPath,
+}: {
+  requestedActivityKey: string | null | undefined;
+  chartPath: string;
+  sidecarPath?: string | null;
+}) {
+  const activityKey = resolveRequestedSongActivityKey(requestedActivityKey);
+
+  if (!activityKey) {
+    throw new Error(`Unsupported song activity: ${requestedActivityKey}`);
+  }
+
+  if (!chartPath.trim()) {
+    throw new Error(`Missing chart path for ${activityKey}`);
+  }
+
+  assertStoragePathBelongsToActivity({
+    activityKey,
+    path: chartPath,
+    pathKind: "chart",
+  });
+
+  const resolvedSidecarPath = sidecarPath?.trim() ? sidecarPath : null;
+
+  if (!resolvedSidecarPath && activityKey === "early-algebra") {
+    throw new Error(`Missing sidecar path for ${activityKey}`);
+  }
+
+  if (resolvedSidecarPath) {
+    assertStoragePathBelongsToActivity({
+      activityKey,
+      path: resolvedSidecarPath,
+      pathKind: "sidecar",
+    });
+  }
+
+  return {
+    activityKey,
+    chartPath,
+    sidecarPath: resolvedSidecarPath,
+  };
+}
+
 export function inferSongActivityKeyFromChartPath(
   chartPath: string,
 ): SongActivityKey | null {
@@ -132,8 +204,8 @@ export function resolveSongAssetStoragePaths({
   const folders = songActivityFoldersByKey[activityKey];
 
   return {
-    chartPath: `${folders.chartFolder}/${chartFileName}`,
-    sidecarPath: `${folders.sidecarFolder}/${sidecarFileName}`,
+    chartPath: chartPath.startsWith(`${folders.chartFolder}/`) ? chartPath : `${folders.chartFolder}/${chartFileName}`,
+    sidecarPath: sidecarPath?.startsWith(`${folders.sidecarFolder}/`) ? sidecarPath : `${folders.sidecarFolder}/${sidecarFileName}`,
   };
 }
 
@@ -153,23 +225,12 @@ function readStringProperty(
 
 export function getSongAssetPathsForActivity(
   songAssetRecord: Record<string, unknown>,
-  requestedActivityKey: SongActivityKey | null,
+  activityKey: SongActivityKey,
 ) {
-  const activityKey = requestedActivityKey ?? defaultSongActivityKey;
-  const { chartField, sidecarField, fallbackSidecarField } =
-    songAssetPathFieldsByKey[activityKey];
+  const { chartField, sidecarField } = songAssetPathFieldsByKey[activityKey];
 
-  const chartPath =
-    readStringProperty(songAssetRecord, chartField) ??
-    readStringProperty(songAssetRecord, "chartPath") ??
-    "";
-  const sidecarPath =
-    readStringProperty(songAssetRecord, sidecarField) ??
-    (fallbackSidecarField
-      ? readStringProperty(songAssetRecord, fallbackSidecarField)
-      : null) ??
-    readStringProperty(songAssetRecord, "sidecarPath") ??
-    null;
+  const chartPath = readStringProperty(songAssetRecord, chartField) ?? "";
+  const sidecarPath = readStringProperty(songAssetRecord, sidecarField);
 
   return {
     activityKey,

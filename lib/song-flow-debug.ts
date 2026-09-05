@@ -10,6 +10,18 @@ const storageKey = "ultrarapid_song_flow_debug";
 const eventName = "ultrarapid-song-flow-debug";
 const maxEntries = 200;
 
+export function redactSongFlowPayload(value: unknown): unknown {
+  if (typeof value === "string") {
+    return /https?:|token|%3f|\?/i.test(value) ? "[redacted transport value]" : value;
+  }
+  if (Array.isArray(value)) return value.map(redactSongFlowPayload);
+  if (value && typeof value === "object") return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key,
+      /token|url|query/i.test(key) ? "[redacted transport value]" : redactSongFlowPayload(item)]),
+  );
+  return value;
+}
+
 function canUseBrowserStorage() {
   return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
 }
@@ -20,7 +32,7 @@ function buildEntry(stage: string, summary: string, payload?: unknown): SongFlow
     timestamp: new Date().toISOString(),
     stage,
     summary,
-    payload,
+    payload: redactSongFlowPayload(payload),
   };
 }
 
@@ -37,7 +49,7 @@ export function getSongFlowDebugEntries(): SongFlowDebugEntry[] {
 
   try {
     const parsed = JSON.parse(raw) as SongFlowDebugEntry[];
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(entry => ({ ...entry, payload: redactSongFlowPayload(entry.payload) })) : [];
   } catch {
     return [];
   }
@@ -57,7 +69,7 @@ export function appendSongFlowDebug(
 
   window.sessionStorage.setItem(storageKey, JSON.stringify(nextEntries));
   window.dispatchEvent(new CustomEvent(eventName, { detail: nextEntry }));
-  console.info(`[song-flow-debug] ${stage}: ${summary}`, payload);
+  console.info(`[song-flow-debug] ${stage}: ${summary}`, nextEntry.payload);
 }
 
 export function clearSongFlowDebugEntries() {

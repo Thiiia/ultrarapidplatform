@@ -8,6 +8,8 @@ const launchParamKeys = [
   "scene",
   "songId",
   "songAssetId",
+  "activityKey",
+  "rhythmDifficultyKey",
   "trackId",
   "song",
   "manifestUrl",

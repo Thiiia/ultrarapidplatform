@@ -8,6 +8,7 @@ type PlatformLaunchModule = {
   ) => string;
   createSongLaunchSearchParams?: (input: {
     songAssetId: string;
+    activityKey: string;
     chartUrl: string;
     sidecarUrl?: string | null;
     audioUrl: string;
@@ -39,6 +40,7 @@ test("forwards a selected song package from the platform iframe to Unity", async
 
   const launchParams = platformLaunch!.createSongLaunchSearchParams!({
     songAssetId: "song-123",
+    activityKey: "early-algebra",
     chartUrl: "https://storage.example/charts/waves.chart?token=chart-token",
     sidecarUrl:
       "https://storage.example/sidecars/waves.json?token=sidecar-token",
@@ -54,6 +56,7 @@ test("forwards a selected song package from the platform iframe to Unity", async
   assert.equal(embeddedUrl.searchParams.get("embed"), "1");
   assert.equal(embeddedUrl.searchParams.get("launch"), "PlayNow");
   assert.equal(embeddedUrl.searchParams.get("songAssetId"), "song-123");
+  assert.equal(embeddedUrl.searchParams.get("activityKey"), "early-algebra");
   assert.equal(
     embeddedUrl.searchParams.get("chartUrl"),
     "https://storage.example/charts/waves.chart?token=chart-token",

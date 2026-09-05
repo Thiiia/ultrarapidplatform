@@ -1,22 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import {
-  defaultSongActivityKey,
   getSongAssetPathsForActivity,
-  normalizeSongActivityKey,
-  resolveSongAssetStoragePaths,
+  resolveRequestedSongActivityKey,
+  resolveRequestedSongActivityPackage,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
-const allSongActivityKeys: SongActivityKey[] = [
-  "number-bonds",
-  "equations",
-  "missing-numbers",
-  "early-algebra",
-];
-
 export type SongChoice = {
   id: string;
+  activityKey: SongActivityKey;
   name: string;
   title: string;
   artist: string | null;
@@ -61,22 +54,11 @@ function isNonNull<T>(value: T | null): value is T {
   return value !== null;
 }
 
-async function createOptionalSignedUrl(bucket: string | null, path: string | null) {
-  if (!bucket || !path) {
-    return null;
-  }
-
-  try {
-    return await createSignedUrl(bucket, path);
-  } catch (error) {
-    console.warn(`Skipping missing optional sidecar ${bucket}/${path}:`, error);
-    return null;
-  }
-}
-
 async function createSignedUrl(bucket: string, path: string) {
   const supabaseAdmin = getSupabaseAdmin();
 
+  const info = await supabaseAdmin.storage.from(bucket).info(path);
+  if (info.error || !info.data) throw new Error(`Required asset unavailable: ${bucket}/${path}`);
   const { data, error } = await supabaseAdmin.storage
     .from(bucket)
     .createSignedUrl(path, 60 * 60);
@@ -92,72 +74,6 @@ async function createSignedUrl(bucket: string, path: string) {
   return data.signedUrl;
 }
 
-function dedupePaths(paths: Array<string | null | undefined>) {
-  const seen = new Set<string>();
-
-  return paths.filter((path): path is string => {
-    if (!path) {
-      return false;
-    }
-
-    const trimmed = path.trim();
-    if (!trimmed || seen.has(trimmed)) {
-      return false;
-    }
-
-    seen.add(trimmed);
-    return true;
-  });
-}
-
-function toEncountersSidecarPath(chartPath: string) {
-  return chartPath.replace(/\.chart$/i, ".encounters.json");
-}
-
-async function createSignedUrlFromCandidates(bucket: string, candidatePaths: string[]) {
-  let lastError: unknown = null;
-
-  for (const candidatePath of dedupePaths(candidatePaths)) {
-    try {
-      const signedUrl = await createSignedUrl(bucket, candidatePath);
-      return {
-        path: candidatePath,
-        signedUrl,
-      };
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  if (lastError instanceof Error) {
-    throw lastError;
-  }
-
-  throw new Error(`Unable to create signed URL from candidate paths for ${bucket}`);
-}
-
-async function createOptionalSignedUrlFromCandidates(
-  bucket: string | null,
-  candidatePaths: string[],
-) {
-  if (!bucket) {
-    return null;
-  }
-
-  for (const candidatePath of dedupePaths(candidatePaths)) {
-    try {
-      const signedUrl = await createSignedUrl(bucket, candidatePath);
-      return {
-        path: candidatePath,
-        signedUrl,
-      };
-    } catch {
-      // Continue trying other candidate paths.
-    }
-  }
-
-  return null;
-}
 
 type ResolvedChartAndSidecar = {
   chart: {
@@ -171,119 +87,45 @@ type ResolvedChartAndSidecar = {
   } | null;
 };
 
-function buildSidecarBucketCandidates(bucket: string | null) {
-  return dedupePaths([
-    bucket,
-    "SidecarJsons",
-    "Sidecar jsons",
-    "SidecarJSONs",
-  ]);
-}
-
-async function createOptionalSignedUrlFromBucketAndPathCandidates(
-  bucketCandidates: string[],
-  pathCandidates: string[],
-) {
-  for (const candidateBucket of bucketCandidates) {
-    const signed = await createOptionalSignedUrlFromCandidates(
-      candidateBucket,
-      pathCandidates,
-    );
-
-    if (signed) {
-      return {
-        bucket: candidateBucket,
-        path: signed.path,
-        signedUrl: signed.signedUrl,
-      };
-    }
-  }
-
-  return null;
-}
 
 async function resolveChartAndSidecarForSongAsset({
   songAssetRecord,
   chartBucket,
   sidecarBucket,
-  preferredActivityKey,
-  allowActivityFallback,
+  activityKey,
 }: {
   songAssetRecord: Record<string, unknown>;
   chartBucket: string;
   sidecarBucket: string | null;
-  preferredActivityKey: SongActivityKey;
-  allowActivityFallback: boolean;
+  activityKey: SongActivityKey;
 }): Promise<ResolvedChartAndSidecar> {
-  const candidateActivityOrder: SongActivityKey[] = allowActivityFallback
-    ? [
-        preferredActivityKey,
-        ...allSongActivityKeys.filter((key) => key !== preferredActivityKey),
-      ]
-    : [preferredActivityKey];
+  const candidatePaths = getSongAssetPathsForActivity(songAssetRecord, activityKey);
 
-  let lastChartError: unknown = null;
+  const validatedPackage = resolveRequestedSongActivityPackage({
+    requestedActivityKey: activityKey,
+    chartPath: candidatePaths.chartPath,
+    sidecarPath: candidatePaths.sidecarPath,
+  });
 
-  for (const candidateActivityKey of candidateActivityOrder) {
-    const candidatePaths = getSongAssetPathsForActivity(
-      songAssetRecord,
-      candidateActivityKey,
-    );
+  const chartSignedUrl = await createSignedUrl(chartBucket, validatedPackage.chartPath);
 
-    if (!candidatePaths.chartPath) {
-      continue;
-    }
+  if (!validatedPackage.sidecarPath || !sidecarBucket) throw new Error('Required companion package is missing');
+  const sidecar = { bucket: sidecarBucket, path: validatedPackage.sidecarPath,
+    signedUrl: await createSignedUrl(sidecarBucket, validatedPackage.sidecarPath) };
 
-    try {
-      const chartSignedUrl = await createSignedUrl(
-        chartBucket,
-        candidatePaths.chartPath,
-      );
-
-      const inferredSidecarPath = resolveSongAssetStoragePaths({
-        activityKey: candidateActivityKey,
-        chartPath: candidatePaths.chartPath,
-        sidecarPath: null,
-      }).sidecarPath;
-      const inferredEncountersSidecarPath = toEncountersSidecarPath(
-        inferredSidecarPath,
-      );
-
-      const sidecarCandidatePaths = dedupePaths([
-        candidatePaths.sidecarPath,
-        inferredSidecarPath,
-        inferredEncountersSidecarPath,
-      ]);
-      const sidecarBucketCandidates = buildSidecarBucketCandidates(sidecarBucket);
-
-      const sidecar = await createOptionalSignedUrlFromBucketAndPathCandidates(
-        sidecarBucketCandidates,
-        sidecarCandidatePaths,
-      );
-
-      return {
-        chart: {
-          path: candidatePaths.chartPath,
-          signedUrl: chartSignedUrl,
-        },
-        sidecar: sidecar
-          ? {
-              bucket: sidecar.bucket,
-              path: sidecar.path,
-              signedUrl: sidecar.signedUrl,
-            }
-          : null,
-      };
-    } catch (error) {
-      lastChartError = error;
-    }
-  }
-
-  if (lastChartError instanceof Error) {
-    throw lastChartError;
-  }
-
-  throw new Error(`Unable to resolve chart for song asset from activity paths`);
+  return {
+    chart: {
+      path: validatedPackage.chartPath,
+      signedUrl: chartSignedUrl,
+    },
+    sidecar: sidecar
+      ? {
+          bucket: sidecar.bucket,
+          path: sidecar.path,
+          signedUrl: sidecar.signedUrl,
+        }
+      : null,
+  };
 }
 
 async function getFileMetadata(bucket: string, path: string) {
@@ -392,11 +234,14 @@ async function listSongStorageFiles(bucket: string): Promise<StorageFileEntry[]>
 export async function getSongChoices(
   requestedActivityKey?: string | null,
 ): Promise<SongChoice[]> {
-  const activityKey: SongActivityKey | null = normalizeSongActivityKey(
+  const preferredActivityKey = resolveRequestedSongActivityKey(
     requestedActivityKey,
   );
-  const preferredActivityKey = activityKey ?? defaultSongActivityKey;
-  const allowActivityFallback = activityKey === null;
+
+  if (!preferredActivityKey) {
+    console.warn("Skipping song choices for invalid activity", { requestedActivityKey });
+    return [];
+  }
 
   const songAssets = await prisma.songAsset.findMany({
     where: {
@@ -447,8 +292,7 @@ export async function getSongChoices(
               songAssetRecord,
               chartBucket: songAsset.chartBucket,
               sidecarBucket: songAsset.sidecarBucket,
-              preferredActivityKey,
-              allowActivityFallback,
+              activityKey: preferredActivityKey,
             }),
             getFileMetadata(songAsset.songBucket, storageSong.path),
           ]);
@@ -463,6 +307,7 @@ export async function getSongChoices(
 
         return {
           id: songAsset.id,
+          activityKey: preferredActivityKey,
           name: songAsset.title,
           title: songAsset.title,
           artist: songAsset.artist,
