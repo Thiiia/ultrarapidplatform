@@ -7,6 +7,7 @@ const platformLaunchParamKeys = [
   "songId",
   "songAssetId",
   "activityKey",
+  "rhythmDifficultyKey",
   "trackId",
   "song",
   "manifestUrl",
