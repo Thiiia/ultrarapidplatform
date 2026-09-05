@@ -109,6 +109,70 @@ export function resolveRequestedSongActivityKey(
   return normalizeSongActivityKey(value);
 }
 
+function assertStoragePathBelongsToActivity({
+  activityKey,
+  path,
+  pathKind,
+}: {
+  activityKey: SongActivityKey;
+  path: string;
+  pathKind: "chart" | "sidecar";
+}) {
+  const expectedFolder = songActivityFoldersByKey[activityKey][
+    pathKind === "chart" ? "chartFolder" : "sidecarFolder"
+  ];
+
+  if (!path.startsWith(`${expectedFolder}/`)) {
+    throw new Error(`${pathKind} path does not belong to ${activityKey}`);
+  }
+}
+
+export function resolveRequestedSongActivityPackage({
+  requestedActivityKey,
+  chartPath,
+  sidecarPath,
+}: {
+  requestedActivityKey: string | null | undefined;
+  chartPath: string;
+  sidecarPath?: string | null;
+}) {
+  const activityKey = resolveRequestedSongActivityKey(requestedActivityKey);
+
+  if (!activityKey) {
+    throw new Error(`Unsupported song activity: ${requestedActivityKey}`);
+  }
+
+  if (!chartPath.trim()) {
+    throw new Error(`Missing chart path for ${activityKey}`);
+  }
+
+  assertStoragePathBelongsToActivity({
+    activityKey,
+    path: chartPath,
+    pathKind: "chart",
+  });
+
+  const resolvedSidecarPath = sidecarPath?.trim() ? sidecarPath : null;
+
+  if (!resolvedSidecarPath && activityKey === "early-algebra") {
+    throw new Error(`Missing sidecar path for ${activityKey}`);
+  }
+
+  if (resolvedSidecarPath) {
+    assertStoragePathBelongsToActivity({
+      activityKey,
+      path: resolvedSidecarPath,
+      pathKind: "sidecar",
+    });
+  }
+
+  return {
+    activityKey,
+    chartPath,
+    sidecarPath: resolvedSidecarPath,
+  };
+}
+
 export function inferSongActivityKeyFromChartPath(
   chartPath: string,
 ): SongActivityKey | null {

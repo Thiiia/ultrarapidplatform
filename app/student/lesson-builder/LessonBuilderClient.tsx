@@ -24,6 +24,7 @@ import {
   defaultSongActivityKey,
   inferSongActivityKeyFromChartPath,
   normalizeSongActivityKey,
+  resolveRequestedSongActivityPackage,
   resolveSongAssetStoragePaths,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
@@ -10317,13 +10318,49 @@ export default function LessonBuilderClient({
       }
     }
 
-    const resolvedActivityKey =
-      normalizeSongActivityKey(selectedSong.activity?.key ?? storedActivity?.key ?? null) ??
-      defaultSongActivityKey;
+    const requestedActivityKey =
+      selectedSong.activity?.key ?? storedActivity?.key ?? null;
+    let resolvedPackage: ReturnType<
+      typeof resolveRequestedSongActivityPackage
+    >;
+
+    try {
+      resolvedPackage = resolveRequestedSongActivityPackage({
+        requestedActivityKey,
+        chartPath: selectedSong.chart.path,
+        sidecarPath: selectedSong.sidecar?.path ?? null,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Selected song package is invalid";
+
+      appendSongFlowDebug(
+        "lesson-builder:activity:path-rejected",
+        "Rejected a selected song package that does not match its activity.",
+        {
+          selectedSongId: selectedSong.id,
+          requestedActivityKey,
+          chartPath: selectedSong.chart.path,
+          sidecarPath: selectedSong.sidecar?.path ?? null,
+          message,
+        },
+      );
+      setSelectedSongStorage(null);
+      setSelectedSongLaunch(null);
+      setSelectedSongActivity(null);
+      setLoadError(message);
+      return;
+    }
+
+    const resolvedActivityKey = resolvedPackage.activityKey;
     const resolvedActivityLabel =
       selectedSong.activity?.label ??
       storedActivity?.label ??
       getActivityLabel(resolvedActivityKey);
+
+    setLoadError("");
 
     setSelectedSongActivity({
       key: resolvedActivityKey,
@@ -10331,15 +10368,9 @@ export default function LessonBuilderClient({
     });
     setFilePickerActivityKey(resolvedActivityKey);
 
-    const expectedPaths = resolveSongAssetStoragePaths({
-      activityKey: resolvedActivityKey,
-      chartPath: selectedSong.chart.path,
-      sidecarPath: selectedSong.sidecar?.path ?? null,
-    });
-
     appendSongFlowDebug(
       "lesson-builder:activity:path-check",
-      "Comparing selected activity with chart/sidecar payload paths before fetch.",
+      "Validated the selected activity against the chart/sidecar payload paths before fetch.",
       {
         selectedSongId: selectedSong.id,
         selectedSongName: selectedSong.name,
@@ -10348,11 +10379,8 @@ export default function LessonBuilderClient({
         resolvedActivityKey,
         payloadChartPath: selectedSong.chart.path,
         payloadSidecarPath: selectedSong.sidecar?.path ?? null,
-        expectedPaths,
-        chartMatchesExpected:
-          expectedPaths.chartPath === selectedSong.chart.path,
-        sidecarMatchesExpected:
-          expectedPaths.sidecarPath === (selectedSong.sidecar?.path ?? null),
+        chartMatchesExpected: true,
+        sidecarMatchesExpected: true,
       },
     );
 

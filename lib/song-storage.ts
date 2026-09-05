@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import {
   getSongAssetPathsForActivity,
   resolveRequestedSongActivityKey,
+  resolveRequestedSongActivityPackage,
   resolveSongAssetStoragePaths,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
@@ -173,21 +174,23 @@ async function resolveChartAndSidecarForSongAsset({
 }): Promise<ResolvedChartAndSidecar> {
   const candidatePaths = getSongAssetPathsForActivity(songAssetRecord, activityKey);
 
-  if (!candidatePaths.chartPath) {
-    throw new Error(`Missing chart path for ${activityKey}`);
-  }
+  const validatedPackage = resolveRequestedSongActivityPackage({
+    requestedActivityKey: activityKey,
+    chartPath: candidatePaths.chartPath,
+    sidecarPath: candidatePaths.sidecarPath,
+  });
 
-  const chartSignedUrl = await createSignedUrl(chartBucket, candidatePaths.chartPath);
+  const chartSignedUrl = await createSignedUrl(chartBucket, validatedPackage.chartPath);
 
   const inferredSidecarPath = resolveSongAssetStoragePaths({
     activityKey,
-    chartPath: candidatePaths.chartPath,
+    chartPath: validatedPackage.chartPath,
     sidecarPath: null,
   }).sidecarPath;
   const inferredEncountersSidecarPath = toEncountersSidecarPath(inferredSidecarPath);
 
   const sidecarCandidatePaths = dedupePaths([
-    candidatePaths.sidecarPath,
+    validatedPackage.sidecarPath,
     inferredSidecarPath,
     inferredEncountersSidecarPath,
   ]);
@@ -200,7 +203,7 @@ async function resolveChartAndSidecarForSongAsset({
 
   return {
     chart: {
-      path: candidatePaths.chartPath,
+      path: validatedPackage.chartPath,
       signedUrl: chartSignedUrl,
     },
     sidecar: sidecar
