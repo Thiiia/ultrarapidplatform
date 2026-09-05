@@ -204,8 +204,8 @@ export function resolveSongAssetStoragePaths({
   const folders = songActivityFoldersByKey[activityKey];
 
   return {
-    chartPath: `${folders.chartFolder}/${chartFileName}`,
-    sidecarPath: `${folders.sidecarFolder}/${sidecarFileName}`,
+    chartPath: chartPath.startsWith(`${folders.chartFolder}/`) ? chartPath : `${folders.chartFolder}/${chartFileName}`,
+    sidecarPath: sidecarPath?.startsWith(`${folders.sidecarFolder}/`) ? sidecarPath : `${folders.sidecarFolder}/${sidecarFileName}`,
   };
 }
 

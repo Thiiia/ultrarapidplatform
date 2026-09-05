@@ -38,6 +38,7 @@ type SongLaunchInput = {
   chartUrl: string;
   sidecarUrl?: string | null;
   audioUrl: string;
+  rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
 };
 
 export function createSongLaunchSearchParams({
@@ -46,6 +47,7 @@ export function createSongLaunchSearchParams({
   chartUrl,
   sidecarUrl,
   audioUrl,
+  rhythmDifficultyKey,
 }: SongLaunchInput) {
   const params = new URLSearchParams({
     launch: "PlayNow",
@@ -57,6 +59,10 @@ export function createSongLaunchSearchParams({
 
   if (sidecarUrl) {
     params.set("sidecarUrl", sidecarUrl);
+  }
+
+  if (rhythmDifficultyKey) {
+    params.set("rhythmDifficultyKey", rhythmDifficultyKey);
   }
 
   return params;

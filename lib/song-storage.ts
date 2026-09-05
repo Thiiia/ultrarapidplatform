@@ -3,7 +3,6 @@ import {
   getSongAssetPathsForActivity,
   resolveRequestedSongActivityKey,
   resolveRequestedSongActivityPackage,
-  resolveSongAssetStoragePaths,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
@@ -58,6 +57,8 @@ function isNonNull<T>(value: T | null): value is T {
 async function createSignedUrl(bucket: string, path: string) {
   const supabaseAdmin = getSupabaseAdmin();
 
+  const info = await supabaseAdmin.storage.from(bucket).info(path);
+  if (info.error || !info.data) throw new Error(`Required asset unavailable: ${bucket}/${path}`);
   const { data, error } = await supabaseAdmin.storage
     .from(bucket)
     .createSignedUrl(path, 60 * 60);
@@ -73,50 +74,6 @@ async function createSignedUrl(bucket: string, path: string) {
   return data.signedUrl;
 }
 
-function dedupePaths(paths: Array<string | null | undefined>) {
-  const seen = new Set<string>();
-
-  return paths.filter((path): path is string => {
-    if (!path) {
-      return false;
-    }
-
-    const trimmed = path.trim();
-    if (!trimmed || seen.has(trimmed)) {
-      return false;
-    }
-
-    seen.add(trimmed);
-    return true;
-  });
-}
-
-function toEncountersSidecarPath(chartPath: string) {
-  return chartPath.replace(/\.chart$/i, ".encounters.json");
-}
-
-async function createOptionalSignedUrlFromCandidates(
-  bucket: string | null,
-  candidatePaths: string[],
-) {
-  if (!bucket) {
-    return null;
-  }
-
-  for (const candidatePath of dedupePaths(candidatePaths)) {
-    try {
-      const signedUrl = await createSignedUrl(bucket, candidatePath);
-      return {
-        path: candidatePath,
-        signedUrl,
-      };
-    } catch {
-      // Continue trying other candidate paths.
-    }
-  }
-
-  return null;
-}
 
 type ResolvedChartAndSidecar = {
   chart: {
@@ -130,36 +87,6 @@ type ResolvedChartAndSidecar = {
   } | null;
 };
 
-function buildSidecarBucketCandidates(bucket: string | null) {
-  return dedupePaths([
-    bucket,
-    "SidecarJsons",
-    "Sidecar jsons",
-    "SidecarJSONs",
-  ]);
-}
-
-async function createOptionalSignedUrlFromBucketAndPathCandidates(
-  bucketCandidates: string[],
-  pathCandidates: string[],
-) {
-  for (const candidateBucket of bucketCandidates) {
-    const signed = await createOptionalSignedUrlFromCandidates(
-      candidateBucket,
-      pathCandidates,
-    );
-
-    if (signed) {
-      return {
-        bucket: candidateBucket,
-        path: signed.path,
-        signedUrl: signed.signedUrl,
-      };
-    }
-  }
-
-  return null;
-}
 
 async function resolveChartAndSidecarForSongAsset({
   songAssetRecord,
@@ -182,24 +109,9 @@ async function resolveChartAndSidecarForSongAsset({
 
   const chartSignedUrl = await createSignedUrl(chartBucket, validatedPackage.chartPath);
 
-  const inferredSidecarPath = resolveSongAssetStoragePaths({
-    activityKey,
-    chartPath: validatedPackage.chartPath,
-    sidecarPath: null,
-  }).sidecarPath;
-  const inferredEncountersSidecarPath = toEncountersSidecarPath(inferredSidecarPath);
-
-  const sidecarCandidatePaths = dedupePaths([
-    validatedPackage.sidecarPath,
-    inferredSidecarPath,
-    inferredEncountersSidecarPath,
-  ]);
-  const sidecarBucketCandidates = buildSidecarBucketCandidates(sidecarBucket);
-
-  const sidecar = await createOptionalSignedUrlFromBucketAndPathCandidates(
-    sidecarBucketCandidates,
-    sidecarCandidatePaths,
-  );
+  if (!validatedPackage.sidecarPath || !sidecarBucket) throw new Error('Required companion package is missing');
+  const sidecar = { bucket: sidecarBucket, path: validatedPackage.sidecarPath,
+    signedUrl: await createSignedUrl(sidecarBucket, validatedPackage.sidecarPath) };
 
   return {
     chart: {

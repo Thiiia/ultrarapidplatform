@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "crypto";
+import { validateLessonContent } from "@/lib/lesson-content";
 import { getCurrentAppUser } from "@/lib/current-user";
+import { publishLessonSaveRevision } from "@/lib/lesson-save-revision";
 import { prisma } from "@/lib/prisma";
 import {
   buildSongAssetActivityPathUpdate,
@@ -61,24 +64,25 @@ function getSupabaseServerClient() {
   });
 }
 
-async function uploadTextFile(
-  file: SaveFilePayload,
-  target: UploadedFileRef,
-): Promise<UploadedFileRef> {
-  const content = readRequiredString(file.content, "content");
+async function uploadTextFile({
+  bucket,
+  path,
+  content,
+  contentType,
+}: UploadedFileRef & { content: string }): Promise<UploadedFileRef> {
 
   const supabase = getSupabaseServerClient();
 
-  const { error } = await supabase.storage.from(target.bucket).upload(target.path, content, {
-    contentType: target.contentType,
-    upsert: true,
+  const { error } = await supabase.storage.from(bucket).upload(path, content, {
+    contentType,
+    upsert: false,
   });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return target;
+  return { bucket, path, contentType };
 }
 
 export function getLessonSaveAuthorizationError(
@@ -177,7 +181,7 @@ export async function POST(request: Request) {
     }
 
     const payload = (await request.json()) as SavePayload;
-    const songAssetId = readRequiredString(payload.songAssetId, "songAssetId");
+    const songAssetId = readRequiredString(payload.songAssetId, "songAssetId").toLowerCase();
 
     if (!payload.chart || !payload.sidecar) {
       return NextResponse.json(
@@ -187,6 +191,9 @@ export async function POST(request: Request) {
     }
 
     const requestedChartPath = readRequiredString(payload.chart.path, "chart.path");
+    if (payload.activityKey != null && (typeof payload.activityKey !== "string" || !normalizeSongActivityKey(payload.activityKey))) {
+      return NextResponse.json({ error: "Unsupported song activity" }, { status: 400 });
+    }
     const activityKey =
       normalizeSongActivityKey(
         typeof payload.activityKey === "string" ? payload.activityKey : null,
@@ -221,35 +228,64 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid save target" }, { status: 400 });
     }
 
-    const chartRef = await uploadTextFile(
-      payload.chart,
-      { ...targets.chart, contentType: "text/plain;charset=utf-8" },
-    );
-
-    const sidecarRef = await uploadTextFile(
-      payload.sidecar,
-      { ...targets.sidecar, contentType: "application/json;charset=utf-8" },
-    );
-
-    const activityPathUpdate = buildSongAssetActivityPathUpdate({
-      activityKey,
-      chartPath: chartRef.path,
-      sidecarPath: sidecarRef.path,
-    });
-
-    const songAsset = await prisma.songAsset.update({
-      where: { id: songAssetId },
-      data: {
-        chartBucket: chartRef.bucket,
-        sidecarBucket: sidecarRef.bucket,
-        ...activityPathUpdate,
+    readRequiredString(payload.chart.content, "chart.content");
+    readRequiredString(payload.sidecar.content, "sidecar.content");
+    const chartContent = payload.chart.content as string;
+    const sidecarContent = payload.sidecar.content as string;
+    try { validateLessonContent(chartContent, sidecarContent); }
+    catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid lesson content" }, { status: 400 }); }
+    const revisionTargets = await publishLessonSaveRevision({
+      targets,
+      revisionId: randomUUID(),
+      content: {
+        chart: chartContent,
+        sidecar: sidecarContent,
       },
-      select: { id: true, chartBucket: true, sidecarBucket: true },
+      upload: async (file) => { await uploadTextFile(file); },
+      updatePointers: async ({ chartPath, sidecarPath }) => {
+        const { count } = await prisma.songAsset.updateMany({
+          where: {
+            id: songAssetId,
+            isActive: true,
+            chartBucket: targets.chart.bucket,
+            sidecarBucket: targets.sidecar.bucket,
+            ...buildSongAssetActivityPathUpdate({
+              activityKey,
+              chartPath: targets.chart.path,
+              sidecarPath: targets.sidecar.path,
+            }),
+          },
+          data: {
+            chartBucket: targets.chart.bucket,
+            sidecarBucket: targets.sidecar.bucket,
+            ...buildSongAssetActivityPathUpdate({
+              activityKey,
+              chartPath,
+              sidecarPath,
+            }),
+          },
+        });
+
+        return count === 1;
+      },
     });
+
+    const chartRef: UploadedFileRef = {
+      ...revisionTargets.chart,
+      contentType: "text/plain;charset=utf-8",
+    };
+    const sidecarRef: UploadedFileRef = {
+      ...revisionTargets.sidecar,
+      contentType: "application/json;charset=utf-8",
+    };
 
     return NextResponse.json({
       ok: true,
-      songAsset,
+      songAsset: {
+        id: songAssetId,
+        chartBucket: chartRef.bucket,
+        sidecarBucket: sidecarRef.bucket,
+      },
       chart: chartRef,
       sidecar: sidecarRef,
     });

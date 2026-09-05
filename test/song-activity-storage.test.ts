@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { resolveSongAssetStoragePaths } from "../lib/song-activity-storage";
+
+test("retains immutable revision paths for the next save", () => {
+  const pair = { chartPath: "Early_Algebra/revisions/current/waves.chart", sidecarPath: "Early_Algebra/revisions/current/waves.json" };
+  assert.deepEqual(resolveSongAssetStoragePaths({activityKey: "early-algebra", ...pair}), pair);
+});
 
 type SongActivityStorageModule = {
   defaultSongActivityKey?: string;

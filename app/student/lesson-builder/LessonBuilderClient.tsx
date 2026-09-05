@@ -19,13 +19,13 @@ import {
   buildEmbeddedGameUrl,
   createSongLaunchSearchParams,
 } from "@/lib/platform-launch";
+import { requestFreshSongLaunchPackage } from "@/lib/song-launch-client";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import {
   defaultSongActivityKey,
   inferSongActivityKeyFromChartPath,
   normalizeSongActivityKey,
   resolveRequestedSongActivityPackage,
-  resolveSongAssetStoragePaths,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import styles from "../student.module.css";
@@ -10021,7 +10021,18 @@ export default function LessonBuilderClient({
       return;
     }
 
-    const launchParams = createSongLaunchSearchParams(selectedSongLaunch);
+    try {
+    const freshSongLaunch = await requestFreshSongLaunchPackage(
+      selectedSongLaunch,
+    );
+    const launchParams = createSongLaunchSearchParams({
+      songAssetId: freshSongLaunch.songAssetId,
+      activityKey: freshSongLaunch.activityKey,
+      chartUrl: freshSongLaunch.chart.signedUrl,
+      sidecarUrl: freshSongLaunch.sidecar.signedUrl,
+      audioUrl: freshSongLaunch.audio.signedUrl,
+      rhythmDifficultyKey: "ExpertSingle",
+    });
     const launchRoute = navBasePath.startsWith("/demo")
       ? "/demo/launch"
       : `${navBasePath}/game`;
@@ -10046,6 +10057,9 @@ export default function LessonBuilderClient({
 
     persistLaunchParams(launchParams);
     router.push(launchRoute);
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : "Unable to prepare game");
+    }
   }
 
   async function handleSaveToSupabase(options: { showNotice?: boolean } = {}) {
@@ -10073,41 +10087,29 @@ export default function LessonBuilderClient({
 
       /*
        * IMPORTANT:
-       * The source .chart is treated as immutable gameplay data.
-       *
-       * The lesson editor owns the sidecar, not the chart serializer.
-       *
-       * Do NOT perform:
-       * chart -> project -> chart
-       *
-       * because the project model is not guaranteed to preserve every
-       * chart difficulty / section / metadata block.
+       * Imported charts retain their source document. The serializer patches
+       * supported Expert notes only, preserving other difficulties and metadata.
+       * Without that source document, keep the original chart bytes.
        */
-      const chartText = originalChartFileRef.current;
+      const chartText = project?.sourceChart ? projectToChart(project) : originalChartFileRef.current;
 
       if (!chartText.trim()) {
         throw new Error("Cannot save lesson: original chart content is empty.");
       }
 
       const sidecarJson = projectToSidecarJson(timelineSidecar);
-      const activityKey = inferSongActivityKeyFromChartPath(
-        selectedSongStorage.chart.path,
-      );
-      const resolvedPaths = resolveSongAssetStoragePaths({
-        activityKey,
-        chartPath: selectedSongStorage.chart.path,
-        sidecarPath:
-          selectedSongStorage.sidecar?.path ??
-          selectedSongStorage.chart.path.replace(
-            /\.chart$/i,
-            ".encounters.json",
-          ),
-      });
+      const activityKey =
+        selectedSongLaunch?.activityKey ??
+        inferSongActivityKeyFromChartPath(selectedSongStorage.chart.path);
+
+      if (!activityKey || !selectedSongStorage.sidecar) {
+        throw new Error("The selected song activity does not have a complete save package.");
+      }
 
       appendSongFlowDebug("lesson-builder:save:start", "Saving edited chart and sidecar back to Supabase.", {
         songAssetId: selectedSongStorage.id,
-        chartPath: resolvedPaths.chartPath,
-        sidecarPath: resolvedPaths.sidecarPath,
+        chartPath: selectedSongStorage.chart.path,
+        sidecarPath: selectedSongStorage.sidecar.path,
         chartLength: chartText.length,
         sidecarEventCount: timelineSidecar.events.length,
       });
@@ -10122,19 +10124,15 @@ export default function LessonBuilderClient({
           activityKey,
           chart: {
             ...selectedSongStorage.chart,
-            path: resolvedPaths.chartPath,
+            path: selectedSongStorage.chart.path,
             content: chartText,
             contentType:
               selectedSongStorage.chart.contentType ??
               "text/plain;charset=utf-8",
           },
           sidecar: {
-            ...(selectedSongStorage.sidecar ?? {
-              bucket: "SidecarJsons",
-              path: resolvedPaths.sidecarPath,
-              contentType: "application/json;charset=utf-8",
-            }),
-            path: resolvedPaths.sidecarPath,
+            ...selectedSongStorage.sidecar,
+            path: selectedSongStorage.sidecar.path,
             content: sidecarJson,
             contentType:
               selectedSongStorage.sidecar?.contentType ??
@@ -10145,8 +10143,8 @@ export default function LessonBuilderClient({
 
       const result = (await response.json().catch(() => null)) as {
         error?: string;
-        chart?: { path?: string };
-        sidecar?: { path?: string };
+        chart?: { bucket?: string; path?: string };
+        sidecar?: { bucket?: string; path?: string };
       } | null;
 
       if (!response.ok) {
@@ -10157,11 +10155,33 @@ export default function LessonBuilderClient({
       const savedSidecarPath = result?.sidecar?.path ?? null;
 
       if (
-        savedChartPath !== resolvedPaths.chartPath ||
-        savedSidecarPath !== resolvedPaths.sidecarPath
+        !savedChartPath ||
+        !savedSidecarPath ||
+        !result?.chart?.bucket ||
+        !result?.sidecar?.bucket
       ) {
         throw new Error("Saved files could not be verified");
       }
+
+      setSelectedSongStorage((current) =>
+        current?.id === selectedSongStorage.id
+          ? {
+              ...current,
+              chart: {
+                ...current.chart,
+                bucket: result.chart!.bucket!,
+                path: savedChartPath,
+              },
+              sidecar: current.sidecar
+                ? {
+                    ...current.sidecar,
+                    bucket: result.sidecar!.bucket!,
+                    path: savedSidecarPath,
+                  }
+                : null,
+            }
+          : current,
+      );
 
       appendSongFlowDebug("lesson-builder:save:complete", "Supabase save completed successfully.", {
         songAssetId: selectedSongStorage.id,

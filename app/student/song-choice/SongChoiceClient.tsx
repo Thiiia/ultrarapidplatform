@@ -1,4 +1,5 @@
 "use client";
+import { requestFreshSongLaunchParams } from "@/lib/song-launch-client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -6,7 +7,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FC, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { persistLaunchParams } from "@/lib/launch-handoff";
-import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
@@ -465,6 +465,7 @@ export default function SongChoiceClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [isCustomizePromptOpen, setIsCustomizePromptOpen] = useState(false);
+  const [launchError, setLaunchError] = useState("");
   const [durationsById, setDurationsById] = useState<Record<string, number>>(
     {},
   );
@@ -658,18 +659,17 @@ export default function SongChoiceClient({
     router.push(`${navBasePath}/lesson-builder`);
   }
 
-  function handleCustomizeNo() {
+  async function handleCustomizeNo() {
     if (!selectedSong) {
       return;
     }
 
+    setLaunchError("");
+    try {
     const selectedSongPayload = buildSelectedSongPayload(selectedSong);
-    const launchParams = createSongLaunchSearchParams({
+    const launchParams = await requestFreshSongLaunchParams({
       songAssetId: selectedSong.id,
       activityKey: selectedSong.activityKey,
-      chartUrl: selectedSong.chart.signedUrl,
-      sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
-      audioUrl: selectedSong.song.signedUrl,
     });
     const launchRoute = navBasePath.startsWith("/demo")
       ? "/demo/launch"
@@ -696,6 +696,7 @@ export default function SongChoiceClient({
 
     setIsCustomizePromptOpen(false);
     router.push(launchUrl);
+    } catch (error) { setLaunchError(error instanceof Error ? error.message : "Unable to prepare game"); }
   }
 
   return (
@@ -1124,6 +1125,7 @@ export default function SongChoiceClient({
         </button>
       </div>
 
+      {launchError && <p role="alert">{launchError}</p>}
       {isCustomizePromptOpen ? (
         <div
           role="dialog"
