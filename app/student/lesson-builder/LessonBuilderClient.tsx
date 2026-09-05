@@ -10068,7 +10068,10 @@ export default function LessonBuilderClient({
     if (!selectedSongStorage) {
       setSaveStatus("No selected song asset is loaded.");
       if (showNotice) {
-        setSaveNotice({ kind: "error", message: "Save failed." });
+        setSaveNotice({
+          kind: "error",
+          message: "No selected song asset is loaded.",
+        });
       }
       return false;
     }
@@ -10213,7 +10216,10 @@ export default function LessonBuilderClient({
         error instanceof Error ? error.message : "Unable to save lesson files",
       );
       if (showNotice) {
-        setSaveNotice({ kind: "error", message: "Save failed." });
+        setSaveNotice({
+          kind: "error",
+          message: error instanceof Error ? error.message : "Unable to save lesson files",
+        });
       }
       return false;
     } finally {
