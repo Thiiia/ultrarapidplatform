@@ -11,6 +11,7 @@ export type GameplayBlockType =
   | "trigger"
 
 export type ChartProject = {
+  sourceChart?: string
   version: number
   song: SongMetadata
   timing: TimingMetadata

@@ -45,6 +45,35 @@ function sortLegacySidecar(sidecar: LegacySidecarPayload) {
 }
 
 export function projectToChart(project: ChartProject): string {
+  if (project.sourceChart) {
+    // Imported charts own their sync map, metadata and unedited difficulties.
+    // The current editor controls only five-lane Expert note rows.
+    const newline = project.sourceChart.includes("\r\n") ? "\r\n" : "\n";
+    const notes = [...project.notes]
+      .filter((note) => note.difficulty === "expert")
+      .sort((a, b) => a.tick - b.tick || a.lane - b.lane);
+    let index = 0;
+    const section = /(^\[ExpertSingle\][ \t]*\r?\n[ \t]*\{)([\s\S]*?)(^[ \t]*\})/m;
+    const match = project.sourceChart.match(section);
+    if (!match) {
+      if (!notes.length) return project.sourceChart;
+      return project.sourceChart + newline + "[ExpertSingle]" + newline + "{" + newline +
+        notes.map(n => `  ${n.tick} = N ${n.lane} ${n.length}`).join(newline) + newline + "}" + newline;
+    }
+    return project.sourceChart.replace(section, (_all, header: string, body: string, footer: string) => {
+      let updated = body.replace(/^([ \t]*)(\d+)[ \t]*=[ \t]*N[ \t]+([0-4])[ \t]+(\d+)[ \t]*(\r?\n|$)/gm,
+        (row, indent: string, tick: string, lane: string, length: string, ending: string) => {
+          const note = notes[index++];
+          if (!note) return "";
+          if (note.tick === Number(tick) && note.lane === Number(lane) && note.length === Number(length)) return row;
+          return `${indent}${note.tick} = N ${note.lane} ${note.length}${ending}`;
+        });
+      if (index < notes.length) {
+        updated += notes.slice(index).map(n => `  ${n.tick} = N ${n.lane} ${n.length}${newline}`).join("");
+      }
+      return header + updated + footer;
+    });
+  }
   const song = `[Song]\n{\n  Name = \"${escapeChartString(project.song.title)}\"\n  Artist = \"${escapeChartString(project.song.artist)}\"\n  Resolution = \"${project.timing.resolution}\"\n}`;
 
   const syncTrack = `[SyncTrack]\n{\n  0 = B ${Math.round(project.timing.bpm * 1000)}\n}`;
