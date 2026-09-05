@@ -9,6 +9,7 @@ import {
   type SidecarPayload as StoreSidecarPayload,
 } from "@/lib/editor/editor-store";
 import { chartToProject } from "@/lib/editor/chart-to-project";
+import { createLessonClock, mapLessonTimes } from "@/lib/editor/lesson-timing";
 import {
   projectToChart,
   projectToSidecarJson,
@@ -1194,7 +1195,7 @@ function savedEquationsFromTimelineEvents(events: TimelineEventSlot[]) {
   return Array.from(byState.values());
 }
 
-function sidecarFromTimelineEvents(
+function sidecarInSecondsFromTimelineEvents(
   events: TimelineEventSlot[],
 ): SidecarPayload {
   const sidecarEvents = events.flatMap((event, eventIndex): SidecarEvent[] => {
@@ -3891,9 +3892,8 @@ function timelineTickToSeconds(tick: number) {
     return 0;
   }
 
-  // Existing song assets appear to store event timing as ticks. Treat large
-  // values as milliseconds for this visual pass, and small values as seconds.
-  return tick > 1000 ? tick / 1000 : tick;
+  // All editor positions use audio seconds. Convert at the file boundary.
+  return tick;
 }
 
 const timelineEventDurationSeconds = 8;
@@ -8920,7 +8920,7 @@ export default function LessonBuilderClient({
 
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
-    [timelineEvents],
+    [timelineEvents, chartFile],
   );
 
   const equationViewerBlockSize = useMemo(
@@ -9201,18 +9201,38 @@ export default function LessonBuilderClient({
     [chartFile, metadata, sidecar],
   );
 
+  function sidecarFromTimelineEvents(events: TimelineEventSlot[], includeRecorded = false): SidecarPayload {
+    const seconds = sidecarInSecondsFromTimelineEvents(events);
+    if (includeRecorded) {
+      const recorded: SidecarEvent[] = rtcmDraftMechanics.map((draft) => ({
+        ...draft,
+        type: "ALG_MECHANIC" as const,
+        ...(draft.mechanic === "hit" ? { hits: 1 } : {
+          endTick: draft.id === rtcmPendingHold?.draftId
+            ? Math.max(draft.tick, currentSongSeconds)
+            : draft.endTick ?? draft.tick,
+        }),
+      }));
+      seconds.events = sortEvents([...seconds.events, ...recorded]);
+    }
+    const clock = createLessonClock(chartFile || originalChartFileRef.current);
+    return { ...seconds, events: mapLessonTimes(seconds.events, clock.toTick) };
+  }
+
   function loadSidecarIntoTimeline(
     nextSidecar: SidecarPayload,
     equationSlotCount: number | null,
     eventCounts: MechanicCounts[] = [],
     eventTicks: number[] = [],
     nextMode: "event" | "equation" | "rctm1" | "rctm2" = "event",
+    sourceChart = chartFile || originalChartFileRef.current,
   ) {
+    const clock = createLessonClock(sourceChart);
     const nextEvents = timelineEventsFromSidecar(
-      nextSidecar,
+      { ...nextSidecar, events: mapLessonTimes(nextSidecar.events, clock.toSeconds) },
       equationSlotCount,
       eventCounts,
-      eventTicks,
+      eventTicks.map(clock.toSeconds),
     );
     const importedEquations = savedEquationsFromTimelineEvents(nextEvents);
 
@@ -9252,9 +9272,7 @@ export default function LessonBuilderClient({
     });
     setActiveEventId(nextEvents[0]?.id ?? null);
     setMode(nextMode);
-    setStoreSidecar(
-      sidecarFromTimelineEvents(nextEvents) as StoreSidecarPayload,
-    );
+    setStoreSidecar(nextSidecar as StoreSidecarPayload);
   }
 
   function applySongAssetEquationSlotCount(count: number | null) {
@@ -9365,7 +9383,7 @@ export default function LessonBuilderClient({
 
     setChartFile(nextChartFile);
 
-    loadSidecarIntoTimeline(rehydratedSidecar, null, [], [], "rctm1");
+    loadSidecarIntoTimeline(rehydratedSidecar, null, [], [], "rctm1", nextChartFile);
 
     try {
       setProject(
@@ -9613,7 +9631,7 @@ export default function LessonBuilderClient({
       tokens: cloneTokens(draftTokens),
     };
 
-    setSavedEquations((current) => [...current, nextEquation]);
+    setSavedEquations((current) => [nextEquation, ...current]);
     setSelectedEquationId(nextEquation.id);
     setLibraryTab("mine");
     setDraftTokens([]);
@@ -10086,7 +10104,7 @@ export default function LessonBuilderClient({
           metadata?.uploadedFileName || uploadedSongName || "audio.mp3",
       };
 
-      const timelineSidecar = sidecarFromTimelineEvents(timelineEvents);
+      const timelineSidecar = sidecarFromTimelineEvents(timelineEvents, true);
 
       /*
        * IMPORTANT:
@@ -10540,7 +10558,7 @@ export default function LessonBuilderClient({
         originalChartFileRef.current = nextChartFile;
         setChartFile(nextChartFile);
         setUploadedChartName(nextChartName);
-        loadSidecarIntoTimeline(normalizedSidecar, null);
+        loadSidecarIntoTimeline(normalizedSidecar, null, [], [], "event", nextChartFile);
 
         const payload: LessonBuilderPayload = {
           chartFile: nextChartFile,
@@ -10673,13 +10691,14 @@ export default function LessonBuilderClient({
       }
 
       if (payload?.chartFile) {
+        originalChartFileRef.current = payload.chartFile;
         setChartFile(payload.chartFile);
 
         if (payload.analysisMetadata?.uploadedFileName) {
           setUploadedChartName(payload.analysisMetadata.uploadedFileName);
         }
 
-        loadSidecarIntoTimeline(normalizedSidecar, null);
+        loadSidecarIntoTimeline(normalizedSidecar, null, [], [], "event", payload.chartFile);
         setProject(
           chartToProject({ ...payload, rawResults: normalizedSidecar }),
         );
@@ -11548,7 +11567,7 @@ export default function LessonBuilderClient({
   }
 
   function handleDownloadTimelineFiles() {
-    const currentSidecar = sidecarFromTimelineEvents(timelineEvents);
+    const currentSidecar = sidecarFromTimelineEvents(timelineEvents, true);
     const baseName = getDownloadBaseName(
       uploadedChartName || metadata?.uploadedFileName || metadata?.songTitle || uploadedSongName,
       "lesson",
@@ -11629,6 +11648,7 @@ export default function LessonBuilderClient({
         uploadedFileName: file.name,
       };
 
+      originalChartFileRef.current = nextChartFile;
       setChartFile(nextChartFile);
       setUploadedChartName(file.name);
       setMetadata(nextMetadata);

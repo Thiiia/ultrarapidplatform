@@ -20,7 +20,10 @@ export function validateLessonContent(chart: string, json: string) {
   const payload = JSON.parse(json) as Row;
   if (!payload || ![1,2].includes(Number(payload.version))) throw new Error('Unsupported companion version');
   const rows = payload.version === 2 ? payload.equations : payload.events;
-  if (!Array.isArray(rows) || !rows.length) throw new Error('Companion must contain encounters');
+  // Saving may persist an empty editor timeline (including deleting its last
+  // encounter). Gameplay readiness must not prevent saving that authored state.
+  // Missing or malformed collections still indicate an invalid payload.
+  if (!Array.isArray(rows)) throw new Error('Companion encounter collection must be an array');
   const identities = new Set<string>();
   const actions = new Map<number, Set<string>>();
   let previous = -1;
