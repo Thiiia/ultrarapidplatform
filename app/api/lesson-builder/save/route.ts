@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 import { validateLessonContent } from "@/lib/lesson-content";
-import { getCurrentAppUser } from "@/lib/current-user";
 import { publishLessonSaveRevision } from "@/lib/lesson-save-revision";
 import { prisma } from "@/lib/prisma";
 import {
@@ -33,11 +32,6 @@ type UploadedFileRef = {
   bucket: string;
   path: string;
   contentType: string;
-};
-
-type LessonSaveUser = {
-  role: "student" | "teacher" | "admin";
-  status: "active" | "inactive" | "invited" | "suspended";
 };
 
 function readRequiredString(value: unknown, label: string) {
@@ -85,21 +79,10 @@ async function uploadTextFile({
   return { bucket, path, contentType };
 }
 
-export function getLessonSaveAuthorizationError(
-  user: LessonSaveUser | null,
-): { error: "Unauthorized" | "Forbidden"; status: 401 | 403 } | null {
-  if (!user) {
-    return { error: "Unauthorized", status: 401 };
-  }
+export function isSameOriginLessonSaveRequest(request: Request) {
+  const origin = request.headers.get("origin");
 
-  if (
-    user.status !== "active" ||
-    (user.role !== "teacher" && user.role !== "admin")
-  ) {
-    return { error: "Forbidden", status: 403 };
-  }
-
-  return null;
+  return origin === new URL(request.url).origin;
 }
 
 export function getAllowedLessonSaveTargets(
@@ -169,15 +152,8 @@ export function hasAllowedLessonSaveTargets(
 
 export async function POST(request: Request) {
   try {
-    const authorizationError = getLessonSaveAuthorizationError(
-      await getCurrentAppUser(),
-    );
-
-    if (authorizationError) {
-      return NextResponse.json(
-        { error: authorizationError.error },
-        { status: authorizationError.status },
-      );
+    if (!isSameOriginLessonSaveRequest(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const payload = (await request.json()) as SavePayload;

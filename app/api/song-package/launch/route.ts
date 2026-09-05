@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getCurrentAppUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
 import { resolveFreshSongLaunchPackage } from "@/lib/song-launch-package";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
@@ -29,16 +28,6 @@ async function createSignedUrl(bucket: string, path: string) {
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentAppUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (user.status !== "active") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const payload = (await request.json()) as {
       songAssetId?: unknown;
       activityKey?: unknown;

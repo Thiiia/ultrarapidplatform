@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 type SaveRouteSecurity = {
-  getLessonSaveAuthorizationError?: (user: {
-    role: "student" | "teacher" | "admin";
-    status: "active" | "inactive" | "invited" | "suspended";
-  } | null) => { error: "Unauthorized" | "Forbidden"; status: 401 | 403 } | null;
+  isSameOriginLessonSaveRequest?: (request: Request) => boolean;
   getAllowedLessonSaveTargets?: (
     songAsset: Record<string, unknown>,
     activityKey: "number-bonds" | "equations" | "missing-numbers" | "early-algebra",
@@ -42,55 +39,31 @@ async function loadSaveRoute(): Promise<SaveRouteSecurity> {
   return (await import("../app/api/lesson-builder/save/route")) as SaveRouteSecurity;
 }
 
-test("rejects unauthenticated and non-editor lesson saves", async () => {
+test("allows the public Team Editor to save from the same origin", async () => {
   const saveRoute = await loadSaveRoute();
 
   assert.equal(
-    typeof saveRoute.getLessonSaveAuthorizationError,
+    typeof saveRoute.isSameOriginLessonSaveRequest,
     "function",
-    "save route must expose its authorization guard",
-  );
-  assert.deepEqual(saveRoute.getLessonSaveAuthorizationError!(null), {
-    error: "Unauthorized",
-    status: 401,
-  });
-  assert.deepEqual(
-    saveRoute.getLessonSaveAuthorizationError!({
-      role: "student",
-      status: "active",
-    }),
-    { error: "Forbidden", status: 403 },
-  );
-  assert.deepEqual(
-    saveRoute.getLessonSaveAuthorizationError!({
-      role: "teacher",
-      status: "suspended",
-    }),
-    { error: "Forbidden", status: 403 },
-  );
-});
-
-test("allows active teacher and admin lesson saves", async () => {
-  const saveRoute = await loadSaveRoute();
-
-  assert.equal(
-    typeof saveRoute.getLessonSaveAuthorizationError,
-    "function",
-    "save route must expose its authorization guard",
+    "save route must allow same-origin public editor requests",
   );
   assert.equal(
-    saveRoute.getLessonSaveAuthorizationError!({
-      role: "teacher",
-      status: "active",
-    }),
-    null,
+    saveRoute.isSameOriginLessonSaveRequest!(
+      new Request("https://platform.example/api/lesson-builder/save", {
+        method: "POST",
+        headers: { origin: "https://platform.example" },
+      }),
+    ),
+    true,
   );
   assert.equal(
-    saveRoute.getLessonSaveAuthorizationError!({
-      role: "admin",
-      status: "active",
-    }),
-    null,
+    saveRoute.isSameOriginLessonSaveRequest!(
+      new Request("https://platform.example/api/lesson-builder/save", {
+        method: "POST",
+        headers: { origin: "https://other.example" },
+      }),
+    ),
+    false,
   );
 });
 
