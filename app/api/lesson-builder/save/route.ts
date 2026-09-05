@@ -108,6 +108,10 @@ export function getAllowedLessonSaveTargets(
     throw new Error("Song activity chart path is missing");
   }
 
+  if (!selectedPaths.sidecarPath) {
+    throw new Error("Song activity sidecar path is missing");
+  }
+
   const resolvedPaths = resolveSongAssetStoragePaths({
     activityKey,
     chartPath: selectedPaths.chartPath,

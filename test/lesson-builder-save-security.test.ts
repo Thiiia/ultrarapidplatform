@@ -118,6 +118,25 @@ test("derives lesson save targets from the selected song asset activity", async 
   );
 });
 
+test("rejects an activity missing its own sidecar package instead of using legacy paths", async () => {
+  const saveRoute = await loadSaveRoute();
+  const assetWithoutEquationsSidecar = {
+    ...songAsset,
+    chartPath: "Legacy/waves.chart",
+    sidecarPath: "Legacy/waves.json",
+    equationsSidecarPath: undefined,
+  };
+
+  assert.throws(
+    () =>
+      saveRoute.getAllowedLessonSaveTargets!(
+        assetWithoutEquationsSidecar,
+        "equations",
+      ),
+    /Song activity sidecar path is missing/,
+  );
+});
+
 test("rejects client bucket or path values outside the selected song targets", async () => {
   const saveRoute = await loadSaveRoute();
   const targets = saveRoute.getAllowedLessonSaveTargets!(songAsset, "number-bonds");
