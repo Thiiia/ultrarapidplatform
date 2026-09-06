@@ -45,11 +45,9 @@ export default async function HomePage() {
           aria-hidden="true"
           style={{
             position: "fixed",
-            left: 0,
-            right: 0,
-            bottom: 0,
+            inset: 0,
             width: "100vw",
-            height: "65vh",
+            height: "100dvh",
             overflow: "hidden",
             zIndex: 0,
             pointerEvents: "none",
@@ -67,14 +65,11 @@ export default async function HomePage() {
             title="UltraRapid landing background video"
             style={{
               position: "absolute",
-              left: "50%",
-              bottom: "-25%",
-              width: "115vw",
-              height: "72vh",
-              minWidth: "calc(72vh * 1.7778)",
-              minHeight: "72vh",
-              transform: "translateX(-50%)",
+              inset: 0,
+              width: "100%",
+              height: "100%",
               objectFit: "cover",
+              objectPosition: "center bottom",
               filter: "brightness(1.15) contrast(1.08) saturate(1.05)",
             }}
           />
