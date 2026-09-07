@@ -1,11 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+type SongChartTargets = {
+  chartBucket: string;
+  chartPath: string;
+  sidecarBucket: string;
+  sidecarPath: string;
+};
+
 type SongLaunchPackageModule = {
   resolveFreshSongLaunchPackage?: (input: {
     songAssetId: string;
     activityKey: string;
+    authorId: string | null;
     loadSongAsset: (id: string) => Promise<Record<string, unknown> | null>;
+    loadSongChart: (
+      songAssetId: string,
+      activityKey: string,
+      authorId: string | null,
+    ) => Promise<SongChartTargets | null>;
     createSignedUrl: (bucket: string, path: string) => Promise<string>;
   }) => Promise<{
     songAssetId: string;
@@ -24,7 +37,7 @@ async function loadSongLaunchPackageModule(): Promise<SongLaunchPackageModule | 
   }
 }
 
-test("resolves and signs the current complete activity package from the canonical song asset", async () => {
+test("resolves and signs the current complete activity package for the requesting author", async () => {
   const songLaunchPackage = await loadSongLaunchPackageModule();
 
   assert.equal(
@@ -37,6 +50,7 @@ test("resolves and signs the current complete activity package from the canonica
   const resolved = await songLaunchPackage!.resolveFreshSongLaunchPackage!({
     songAssetId: "song-123",
     activityKey: "early-algebra",
+    authorId: "author-7",
     loadSongAsset: async (id) => {
       assert.equal(id, "song-123");
       return {
@@ -44,10 +58,17 @@ test("resolves and signs the current complete activity package from the canonica
         isActive: true,
         songBucket: "Songs",
         songPath: "albums/waves.mp3",
+      };
+    },
+    loadSongChart: async (songAssetId, activityKey, authorId) => {
+      assert.equal(songAssetId, "song-123");
+      assert.equal(activityKey, "early-algebra");
+      assert.equal(authorId, "author-7");
+      return {
         chartBucket: "Charts",
+        chartPath: "Early_Algebra/revisions/rev-7/waves.chart",
         sidecarBucket: "SidecarJsons",
-        earlyAlgebraChartPath: "Early_Algebra/revisions/rev-7/waves.chart",
-        earlyAlgebraSidecarPath: "Early_Algebra/revisions/rev-7/waves.json",
+        sidecarPath: "Early_Algebra/revisions/rev-7/waves.json",
       };
     },
     createSignedUrl: async (bucket, path) => {
@@ -82,7 +103,7 @@ test("resolves and signs the current complete activity package from the canonica
   });
 });
 
-test("rejects an incomplete activity package before creating signed URLs", async () => {
+test("rejects a song/activity nobody has authored yet before creating signed URLs", async () => {
   const songLaunchPackage = await loadSongLaunchPackageModule();
   let signedUrlCalls = 0;
 
@@ -90,23 +111,22 @@ test("rejects an incomplete activity package before creating signed URLs", async
     songLaunchPackage!.resolveFreshSongLaunchPackage!({
       songAssetId: "song-123",
       activityKey: "equations",
+      authorId: "author-7",
       loadSongAsset: async () => ({
         id: "song-123",
         isActive: true,
         songBucket: "Songs",
         songPath: "albums/waves.mp3",
-        chartBucket: "Charts",
-        sidecarBucket: "SidecarJsons",
-        equationsChartPath: "Equations/waves.chart",
-        equationsSidecarPath: null,
       }),
+      loadSongChart: async () => null,
       createSignedUrl: async () => {
         signedUrlCalls += 1;
         return "unused";
       },
     }),
-    /Missing sidecar path/,
+    /No chart has been authored/,
   );
 
   assert.equal(signedUrlCalls, 0);
 });
+

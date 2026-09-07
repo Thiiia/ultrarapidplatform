@@ -18,7 +18,6 @@ import { persistLaunchParams } from "@/lib/launch-handoff";
 import { loadSongPackageAssets } from "@/lib/editor/song-package";
 import {
   inferSongActivityKeyFromChartPath,
-  resolveSongAssetStoragePaths,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import type { SongChoice } from "@/lib/song-storage";
@@ -5254,14 +5253,6 @@ export default function LessonBuilderClient({
         selectedSongStorage.chart.path,
       );
 
-      const resolvedPaths = resolveSongAssetStoragePaths({
-        activityKey,
-        chartPath: selectedSongStorage.chart.path,
-        sidecarPath:
-          selectedSongStorage.sidecar?.path ??
-          selectedSongStorage.chart.path.replace(/\.chart$/i, ".json"),
-      });
-
       const response = await fetch("/api/lesson-builder/save", {
         method: "POST",
         headers: {
@@ -5270,28 +5261,8 @@ export default function LessonBuilderClient({
         body: JSON.stringify({
           songAssetId: selectedSongStorage.id,
           activityKey,
-
-          chart: {
-            ...selectedSongStorage.chart,
-            path: resolvedPaths.chartPath,
-            content: chartText,
-            contentType:
-              selectedSongStorage.chart.contentType ??
-              "text/plain;charset=utf-8",
-          },
-
-          sidecar: {
-            ...(selectedSongStorage.sidecar ?? {
-              bucket: "SidecarJsons",
-              path: resolvedPaths.sidecarPath,
-              contentType: "application/json;charset=utf-8",
-            }),
-            path: resolvedPaths.sidecarPath,
-            content: sidecarJson,
-            contentType:
-              selectedSongStorage.sidecar?.contentType ??
-              "application/json;charset=utf-8",
-          },
+          chart: { content: chartText },
+          sidecar: { content: sidecarJson },
         }),
       });
 

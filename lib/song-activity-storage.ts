@@ -6,11 +6,6 @@ export type SongActivityKey =
 
 export const defaultSongActivityKey: SongActivityKey = "number-bonds";
 
-type ActivityPathFieldNames = {
-  chartField: string;
-  sidecarField: string;
-};
-
 type SongActivityFolders = {
   chartFolder: string;
   sidecarFolder: string;
@@ -35,40 +30,12 @@ const songActivityFoldersByKey: Record<SongActivityKey, SongActivityFolders> = {
   },
 };
 
-const songAssetPathFieldsByKey: Record<SongActivityKey, ActivityPathFieldNames> = {
-  "number-bonds": {
-    chartField: "numberBondsChartPath",
-    sidecarField: "numberBondsSidecarPath",
-  },
-  equations: {
-    chartField: "equationsChartPath",
-    sidecarField: "equationsSidecarPath",
-  },
-  "missing-numbers": {
-    chartField: "missingNumbersChartPath",
-    sidecarField: "missingNumbersSidecarPath",
-  },
-  "early-algebra": {
-    chartField: "earlyAlgebraChartPath",
-    sidecarField: "earlyAlgebraSidecarPath",
-  },
-};
-
 function normalizeToken(value: string) {
   return value
     .trim()
     .toLowerCase()
     .replace(/[_\s]+/g, "-")
     .replace(/[^a-z0-9-]/g, "");
-}
-
-function getFileNameFromPath(path: string, fallbackFileName: string) {
-  const fileName = path.split("/").pop()?.trim();
-  return fileName && fileName.length > 0 ? fileName : fallbackFileName;
-}
-
-function toJsonFileName(fileName: string) {
-  return fileName.replace(/\.[^/.]+$/i, "") + ".json";
 }
 
 export function normalizeSongActivityKey(
@@ -180,78 +147,26 @@ export function inferSongActivityKeyFromChartPath(
   return normalizeSongActivityKey(folder);
 }
 
-export function resolveSongAssetStoragePaths({
+/**
+ * Deterministic per-author, per-activity storage paths for a SongChart row.
+ * Used both to materialize a brand-new (blank) chart/sidecar and to validate
+ * that a save request targets the storage location it's actually allowed to write to.
+ */
+export function buildAuthoredChartStoragePaths({
   activityKey,
-  chartPath,
-  sidecarPath,
-}: {
-  activityKey: SongActivityKey | null;
-  chartPath: string;
-  sidecarPath?: string | null;
-}) {
-  const chartFileName = getFileNameFromPath(chartPath, "selected.chart");
-  const sidecarFileName = sidecarPath
-    ? getFileNameFromPath(sidecarPath, toJsonFileName(chartFileName))
-    : toJsonFileName(chartFileName);
-
-  if (!activityKey) {
-    return {
-      chartPath,
-      sidecarPath: sidecarPath ?? toJsonFileName(chartPath),
-    };
-  }
-
-  const folders = songActivityFoldersByKey[activityKey];
-
-  return {
-    chartPath: chartPath.startsWith(`${folders.chartFolder}/`) ? chartPath : `${folders.chartFolder}/${chartFileName}`,
-    sidecarPath: sidecarPath?.startsWith(`${folders.sidecarFolder}/`) ? sidecarPath : `${folders.sidecarFolder}/${sidecarFileName}`,
-  };
-}
-
-function readStringProperty(
-  record: Record<string, unknown>,
-  key: string,
-): string | null {
-  const value = record[key];
-
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-export function getSongAssetPathsForActivity(
-  songAssetRecord: Record<string, unknown>,
-  activityKey: SongActivityKey,
-) {
-  const { chartField, sidecarField } = songAssetPathFieldsByKey[activityKey];
-
-  const chartPath = readStringProperty(songAssetRecord, chartField) ?? "";
-  const sidecarPath = readStringProperty(songAssetRecord, sidecarField);
-
-  return {
-    activityKey,
-    chartPath,
-    sidecarPath,
-  };
-}
-
-export function buildSongAssetActivityPathUpdate({
-  activityKey,
-  chartPath,
-  sidecarPath,
+  songAssetId,
+  authorId,
 }: {
   activityKey: SongActivityKey;
-  chartPath: string;
-  sidecarPath: string;
+  songAssetId: string;
+  authorId: string;
 }) {
-  const { chartField, sidecarField } = songAssetPathFieldsByKey[activityKey];
+  const folders = songActivityFoldersByKey[activityKey];
+  const fileBaseName = `${songAssetId}__${authorId}`;
 
   return {
-    [chartField]: chartPath,
-    [sidecarField]: sidecarPath,
+    chartPath: `${folders.chartFolder}/${fileBaseName}.chart`,
+    sidecarPath: `${folders.sidecarFolder}/${fileBaseName}.json`,
   };
 }
+

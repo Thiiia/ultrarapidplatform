@@ -1,22 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveSongAssetStoragePaths } from "../lib/song-activity-storage";
+import { buildAuthoredChartStoragePaths } from "../lib/song-activity-storage";
 
-test("retains immutable revision paths for the next save", () => {
-  const pair = { chartPath: "Early_Algebra/revisions/current/waves.chart", sidecarPath: "Early_Algebra/revisions/current/waves.json" };
-  assert.deepEqual(resolveSongAssetStoragePaths({activityKey: "early-algebra", ...pair}), pair);
+test("builds deterministic per-author storage paths", () => {
+  const paths = buildAuthoredChartStoragePaths({
+    activityKey: "early-algebra",
+    songAssetId: "song-123",
+    authorId: "user-456",
+  });
+  assert.deepEqual(paths, {
+    chartPath: "Early_Algebra/song-123__user-456.chart",
+    sidecarPath: "Early_Algebra/song-123__user-456.json",
+  });
 });
 
 type SongActivityStorageModule = {
   defaultSongActivityKey?: string;
-  getSongAssetPathsForActivity?: (
-    songAssetRecord: Record<string, unknown>,
-    requestedActivityKey: "early-algebra",
-  ) => {
-    activityKey: string;
-    chartPath: string;
-    sidecarPath: string | null;
-  };
   resolveRequestedSongActivityKey?: (
     activity: string | null | undefined,
   ) => string | null;
@@ -29,14 +28,6 @@ type SongActivityStorageModule = {
     chartPath: string;
     sidecarPath: string | null;
   };
-  resolveSongAssetStoragePaths?: (input: {
-    activityKey: "early-algebra";
-    chartPath: string;
-    sidecarPath?: string | null;
-  }) => {
-    chartPath: string;
-    sidecarPath: string;
-  };
 };
 
 async function loadSongActivityStorageModule(): Promise<SongActivityStorageModule | null> {
@@ -48,48 +39,15 @@ async function loadSongActivityStorageModule(): Promise<SongActivityStorageModul
   }
 }
 
-test("does not attach a Missing Numbers sidecar to an Early Algebra chart", async () => {
-  const songActivityStorage = await loadSongActivityStorageModule();
-
-  assert.equal(
-    typeof songActivityStorage?.getSongAssetPathsForActivity,
-    "function",
-    "song-activity-storage must expose getSongAssetPathsForActivity",
-  );
-
-  const paths = songActivityStorage!.getSongAssetPathsForActivity!(
-    {
-      earlyAlgebraChartPath: "Early_Algebra/waves.chart",
-      missingNumbersSidecarPath: "Missing_Numbers/waves.json",
-      chartPath: "Missing_Numbers/waves.chart",
-      sidecarPath: "Missing_Numbers/waves.json",
-    },
-    "early-algebra",
-  );
-
-  assert.equal(paths.chartPath, "Early_Algebra/waves.chart");
-  assert.equal(paths.sidecarPath, null);
-});
-
-test("uses the Early Algebra sidecar folder when deriving storage paths", async () => {
-  const songActivityStorage = await loadSongActivityStorageModule();
-
-  assert.equal(
-    typeof songActivityStorage?.resolveSongAssetStoragePaths,
-    "function",
-    "song-activity-storage must expose resolveSongAssetStoragePaths",
-  );
-
-  const paths = songActivityStorage!.resolveSongAssetStoragePaths!({
-    activityKey: "early-algebra",
-    chartPath: "Early_Algebra/waves.chart",
-    sidecarPath: null,
+test("builds Missing Numbers storage paths in the Missing Numbers folder", () => {
+  const paths = buildAuthoredChartStoragePaths({
+    activityKey: "missing-numbers",
+    songAssetId: "waves",
+    authorId: "author-1",
   });
 
-  assert.deepEqual(paths, {
-    chartPath: "Early_Algebra/waves.chart",
-    sidecarPath: "Early_Algebra/waves.json",
-  });
+  assert.equal(paths.chartPath, "Missing_Numbers/waves__author-1.chart");
+  assert.equal(paths.sidecarPath, "Missing_Numbers/waves__author-1.json");
 });
 
 test("rejects an invalid activity request instead of selecting another package", async () => {

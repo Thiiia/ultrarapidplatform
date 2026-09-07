@@ -4,21 +4,16 @@ import { randomUUID } from "crypto";
 import { validateLessonContent } from "@/lib/lesson-content";
 import { publishLessonSaveRevision } from "@/lib/lesson-save-revision";
 import { prisma } from "@/lib/prisma";
+import { requireCurrentAppUser } from "@/lib/current-user";
 import {
-  buildSongAssetActivityPathUpdate,
+  buildAuthoredChartStoragePaths,
   defaultSongActivityKey,
-  getSongAssetPathsForActivity,
-  inferSongActivityKeyFromChartPath,
   normalizeSongActivityKey,
-  resolveSongAssetStoragePaths,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 
 type SaveFilePayload = {
-  bucket?: unknown;
-  path?: unknown;
   content?: unknown;
-  contentType?: unknown;
 };
 
 type SavePayload = {
@@ -85,69 +80,55 @@ export function isSameOriginLessonSaveRequest(request: Request) {
   return origin === new URL(request.url).origin;
 }
 
-export function getAllowedLessonSaveTargets(
-  songAsset: Record<string, unknown>,
-  activityKey: SongActivityKey,
-): { chart: Omit<UploadedFileRef, "contentType">; sidecar: Omit<UploadedFileRef, "contentType"> } {
-  const selectedPaths = getSongAssetPathsForActivity(songAsset, activityKey);
-
-  if (!selectedPaths.chartPath) {
-    throw new Error("Song activity chart path is missing");
-  }
-
-  if (!selectedPaths.sidecarPath) {
-    throw new Error("Song activity sidecar path is missing");
-  }
-
-  const resolvedPaths = resolveSongAssetStoragePaths({
-    activityKey,
-    chartPath: selectedPaths.chartPath,
-    sidecarPath: selectedPaths.sidecarPath,
+/**
+ * Finds (or lazily creates) the SongChart row that owns this user's chart
+ * for the given song + activity, returning its current storage targets.
+ */
+async function getOrCreateAuthoredChartTargets({
+  songAssetId,
+  authorId,
+  activityKey,
+}: {
+  songAssetId: string;
+  authorId: string;
+  activityKey: SongActivityKey;
+}): Promise<{ chart: Omit<UploadedFileRef, "contentType">; sidecar: Omit<UploadedFileRef, "contentType"> }> {
+  const existing = await prisma.songChart.findUnique({
+    where: {
+      songAssetId_authorId_activityKey: { songAssetId, authorId, activityKey },
+    },
   });
-  const chartBucket = readRequiredString(songAsset.chartBucket, "chartBucket");
-  const sidecarBucket =
-    typeof songAsset.sidecarBucket === "string" &&
-    songAsset.sidecarBucket.trim().length > 0
-      ? songAsset.sidecarBucket.trim()
-      : "SidecarJsons";
+
+  if (existing) {
+    return {
+      chart: { bucket: existing.chartBucket, path: existing.chartPath },
+      sidecar: {
+        bucket: existing.sidecarBucket ?? "SidecarJsons",
+        path:
+          existing.sidecarPath ??
+          buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorId }).sidecarPath,
+      },
+    };
+  }
+
+  const paths = buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorId });
+
+  await prisma.songChart.create({
+    data: {
+      songAssetId,
+      authorId,
+      activityKey,
+      chartBucket: "Charts",
+      chartPath: paths.chartPath,
+      sidecarBucket: "SidecarJsons",
+      sidecarPath: paths.sidecarPath,
+    },
+  });
 
   return {
-    chart: { bucket: chartBucket, path: resolvedPaths.chartPath },
-    sidecar: { bucket: sidecarBucket, path: resolvedPaths.sidecarPath },
+    chart: { bucket: "Charts", path: paths.chartPath },
+    sidecar: { bucket: "SidecarJsons", path: paths.sidecarPath },
   };
-}
-
-function matchesStorageTarget(
-  file: SaveFilePayload,
-  target: Omit<UploadedFileRef, "contentType">,
-) {
-  if (
-    typeof file.bucket !== "string" ||
-    typeof file.path !== "string" ||
-    file.bucket.trim().length === 0 ||
-    file.path.trim().length === 0
-  ) {
-    return false;
-  }
-
-  return (
-    file.bucket.trim() === target.bucket && file.path.trim() === target.path
-  );
-}
-
-export function hasAllowedLessonSaveTargets(
-  files: Pick<SavePayload, "chart" | "sidecar">,
-  targets: {
-    chart: Omit<UploadedFileRef, "contentType">;
-    sidecar: Omit<UploadedFileRef, "contentType">;
-  },
-) {
-  return (
-    !!files.chart &&
-    !!files.sidecar &&
-    matchesStorageTarget(files.chart, targets.chart) &&
-    matchesStorageTarget(files.sidecar, targets.sidecar)
-  );
 }
 
 export async function POST(request: Request) {
@@ -155,6 +136,8 @@ export async function POST(request: Request) {
     if (!isSameOriginLessonSaveRequest(request)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const currentUser = await requireCurrentAppUser();
 
     const payload = (await request.json()) as SavePayload;
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId").toLowerCase();
@@ -166,48 +149,31 @@ export async function POST(request: Request) {
       );
     }
 
-    const requestedChartPath = readRequiredString(payload.chart.path, "chart.path");
     if (payload.activityKey != null && (typeof payload.activityKey !== "string" || !normalizeSongActivityKey(payload.activityKey))) {
       return NextResponse.json({ error: "Unsupported song activity" }, { status: 400 });
     }
     const activityKey =
       normalizeSongActivityKey(
         typeof payload.activityKey === "string" ? payload.activityKey : null,
-      ) ??
-      inferSongActivityKeyFromChartPath(requestedChartPath) ??
-      defaultSongActivityKey;
+      ) ?? defaultSongActivityKey;
+
     const existingSongAsset = await prisma.songAsset.findUnique({
       where: { id: songAssetId },
-      select: {
-        id: true,
-        isActive: true,
-        chartBucket: true,
-        sidecarBucket: true,
-        numberBondsChartPath: true,
-        equationsChartPath: true,
-        missingNumbersChartPath: true,
-        earlyAlgebraChartPath: true,
-        numberBondsSidecarPath: true,
-        equationsSidecarPath: true,
-        missingNumbersSidecarPath: true,
-        earlyAlgebraSidecarPath: true,
-      },
+      select: { id: true, isActive: true },
     });
 
     if (!existingSongAsset || !existingSongAsset.isActive) {
       return NextResponse.json({ error: "Song not found" }, { status: 404 });
     }
 
-    const targets = getAllowedLessonSaveTargets(existingSongAsset, activityKey);
+    const targets = await getOrCreateAuthoredChartTargets({
+      songAssetId,
+      authorId: currentUser.id,
+      activityKey,
+    });
 
-    if (!hasAllowedLessonSaveTargets(payload, targets)) {
-      return NextResponse.json({ error: "Invalid save target" }, { status: 400 });
-    }
-
-    readRequiredString(payload.chart.content, "chart.content");
-    readRequiredString(payload.sidecar.content, "sidecar.content");
-    const chartContent = payload.chart.content as string;
-    const sidecarContent = payload.sidecar.content as string;
+    const chartContent = readRequiredString(payload.chart.content, "chart.content");
+    const sidecarContent = readRequiredString(payload.sidecar.content, "sidecar.content");
     try { validateLessonContent(chartContent, sidecarContent); }
     catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid lesson content" }, { status: 400 }); }
     const revisionTargets = await publishLessonSaveRevision({
@@ -219,26 +185,21 @@ export async function POST(request: Request) {
       },
       upload: async (file) => { await uploadTextFile(file); },
       updatePointers: async ({ chartPath, sidecarPath }) => {
-        const { count } = await prisma.songAsset.updateMany({
+        const { count } = await prisma.songChart.updateMany({
           where: {
-            id: songAssetId,
-            isActive: true,
+            songAssetId,
+            authorId: currentUser.id,
+            activityKey,
             chartBucket: targets.chart.bucket,
+            chartPath: targets.chart.path,
             sidecarBucket: targets.sidecar.bucket,
-            ...buildSongAssetActivityPathUpdate({
-              activityKey,
-              chartPath: targets.chart.path,
-              sidecarPath: targets.sidecar.path,
-            }),
+            sidecarPath: targets.sidecar.path,
           },
           data: {
             chartBucket: targets.chart.bucket,
+            chartPath,
             sidecarBucket: targets.sidecar.bucket,
-            ...buildSongAssetActivityPathUpdate({
-              activityKey,
-              chartPath,
-              sidecarPath,
-            }),
+            sidecarPath,
           },
         });
 
@@ -279,3 +240,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

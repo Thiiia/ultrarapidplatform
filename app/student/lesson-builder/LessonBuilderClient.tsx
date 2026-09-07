@@ -223,6 +223,8 @@ type SidecarEvent =
 
 type SidecarPayload = {
   version: 1;
+  // Seconds after the last event ends at which the game should stop.
+  stopAtSeconds?: number;
   events: SidecarEvent[];
 };
 
@@ -269,6 +271,9 @@ const emptySidecar: SidecarPayload = {
   version: 1,
   events: [],
 };
+
+// The game should stop this many seconds after the last event in the chart/json ends.
+const endOfChartStopBufferSeconds = 5;
 
 const gameplayMechanics: GameplayMechanic[] = ["hit", "spin", "drag"];
 // Previous hard cap preserved for reference; event slots are no longer capped.
@@ -613,6 +618,9 @@ function normalizeSidecar(value: unknown): SidecarPayload {
 
   return {
     version: 1,
+    ...(typeof value.stopAtSeconds === "number"
+      ? { stopAtSeconds: value.stopAtSeconds }
+      : {}),
     events: sortEvents(events),
   };
 }
@@ -7042,6 +7050,7 @@ function RtcmModePanel({
   onEndHold,
   onCreateEvent,
   onDeleteEvent,
+  onClear,
   isSongPlaying,
   pendingRangeMechanic,
   eventRangeStartTick,
@@ -7052,6 +7061,7 @@ function RtcmModePanel({
   onEndHold: () => void;
   onCreateEvent: () => void;
   onDeleteEvent: () => void;
+  onClear: () => void;
   isSongPlaying: boolean;
   pendingRangeMechanic: "spin" | "drag" | null;
   eventRangeStartTick: number | null;
@@ -7124,6 +7134,24 @@ function RtcmModePanel({
             }}
           >
             Delete Event
+          </button>
+          <button
+            type="button"
+            onClick={onClear}
+            style={{
+              minWidth: 100,
+              minHeight: 38,
+              borderRadius: 10,
+              border: "1px solid #FF6B6B",
+              background: "#2B1414",
+              color: "#FF9C9C",
+              fontSize: 11,
+              fontWeight: 900,
+              cursor: "pointer",
+              padding: "0 12px",
+            }}
+          >
+            Clear
           </button>
         </div>
       </div>
@@ -7233,6 +7261,7 @@ function Rctm2ModePanel({
   onCancelDragMarker,
   onCreateEvent,
   onDeleteEvent,
+  onClear,
   eventRangeStartTick,
   canDeleteEvent,
   currentSongSeconds,
@@ -7249,6 +7278,7 @@ function Rctm2ModePanel({
   onCancelDragMarker: (draftId: string) => void;
   onCreateEvent: (numberValue: number) => void;
   onDeleteEvent: () => void;
+  onClear: () => void;
   eventRangeStartTick: number | null;
   canDeleteEvent: boolean;
   currentSongSeconds: number;
@@ -7866,6 +7896,24 @@ function Rctm2ModePanel({
             }}
           >
             Delete Event
+          </button>
+          <button
+            type="button"
+            onClick={onClear}
+            style={{
+              minWidth: 100,
+              minHeight: 38,
+              borderRadius: 10,
+              border: "1px solid #FF6B6B",
+              background: "#2B1414",
+              color: "#FF9C9C",
+              fontSize: 11,
+              fontWeight: 900,
+              cursor: "pointer",
+              padding: "0 12px",
+            }}
+          >
+            Clear
           </button>
         </div>
       </div>
@@ -8579,10 +8627,6 @@ function TimelineControlsRow({
   onRewind,
   onTogglePlay,
   onFastForward,
-  onSongUpload,
-  onChartUpload,
-  onSidecarUpload,
-  onSaveFiles,
 }: {
   isPlaying: boolean;
   currentSongSeconds: number;
@@ -8590,34 +8634,12 @@ function TimelineControlsRow({
   onRewind: () => void;
   onTogglePlay: () => void;
   onFastForward: () => void;
-  onSongUpload: (event: ChangeEvent<HTMLInputElement>) => void;
-  onChartUpload: (event: ChangeEvent<HTMLInputElement>) => void;
-  onSidecarUpload: (event: ChangeEvent<HTMLInputElement>) => void;
-  onSaveFiles: () => void;
 }) {
   const controls = [
     { label: "⏪", ariaLabel: "Rewind", onClick: onRewind },
     { label: isPlaying ? "⏸" : "▶", ariaLabel: isPlaying ? "Pause" : "Play", onClick: onTogglePlay },
     { label: "⏩", ariaLabel: "Fast forward", onClick: onFastForward },
   ];
-
-  const uploadControlStyle = {
-    minWidth: 92,
-    height: 30,
-    borderRadius: 10,
-    border: `1px solid ${subtleBorderColor}`,
-    background: "#191919",
-    color: "#FFFFFF",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "0 10px",
-    boxSizing: "border-box" as const,
-    fontSize: 10,
-    fontWeight: 900,
-    cursor: "pointer",
-    whiteSpace: "nowrap" as const,
-  };
 
   return (
     <div
@@ -8675,51 +8697,6 @@ function TimelineControlsRow({
       >
         {formatSongTime(currentSongSeconds, isAdvancedMode)}
       </div>
-
-      {isAdvancedMode ? (
-        <div
-          aria-label="Timeline file uploads"
-          style={{
-            marginLeft: "auto",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            gap: 8,
-            minWidth: 0,
-          }}
-        >
-          <label style={uploadControlStyle}>
-            Upload Song
-            <input
-              type="file"
-              accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac"
-              onChange={onSongUpload}
-              style={{ display: "none" }}
-            />
-          </label>
-          <label style={uploadControlStyle}>
-            Upload .chart
-            <input
-              type="file"
-              accept=".chart,text/plain"
-              onChange={onChartUpload}
-              style={{ display: "none" }}
-            />
-          </label>
-          <label style={uploadControlStyle}>
-            Upload JSON
-            <input
-              type="file"
-              accept=".json,application/json"
-              onChange={onSidecarUpload}
-              style={{ display: "none" }}
-            />
-          </label>
-          <button type="button" onClick={onSaveFiles} style={uploadControlStyle}>
-            Save
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -8865,7 +8842,7 @@ export default function LessonBuilderClient({
   const [audioObjectUrl, setAudioObjectUrl] = useState("");
   const [audioDurationSeconds, setAudioDurationSeconds] = useState(0);
   const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
-  const [row2ColumnWidths, setRow2ColumnWidths] = useState<number[]>([220, 600, 230, 217]);
+  const [row2ColumnWidths, setRow2ColumnWidths] = useState<number[]>([220, 600, 230]);
   const [activeResizeHandle, setActiveResizeHandle] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const resizeStartRef = useRef<{ handleIndex: number; startX: number; startWidths: number[] } | null>(null);
@@ -8989,11 +8966,12 @@ export default function LessonBuilderClient({
 
     const calcWidths = () => {
       const w = window.innerWidth;
-      const col1 = Math.round(w * 0.17);
-      const col3 = Math.round(w * 0.18);
-      const col4 = Math.round(w * 0.17);
-      const col2 = Math.max(200, w - separatorsWidth - col1 - col3 - col4);
-      setRow2ColumnWidths([col1, col2, col3, col4]);
+      // Stretch the viewer/equation-builder/library columns across the full
+      // width now that there is no fourth (inspector) column reserving space.
+      const col1 = Math.round(w * (0.17 / 0.83));
+      const col3 = Math.round(w * (0.18 / 0.83));
+      const col2 = Math.max(200, w - separatorsWidth - col1 - col3);
+      setRow2ColumnWidths([col1, col2, col3]);
     };
 
     calcWidths();
@@ -9178,7 +9156,6 @@ export default function LessonBuilderClient({
       column1: row2ColumnWidths[0],
       column2: row2ColumnWidths[1],
       column3: row2ColumnWidths[2],
-      column4: 0,
     };
   }, [row2ColumnWidths]);
 
@@ -9215,8 +9192,33 @@ export default function LessonBuilderClient({
       }));
       seconds.events = sortEvents([...seconds.events, ...recorded]);
     }
+
+    // The game should stop a few seconds after the last event ends.
+    const eventEndSeconds = events.reduce(
+      (maxSeconds, eventSlot) =>
+        Math.max(maxSeconds, getTimelineEventTimeWindowSeconds(eventSlot).endSeconds),
+      0,
+    );
+    const draftEndSeconds = includeRecorded
+      ? rtcmDraftMechanics.reduce((maxSeconds, draft) => {
+          const endTick =
+            draft.id === rtcmPendingHold?.draftId
+              ? Math.max(draft.tick, currentSongSeconds)
+              : draft.endTick ?? draft.tick;
+          return Math.max(maxSeconds, timelineTickToSeconds(endTick));
+        }, 0)
+      : 0;
+    const hasAnyEvents = events.length > 0 || (includeRecorded && rtcmDraftMechanics.length > 0);
+    const stopAtSeconds = hasAnyEvents
+      ? Math.max(eventEndSeconds, draftEndSeconds) + endOfChartStopBufferSeconds
+      : undefined;
+
     const clock = createLessonClock(chartFile || originalChartFileRef.current);
-    return { ...seconds, events: mapLessonTimes(seconds.events, clock.toTick) };
+    return {
+      ...seconds,
+      stopAtSeconds,
+      events: mapLessonTimes(seconds.events, clock.toTick),
+    };
   }
 
   function loadSidecarIntoTimeline(
@@ -9422,6 +9424,42 @@ export default function LessonBuilderClient({
     setActiveEventId(null);
     setMode("rctm2");
     setCenterChoice(null);
+  }
+
+  function handleClearRtcmChart() {
+    setTimelineEvents([]);
+    setRtcmDraftMechanics([]);
+    setRtcmEventRangeStartTick(null);
+    setRtcmPendingHold(null);
+    setRctm2PendingEventNumber(null);
+    setRctm2HitPlacements({});
+    setRctm2DragStartPoints({});
+    setRctm2DragSourceHitIds({});
+    setPendingRangeSelection(null);
+    setActiveEventId(null);
+
+    // Nothing to rehydrate back to once mode is exited - the chart and json are blank now.
+    timelineRehydrateSourceRef.current = emptySidecar;
+    rctm2EntrySidecarRef.current = emptySidecar;
+    rctm2EntryChartFileRef.current = "";
+
+    const blankChartFile = createBlankChartFile(metadata);
+    originalChartFileRef.current = blankChartFile;
+    setChartFile(blankChartFile);
+
+    try {
+      setProject(
+        chartToProject({
+          chartFile: blankChartFile,
+          analysisMetadata: metadata,
+          rawResults: emptySidecar,
+        }),
+      );
+    } catch (error) {
+      console.error("Failed to rebuild project after clearing the chart", error);
+    }
+
+    setSaveStatus("Chart and JSON cleared.");
   }
 
   function addRtcmDraftMechanic(
@@ -10286,7 +10324,7 @@ export default function LessonBuilderClient({
 
     try {
       const response = await fetch(
-        `/api/song-choice?activity=${encodeURIComponent(activityKey)}`,
+        `/api/song-choice?activity=${encodeURIComponent(activityKey)}&context=editor`,
       );
       const payload = (await response.json().catch(() => null)) as {
         songs?: SongChoiceOption[];
@@ -11613,102 +11651,6 @@ export default function LessonBuilderClient({
     setSaveStatus("Downloaded .chart and sidecar JSON");
   }
 
-  function handleTimelineSongUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file) {
-      return;
-    }
-
-    setIsSongPlaying(false);
-    setCurrentSongSeconds(0);
-    setPendingSongFile(file);
-    setUploadedSongName(file.name);
-    setLoadError("");
-    setMetadata((current) => ({
-      ...current,
-      songTitle: current?.songTitle ?? file.name.replace(/\.[^.]+$/, ""),
-      uploadedFileName: file.name,
-    }));
-  }
-
-  async function handleTimelineChartUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file) {
-      return;
-    }
-
-    try {
-      const nextChartFile = await file.text();
-      const nextMetadata = {
-        ...metadata,
-        uploadedFileName: file.name,
-      };
-
-      originalChartFileRef.current = nextChartFile;
-      setChartFile(nextChartFile);
-      setUploadedChartName(file.name);
-      setMetadata(nextMetadata);
-      setLoadError("");
-      setSaveStatus(`Loaded ${file.name}`);
-
-      try {
-        setProject(
-          chartToProject({
-            chartFile: nextChartFile,
-            analysisMetadata: nextMetadata,
-            rawResults: sidecar,
-          }),
-        );
-      } catch (error) {
-        console.error("Failed to rebuild project from uploaded chart", error);
-      }
-    } catch (error) {
-      setLoadError(
-        error instanceof Error ? error.message : "Failed to load .chart file",
-      );
-    }
-  }
-
-  async function handleTimelineSidecarUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file) {
-      return;
-    }
-
-    try {
-      const parsedSidecar = JSON.parse(await file.text());
-      const normalizedSidecar = normalizeSidecar(parsedSidecar);
-
-      setLoadError("");
-      setSaveStatus(`Loaded ${file.name}`);
-      loadSidecarIntoTimeline(normalizedSidecar, null);
-
-      if (chartFile.trim()) {
-        try {
-          setProject(
-            chartToProject({
-              chartFile,
-              analysisMetadata: metadata,
-              rawResults: normalizedSidecar,
-            }),
-          );
-        } catch (error) {
-          console.error("Failed to rebuild project from uploaded sidecar", error);
-        }
-      }
-    } catch (error) {
-      setLoadError(
-        error instanceof Error ? error.message : "Failed to load sidecar JSON",
-      );
-    }
-  }
-
   useEffect(() => {
     if (mode === "rctm1" || mode === "rctm2") {
       setActiveEventId(null);
@@ -11823,6 +11765,7 @@ export default function LessonBuilderClient({
                 onEndHold={handleFinalizeAnyPendingHold}
                 onCreateEvent={handleToggleRtcmEventCreation}
                 onDeleteEvent={handleDeleteActiveEvent}
+                onClear={handleClearRtcmChart}
                 isSongPlaying={isSongPlaying}
                 pendingRangeMechanic={rtcmPendingHold?.mechanic ?? null}
                 eventRangeStartTick={rtcmEventRangeStartTick}
@@ -11838,6 +11781,7 @@ export default function LessonBuilderClient({
                 onCancelDragMarker={handleCancelRctm2DragMarker}
                 onCreateEvent={handleToggleRtcmEventCreation}
                 onDeleteEvent={handleDeleteActiveEvent}
+                onClear={handleClearRtcmChart}
                 eventRangeStartTick={rtcmEventRangeStartTick}
                 canDeleteEvent={Boolean(rtcmDeleteTargetEventId)}
                 currentSongSeconds={currentSongSeconds}
@@ -12110,12 +12054,6 @@ export default function LessonBuilderClient({
             onRewind={handleRewindSong}
             onTogglePlay={handleToggleSongPlayback}
             onFastForward={handleFastForwardSong}
-            onSongUpload={handleTimelineSongUpload}
-            onChartUpload={handleTimelineChartUpload}
-            onSidecarUpload={handleTimelineSidecarUpload}
-            onSaveFiles={() => {
-              void handleSaveToSupabase({ showNotice: true });
-            }}
           />
           <EquationTimeline
             events={timelineEvents}

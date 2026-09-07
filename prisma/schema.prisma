@@ -38,6 +38,7 @@ model User {
   lastLoginAt DateTime?
 
   authoredMissions Mission[] @relation("MissionAuthor")
+  authoredCharts   SongChart[] @relation("ChartAuthor")
   progressRecords  Progress[]
 
   /*
@@ -210,25 +211,42 @@ model SongAsset {
   songBucket String @default("Songs")
   songPath   String
 
-  chartBucket String @default("Charts")
-  numberBondsChartPath   String
-  equationsChartPath     String
-  missingNumbersChartPath String
-  earlyAlgebraChartPath   String
-
-  sidecarBucket String? @default("SidecarJsons")
-  numberBondsSidecarPath    String?
-  equationsSidecarPath      String?
-  missingNumbersSidecarPath String?
-  earlyAlgebraSidecarPath   String?
-
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  charts SongChart[]
+
   @@index([isActive])
   @@index([title])
+}
+
+model SongChart {
+  id String @id @default(cuid())
+
+  songAssetId String
+  songAsset   SongAsset @relation(fields: [songAssetId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation("ChartAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  // One of: "number-bonds" | "equations" | "missing-numbers" | "early-algebra"
+  activityKey String
+
+  chartBucket String @default("Charts")
+  chartPath   String
+
+  sidecarBucket String? @default("SidecarJsons")
+  sidecarPath   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([songAssetId, authorId, activityKey])
+  @@index([songAssetId])
+  @@index([authorId])
+  @@index([activityKey])
 }
 
 enum Role {

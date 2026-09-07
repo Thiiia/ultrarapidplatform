@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentAppUser } from "@/lib/current-user";
 import { resolveFreshSongLaunchPackage } from "@/lib/song-launch-package";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -34,9 +35,11 @@ export async function POST(request: Request) {
     };
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId");
     const activityKey = readRequiredString(payload.activityKey, "activityKey");
+    const currentUser = await getCurrentAppUser();
     const songPackage = await resolveFreshSongLaunchPackage({
       songAssetId,
       activityKey,
+      authorId: currentUser?.id ?? null,
       loadSongAsset: async (id) =>
         prisma.songAsset.findUnique({
           where: { id },
@@ -45,18 +48,35 @@ export async function POST(request: Request) {
             isActive: true,
             songBucket: true,
             songPath: true,
-            chartBucket: true,
-            sidecarBucket: true,
-            numberBondsChartPath: true,
-            equationsChartPath: true,
-            missingNumbersChartPath: true,
-            earlyAlgebraChartPath: true,
-            numberBondsSidecarPath: true,
-            equationsSidecarPath: true,
-            missingNumbersSidecarPath: true,
-            earlyAlgebraSidecarPath: true,
           },
         }) as Promise<Record<string, unknown> | null>,
+      loadSongChart: async (assetId, resolvedActivityKey, authorId) => {
+        const chart = authorId
+          ? await prisma.songChart.findUnique({
+              where: {
+                songAssetId_authorId_activityKey: {
+                  songAssetId: assetId,
+                  authorId,
+                  activityKey: resolvedActivityKey,
+                },
+              },
+            })
+          : await prisma.songChart.findFirst({
+              where: { songAssetId: assetId, activityKey: resolvedActivityKey },
+              orderBy: { updatedAt: "desc" },
+            });
+
+        if (!chart || !chart.sidecarPath || !chart.sidecarBucket) {
+          return null;
+        }
+
+        return {
+          chartBucket: chart.chartBucket,
+          chartPath: chart.chartPath,
+          sidecarBucket: chart.sidecarBucket,
+          sidecarPath: chart.sidecarPath,
+        };
+      },
       createSignedUrl,
     });
 

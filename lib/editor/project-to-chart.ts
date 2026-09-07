@@ -8,6 +8,8 @@ type LegacySidecarEvent = {
 
 type LegacySidecarPayload = {
   version: 1;
+  // Seconds after the last event ends at which the game should stop.
+  stopAtSeconds?: number;
   events: LegacySidecarEvent[];
 };
 
@@ -34,6 +36,9 @@ function sidecarEventSortKey(type: string) {
 function sortLegacySidecar(sidecar: LegacySidecarPayload) {
   return {
     version: 1,
+    ...(typeof sidecar.stopAtSeconds === "number"
+      ? { stopAtSeconds: sidecar.stopAtSeconds }
+      : {}),
     events: [...sidecar.events].sort((left, right) => {
       if (left.tick !== right.tick) {
         return left.tick - right.tick;

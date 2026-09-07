@@ -1,13 +1,16 @@
-import {
-  getSongAssetPathsForActivity,
-  resolveRequestedSongActivityKey,
-  resolveRequestedSongActivityPackage,
-} from "@/lib/song-activity-storage";
+import { resolveRequestedSongActivityKey } from "@/lib/song-activity-storage";
 
 type SignedStorageRef = {
   bucket: string;
   path: string;
   signedUrl: string;
+};
+
+type SongChartTargets = {
+  chartBucket: string;
+  chartPath: string;
+  sidecarBucket: string;
+  sidecarPath: string;
 };
 
 function readRequiredString(value: unknown, label: string) {
@@ -21,12 +24,20 @@ function readRequiredString(value: unknown, label: string) {
 export async function resolveFreshSongLaunchPackage({
   songAssetId,
   activityKey,
+  authorId,
   loadSongAsset,
+  loadSongChart,
   createSignedUrl,
 }: {
   songAssetId: string;
   activityKey: string;
+  authorId: string | null;
   loadSongAsset: (id: string) => Promise<Record<string, unknown> | null>;
+  loadSongChart: (
+    songAssetId: string,
+    activityKey: string,
+    authorId: string | null,
+  ) => Promise<SongChartTargets | null>;
   createSignedUrl: (bucket: string, path: string) => Promise<string>;
 }) {
   const canonicalSongAssetId = readRequiredString(songAssetId, "songAssetId").toLowerCase();
@@ -46,43 +57,32 @@ export async function resolveFreshSongLaunchPackage({
     throw new Error(`Unsupported song activity: ${activityKey}`);
   }
 
-  const requestedPackage = getSongAssetPathsForActivity(
-    songAsset,
-    requestedActivityKey,
-  );
+  const chartTargets = await loadSongChart(canonicalSongAssetId, requestedActivityKey, authorId);
 
-  const activityPackage = resolveRequestedSongActivityPackage({
-    requestedActivityKey: activityKey,
-    chartPath: requestedPackage.chartPath,
-    sidecarPath: requestedPackage.sidecarPath,
-  });
-
-  if (!activityPackage.sidecarPath) {
-    throw new Error(`Missing sidecar path for ${activityPackage.activityKey}`);
+  if (!chartTargets) {
+    throw new Error(`No chart has been authored for ${requestedActivityKey} yet`);
   }
 
-  const chartBucket = readRequiredString(songAsset.chartBucket, "chartBucket");
-  const sidecarBucket = readRequiredString(songAsset.sidecarBucket, "sidecarBucket");
   const audioBucket = readRequiredString(songAsset.songBucket, "songBucket");
   const audioPath = readRequiredString(songAsset.songPath, "songPath");
 
   const [chartUrl, sidecarUrl, audioUrl] = await Promise.all([
-    createSignedUrl(chartBucket, activityPackage.chartPath),
-    createSignedUrl(sidecarBucket, activityPackage.sidecarPath),
+    createSignedUrl(chartTargets.chartBucket, chartTargets.chartPath),
+    createSignedUrl(chartTargets.sidecarBucket, chartTargets.sidecarPath),
     createSignedUrl(audioBucket, audioPath),
   ]);
 
   return {
     songAssetId: canonicalSongAssetId,
-    activityKey: activityPackage.activityKey,
+    activityKey: requestedActivityKey,
     chart: {
-      bucket: chartBucket,
-      path: activityPackage.chartPath,
+      bucket: chartTargets.chartBucket,
+      path: chartTargets.chartPath,
       signedUrl: chartUrl,
     } satisfies SignedStorageRef,
     sidecar: {
-      bucket: sidecarBucket,
-      path: activityPackage.sidecarPath,
+      bucket: chartTargets.sidecarBucket,
+      path: chartTargets.sidecarPath,
       signedUrl: sidecarUrl,
     } satisfies SignedStorageRef,
     audio: {
@@ -92,3 +92,4 @@ export async function resolveFreshSongLaunchPackage({
     } satisfies SignedStorageRef,
   };
 }
+

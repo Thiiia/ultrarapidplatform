@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
-import { getSongChoices } from "@/lib/song-storage";
+import { getCurrentAppUser } from "@/lib/current-user";
+import { getEditorSongChoices, getSongChoices } from "@/lib/song-storage";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const activity = searchParams.get("activity");
-    const songs = await getSongChoices(activity);
+    const context = searchParams.get("context");
+    const currentUser = await getCurrentAppUser();
+
+    const songs =
+      context === "editor"
+        ? await getEditorSongChoices(activity, { userId: currentUser?.id ?? null })
+        : await getSongChoices(activity, { userId: currentUser?.id ?? null });
 
     return NextResponse.json({ songs });
   } catch (error) {
@@ -20,3 +27,4 @@ export async function GET(request: Request) {
     );
   }
 }
+
