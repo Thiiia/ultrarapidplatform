@@ -304,15 +304,48 @@ async function buildSongChoiceForAsset({
   chartRecord: SongChartRecord;
 }): Promise<SongChoice | null> {
   try {
-    const [songSignedUrl, chartSignedUrl, sidecarSignedUrl, songMetadata] = await Promise.all([
-      createSignedUrl(songAsset.songBucket, storageSong.path),
-      createSignedUrl(chartRecord.chartBucket, chartRecord.chartPath),
-      chartRecord.sidecarPath && chartRecord.sidecarBucket
-        ? createSignedUrl(chartRecord.sidecarBucket, chartRecord.sidecarPath)
-        : Promise.resolve(null),
-      getFileMetadata(songAsset.songBucket, storageSong.path),
-    ]);
+    let songSignedUrl = "";
+    let chartSignedUrl = "";
+    let sidecarSignedUrl: string | null = null;
 
+    try {
+      songSignedUrl = await createSignedUrl(songAsset.songBucket, storageSong.path);
+    } catch (error) {
+      console.warn("Unable to generate signed URL for song asset while listing songs", {
+        songAssetId: songAsset.id,
+        songPath: storageSong.path,
+        error: getErrorMessage(error),
+      });
+    }
+
+    if (chartRecord.chartBucket && chartRecord.chartPath) {
+      try {
+        chartSignedUrl = await createSignedUrl(chartRecord.chartBucket, chartRecord.chartPath);
+      } catch (error) {
+        console.warn("Unable to generate signed URL for chart while listing songs", {
+          songAssetId: songAsset.id,
+          chartPath: chartRecord.chartPath,
+          error: getErrorMessage(error),
+        });
+      }
+    }
+
+    if (chartRecord.sidecarBucket && chartRecord.sidecarPath) {
+      try {
+        sidecarSignedUrl = await createSignedUrl(
+          chartRecord.sidecarBucket,
+          chartRecord.sidecarPath,
+        );
+      } catch (error) {
+        console.warn("Unable to generate signed URL for sidecar while listing songs", {
+          songAssetId: songAsset.id,
+          sidecarPath: chartRecord.sidecarPath,
+          error: getErrorMessage(error),
+        });
+      }
+    }
+
+    const songMetadata = await getFileMetadata(songAsset.songBucket, storageSong.path).catch(() => null);
     const metadata = songMetadata?.metadata as Record<string, unknown> | undefined;
 
     const songContentType =
@@ -361,15 +394,49 @@ async function buildSongChoiceForAsset({
           : null,
     };
   } catch (error) {
-    console.error("Skipping invalid song asset while loading song choices", {
+    console.warn("SongAsset row retained without fully generated asset URLs while loading song choices", {
       songAssetId: songAsset.id,
       title: songAsset.title,
       songPath: storageSong.path,
       chartPath: chartRecord.chartPath,
+      sidecarPath: chartRecord.sidecarPath,
       error: getErrorMessage(error),
     });
 
-    return null;
+    return {
+      id: songAsset.id,
+      activityKey,
+      name: songAsset.title,
+      title: songAsset.title,
+      artist: songAsset.artist,
+      path: storageSong.path,
+      signedUrl: "",
+      size: storageSong.size,
+      contentType: storageSong.mimeType ?? getContentTypeFromPath(storageSong.path),
+      updatedAt: storageSong.updatedAt ?? songAsset.updatedAt.toISOString(),
+      durationSeconds: songAsset.durationSeconds,
+      song: {
+        bucket: songAsset.songBucket,
+        path: storageSong.path,
+        signedUrl: "",
+        contentType: storageSong.mimeType ?? getContentTypeFromPath(storageSong.path),
+      },
+      chart: {
+        bucket: chartRecord.chartBucket,
+        path: chartRecord.chartPath,
+        signedUrl: "",
+        contentType: getContentTypeFromPath(chartRecord.chartPath),
+      },
+      sidecar:
+        chartRecord.sidecarPath && chartRecord.sidecarBucket
+          ? {
+              bucket: chartRecord.sidecarBucket,
+              path: chartRecord.sidecarPath,
+              signedUrl: "",
+              contentType: getContentTypeFromPath(chartRecord.sidecarPath),
+            }
+          : null,
+    };
   }
 }
 
@@ -435,81 +502,36 @@ export async function getSongChoices(
         updatedAt: songAsset.updatedAt.toISOString(),
       };
 
-      try {
-        const existingChart = userId
-          ? existingChartsByAsset.get(songAsset.id) ?? null
-          : anyAuthorChartsByAsset?.get(songAsset.id) ?? null;
+      const existingChart = userId
+        ? existingChartsByAsset.get(songAsset.id) ?? null
+        : anyAuthorChartsByAsset?.get(songAsset.id) ?? null;
 
-        const chartRecord: SongChartRecord = existingChart
-          ? {
-              chartBucket: existingChart.chartBucket,
-              chartPath: existingChart.chartPath,
-              sidecarBucket: existingChart.sidecarBucket,
-              sidecarPath: existingChart.sidecarPath,
-            }
-          : userId
-            ? await createBlankAuthoredChart({
-                songAssetId: songAsset.id,
-                authorId: userId,
-                activityKey: preferredActivityKey,
-              })
-            : {
-                chartBucket: "Charts",
-                chartPath: `${preferredActivityKey}/${songAsset.id}.chart`,
-                sidecarBucket: "SidecarJsons",
-                sidecarPath: `${preferredActivityKey}/${songAsset.id}.json`,
-              };
+      const chartRecord: SongChartRecord = existingChart
+        ? {
+            chartBucket: existingChart.chartBucket,
+            chartPath: existingChart.chartPath,
+            sidecarBucket: existingChart.sidecarBucket,
+            sidecarPath: existingChart.sidecarPath,
+          }
+        : userId
+          ? await createBlankAuthoredChart({
+              songAssetId: songAsset.id,
+              authorId: userId,
+              activityKey: preferredActivityKey,
+            })
+          : {
+              chartBucket: "Charts",
+              chartPath: `${preferredActivityKey}/${songAsset.id}.chart`,
+              sidecarBucket: "SidecarJsons",
+              sidecarPath: `${preferredActivityKey}/${songAsset.id}.json`,
+            };
 
-        return await buildSongChoiceForAsset({
-          songAsset,
-          storageSong,
-          activityKey: preferredActivityKey,
-          chartRecord,
-        });
-      } catch (error) {
-        console.warn("Still rendering song from SongAsset row even if backing storage is unavailable", {
-          songAssetId: songAsset.id,
-          title: songAsset.title,
-          songPath: songAsset.songPath,
-          error: getErrorMessage(error),
-        });
-
-        const fallbackAudioPath = songAsset.songPath || `${songAsset.id}.mp3`;
-        const fallbackChartPath = `${preferredActivityKey}/${songAsset.id}.chart`;
-        const fallbackSidecarPath = `${preferredActivityKey}/${songAsset.id}.json`;
-
-        return {
-          id: songAsset.id,
-          activityKey: preferredActivityKey,
-          name: songAsset.title,
-          title: songAsset.title,
-          artist: songAsset.artist,
-          path: fallbackAudioPath,
-          signedUrl: "",
-          size: null,
-          contentType: getContentTypeFromPath(fallbackAudioPath),
-          updatedAt: songAsset.updatedAt.toISOString(),
-          durationSeconds: songAsset.durationSeconds,
-          song: {
-            bucket: songAsset.songBucket,
-            path: fallbackAudioPath,
-            signedUrl: "",
-            contentType: getContentTypeFromPath(fallbackAudioPath),
-          },
-          chart: {
-            bucket: "Charts",
-            path: fallbackChartPath,
-            signedUrl: "",
-            contentType: "text/plain",
-          },
-          sidecar: {
-            bucket: "SidecarJsons",
-            path: fallbackSidecarPath,
-            signedUrl: "",
-            contentType: "application/json",
-          },
-        };
-      }
+      return buildSongChoiceForAsset({
+        songAsset,
+        storageSong,
+        activityKey: preferredActivityKey,
+        chartRecord,
+      });
     }),
   );
 
