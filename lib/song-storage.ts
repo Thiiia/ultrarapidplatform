@@ -50,6 +50,41 @@ function getErrorMessage(error: unknown) {
   return String(error);
 }
 
+export function normalizeSongStoragePath(value: string) {
+  return value
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .trim()
+    .toLowerCase();
+}
+
+export function findMatchingSongAsset<T extends { songPath: string }>(
+  songAssets: T[],
+  storagePath: string,
+): T | null {
+  const normalizedStoragePath = normalizeSongStoragePath(storagePath);
+
+  if (!normalizedStoragePath) {
+    return null;
+  }
+
+  const normalizedStorageName = normalizedStoragePath.split("/").pop() ?? normalizedStoragePath;
+
+  for (const songAsset of songAssets) {
+    const candidatePath = normalizeSongStoragePath(songAsset.songPath);
+    const candidateName = candidatePath.split("/").pop() ?? candidatePath;
+
+    if (
+      candidatePath === normalizedStoragePath ||
+      candidateName === normalizedStorageName
+    ) {
+      return songAsset;
+    }
+  }
+
+  return null;
+}
+
 function isNonNull<T>(value: T | null): value is T {
   return value !== null;
 }
@@ -361,8 +396,10 @@ export async function getSongChoices(
     orderBy: { title: "asc" },
   });
 
-  const songAssetByPath = new Map(songAssets.map((songAsset) => [songAsset.songPath, songAsset]));
   const storageSongs = await listSongStorageFiles("Songs");
+  const songAssetByPath = new Map(
+    songAssets.map((songAsset) => [normalizeSongStoragePath(songAsset.songPath), songAsset]),
+  );
   const audioSongs = storageSongs
     .filter((entry) => isAudioStoragePath(entry.path))
     .sort((left, right) => left.path.localeCompare(right.path));
@@ -400,7 +437,10 @@ export async function getSongChoices(
 
   const songs: Array<SongChoice | null> = await Promise.all(
     audioSongs.map(async (storageSong): Promise<SongChoice | null> => {
-      const songAsset = songAssetByPath.get(storageSong.path);
+      const normalizedStoragePath = normalizeSongStoragePath(storageSong.path);
+      const songAsset =
+        songAssetByPath.get(normalizedStoragePath) ??
+        findMatchingSongAsset(songAssets, storageSong.path);
 
       if (!songAsset) {
         console.warn("Skipping song in storage because no matching SongAsset row was found", {

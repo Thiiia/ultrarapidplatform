@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { findMatchingSongAsset, normalizeSongStoragePath } from "../lib/song-storage";
 
 type SongPackageLoader = {
   loadSongPackageAssets?: (input: {
@@ -22,6 +23,20 @@ async function loadSongPackageModule(): Promise<SongPackageLoader | null> {
     return null;
   }
 }
+
+test("normalizes storage paths before matching song assets", () => {
+  const songs = [
+    { id: "waves", title: "Waves", songPath: "Folder/EOF_Metrik_Grafix_Waves.mp3" },
+    { id: "garden", title: "Garden", songPath: "Garden.mp3" },
+  ];
+
+  assert.equal(
+    normalizeSongStoragePath("/Folder/EOF_Metrik_Grafix_Waves.mp3"),
+    "folder/eof_metrik_grafix_waves.mp3",
+  );
+  assert.equal(findMatchingSongAsset(songs, "/folder/eof_metrik_grafix_waves.mp3")?.id, "waves");
+  assert.equal(findMatchingSongAsset(songs, "Garden.mp3")?.id, "garden");
+});
 
 test("loads chart and sidecar data when the audio request is unavailable", async () => {
   const songPackage = await loadSongPackageModule();
