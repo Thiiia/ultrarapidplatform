@@ -396,14 +396,6 @@ export async function getSongChoices(
     orderBy: { title: "asc" },
   });
 
-  const storageSongs = await listSongStorageFiles("Songs");
-  const songAssetByPath = new Map(
-    songAssets.map((songAsset) => [normalizeSongStoragePath(songAsset.songPath), songAsset]),
-  );
-  const audioSongs = storageSongs
-    .filter((entry) => isAudioStoragePath(entry.path))
-    .sort((left, right) => left.path.localeCompare(right.path));
-
   const existingChartsByAsset = userId
     ? new Map(
         (
@@ -414,8 +406,6 @@ export async function getSongChoices(
       )
     : new Map<string, Awaited<ReturnType<typeof prisma.songChart.findFirst>>>();
 
-  // No authenticated user (e.g. demo routes): fall back to any existing
-  // author's chart for the song rather than fabricating one under a fake author.
   const anyAuthorChartsByAsset = userId
     ? null
     : new Map(
@@ -436,24 +426,21 @@ export async function getSongChoices(
       );
 
   const songs: Array<SongChoice | null> = await Promise.all(
-    audioSongs.map(async (storageSong): Promise<SongChoice | null> => {
-      const normalizedStoragePath = normalizeSongStoragePath(storageSong.path);
-      const songAsset =
-        songAssetByPath.get(normalizedStoragePath) ??
-        findMatchingSongAsset(songAssets, storageSong.path);
-
-      if (!songAsset) {
-        console.warn("Skipping song in storage because no matching SongAsset row was found", {
-          songPath: storageSong.path,
-        });
-        return null;
-      }
+    songAssets.map(async (songAsset): Promise<SongChoice | null> => {
+      const storageSong: StorageFileEntry = {
+        path: songAsset.songPath,
+        name: songAsset.songPath.split("/").pop() ?? songAsset.songPath,
+        size: null,
+        mimeType: getContentTypeFromPath(songAsset.songPath),
+        updatedAt: songAsset.updatedAt.toISOString(),
+      };
 
       try {
         const existingChart = userId
           ? existingChartsByAsset.get(songAsset.id) ?? null
           : anyAuthorChartsByAsset?.get(songAsset.id) ?? null;
-        const chartRecord: SongChartRecord | null = existingChart
+
+        const chartRecord: SongChartRecord = existingChart
           ? {
               chartBucket: existingChart.chartBucket,
               chartPath: existingChart.chartPath,
@@ -466,12 +453,12 @@ export async function getSongChoices(
                 authorId: userId,
                 activityKey: preferredActivityKey,
               })
-            : null;
-
-        if (!chartRecord) {
-          // No user context and nobody has authored this song/activity yet - nothing to show.
-          return null;
-        }
+            : {
+                chartBucket: "Charts",
+                chartPath: `${preferredActivityKey}/${songAsset.id}.chart`,
+                sidecarBucket: "SidecarJsons",
+                sidecarPath: `${preferredActivityKey}/${songAsset.id}.json`,
+              };
 
         return await buildSongChoiceForAsset({
           songAsset,
@@ -480,14 +467,48 @@ export async function getSongChoices(
           chartRecord,
         });
       } catch (error) {
-        console.error("Skipping invalid song asset while loading song choices", {
+        console.warn("Still rendering song from SongAsset row even if backing storage is unavailable", {
           songAssetId: songAsset.id,
           title: songAsset.title,
-          songPath: storageSong.path,
+          songPath: songAsset.songPath,
           error: getErrorMessage(error),
         });
 
-        return null;
+        const fallbackAudioPath = songAsset.songPath || `${songAsset.id}.mp3`;
+        const fallbackChartPath = `${preferredActivityKey}/${songAsset.id}.chart`;
+        const fallbackSidecarPath = `${preferredActivityKey}/${songAsset.id}.json`;
+
+        return {
+          id: songAsset.id,
+          activityKey: preferredActivityKey,
+          name: songAsset.title,
+          title: songAsset.title,
+          artist: songAsset.artist,
+          path: fallbackAudioPath,
+          signedUrl: "",
+          size: null,
+          contentType: getContentTypeFromPath(fallbackAudioPath),
+          updatedAt: songAsset.updatedAt.toISOString(),
+          durationSeconds: songAsset.durationSeconds,
+          song: {
+            bucket: songAsset.songBucket,
+            path: fallbackAudioPath,
+            signedUrl: "",
+            contentType: getContentTypeFromPath(fallbackAudioPath),
+          },
+          chart: {
+            bucket: "Charts",
+            path: fallbackChartPath,
+            signedUrl: "",
+            contentType: "text/plain",
+          },
+          sidecar: {
+            bucket: "SidecarJsons",
+            path: fallbackSidecarPath,
+            signedUrl: "",
+            contentType: "application/json",
+          },
+        };
       }
     }),
   );
