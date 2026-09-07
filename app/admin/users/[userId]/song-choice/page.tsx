@@ -43,7 +43,7 @@ export default async function AdminSongChoicePreviewPage({
   const activityParam = Array.isArray(query.activity)
     ? query.activity[0]
     : query.activity;
-  const songs = await getSongChoices(activityParam, { userId: targetUser.id });
+  const songs = await getSongChoices(activityParam);
 
   return (
     <SongChoiceClient

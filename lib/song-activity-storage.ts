@@ -76,6 +76,12 @@ export function resolveRequestedSongActivityKey(
   return normalizeSongActivityKey(value);
 }
 
+function stripOptionalAuthorFolderPrefix(path: string) {
+  const segments = path.split("/");
+
+  return segments.length > 1 ? segments.slice(1).join("/") : path;
+}
+
 function assertStoragePathBelongsToActivity({
   activityKey,
   path,
@@ -89,7 +95,12 @@ function assertStoragePathBelongsToActivity({
     pathKind === "chart" ? "chartFolder" : "sidecarFolder"
   ];
 
-  if (!path.startsWith(`${expectedFolder}/`)) {
+  const withoutAuthorFolder = stripOptionalAuthorFolderPrefix(path);
+
+  if (
+    !path.startsWith(`${expectedFolder}/`) &&
+    !withoutAuthorFolder.startsWith(`${expectedFolder}/`)
+  ) {
     throw new Error(`${pathKind} path does not belong to ${activityKey}`);
   }
 }
@@ -143,30 +154,48 @@ export function resolveRequestedSongActivityPackage({
 export function inferSongActivityKeyFromChartPath(
   chartPath: string,
 ): SongActivityKey | null {
-  const folder = chartPath.split("/")[0] ?? "";
-  return normalizeSongActivityKey(folder);
+  const segments = chartPath.split("/").filter(Boolean);
+
+  // Chart paths may carry an author-folder prefix (e.g. "dev/Early_Algebra/..."),
+  // so inspect the first two segments for a known activity folder.
+  for (const segment of segments.slice(0, 2)) {
+    const activityKey = normalizeSongActivityKey(segment);
+
+    if (activityKey) {
+      return activityKey;
+    }
+  }
+
+  return null;
 }
 
 /**
  * Deterministic per-author, per-activity storage paths for a SongChart row.
  * Used both to materialize a brand-new (blank) chart/sidecar and to validate
  * that a save request targets the storage location it's actually allowed to write to.
+ *
+ * Storage layout: `{authorFolder}/{ActivityFolder}/{songAssetId}.chart|.json`,
+ * e.g. `dev/Missing_Numbers/waves.chart`.
  */
 export function buildAuthoredChartStoragePaths({
   activityKey,
   songAssetId,
-  authorId,
+  authorFolder,
 }: {
   activityKey: SongActivityKey;
   songAssetId: string;
-  authorId: string;
+  authorFolder: string;
 }) {
   const folders = songActivityFoldersByKey[activityKey];
-  const fileBaseName = `${songAssetId}__${authorId}`;
+  const normalizedAuthorFolder = authorFolder.trim().replace(/^\/+|\/+$/g, "");
+
+  if (!normalizedAuthorFolder) {
+    throw new Error("Author folder is required");
+  }
 
   return {
-    chartPath: `${folders.chartFolder}/${fileBaseName}.chart`,
-    sidecarPath: `${folders.sidecarFolder}/${fileBaseName}.json`,
+    chartPath: `${normalizedAuthorFolder}/${folders.chartFolder}/${songAssetId}.chart`,
+    sidecarPath: `${normalizedAuthorFolder}/${folders.sidecarFolder}/${songAssetId}.json`,
   };
 }
 

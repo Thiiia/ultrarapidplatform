@@ -1,12 +1,16 @@
 "use client";
-import { requestFreshSongLaunchParams } from "@/lib/song-launch-client";
+import {
+  requestFreshSongLaunchPackage,
+  type FreshSongLaunchPackage,
+} from "@/lib/song-launch-client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FC, SVGProps } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { persistLaunchParams } from "@/lib/launch-handoff";
+import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
@@ -469,6 +473,10 @@ export default function SongChoiceClient({
   const [durationsById, setDurationsById] = useState<Record<string, number>>(
     {},
   );
+  const [selectionPackages, setSelectionPackages] = useState<
+    Record<string, FreshSongLaunchPackage>
+  >({});
+  const pendingSelectionsRef = useRef<Set<string>>(new Set());
 
   const filteredSongs = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -487,8 +495,78 @@ export default function SongChoiceClient({
   }, [searchQuery, songs]);
 
   const selectedSong = useMemo(() => {
-    return songs.find((song) => song.id === selectedSongId) ?? null;
-  }, [selectedSongId, songs]);
+    const baseSong = songs.find((song) => song.id === selectedSongId) ?? null;
+
+    if (!baseSong) {
+      return null;
+    }
+
+    const freshPackage = selectionPackages[baseSong.id];
+
+    if (!freshPackage) {
+      return baseSong;
+    }
+
+    // Overlay the freshly-resolved dev-authored chart/sidecar (and audio)
+    // signed URLs resolved at selection time.
+    return {
+      ...baseSong,
+      signedUrl: freshPackage.audio.signedUrl,
+      song: {
+        ...baseSong.song,
+        bucket: freshPackage.audio.bucket,
+        path: freshPackage.audio.path,
+        signedUrl: freshPackage.audio.signedUrl,
+      },
+      chart: {
+        ...baseSong.chart,
+        bucket: freshPackage.chart.bucket,
+        path: freshPackage.chart.path,
+        signedUrl: freshPackage.chart.signedUrl,
+      },
+      sidecar: {
+        bucket: freshPackage.sidecar.bucket,
+        path: freshPackage.sidecar.path,
+        signedUrl: freshPackage.sidecar.signedUrl,
+        contentType: baseSong.sidecar?.contentType ?? "application/json",
+      },
+    };
+  }, [selectedSongId, songs, selectionPackages]);
+
+  function handleSelectSong(song: SongChoiceWithEquationSlots) {
+    setSelectedSongId(song.id);
+    setLaunchError("");
+
+    if (selectionPackages[song.id] || pendingSelectionsRef.current.has(song.id)) {
+      return;
+    }
+
+    pendingSelectionsRef.current.add(song.id);
+
+    // Resolving the selection checks for the dev-authored SongChart, signs its
+    // chart/sidecar when present, and materializes blank chart/sidecar files
+    // under dev/{ActivityFolder}/ when it is not.
+    requestFreshSongLaunchPackage({
+      songAssetId: song.id,
+      activityKey: song.activityKey,
+    })
+      .then((freshPackage) => {
+        setSelectionPackages((current) => ({
+          ...current,
+          [song.id]: freshPackage,
+        }));
+      })
+      .catch((error) => {
+        setLaunchError(
+          error instanceof Error
+            ? error.message
+            : "Unable to prepare the selected song",
+        );
+      })
+      .finally(() => {
+        pendingSelectionsRef.current.delete(song.id);
+      });
+  }
 
   useEffect(() => {
     appendSongFlowDebug("song-choice:loaded-song-assets", "Song assets were loaded into song choice.", {
@@ -667,9 +745,18 @@ export default function SongChoiceClient({
     setLaunchError("");
     try {
     const selectedSongPayload = buildSelectedSongPayload(selectedSong);
-    const launchParams = await requestFreshSongLaunchParams({
-      songAssetId: selectedSong.id,
-      activityKey: selectedSong.activityKey,
+    const freshPackage =
+      selectionPackages[selectedSong.id] ??
+      (await requestFreshSongLaunchPackage({
+        songAssetId: selectedSong.id,
+        activityKey: selectedSong.activityKey,
+      }));
+    const launchParams = createSongLaunchSearchParams({
+      songAssetId: freshPackage.songAssetId,
+      activityKey: freshPackage.activityKey,
+      chartUrl: freshPackage.chart.signedUrl,
+      sidecarUrl: freshPackage.sidecar.signedUrl,
+      audioUrl: freshPackage.audio.signedUrl,
     });
     const launchRoute = navBasePath.startsWith("/demo")
       ? "/demo/launch"
@@ -900,7 +987,7 @@ export default function SongChoiceClient({
                   <button
                     key={song.id}
                     type="button"
-                    onClick={() => setSelectedSongId(song.id)}
+                    onClick={() => handleSelectSong(song)}
                     className="songChoiceRow"
                     data-selected={isSelected ? "true" : "false"}
                     style={{

@@ -1,16 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAuthoredChartStoragePaths } from "../lib/song-activity-storage";
+import {
+  buildAuthoredChartStoragePaths,
+  inferSongActivityKeyFromChartPath,
+} from "../lib/song-activity-storage";
 
-test("builds deterministic per-author storage paths", () => {
+test("builds deterministic per-author storage paths under the author folder", () => {
   const paths = buildAuthoredChartStoragePaths({
     activityKey: "early-algebra",
     songAssetId: "song-123",
-    authorId: "user-456",
+    authorFolder: "dev",
   });
   assert.deepEqual(paths, {
-    chartPath: "Early_Algebra/song-123__user-456.chart",
-    sidecarPath: "Early_Algebra/song-123__user-456.json",
+    chartPath: "dev/Early_Algebra/song-123.chart",
+    sidecarPath: "dev/Early_Algebra/song-123.json",
   });
 });
 
@@ -39,15 +42,56 @@ async function loadSongActivityStorageModule(): Promise<SongActivityStorageModul
   }
 }
 
-test("builds Missing Numbers storage paths in the Missing Numbers folder", () => {
+test("builds Missing Numbers storage paths in the dev Missing Numbers folder", () => {
   const paths = buildAuthoredChartStoragePaths({
     activityKey: "missing-numbers",
     songAssetId: "waves",
-    authorId: "author-1",
+    authorFolder: "dev",
   });
 
-  assert.equal(paths.chartPath, "Missing_Numbers/waves__author-1.chart");
-  assert.equal(paths.sidecarPath, "Missing_Numbers/waves__author-1.json");
+  assert.equal(paths.chartPath, "dev/Missing_Numbers/waves.chart");
+  assert.equal(paths.sidecarPath, "dev/Missing_Numbers/waves.json");
+});
+
+test("infers the activity from an author-folder-prefixed chart path", () => {
+  assert.equal(
+    inferSongActivityKeyFromChartPath("dev/Missing_Numbers/waves.chart"),
+    "missing-numbers",
+  );
+  assert.equal(
+    inferSongActivityKeyFromChartPath("Early_Algebra/revisions/v2/waves.chart"),
+    "early-algebra",
+  );
+});
+
+test("accepts author-folder-prefixed packages for the matching activity", async () => {
+  const songActivityStorage = await loadSongActivityStorageModule();
+
+  const resolved = songActivityStorage!.resolveRequestedSongActivityPackage!({
+    requestedActivityKey: "missing-numbers",
+    chartPath: "dev/Missing_Numbers/waves.chart",
+    sidecarPath: "dev/Missing_Numbers/waves.json",
+  });
+
+  assert.deepEqual(resolved, {
+    activityKey: "missing-numbers",
+    chartPath: "dev/Missing_Numbers/waves.chart",
+    sidecarPath: "dev/Missing_Numbers/waves.json",
+  });
+});
+
+test("rejects an author-folder-prefixed chart path from a different activity", async () => {
+  const songActivityStorage = await loadSongActivityStorageModule();
+
+  assert.throws(
+    () =>
+      songActivityStorage!.resolveRequestedSongActivityPackage!({
+        requestedActivityKey: "early-algebra",
+        chartPath: "dev/Missing_Numbers/waves.chart",
+        sidecarPath: "dev/Early_Algebra/waves.json",
+      }),
+    /chart path does not belong to early-algebra/,
+  );
 });
 
 test("rejects an invalid activity request instead of selecting another package", async () => {

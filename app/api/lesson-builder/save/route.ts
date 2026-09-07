@@ -11,6 +11,7 @@ import {
   normalizeSongActivityKey,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
+import { DEV_AUTHOR_FOLDER, getOrCreateDevAuthor } from "@/lib/song-storage";
 
 type SaveFilePayload = {
   content?: unknown;
@@ -81,8 +82,9 @@ export function isSameOriginLessonSaveRequest(request: Request) {
 }
 
 /**
- * Finds (or lazily creates) the SongChart row that owns this user's chart
+ * Finds (or lazily creates) the dev-authored SongChart row that owns the chart
  * for the given song + activity, returning its current storage targets.
+ * Charts always live under `dev/{ActivityFolder}/` in storage.
  */
 async function getOrCreateAuthoredChartTargets({
   songAssetId,
@@ -106,12 +108,12 @@ async function getOrCreateAuthoredChartTargets({
         bucket: existing.sidecarBucket ?? "SidecarJsons",
         path:
           existing.sidecarPath ??
-          buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorId }).sidecarPath,
+          buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorFolder: DEV_AUTHOR_FOLDER }).sidecarPath,
       },
     };
   }
 
-  const paths = buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorId });
+  const paths = buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorFolder: DEV_AUTHOR_FOLDER });
 
   await prisma.songChart.create({
     data: {
@@ -137,7 +139,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const currentUser = await requireCurrentAppUser();
+    // Saving still requires an authenticated session, but charts are always
+    // written to the shared dev-authored SongChart row for the song + activity.
+    await requireCurrentAppUser();
 
     const payload = (await request.json()) as SavePayload;
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId").toLowerCase();
@@ -166,9 +170,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Song not found" }, { status: 404 });
     }
 
+    const devAuthor = await getOrCreateDevAuthor();
+
     const targets = await getOrCreateAuthoredChartTargets({
       songAssetId,
-      authorId: currentUser.id,
+      authorId: devAuthor.id,
       activityKey,
     });
 
@@ -188,7 +194,7 @@ export async function POST(request: Request) {
         const { count } = await prisma.songChart.updateMany({
           where: {
             songAssetId,
-            authorId: currentUser.id,
+            authorId: devAuthor.id,
             activityKey,
             chartBucket: targets.chart.bucket,
             chartPath: targets.chart.path,

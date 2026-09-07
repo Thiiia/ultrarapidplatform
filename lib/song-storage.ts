@@ -118,6 +118,31 @@ type SongChartRecord = {
 };
 
 /**
+ * The shared "dev" author owns every SongChart used by song choice and the
+ * lesson editor. Its storage files always live under `dev/{ActivityFolder}/`
+ * in the Charts/SidecarJsons buckets.
+ */
+export const DEV_AUTHOR_FOLDER = "dev";
+const DEV_AUTHOR_EMAIL = "dev";
+
+export async function findDevAuthor() {
+  return prisma.user.findUnique({ where: { email: DEV_AUTHOR_EMAIL } });
+}
+
+export async function getOrCreateDevAuthor() {
+  return prisma.user.upsert({
+    where: { email: DEV_AUTHOR_EMAIL },
+    update: {},
+    create: {
+      email: DEV_AUTHOR_EMAIL,
+      auth0Sub: DEV_AUTHOR_EMAIL,
+      name: DEV_AUTHOR_FOLDER,
+      role: "teacher",
+    },
+  });
+}
+
+/**
  * Materializes (creates in Supabase Storage + Postgres) a brand-new blank
  * chart/sidecar pair for a user who has not authored one yet for this
  * song + activity combination.
@@ -126,15 +151,17 @@ async function createBlankAuthoredChart({
   songAssetId,
   authorId,
   activityKey,
+  authorFolder,
 }: {
   songAssetId: string;
   authorId: string;
   activityKey: SongActivityKey;
+  authorFolder: string;
 }): Promise<SongChartRecord> {
   const { chartPath, sidecarPath } = buildAuthoredChartStoragePaths({
     activityKey,
     songAssetId,
-    authorId,
+    authorFolder,
   });
 
   const chartBucket = "Charts";
@@ -176,6 +203,47 @@ async function createBlankAuthoredChart({
     sidecarBucket: created.sidecarBucket,
     sidecarPath: created.sidecarPath,
   };
+}
+
+/**
+ * Returns the dev-authored SongChart for a song + activity, creating a blank
+ * chart/sidecar pair (uploaded under `dev/{ActivityFolder}/`) when the dev
+ * author has not authored one for this song yet.
+ */
+export async function ensureDevAuthoredChart({
+  songAssetId,
+  activityKey,
+}: {
+  songAssetId: string;
+  activityKey: SongActivityKey;
+}): Promise<SongChartRecord> {
+  const devAuthor = await getOrCreateDevAuthor();
+
+  const existing = await prisma.songChart.findUnique({
+    where: {
+      songAssetId_authorId_activityKey: {
+        songAssetId,
+        authorId: devAuthor.id,
+        activityKey,
+      },
+    },
+  });
+
+  if (existing) {
+    return {
+      chartBucket: existing.chartBucket,
+      chartPath: existing.chartPath,
+      sidecarBucket: existing.sidecarBucket,
+      sidecarPath: existing.sidecarPath,
+    };
+  }
+
+  return createBlankAuthoredChart({
+    songAssetId,
+    authorId: devAuthor.id,
+    activityKey,
+    authorFolder: DEV_AUTHOR_FOLDER,
+  });
 }
 
 async function getFileMetadata(bucket: string, path: string) {
@@ -297,11 +365,13 @@ async function buildSongChoiceForAsset({
   storageSong,
   activityKey,
   chartRecord,
+  signChartAssets = true,
 }: {
   songAsset: SongAssetLike;
   storageSong: StorageFileEntry;
   activityKey: SongActivityKey;
   chartRecord: SongChartRecord;
+  signChartAssets?: boolean;
 }): Promise<SongChoice | null> {
   try {
     let songSignedUrl = "";
@@ -318,7 +388,7 @@ async function buildSongChoiceForAsset({
       });
     }
 
-    if (chartRecord.chartBucket && chartRecord.chartPath) {
+    if (signChartAssets && chartRecord.chartBucket && chartRecord.chartPath) {
       try {
         chartSignedUrl = await createSignedUrl(chartRecord.chartBucket, chartRecord.chartPath);
       } catch (error) {
@@ -330,7 +400,7 @@ async function buildSongChoiceForAsset({
       }
     }
 
-    if (chartRecord.sidecarBucket && chartRecord.sidecarPath) {
+    if (signChartAssets && chartRecord.sidecarBucket && chartRecord.sidecarPath) {
       try {
         sidecarSignedUrl = await createSignedUrl(
           chartRecord.sidecarBucket,
@@ -384,11 +454,11 @@ async function buildSongChoiceForAsset({
       },
 
       sidecar:
-        chartRecord.sidecarPath && chartRecord.sidecarBucket && sidecarSignedUrl
+        chartRecord.sidecarPath && chartRecord.sidecarBucket
           ? {
               bucket: chartRecord.sidecarBucket,
               path: chartRecord.sidecarPath,
-              signedUrl: sidecarSignedUrl,
+              signedUrl: sidecarSignedUrl ?? "",
               contentType: getContentTypeFromPath(chartRecord.sidecarPath),
             }
           : null,
@@ -441,13 +511,15 @@ async function buildSongChoiceForAsset({
 }
 
 /**
- * Song choice listing for the song-choice pages: every active song shows up
- * regardless of whether the current user has authored a chart for it yet. If
- * they haven't, a blank chart/sidecar is created on the fly for them.
+ * Song choice listing for the song-choice pages: every active SongAsset shows
+ * up, sourced purely from the SongAsset table. Only the song audio gets a
+ * signed URL here; chart/sidecar signed URLs are resolved at selection time
+ * (see ensureDevAuthoredChart + /api/song-package/launch). The chart/sidecar
+ * fields carry the prospective dev-authored storage paths so downstream
+ * payloads have a stable shape before the selection fetch completes.
  */
 export async function getSongChoices(
   requestedActivityKey?: string | null,
-  options: { userId?: string | null } = {},
 ): Promise<SongChoice[]> {
   const preferredActivityKey = resolveRequestedSongActivityKey(requestedActivityKey);
 
@@ -456,41 +528,10 @@ export async function getSongChoices(
     return [];
   }
 
-  const userId = options.userId ?? null;
-
   const songAssets = await prisma.songAsset.findMany({
     where: { isActive: true },
     orderBy: { title: "asc" },
   });
-
-  const existingChartsByAsset = userId
-    ? new Map(
-        (
-          await prisma.songChart.findMany({
-            where: { authorId: userId, activityKey: preferredActivityKey },
-          })
-        ).map((chart) => [chart.songAssetId, chart] as const),
-      )
-    : new Map<string, Awaited<ReturnType<typeof prisma.songChart.findFirst>>>();
-
-  const anyAuthorChartsByAsset = userId
-    ? null
-    : new Map(
-        (
-          await prisma.songChart.findMany({
-            where: { activityKey: preferredActivityKey },
-            orderBy: { updatedAt: "desc" },
-          })
-        ).reduce<Map<string, Awaited<ReturnType<typeof prisma.songChart.findFirst>>>>(
-          (map, chart) => {
-            if (!map.has(chart.songAssetId)) {
-              map.set(chart.songAssetId, chart);
-            }
-            return map;
-          },
-          new Map(),
-        ),
-      );
 
   const songs: Array<SongChoice | null> = await Promise.all(
     songAssets.map(async (songAsset): Promise<SongChoice | null> => {
@@ -502,35 +543,23 @@ export async function getSongChoices(
         updatedAt: songAsset.updatedAt.toISOString(),
       };
 
-      const existingChart = userId
-        ? existingChartsByAsset.get(songAsset.id) ?? null
-        : anyAuthorChartsByAsset?.get(songAsset.id) ?? null;
-
-      const chartRecord: SongChartRecord = existingChart
-        ? {
-            chartBucket: existingChart.chartBucket,
-            chartPath: existingChart.chartPath,
-            sidecarBucket: existingChart.sidecarBucket,
-            sidecarPath: existingChart.sidecarPath,
-          }
-        : userId
-          ? await createBlankAuthoredChart({
-              songAssetId: songAsset.id,
-              authorId: userId,
-              activityKey: preferredActivityKey,
-            })
-          : {
-              chartBucket: "Charts",
-              chartPath: `${preferredActivityKey}/${songAsset.id}.chart`,
-              sidecarBucket: "SidecarJsons",
-              sidecarPath: `${preferredActivityKey}/${songAsset.id}.json`,
-            };
+      const prospectivePaths = buildAuthoredChartStoragePaths({
+        activityKey: preferredActivityKey,
+        songAssetId: songAsset.id,
+        authorFolder: DEV_AUTHOR_FOLDER,
+      });
 
       return buildSongChoiceForAsset({
         songAsset,
         storageSong,
         activityKey: preferredActivityKey,
-        chartRecord,
+        chartRecord: {
+          chartBucket: "Charts",
+          chartPath: prospectivePaths.chartPath,
+          sidecarBucket: "SidecarJsons",
+          sidecarPath: prospectivePaths.sidecarPath,
+        },
+        signChartAssets: false,
       });
     }),
   );

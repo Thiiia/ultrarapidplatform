@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentAppUser } from "@/lib/current-user";
 import { resolveFreshSongLaunchPackage } from "@/lib/song-launch-package";
+import { ensureDevAuthoredChart } from "@/lib/song-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import type { SongActivityKey } from "@/lib/song-activity-storage";
 
 function readRequiredString(value: unknown, label: string) {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -35,11 +36,10 @@ export async function POST(request: Request) {
     };
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId");
     const activityKey = readRequiredString(payload.activityKey, "activityKey");
-    const currentUser = await getCurrentAppUser();
     const songPackage = await resolveFreshSongLaunchPackage({
       songAssetId,
       activityKey,
-      authorId: currentUser?.id ?? null,
+      authorId: null,
       loadSongAsset: async (id) =>
         prisma.songAsset.findUnique({
           where: { id },
@@ -50,23 +50,17 @@ export async function POST(request: Request) {
             songPath: true,
           },
         }) as Promise<Record<string, unknown> | null>,
-      loadSongChart: async (assetId, resolvedActivityKey, authorId) => {
-        const chart = authorId
-          ? await prisma.songChart.findUnique({
-              where: {
-                songAssetId_authorId_activityKey: {
-                  songAssetId: assetId,
-                  authorId,
-                  activityKey: resolvedActivityKey,
-                },
-              },
-            })
-          : await prisma.songChart.findFirst({
-              where: { songAssetId: assetId, activityKey: resolvedActivityKey },
-              orderBy: { updatedAt: "desc" },
-            });
+      loadSongChart: async (assetId, resolvedActivityKey) => {
+        // Song charts are always authored by the shared "dev" user. When no
+        // dev-authored chart exists for this song + activity yet, a blank
+        // chart/sidecar pair is materialized under dev/{ActivityFolder}/ and
+        // persisted as a new SongChart row before signing.
+        const chart = await ensureDevAuthoredChart({
+          songAssetId: assetId,
+          activityKey: resolvedActivityKey as SongActivityKey,
+        });
 
-        if (!chart || !chart.sidecarPath || !chart.sidecarBucket) {
+        if (!chart.sidecarPath || !chart.sidecarBucket) {
           return null;
         }
 
