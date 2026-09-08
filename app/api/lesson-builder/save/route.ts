@@ -13,7 +13,7 @@ import {
 } from "@/lib/song-activity-storage";
 import { DEV_AUTHOR_FOLDER, findAuthorByName, getOrCreateDevAuthor } from "@/lib/song-storage";
 import { resolveRequestedAuthor } from "@/lib/song-author";
-import { extractRevisionFromStoragePath } from "@/lib/song-launch-identity";
+import { checkSaveRevisionPrecondition } from "@/lib/song-launch-identity";
 import {
   parseAuthoredLessonDraft,
   stampAuthoredLessonIdentity,
@@ -250,14 +250,16 @@ export async function POST(request: Request) {
       activityKey,
       authorFolder,
     });
-    if (requestedRevision) {
-      const currentRevision = extractRevisionFromStoragePath(targets.chart.path);
-      if (currentRevision !== requestedRevision) {
-        return NextResponse.json(
-          { error: `Save revision conflict: expected ${requestedRevision}, found ${currentRevision ?? "none"}` },
-          { status: 409 },
-        );
-      }
+    // Concurrency precondition: the draft's previous revision must match the
+    // revision currently published in storage. The NEW revision (revisionId) is
+    // generated below and stamped as output identity, never equated with the
+    // previous one (that mismatch was the F02 second-save defect).
+    const precondition = checkSaveRevisionPrecondition(targets.chart.path, requestedRevision);
+    if (!precondition.ok) {
+      return NextResponse.json(
+        { error: `Save revision conflict: expected ${precondition.expected}, found ${precondition.found ?? "none"}` },
+        { status: 409 },
+      );
     }
     const revisionId = randomUUID();
     const persistedSidecarContent = authoredDraft

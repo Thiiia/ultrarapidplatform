@@ -13,6 +13,17 @@ export type FreshSongLaunchPackage = {
   activityKey: string;
   authorId?: string;
   revision?: string;
+  receipt?: {
+    receiptVersion: 1;
+    songAssetId: string;
+    activityKey: string;
+    authorId: string;
+    revision?: string;
+    chart: { bucket: string; path: string };
+    sidecar: { bucket: string; path: string };
+    audio: { bucket: string; path: string };
+    counts?: { encounters: number; equations: number; targets: number };
+  };
   chart: { bucket: string; path: string; signedUrl: string };
   sidecar: { bucket: string; path: string; signedUrl: string };
   audio: { bucket: string; path: string; signedUrl: string };

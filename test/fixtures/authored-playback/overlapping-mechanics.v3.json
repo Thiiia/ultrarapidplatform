@@ -1,0 +1,90 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "waves",
+  "activityKey": "early-algebra",
+  "authorId": "author-dev",
+  "revision": "rev-fixture-1",
+  "stopAtSeconds": 17,
+  "equations": [
+    {
+      "id": "eq-1",
+      "state": "3 + 4 = 7"
+    },
+    {
+      "id": "eq-2",
+      "state": "X + 2 = 9"
+    },
+    {
+      "id": "eq-3",
+      "state": "5 = Y"
+    }
+  ],
+  "encounters": [
+    {
+      "id": "inst-hit-1",
+      "eventId": "event-1",
+      "type": "hit",
+      "equationId": "eq-1",
+      "startTick": 5568,
+      "endTick": 5568,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "positions": [
+            "topLeft"
+          ],
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inst-hit-2",
+      "eventId": "event-1",
+      "type": "hit",
+      "equationId": "eq-1",
+      "startTick": 5568,
+      "endTick": 5568,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "positions": [
+            "bottomRight"
+          ],
+          "pads": [
+            "bottomRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inst-spin-1",
+      "eventId": "event-2",
+      "type": "spin",
+      "equationId": "eq-2",
+      "startTick": 9048,
+      "endTick": 12528,
+      "spinTargets": [
+        {
+          "tokenIndex": 0
+        }
+      ]
+    },
+    {
+      "id": "inst-drag-1",
+      "eventId": "event-2",
+      "type": "drag",
+      "equationId": "eq-2",
+      "startTick": 9048,
+      "endTick": 12528,
+      "dragTargets": [
+        {
+          "tokenIndex": 1,
+          "sourceHitId": "inst-hit-1"
+        }
+      ]
+    }
+  ]
+}

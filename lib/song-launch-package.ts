@@ -14,11 +14,38 @@ type SongChartTargets = {
   sidecarPath: string;
   authorId?: string;
   revision?: string;
+  counts?: {
+    encounters: number;
+    equations: number;
+    targets: number;
+  };
 };
 
 type BlankSongChartPackage = {
   chart: SignedStorageRef;
   sidecar: SignedStorageRef;
+};
+
+/**
+ * Versioned launch receipt: stable identity + object references + content
+ * counts, used to compare the platform's delivered package against Unity's
+ * received one. Signed URLs (credentials) are excluded; only bucket/path
+ * references and counts are recorded.
+ */
+export type SongLaunchReceipt = {
+  receiptVersion: 1;
+  songAssetId: string;
+  activityKey: string;
+  authorId: string;
+  revision?: string;
+  chart: { bucket: string; path: string };
+  sidecar: { bucket: string; path: string };
+  audio: { bucket: string; path: string };
+  counts?: {
+    encounters: number;
+    equations: number;
+    targets: number;
+  };
 };
 
 function readRequiredString(value: unknown, label: string) {
@@ -124,6 +151,20 @@ export async function resolveFreshSongLaunchPackage({
     throw new Error("Launch package author does not match the requested author");
   }
 
+  const resolvedAuthorId = chartTargets.authorId ?? authorId ?? "";
+
+  const receipt: SongLaunchReceipt = {
+    receiptVersion: 1,
+    songAssetId: canonicalSongAssetId,
+    activityKey: requestedActivityKey,
+    authorId: resolvedAuthorId,
+    revision: chartTargets.revision ?? resolvedRevision,
+    chart: { bucket: chartTargets.chartBucket, path: chartTargets.chartPath },
+    sidecar: { bucket: chartTargets.sidecarBucket, path: chartTargets.sidecarPath },
+    audio: { bucket: audioBucket, path: audioPath },
+    ...(chartTargets.counts ? { counts: chartTargets.counts } : {}),
+  };
+
   const [chartUrl, sidecarUrl, audioUrl] = await Promise.all([
     createSignedUrl(chartTargets.chartBucket, chartTargets.chartPath),
     createSignedUrl(chartTargets.sidecarBucket, chartTargets.sidecarPath),
@@ -133,8 +174,9 @@ export async function resolveFreshSongLaunchPackage({
   return {
     songAssetId: canonicalSongAssetId,
     activityKey: requestedActivityKey,
-    authorId: chartTargets.authorId ?? authorId ?? "",
+    authorId: resolvedAuthorId,
     revision: chartTargets.revision ?? resolvedRevision,
+    receipt,
     chart: {
       bucket: chartTargets.chartBucket,
       path: chartTargets.chartPath,

@@ -1,0 +1,17 @@
+[Song]
+{
+  Name = "Waves"
+  Artist = "Grafix"
+  Resolution = "480"
+  Offset = "0"
+}
+[SyncTrack]
+{
+  0 = B 174000
+}
+[Events]
+{
+}
+[ExpertSingle]
+{
+}

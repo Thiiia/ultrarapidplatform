@@ -49,6 +49,43 @@ async function createSignedUrl(bucket: string, path: string) {
 }
 
 /**
+ * Count authored equations/encounters/targets from a stored v3 sidecar for the
+ * launch receipt. Best-effort: returns undefined when the sidecar is not v3
+ * authored or cannot be read/parsed, so a receipt is still produced.
+ */
+async function readAuthoredCounts(bucket: string, path: string) {
+  try {
+    const { data, error } = await getSupabaseAdmin().storage.from(bucket).download(path);
+    if (error || !data) return undefined;
+
+    const parsed = JSON.parse(await data.text()) as {
+      version?: unknown;
+      mode?: unknown;
+      equations?: unknown;
+      encounters?: unknown;
+    };
+
+    if (parsed.version !== 3 || parsed.mode !== "authored") return undefined;
+
+    const equations = Array.isArray(parsed.equations) ? parsed.equations.length : 0;
+    const encounters = Array.isArray(parsed.encounters) ? parsed.encounters : [];
+    const targets = encounters.reduce((sum, encounter) => {
+      const e = encounter as { hitBubbles?: unknown; spinTargets?: unknown; dragTargets?: unknown };
+      return (
+        sum +
+        (Array.isArray(e.hitBubbles) ? e.hitBubbles.length : 0) +
+        (Array.isArray(e.spinTargets) ? e.spinTargets.length : 0) +
+        (Array.isArray(e.dragTargets) ? e.dragTargets.length : 0)
+      );
+    }, 0);
+
+    return { encounters: encounters.length, equations, targets };
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Absolute URL of the blank chart/sidecar endpoint. Used in place of a signed
  * storage URL when the dev author has not authored a chart for this song +
  * activity yet, so every consumer (lesson editor hydration, game launch) can
@@ -137,6 +174,8 @@ export async function POST(request: Request) {
           return null;
         }
 
+        const counts = await readAuthoredCounts(chart.sidecarBucket, chart.sidecarPath);
+
         return {
           chartBucket: chart.chartBucket,
           chartPath: chart.chartPath,
@@ -144,6 +183,7 @@ export async function POST(request: Request) {
           sidecarPath: chart.sidecarPath,
           authorId: author.id,
           revision: extractRevisionFromStoragePath(chart.chartPath) ?? undefined,
+          ...(counts ? { counts } : {}),
         };
       },
       loadBlankSongChart: async (assetId, resolvedActivityKey) => {

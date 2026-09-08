@@ -32,3 +32,27 @@ export function requireMatchingRevision(
 
   return chartRevision;
 }
+
+export type SaveRevisionPrecondition =
+  | { ok: true; currentRevision: string | null }
+  | { ok: false; expected: string; found: string | null };
+
+/**
+ * Concurrency precondition for a save: the previous revision carried by the
+ * edited draft must equal the revision currently published in storage. A first
+ * save (no published revision yet) only proceeds when no previous revision was
+ * supplied. Pure and side-effect free so the repeat-save / stale-save / first-save
+ * decisions can be route-tested without storage.
+ */
+export function checkSaveRevisionPrecondition(
+  currentChartPath: string,
+  requestedRevision: string | null,
+): SaveRevisionPrecondition {
+  const currentRevision = extractRevisionFromStoragePath(currentChartPath);
+
+  if (requestedRevision && currentRevision !== requestedRevision) {
+    return { ok: false, expected: requestedRevision, found: currentRevision };
+  }
+
+  return { ok: true, currentRevision };
+}

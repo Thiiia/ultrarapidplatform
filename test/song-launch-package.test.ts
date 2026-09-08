@@ -8,6 +8,7 @@ type SongChartTargets = {
   sidecarPath: string;
   authorId?: string;
   revision?: string;
+  counts?: { encounters: number; equations: number; targets: number };
 };
 
 type SongLaunchPackageModule = {
@@ -39,6 +40,17 @@ type SongLaunchPackageModule = {
     audio: { bucket: string; path: string; signedUrl: string };
     authorId: string;
     revision: string;
+    receipt?: {
+      receiptVersion: 1;
+      songAssetId: string;
+      activityKey: string;
+      authorId: string;
+      revision?: string;
+      chart: { bucket: string; path: string };
+      sidecar: { bucket: string; path: string };
+      audio: { bucket: string; path: string };
+      counts?: { encounters: number; equations: number; targets: number };
+    };
   }>;
 };
 
@@ -85,6 +97,7 @@ test("resolves and signs the current complete activity package for the requestin
         sidecarPath: "Early_Algebra/revisions/rev-7/waves.json",
         authorId: "author-7",
         revision: "rev-7",
+        counts: { encounters: 4, equations: 3, targets: 5 },
       };
     },
     createSignedUrl: async (bucket, path) => {
@@ -103,6 +116,17 @@ test("resolves and signs the current complete activity package for the requestin
     activityKey: "early-algebra",
     authorId: "author-7",
     revision: "rev-7",
+    receipt: {
+      receiptVersion: 1,
+      songAssetId: "song-123",
+      activityKey: "early-algebra",
+      authorId: "author-7",
+      revision: "rev-7",
+      chart: { bucket: "Charts", path: "Early_Algebra/revisions/rev-7/waves.chart" },
+      sidecar: { bucket: "SidecarJsons", path: "Early_Algebra/revisions/rev-7/waves.json" },
+      audio: { bucket: "Songs", path: "albums/waves.mp3" },
+      counts: { encounters: 4, equations: 3, targets: 5 },
+    },
     chart: {
       bucket: "Charts",
       path: "Early_Algebra/revisions/rev-7/waves.chart",
@@ -119,6 +143,36 @@ test("resolves and signs the current complete activity package for the requestin
       signedUrl: "https://storage.example/Songs/albums/waves.mp3",
     },
   });
+});
+
+test("receipt carries stable identity + refs without signed-URL credentials", async () => {
+  const songLaunchPackage = await loadSongLaunchPackageModule();
+
+  const resolved = await songLaunchPackage!.resolveFreshSongLaunchPackage!({
+    songAssetId: "song-9",
+    activityKey: "missing-numbers",
+    authorId: "author-2",
+    loadSongAsset: async () => ({
+      id: "song-9",
+      isActive: true,
+      songBucket: "Songs",
+      songPath: "garden.mp3",
+    }),
+    loadSongChart: async () => ({
+      chartBucket: "Charts",
+      chartPath: "Missing_Numbers/revisions/rev-1/song.chart",
+      sidecarBucket: "SidecarJsons",
+      sidecarPath: "Missing_Numbers/revisions/rev-1/song.json",
+      authorId: "author-2",
+    }),
+    createSignedUrl: async (bucket, path) => `https://storage.example/${bucket}/${path}?token=secret`,
+  });
+
+  assert.equal(resolved.receipt?.receiptVersion, 1);
+  assert.equal(resolved.receipt?.authorId, "author-2");
+  assert.equal(resolved.receipt?.revision, "rev-1");
+  // Receipt must not leak signed-URL credentials.
+  assert.equal(JSON.stringify(resolved.receipt).includes("token=secret"), false);
 });
 
 test("rejects a launch chart that does not match the requested immutable revision", async () => {

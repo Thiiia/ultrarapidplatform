@@ -477,6 +477,8 @@ export default function SongChoiceClient({
     Record<string, FreshSongLaunchPackage>
   >({});
   const pendingSelectionsRef = useRef<Set<string>>(new Set());
+  // Monotonic token: only the newest selection's async resolution is applied.
+  const selectionTokenRef = useRef(0);
 
   const filteredSongs = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -536,6 +538,8 @@ export default function SongChoiceClient({
   function handleSelectSong(song: SongChoiceWithEquationSlots) {
     setSelectedSongId(song.id);
     setLaunchError("");
+    selectionTokenRef.current += 1;
+    const selectionToken = selectionTokenRef.current;
 
     if (selectionPackages[song.id] || pendingSelectionsRef.current.has(song.id)) {
       return;
@@ -553,6 +557,11 @@ export default function SongChoiceClient({
       allowBlankPackage: true,
     })
       .then((freshPackage) => {
+        // Drop stale responses: a slower earlier selection must not overwrite
+        // the package for the song the user selected most recently.
+        if (selectionToken !== selectionTokenRef.current) {
+          return;
+        }
         setSelectionPackages((current) => ({
           ...current,
           [song.id]: freshPackage,

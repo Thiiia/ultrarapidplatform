@@ -642,9 +642,14 @@ export async function getEditorSongChoices(
   }
 
   // Resolve plaintext author name ("dev"/"Felix") to a user id for filtering.
+  // An explicitly requested author that resolves to nothing must return an
+  // empty listing, never silently broaden to every author (F08).
   let authorId = options.userId ?? null;
   if (!authorId && options.authorName) {
     authorId = (await findAuthorByName(options.authorName))?.id ?? null;
+    if (!authorId) {
+      return [];
+    }
   }
 
   const charts = await prisma.songChart.findMany({
