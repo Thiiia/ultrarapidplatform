@@ -9,6 +9,13 @@ import {
   type SidecarPayload as StoreSidecarPayload,
 } from "@/lib/editor/editor-store";
 import { chartToProject } from "@/lib/editor/chart-to-project";
+import {
+  serializeAuthoredLesson,
+  timelineEventsFromAuthoredLesson,
+  type AuthoredLessonDraft,
+  type AuthoredTimelineEvent,
+} from "@/lib/authored-lesson-serialization";
+import { parseAuthoredLessonDraft } from "@/lib/authored-lesson";
 import { createLessonClock, mapLessonTimes } from "@/lib/editor/lesson-timing";
 import {
   projectToChart,
@@ -236,28 +243,6 @@ type SidecarPayload = {
   // Seconds after the last event ends at which the game should stop.
   stopAtSeconds?: number;
   events: SidecarEvent[];
-};
-
-type AuthoredLessonDraftPayload = {
-  version: 3;
-  mode: "authored";
-  songAssetId: string;
-  activityKey: string;
-  authorId?: string;
-  revision?: string;
-  stopAtSeconds?: number;
-  equations: Array<{ id: string; state: string }>;
-  encounters: Array<{
-    id: string;
-    eventId: string;
-    type: GameplayMechanic;
-    equationId?: string;
-    startTick: number;
-    endTick: number;
-    hitBubbles?: HitBubblePlacement[];
-    spinTargets?: SpinTarget[];
-    dragTargets?: DragTarget[];
-  }>;
 };
 
 type LessonBuilderClientProps = {
@@ -1385,54 +1370,24 @@ function sidecarInSecondsFromTimelineEvents(
   };
 }
 
+/**
+ * Serialize the editor timeline to the v3 authored draft. Editor positions are
+ * fractional audio seconds; conversion to integer chart ticks happens exactly
+ * once here through the shared chart tempo map (createLessonClock). Identity
+ * (event/instance/equation IDs) is passed through unchanged.
+ */
 function authoredSidecarFromTimelineEvents(
   events: TimelineEventSlot[],
   identity: { songAssetId: string; activityKey: string; authorId?: string | null; revision?: string | null },
+  clock: ReturnType<typeof createLessonClock>,
   stopAtSeconds?: number,
-): AuthoredLessonDraftPayload {
-  const equations: AuthoredLessonDraftPayload["equations"] = [];
-  const encounters: AuthoredLessonDraftPayload["encounters"] = [];
-
-  events.forEach((event, eventIndex) => {
-    const equation = getTimelineEventEquation(event);
-    const equationId = `eq_${String(eventIndex + 1).padStart(3, "0")}`;
-    if (equation && equation.tokens.length > 0) {
-      equations.push({ id: equationId, state: tokensToEquationState(equation.tokens) });
-    }
-
-    gameplayMechanics.forEach((mechanic) => {
-      const count = event.counts?.[mechanic] ?? 0;
-      for (let instanceIndex = 0; instanceIndex < count; instanceIndex += 1) {
-        const instance = event.mechanicInstances?.[mechanic]?.[instanceIndex];
-        if (!instance) {
-          throw new Error(`Authored lesson mechanic instance is missing for event '${event.id}'`);
-        }
-        encounters.push({
-          id: `${event.id}:${mechanic}:${instanceIndex}`,
-          eventId: event.id,
-          type: mechanic,
-          ...(equation && equation.tokens.length > 0 ? { equationId } : {}),
-          startTick: normalizeTick(instance.tick ?? event.tick),
-          endTick: normalizeTick(instance.endTick ?? instance.tick ?? event.tick),
-          ...(mechanic === "hit" ? { hitBubbles: instance.hitBubbles ?? [] } : {}),
-          ...(mechanic === "spin" ? { spinTargets: instance.spinTargets ?? [] } : {}),
-          ...(mechanic === "drag" ? { dragTargets: instance.dragTargets ?? [] } : {}),
-        });
-      }
-    });
-  });
-
-  return {
-    version: 3,
-    mode: "authored",
-    songAssetId: identity.songAssetId,
-    activityKey: identity.activityKey,
-    ...(identity.authorId ? { authorId: identity.authorId } : {}),
-    ...(identity.revision ? { revision: identity.revision } : {}),
-    ...(typeof stopAtSeconds === "number" ? { stopAtSeconds } : {}),
-    equations,
-    encounters,
-  };
+): AuthoredLessonDraft {
+  return serializeAuthoredLesson(
+    events as unknown as AuthoredTimelineEvent[],
+    identity,
+    clock,
+    stopAtSeconds,
+  );
 }
 
 function chartEventsFromSidecar(sidecar: SidecarPayload) {
@@ -9661,6 +9616,52 @@ export default function LessonBuilderClient({
     sourceChart = chartFile || originalChartFileRef.current,
   ) {
     const clock = createLessonClock(sourceChart);
+
+    // v3 authored fast-path: strict-validate the draft, then hydrate through
+    // the tempo map while preserving event/instance/equation identity and
+    // equations that no mechanic references. Falls through to the legacy v1
+    // bridge for non-authored content.
+    if (
+      nextSidecar &&
+      (nextSidecar as { version?: unknown }).version === 3 &&
+      (nextSidecar as { mode?: unknown }).mode === "authored"
+    ) {
+      const authoredDraft = parseAuthoredLessonDraft(nextSidecar);
+      const hydrated = timelineEventsFromAuthoredLesson(authoredDraft, clock);
+      const nextEvents = hydrated.events as unknown as TimelineEventSlot[];
+      const importedEquations = hydrated.equations as unknown as SavedEquation[];
+
+      appendSongFlowDebug("lesson-builder:timeline:hydrate", "Hydrated authored v3 lesson with identity preserved.", {
+        authoredEventCount: nextEvents.length,
+        authoredEquationCount: importedEquations.length,
+        authoredEncounterCount: authoredDraft.encounters.length,
+      });
+
+      setTimelineEvents(nextEvents);
+      timelineRehydrateSourceRef.current = nextSidecar;
+      setSavedEquations((current) => {
+        const existingStates = new Set(
+          current.map((equation) => tokensToEquationState(equation.tokens)),
+        );
+        const merged = [...current];
+
+        importedEquations.forEach((equation) => {
+          const state = tokensToEquationState(equation.tokens);
+
+          if (!existingStates.has(state)) {
+            merged.push(equation);
+            existingStates.add(state);
+          }
+        });
+
+        return merged;
+      });
+      setActiveEventId(nextEvents[0]?.id ?? null);
+      setMode(nextMode);
+      setStoreSidecar(nextSidecar as StoreSidecarPayload);
+      return;
+    }
+
     const nextEvents = timelineEventsFromSidecar(
       { ...nextSidecar, events: mapLessonTimes(nextSidecar.events, clock.toSeconds) },
       equationSlotCount,
@@ -10642,6 +10643,7 @@ export default function LessonBuilderClient({
       };
 
       const timelineSidecar = sidecarFromTimelineEvents(timelineEvents, true);
+      const authoredClock = createLessonClock(chartFile || originalChartFileRef.current);
       const authoredSidecar = authoredSidecarFromTimelineEvents(
         timelineEvents,
         {
@@ -10653,19 +10655,21 @@ export default function LessonBuilderClient({
           authorId: lastSavedAuthorId,
           revision: lastSavedRevision,
         },
+        authoredClock,
         timelineSidecar.stopAtSeconds,
       );
       for (const draft of rtcmDraftMechanics) {
-        const endTick =
+        const endSeconds =
           draft.id === rtcmPendingHold?.draftId
             ? Math.max(draft.tick, currentSongSeconds)
             : draft.endTick ?? draft.tick;
+        // RTCM draft positions are audio seconds; convert to integer ticks once.
         authoredSidecar.encounters.push({
           id: draft.id,
           eventId: draft.id,
           type: draft.mechanic,
-          startTick: normalizeTick(draft.tick),
-          endTick: normalizeTick(endTick),
+          startTick: authoredClock.toTick(draft.tick),
+          endTick: authoredClock.toTick(endSeconds),
           ...(draft.mechanic === "hit"
             ? { hitBubbles: draft.hitBubbles }
             : draft.mechanic === "spin"
