@@ -1,5 +1,7 @@
 type Row = Record<string, unknown>;
 
+import { parseAuthoredLessonDraft } from "./authored-lesson";
+
 /** Companion ticks use chart coordinates and may lie between rhythm note ticks. */
 export function validateLessonContent(chart: string, json: string) {
   const section = (name: string) => chart.match(new RegExp(`\\[${name}\\]\\s*\\{([\\s\\S]*?)\\}`))?.[1];
@@ -7,6 +9,12 @@ export function validateLessonContent(chart: string, json: string) {
     throw new Error('Invalid chart: Song, positive Resolution and SyncTrack are required');
   }
   if (!/\b0\s*=\s*B\s+[1-9]\d*/.test(section('SyncTrack')!)) throw new Error('Invalid chart BPM at tick zero');
+  const payload = JSON.parse(json) as Row;
+  if (!payload || ![1, 2, 3].includes(Number(payload.version))) throw new Error('Unsupported companion version');
+  if (Number(payload.version) === 3) {
+    parseAuthoredLessonDraft(payload);
+    return;
+  }
   const difficulties = ['EasySingle','MediumSingle','HardSingle','ExpertSingle'].map(section).filter(Boolean);
   if (!difficulties.some(body => /^\s*\d+\s*=\s*N\s+\d+\s+\d+/m.test(body!))) throw new Error('Invalid chart: no playable notes');
   for (const body of difficulties) {
@@ -17,8 +25,6 @@ export function validateLessonContent(chart: string, json: string) {
       previous = tick;
     }
   }
-  const payload = JSON.parse(json) as Row;
-  if (!payload || ![1,2].includes(Number(payload.version))) throw new Error('Unsupported companion version');
   const rows = payload.version === 2 ? payload.equations : payload.events;
   // Saving may persist an empty editor timeline (including deleting its last
   // encounter). Gameplay readiness must not prevent saving that authored state.

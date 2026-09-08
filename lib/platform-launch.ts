@@ -22,6 +22,8 @@ const platformLaunchParamKeys = [
   "audioUrl",
   "audio",
   "songUrl",
+  "authorId",
+  "revision",
   "assignmentToken",
   "assignment",
   "sessionToken",
@@ -38,6 +40,8 @@ type SongLaunchInput = {
   chartUrl: string;
   sidecarUrl?: string | null;
   audioUrl: string;
+  authorId?: string | null;
+  revision?: string | null;
   rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
 };
 
@@ -47,6 +51,8 @@ export function createSongLaunchSearchParams({
   chartUrl,
   sidecarUrl,
   audioUrl,
+  authorId,
+  revision,
   rhythmDifficultyKey,
 }: SongLaunchInput) {
   const params = new URLSearchParams({
@@ -63,6 +69,14 @@ export function createSongLaunchSearchParams({
 
   if (rhythmDifficultyKey) {
     params.set("rhythmDifficultyKey", rhythmDifficultyKey);
+  }
+
+  if (authorId) {
+    params.set("authorId", authorId);
+  }
+
+  if (revision) {
+    params.set("revision", revision);
   }
 
   return params;

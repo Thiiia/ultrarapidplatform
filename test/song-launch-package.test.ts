@@ -6,6 +6,8 @@ type SongChartTargets = {
   chartPath: string;
   sidecarBucket: string;
   sidecarPath: string;
+  authorId?: string;
+  revision?: string;
 };
 
 type SongLaunchPackageModule = {
@@ -13,6 +15,8 @@ type SongLaunchPackageModule = {
     songAssetId: string;
     activityKey: string;
     authorId: string | null;
+    revision?: string | null;
+    allowBlankPackage?: boolean;
     loadSongAsset: (id: string) => Promise<Record<string, unknown> | null>;
     loadSongChart: (
       songAssetId: string,
@@ -33,6 +37,8 @@ type SongLaunchPackageModule = {
     chart: { bucket: string; path: string; signedUrl: string };
     sidecar: { bucket: string; path: string; signedUrl: string };
     audio: { bucket: string; path: string; signedUrl: string };
+    authorId: string;
+    revision: string;
   }>;
 };
 
@@ -58,6 +64,7 @@ test("resolves and signs the current complete activity package for the requestin
     songAssetId: "song-123",
     activityKey: "early-algebra",
     authorId: "author-7",
+    revision: "rev-7",
     loadSongAsset: async (id) => {
       assert.equal(id, "song-123");
       return {
@@ -76,6 +83,8 @@ test("resolves and signs the current complete activity package for the requestin
         chartPath: "Early_Algebra/revisions/rev-7/waves.chart",
         sidecarBucket: "SidecarJsons",
         sidecarPath: "Early_Algebra/revisions/rev-7/waves.json",
+        authorId: "author-7",
+        revision: "rev-7",
       };
     },
     createSignedUrl: async (bucket, path) => {
@@ -92,6 +101,8 @@ test("resolves and signs the current complete activity package for the requestin
   assert.deepEqual(resolved, {
     songAssetId: "song-123",
     activityKey: "early-algebra",
+    authorId: "author-7",
+    revision: "rev-7",
     chart: {
       bucket: "Charts",
       path: "Early_Algebra/revisions/rev-7/waves.chart",
@@ -108,6 +119,35 @@ test("resolves and signs the current complete activity package for the requestin
       signedUrl: "https://storage.example/Songs/albums/waves.mp3",
     },
   });
+});
+
+test("rejects a launch chart that does not match the requested immutable revision", async () => {
+  const songLaunchPackage = await loadSongLaunchPackageModule();
+
+  await assert.rejects(
+    songLaunchPackage!.resolveFreshSongLaunchPackage!({
+      songAssetId: "song-123",
+      activityKey: "early-algebra",
+      authorId: "author-7",
+      revision: "rev-7",
+      loadSongAsset: async () => ({
+        id: "song-123",
+        isActive: true,
+        songBucket: "Songs",
+        songPath: "albums/song.mp3",
+      }),
+      loadSongChart: async () => ({
+        chartBucket: "Charts",
+        chartPath: "author/revisions/rev-8/song.chart",
+        sidecarBucket: "SidecarJsons",
+        sidecarPath: "author/revisions/rev-8/song.json",
+        authorId: "author-7",
+        revision: "rev-8",
+      }),
+      createSignedUrl: async () => "unused",
+    }),
+    /requested revision/i,
+  );
 });
 
 test("rejects a song/activity nobody has authored yet before creating signed URLs", async () => {
@@ -145,6 +185,7 @@ test("serves the blank chart package when no chart is authored and a blank fallb
     songAssetId: "song-123",
     activityKey: "missing-numbers",
     authorId: null,
+    allowBlankPackage: true,
     loadSongAsset: async (id) => {
       assert.equal(id, "song-123");
       return {
@@ -199,5 +240,30 @@ test("serves the blank chart package when no chart is authored and a blank fallb
       signedUrl: "https://storage.example/Songs/albums/waves.mp3",
     },
   });
+});
+
+test("does not treat an editor blank package as playable content by default", async () => {
+  const songLaunchPackage = await loadSongLaunchPackageModule();
+
+  await assert.rejects(
+    songLaunchPackage!.resolveFreshSongLaunchPackage!({
+      songAssetId: "song-123",
+      activityKey: "missing-numbers",
+      authorId: null,
+      loadSongAsset: async () => ({
+        id: "song-123",
+        isActive: true,
+        songBucket: "Songs",
+        songPath: "albums/song.mp3",
+      }),
+      loadSongChart: async () => null,
+      loadBlankSongChart: async () => ({
+        chart: { bucket: "Charts", path: "blank.chart", signedUrl: "blank" },
+        sidecar: { bucket: "SidecarJsons", path: "blank.json", signedUrl: "blank" },
+      }),
+      createSignedUrl: async () => "audio",
+    }),
+    /blank.*playable|No chart has been authored/i,
+  );
 });
 

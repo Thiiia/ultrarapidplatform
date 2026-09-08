@@ -9,6 +9,8 @@ import {
   findDevAuthoredChart,
 } from "@/lib/song-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { resolveRequestedAuthor } from "@/lib/song-author";
+import { extractRevisionFromStoragePath } from "@/lib/song-launch-identity";
 import {
   buildAuthoredChartStoragePaths,
   type SongActivityKey,
@@ -67,28 +69,47 @@ export async function POST(request: Request) {
       activityKey?: unknown;
       authorId?: unknown;
       authorName?: unknown;
+      revision?: unknown;
+      allowBlankPackage?: unknown;
     };
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId");
     const activityKey = readRequiredString(payload.activityKey, "activityKey");
+    const requestedAuthorId =
+      typeof payload.authorId === "string" && payload.authorId.trim()
+        ? payload.authorId.trim()
+        : null;
     const requestedAuthorName =
       typeof payload.authorName === "string" && payload.authorName.trim()
         ? payload.authorName.trim()
-        : typeof payload.authorId === "string" && payload.authorId.trim()
-          ? payload.authorId.trim()
-          : null;
-
-    // Resolve the author whose chart should be loaded (defaults to dev).
-    // Accepts a plaintext name ("dev"/"Felix") via findAuthorByName.
-    const requestedAuthor = requestedAuthorName
-      ? await findAuthorByName(requestedAuthorName)
-      : null;
-    const author = requestedAuthor ?? (await findDevAuthor());
-    const authorFolder = resolveAuthorFolder(author);
+        : null;
+    const requestedRevision =
+      typeof payload.revision === "string" && payload.revision.trim()
+        ? payload.revision.trim()
+        : null;
+    const author = await resolveRequestedAuthor({
+      authorId: requestedAuthorId,
+      authorName: requestedAuthorName,
+      findById: async (id) => prisma.user.findUnique({ where: { id }, select: { id: true, name: true } }),
+      findByName: async (name) => {
+        const user = await findAuthorByName(name);
+        return user ? { id: user.id, name: user.name } : null;
+      },
+      getDefault: async () => {
+        const user = await findDevAuthor();
+        return user ? { id: user.id, name: user.name } : null;
+      },
+    });
+    if (!author) {
+      throw new Error("No default author is configured");
+    }
+    const authorFolder = resolveAuthorFolder({ name: author.name, email: null });
 
     const songPackage = await resolveFreshSongLaunchPackage({
       songAssetId,
       activityKey,
-      authorId: author?.id ?? null,
+      authorId: author.id,
+      revision: requestedRevision,
+      allowBlankPackage: payload.allowBlankPackage === true && !requestedRevision,
       loadSongAsset: async (id) =>
         prisma.songAsset.findUnique({
           where: { id },
@@ -121,6 +142,8 @@ export async function POST(request: Request) {
           chartPath: chart.chartPath,
           sidecarBucket: chart.sidecarBucket,
           sidecarPath: chart.sidecarPath,
+          authorId: author.id,
+          revision: extractRevisionFromStoragePath(chart.chartPath) ?? undefined,
         };
       },
       loadBlankSongChart: async (assetId, resolvedActivityKey) => {

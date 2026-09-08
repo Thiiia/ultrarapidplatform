@@ -1,4 +1,5 @@
 import { resolveRequestedSongActivityKey } from "@/lib/song-activity-storage";
+import { requireMatchingRevision } from "@/lib/song-launch-identity";
 
 type SignedStorageRef = {
   bucket: string;
@@ -11,6 +12,8 @@ type SongChartTargets = {
   chartPath: string;
   sidecarBucket: string;
   sidecarPath: string;
+  authorId?: string;
+  revision?: string;
 };
 
 type BlankSongChartPackage = {
@@ -30,6 +33,8 @@ export async function resolveFreshSongLaunchPackage({
   songAssetId,
   activityKey,
   authorId,
+  revision,
+  allowBlankPackage = false,
   loadSongAsset,
   loadSongChart,
   loadBlankSongChart,
@@ -38,6 +43,8 @@ export async function resolveFreshSongLaunchPackage({
   songAssetId: string;
   activityKey: string;
   authorId: string | null;
+  revision?: string | null;
+  allowBlankPackage?: boolean;
   loadSongAsset: (id: string) => Promise<Record<string, unknown> | null>;
   loadSongChart: (
     songAssetId: string,
@@ -76,6 +83,12 @@ export async function resolveFreshSongLaunchPackage({
   const chartTargets = await loadSongChart(canonicalSongAssetId, requestedActivityKey, authorId);
 
   if (!chartTargets) {
+    if (!allowBlankPackage) {
+      throw new Error(
+        `No chart has been authored for ${requestedActivityKey}; blank editor content is not playable`,
+      );
+    }
+
     const blankTargets =
       (await loadBlankSongChart?.(canonicalSongAssetId, requestedActivityKey)) ?? null;
 
@@ -88,6 +101,7 @@ export async function resolveFreshSongLaunchPackage({
     return {
       songAssetId: canonicalSongAssetId,
       activityKey: requestedActivityKey,
+      ...(authorId ? { authorId } : {}),
       chart: blankTargets.chart,
       sidecar: blankTargets.sidecar,
       audio: {
@@ -96,6 +110,18 @@ export async function resolveFreshSongLaunchPackage({
         signedUrl: blankAudioUrl,
       } satisfies SignedStorageRef,
     };
+  }
+
+  const resolvedRevision = requireMatchingRevision(
+    chartTargets.chartPath,
+    chartTargets.sidecarPath,
+    revision,
+  );
+  if (chartTargets.revision && chartTargets.revision !== resolvedRevision) {
+    throw new Error("Launch package chart target revision does not match its storage path");
+  }
+  if (authorId && chartTargets.authorId && chartTargets.authorId !== authorId) {
+    throw new Error("Launch package author does not match the requested author");
   }
 
   const [chartUrl, sidecarUrl, audioUrl] = await Promise.all([
@@ -107,6 +133,8 @@ export async function resolveFreshSongLaunchPackage({
   return {
     songAssetId: canonicalSongAssetId,
     activityKey: requestedActivityKey,
+    authorId: chartTargets.authorId ?? authorId ?? "",
+    revision: chartTargets.revision ?? resolvedRevision,
     chart: {
       bucket: chartTargets.chartBucket,
       path: chartTargets.chartPath,

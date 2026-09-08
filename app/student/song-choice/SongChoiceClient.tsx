@@ -550,6 +550,7 @@ export default function SongChoiceClient({
     requestFreshSongLaunchPackage({
       songAssetId: song.id,
       activityKey: song.activityKey,
+      allowBlankPackage: true,
     })
       .then((freshPackage) => {
         setSelectionPackages((current) => ({
@@ -746,12 +747,10 @@ export default function SongChoiceClient({
     setLaunchError("");
     try {
     const selectedSongPayload = buildSelectedSongPayload(selectedSong);
-    const freshPackage =
-      selectionPackages[selectedSong.id] ??
-      (await requestFreshSongLaunchPackage({
-        songAssetId: selectedSong.id,
-        activityKey: selectedSong.activityKey,
-      }));
+    const freshPackage = await requestFreshSongLaunchPackage({
+      songAssetId: selectedSong.id,
+      activityKey: selectedSong.activityKey,
+    });
     const launchParams = createSongLaunchSearchParams({
       songAssetId: freshPackage.songAssetId,
       activityKey: freshPackage.activityKey,

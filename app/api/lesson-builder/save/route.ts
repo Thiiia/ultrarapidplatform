@@ -12,6 +12,12 @@ import {
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import { DEV_AUTHOR_FOLDER, findAuthorByName, getOrCreateDevAuthor } from "@/lib/song-storage";
+import { resolveRequestedAuthor } from "@/lib/song-author";
+import { extractRevisionFromStoragePath } from "@/lib/song-launch-identity";
+import {
+  parseAuthoredLessonDraft,
+  stampAuthoredLessonIdentity,
+} from "@/lib/authored-lesson";
 
 function resolveAuthorFolder(user: { name: string | null; email: string | null }) {
   const name = user.name?.trim();
@@ -30,6 +36,7 @@ type SavePayload = {
   activityKey?: unknown;
   authorId?: unknown;
   authorName?: unknown;
+  revision?: unknown;
   chart?: SaveFilePayload;
   sidecar?: SaveFilePayload;
 };
@@ -151,21 +158,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Demo mode: charts are always written to the shared dev-authored
-    // SongChart row for the song + activity. The session user is best-effort
-    // only (keeps user rows fresh) and never gates the save — new chart
-    // entries created here are authored as "dev" until per-user authoring
-    // returns after the demo.
+    // Keep the session lookup for user freshness, but resolve the requested
+    // author explicitly below. An explicit unknown author must never become
+    // dev content.
     await getCurrentAppUser().catch(() => null);
 
     const payload = (await request.json()) as SavePayload;
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId").toLowerCase();
+    const requestedAuthorId =
+      typeof payload.authorId === "string" && payload.authorId.trim()
+        ? payload.authorId.trim()
+        : null;
     const requestedAuthorName =
       typeof payload.authorName === "string" && payload.authorName.trim()
         ? payload.authorName.trim()
-        : typeof payload.authorId === "string" && payload.authorId.trim()
-          ? payload.authorId.trim()
-          : null;
+        : null;
+    const requestedRevision =
+      typeof payload.revision === "string" && payload.revision.trim()
+        ? payload.revision.trim()
+        : null;
 
     if (!payload.chart || !payload.sidecar) {
       return NextResponse.json(
@@ -191,14 +202,47 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Song not found" }, { status: 404 });
     }
 
-    const devAuthor = await getOrCreateDevAuthor();
+    const targetAuthor = await resolveRequestedAuthor({
+      authorId: requestedAuthorId,
+      authorName: requestedAuthorName,
+      findById: async (id) => prisma.user.findUnique({ where: { id }, select: { id: true, name: true } }),
+      findByName: async (name) => {
+        const user = await findAuthorByName(name);
+        return user ? { id: user.id, name: user.name } : null;
+      },
+      getDefault: async () => {
+        const user = await getOrCreateDevAuthor();
+        return { id: user.id, name: user.name };
+      },
+    });
+    if (!targetAuthor) {
+      return NextResponse.json({ error: "No default author is configured" }, { status: 400 });
+    }
+    const authorFolder = resolveAuthorFolder({ name: targetAuthor.name, email: null });
 
-    // Use the selected author (plaintext name, e.g. "dev"/"Felix") when
-    // provided; otherwise fall back to dev.
-    const targetAuthor = requestedAuthorName
-      ? (await findAuthorByName(requestedAuthorName)) ?? devAuthor
-      : devAuthor;
-    const authorFolder = resolveAuthorFolder(targetAuthor);
+    const chartContent = readRequiredString(payload.chart.content, "chart.content");
+    const sidecarContent = readRequiredString(payload.sidecar.content, "sidecar.content");
+    try { validateLessonContent(chartContent, sidecarContent); }
+    catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid lesson content" }, { status: 400 }); }
+
+    let authoredDraft: ReturnType<typeof parseAuthoredLessonDraft> | null = null;
+    try {
+      const parsedSidecar = JSON.parse(sidecarContent) as unknown;
+      if (parsedSidecar && typeof parsedSidecar === "object" && (parsedSidecar as { version?: unknown }).version === 3) {
+        authoredDraft = parseAuthoredLessonDraft(parsedSidecar);
+        if (authoredDraft.songAssetId !== songAssetId) {
+          return NextResponse.json({ error: "Authored lesson songAssetId does not match the selected song" }, { status: 400 });
+        }
+        if (authoredDraft.activityKey !== activityKey) {
+          return NextResponse.json({ error: "Authored lesson activityKey does not match the selected activity" }, { status: 400 });
+        }
+        if (authoredDraft.authorId && authoredDraft.authorId !== targetAuthor.id) {
+          return NextResponse.json({ error: "Authored lesson authorId does not match the selected author" }, { status: 400 });
+        }
+      }
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid authored lesson payload" }, { status: 400 });
+    }
 
     const targets = await getOrCreateAuthoredChartTargets({
       songAssetId,
@@ -206,17 +250,30 @@ export async function POST(request: Request) {
       activityKey,
       authorFolder,
     });
-
-    const chartContent = readRequiredString(payload.chart.content, "chart.content");
-    const sidecarContent = readRequiredString(payload.sidecar.content, "sidecar.content");
-    try { validateLessonContent(chartContent, sidecarContent); }
-    catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid lesson content" }, { status: 400 }); }
+    if (requestedRevision) {
+      const currentRevision = extractRevisionFromStoragePath(targets.chart.path);
+      if (currentRevision !== requestedRevision) {
+        return NextResponse.json(
+          { error: `Save revision conflict: expected ${requestedRevision}, found ${currentRevision ?? "none"}` },
+          { status: 409 },
+        );
+      }
+    }
+    const revisionId = randomUUID();
+    const persistedSidecarContent = authoredDraft
+      ? JSON.stringify(stampAuthoredLessonIdentity(authoredDraft, {
+          songAssetId,
+          activityKey,
+          authorId: targetAuthor.id,
+          revision: revisionId,
+        }), null, 2)
+      : sidecarContent;
     const revisionTargets = await publishLessonSaveRevision({
       targets,
-      revisionId: randomUUID(),
+      revisionId,
       content: {
         chart: chartContent,
-        sidecar: sidecarContent,
+        sidecar: persistedSidecarContent,
       },
       upload: async (file) => { await uploadTextFile(file); },
       updatePointers: async ({ chartPath, sidecarPath }) => {
@@ -253,6 +310,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
+      authorId: targetAuthor.id,
+      authorName: targetAuthor.name,
+      revision: revisionId,
       songAsset: {
         id: songAssetId,
         chartBucket: chartRef.bucket,

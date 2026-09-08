@@ -238,6 +238,28 @@ type SidecarPayload = {
   events: SidecarEvent[];
 };
 
+type AuthoredLessonDraftPayload = {
+  version: 3;
+  mode: "authored";
+  songAssetId: string;
+  activityKey: string;
+  authorId?: string;
+  revision?: string;
+  stopAtSeconds?: number;
+  equations: Array<{ id: string; state: string }>;
+  encounters: Array<{
+    id: string;
+    eventId: string;
+    type: GameplayMechanic;
+    equationId?: string;
+    startTick: number;
+    endTick: number;
+    hitBubbles?: HitBubblePlacement[];
+    spinTargets?: SpinTarget[];
+    dragTargets?: DragTarget[];
+  }>;
+};
+
 type LessonBuilderClientProps = {
   studentName?: string;
   navBasePath?: string;
@@ -464,6 +486,79 @@ function normalizeTokenTargets<T extends SpinTarget | DragTarget>(
 function normalizeSidecar(value: unknown): SidecarPayload {
   if (!isObject(value)) {
     return emptySidecar;
+  }
+
+  if (
+    value.version === 3 &&
+    value.mode === "authored" &&
+    Array.isArray(value.equations) &&
+    Array.isArray(value.encounters)
+  ) {
+    const events: SidecarEvent[] = [];
+    const slotByEventId = new Map<string, SidecarEventSlotEvent>();
+    const firstTickByEquationId = new Map<string, number>();
+
+    value.encounters.forEach((rawEncounter) => {
+      if (!isObject(rawEncounter)) return;
+      const mechanic = normalizeMechanic(rawEncounter.type);
+      if (!mechanic) return;
+      const tick = normalizeTick(rawEncounter.startTick);
+      const eventId =
+        typeof rawEncounter.eventId === "string" && rawEncounter.eventId.trim()
+          ? rawEncounter.eventId
+          : `${mechanic}-${tick}`;
+      const currentSlot = slotByEventId.get(eventId);
+      const endTick = normalizeTick(rawEncounter.endTick ?? tick);
+      if (!currentSlot) {
+        const slot: SidecarEventSlotEvent = { tick, endTick, type: "ALG_EVENT_SLOT" };
+        slotByEventId.set(eventId, slot);
+        events.push(slot);
+      } else if (endTick > (currentSlot.endTick ?? currentSlot.tick)) {
+        currentSlot.endTick = endTick;
+      }
+
+      const equationId =
+        typeof rawEncounter.equationId === "string" ? rawEncounter.equationId : "";
+      if (equationId && !firstTickByEquationId.has(equationId)) {
+        firstTickByEquationId.set(equationId, tick);
+      }
+
+      events.push({
+        tick,
+        endTick: mechanic === "hit" ? undefined : endTick,
+        type: "ALG_MECHANIC",
+        mechanic,
+        hits: mechanic === "hit" ? 1 : undefined,
+        equationId: equationId || undefined,
+        hitBubbles: Array.isArray(rawEncounter.hitBubbles)
+          ? normalizeHitBubblePlacements(rawEncounter.hitBubbles)
+          : [],
+        spinTargets: Array.isArray(rawEncounter.spinTargets)
+          ? normalizeTokenTargets<SpinTarget>(rawEncounter.spinTargets)
+          : [],
+        dragTargets: Array.isArray(rawEncounter.dragTargets)
+          ? normalizeTokenTargets<DragTarget>(rawEncounter.dragTargets)
+          : [],
+      });
+    });
+
+    value.equations.forEach((rawEquation) => {
+      if (!isObject(rawEquation)) return;
+      const equationId = typeof rawEquation.id === "string" ? rawEquation.id : "";
+      const state = typeof rawEquation.state === "string" ? rawEquation.state : "";
+      const tick = firstTickByEquationId.get(equationId);
+      if (equationId && state && typeof tick === "number") {
+        events.push({ tick, type: "ALG_EQUATION_STATE", equationId, state });
+      }
+    });
+
+    return {
+      version: 1,
+      ...(typeof value.stopAtSeconds === "number"
+        ? { stopAtSeconds: value.stopAtSeconds }
+        : {}),
+      events: sortEvents(events),
+    };
   }
 
   if (value.version === 2 && Array.isArray(value.equations)) {
@@ -1287,6 +1382,56 @@ function sidecarInSecondsFromTimelineEvents(
   return {
     version: 1,
     events: sortEvents(sidecarEvents),
+  };
+}
+
+function authoredSidecarFromTimelineEvents(
+  events: TimelineEventSlot[],
+  identity: { songAssetId: string; activityKey: string; authorId?: string | null; revision?: string | null },
+  stopAtSeconds?: number,
+): AuthoredLessonDraftPayload {
+  const equations: AuthoredLessonDraftPayload["equations"] = [];
+  const encounters: AuthoredLessonDraftPayload["encounters"] = [];
+
+  events.forEach((event, eventIndex) => {
+    const equation = getTimelineEventEquation(event);
+    const equationId = `eq_${String(eventIndex + 1).padStart(3, "0")}`;
+    if (equation && equation.tokens.length > 0) {
+      equations.push({ id: equationId, state: tokensToEquationState(equation.tokens) });
+    }
+
+    gameplayMechanics.forEach((mechanic) => {
+      const count = event.counts?.[mechanic] ?? 0;
+      for (let instanceIndex = 0; instanceIndex < count; instanceIndex += 1) {
+        const instance = event.mechanicInstances?.[mechanic]?.[instanceIndex];
+        if (!instance) {
+          throw new Error(`Authored lesson mechanic instance is missing for event '${event.id}'`);
+        }
+        encounters.push({
+          id: `${event.id}:${mechanic}:${instanceIndex}`,
+          eventId: event.id,
+          type: mechanic,
+          ...(equation && equation.tokens.length > 0 ? { equationId } : {}),
+          startTick: normalizeTick(instance.tick ?? event.tick),
+          endTick: normalizeTick(instance.endTick ?? instance.tick ?? event.tick),
+          ...(mechanic === "hit" ? { hitBubbles: instance.hitBubbles ?? [] } : {}),
+          ...(mechanic === "spin" ? { spinTargets: instance.spinTargets ?? [] } : {}),
+          ...(mechanic === "drag" ? { dragTargets: instance.dragTargets ?? [] } : {}),
+        });
+      }
+    });
+  });
+
+  return {
+    version: 3,
+    mode: "authored",
+    songAssetId: identity.songAssetId,
+    activityKey: identity.activityKey,
+    ...(identity.authorId ? { authorId: identity.authorId } : {}),
+    ...(identity.revision ? { revision: identity.revision } : {}),
+    ...(typeof stopAtSeconds === "number" ? { stopAtSeconds } : {}),
+    equations,
+    encounters,
   };
 }
 
@@ -8930,6 +9075,9 @@ export default function LessonBuilderClient({
   // Author (plaintext name, e.g. "dev") of the currently loaded chart.
   // Determines which SongChart row a save writes to (dev when null).
   const [selectedSongAuthorName, setSelectedSongAuthorName] = useState<string | null>(null);
+  const [selectedSongAuthorId, setSelectedSongAuthorId] = useState<string | null>(null);
+  const [lastSavedAuthorId, setLastSavedAuthorId] = useState<string | null>(null);
+  const [lastSavedRevision, setLastSavedRevision] = useState<string | null>(null);
   const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
   const [isFilePickerLoading, setIsFilePickerLoading] = useState(false);
   const [filePickerError, setFilePickerError] = useState("");
@@ -10142,7 +10290,9 @@ export default function LessonBuilderClient({
     try {
     const freshSongLaunch = await requestFreshSongLaunchPackage({
       ...selectedSongLaunch,
+      authorId: lastSavedAuthorId,
       authorName: selectedSongLaunch.authorName ?? null,
+      revision: lastSavedRevision,
     });
     const launchParams = createSongLaunchSearchParams({
       songAssetId: freshSongLaunch.songAssetId,
@@ -10206,6 +10356,37 @@ export default function LessonBuilderClient({
       };
 
       const timelineSidecar = sidecarFromTimelineEvents(timelineEvents, true);
+      const authoredSidecar = authoredSidecarFromTimelineEvents(
+        timelineEvents,
+        {
+          songAssetId: selectedSongStorage.id,
+          activityKey:
+            selectedSongLaunch?.activityKey ??
+            inferSongActivityKeyFromChartPath(selectedSongStorage.chart.path) ??
+            defaultSongActivityKey,
+          authorId: lastSavedAuthorId,
+          revision: lastSavedRevision,
+        },
+        timelineSidecar.stopAtSeconds,
+      );
+      for (const draft of rtcmDraftMechanics) {
+        const endTick =
+          draft.id === rtcmPendingHold?.draftId
+            ? Math.max(draft.tick, currentSongSeconds)
+            : draft.endTick ?? draft.tick;
+        authoredSidecar.encounters.push({
+          id: draft.id,
+          eventId: draft.id,
+          type: draft.mechanic,
+          startTick: normalizeTick(draft.tick),
+          endTick: normalizeTick(endTick),
+          ...(draft.mechanic === "hit"
+            ? { hitBubbles: draft.hitBubbles }
+            : draft.mechanic === "spin"
+              ? { spinTargets: draft.spinTargets }
+              : { dragTargets: draft.dragTargets }),
+        });
+      }
 
       /*
        * IMPORTANT:
@@ -10219,7 +10400,7 @@ export default function LessonBuilderClient({
         throw new Error("Cannot save lesson: original chart content is empty.");
       }
 
-      const sidecarJson = projectToSidecarJson(timelineSidecar);
+      const sidecarJson = JSON.stringify(authoredSidecar, null, 2);
       const activityKey =
         selectedSongLaunch?.activityKey ??
         inferSongActivityKeyFromChartPath(selectedSongStorage.chart.path);
@@ -10244,7 +10425,9 @@ export default function LessonBuilderClient({
         body: JSON.stringify({
           songAssetId: selectedSongStorage.id,
           activityKey,
+          authorId: lastSavedAuthorId ?? selectedSongAuthorId ?? undefined,
           authorName: selectedSongAuthorName ?? undefined,
+          revision: lastSavedRevision ?? undefined,
           chart: {
             ...selectedSongStorage.chart,
             path: selectedSongStorage.chart.path,
@@ -10268,6 +10451,8 @@ export default function LessonBuilderClient({
         error?: string;
         chart?: { bucket?: string; path?: string };
         sidecar?: { bucket?: string; path?: string };
+        authorId?: string;
+        revision?: string;
       } | null;
 
       if (!response.ok) {
@@ -10276,6 +10461,12 @@ export default function LessonBuilderClient({
 
       const savedChartPath = result?.chart?.path ?? null;
       const savedSidecarPath = result?.sidecar?.path ?? null;
+
+      if (!result?.authorId || !result.revision) {
+        throw new Error("Saved lesson identity could not be verified");
+      }
+      setLastSavedAuthorId(result.authorId);
+      setLastSavedRevision(result.revision);
 
       if (
         !savedChartPath ||
@@ -10553,6 +10744,9 @@ export default function LessonBuilderClient({
       label: resolvedActivityLabel,
     });
     setFilePickerActivityKey(resolvedActivityKey);
+    setSelectedSongAuthorId(selectedSong.authorId ?? null);
+    setLastSavedAuthorId(null);
+    setLastSavedRevision(null);
     setSelectedSongAuthorName(selectedSong.authorName ?? null);
     if (selectedSong.authorName) {
       setFilePickerAuthorName(selectedSong.authorName);
