@@ -59,6 +59,8 @@ type SelectedSongPayload = {
   name: string;
   title?: string;
   artist?: string | null;
+  authorId?: string | null;
+  authorName?: string | null;
   activity?: {
     key?: string;
     label?: string;
@@ -117,9 +119,17 @@ type SongChoiceOption = {
   name: string;
   title?: string;
   artist?: string | null;
+  authorName?: string | null;
   song: StorageFileRef & { signedUrl: string };
   chart: StorageFileRef & { signedUrl: string };
   sidecar: (StorageFileRef & { signedUrl: string }) | null;
+};
+
+type SongChartAuthorOption = {
+  id: string;
+  name: string;
+  email: string | null;
+  chartCount: number;
 };
 
 type EquationToken = {
@@ -1842,9 +1852,13 @@ function SongFilePickerModal({
   isOpen,
   isLoading,
   error,
+  authors,
+  isLoadingAuthors,
+  authorName,
   activityKey,
   songs,
   selectedSongId,
+  onAuthorChange,
   onActivityChange,
   onSelectSong,
   onClose,
@@ -1853,9 +1867,13 @@ function SongFilePickerModal({
   isOpen: boolean;
   isLoading: boolean;
   error: string;
+  authors: SongChartAuthorOption[];
+  isLoadingAuthors: boolean;
+  authorName: string | null;
   activityKey: SongActivityKey;
   songs: SongChoiceOption[];
   selectedSongId: string | null;
+  onAuthorChange: (value: string) => void;
   onActivityChange: (value: SongActivityKey) => void;
   onSelectSong: (songId: string) => void;
   onClose: () => void;
@@ -1916,6 +1934,40 @@ function SongFilePickerModal({
         </div>
 
         <div style={{ display: "grid", gap: 6 }}>
+          <label htmlFor="lesson-builder-author-select" style={{ fontSize: 12, fontWeight: 700, color: "#D1D5DB" }}>
+            Author
+          </label>
+          <select
+            id="lesson-builder-author-select"
+            value={authorName ?? ""}
+            onChange={(event) => onAuthorChange(event.target.value)}
+            disabled={isLoadingAuthors || authors.length === 0}
+            style={{
+              height: 34,
+              borderRadius: 10,
+              border: `1px solid ${subtleBorderColor}`,
+              background: "#151E2B",
+              color: "#FFFFFF",
+              padding: "0 10px",
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            {authors.length === 0 ? (
+              <option value="">
+                {isLoadingAuthors ? "Loading authors..." : "No authors found"}
+              </option>
+            ) : (
+              authors.map((author) => (
+                <option key={author.id} value={author.name}>
+                  {`${author.name} (${author.chartCount})`}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+
+        <div style={{ display: "grid", gap: 6 }}>
           <label htmlFor="lesson-builder-activity-select" style={{ fontSize: 12, fontWeight: 700, color: "#D1D5DB" }}>
             Activity
           </label>
@@ -1923,6 +1975,7 @@ function SongFilePickerModal({
             id="lesson-builder-activity-select"
             value={activityKey}
             onChange={(event) => onActivityChange(event.target.value as SongActivityKey)}
+            disabled={!authorName}
             style={{
               height: 34,
               borderRadius: 10,
@@ -1963,7 +2016,9 @@ function SongFilePickerModal({
             }}
           >
             {songs.length === 0 ? (
-              <option value="">No songs found</option>
+              <option value="">
+                {authorName ? "No songs found" : "Select an author first"}
+              </option>
             ) : (
               songs.map((song) => (
                 <option key={song.id} value={song.id}>
@@ -8863,6 +8918,7 @@ export default function LessonBuilderClient({
   const [selectedSongLaunch, setSelectedSongLaunch] = useState<{
     songAssetId: string;
     activityKey: SongActivityKey;
+    authorName?: string | null;
     chartUrl: string;
     sidecarUrl: string | null;
     audioUrl: string;
@@ -8871,11 +8927,17 @@ export default function LessonBuilderClient({
     key: SongActivityKey;
     label: string;
   } | null>(null);
+  // Author (plaintext name, e.g. "dev") of the currently loaded chart.
+  // Determines which SongChart row a save writes to (dev when null).
+  const [selectedSongAuthorName, setSelectedSongAuthorName] = useState<string | null>(null);
   const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
   const [isFilePickerLoading, setIsFilePickerLoading] = useState(false);
   const [filePickerError, setFilePickerError] = useState("");
   const [filePickerSongs, setFilePickerSongs] = useState<SongChoiceOption[]>([]);
   const [filePickerSongId, setFilePickerSongId] = useState<string | null>(null);
+  const [filePickerAuthors, setFilePickerAuthors] = useState<SongChartAuthorOption[]>([]);
+  const [isFilePickerAuthorsLoading, setIsFilePickerAuthorsLoading] = useState(false);
+  const [filePickerAuthorName, setFilePickerAuthorName] = useState<string | null>(null);
   const [filePickerActivityKey, setFilePickerActivityKey] =
     useState<SongActivityKey>(defaultSongActivityKey);
   const isAdvancedMode = true;
@@ -10078,9 +10140,10 @@ export default function LessonBuilderClient({
     }
 
     try {
-    const freshSongLaunch = await requestFreshSongLaunchPackage(
-      selectedSongLaunch,
-    );
+    const freshSongLaunch = await requestFreshSongLaunchPackage({
+      ...selectedSongLaunch,
+      authorName: selectedSongLaunch.authorName ?? null,
+    });
     const launchParams = createSongLaunchSearchParams({
       songAssetId: freshSongLaunch.songAssetId,
       activityKey: freshSongLaunch.activityKey,
@@ -10181,6 +10244,7 @@ export default function LessonBuilderClient({
         body: JSON.stringify({
           songAssetId: selectedSongStorage.id,
           activityKey,
+          authorName: selectedSongAuthorName ?? undefined,
           chart: {
             ...selectedSongStorage.chart,
             path: selectedSongStorage.chart.path,
@@ -10291,6 +10355,7 @@ export default function LessonBuilderClient({
       name: song.name,
       title: song.title,
       artist: song.artist,
+      authorName: song.authorName ?? filePickerAuthorName ?? null,
       activity: {
         key: song.activityKey,
         label: getActivityLabel(song.activityKey),
@@ -10318,13 +10383,16 @@ export default function LessonBuilderClient({
     };
   }
 
-  async function fetchSongChoicesForActivity(activityKey: SongActivityKey) {
+  async function fetchSongChoicesForActivity(
+    authorName: string,
+    activityKey: SongActivityKey,
+  ) {
     setIsFilePickerLoading(true);
     setFilePickerError("");
 
     try {
       const response = await fetch(
-        `/api/song-choice?activity=${encodeURIComponent(activityKey)}&context=editor`,
+        `/api/song-choice?activity=${encodeURIComponent(activityKey)}&context=editor&author=${encodeURIComponent(authorName)}`,
       );
       const payload = (await response.json().catch(() => null)) as {
         songs?: SongChoiceOption[];
@@ -10363,9 +10431,45 @@ export default function LessonBuilderClient({
     }
   }
 
+  async function fetchSongChartAuthors() {
+    setIsFilePickerAuthorsLoading(true);
+
+    try {
+      const response = await fetch("/api/song-choice?context=authors");
+      const payload = (await response.json().catch(() => null)) as {
+        authors?: SongChartAuthorOption[];
+        error?: string;
+      } | null;
+
+      if (!response.ok || !payload?.authors) {
+        throw new Error(payload?.error ?? "Unable to load chart authors");
+      }
+
+      const authors = payload.authors;
+
+      setFilePickerAuthors(authors);
+      // Default to the dev author (listed first) so the directory is
+      // pre-selected and its charts load immediately.
+      setFilePickerAuthorName((current) =>
+        current && authors.some((author) => author.name === current)
+          ? current
+          : authors[0]?.name ?? null,
+      );
+    } catch (error) {
+      setFilePickerAuthors([]);
+      setFilePickerAuthorName(null);
+      setFilePickerError(
+        error instanceof Error ? error.message : "Unable to load chart authors",
+      );
+    } finally {
+      setIsFilePickerAuthorsLoading(false);
+    }
+  }
+
   function handleOpenFilePicker() {
     setIsFilePickerOpen(true);
     setFilePickerError("");
+    void fetchSongChartAuthors();
 
     if (selectedSongActivity?.key) {
       setFilePickerActivityKey(selectedSongActivity.key);
@@ -10449,6 +10553,10 @@ export default function LessonBuilderClient({
       label: resolvedActivityLabel,
     });
     setFilePickerActivityKey(resolvedActivityKey);
+    setSelectedSongAuthorName(selectedSong.authorName ?? null);
+    if (selectedSong.authorName) {
+      setFilePickerAuthorName(selectedSong.authorName);
+    }
 
     appendSongFlowDebug(
       "lesson-builder:activity:path-check",
@@ -10485,6 +10593,7 @@ export default function LessonBuilderClient({
     setSelectedSongLaunch({
       songAssetId: selectedSong.id,
       activityKey: resolvedActivityKey,
+      authorName: selectedSong.authorName ?? null,
       chartUrl: selectedSong.chart.signedUrl,
       sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
       audioUrl: selectedSong.song.signedUrl,
@@ -10705,12 +10814,12 @@ export default function LessonBuilderClient({
   }, [setProject]);
 
   useEffect(() => {
-    if (!isFilePickerOpen) {
+    if (!isFilePickerOpen || !filePickerAuthorName) {
       return;
     }
 
-    void fetchSongChoicesForActivity(filePickerActivityKey);
-  }, [filePickerActivityKey, isFilePickerOpen]);
+    void fetchSongChoicesForActivity(filePickerAuthorName, filePickerActivityKey);
+  }, [filePickerAuthorName, filePickerActivityKey, isFilePickerOpen]);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_editor_payload");
@@ -12108,9 +12217,13 @@ export default function LessonBuilderClient({
         isOpen={isFilePickerOpen}
         isLoading={isFilePickerLoading}
         error={filePickerError}
+        authors={filePickerAuthors}
+        isLoadingAuthors={isFilePickerAuthorsLoading}
+        authorName={filePickerAuthorName}
         activityKey={filePickerActivityKey}
         songs={filePickerSongs}
         selectedSongId={filePickerSongId}
+        onAuthorChange={setFilePickerAuthorName}
         onActivityChange={setFilePickerActivityKey}
         onSelectSong={setFilePickerSongId}
         onClose={() => setIsFilePickerOpen(false)}

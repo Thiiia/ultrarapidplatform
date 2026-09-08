@@ -11,7 +11,15 @@ import {
   normalizeSongActivityKey,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
-import { DEV_AUTHOR_FOLDER, getOrCreateDevAuthor } from "@/lib/song-storage";
+import { DEV_AUTHOR_FOLDER, findAuthorByName, getOrCreateDevAuthor } from "@/lib/song-storage";
+
+function resolveAuthorFolder(user: { name: string | null; email: string | null }) {
+  const name = user.name?.trim();
+  if (name) return name;
+  const email = user.email?.trim();
+  if (email) return email.split("@")[0];
+  return DEV_AUTHOR_FOLDER;
+}
 
 type SaveFilePayload = {
   content?: unknown;
@@ -20,6 +28,8 @@ type SaveFilePayload = {
 type SavePayload = {
   songAssetId?: unknown;
   activityKey?: unknown;
+  authorId?: unknown;
+  authorName?: unknown;
   chart?: SaveFilePayload;
   sidecar?: SaveFilePayload;
 };
@@ -82,18 +92,20 @@ export function isSameOriginLessonSaveRequest(request: Request) {
 }
 
 /**
- * Finds (or lazily creates) the dev-authored SongChart row that owns the chart
- * for the given song + activity, returning its current storage targets.
- * Charts always live under `dev/{ActivityFolder}/` in storage.
+ * Finds (or lazily creates) the SongChart row that owns the chart for the
+ * given song + activity + author, returning its current storage targets.
+ * Charts live under `{authorFolder}/{ActivityFolder}/` in storage.
  */
 async function getOrCreateAuthoredChartTargets({
   songAssetId,
   authorId,
   activityKey,
+  authorFolder,
 }: {
   songAssetId: string;
   authorId: string;
   activityKey: SongActivityKey;
+  authorFolder: string;
 }): Promise<{ chart: Omit<UploadedFileRef, "contentType">; sidecar: Omit<UploadedFileRef, "contentType"> }> {
   const existing = await prisma.songChart.findUnique({
     where: {
@@ -108,12 +120,12 @@ async function getOrCreateAuthoredChartTargets({
         bucket: existing.sidecarBucket ?? "SidecarJsons",
         path:
           existing.sidecarPath ??
-          buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorFolder: DEV_AUTHOR_FOLDER }).sidecarPath,
+          buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorFolder }).sidecarPath,
       },
     };
   }
 
-  const paths = buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorFolder: DEV_AUTHOR_FOLDER });
+  const paths = buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorFolder });
 
   await prisma.songChart.create({
     data: {
@@ -148,6 +160,12 @@ export async function POST(request: Request) {
 
     const payload = (await request.json()) as SavePayload;
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId").toLowerCase();
+    const requestedAuthorName =
+      typeof payload.authorName === "string" && payload.authorName.trim()
+        ? payload.authorName.trim()
+        : typeof payload.authorId === "string" && payload.authorId.trim()
+          ? payload.authorId.trim()
+          : null;
 
     if (!payload.chart || !payload.sidecar) {
       return NextResponse.json(
@@ -175,10 +193,18 @@ export async function POST(request: Request) {
 
     const devAuthor = await getOrCreateDevAuthor();
 
+    // Use the selected author (plaintext name, e.g. "dev"/"Felix") when
+    // provided; otherwise fall back to dev.
+    const targetAuthor = requestedAuthorName
+      ? (await findAuthorByName(requestedAuthorName)) ?? devAuthor
+      : devAuthor;
+    const authorFolder = resolveAuthorFolder(targetAuthor);
+
     const targets = await getOrCreateAuthoredChartTargets({
       songAssetId,
-      authorId: devAuthor.id,
+      authorId: targetAuthor.id,
       activityKey,
+      authorFolder,
     });
 
     const chartContent = readRequiredString(payload.chart.content, "chart.content");
@@ -197,7 +223,7 @@ export async function POST(request: Request) {
         const { count } = await prisma.songChart.updateMany({
           where: {
             songAssetId,
-            authorId: devAuthor.id,
+            authorId: targetAuthor.id,
             activityKey,
             chartBucket: targets.chart.bucket,
             chartPath: targets.chart.path,

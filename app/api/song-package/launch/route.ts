@@ -1,12 +1,27 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveFreshSongLaunchPackage } from "@/lib/song-launch-package";
-import { DEV_AUTHOR_FOLDER, findDevAuthoredChart } from "@/lib/song-storage";
+import {
+  DEV_AUTHOR_FOLDER,
+  findAuthoredChart,
+  findAuthorByName,
+  findDevAuthor,
+  findDevAuthoredChart,
+} from "@/lib/song-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import {
   buildAuthoredChartStoragePaths,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
+
+function resolveAuthorFolder(user: { name: string | null; email: string | null } | null) {
+  if (!user) return DEV_AUTHOR_FOLDER;
+  const name = user.name?.trim();
+  if (name) return name;
+  const email = user.email?.trim();
+  if (email) return email.split("@")[0];
+  return DEV_AUTHOR_FOLDER;
+}
 
 function readRequiredString(value: unknown, label: string) {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -50,13 +65,30 @@ export async function POST(request: Request) {
     const payload = (await request.json()) as {
       songAssetId?: unknown;
       activityKey?: unknown;
+      authorId?: unknown;
+      authorName?: unknown;
     };
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId");
     const activityKey = readRequiredString(payload.activityKey, "activityKey");
+    const requestedAuthorName =
+      typeof payload.authorName === "string" && payload.authorName.trim()
+        ? payload.authorName.trim()
+        : typeof payload.authorId === "string" && payload.authorId.trim()
+          ? payload.authorId.trim()
+          : null;
+
+    // Resolve the author whose chart should be loaded (defaults to dev).
+    // Accepts a plaintext name ("dev"/"Felix") via findAuthorByName.
+    const requestedAuthor = requestedAuthorName
+      ? await findAuthorByName(requestedAuthorName)
+      : null;
+    const author = requestedAuthor ?? (await findDevAuthor());
+    const authorFolder = resolveAuthorFolder(author);
+
     const songPackage = await resolveFreshSongLaunchPackage({
       songAssetId,
       activityKey,
-      authorId: null,
+      authorId: author?.id ?? null,
       loadSongAsset: async (id) =>
         prisma.songAsset.findUnique({
           where: { id },
@@ -67,14 +99,18 @@ export async function POST(request: Request) {
             songPath: true,
           },
         }) as Promise<Record<string, unknown> | null>,
-      loadSongChart: async (assetId, resolvedActivityKey) => {
-        // Read-only lookup of the dev-authored SongChart for this song +
-        // activity. When no match exists, return null so the resolver falls
-        // back to the blank package below — nothing is created at load time.
-        const chart = await findDevAuthoredChart({
-          songAssetId: assetId,
-          activityKey: resolvedActivityKey as SongActivityKey,
-        });
+      loadSongChart: async (assetId, resolvedActivityKey, authorId) => {
+        // Read-only lookup of the author's SongChart for this song + activity.
+        // When no match exists, return null so the resolver falls back to the
+        // blank package below — nothing is created at load time.
+        const key = resolvedActivityKey as SongActivityKey;
+        const chart = authorId
+          ? await findAuthoredChart({
+              songAssetId: assetId,
+              activityKey: key,
+              authorId,
+            })
+          : await findDevAuthoredChart({ songAssetId: assetId, activityKey: key });
 
         if (!chart?.sidecarPath || !chart.sidecarBucket) {
           return null;
@@ -88,14 +124,14 @@ export async function POST(request: Request) {
         };
       },
       loadBlankSongChart: async (assetId, resolvedActivityKey) => {
-        // No dev-authored chart yet: serve blank chart/sidecar content under
-        // the prospective dev storage paths. The database entry (and storage
-        // objects) are only created when the user saves, authored as "dev".
+        // No authored chart yet: serve blank chart/sidecar content under the
+        // prospective author storage paths. The database entry (and storage
+        // objects) are only created when the user saves.
         const blankActivityKey = resolvedActivityKey as SongActivityKey;
         const paths = buildAuthoredChartStoragePaths({
           activityKey: blankActivityKey,
           songAssetId: assetId,
-          authorFolder: DEV_AUTHOR_FOLDER,
+          authorFolder,
         });
 
         return {

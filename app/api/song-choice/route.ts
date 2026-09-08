@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { findDevAuthor, getEditorSongChoices, getSongChoices } from "@/lib/song-storage";
+import {
+  DEV_AUTHOR_FOLDER,
+  getEditorSongChoices,
+  getSongChartAuthors,
+  getSongChoices,
+} from "@/lib/song-storage";
 
 export async function GET(request: Request) {
   try {
@@ -7,10 +12,23 @@ export async function GET(request: Request) {
     const activity = searchParams.get("activity");
     const context = searchParams.get("context");
 
+    if (context === "authors") {
+      const authors = await getSongChartAuthors();
+
+      return NextResponse.json({ authors });
+    }
+
+    // Editor context targets a specific author via ?author=<name> (plaintext,
+    // e.g. "dev"/"Felix"); without one it defaults to the shared dev author.
+    const requestedAuthorName =
+      context === "editor"
+        ? searchParams.get("author")?.trim() || null
+        : null;
+
     const songs =
       context === "editor"
         ? await getEditorSongChoices(activity, {
-            userId: (await findDevAuthor())?.id ?? null,
+            authorName: requestedAuthorName ?? DEV_AUTHOR_FOLDER,
           })
         : await getSongChoices(activity);
 

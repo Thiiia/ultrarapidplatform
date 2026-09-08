@@ -1,6 +1,6 @@
 import { createSongLaunchSearchParams } from "./platform-launch";
 
-export async function requestFreshSongLaunchParams(input: { songAssetId: string; activityKey: string; rhythmDifficultyKey?: "ExpertSingle" }) {
+export async function requestFreshSongLaunchParams(input: { songAssetId: string; activityKey: string; authorName?: string | null; rhythmDifficultyKey?: "ExpertSingle" }) {
   const fresh = await requestFreshSongLaunchPackage(input);
   return createSongLaunchSearchParams({ songAssetId: fresh.songAssetId, activityKey: fresh.activityKey,
     chartUrl: fresh.chart.signedUrl, sidecarUrl: fresh.sidecar.signedUrl, audioUrl: fresh.audio.signedUrl,
@@ -18,14 +18,16 @@ export type FreshSongLaunchPackage = {
 export async function requestFreshSongLaunchPackage({
   songAssetId,
   activityKey,
+  authorName = null,
 }: {
   songAssetId: string;
   activityKey: string;
+  authorName?: string | null;
 }): Promise<FreshSongLaunchPackage> {
   const response = await fetch("/api/song-package/launch", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ songAssetId, activityKey }),
+    body: JSON.stringify({ songAssetId, activityKey, authorName }),
   });
   const result = (await response.json().catch(() => null)) as
     | (FreshSongLaunchPackage & { error?: string })

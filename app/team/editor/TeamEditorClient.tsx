@@ -64,6 +64,7 @@ type SelectedSongPayload = {
   name: string;
   title?: string;
   artist?: string | null;
+  authorName?: string | null;
   equationSlots?: unknown;
   equation_slots?: unknown;
   equationSlotTicks?: unknown;
@@ -4708,12 +4709,14 @@ export default function LessonBuilderClient({
   const [isSaving, setIsSaving] = useState(false);
   const [selectedSongStorage, setSelectedSongStorage] = useState<{
     id: string;
+    authorName: string | null;
     chart: StorageFileRef;
     sidecar: StorageFileRef | null;
   } | null>(null);
   const [selectedSongLaunch, setSelectedSongLaunch] = useState<{
     songAssetId: string;
     activityKey: SongActivityKey;
+    authorName?: string | null;
     chartUrl: string;
     sidecarUrl: string | null;
     audioUrl: string;
@@ -4877,6 +4880,7 @@ export default function LessonBuilderClient({
     try {
       setSelectedSongStorage({
         id: song.id,
+        authorName: song.authorName ?? null,
         chart: {
           bucket: song.chart.bucket,
           path: song.chart.path,
@@ -4897,6 +4901,7 @@ export default function LessonBuilderClient({
           song.activityKey ??
           inferSongActivityKeyFromChartPath(song.chart.path) ??
           "number-bonds",
+        authorName: song.authorName ?? null,
         chartUrl: song.chart.signedUrl,
         sidecarUrl: song.sidecar?.signedUrl ?? null,
         audioUrl: song.song.signedUrl,
@@ -5261,6 +5266,7 @@ export default function LessonBuilderClient({
         body: JSON.stringify({
           songAssetId: selectedSongStorage.id,
           activityKey,
+          authorName: selectedSongStorage.authorName ?? undefined,
           chart: { content: chartText },
           sidecar: { content: sidecarJson },
         }),
@@ -5322,6 +5328,7 @@ export default function LessonBuilderClient({
 
       setSelectedSongStorage({
         id: selectedSong.id,
+        authorName: selectedSong.authorName ?? null,
         chart: {
           bucket: selectedSong.chart.bucket,
           path: selectedSong.chart.path,
@@ -5342,6 +5349,7 @@ export default function LessonBuilderClient({
           selectedSong.activityKey ??
           inferSongActivityKeyFromChartPath(selectedSong.chart.path) ??
           "number-bonds",
+        authorName: selectedSong.authorName ?? null,
         chartUrl: selectedSong.chart.signedUrl,
         sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
         audioUrl: selectedSong.song.signedUrl,

@@ -18,6 +18,7 @@ export type SongChoice = {
   contentType: string | null;
   updatedAt: string | null;
   durationSeconds: number | null;
+  authorName?: string | null;
 
   song: {
     bucket: string;
@@ -142,6 +143,43 @@ export async function getOrCreateDevAuthor() {
 }
 
 /**
+ * Read-only lookup of a SongChart for a song + activity + author.
+ * Returns null when no chart exists for that combination — callers serve
+ * blank chart/sidecar content in that case, and the SongChart row is only
+ * created later when the user saves (see /api/lesson-builder/save).
+ */
+export async function findAuthoredChart({
+  songAssetId,
+  activityKey,
+  authorId,
+}: {
+  songAssetId: string;
+  activityKey: SongActivityKey;
+  authorId: string;
+}): Promise<SongChartRecord | null> {
+  const existing = await prisma.songChart.findUnique({
+    where: {
+      songAssetId_authorId_activityKey: {
+        songAssetId,
+        authorId,
+        activityKey,
+      },
+    },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  return {
+    chartBucket: existing.chartBucket,
+    chartPath: existing.chartPath,
+    sidecarBucket: existing.sidecarBucket,
+    sidecarPath: existing.sidecarPath,
+  };
+}
+
+/**
  * Read-only lookup of the dev-authored SongChart for a song + activity.
  * Returns null when the dev author has not authored one yet — callers serve
  * blank chart/sidecar content in that case, and the SongChart row is only
@@ -160,26 +198,11 @@ export async function findDevAuthoredChart({
     return null;
   }
 
-  const existing = await prisma.songChart.findUnique({
-    where: {
-      songAssetId_authorId_activityKey: {
-        songAssetId,
-        authorId: devAuthor.id,
-        activityKey,
-      },
-    },
+  return findAuthoredChart({
+    songAssetId,
+    activityKey,
+    authorId: devAuthor.id,
   });
-
-  if (!existing) {
-    return null;
-  }
-
-  return {
-    chartBucket: existing.chartBucket,
-    chartPath: existing.chartPath,
-    sidecarBucket: existing.sidecarBucket,
-    sidecarPath: existing.sidecarPath,
-  };
 }
 
 async function getFileMetadata(bucket: string, path: string) {
@@ -302,12 +325,14 @@ async function buildSongChoiceForAsset({
   activityKey,
   chartRecord,
   signChartAssets = true,
+  authorName = null,
 }: {
   songAsset: SongAssetLike;
   storageSong: StorageFileEntry;
   activityKey: SongActivityKey;
   chartRecord: SongChartRecord;
   signChartAssets?: boolean;
+  authorName?: string | null;
 }): Promise<SongChoice | null> {
   try {
     let songSignedUrl = "";
@@ -374,6 +399,7 @@ async function buildSongChoiceForAsset({
       contentType: songContentType,
       updatedAt: storageSong.updatedAt ?? songAsset.updatedAt.toISOString(),
       durationSeconds: songAsset.durationSeconds,
+      authorName,
 
       song: {
         bucket: songAsset.songBucket,
@@ -504,14 +530,109 @@ export async function getSongChoices(
   return songs.filter(isNonNull);
 }
 
+export type SongChartAuthor = {
+  id: string;
+  name: string;
+  email: string | null;
+  chartCount: number;
+};
+
 /**
- * Song listing for the in-editor "open file" picker. Restricted to charts the
- * current user has authored, except when there is no authenticated user
- * (demo mode), in which case every authored chart is shown regardless of author.
+ * Resolve an author by plaintext name (e.g. "dev", "Felix"). Matches against
+ * the user's display name first, then email local-part. Returns null when no
+ * user matches.
+ */
+export async function findAuthorByName(authorName: string) {
+  const name = authorName.trim();
+
+  if (!name) {
+    return null;
+  }
+
+  const byName = await prisma.user.findFirst({ where: { name } });
+
+  if (byName) {
+    return byName;
+  }
+
+  // Fall back to email local-part match ("dev" matches "dev@...").
+  const candidates = await prisma.user.findMany({
+    where: { email: { startsWith: `${name}@` } },
+  });
+
+  return candidates[0] ?? null;
+}
+
+/**
+ * Derive the storage author folder for a user (plaintext name, e.g. "dev").
+ */
+export function resolveAuthorFolderName(user: { name: string | null; email: string | null }) {
+  const name = user.name?.trim();
+  if (name) return name;
+  const email = user.email?.trim();
+  if (email) return email.split("@")[0];
+  return DEV_AUTHOR_FOLDER;
+}
+
+/**
+ * Distinct authors who have authored at least one SongChart, for the editor
+ * file picker's author directory. The shared dev author (when present) is
+ * listed first, then alphabetically.
+ */
+export async function getSongChartAuthors(): Promise<SongChartAuthor[]> {
+  const grouped = await prisma.songChart.groupBy({
+    by: ["authorId"],
+    _count: { _all: true },
+  });
+
+  if (grouped.length === 0) {
+    return [];
+  }
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: grouped.map((entry) => entry.authorId) } },
+  });
+  const userById = new Map(users.map((user) => [user.id, user]));
+
+  const authors = grouped
+    .map((entry): SongChartAuthor | null => {
+      const user = userById.get(entry.authorId);
+
+      if (!user) {
+        return null;
+      }
+
+      return {
+        id: user.id,
+        name: user.name?.trim() || user.email || "Unknown author",
+        email: user.email ?? null,
+        chartCount: entry._count._all,
+      };
+    })
+    .filter(isNonNull);
+
+  authors.sort((a, b) => {
+    const aIsDev = a.email === DEV_AUTHOR_EMAIL;
+    const bIsDev = b.email === DEV_AUTHOR_EMAIL;
+
+    if (aIsDev !== bIsDev) {
+      return aIsDev ? -1 : 1;
+    }
+
+    return a.name.localeCompare(b.name);
+  });
+
+  return authors;
+}
+
+/**
+ * Song listing for the in-editor "open file" picker. Lists authored charts
+ * for an activity, filtered to the given author when provided (author
+ * directory is required before browsing songs in the picker).
  */
 export async function getEditorSongChoices(
   requestedActivityKey: string | null | undefined,
-  options: { userId: string | null },
+  options: { authorName?: string | null; userId?: string | null },
 ): Promise<SongChoice[]> {
   const preferredActivityKey = resolveRequestedSongActivityKey(requestedActivityKey);
 
@@ -520,12 +641,18 @@ export async function getEditorSongChoices(
     return [];
   }
 
+  // Resolve plaintext author name ("dev"/"Felix") to a user id for filtering.
+  let authorId = options.userId ?? null;
+  if (!authorId && options.authorName) {
+    authorId = (await findAuthorByName(options.authorName))?.id ?? null;
+  }
+
   const charts = await prisma.songChart.findMany({
     where: {
       activityKey: preferredActivityKey,
-      ...(options.userId ? { authorId: options.userId } : {}),
+      ...(authorId ? { authorId } : {}),
     },
-    include: { songAsset: true },
+    include: { songAsset: true, author: true },
     orderBy: { updatedAt: "desc" },
   });
 
@@ -534,9 +661,10 @@ export async function getEditorSongChoices(
     if (!chart.songAsset.isActive) {
       return;
     }
-    // Most-recently-updated chart wins when multiple authors have one (demo mode).
-    if (!chartsByAsset.has(chart.songAssetId)) {
-      chartsByAsset.set(chart.songAssetId, chart);
+    // Most-recently-updated chart wins per song + author combination.
+    const key = `${chart.songAssetId}:${chart.authorId}`;
+    if (!chartsByAsset.has(key)) {
+      chartsByAsset.set(key, chart);
     }
   });
 
@@ -559,6 +687,7 @@ export async function getEditorSongChoices(
         songAsset: chart.songAsset,
         storageSong,
         activityKey: preferredActivityKey,
+        authorName: chart.author ? resolveAuthorFolderName(chart.author) : null,
         chartRecord: {
           chartBucket: chart.chartBucket,
           chartPath: chart.chartPath,
