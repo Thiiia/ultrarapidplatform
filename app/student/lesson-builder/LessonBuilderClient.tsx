@@ -1683,6 +1683,7 @@ function HeaderBar({
   selectedSongArtist,
   selectedActivityLabel,
   isSaving,
+  onNavigateHome,
   onOpenFile,
   onLaunch,
   onSave,
@@ -1696,6 +1697,7 @@ function HeaderBar({
   selectedSongArtist: string;
   selectedActivityLabel: string;
   isSaving: boolean;
+  onNavigateHome: () => void;
   onOpenFile: () => void;
   onLaunch: () => void;
   onSave: () => void;
@@ -1738,7 +1740,11 @@ function HeaderBar({
             overflow: "visible",
           }}
         >
-          <div
+          <button
+            type="button"
+            onClick={onNavigateHome}
+            aria-label="Back to dashboard home"
+            title="Back to dashboard home"
             style={{
               width: 156,
               height: 35,
@@ -1746,10 +1752,14 @@ function HeaderBar({
               alignItems: "center",
               flexShrink: 0,
               overflow: "visible",
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
             }}
           >
             <URIcon
-              aria-label="UltraRapid"
+              aria-hidden="true"
               style={{
                 width: 156,
                 height: 35,
@@ -1758,7 +1768,7 @@ function HeaderBar({
                 overflow: "visible",
               }}
             />
-          </div>
+          </button>
 
           <div
             style={{
@@ -1990,6 +2000,164 @@ function HeaderBar({
         </div>
       </div>
     </header>
+  );
+}
+
+function UnsavedChangesModal({
+  isSaving,
+  onSaveAndLeave,
+  onLeaveWithoutSaving,
+  onStay,
+}: {
+  isSaving: boolean;
+  onSaveAndLeave: () => void;
+  onLeaveWithoutSaving: () => void;
+  onStay: () => void;
+}) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.6)",
+        display: "grid",
+        placeItems: "center",
+        zIndex: 2000,
+        padding: 20,
+      }}
+    >
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-label="Unsaved changes"
+        style={{
+          width: "min(440px, 92vw)",
+          borderRadius: 14,
+          border: `1px solid ${subtleBorderColor}`,
+          background: "#101621",
+          color: "#FFFFFF",
+          padding: 18,
+          boxSizing: "border-box",
+          fontFamily: "Space Grotesk, sans-serif",
+          display: "grid",
+          gap: 14,
+        }}
+      >
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Unsaved changes</h2>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#D1D5DB", lineHeight: 1.45 }}>
+          You have changes that are not saved. Do you want to save before leaving?
+        </p>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={onStay}
+            style={{
+              minHeight: 34,
+              borderRadius: 999,
+              border: `1px solid ${subtleBorderColor}`,
+              background: "#1D2533",
+              color: "#FFFFFF",
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "0 14px",
+              cursor: "pointer",
+            }}
+          >
+            Stay
+          </button>
+          <button
+            type="button"
+            onClick={onLeaveWithoutSaving}
+            style={{
+              minHeight: 34,
+              borderRadius: 999,
+              border: `1px solid ${subtleBorderColor}`,
+              background: "#252525",
+              color: "#FF9B9B",
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "0 14px",
+              cursor: "pointer",
+            }}
+          >
+            Leave Without Saving
+          </button>
+          <button
+            type="button"
+            onClick={onSaveAndLeave}
+            disabled={isSaving}
+            style={{
+              minHeight: 34,
+              borderRadius: 999,
+              border: "1px solid #CFFF04",
+              background: "#CFFF04",
+              color: "#071222",
+              fontSize: 12,
+              fontWeight: 800,
+              padding: "0 14px",
+              cursor: isSaving ? "not-allowed" : "pointer",
+              opacity: isSaving ? 0.6 : 1,
+            }}
+          >
+            {isSaving ? "Saving..." : "Save & Leave"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Small tutorial callout used by the demo walkthrough. Renders a "Skip
+ * tutorial" button in the upper-left corner that exits the whole tutorial.
+ */
+function TutorialBubble({
+  text,
+  onSkip,
+}: {
+  text: string;
+  onSkip: () => void;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-label="Tutorial step"
+      style={{
+        position: "relative",
+        borderRadius: 10,
+        border: "1px solid #CFFF04",
+        background: "#101621",
+        color: "#FFFFFF",
+        padding: "22px 12px 10px",
+        boxSizing: "border-box",
+        fontFamily: "Space Grotesk, sans-serif",
+        fontSize: 12,
+        fontWeight: 700,
+        lineHeight: 1.4,
+        boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onSkip}
+        style={{
+          position: "absolute",
+          top: 4,
+          left: 6,
+          background: "none",
+          border: "none",
+          padding: 0,
+          color: "#FFFFFF80",
+          fontSize: 9,
+          fontWeight: 800,
+          textDecoration: "underline",
+          cursor: "pointer",
+        }}
+      >
+        Skip tutorial
+      </button>
+      {text}
+    </div>
   );
 }
 
@@ -6323,11 +6491,15 @@ function LeftEquationBuilderPanel({
   onAddToken,
   onClearEquation,
   onSaveEquation,
+  tutorialPrompt = null,
+  onSkipTutorial,
 }: {
   draftTokens: EquationToken[];
   onAddToken: (label: string) => void;
   onClearEquation: () => void;
   onSaveEquation: () => void;
+  tutorialPrompt?: string | null;
+  onSkipTutorial?: () => void;
 }) {
   const numberTiles = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
   const operatorTiles = ["+", "-", "×", "÷", "="];
@@ -6477,23 +6649,42 @@ function LeftEquationBuilderPanel({
           >
             Clear
           </button>
-          <button
-            type="button"
-            onClick={onSaveEquation}
-            disabled={!hasDraft}
-            style={{
-              minHeight: 26,
-              borderRadius: 8,
-              border: `1px solid ${hasDraft ? "#CFFF04" : subtleBorderColor}`,
-              background: hasDraft ? "#CFFF04" : "#252525",
-              color: hasDraft ? "#000000" : "#FFFFFF66",
-              fontSize: 10,
-              fontWeight: 900,
-              cursor: hasDraft ? "pointer" : "not-allowed",
-            }}
-          >
-            Save Equation
-          </button>
+          <div style={{ position: "relative" }}>
+            {tutorialPrompt ? (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "calc(100% + 8px)",
+                  right: 0,
+                  width: 240,
+                  zIndex: 1300,
+                }}
+              >
+                <TutorialBubble
+                  text={tutorialPrompt}
+                  onSkip={onSkipTutorial ?? (() => {})}
+                />
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={onSaveEquation}
+              disabled={!hasDraft}
+              style={{
+                width: "100%",
+                minHeight: 26,
+                borderRadius: 8,
+                border: `1px solid ${hasDraft ? "#CFFF04" : subtleBorderColor}`,
+                background: hasDraft ? "#CFFF04" : "#252525",
+                color: hasDraft ? "#000000" : "#FFFFFF66",
+                fontSize: 10,
+                fontWeight: 900,
+                cursor: hasDraft ? "pointer" : "not-allowed",
+              }}
+            >
+              Save Equation
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -8414,6 +8605,8 @@ function LibraryPanel({
   onSelectEquation,
   onAddSelectedEquationToEvent,
   shouldScrollLibrary,
+  tutorialPrompt = null,
+  onSkipTutorial,
 }: {
   activeTab: LibraryTab;
   savedEquations: SavedEquation[];
@@ -8423,6 +8616,8 @@ function LibraryPanel({
   onSelectEquation: (equationId: string) => void;
   onAddSelectedEquationToEvent: () => void;
   shouldScrollLibrary: boolean;
+  tutorialPrompt?: string | null;
+  onSkipTutorial?: () => void;
 }) {
   const canAddEquation = activeTab === "mine" && Boolean(activeEventId && selectedEquationId);
 
@@ -8566,24 +8761,42 @@ function LibraryPanel({
         </div>
 
         {activeEventId ? (
-          <button
-            type="button"
-            onClick={onAddSelectedEquationToEvent}
-            disabled={!canAddEquation}
-            style={{
-              width: "100%",
-              minHeight: 34,
-              borderRadius: 10,
-              border: `1px solid ${canAddEquation ? "#CFFF04" : subtleBorderColor}`,
-              background: canAddEquation ? "#CFFF04" : "#252525",
-              color: canAddEquation ? "#000000" : "#FFFFFF66",
-              fontSize: 10,
-              fontWeight: 900,
-              cursor: canAddEquation ? "pointer" : "not-allowed",
-            }}
-          >
-            Add Equation
-          </button>
+          <div style={{ position: "relative" }}>
+            {tutorialPrompt ? (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "calc(100% + 8px)",
+                  right: 0,
+                  width: 240,
+                  zIndex: 1300,
+                }}
+              >
+                <TutorialBubble
+                  text={tutorialPrompt}
+                  onSkip={onSkipTutorial ?? (() => {})}
+                />
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={onAddSelectedEquationToEvent}
+              disabled={!canAddEquation}
+              style={{
+                width: "100%",
+                minHeight: 34,
+                borderRadius: 10,
+                border: `1px solid ${canAddEquation ? "#CFFF04" : subtleBorderColor}`,
+                background: canAddEquation ? "#CFFF04" : "#252525",
+                color: canAddEquation ? "#000000" : "#FFFFFF66",
+                fontSize: 10,
+                fontWeight: 900,
+                cursor: canAddEquation ? "pointer" : "not-allowed",
+              }}
+            >
+              Add Equation
+            </button>
+          </div>
         ) : null}
       </div>
     </section>
@@ -9078,6 +9291,14 @@ export default function LessonBuilderClient({
   const [selectedSongAuthorId, setSelectedSongAuthorId] = useState<string | null>(null);
   const [lastSavedAuthorId, setLastSavedAuthorId] = useState<string | null>(null);
   const [lastSavedRevision, setLastSavedRevision] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  // Pending in-app navigation blocked by the unsaved-changes popup.
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
+  const isDemoMode = navBasePath.startsWith("/demo");
+  // Demo tutorial: welcome -> build -> save -> add. null = tutorial off/done.
+  const [tutorialStep, setTutorialStep] = useState<"welcome" | "build" | "save" | "add" | null>(
+    () => (isDemoMode ? "welcome" : null),
+  );
   const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
   const [isFilePickerLoading, setIsFilePickerLoading] = useState(false);
   const [filePickerError, setFilePickerError] = useState("");
@@ -9533,6 +9754,8 @@ export default function LessonBuilderClient({
   }
 
   function handleAppendEquationToken(label: string) {
+    // Demo tutorial step 1: any equation-builder interaction clears the welcome popup.
+    setTutorialStep((current) => (current === "welcome" ? "build" : current));
     setMode("equation");
     setHideEquationHeader(true);
     setDraftTokens((current) => [
@@ -9545,6 +9768,7 @@ export default function LessonBuilderClient({
   }
 
   function handleClearEquationDraft() {
+    setTutorialStep((current) => (current === "welcome" ? "build" : current));
     setDraftTokens([]);
     setCustomTokenLabel("");
   }
@@ -9885,7 +10109,66 @@ export default function LessonBuilderClient({
     setDraftTokens([]);
     setCustomTokenLabel("");
     setMode("event");
+    setHasUnsavedChanges(true);
+    // Demo tutorial step 2 -> 3: equation saved, point at the Add Equation button.
+    setTutorialStep((current) => (current === null ? null : "add"));
   }
+
+  // Draft counts as a full equation once "=" has tokens on both sides.
+  const draftEqualsIndex = draftTokens.findIndex((token) => token.label === "=");
+  const isDraftEquationValid =
+    draftEqualsIndex > 0 && draftEqualsIndex < draftTokens.length - 1;
+  // Demo tutorial step 2: show the save prompt as soon as the draft is valid.
+  const showSaveEquationTutorialPrompt =
+    tutorialStep === "save" || (tutorialStep === "build" && isDraftEquationValid);
+
+  function requestNavigation(navigate: () => void) {
+    if (hasUnsavedChanges) {
+      setPendingNavigation(() => navigate);
+      return;
+    }
+
+    navigate();
+  }
+
+  function handleLeaveWithoutSaving() {
+    const navigate = pendingNavigation;
+    setPendingNavigation(null);
+    setHasUnsavedChanges(false);
+    navigate?.();
+  }
+
+  async function handleSaveAndLeave() {
+    // Nothing loaded means nothing to persist; just leave.
+    if (!selectedSongStorage) {
+      handleLeaveWithoutSaving();
+      return;
+    }
+
+    const didSave = await handleSaveToSupabase();
+
+    if (!didSave) {
+      return;
+    }
+
+    const navigate = pendingNavigation;
+    setPendingNavigation(null);
+    navigate?.();
+  }
+
+  // Browser tab close / refresh guard for unsaved work.
+  useEffect(() => {
+    if (!hasUnsavedChanges) {
+      return;
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   function handleSelectEvent(eventId: string) {
     if (mode === "rctm2") {
@@ -10162,6 +10445,9 @@ export default function LessonBuilderClient({
       return;
     }
 
+    // Demo tutorial step 3: equation assigned to an event, tutorial done.
+    setTutorialStep((current) => (current === "add" ? null : current));
+
     setTimelineEvents((current) => {
       const nextEvents = current.map((eventSlot) => {
         if (eventSlot.id !== activeEventId) {
@@ -10272,7 +10558,7 @@ export default function LessonBuilderClient({
   }
 
   function handleBackToSongChoice() {
-    router.push(`${navBasePath}/song-choice`);
+    requestNavigation(() => router.push(`${navBasePath}/song-choice`));
   }
 
   async function handleLaunchGame() {
@@ -10505,6 +10791,7 @@ export default function LessonBuilderClient({
       setChartFile(chartText);
       setStoreSidecar(timelineSidecar as StoreSidecarPayload);
       setSaveStatus("Saved");
+      setHasUnsavedChanges(false);
 
       if (showNotice) {
         const activityKey =
@@ -11383,6 +11670,7 @@ export default function LessonBuilderClient({
   }, [currentSongSeconds, timelineDurationSeconds]);
 
   function syncTimelineFilesFromEvents(nextEvents: TimelineEventSlot[]) {
+    setHasUnsavedChanges(true);
     const nextSidecar = sidecarFromTimelineEvents(nextEvents);
     timelineRehydrateSourceRef.current = nextSidecar;
 
@@ -12019,6 +12307,7 @@ export default function LessonBuilderClient({
           selectedSongActivity?.label ?? getActivityLabel(defaultSongActivityKey)
         }
         isSaving={isSaving}
+        onNavigateHome={() => requestNavigation(() => router.push(navBasePath))}
         onOpenFile={handleOpenFilePicker}
         onLaunch={handleLaunchGame}
         onSave={() => {
@@ -12098,12 +12387,28 @@ export default function LessonBuilderClient({
             </div>
           ) : (
             <>
-              <div style={{ flex: `0 0 ${row2DisplayWidths.column1}px`, minWidth: 0, height: "100%" }}>
+              <div
+                style={{
+                  flex: `0 0 ${row2DisplayWidths.column1}px`,
+                  minWidth: 0,
+                  height: "100%",
+                  // Demo tutorial step 1: keep the equation builder above the
+                  // dimming overlay so its buttons stay clickable.
+                  position: "relative",
+                  zIndex: tutorialStep === "welcome" ? 1200 : undefined,
+                }}
+              >
                 <LeftEquationBuilderPanel
                   draftTokens={draftTokens}
                   onAddToken={handleAppendEquationToken}
                   onClearEquation={handleClearEquationDraft}
                   onSaveEquation={handleSaveEquation}
+                  tutorialPrompt={
+                    showSaveEquationTutorialPrompt
+                      ? "Click here to save your equation to the library!"
+                      : null
+                  }
+                  onSkipTutorial={() => setTutorialStep(null)}
                 />
               </div>
 
@@ -12330,6 +12635,12 @@ export default function LessonBuilderClient({
                   onSelectEquation={handleSelectLibraryEquation}
                   onAddSelectedEquationToEvent={handleAddSelectedEquationToEvent}
                   shouldScrollLibrary={isTimelineInstructionVisible}
+                  tutorialPrompt={
+                    tutorialStep === "add"
+                      ? "Now click here to add this equation to Event 1!"
+                      : null
+                  }
+                  onSkipTutorial={() => setTutorialStep(null)}
                 />
               </div>
 
@@ -12423,6 +12734,47 @@ export default function LessonBuilderClient({
         onClose={() => setIsFilePickerOpen(false)}
         onLoad={handleLoadSongFromFilePicker}
       />
+
+      {/* Demo tutorial step 1: dim every panel except the equation builder. */}
+      {tutorialStep === "welcome" ? (
+        <>
+          <div
+            aria-hidden="true"
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.65)",
+              zIndex: 1100,
+            }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "min(420px, 92vw)",
+              zIndex: 1300,
+            }}
+          >
+            <TutorialBubble
+              text={"Welcome to the UltraRapid editor! Let's begin by making an equation. Try clicking the calculator buttons to the left."}
+              onSkip={() => setTutorialStep(null)}
+            />
+          </div>
+        </>
+      ) : null}
+
+      {pendingNavigation ? (
+        <UnsavedChangesModal
+          isSaving={isSaving}
+          onSaveAndLeave={() => {
+            void handleSaveAndLeave();
+          }}
+          onLeaveWithoutSaving={handleLeaveWithoutSaving}
+          onStay={() => setPendingNavigation(null)}
+        />
+      ) : null}
 
     </div>
   );
