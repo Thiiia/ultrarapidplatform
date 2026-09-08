@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { validateLessonContent } from "@/lib/lesson-content";
 import { publishLessonSaveRevision } from "@/lib/lesson-save-revision";
 import { prisma } from "@/lib/prisma";
-import { requireCurrentAppUser } from "@/lib/current-user";
+import { getCurrentAppUser } from "@/lib/current-user";
 import {
   buildAuthoredChartStoragePaths,
   defaultSongActivityKey,
@@ -139,9 +139,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Saving still requires an authenticated session, but charts are always
-    // written to the shared dev-authored SongChart row for the song + activity.
-    await requireCurrentAppUser();
+    // Demo mode: charts are always written to the shared dev-authored
+    // SongChart row for the song + activity. The session user is best-effort
+    // only (keeps user rows fresh) and never gates the save — new chart
+    // entries created here are authored as "dev" until per-user authoring
+    // returns after the demo.
+    await getCurrentAppUser().catch(() => null);
 
     const payload = (await request.json()) as SavePayload;
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId").toLowerCase();

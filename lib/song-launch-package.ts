@@ -13,6 +13,11 @@ type SongChartTargets = {
   sidecarPath: string;
 };
 
+type BlankSongChartPackage = {
+  chart: SignedStorageRef;
+  sidecar: SignedStorageRef;
+};
+
 function readRequiredString(value: unknown, label: string) {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error(`${label} is required`);
@@ -27,6 +32,7 @@ export async function resolveFreshSongLaunchPackage({
   authorId,
   loadSongAsset,
   loadSongChart,
+  loadBlankSongChart,
   createSignedUrl,
 }: {
   songAssetId: string;
@@ -38,6 +44,13 @@ export async function resolveFreshSongLaunchPackage({
     activityKey: string,
     authorId: string | null,
   ) => Promise<SongChartTargets | null>;
+  // Optional fallback used when no chart has been authored yet: supplies
+  // pre-built refs (e.g. blank-content URLs under the prospective storage
+  // paths) instead of rejecting. Nothing is persisted by this fallback.
+  loadBlankSongChart?: (
+    songAssetId: string,
+    activityKey: string,
+  ) => Promise<BlankSongChartPackage | null>;
   createSignedUrl: (bucket: string, path: string) => Promise<string>;
 }) {
   const canonicalSongAssetId = readRequiredString(songAssetId, "songAssetId").toLowerCase();
@@ -57,14 +70,33 @@ export async function resolveFreshSongLaunchPackage({
     throw new Error(`Unsupported song activity: ${activityKey}`);
   }
 
+  const audioBucket = readRequiredString(songAsset.songBucket, "songBucket");
+  const audioPath = readRequiredString(songAsset.songPath, "songPath");
+
   const chartTargets = await loadSongChart(canonicalSongAssetId, requestedActivityKey, authorId);
 
   if (!chartTargets) {
-    throw new Error(`No chart has been authored for ${requestedActivityKey} yet`);
-  }
+    const blankTargets =
+      (await loadBlankSongChart?.(canonicalSongAssetId, requestedActivityKey)) ?? null;
 
-  const audioBucket = readRequiredString(songAsset.songBucket, "songBucket");
-  const audioPath = readRequiredString(songAsset.songPath, "songPath");
+    if (!blankTargets) {
+      throw new Error(`No chart has been authored for ${requestedActivityKey} yet`);
+    }
+
+    const blankAudioUrl = await createSignedUrl(audioBucket, audioPath);
+
+    return {
+      songAssetId: canonicalSongAssetId,
+      activityKey: requestedActivityKey,
+      chart: blankTargets.chart,
+      sidecar: blankTargets.sidecar,
+      audio: {
+        bucket: audioBucket,
+        path: audioPath,
+        signedUrl: blankAudioUrl,
+      } satisfies SignedStorageRef,
+    };
+  }
 
   const [chartUrl, sidecarUrl, audioUrl] = await Promise.all([
     createSignedUrl(chartTargets.chartBucket, chartTargets.chartPath),

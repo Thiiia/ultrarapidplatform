@@ -543,9 +543,10 @@ export default function SongChoiceClient({
 
     pendingSelectionsRef.current.add(song.id);
 
-    // Resolving the selection checks for the dev-authored SongChart, signs its
-    // chart/sidecar when present, and materializes blank chart/sidecar files
-    // under dev/{ActivityFolder}/ when it is not.
+    // Resolving the selection checks for the dev-authored SongChart and signs
+    // its chart/sidecar when present; when nothing is authored yet it serves
+    // blank chart/sidecar content without persisting anything (a database
+    // entry is created on save instead).
     requestFreshSongLaunchPackage({
       songAssetId: song.id,
       activityKey: song.activityKey,

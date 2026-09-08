@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { BLANK_CHART_TEXT, BLANK_SIDECAR_JSON } from "@/lib/editor/blank-chart";
 import {
   buildAuthoredChartStoragePaths,
   resolveRequestedSongActivityKey,
@@ -143,81 +142,23 @@ export async function getOrCreateDevAuthor() {
 }
 
 /**
- * Materializes (creates in Supabase Storage + Postgres) a brand-new blank
- * chart/sidecar pair for a user who has not authored one yet for this
- * song + activity combination.
+ * Read-only lookup of the dev-authored SongChart for a song + activity.
+ * Returns null when the dev author has not authored one yet — callers serve
+ * blank chart/sidecar content in that case, and the SongChart row is only
+ * created later when the user saves (see /api/lesson-builder/save).
  */
-async function createBlankAuthoredChart({
-  songAssetId,
-  authorId,
-  activityKey,
-  authorFolder,
-}: {
-  songAssetId: string;
-  authorId: string;
-  activityKey: SongActivityKey;
-  authorFolder: string;
-}): Promise<SongChartRecord> {
-  const { chartPath, sidecarPath } = buildAuthoredChartStoragePaths({
-    activityKey,
-    songAssetId,
-    authorFolder,
-  });
-
-  const chartBucket = "Charts";
-  const sidecarBucket = "SidecarJsons";
-  const supabaseAdmin = getSupabaseAdmin();
-
-  await supabaseAdmin.storage.from(chartBucket).upload(chartPath, BLANK_CHART_TEXT, {
-    contentType: "text/plain;charset=utf-8",
-    upsert: true,
-  });
-  await supabaseAdmin.storage.from(sidecarBucket).upload(sidecarPath, BLANK_SIDECAR_JSON, {
-    contentType: "application/json;charset=utf-8",
-    upsert: true,
-  });
-
-  const created = await prisma.songChart.upsert({
-    where: {
-      songAssetId_authorId_activityKey: {
-        songAssetId,
-        authorId,
-        activityKey,
-      },
-    },
-    create: {
-      songAssetId,
-      authorId,
-      activityKey,
-      chartBucket,
-      chartPath,
-      sidecarBucket,
-      sidecarPath,
-    },
-    update: {},
-  });
-
-  return {
-    chartBucket: created.chartBucket,
-    chartPath: created.chartPath,
-    sidecarBucket: created.sidecarBucket,
-    sidecarPath: created.sidecarPath,
-  };
-}
-
-/**
- * Returns the dev-authored SongChart for a song + activity, creating a blank
- * chart/sidecar pair (uploaded under `dev/{ActivityFolder}/`) when the dev
- * author has not authored one for this song yet.
- */
-export async function ensureDevAuthoredChart({
+export async function findDevAuthoredChart({
   songAssetId,
   activityKey,
 }: {
   songAssetId: string;
   activityKey: SongActivityKey;
-}): Promise<SongChartRecord> {
-  const devAuthor = await getOrCreateDevAuthor();
+}): Promise<SongChartRecord | null> {
+  const devAuthor = await findDevAuthor();
+
+  if (!devAuthor) {
+    return null;
+  }
 
   const existing = await prisma.songChart.findUnique({
     where: {
@@ -229,21 +170,16 @@ export async function ensureDevAuthoredChart({
     },
   });
 
-  if (existing) {
-    return {
-      chartBucket: existing.chartBucket,
-      chartPath: existing.chartPath,
-      sidecarBucket: existing.sidecarBucket,
-      sidecarPath: existing.sidecarPath,
-    };
+  if (!existing) {
+    return null;
   }
 
-  return createBlankAuthoredChart({
-    songAssetId,
-    authorId: devAuthor.id,
-    activityKey,
-    authorFolder: DEV_AUTHOR_FOLDER,
-  });
+  return {
+    chartBucket: existing.chartBucket,
+    chartPath: existing.chartPath,
+    sidecarBucket: existing.sidecarBucket,
+    sidecarPath: existing.sidecarPath,
+  };
 }
 
 async function getFileMetadata(bucket: string, path: string) {
@@ -513,10 +449,11 @@ async function buildSongChoiceForAsset({
 /**
  * Song choice listing for the song-choice pages: every active SongAsset shows
  * up, sourced purely from the SongAsset table. Only the song audio gets a
- * signed URL here; chart/sidecar signed URLs are resolved at selection time
- * (see ensureDevAuthoredChart + /api/song-package/launch). The chart/sidecar
- * fields carry the prospective dev-authored storage paths so downstream
- * payloads have a stable shape before the selection fetch completes.
+ * signed URL here; chart/sidecar URLs are resolved at selection time (see
+ * findDevAuthoredChart + /api/song-package/launch, which falls back to blank
+ * content when nothing is authored yet). The chart/sidecar fields carry the
+ * prospective dev-authored storage paths so downstream payloads have a stable
+ * shape before the selection fetch completes.
  */
 export async function getSongChoices(
   requestedActivityKey?: string | null,

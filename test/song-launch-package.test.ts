@@ -19,6 +19,13 @@ type SongLaunchPackageModule = {
       activityKey: string,
       authorId: string | null,
     ) => Promise<SongChartTargets | null>;
+    loadBlankSongChart?: (
+      songAssetId: string,
+      activityKey: string,
+    ) => Promise<{
+      chart: { bucket: string; path: string; signedUrl: string };
+      sidecar: { bucket: string; path: string; signedUrl: string };
+    } | null>;
     createSignedUrl: (bucket: string, path: string) => Promise<string>;
   }) => Promise<{
     songAssetId: string;
@@ -128,5 +135,69 @@ test("rejects a song/activity nobody has authored yet before creating signed URL
   );
 
   assert.equal(signedUrlCalls, 0);
+});
+
+test("serves the blank chart package when no chart is authored and a blank fallback is provided", async () => {
+  const songLaunchPackage = await loadSongLaunchPackageModule();
+  const signedTargets: Array<{ bucket: string; path: string }> = [];
+
+  const resolved = await songLaunchPackage!.resolveFreshSongLaunchPackage!({
+    songAssetId: "song-123",
+    activityKey: "missing-numbers",
+    authorId: null,
+    loadSongAsset: async (id) => {
+      assert.equal(id, "song-123");
+      return {
+        id,
+        isActive: true,
+        songBucket: "Songs",
+        songPath: "albums/waves.mp3",
+      };
+    },
+    loadSongChart: async () => null,
+    loadBlankSongChart: async (songAssetId, activityKey) => {
+      assert.equal(songAssetId, "song-123");
+      assert.equal(activityKey, "missing-numbers");
+      return {
+        chart: {
+          bucket: "Charts",
+          path: "dev/Missing_Numbers/song-123.chart",
+          signedUrl: "https://app.example/api/song-package/blank?kind=chart&activity=missing-numbers",
+        },
+        sidecar: {
+          bucket: "SidecarJsons",
+          path: "dev/Missing_Numbers/song-123.json",
+          signedUrl: "https://app.example/api/song-package/blank?kind=sidecar&activity=missing-numbers",
+        },
+      };
+    },
+    createSignedUrl: async (bucket, path) => {
+      signedTargets.push({ bucket, path });
+      return `https://storage.example/${bucket}/${path}`;
+    },
+  });
+
+  // Only the audio is a real storage object; chart/sidecar come from the
+  // blank fallback and must not be signed or persisted.
+  assert.deepEqual(signedTargets, [{ bucket: "Songs", path: "albums/waves.mp3" }]);
+  assert.deepEqual(resolved, {
+    songAssetId: "song-123",
+    activityKey: "missing-numbers",
+    chart: {
+      bucket: "Charts",
+      path: "dev/Missing_Numbers/song-123.chart",
+      signedUrl: "https://app.example/api/song-package/blank?kind=chart&activity=missing-numbers",
+    },
+    sidecar: {
+      bucket: "SidecarJsons",
+      path: "dev/Missing_Numbers/song-123.json",
+      signedUrl: "https://app.example/api/song-package/blank?kind=sidecar&activity=missing-numbers",
+    },
+    audio: {
+      bucket: "Songs",
+      path: "albums/waves.mp3",
+      signedUrl: "https://storage.example/Songs/albums/waves.mp3",
+    },
+  });
 });
 
