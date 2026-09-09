@@ -10,21 +10,21 @@ type SongChartTargets = {
   authorId?: string;
   revision?: string;
   counts?: { encounters: number; equations: number; targets: number };
+  hashes?: { chartSha256: string; sidecarSha256: string; audioSha256: string };
 };
 
-test("existing unrevisioned legacy encounters launch, but authored and mixed revisions still fail", async () => {
+const HASHES = {
+  chartSha256: "a".repeat(64), sidecarSha256: "b".repeat(64), audioSha256: "c".repeat(64),
+};
+
+test("legacy packages cannot bypass the immutable receipt boundary", async () => {
   const input = {
     songAssetId: "jazzmaybach", activityKey: "early-algebra", authorId: "dev-id",
     loadSongAsset: async () => ({id: "jazzmaybach", isActive: true, songBucket: "Songs", songPath: "jazz.mp3"}),
     loadSongChart: async () => ({chartBucket: "Charts", chartPath: "dev/Early_Algebra/Melika.chart", sidecarBucket: "SidecarJsons", sidecarPath: "dev/Early_Algebra/Melika.encounters.json", legacy: true, counts: {encounters: 11, equations: 11, targets: 0}}),
     createSignedUrl: async (_bucket: string, path: string) => `https://example.test/${path}`,
   };
-  const result = await resolveFreshSongLaunchPackage(input);
-  assert.equal(result.revision, undefined);
-  assert.equal(result.sidecar.path, "dev/Early_Algebra/Melika.encounters.json");
-  await assert.rejects(resolveFreshSongLaunchPackage({...input, revision: "r1"}), /immutable revision/);
-  await assert.rejects(resolveFreshSongLaunchPackage({...input, loadSongChart: async () => ({...await input.loadSongChart(), legacy: false})}), /immutable revision/);
-  await assert.rejects(resolveFreshSongLaunchPackage({...input, loadSongChart: async () => ({...await input.loadSongChart(), chartPath: "dev/Early_Algebra/revisions/r1/Melika.chart"})}), /immutable revision/);
+  await assert.rejects(resolveFreshSongLaunchPackage(input), /immutable artifact hashes/);
 });
 
 type SongLaunchPackageModule = {
@@ -114,6 +114,7 @@ test("resolves and signs the current complete activity package for the requestin
         authorId: "author-7",
         revision: "rev-7",
         counts: { encounters: 4, equations: 3, targets: 5 },
+        hashes: HASHES,
       };
     },
     createSignedUrl: async (bucket, path) => {
@@ -142,6 +143,7 @@ test("resolves and signs the current complete activity package for the requestin
       sidecar: { bucket: "SidecarJsons", path: "Early_Algebra/revisions/rev-7/waves.json" },
       audio: { bucket: "Songs", path: "albums/waves.mp3" },
       counts: { encounters: 4, equations: 3, targets: 5 },
+      hashes: HASHES,
     },
     chart: {
       bucket: "Charts",
@@ -181,6 +183,7 @@ test("receipt carries stable identity + refs without signed-URL credentials", as
       sidecarPath: "Missing_Numbers/revisions/rev-1/song.json",
       authorId: "author-2",
       counts: { encounters: 0, equations: 0, targets: 0 },
+      hashes: HASHES,
     }),
     createSignedUrl: async (bucket, path) => `https://storage.example/${bucket}/${path}?token=secret`,
   });

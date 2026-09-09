@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { validateLessonContent } from "@/lib/lesson-content";
 import { publishLessonSaveRevision } from "@/lib/lesson-save-revision";
 import { prisma } from "@/lib/prisma";
@@ -15,10 +15,7 @@ import {
 import { DEV_AUTHOR_FOLDER, findAuthorByName, getOrCreateDevAuthor } from "@/lib/song-storage";
 import { resolveRequestedAuthor } from "@/lib/song-author";
 import { checkSaveRevisionPrecondition } from "@/lib/song-launch-identity";
-import {
-  parseAuthoredLessonDraft,
-  stampAuthoredLessonIdentity,
-} from "@/lib/authored-lesson";
+import { prepareAuthoredLessonForPublication } from "@/lib/authored-lesson-publication";
 
 function resolveAuthorFolder(user: { name: string | null; email: string | null }) {
   const name = user.name?.trim();
@@ -93,6 +90,16 @@ async function uploadTextFile({
   return { bucket, path, contentType };
 }
 
+function sha256(content: string) {
+  return createHash("sha256").update(content, "utf8").digest("hex");
+}
+
+async function sha256ForStoredFile(bucket: string, path: string) {
+  const { data, error } = await getSupabaseServerClient().storage.from(bucket).download(path);
+  if (error || !data) throw new Error(`Unable to hash required asset: ${bucket}/${path}`);
+  return createHash("sha256").update(Buffer.from(await data.arrayBuffer())).digest("hex");
+}
+
 export function isSameOriginLessonSaveRequest(request: Request) {
   const origin = request.headers.get("origin");
   const requestUrl = new URL(request.url);
@@ -120,6 +127,7 @@ async function resolveAuthoredChartTargets({
   activityKey: SongActivityKey;
   authorFolder: string;
 }): Promise<{
+  songChartId?: string;
   chart: Omit<UploadedFileRef, "contentType">;
   sidecar: Omit<UploadedFileRef, "contentType">;
   current?: {
@@ -151,6 +159,7 @@ async function resolveAuthoredChartTargets({
         sidecarBucket: existing.sidecarBucket,
         sidecarPath: existing.sidecarPath,
       },
+      songChartId: existing.id,
     };
   }
 
@@ -205,7 +214,7 @@ export async function POST(request: Request) {
 
     const existingSongAsset = await prisma.songAsset.findUnique({
       where: { id: songAssetId },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, songBucket: true, songPath: true },
     });
 
     if (!existingSongAsset || !existingSongAsset.isActive) {
@@ -235,21 +244,13 @@ export async function POST(request: Request) {
     try { validateLessonContent(chartContent, sidecarContent, { forSave: true }); }
     catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid lesson content" }, { status: 400 }); }
 
-    let authoredDraft: ReturnType<typeof parseAuthoredLessonDraft> | null = null;
+    const revisionId = randomUUID();
+    let authoredPublication;
     try {
-      const parsedSidecar = JSON.parse(sidecarContent) as unknown;
-      if (parsedSidecar && typeof parsedSidecar === "object" && (parsedSidecar as { version?: unknown }).version === 3) {
-        authoredDraft = parseAuthoredLessonDraft(parsedSidecar);
-        if (authoredDraft.songAssetId !== songAssetId) {
-          return NextResponse.json({ error: "Authored lesson songAssetId does not match the selected song" }, { status: 400 });
-        }
-        if (authoredDraft.activityKey !== activityKey) {
-          return NextResponse.json({ error: "Authored lesson activityKey does not match the selected activity" }, { status: 400 });
-        }
-        if (authoredDraft.authorId && authoredDraft.authorId !== targetAuthor.id) {
-          return NextResponse.json({ error: "Authored lesson authorId does not match the selected author" }, { status: 400 });
-        }
-      }
+      authoredPublication = prepareAuthoredLessonForPublication({
+        sidecarContent,
+        identity: { songAssetId, activityKey, authorId: targetAuthor.id, revision: revisionId },
+      });
     } catch (error) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid authored lesson payload" }, { status: 400 });
     }
@@ -271,15 +272,7 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-    const revisionId = randomUUID();
-    const persistedSidecarContent = authoredDraft
-      ? JSON.stringify(stampAuthoredLessonIdentity(authoredDraft, {
-          songAssetId,
-          activityKey,
-          authorId: targetAuthor.id,
-          revision: revisionId,
-        }), null, 2)
-      : sidecarContent;
+    const persistedSidecarContent = authoredPublication.content;
     const revisionTargets = await publishLessonSaveRevision({
       targets,
       revisionId,
@@ -288,18 +281,70 @@ export async function POST(request: Request) {
         sidecar: persistedSidecarContent,
       },
       upload: async (file) => { await uploadTextFile(file); },
-      updatePointers: async ({ chartPath, sidecarPath }) => {
-        if (!targets.current) {
-          // Publish new rows only after both uploads succeed. The unique key
-          // prevents two first saves from overwriting one another.
-          const { count } = await prisma.songChart.createMany({
-            data: [{ songAssetId, authorId: targetAuthor.id, activityKey,
-              chartBucket: targets.chart.bucket, chartPath,
-              sidecarBucket: targets.sidecar.bucket, sidecarPath }],
-            skipDuplicates: true,
+      recordRevision: async ({ revisionId: publishedRevisionId, chart, sidecar }) => {
+        // New authors need a stable SongChart identity before the immutable
+        // registry row can be created. It starts at the base path; gameplay
+        // never reads this pointer once the registry is deployed.
+        if (!targets.songChartId) {
+          const created = await prisma.songChart.create({
+            data: {
+              songAssetId,
+              authorId: targetAuthor.id,
+              activityKey,
+              chartBucket: targets.chart.bucket,
+              chartPath: targets.chart.path,
+              sidecarBucket: targets.sidecar.bucket,
+              sidecarPath: targets.sidecar.path,
+            },
+            select: { id: true },
           });
-          return count === 1;
+          targets.songChartId = created.id;
+          targets.current = {
+            chartBucket: targets.chart.bucket,
+            chartPath: targets.chart.path,
+            sidecarBucket: targets.sidecar.bucket,
+            sidecarPath: targets.sidecar.path,
+          };
         }
+
+        const [chartSha256, audioSha256] = await Promise.all([
+          Promise.resolve(sha256(chart.content)),
+          sha256ForStoredFile(existingSongAsset.songBucket, existingSongAsset.songPath),
+        ]);
+        await prisma.gameContentRevision.create({
+          data: {
+            revision: publishedRevisionId,
+            songChartId: targets.songChartId!,
+            songAssetId,
+            activityKey,
+            authorId: targetAuthor.id,
+            chartBucket: chart.bucket,
+            chartPath: chart.path,
+            sidecarBucket: sidecar.bucket,
+            sidecarPath: sidecar.path,
+            audioBucket: existingSongAsset.songBucket,
+            audioPath: existingSongAsset.songPath,
+            chartSha256,
+            sidecarSha256: sha256(sidecar.content),
+            audioSha256,
+            authoredLessonVersion: 3,
+            authoredMode: "authored",
+            equationCount: authoredPublication.counts.equations,
+            encounterCount: authoredPublication.counts.encounters,
+            targetCount: authoredPublication.counts.targets,
+            status: "draft",
+          },
+        });
+        await prisma.gameContentRevision.update({
+          where: { revision: publishedRevisionId },
+          data: { status: "publishing" },
+        });
+        await prisma.gameContentRevision.update({
+          where: { revision: publishedRevisionId },
+          data: { status: "ready", publishedAt: new Date() },
+        });
+      },
+      updatePointers: async ({ chartPath, sidecarPath }) => {
         const { count } = await prisma.songChart.updateMany({
           where: {
             songAssetId,

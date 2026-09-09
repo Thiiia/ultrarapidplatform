@@ -54,12 +54,18 @@ export async function publishLessonSaveRevision({
   revisionId,
   content,
   upload,
+  recordRevision,
   updatePointers,
 }: {
   targets: { chart: StorageTarget; sidecar: StorageTarget };
   revisionId: string;
   content: RevisionContent;
   upload: (file: StorageTarget & { content: string; contentType: string }) => Promise<void>;
+  recordRevision?: (next: {
+    revisionId: string;
+    chart: StorageTarget & { content: string };
+    sidecar: StorageTarget & { content: string };
+  }) => Promise<void>;
   updatePointers: (next: { chartPath: string; sidecarPath: string }) => Promise<boolean>;
 }) {
   const revisionTargets = buildLessonSaveRevisionTargets({ targets, revisionId });
@@ -73,6 +79,12 @@ export async function publishLessonSaveRevision({
     ...revisionTargets.sidecar,
     content: content.sidecar,
     contentType: "application/json;charset=utf-8",
+  });
+
+  await recordRevision?.({
+    revisionId,
+    chart: { ...revisionTargets.chart, content: content.chart },
+    sidecar: { ...revisionTargets.sidecar, content: content.sidecar },
   });
 
   const pointersUpdated = await updatePointers({
