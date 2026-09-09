@@ -1931,6 +1931,29 @@ function HeaderBar({
 
           <button
             type="button"
+            onClick={onLaunch}
+            disabled={!canLaunch || isSaving}
+            aria-label="Play saved lesson in game"
+            title={canLaunch ? "Save and play this lesson in the game" : "Choose a song before playing"}
+            style={{
+              minWidth: 70,
+              height: 30,
+              borderRadius: 12,
+              border: `1px solid ${subtleBorderColor}`,
+              background: "#CFFF04",
+              color: "#071222",
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 11,
+              fontWeight: 800,
+              cursor: canLaunch && !isSaving ? "pointer" : "not-allowed",
+              opacity: canLaunch && !isSaving ? 1 : 0.55,
+            }}
+          >
+            Play
+          </button>
+
+          <button
+            type="button"
             disabled={isSaving}
             onClick={onSave}
             aria-label="Save lesson to Supabase"
@@ -10628,6 +10651,7 @@ export default function LessonBuilderClient({
   }
 
   async function handleLaunchGame() {
+    if (isSaving) return;
     if (!selectedSongLaunch) {
       setSaveStatus("Choose a song from song choice before launching the game.");
       return;
@@ -10642,9 +10666,9 @@ export default function LessonBuilderClient({
     try {
     const freshSongLaunch = await requestFreshSongLaunchPackage({
       ...selectedSongLaunch,
-      authorId: lastSavedAuthorId,
+      authorId: didSave.authorId,
       authorName: selectedSongLaunch.authorName ?? null,
-      revision: lastSavedRevision,
+      revision: didSave.revision,
     });
     const launchParams = createSongLaunchSearchParams({
       songAssetId: freshSongLaunch.songAssetId,
@@ -10934,7 +10958,7 @@ export default function LessonBuilderClient({
         });
       }
 
-      return true;
+      return { authorId: result.authorId, revision: result.revision };
     } catch (error) {
       appendSongFlowDebug("lesson-builder:save:error", "Lesson save failed.", {
         message: error instanceof Error ? error.message : "Unable to save lesson files",
