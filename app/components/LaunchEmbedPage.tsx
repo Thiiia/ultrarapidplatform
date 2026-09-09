@@ -39,6 +39,7 @@ export default function LaunchEmbedPage({ videoUrl }: { videoUrl: string | null 
             maxHeight: "42vh",
             objectFit: "contain",
             marginBottom: 16,
+            marginTop: 40,
             background: "#000000",
           }}
         />

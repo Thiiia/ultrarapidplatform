@@ -1647,10 +1647,12 @@ function HeaderBar({
   isRctm2Mode,
   onToggleRctm1Mode,
   onToggleRctm2Mode,
+  selectedActivityKey,
 }: {
   selectedSongTitle: string;
   selectedSongArtist: string;
   selectedActivityLabel: string;
+  selectedActivityKey: SongActivityKey | null;
   isSaving: boolean;
   onNavigateHome: () => void;
   onOpenFile: () => void;
@@ -1810,47 +1812,45 @@ function HeaderBar({
             {selectedActivityLabel}
           </span>
 
-          <button
-            type="button"
-            onClick={onToggleRctm1Mode}
-            aria-pressed={isRctm1Mode}
-            style={{
-              minWidth: 106,
-              height: 38,
-              borderRadius: 999,
-              border: "1px solid #7A8FA8",
-              background: isRctm1Mode ? "#CFFF04" : "#060B15FC",
-              color: isRctm1Mode ? "#071222" : "#7A8FA8",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-              padding: "0 16px",
-              fontFamily: "Space Grotesk, sans-serif",
-            }}
-          >
-            RCTM1
-          </button>
+          {(() => {
+            const chartmakerInfo = (() => {
+              if (selectedActivityKey === "early-algebra") {
+                return { label: "RCTM1 Chartmaker", onClick: onToggleRctm1Mode, isActive: isRctm1Mode };
+              } else if (selectedActivityKey === "number-bonds") {
+                return { label: "RCTM2 Chartmaker", onClick: onToggleRctm2Mode, isActive: isRctm2Mode };
+              } else if (selectedActivityKey === "equations") {
+                return { label: "RCTM3 Chartmaker", onClick: onToggleRctm1Mode, isActive: isRctm1Mode };
+              } else if (selectedActivityKey === "missing-numbers") {
+                return { label: "RCTM4 Chartmaker", onClick: onToggleRctm2Mode, isActive: isRctm2Mode };
+              }
+              return null;
+            })();
 
-          <button
-            type="button"
-            onClick={onToggleRctm2Mode}
-            aria-pressed={isRctm2Mode}
-            style={{
-              minWidth: 106,
-              height: 38,
-              borderRadius: 999,
-              border: "1px solid #7A8FA8",
-              background: isRctm2Mode ? "#CFFF04" : "#060B15FC",
-              color: isRctm2Mode ? "#071222" : "#7A8FA8",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-              padding: "0 16px",
-              fontFamily: "Space Grotesk, sans-serif",
-            }}
-          >
-            RCTM2
-          </button>
+            if (!chartmakerInfo) return null;
+
+            return (
+              <button
+                type="button"
+                onClick={chartmakerInfo.onClick}
+                aria-pressed={chartmakerInfo.isActive}
+                style={{
+                  minWidth: 106,
+                  height: 38,
+                  borderRadius: 999,
+                  border: "1px solid #7A8FA8",
+                  background: chartmakerInfo.isActive ? "#CFFF04" : "#060B15FC",
+                  color: chartmakerInfo.isActive ? "#071222" : "#7A8FA8",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  padding: "0 16px",
+                  fontFamily: "Space Grotesk, sans-serif",
+                }}
+              >
+                {chartmakerInfo.label}
+              </button>
+            );
+          })()}
         </div>
 
         <div
@@ -12310,6 +12310,7 @@ export default function LessonBuilderClient({
         selectedActivityLabel={
           selectedSongActivity?.label ?? getActivityLabel(defaultSongActivityKey)
         }
+        selectedActivityKey={selectedSongActivity?.key ?? null}
         isSaving={isSaving}
         onNavigateHome={() => requestNavigation(() => router.push(navBasePath))}
         onOpenFile={handleOpenFilePicker}
