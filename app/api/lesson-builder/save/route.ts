@@ -95,8 +95,13 @@ async function uploadTextFile({
 
 export function isSameOriginLessonSaveRequest(request: Request) {
   const origin = request.headers.get("origin");
+  const requestUrl = new URL(request.url);
 
-  return origin === new URL(request.url).origin;
+  if (!origin) {
+    return true;
+  }
+
+  return origin === requestUrl.origin;
 }
 
 /**

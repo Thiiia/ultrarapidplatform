@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveRequestedAuthor } from "../lib/song-author";
+import { isFelixAuthor } from "../lib/song-storage";
 
 test("fails explicitly when an author id is unknown", async () => {
   await assert.rejects(
@@ -35,4 +36,19 @@ test("uses the default author only when no author was explicitly requested", asy
   });
 
   assert.deepEqual(author, { id: "dev", name: "dev" });
+});
+
+test("recognizes Felix as a valid author even before any chart rows exist", () => {
+  assert.equal(
+    isFelixAuthor({ id: "cmndltqyc0000ju04s0i4en9r", name: "Felix", email: "felix@example.com" }),
+    true,
+  );
+  assert.equal(
+    isFelixAuthor({ id: "other-user", name: "Felix", email: null }),
+    true,
+  );
+  assert.equal(
+    isFelixAuthor({ id: "other-user", name: "Kameron", email: "kameron@example.com" }),
+    false,
+  );
 });

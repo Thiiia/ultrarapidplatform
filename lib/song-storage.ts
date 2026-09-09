@@ -319,6 +319,28 @@ type SongAssetLike = {
   isActive: boolean;
 };
 
+export const FELIX_USER_ID = "cmndltqyc0000ju04s0i4en9r";
+
+export function isFelixAuthor(user: { id?: string | null; name?: string | null; email?: string | null }) {
+  const normalizedName = user.name?.trim().toLowerCase();
+  const normalizedEmail = user.email?.trim().toLowerCase();
+
+  return (
+    user.id?.trim() === FELIX_USER_ID ||
+    normalizedName === "felix" ||
+    normalizedEmail === "felix@example.com"
+  );
+}
+
+function blankAssetUrl(kind: "chart" | "sidecar", activityKey: SongActivityKey) {
+  const params = new URLSearchParams({
+    kind,
+    activity: activityKey,
+  });
+
+  return `/api/song-package/blank?${params.toString()}`;
+}
+
 async function buildSongChoiceForAsset({
   songAsset,
   storageSong,
@@ -585,12 +607,13 @@ export async function getSongChartAuthors(): Promise<SongChartAuthor[]> {
     _count: { _all: true },
   });
 
-  if (grouped.length === 0) {
-    return [];
+  const authorIds = new Set(grouped.map((entry) => entry.authorId));
+  if (isFelixAuthor({ id: FELIX_USER_ID, name: "Felix", email: null })) {
+    authorIds.add(FELIX_USER_ID);
   }
 
   const users = await prisma.user.findMany({
-    where: { id: { in: grouped.map((entry) => entry.authorId) } },
+    where: { id: { in: Array.from(authorIds) } },
   });
   const userById = new Map(users.map((user) => [user.id, user]));
 
@@ -611,12 +634,28 @@ export async function getSongChartAuthors(): Promise<SongChartAuthor[]> {
     })
     .filter(isNonNull);
 
+  const felixUser = userById.get(FELIX_USER_ID);
+  if (felixUser && !authors.some((author) => author.id === FELIX_USER_ID)) {
+    authors.push({
+      id: felixUser.id,
+      name: felixUser.name?.trim() || felixUser.email || "Felix",
+      email: felixUser.email ?? null,
+      chartCount: 0,
+    });
+  }
+
   authors.sort((a, b) => {
     const aIsDev = a.email === DEV_AUTHOR_EMAIL;
     const bIsDev = b.email === DEV_AUTHOR_EMAIL;
+    const aIsFelix = a.id === FELIX_USER_ID || a.name === "Felix";
+    const bIsFelix = b.id === FELIX_USER_ID || b.name === "Felix";
 
     if (aIsDev !== bIsDev) {
       return aIsDev ? -1 : 1;
+    }
+
+    if (aIsFelix !== bIsFelix) {
+      return aIsFelix ? -1 : 1;
     }
 
     return a.name.localeCompare(b.name);
@@ -645,12 +684,21 @@ export async function getEditorSongChoices(
   // An explicitly requested author that resolves to nothing must return an
   // empty listing, never silently broaden to every author (F08).
   let authorId = options.userId ?? null;
+  let authorRecord = null as { id: string; name: string | null; email: string | null } | null;
   if (!authorId && options.authorName) {
-    authorId = (await findAuthorByName(options.authorName))?.id ?? null;
+    authorRecord = (await findAuthorByName(options.authorName)) ?? null;
+    authorId = authorRecord?.id ?? null;
     if (!authorId) {
       return [];
     }
+  } else if (authorId) {
+    authorRecord = await prisma.user.findUnique({
+      where: { id: authorId },
+      select: { id: true, name: true, email: true },
+    });
   }
+
+  const authorName = authorRecord ? resolveAuthorFolderName(authorRecord) : (options.authorName ?? DEV_AUTHOR_FOLDER);
 
   const charts = await prisma.songChart.findMany({
     where: {
@@ -675,34 +723,112 @@ export async function getEditorSongChoices(
 
   const storageSongs = await listSongStorageFiles("Songs");
   const storageSongByPath = new Map(storageSongs.map((entry) => [entry.path, entry]));
+  const authoredSongIds = new Set(chartsByAsset.values().map((chart) => chart.songAssetId));
 
-  const songs: Array<SongChoice | null> = await Promise.all(
-    Array.from(chartsByAsset.values()).map(async (chart): Promise<SongChoice | null> => {
-      const storageSong = storageSongByPath.get(chart.songAsset.songPath);
+  const songAssets = await prisma.songAsset.findMany({
+    where: { isActive: true },
+    orderBy: { title: "asc" },
+  });
 
-      if (!storageSong) {
-        console.warn("Skipping authored chart because song audio file was not found in storage", {
-          songAssetId: chart.songAssetId,
-          songPath: chart.songAsset.songPath,
+  const blankSongs: Array<SongChoice | null> = await Promise.all(
+    songAssets.map(async (songAsset) => {
+      const existingChart = chartsByAsset.get(`${songAsset.id}:${authorId ?? ""}`) ?? null;
+      if (existingChart) {
+        const storageSong = storageSongByPath.get(songAsset.songPath);
+        if (!storageSong) {
+          return null;
+        }
+
+        return buildSongChoiceForAsset({
+          songAsset,
+          storageSong,
+          activityKey: preferredActivityKey,
+          authorName: authorName,
+          chartRecord: {
+            chartBucket: existingChart.chartBucket,
+            chartPath: existingChart.chartPath,
+            sidecarBucket: existingChart.sidecarBucket,
+            sidecarPath: existingChart.sidecarPath,
+          },
         });
-        return null;
       }
 
-      return buildSongChoiceForAsset({
-        songAsset: chart.songAsset,
-        storageSong,
-        activityKey: preferredActivityKey,
-        authorName: chart.author ? resolveAuthorFolderName(chart.author) : null,
-        chartRecord: {
-          chartBucket: chart.chartBucket,
-          chartPath: chart.chartPath,
-          sidecarBucket: chart.sidecarBucket,
-          sidecarPath: chart.sidecarPath,
-        },
-      });
+      if (authorId && !authoredSongIds.has(songAsset.id)) {
+        const storageSong = storageSongByPath.get(songAsset.songPath);
+        if (!storageSong) {
+          return null;
+        }
+
+        const blankPaths = buildAuthoredChartStoragePaths({
+          activityKey: preferredActivityKey,
+          songAssetId: songAsset.id,
+          authorFolder: authorName,
+        });
+
+        return {
+          ...buildSongChoiceForAsset({
+            songAsset,
+            storageSong,
+            activityKey: preferredActivityKey,
+            authorName,
+            chartRecord: {
+              chartBucket: "Charts",
+              chartPath: blankPaths.chartPath,
+              sidecarBucket: "SidecarJsons",
+              sidecarPath: blankPaths.sidecarPath,
+            },
+            signChartAssets: false,
+          }),
+          chart: {
+            bucket: "Charts",
+            path: blankPaths.chartPath,
+            signedUrl: blankAssetUrl("chart", preferredActivityKey),
+            contentType: "text/plain",
+          },
+          sidecar: {
+            bucket: "SidecarJsons",
+            path: blankPaths.sidecarPath,
+            signedUrl: blankAssetUrl("sidecar", preferredActivityKey),
+            contentType: "application/json",
+          },
+        } as SongChoice;
+      }
+
+      return null;
     }),
   );
 
-  return songs.filter(isNonNull);
+  const authoredSongs = chartsByAsset.size > 0
+    ? await Promise.all(
+        Array.from(chartsByAsset.values()).map(async (chart): Promise<SongChoice | null> => {
+          const storageSong = storageSongByPath.get(chart.songAsset.songPath);
+
+          if (!storageSong) {
+            console.warn("Skipping authored chart because song audio file was not found in storage", {
+              songAssetId: chart.songAssetId,
+              songPath: chart.songAsset.songPath,
+            });
+            return null;
+          }
+
+          return buildSongChoiceForAsset({
+            songAsset: chart.songAsset,
+            storageSong,
+            activityKey: preferredActivityKey,
+            authorName: chart.author ? resolveAuthorFolderName(chart.author) : null,
+            chartRecord: {
+              chartBucket: chart.chartBucket,
+              chartPath: chart.chartPath,
+              sidecarBucket: chart.sidecarBucket,
+              sidecarPath: chart.sidecarPath,
+            },
+          });
+        }),
+      )
+    : [];
+
+  return [...authoredSongs.filter(isNonNull), ...blankSongs.filter(isNonNull)].filter(
+    (song, index, allSongs) => allSongs.findIndex((candidate) => candidate.id === song.id) === index,
+  );
 }
 

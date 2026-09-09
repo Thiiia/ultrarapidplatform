@@ -35,4 +35,13 @@ test("allows the public Team Editor to save from the same origin", async () => {
     ),
     false,
   );
+
+  assert.equal(
+    saveRoute.isSameOriginLessonSaveRequest!(
+      new Request("https://platform.example/api/lesson-builder/save", {
+        method: "POST",
+      }),
+    ),
+    true,
+  );
 });
