@@ -12444,6 +12444,7 @@ export default function LessonBuilderClient({
                   <>
                     <div
                       style={{
+                        gridRow: 1,
                         display: centerContextEvent ? "grid" : "none",
                         minHeight: 0,
                         alignItems: "center",
@@ -12467,7 +12468,7 @@ export default function LessonBuilderClient({
                       ) : null}
                     </div>
 
-                    <div style={{ minHeight: 0 }}>
+                    <div style={{ gridRow: 2, minHeight: 0 }}>
                       <CenterChoicePanel
                         choice={centerChoice}
                         draftTokens={draftTokens}
@@ -12501,6 +12502,7 @@ export default function LessonBuilderClient({
 
                     <div
                       style={{
+                        gridRow: 3,
                         display: centerContextEvent ? "grid" : "none",
                         minHeight: 0,
                         gridTemplateColumns: "minmax(0, 1fr) auto",
