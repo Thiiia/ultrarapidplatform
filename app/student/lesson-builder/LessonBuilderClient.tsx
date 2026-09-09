@@ -6846,7 +6846,7 @@ function CenterChoicePanel({
               alignContent: "center",
               justifyItems: "center",
               gap: 10,
-              padding: hideHeader ? "10px 16px 18px" : 0,
+              padding: hideHeader ? "10px 16px" : 0,
               boxSizing: "border-box",
               overflow: "visible",
             }}
