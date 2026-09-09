@@ -2712,6 +2712,44 @@ function EquationBuilderArea({
     null,
   );
   const [isTrashActive, setIsTrashActive] = useState(false);
+  const [equationScale, setEquationScale] = useState(1);
+  const equationContainerRef = useRef<HTMLDivElement>(null);
+  const equationContentRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const container = equationContainerRef.current;
+    const content = equationContentRef.current;
+
+    if (!container || !content) return;
+
+    const measureAndScale = () => {
+      const containerWidth = container.clientWidth;
+      const contentWidth = content.scrollWidth;
+      const containerHeight = container.clientHeight;
+      const contentHeight = content.scrollHeight;
+
+      if (contentWidth > containerWidth || contentHeight > containerHeight) {
+        const scaleWidth = containerWidth / contentWidth;
+        const scaleHeight = containerHeight / contentHeight;
+        const newScale = Math.min(scaleWidth, scaleHeight, 1);
+        setEquationScale(Math.max(0.5, newScale));
+      } else {
+        setEquationScale(1);
+      }
+    };
+
+    // Measure on next frame to ensure DOM is ready
+    const rafId = requestAnimationFrame(measureAndScale);
+
+    // Also use ResizeObserver for responsive scaling
+    const resizeObserver = new ResizeObserver(measureAndScale);
+    resizeObserver.observe(container);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      resizeObserver.disconnect();
+    };
+  }, [draftTokens]);
 
   return (
     <div
@@ -2764,6 +2802,7 @@ function EquationBuilderArea({
       </div>
 
       <div
+        ref={equationContainerRef}
         style={{
           position: "relative",
           margin: 18,
@@ -2774,7 +2813,7 @@ function EquationBuilderArea({
           alignItems: "center",
           justifyContent: "center",
           boxSizing: "border-box",
-          overflow: "auto",
+          overflow: "hidden",
           fontFamily: "Space Grotesk, sans-serif",
         }}
       >
@@ -2785,14 +2824,20 @@ function EquationBuilderArea({
         />
 
         <div
+          ref={equationContentRef}
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: 0,
             flexWrap: "wrap",
-            padding: "44px 96px 84px",
+            padding: "0 96px",
             minHeight: 150,
+            width: "100%",
+            maxWidth: "100%",
+            transform: `scale(${equationScale})`,
+            transformOrigin: "center",
+            transition: "transform 200ms ease",
           }}
         >
           {draftTokens.length === 0 ? (
@@ -8722,7 +8767,8 @@ function LibraryPanel({
                 style={{
                   position: "absolute",
                   bottom: "calc(100% + 8px)",
-                  right: 0,
+                  left: "50%",
+                  transform: "translateX(-50%)",
                   width: 240,
                   zIndex: 1300,
                 }}
