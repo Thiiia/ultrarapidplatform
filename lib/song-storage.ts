@@ -765,20 +765,26 @@ export async function getEditorSongChoices(
           authorFolder: authorName,
         });
 
+        const baseSongChoice = await buildSongChoiceForAsset({
+          songAsset,
+          storageSong,
+          activityKey: preferredActivityKey,
+          authorName,
+          chartRecord: {
+            chartBucket: "Charts",
+            chartPath: blankPaths.chartPath,
+            sidecarBucket: "SidecarJsons",
+            sidecarPath: blankPaths.sidecarPath,
+          },
+          signChartAssets: false,
+        });
+
+        if (!baseSongChoice) {
+          return null;
+        }
+
         return {
-          ...buildSongChoiceForAsset({
-            songAsset,
-            storageSong,
-            activityKey: preferredActivityKey,
-            authorName,
-            chartRecord: {
-              chartBucket: "Charts",
-              chartPath: blankPaths.chartPath,
-              sidecarBucket: "SidecarJsons",
-              sidecarPath: blankPaths.sidecarPath,
-            },
-            signChartAssets: false,
-          }),
+          ...baseSongChoice,
           chart: {
             bucket: "Charts",
             path: blankPaths.chartPath,
@@ -791,7 +797,7 @@ export async function getEditorSongChoices(
             signedUrl: blankAssetUrl("sidecar", preferredActivityKey),
             contentType: "application/json",
           },
-        } as SongChoice;
+        } satisfies SongChoice;
       }
 
       return null;
