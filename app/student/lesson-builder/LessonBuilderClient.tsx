@@ -1897,31 +1897,6 @@ function HeaderBar({
 
           <button
             type="button"
-            onClick={onLaunch}
-            disabled={!canLaunch}
-            title={
-              canLaunch
-                ? "Launch the selected song in the game."
-                : "Choose a song from song choice before launching the game."
-            }
-            style={{
-              minWidth: 86,
-              height: 30,
-              background: canLaunch ? "#CFFF04" : panelBackgroundColor,
-              color: canLaunch ? "#000000" : "#FFFFFF80",
-              border: `1px solid ${canLaunch ? "#CFFF04" : subtleBorderColor}`,
-              borderRadius: 12,
-              fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 11,
-              fontWeight: 800,
-              cursor: canLaunch ? "pointer" : "not-allowed",
-            }}
-          >
-            Play
-          </button>
-
-          <button
-            type="button"
             disabled={isSaving}
             onClick={onSave}
             aria-label="Save lesson to Supabase"
@@ -3089,12 +3064,15 @@ function EmptyEquationBubble({
 function HitBubbleChoice({
   onSelect,
 }: {
-  onSelect: (pair: HitBubblePair) => void;
+  onSelect: (pad: HitBubblePad) => void;
 }) {
-  const choices: Array<{ pair: HitBubblePair; label: string }> = [
-    { pair: "topLeftBottomRight", label: "↘" },
-    { pair: "topRightBottomLeft", label: "↙" },
-    { pair: "leftRight", label: "↔" },
+  const choices: Array<{ pad: HitBubblePad; label: string; position: string }> = [
+    { pad: "topLeft", label: "↖", position: "top-left" },
+    { pad: "topRight", label: "↗", position: "top-right" },
+    { pad: "left", label: "←", position: "left" },
+    { pad: "right", label: "→", position: "right" },
+    { pad: "bottomLeft", label: "↙", position: "bottom-left" },
+    { pad: "bottomRight", label: "↘", position: "bottom-right" },
   ];
 
   return (
@@ -3105,7 +3083,8 @@ function HitBubbleChoice({
         top: -48,
         transform: "translateX(-50%)",
         zIndex: 20,
-        display: "flex",
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
         gap: 6,
         padding: 6,
         borderRadius: 999,
@@ -3116,11 +3095,11 @@ function HitBubbleChoice({
     >
       {choices.map((choice) => (
         <button
-          key={choice.pair}
+          key={choice.pad}
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            onSelect(choice.pair);
+            onSelect(choice.pad);
           }}
           style={{
             width: 30,
@@ -3133,7 +3112,8 @@ function HitBubbleChoice({
             fontSize: 15,
             fontWeight: 900,
           }}
-          aria-label={`Choose hit pads ${choice.label}`}
+          aria-label={`Choose hit pad ${choice.position}`}
+          title={choice.position}
         >
           {choice.label}
         </button>
@@ -3145,11 +3125,11 @@ function HitBubbleChoice({
 function HitEquationEditor({
   tokens,
   hitBubbles,
-  onAddHitBubblePair,
+  onAddHitPad,
 }: {
   tokens: EquationToken[];
   hitBubbles: HitBubblePlacement[];
-  onAddHitBubblePair: (tokenIndex: number, pair: HitBubblePair) => void;
+  onAddHitPad: (tokenIndex: number, pad: HitBubblePad) => void;
 }) {
   const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(
     null,
@@ -3219,8 +3199,8 @@ function HitEquationEditor({
 
             {!isOperator && selectedTokenIndex === tokenIndex ? (
               <HitBubbleChoice
-                onSelect={(pair) => {
-                  onAddHitBubblePair(tokenIndex, pair);
+                onSelect={(pad) => {
+                  onAddHitPad(tokenIndex, pad);
                   setSelectedTokenIndex(null);
                 }}
               />
@@ -3765,14 +3745,14 @@ function MechanicEquationEditor({
   mechanic,
   equation,
   instance,
-  onAddHitBubblePair,
+  onAddHitPad,
   onToggleSpinTarget,
   onToggleDragTarget,
 }: {
   mechanic: GameplayMechanic;
   equation: SavedEquation | null;
   instance: MechanicInstanceState | undefined;
-  onAddHitBubblePair: (tokenIndex: number, pair: HitBubblePair) => void;
+  onAddHitPad: (tokenIndex: number, pad: HitBubblePad) => void;
   onToggleSpinTarget: (tokenIndex: number) => void;
   onToggleDragTarget: (tokenIndex: number) => void;
 }) {
@@ -3848,7 +3828,7 @@ function MechanicEquationEditor({
       <HitEquationEditor
         tokens={equation.tokens}
         hitBubbles={instance?.hitBubbles ?? []}
-        onAddHitBubblePair={onAddHitBubblePair}
+        onAddHitPad={onAddHitPad}
       />
     );
   }
@@ -3878,7 +3858,7 @@ function MechanicInstanceRow({
   equation,
   instances,
   onDropEquation,
-  onAddHitBubblePair,
+  onAddHitPad,
   onToggleSpinTarget,
   onToggleDragTarget,
 }: {
@@ -3887,11 +3867,11 @@ function MechanicInstanceRow({
   equation: SavedEquation | null;
   instances: MechanicInstanceState[];
   onDropEquation: (equation: SavedEquation) => void;
-  onAddHitBubblePair: (
+  onAddHitPad: (
     mechanic: GameplayMechanic,
     instanceIndex: number,
     tokenIndex: number,
-    pair: HitBubblePair,
+    pad: HitBubblePad,
   ) => void;
   onToggleSpinTarget: (
     mechanic: GameplayMechanic,
@@ -4062,12 +4042,12 @@ function MechanicInstanceRow({
             mechanic={mechanic}
             equation={equation}
             instance={activeInstance}
-            onAddHitBubblePair={(tokenIndex, pair) =>
-              onAddHitBubblePair(
+            onAddHitPad={(tokenIndex, pad) =>
+              onAddHitPad(
                 mechanic,
                 activeInstanceIndex,
                 tokenIndex,
-                pair,
+                pad,
               )
             }
             onToggleSpinTarget={(tokenIndex) =>
@@ -4086,17 +4066,17 @@ function MechanicInstanceRow({
 function EventBuilderArea({
   eventSlot,
   onDropEquation,
-  onAddHitBubblePair,
+  onAddHitPad,
   onToggleSpinTarget,
   onToggleDragTarget,
 }: {
   eventSlot: TimelineEventSlot | null;
   onDropEquation: (equation: SavedEquation) => void;
-  onAddHitBubblePair: (
+  onAddHitPad: (
     mechanic: GameplayMechanic,
     instanceIndex: number,
     tokenIndex: number,
-    pair: HitBubblePair,
+    pad: HitBubblePad,
   ) => void;
   onToggleSpinTarget: (
     mechanic: GameplayMechanic,
@@ -4229,7 +4209,7 @@ function EventBuilderArea({
               equation={assignedEquation}
               instances={eventSlot.mechanicInstances[mechanic] ?? []}
               onDropEquation={onDropEquation}
-              onAddHitBubblePair={onAddHitBubblePair}
+              onAddHitPad={onAddHitPad}
               onToggleSpinTarget={onToggleSpinTarget}
               onToggleDragTarget={onToggleDragTarget}
             />
@@ -5703,8 +5683,8 @@ function EquationTileStrip({
   onTokenClick,
   selectedOutlineColor = "#CFFF04",
   mechanicMode = null,
-  selectedHitPair,
-  onSelectHitPair,
+  selectedHitPad,
+  onSelectHitPad,
   fontSizeOverride,
   currentSongSeconds,
   mechanicStartSeconds,
@@ -5721,8 +5701,8 @@ function EquationTileStrip({
   onTokenClick?: (tokenIndex: number) => void;
   selectedOutlineColor?: string;
   mechanicMode?: GameplayMechanic | null;
-  selectedHitPair?: HitBubblePair | null;
-  onSelectHitPair?: (pair: HitBubblePair) => void;
+  selectedHitPad?: HitBubblePad | null;
+  onSelectHitPad?: (pad: HitBubblePad) => void;
   fontSizeOverride?: {
     operator: number;
     nonOperator: number;
@@ -6062,51 +6042,34 @@ function EquationTileStrip({
     return label;
   }
 
-  const hitPairOffsets: Record<HitBubblePair, Array<{ dx: number; dy: number }>> = {
-    leftRight: [
-      { dx: 0, dy: -(baseTokenHeight * 0.5 + hitCircleOffset) },
-      { dx: 0, dy: baseTokenHeight * 0.5 + hitCircleOffset },
-    ],
-    topLeftBottomRight: [
-      {
-        dx: -(baseTokenWidth * 0.5 + hitCircleOffset),
-        dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
-      },
-      {
-        dx: baseTokenWidth * 0.5 + hitCircleOffset,
-        dy: baseTokenHeight * 0.5 + hitCircleOffset,
-      },
-    ],
-    topRightBottomLeft: [
-      {
-        dx: baseTokenWidth * 0.5 + hitCircleOffset,
-        dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
-      },
-      {
-        dx: -(baseTokenWidth * 0.5 + hitCircleOffset),
-        dy: baseTokenHeight * 0.5 + hitCircleOffset,
-      },
-    ],
+  const hitPadOffsets: Record<HitBubblePad, { dx: number; dy: number }> = {
+    topLeft: {
+      dx: -(baseTokenWidth * 0.5 + hitCircleOffset),
+      dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
+    },
+    topRight: {
+      dx: baseTokenWidth * 0.5 + hitCircleOffset,
+      dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
+    },
+    left: {
+      dx: 0,
+      dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
+    },
+    right: {
+      dx: 0,
+      dy: baseTokenHeight * 0.5 + hitCircleOffset,
+    },
+    bottomLeft: {
+      dx: -(baseTokenWidth * 0.5 + hitCircleOffset),
+      dy: baseTokenHeight * 0.5 + hitCircleOffset,
+    },
+    bottomRight: {
+      dx: baseTokenWidth * 0.5 + hitCircleOffset,
+      dy: baseTokenHeight * 0.5 + hitCircleOffset,
+    },
   };
 
-  const hitPairs: Array<{
-    pair: HitBubblePair;
-    positions: Array<{ dx: number; dy: number }>;
-  }> = [
-      {
-        pair: "leftRight",
-        // Visually top/bottom while preserving existing stored pair semantics.
-        positions: hitPairOffsets.leftRight,
-      },
-      {
-        pair: "topLeftBottomRight",
-        positions: hitPairOffsets.topLeftBottomRight,
-      },
-      {
-        pair: "topRightBottomLeft",
-        positions: hitPairOffsets.topRightBottomLeft,
-      },
-    ];
+  const hitPads: HitBubblePad[] = ["topLeft", "topRight", "left", "right", "bottomLeft", "bottomRight"];
 
   function renderDragDestination(key: string) {
     return (
@@ -6282,12 +6245,13 @@ function EquationTileStrip({
 
         {isSelected && mechanicMode === "hit" ? (
           <>
-            {hitPairs.map((item) => {
-              const isPairSelected = selectedHitPair === item.pair;
+            {hitPads.map((pad) => {
+              const isPadSelected = selectedHitPad === pad;
+              const position = hitPadOffsets[pad];
 
-              return item.positions.map((position, circleIndex) => (
+              return (
                 <button
-                  key={`${token.id}-${item.pair}-${circleIndex}`}
+                  key={`${token.id}-${pad}`}
                   type="button"
                   onClick={(event) => {
                     event.preventDefault();
@@ -6295,16 +6259,16 @@ function EquationTileStrip({
                     if (mechanicMode === "hit" && isSongPlaying) {
                       onQuickAddHit?.();
                     }
-                    onSelectHitPair?.(item.pair);
+                    onSelectHitPad?.(pad);
                   }}
                   style={{
                     position: "absolute",
                     width: hitCircleSize,
                     height: hitCircleSize,
                     borderRadius: 999,
-                    border: `${hitCircleBorderWidth}px solid ${isPairSelected ? "#2EA7FF" : "#7CC8FF"}`,
-                    background: isPairSelected ? "#2EA7FF" : "rgba(46,167,255,0.3)",
-                    boxShadow: isPairSelected
+                    border: `${hitCircleBorderWidth}px solid ${isPadSelected ? "#2EA7FF" : "#7CC8FF"}`,
+                    background: isPadSelected ? "#2EA7FF" : "rgba(46,167,255,0.3)",
+                    boxShadow: isPadSelected
                       ? "0 0 10px rgba(46,167,255,0.65)"
                       : "none",
                     left: `calc(50% + ${position.dx}px)`,
@@ -6314,41 +6278,38 @@ function EquationTileStrip({
                     cursor: "pointer",
                     padding: 0,
                   }}
-                  aria-label={`Set hit pair ${item.pair}`}
+                  aria-label={`Set hit pad ${pad}`}
                 />
-              ));
+              );
             })}
 
-            {hitAnimationProgress !== null && selectedHitPair
+            {hitAnimationProgress !== null && selectedHitPad
               ? (() => {
-                const targets = hitPairOffsets[selectedHitPair];
+                const target = hitPadOffsets[selectedHitPad];
+                const dx = target.dx * hitAnimationProgress;
+                const dy = target.dy * hitAnimationProgress;
+                const size = Math.max(2, hitCircleSize * hitAnimationProgress);
 
-                return targets.map((target, circleIndex) => {
-                  const dx = target.dx * hitAnimationProgress;
-                  const dy = target.dy * hitAnimationProgress;
-                  const size = Math.max(2, hitCircleSize * hitAnimationProgress);
-
-                  return (
-                    <span
-                      key={`hit-anim-${slotIndex}-${circleIndex}`}
-                      aria-hidden="true"
-                      style={{
-                        position: "absolute",
-                        left: `calc(50% + ${dx}px)`,
-                        top: `calc(50% + ${dy}px)`,
-                        width: size,
-                        height: size,
-                        borderRadius: 999,
-                        border: `${hitCircleBorderWidth}px solid #2EA7FF`,
-                        background: "rgba(46,167,255,0.26)",
-                        transform: "translate(-50%, -50%)",
-                        boxSizing: "border-box",
-                        pointerEvents: "none",
-                        zIndex: 5,
-                      }}
-                    />
-                  );
-                });
+                return (
+                  <span
+                    key={`hit-anim-${slotIndex}`}
+                    aria-hidden="true"
+                    style={{
+                      position: "absolute",
+                      left: `calc(50% + ${dx}px)`,
+                      top: `calc(50% + ${dy}px)`,
+                      width: size,
+                      height: size,
+                      borderRadius: 999,
+                      border: `${hitCircleBorderWidth}px solid #2EA7FF`,
+                      background: "rgba(46,167,255,0.26)",
+                      transform: "translate(-50%, -50%)",
+                      boxSizing: "border-box",
+                      pointerEvents: "none",
+                      zIndex: 5,
+                    }}
+                  />
+                );
               })()
               : null}
           </>
@@ -6699,8 +6660,8 @@ function CenterChoicePanel({
   selectedTokenIndex,
   onSelectToken,
   selectedMechanic,
-  selectedHitPair,
-  onSelectHitPair,
+  selectedHitPad,
+  onSelectHitPad,
   equationViewerBlockSize,
   currentSongSeconds,
   mechanicStartSeconds,
@@ -6719,8 +6680,8 @@ function CenterChoicePanel({
   selectedTokenIndex: number | null;
   onSelectToken: ((tokenIndex: number) => void) | null;
   selectedMechanic: GameplayMechanic | null;
-  selectedHitPair: HitBubblePair | null;
-  onSelectHitPair: ((pair: HitBubblePair) => void) | null;
+  selectedHitPad: HitBubblePad | null;
+  onSelectHitPad: ((pad: HitBubblePad) => void) | null;
   equationViewerBlockSize: number;
   currentSongSeconds: number;
   mechanicStartSeconds: number | null;
@@ -6900,8 +6861,8 @@ function CenterChoicePanel({
                 onTokenClick={onSelectToken ?? undefined}
                 selectedOutlineColor={selectedTokenOutlineColor}
                 mechanicMode={selectedMechanic}
-                selectedHitPair={selectedHitPair}
-                onSelectHitPair={onSelectHitPair ?? undefined}
+                selectedHitPad={selectedHitPad}
+                onSelectHitPad={onSelectHitPad ?? undefined}
                 fontSizeOverride={{
                   operator: 36,
                   nonOperator: 44,
@@ -9128,7 +9089,7 @@ function CenterEditorPanel({
   onRemoveToken,
   onSaveEquation,
   onDropEquation,
-  onAddHitBubblePair,
+  onAddHitPad,
   onToggleSpinTarget,
   onToggleDragTarget,
 }: {
@@ -9144,11 +9105,11 @@ function CenterEditorPanel({
   onRemoveToken: (id: string) => void;
   onSaveEquation: () => void;
   onDropEquation: (equation: SavedEquation) => void;
-  onAddHitBubblePair: (
+  onAddHitPad: (
     mechanic: GameplayMechanic,
     instanceIndex: number,
     tokenIndex: number,
-    pair: HitBubblePair,
+    pad: HitBubblePad,
   ) => void;
   onToggleSpinTarget: (
     mechanic: GameplayMechanic,
@@ -9194,7 +9155,7 @@ function CenterEditorPanel({
         <EventBuilderArea
           eventSlot={activeEvent}
           onDropEquation={onDropEquation}
-          onAddHitBubblePair={onAddHitBubblePair}
+          onAddHitPad={onAddHitPad}
           onToggleSpinTarget={onToggleSpinTarget}
           onToggleDragTarget={onToggleDragTarget}
         />
@@ -9532,7 +9493,7 @@ export default function LessonBuilderClient({
     return instance.dragTargets[0]?.tokenIndex ?? null;
   }, [centerContextEvent, selectedCenterContextMechanic]);
 
-  const selectedContextHitPair = useMemo(() => {
+  const selectedContextHitPad = useMemo(() => {
     if (
       !centerContextEvent ||
       !selectedCenterContextMechanic ||
@@ -9546,7 +9507,7 @@ export default function LessonBuilderClient({
       selectedCenterContextMechanic.mechanic
       ]?.[selectedCenterContextMechanic.instanceIndex];
 
-    return getHitBubblePairFromPlacement(instance?.hitBubbles[0]);
+    return instance?.hitBubbles[0]?.pads[0] ?? null;
   }, [centerContextEvent, selectedCenterContextMechanic]);
 
   const selectedContextMechanicTimeWindow = useMemo(() => {
@@ -10327,13 +10288,9 @@ export default function LessonBuilderClient({
             }
 
             if (mechanic === "hit") {
-              const pads = getHitBubblePairPads(
-                selectedContextHitPair ?? "leftRight",
-              );
-
               return {
                 ...instance,
-                hitBubbles: [{ tokenIndex, positions: pads, pads }],
+                hitBubbles: [{ tokenIndex, positions: selectedContextHitPad ? [selectedContextHitPad] : ["left"], pads: selectedContextHitPad ? [selectedContextHitPad] : ["left"] }],
               };
             }
 
@@ -10367,7 +10324,7 @@ export default function LessonBuilderClient({
     });
   }
 
-  function handleSetSelectedContextHitPair(pair: HitBubblePair) {
+  function handleSetSelectedContextHitPad(pad: HitBubblePad) {
     if (
       !centerContextEvent ||
       !selectedCenterContextMechanic ||
@@ -10383,7 +10340,6 @@ export default function LessonBuilderClient({
     }
 
     const { mechanic, instanceIndex } = selectedCenterContextMechanic;
-    const pads = getHitBubblePairPads(pair);
 
     setTimelineEvents((current) => {
       const nextEvents = current.map((eventSlot) => {
@@ -10399,7 +10355,7 @@ export default function LessonBuilderClient({
 
             return {
               ...instance,
-              hitBubbles: [{ tokenIndex, positions: pads, pads }],
+              hitBubbles: [{ tokenIndex, positions: [pad], pads: [pad] }],
             };
           },
         );
@@ -10549,19 +10505,17 @@ export default function LessonBuilderClient({
     });
   }
 
-  function handleAddHitBubblePair(
+  function handleAddHitPad(
     mechanic: GameplayMechanic,
     instanceIndex: number,
     tokenIndex: number,
-    pair: HitBubblePair,
+    pad: HitBubblePad,
   ) {
-    const pads = getHitBubblePairPads(pair);
-
     updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
       return {
         ...instance,
         // Only keep the newly selected hit token.
-        hitBubbles: [{ tokenIndex, positions: pads, pads }],
+        hitBubbles: [{ tokenIndex, positions: [pad], pads: [pad] }],
       };
     });
   }
@@ -12525,10 +12479,10 @@ export default function LessonBuilderClient({
                             : null
                         }
                         selectedMechanic={selectedCenterContextMechanic?.mechanic ?? null}
-                        selectedHitPair={selectedContextHitPair}
-                        onSelectHitPair={
+                        selectedHitPad={selectedContextHitPad}
+                        onSelectHitPad={
                           selectedCenterContextMechanic?.mechanic === "hit"
-                            ? handleSetSelectedContextHitPair
+                            ? handleSetSelectedContextHitPad
                             : null
                         }
                         equationViewerBlockSize={equationViewerBlockSize}
