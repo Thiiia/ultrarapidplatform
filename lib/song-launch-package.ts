@@ -14,7 +14,7 @@ type SongChartTargets = {
   sidecarPath: string;
   authorId?: string;
   revision?: string;
-  counts?: {
+  counts: {
     encounters: number;
     equations: number;
     targets: number;
@@ -41,7 +41,7 @@ export type SongLaunchReceipt = {
   chart: { bucket: string; path: string };
   sidecar: { bucket: string; path: string };
   audio: { bucket: string; path: string };
-  counts?: {
+  counts: {
     encounters: number;
     equations: number;
     targets: number;
@@ -54,6 +54,15 @@ function readRequiredString(value: unknown, label: string) {
   }
 
   return value.trim();
+}
+
+function requireCounts(value: SongChartTargets["counts"] | undefined) {
+  if (!value || !Number.isSafeInteger(value.encounters) || value.encounters < 0 ||
+      !Number.isSafeInteger(value.equations) || value.equations < 0 ||
+      !Number.isSafeInteger(value.targets) || value.targets < 0) {
+    throw new Error("Authored launch package is missing valid receipt counts");
+  }
+  return value;
 }
 
 export async function resolveFreshSongLaunchPackage({
@@ -152,6 +161,7 @@ export async function resolveFreshSongLaunchPackage({
   }
 
   const resolvedAuthorId = chartTargets.authorId ?? authorId ?? "";
+  const counts = requireCounts(chartTargets.counts);
 
   const receipt: SongLaunchReceipt = {
     receiptVersion: 1,
@@ -162,7 +172,7 @@ export async function resolveFreshSongLaunchPackage({
     chart: { bucket: chartTargets.chartBucket, path: chartTargets.chartPath },
     sidecar: { bucket: chartTargets.sidecarBucket, path: chartTargets.sidecarPath },
     audio: { bucket: audioBucket, path: audioPath },
-    ...(chartTargets.counts ? { counts: chartTargets.counts } : {}),
+    counts,
   };
 
   const [chartUrl, sidecarUrl, audioUrl] = await Promise.all([

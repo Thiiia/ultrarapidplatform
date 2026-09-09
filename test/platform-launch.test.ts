@@ -14,6 +14,7 @@ type PlatformLaunchModule = {
     audioUrl: string;
     authorId?: string;
     revision?: string;
+    receipt?: { receiptVersion: 1; songAssetId: string; activityKey: string; authorId: string; revision?: string };
   }) => URLSearchParams;
 };
 
@@ -49,6 +50,7 @@ test("forwards a selected song package from the platform iframe to Unity", async
     audioUrl: "https://storage.example/songs/waves.mp3?token=audio-token",
     authorId: "author-7",
     revision: "rev-7",
+    receipt: { receiptVersion: 1, songAssetId: "song-123", activityKey: "early-algebra", authorId: "author-7", revision: "rev-7" },
   });
   const embeddedUrl = new URL(
     platformLaunch!.buildEmbeddedGameUrl!(
@@ -75,4 +77,11 @@ test("forwards a selected song package from the platform iframe to Unity", async
   );
   assert.equal(embeddedUrl.searchParams.get("authorId"), "author-7");
   assert.equal(embeddedUrl.searchParams.get("revision"), "rev-7");
+  assert.deepEqual(JSON.parse(embeddedUrl.searchParams.get("receipt") ?? "null"), {
+    receiptVersion: 1,
+    songAssetId: "song-123",
+    activityKey: "early-algebra",
+    authorId: "author-7",
+    revision: "rev-7",
+  });
 });

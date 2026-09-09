@@ -4,7 +4,7 @@ export async function requestFreshSongLaunchParams(input: { songAssetId: string;
   const fresh = await requestFreshSongLaunchPackage(input);
   return createSongLaunchSearchParams({ songAssetId: fresh.songAssetId, activityKey: fresh.activityKey,
     chartUrl: fresh.chart.signedUrl, sidecarUrl: fresh.sidecar.signedUrl, audioUrl: fresh.audio.signedUrl,
-    authorId: fresh.authorId, revision: fresh.revision,
+    authorId: fresh.authorId, revision: fresh.revision, receipt: fresh.receipt,
     rhythmDifficultyKey: input.rhythmDifficultyKey });
 }
 

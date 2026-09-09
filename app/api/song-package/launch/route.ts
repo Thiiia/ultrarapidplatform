@@ -11,6 +11,7 @@ import {
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { resolveRequestedAuthor } from "@/lib/song-author";
 import { extractRevisionFromStoragePath } from "@/lib/song-launch-identity";
+import { parseAuthoredLessonDraft } from "@/lib/authored-lesson";
 import {
   buildAuthoredChartStoragePaths,
   type SongActivityKey,
@@ -49,40 +50,42 @@ async function createSignedUrl(bucket: string, path: string) {
 }
 
 /**
- * Count authored equations/encounters/targets from a stored v3 sidecar for the
- * launch receipt. Best-effort: returns undefined when the sidecar is not v3
- * authored or cannot be read/parsed, so a receipt is still produced.
+ * Count authored equations/encounters/targets from the exact sidecar selected
+ * for an authored launch. A receipt without these counts cannot be checked by
+ * Unity, so malformed or unreadable evidence fails the launch explicitly.
  */
 async function readAuthoredCounts(bucket: string, path: string) {
-  try {
-    const { data, error } = await getSupabaseAdmin().storage.from(bucket).download(path);
-    if (error || !data) return undefined;
-
-    const parsed = JSON.parse(await data.text()) as {
-      version?: unknown;
-      mode?: unknown;
-      equations?: unknown;
-      encounters?: unknown;
-    };
-
-    if (parsed.version !== 3 || parsed.mode !== "authored") return undefined;
-
-    const equations = Array.isArray(parsed.equations) ? parsed.equations.length : 0;
-    const encounters = Array.isArray(parsed.encounters) ? parsed.encounters : [];
-    const targets = encounters.reduce((sum, encounter) => {
-      const e = encounter as { hitBubbles?: unknown; spinTargets?: unknown; dragTargets?: unknown };
-      return (
-        sum +
-        (Array.isArray(e.hitBubbles) ? e.hitBubbles.length : 0) +
-        (Array.isArray(e.spinTargets) ? e.spinTargets.length : 0) +
-        (Array.isArray(e.dragTargets) ? e.dragTargets.length : 0)
-      );
-    }, 0);
-
-    return { encounters: encounters.length, equations, targets };
-  } catch {
-    return undefined;
+  const { data, error } = await getSupabaseAdmin().storage.from(bucket).download(path);
+  if (error || !data) {
+    throw new Error(`Authored sidecar is unreadable: ${bucket}/${path}`);
   }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await data.text());
+  } catch {
+    throw new Error(`Authored sidecar is malformed JSON: ${bucket}/${path}`);
+  }
+
+  let validated;
+  try {
+    validated = parseAuthoredLessonDraft(parsed, { requirePublishedIdentity: true });
+  } catch (validationError) {
+    throw new Error(
+      `Authored sidecar failed validation: ${validationError instanceof Error ? validationError.message : "invalid payload"}`,
+    );
+  }
+
+  const targets = validated.encounters.reduce((sum, encounter) => {
+    const group = encounter.type === "hit"
+      ? encounter.hitBubbles
+      : encounter.type === "spin"
+        ? encounter.spinTargets
+        : encounter.dragTargets;
+    return sum + (group?.length ?? 0);
+  }, 0);
+
+  return { encounters: validated.encounters.length, equations: validated.equations.length, targets };
 }
 
 /**
@@ -183,7 +186,7 @@ export async function POST(request: Request) {
           sidecarPath: chart.sidecarPath,
           authorId: author.id,
           revision: extractRevisionFromStoragePath(chart.chartPath) ?? undefined,
-          ...(counts ? { counts } : {}),
+          counts,
         };
       },
       loadBlankSongChart: async (assetId, resolvedActivityKey) => {

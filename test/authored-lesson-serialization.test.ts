@@ -37,7 +37,7 @@ function instance(
     id,
     tick: overrides.tick,
     endTick: overrides.endTick,
-    hitBubbles: overrides.hitBubbles ?? [],
+    hitBubbles: overrides.hitBubbles ?? [{ tokenIndex: 0, positions: [], pads: [] }],
     spinTargets: overrides.spinTargets ?? [],
     dragTargets: overrides.dragTargets ?? [],
   };
@@ -265,6 +265,79 @@ test("editor -> v3 -> editor round-trip preserves identity, targets and queue or
   );
 });
 
+test("round-trip preserves an explicit equation queue including an orphan equation", () => {
+  const clock = createLessonClock(
+    `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+  );
+  const eq1 = equation("eq-1", ["3", "+", "4", "=", "7"]);
+  const eq2 = equation("eq-2", ["X", "+", "2", "=", "9"]);
+  const eq3 = equation("eq-3", ["5", "=", "Y"]);
+  const events = [
+    makeEvent("event-1", 4, { hit: 1 }, {
+      equation: eq1,
+      instances: { hit: [instance("inst-hit-1", { tick: 4 })] },
+    }),
+    makeEvent("event-2", 6.5, { drag: 1 }, {
+      equation: eq2,
+      instances: { drag: [instance("inst-drag-1", { tick: 6.5, endTick: 9, dragTargets: [{ tokenIndex: 1, sourceHitId: "inst-hit-1" }] })] },
+    }),
+  ];
+
+  const draft = serializeAuthoredLesson(events, IDENTITY, clock, undefined, [eq1, eq2, eq3]);
+  const hydrated = timelineEventsFromAuthoredLesson(parseAuthoredLessonDraft(draft), clock);
+  const redraft = serializeAuthoredLesson(
+    hydrated.events,
+    IDENTITY,
+    clock,
+    undefined,
+    hydrated.equations,
+  );
+
+  assert.deepEqual(redraft.equations.map((entry) => entry.id), ["eq-1", "eq-2", "eq-3"]);
+});
+
+test("preserves equation assignment independently for each mechanic", () => {
+  const clock = createLessonClock(
+    `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+  );
+  const draft = serializeAuthoredLesson([
+    {
+      ...makeEvent("event-1", 2, { hit: 1, drag: 1 }, {
+        equation: equation("eq-hit", ["1", "=", "1"]),
+        instances: {
+          hit: [instance("inst-hit", { tick: 2 })],
+          drag: [instance("inst-drag", { tick: 2, endTick: 3 })],
+        },
+      }),
+      assignments: {
+        hit: equation("eq-hit", ["1", "=", "1"]),
+        spin: null,
+        drag: equation("eq-drag", ["X", "=", "2"]),
+      },
+    },
+  ], IDENTITY, clock);
+
+  assert.deepEqual(
+    draft.encounters.map((entry) => [entry.id, entry.equationId]),
+    [["inst-hit", "eq-hit"], ["inst-drag", "eq-drag"]],
+  );
+});
+
+test("aggregates a shared event end from all encounters regardless of input order", () => {
+  const clock = { toTick: (seconds: number) => Math.round(seconds * 1000), toSeconds: (tick: number) => tick / 1000 };
+  const draft = {
+    equations: [{ id: "eq-1", state: "1 = 1" }],
+    encounters: [
+      { id: "late", eventId: "event-1", type: "spin" as const, equationId: "eq-1", startTick: 1000, endTick: 12528, spinTargets: [{ tokenIndex: 0 }] },
+      { id: "early", eventId: "event-1", type: "drag" as const, equationId: "eq-1", startTick: 500, endTick: 20000, dragTargets: [{ tokenIndex: 0 }] },
+    ],
+  };
+  const hydrated = timelineEventsFromAuthoredLesson(draft, clock);
+
+  assert.equal(hydrated.events[0].tick, 0.5);
+  assert.equal(hydrated.events[0].endTick, 20);
+});
+
 test("rejects a non-finite position instead of coercing it to a near-zero tick", () => {
   const clock = createLessonClock(
     `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
@@ -278,5 +351,53 @@ test("rejects a non-finite position instead of coercing it to a near-zero tick",
         clock,
       ),
     /must be finite seconds/,
+  );
+});
+
+test("hydrates compact equations with the operator-aware token contract", () => {
+  const clock = { toTick: (seconds: number) => Math.round(seconds * 1000), toSeconds: (tick: number) => tick / 1000 };
+  const hydrated = timelineEventsFromAuthoredLesson({
+    equations: [{ id: "eq-compact", state: "X+2=9" }],
+    encounters: [{
+      id: "hit-compact",
+      eventId: "event-compact",
+      type: "hit",
+      equationId: "eq-compact",
+      startTick: 100,
+      endTick: 100,
+      hitBubbles: [{ tokenIndex: 1 }],
+    }],
+  }, clock);
+
+  assert.deepEqual(hydrated.equations[0].tokens.map((token) => token.label), ["X", "+", "2", "=", "9"]);
+  assert.equal(hydrated.events[0].mechanicInstances.hit[0].hitBubbles[0].tokenIndex, 1);
+});
+
+test("preserves per-instance equation bindings within one event", () => {
+  const clock = { toTick: (seconds: number) => Math.round(seconds * 1000), toSeconds: (tick: number) => tick / 1000 };
+  const draft = {
+    equations: [
+      { id: "eq-one", state: "1 = 1" },
+      { id: "eq-two", state: "2 = 2" },
+    ],
+    encounters: [
+      { id: "hit-one", eventId: "shared", type: "hit" as const, equationId: "eq-one", startTick: 100, endTick: 100, hitBubbles: [{ tokenIndex: 0 }] },
+      { id: "hit-two", eventId: "shared", type: "hit" as const, equationId: "eq-two", startTick: 100, endTick: 100, hitBubbles: [{ tokenIndex: 0 }] },
+    ],
+  };
+  const hydrated = timelineEventsFromAuthoredLesson(draft, clock);
+  const redraft = serializeAuthoredLesson(hydrated.events, IDENTITY, clock, undefined, hydrated.equations);
+
+  assert.deepEqual(redraft.encounters.map((encounter) => [encounter.id, encounter.equationId]), [
+    ["hit-one", "eq-one"],
+    ["hit-two", "eq-two"],
+  ]);
+});
+
+test("does not silently drop an empty queued equation", () => {
+  const clock = { toTick: (seconds: number) => Math.round(seconds * 1000), toSeconds: (tick: number) => tick / 1000 };
+  assert.throws(
+    () => serializeAuthoredLesson([], IDENTITY, clock, undefined, [{ id: "empty", tokens: [] }]),
+    /at least one token/i,
   );
 });

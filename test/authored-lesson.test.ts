@@ -94,8 +94,8 @@ test('authored v3 allows simultaneous spin and drag (legacy restriction must not
   const overlap = {
     ...authored,
     encounters: [
-      { id: 'e1:spin:0', eventId: 'e1', type: 'spin', startTick: 192, endTick: 384, spinTargets: [{ tokenIndex: 0 }] },
-      { id: 'e1:drag:0', eventId: 'e1', type: 'drag', startTick: 192, endTick: 384, dragTargets: [{ tokenIndex: 1 }] },
+      { id: 'e1:spin:0', eventId: 'e1', type: 'spin', equationId: 'eq-a', startTick: 192, endTick: 384, spinTargets: [{ tokenIndex: 0 }] },
+      { id: 'e1:drag:0', eventId: 'e1', type: 'drag', equationId: 'eq-a', startTick: 192, endTick: 384, dragTargets: [{ tokenIndex: 1 }] },
     ],
   };
   assert.doesNotThrow(() => parseAuthoredLessonDraft(overlap));
@@ -106,25 +106,83 @@ test('authored v3 allows simultaneous spin and drag (legacy restriction must not
 test('rejects start > end and non-instantaneous hit durations', () => {
   assert.throws(() => parseAuthoredLessonDraft({
     ...authored,
-    encounters: [{ id: 'e:spin:0', eventId: 'e', type: 'spin', startTick: 384, endTick: 192 }],
+    encounters: [{ id: 'e:spin:0', eventId: 'e', type: 'spin', equationId: 'eq-a', startTick: 384, endTick: 192, spinTargets: [{ tokenIndex: 0 }] }],
   }), /startTick must not exceed endTick/i);
 
   assert.throws(() => parseAuthoredLessonDraft({
     ...authored,
-    encounters: [{ id: 'e:hit:0', eventId: 'e', type: 'hit', startTick: 192, endTick: 200 }],
+    encounters: [{ id: 'e:hit:0', eventId: 'e', type: 'hit', equationId: 'eq-a', startTick: 192, endTick: 200, hitBubbles: [{ tokenIndex: 0 }] }],
   }), /instantaneous/i);
+
+  for (const type of ['spin', 'drag'] as const) {
+    assert.throws(() => parseAuthoredLessonDraft({
+      ...authored,
+      encounters: [{
+        id: `e:${type}:0`,
+        eventId: 'e',
+        type,
+        equationId: 'eq-a',
+        startTick: 192,
+        endTick: 192,
+        ...(type === 'spin'
+          ? { spinTargets: [{ tokenIndex: 0 }] }
+          : { dragTargets: [{ tokenIndex: 0 }] }),
+      }],
+    }), /positive duration/i);
+  }
+});
+
+test('requires published identity only when the published profile is requested', () => {
+  assert.doesNotThrow(() => parseAuthoredLessonDraft(authored));
+  assert.throws(
+    () => parseAuthoredLessonDraft(authored, { requirePublishedIdentity: true }),
+    /authorId and revision/i,
+  );
+  assert.doesNotThrow(() => parseAuthoredLessonDraft(
+    { ...authored, authorId: 'author-a', revision: 'rev-1' },
+    { requirePublishedIdentity: true },
+  ));
+});
+
+test('rejects a missing target tokenIndex instead of defaulting it to zero', () => {
+  assert.throws(() => parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [{ ...authored.encounters[0], hitBubbles: [{}] }],
+  }), /tokenIndex/i);
 });
 
 test('rejects invalid hit pads and non-array targets', () => {
   assert.throws(() => parseAuthoredLessonDraft({
     ...authored,
-    encounters: [{ id: 'e:hit:0', eventId: 'e', type: 'hit', startTick: 192, endTick: 192, hitBubbles: [{ tokenIndex: 0, pads: ['middle'] }] }],
+    encounters: [{ id: 'e:hit:0', eventId: 'e', type: 'hit', equationId: 'eq-a', startTick: 192, endTick: 192, hitBubbles: [{ tokenIndex: 0, pads: ['middle'] }] }],
   }), /one of/i);
 
   assert.throws(() => parseAuthoredLessonDraft({
     ...authored,
-    encounters: [{ id: 'e:spin:0', eventId: 'e', type: 'spin', startTick: 192, endTick: 192, spinTargets: 'nope' }],
+    encounters: [{ id: 'e:spin:0', eventId: 'e', type: 'spin', equationId: 'eq-a', startTick: 192, endTick: 384, spinTargets: 'nope' }],
   }), /spinTargets must be an array/i);
+});
+
+test('rejects empty playable target collections and dangling target references', () => {
+  assert.throws(() => parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [{ id: 'e:spin:0', eventId: 'e', type: 'spin', equationId: 'eq-a', startTick: 192, endTick: 384, spinTargets: [] }],
+  }), /requires at least one target/i);
+
+  assert.throws(() => parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [
+      ...authored.encounters,
+      { id: 'e:drag:0', eventId: 'e', type: 'drag', equationId: 'eq-a', startTick: 192, endTick: 384, dragTargets: [{ tokenIndex: 0, sourceHitId: 'missing-hit' }] },
+    ],
+  }), /sourceHitId.*missing/i);
+});
+
+test('rejects target token indexes outside the referenced equation', () => {
+  assert.throws(() => parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [{ ...authored.encounters[0], hitBubbles: [{ tokenIndex: 99 }] }],
+  }), /tokenIndex.*equation/i);
 });
 
 test('rejects coerced stopAtSeconds strings and negative values', () => {

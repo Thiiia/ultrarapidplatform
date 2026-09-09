@@ -164,6 +164,7 @@ test("receipt carries stable identity + refs without signed-URL credentials", as
       sidecarBucket: "SidecarJsons",
       sidecarPath: "Missing_Numbers/revisions/rev-1/song.json",
       authorId: "author-2",
+      counts: { encounters: 0, equations: 0, targets: 0 },
     }),
     createSignedUrl: async (bucket, path) => `https://storage.example/${bucket}/${path}?token=secret`,
   });
@@ -173,6 +174,33 @@ test("receipt carries stable identity + refs without signed-URL credentials", as
   assert.equal(resolved.receipt?.revision, "rev-1");
   // Receipt must not leak signed-URL credentials.
   assert.equal(JSON.stringify(resolved.receipt).includes("token=secret"), false);
+});
+
+test("rejects an authored package when receipt counts are omitted", async () => {
+  const songLaunchPackage = await loadSongLaunchPackageModule();
+
+  await assert.rejects(
+    songLaunchPackage!.resolveFreshSongLaunchPackage!({
+      songAssetId: "song-9",
+      activityKey: "missing-numbers",
+      authorId: "author-2",
+      loadSongAsset: async () => ({
+        id: "song-9",
+        isActive: true,
+        songBucket: "Songs",
+        songPath: "garden.mp3",
+      }),
+      loadSongChart: async () => ({
+        chartBucket: "Charts",
+        chartPath: "Missing_Numbers/revisions/rev-1/song.chart",
+        sidecarBucket: "SidecarJsons",
+        sidecarPath: "Missing_Numbers/revisions/rev-1/song.json",
+        authorId: "author-2",
+      } as SongChartTargets),
+      createSignedUrl: async () => "signed",
+    }),
+    /receipt counts/i,
+  );
 });
 
 test("rejects a launch chart that does not match the requested immutable revision", async () => {

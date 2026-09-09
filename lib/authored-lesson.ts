@@ -62,7 +62,7 @@ function requireString(value: unknown, label: string) {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error(`Authored lesson ${label} is required`);
   }
-  return value.trim();
+  return value;
 }
 
 function requireTick(value: unknown, label: string) {
@@ -114,7 +114,37 @@ function normalizeTarget(value: unknown, label: string): AuthoredLessonTarget {
   return { tokenIndex, ...(sourceHitId ? { sourceHitId } : {}), ...(positions ? { positions } : {}), ...(pads ? { pads } : {}) };
 }
 
-export function parseAuthoredLessonDraft(value: unknown): AuthoredLessonDraft {
+export function tokenizeAuthoredEquationState(state: string) {
+  const tokens: string[] = [];
+  let index = 0;
+  while (index < state.length) {
+    if (/\s/.test(state[index])) {
+      index += 1;
+      continue;
+    }
+    if (/[+\-=*/^()×÷−]/.test(state[index])) {
+      tokens.push(state[index]);
+      index += 1;
+      continue;
+    }
+    const start = index;
+    index += 1;
+    while (index < state.length && !/\s/.test(state[index]) && !/[+\-=*/^()×÷−]/.test(state[index])) {
+      index += 1;
+    }
+    tokens.push(state.slice(start, index));
+  }
+  return tokens;
+}
+
+function equationTokenCount(state: string) {
+  return tokenizeAuthoredEquationState(state).length;
+}
+
+export function parseAuthoredLessonDraft(
+  value: unknown,
+  options: { requirePublishedIdentity?: boolean } = {},
+): AuthoredLessonDraft {
   if (!value || typeof value !== "object") {
     throw new Error("Authored lesson payload must be an object");
   }
@@ -128,6 +158,7 @@ export function parseAuthoredLessonDraft(value: unknown): AuthoredLessonDraft {
     return { id: requireString(equation.id, `equation[${index}].id`), state: requireString(equation.state, `equation[${index}].state`) };
   }) : (() => { throw new Error("Authored lesson equations must be an array"); })();
   const equationIds = new Set(equations.map((equation) => equation.id));
+  const equationById = new Map(equations.map((equation) => [equation.id, equation]));
   if (equationIds.size !== equations.length) {
     throw new Error("Duplicate authored equation id");
   }
@@ -141,19 +172,28 @@ export function parseAuthoredLessonDraft(value: unknown): AuthoredLessonDraft {
     if (startTick > endTick) {
       throw new Error(`Authored lesson encounter[${index}] startTick must not exceed endTick`);
     }
+    if ((type === "spin" || type === "drag") && endTick <= startTick) {
+      throw new Error(`Authored lesson ${type} '${requireString(encounter.id, `encounter[${index}].id`)}' requires a positive duration`);
+    }
     const targetKey = type === "spin" ? "spinTargets" : type === "drag" ? "dragTargets" : null;
     const targets = targetKey == null
-      ? undefined
+      ? []
       : Array.isArray(encounter[targetKey])
         ? (encounter[targetKey] as unknown[]).map((target, targetIndex) => normalizeTarget(target, `encounter[${index}].${targetKey}[${targetIndex}]`))
         : (() => { throw new Error(`Authored lesson encounter ${index}.${targetKey} must be an array`); })();
+    if (targetKey && targets.length === 0) {
+      throw new Error(`Authored lesson encounter ${index}.${targetKey} requires at least one target`);
+    }
     const hitBubbles = type !== "hit"
-      ? undefined
+      ? []
       : encounter.hitBubbles == null
-        ? []
+        ? (() => { throw new Error(`Authored lesson encounter ${index}.hitBubbles must be an array`); })()
         : Array.isArray(encounter.hitBubbles)
           ? (encounter.hitBubbles as unknown[]).map((bubble, bubbleIndex) => normalizeHitBubble(bubble, `encounter[${index}].hitBubbles[${bubbleIndex}]`))
           : (() => { throw new Error(`Authored lesson encounter ${index}.hitBubbles must be an array`); })();
+    if (type === "hit" && hitBubbles.length === 0) {
+      throw new Error(`Authored lesson encounter ${index}.hitBubbles requires at least one target`);
+    }
     return {
       id: requireString(encounter.id, `encounter[${index}].id`),
       eventId: requireString(encounter.eventId, `encounter[${index}].eventId`),
@@ -181,9 +221,38 @@ export function parseAuthoredLessonDraft(value: unknown): AuthoredLessonDraft {
     equations,
     encounters,
   };
+  if (options.requirePublishedIdentity && (!result.authorId || !result.revision)) {
+    throw new Error("Authored lesson published launch requires authorId and revision");
+  }
   for (const encounter of result.encounters) {
     if (encounter.equationId && !equationIds.has(encounter.equationId)) {
       throw new Error(`Encounter '${encounter.id}' references missing equation '${encounter.equationId}'`);
+    }
+  const equation = encounter.equationId ? equationById.get(encounter.equationId) : undefined;
+    if (!encounter.equationId) {
+      throw new Error(`Encounter '${encounter.id}' requires equationId`);
+    }
+    const tokenCount = equation ? equationTokenCount(equation.state) : null;
+    const targets = encounter.type === "hit"
+      ? encounter.hitBubbles ?? []
+      : encounter.type === "spin"
+        ? encounter.spinTargets ?? []
+        : encounter.dragTargets ?? [];
+    if (tokenCount !== null && targets.some((target) => target.tokenIndex >= tokenCount)) {
+      throw new Error(`Encounter '${encounter.id}' has a target tokenIndex outside its equation`);
+    }
+  }
+  const hits = new Map(result.encounters.filter((encounter) => encounter.type === "hit").map((encounter) => [encounter.id, encounter]));
+  for (const encounter of result.encounters) {
+    for (const target of encounter.type === "drag" ? encounter.dragTargets ?? [] : []) {
+      if (!target.sourceHitId) continue;
+      const source = hits.get(target.sourceHitId);
+      if (!source) {
+        throw new Error(`Encounter '${encounter.id}' sourceHitId '${target.sourceHitId}' references a missing hit`);
+      }
+      if (source.startTick > encounter.startTick) {
+        throw new Error(`Encounter '${encounter.id}' sourceHitId '${target.sourceHitId}' starts after the drag`);
+      }
     }
   }
   const ids = new Set<string>();

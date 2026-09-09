@@ -24,6 +24,7 @@ const platformLaunchParamKeys = [
   "songUrl",
   "authorId",
   "revision",
+  "receipt",
   "assignmentToken",
   "assignment",
   "sessionToken",
@@ -42,6 +43,17 @@ type SongLaunchInput = {
   audioUrl: string;
   authorId?: string | null;
   revision?: string | null;
+  receipt?: {
+    receiptVersion: 1;
+    songAssetId: string;
+    activityKey: string;
+    authorId: string;
+    revision?: string;
+    chart?: { bucket: string; path: string };
+    sidecar?: { bucket: string; path: string };
+    audio?: { bucket: string; path: string };
+    counts?: { encounters: number; equations: number; targets: number };
+  } | null;
   rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
 };
 
@@ -53,6 +65,7 @@ export function createSongLaunchSearchParams({
   audioUrl,
   authorId,
   revision,
+  receipt,
   rhythmDifficultyKey,
 }: SongLaunchInput) {
   const params = new URLSearchParams({
@@ -77,6 +90,10 @@ export function createSongLaunchSearchParams({
 
   if (revision) {
     params.set("revision", revision);
+  }
+
+  if (receipt) {
+    params.set("receipt", JSON.stringify(receipt));
   }
 
   return params;

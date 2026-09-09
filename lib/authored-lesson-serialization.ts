@@ -1,3 +1,5 @@
+import { tokenizeAuthoredEquationState } from "./authored-lesson";
+
 /**
  * v3 authored-lesson serialization boundary for the lesson builder.
  *
@@ -41,6 +43,8 @@ export type AuthoredMechanicInstance = {
   hitBubbles: AuthoredHitBubble[];
   spinTargets: Array<{ tokenIndex: number }>;
   dragTargets: Array<{ tokenIndex: number; sourceHitId?: string }>;
+  /** Optional per-instance binding; event assignment is only the legacy fallback. */
+  equation?: AuthoredSavedEquation | null;
 };
 
 export type AuthoredTimelineEvent = {
@@ -101,6 +105,9 @@ function secondsToTick(clock: AuthoredLessonClock, seconds: number) {
   if (typeof seconds !== "number" || !Number.isFinite(seconds)) {
     throw new Error(`Authored lesson position must be finite seconds, got ${String(seconds)}`);
   }
+  if (seconds < 0) {
+    throw new Error(`Authored lesson position must be non-negative seconds, got ${String(seconds)}`);
+  }
 
   const tick = clock.toTick(seconds);
 
@@ -108,13 +115,10 @@ function secondsToTick(clock: AuthoredLessonClock, seconds: number) {
     throw new Error(`Authored lesson tick must be an integer, got ${String(tick)}`);
   }
 
-  return Math.max(0, tick);
-}
-
-function firstAssignedEquation(event: AuthoredTimelineEvent) {
-  return (
-    event.assignments.hit ?? event.assignments.spin ?? event.assignments.drag ?? null
-  );
+  if (tick < 0) {
+    throw new Error(`Authored lesson tick must be non-negative, got ${String(tick)}`);
+  }
+  return tick;
 }
 
 /**
@@ -128,43 +132,48 @@ export function serializeAuthoredLesson(
   identity: AuthoredSerializeIdentity,
   clock: AuthoredLessonClock,
   stopAtSeconds?: number,
+  equationQueue: AuthoredSavedEquation[] = [],
 ): AuthoredLessonDraft {
   const equations: AuthoredLessonDraft["equations"] = [];
   const encounters: AuthoredLessonDraft["encounters"] = [];
-  const seenEquationIds = new Set<string>();
-  const equationIdByState = new Map<string, string>();
+  const equationById = new Map<string, { id: string; state: string }>();
 
   // Stable equation identity: the equation's own id when present; otherwise a
   // deterministic id derived from its authored state (never its array index).
   const resolveEquationId = (equation: AuthoredSavedEquation) => {
     const state = tokensToState(equation.tokens);
 
-    if (equation.id) {
-      return { id: equation.id, state };
+    if (!equation.id.trim()) {
+      throw new Error("Authored lesson equation id is required");
     }
-
-    const existing = equationIdByState.get(state);
-    if (existing) {
-      return { id: existing, state };
-    }
-
-    const derived = `eq_${state.replace(/\s+/g, "_")}`;
-    equationIdByState.set(state, derived);
-    return { id: derived, state };
+    return { id: equation.id, state };
   };
 
-  events.forEach((event) => {
-    const equation = firstAssignedEquation(event);
-
-    if (equation && equation.tokens.length > 0) {
-      const { id, state } = resolveEquationId(equation);
-      if (!seenEquationIds.has(id)) {
-        seenEquationIds.add(id);
-        equations.push({ id, state });
-      }
+  const registerEquation = (equation: AuthoredSavedEquation | null | undefined) => {
+    if (!equation) return null;
+    if (equation.tokens.length === 0) {
+      throw new Error(`Authored lesson equation '${equation.id}' must contain at least one token`);
     }
+    const resolved = resolveEquationId(equation);
+    const existing = equationById.get(resolved.id);
+    if (existing && existing.state !== resolved.state) {
+      throw new Error(`Authored lesson equation id '${resolved.id}' has conflicting states`);
+    }
+    if (!existing) {
+      equationById.set(resolved.id, resolved);
+      equations.push(resolved);
+    }
+    return resolved;
+  };
 
+  // The editor's ordered lesson queue is authoritative. It is intentionally
+  // separate from encounter assignment discovery so an equation with no
+  // mechanic (and two equations with identical state) survives round-trip.
+  equationQueue.forEach((equation) => registerEquation(equation));
+
+  events.forEach((event) => {
     GAMEPLAY_MECHANICS.forEach((mechanic) => {
+      registerEquation(event.assignments[mechanic]);
       const count = event.counts?.[mechanic] ?? 0;
 
       for (let instanceIndex = 0; instanceIndex < count; instanceIndex += 1) {
@@ -174,6 +183,8 @@ export function serializeAuthoredLesson(
             `Authored lesson mechanic instance is missing for event '${event.id}'`,
           );
         }
+
+        const equation = registerEquation(instance.equation ?? event.assignments[mechanic]);
 
         const startTick = secondsToTick(clock, instance.tick ?? event.tick);
         const endTick = secondsToTick(
@@ -185,8 +196,8 @@ export function serializeAuthoredLesson(
           id: instance.id,
           eventId: event.id,
           type: mechanic,
-          ...(equation && equation.tokens.length > 0
-            ? { equationId: resolveEquationId(equation).id }
+          ...(equation
+            ? { equationId: equation.id }
             : {}),
           startTick,
           endTick,
@@ -211,10 +222,7 @@ export function serializeAuthoredLesson(
   };
 }
 
-type HydrationEquation = {
-  id: string;
-  tokens: Array<{ id: string; label: string }>;
-};
+type HydrationEquation = AuthoredSavedEquation;
 
 export type HydratedAuthoredTimeline = {
   events: AuthoredTimelineEvent[];
@@ -223,10 +231,7 @@ export type HydratedAuthoredTimeline = {
 };
 
 function stateToTokens(equationId: string, state: string) {
-  return state
-    .split(/\s+/)
-    .map((label) => label.trim())
-    .filter(Boolean)
+  return tokenizeAuthoredEquationState(state)
     .map((label, index) => ({ id: `${equationId}-token-${index}`, label }));
 }
 
@@ -278,14 +283,19 @@ export function timelineEventsFromAuthoredLesson(
   });
 
   const eventById = new Map<string, AuthoredTimelineEvent>();
+  const eventStartTickById = new Map<string, number>();
+  const eventEndTickById = new Map<string, number>();
   const orderedEvents: AuthoredTimelineEvent[] = [];
 
   const getEvent = (eventId: string, startTick: number, endTick: number) => {
     const existing = eventById.get(eventId);
     if (existing) {
-      if (endTick > (existing.endTick ?? existing.tick)) {
-        existing.endTick = clock.toSeconds(endTick);
-      }
+      const nextStartTick = Math.min(eventStartTickById.get(eventId) ?? startTick, startTick);
+      const nextEndTick = Math.max(eventEndTickById.get(eventId) ?? endTick, endTick);
+      eventStartTickById.set(eventId, nextStartTick);
+      eventEndTickById.set(eventId, nextEndTick);
+      existing.tick = clock.toSeconds(nextStartTick);
+      existing.endTick = nextEndTick > nextStartTick ? clock.toSeconds(nextEndTick) : undefined;
       return existing;
     }
 
@@ -298,6 +308,8 @@ export function timelineEventsFromAuthoredLesson(
       mechanicInstances: emptyInstances(),
     };
     eventById.set(eventId, created);
+    eventStartTickById.set(eventId, startTick);
+    eventEndTickById.set(eventId, endTick);
     orderedEvents.push(created);
     return created;
   };
@@ -312,14 +324,17 @@ export function timelineEventsFromAuthoredLesson(
       ...(encounter.endTick > encounter.startTick
         ? { endTick: clock.toSeconds(encounter.endTick) }
         : {}),
-      hitBubbles: (encounter.hitBubbles ?? []).map((bubble) => {
-        const record = (bubble ?? {}) as {
-          tokenIndex?: number;
+      hitBubbles: (encounter.hitBubbles ?? []).map((bubble, bubbleIndex) => {
+        if (!bubble || typeof bubble !== "object" || !Number.isSafeInteger((bubble as { tokenIndex?: unknown }).tokenIndex)) {
+          throw new Error(`Authored encounter '${encounter.id}' hitBubbles[${bubbleIndex}].tokenIndex is required`);
+        }
+        const record = bubble as {
+          tokenIndex: number;
           positions?: string[];
           pads?: string[];
         };
         return {
-          tokenIndex: typeof record.tokenIndex === "number" ? record.tokenIndex : 0,
+          tokenIndex: record.tokenIndex,
           ...(record.positions ? { positions: record.positions } : {}),
           ...(record.pads ? { pads: record.pads } : {}),
         };
@@ -338,8 +353,14 @@ export function timelineEventsFromAuthoredLesson(
 
     if (encounter.equationId) {
       const equation = equationById.get(encounter.equationId);
-      if (equation && !event.assignments[mechanic]) {
-        event.assignments[mechanic] = equation;
+      if (equation) {
+        instanceEntry.equation = {
+          id: equation.id,
+          tokens: equation.tokens.map((token) => ({ ...token })),
+        };
+        if (!event.assignments[mechanic]) {
+          event.assignments[mechanic] = equation;
+        }
       }
     }
   });

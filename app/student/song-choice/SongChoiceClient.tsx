@@ -766,6 +766,9 @@ export default function SongChoiceClient({
       chartUrl: freshPackage.chart.signedUrl,
       sidecarUrl: freshPackage.sidecar.signedUrl,
       audioUrl: freshPackage.audio.signedUrl,
+      authorId: freshPackage.authorId,
+      revision: freshPackage.revision,
+      receipt: freshPackage.receipt,
     });
     const launchRoute = navBasePath.startsWith("/demo")
       ? "/demo/launch"

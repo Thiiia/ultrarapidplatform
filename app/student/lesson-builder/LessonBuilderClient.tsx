@@ -16,6 +16,7 @@ import {
   type AuthoredTimelineEvent,
 } from "@/lib/authored-lesson-serialization";
 import { parseAuthoredLessonDraft } from "@/lib/authored-lesson";
+import { tokenizeAuthoredEquationState } from "@/lib/authored-lesson";
 import { createLessonClock, mapLessonTimes } from "@/lib/editor/lesson-timing";
 import {
   projectToChart,
@@ -200,6 +201,8 @@ type TimelineEventSlot = {
 type RtcmDraftMechanic = {
   id: string;
   mechanic: GameplayMechanic;
+  /** Captured when the mechanic is authored; never inferred at save time. */
+  equationId?: string;
   tick: number;
   endTick?: number;
   hitBubbles: HitBubblePlacement[];
@@ -741,10 +744,7 @@ function tokensToEquationState(tokens: EquationToken[]) {
 }
 
 function equationStateToTokens(state: string): EquationToken[] {
-  return state
-    .split(/\s+/)
-    .map((label) => label.trim())
-    .filter(Boolean)
+  return tokenizeAuthoredEquationState(state)
     .map((label) => ({
       id: makeId("token"),
       label,
@@ -1377,16 +1377,18 @@ function sidecarInSecondsFromTimelineEvents(
  * (event/instance/equation IDs) is passed through unchanged.
  */
 function authoredSidecarFromTimelineEvents(
-  events: TimelineEventSlot[],
+  events: Array<TimelineEventSlot | AuthoredTimelineEvent>,
   identity: { songAssetId: string; activityKey: string; authorId?: string | null; revision?: string | null },
   clock: ReturnType<typeof createLessonClock>,
   stopAtSeconds?: number,
+  equationQueue: SavedEquation[] = [],
 ): AuthoredLessonDraft {
   return serializeAuthoredLesson(
     events as unknown as AuthoredTimelineEvent[],
     identity,
     clock,
     stopAtSeconds,
+    equationQueue,
   );
 }
 
@@ -9200,6 +9202,7 @@ export default function LessonBuilderClient({
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventSlot[]>([]);
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [savedEquations, setSavedEquations] = useState<SavedEquation[]>([]);
+  const [authoredEquationQueue, setAuthoredEquationQueue] = useState<SavedEquation[]>([]);
   const [mode, setMode] = useState<"event" | "equation" | "rctm1" | "rctm2">("event");
   const [centerChoice, setCenterChoice] = useState<CenterChoice>(null);
   const [libraryTab, setLibraryTab] = useState<LibraryTab>("mine");
@@ -9646,22 +9649,10 @@ export default function LessonBuilderClient({
 
       setTimelineEvents(nextEvents);
       timelineRehydrateSourceRef.current = nextSidecar;
+      setAuthoredEquationQueue(importedEquations);
       setSavedEquations((current) => {
-        const existingStates = new Set(
-          current.map((equation) => tokensToEquationState(equation.tokens)),
-        );
-        const merged = [...current];
-
-        importedEquations.forEach((equation) => {
-          const state = tokensToEquationState(equation.tokens);
-
-          if (!existingStates.has(state)) {
-            merged.push(equation);
-            existingStates.add(state);
-          }
-        });
-
-        return merged;
+        const existingIds = new Set(current.map((equation) => equation.id));
+        return [...current, ...importedEquations.filter((equation) => !existingIds.has(equation.id))];
       });
       setActiveEventId(nextEvents[0]?.id ?? null);
       setMode(nextMode);
@@ -9694,6 +9685,7 @@ export default function LessonBuilderClient({
 
     setTimelineEvents(nextEvents);
     timelineRehydrateSourceRef.current = nextSidecar;
+    setAuthoredEquationQueue(importedEquations);
     setSavedEquations((current) => {
       const existingStates = new Set(
         current.map((equation) => tokensToEquationState(equation.tokens)),
@@ -9923,6 +9915,7 @@ export default function LessonBuilderClient({
       {
         id: draftId,
         mechanic,
+        ...(selectedEquationId ? { equationId: selectedEquationId } : {}),
         tick,
         ...(typeof endTick === "number" ? { endTick } : {}),
         hitBubbles:
@@ -10112,6 +10105,11 @@ export default function LessonBuilderClient({
     };
 
     setSavedEquations((current) => [nextEquation, ...current]);
+    setAuthoredEquationQueue((current) =>
+      current.some((equation) => equation.id === nextEquation.id)
+        ? current
+        : [...current, nextEquation],
+    );
     setSelectedEquationId(nextEquation.id);
     setLibraryTab("mine");
     setDraftTokens([]);
@@ -10450,6 +10448,11 @@ export default function LessonBuilderClient({
 
     // Demo tutorial step 3: equation assigned to an event, tutorial done.
     setTutorialStep((current) => (current === "add" ? null : current));
+    setAuthoredEquationQueue((current) =>
+      current.some((entry) => entry.id === equation.id)
+        ? current
+        : [...current, cloneEquationForAssignment(equation)],
+    );
 
     setTimelineEvents((current) => {
       const nextEvents = current.map((eventSlot) => {
@@ -10587,6 +10590,9 @@ export default function LessonBuilderClient({
       chartUrl: freshSongLaunch.chart.signedUrl,
       sidecarUrl: freshSongLaunch.sidecar.signedUrl,
       audioUrl: freshSongLaunch.audio.signedUrl,
+      authorId: freshSongLaunch.authorId,
+      revision: freshSongLaunch.revision,
+      receipt: freshSongLaunch.receipt,
       rhythmDifficultyKey: "ExpertSingle",
     });
     const launchRoute = navBasePath.startsWith("/demo")
@@ -10644,8 +10650,45 @@ export default function LessonBuilderClient({
 
       const timelineSidecar = sidecarFromTimelineEvents(timelineEvents, true);
       const authoredClock = createLessonClock(chartFile || originalChartFileRef.current);
+      const rtcmEvents: AuthoredTimelineEvent[] = rtcmDraftMechanics.map((draft) => {
+        if (!draft.equationId) {
+          throw new Error(`RTCM ${draft.mechanic} '${draft.id}' has no equation assignment`);
+        }
+        const equation = authoredEquationQueue.find((entry) => entry.id === draft.equationId);
+        if (!equation) {
+          throw new Error(`RTCM ${draft.mechanic} '${draft.id}' references missing equation '${draft.equationId}'`);
+        }
+        const endSeconds =
+          draft.id === rtcmPendingHold?.draftId
+            ? Math.max(draft.tick, currentSongSeconds)
+            : draft.endTick ?? draft.tick;
+        const instance: MechanicInstanceState = {
+          id: draft.id,
+          tick: draft.tick,
+          endTick: endSeconds,
+          hitBubbles: draft.hitBubbles,
+          spinTargets: draft.spinTargets,
+          dragTargets: draft.dragTargets,
+        };
+        return {
+          id: draft.id,
+          tick: draft.tick,
+          endTick: endSeconds,
+          counts: { hit: draft.mechanic === "hit" ? 1 : 0, spin: draft.mechanic === "spin" ? 1 : 0, drag: draft.mechanic === "drag" ? 1 : 0 },
+          assignments: {
+            hit: draft.mechanic === "hit" ? equation : null,
+            spin: draft.mechanic === "spin" ? equation : null,
+            drag: draft.mechanic === "drag" ? equation : null,
+          },
+          mechanicInstances: {
+            hit: draft.mechanic === "hit" ? [instance] : [],
+            spin: draft.mechanic === "spin" ? [instance] : [],
+            drag: draft.mechanic === "drag" ? [instance] : [],
+          },
+        };
+      });
       const authoredSidecar = authoredSidecarFromTimelineEvents(
-        timelineEvents,
+        [...timelineEvents, ...rtcmEvents],
         {
           songAssetId: selectedSongStorage.id,
           activityKey:
@@ -10657,26 +10700,8 @@ export default function LessonBuilderClient({
         },
         authoredClock,
         timelineSidecar.stopAtSeconds,
+        authoredEquationQueue,
       );
-      for (const draft of rtcmDraftMechanics) {
-        const endSeconds =
-          draft.id === rtcmPendingHold?.draftId
-            ? Math.max(draft.tick, currentSongSeconds)
-            : draft.endTick ?? draft.tick;
-        // RTCM draft positions are audio seconds; convert to integer ticks once.
-        authoredSidecar.encounters.push({
-          id: draft.id,
-          eventId: draft.id,
-          type: draft.mechanic,
-          startTick: authoredClock.toTick(draft.tick),
-          endTick: authoredClock.toTick(endSeconds),
-          ...(draft.mechanic === "hit"
-            ? { hitBubbles: draft.hitBubbles }
-            : draft.mechanic === "spin"
-              ? { spinTargets: draft.spinTargets }
-              : { dragTargets: draft.dragTargets }),
-        });
-      }
 
       /*
        * IMPORTANT:
