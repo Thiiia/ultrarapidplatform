@@ -16,6 +16,9 @@ import {
   type AuthoredTimelineEvent,
 } from "@/lib/authored-lesson-serialization";
 import { parseAuthoredLessonDraft } from "@/lib/authored-lesson";
+import { isLegacyEncounterSidecar, validateLegacyEncounters, persistLegacyEncounters, type LegacyEncounter, type LegacyEncounterSidecar } from "@/lib/legacy-encounters";
+import { validateLessonContent } from "@/lib/lesson-content";
+import { extractRevisionFromStoragePath } from "@/lib/song-launch-identity";
 import { tokenizeAuthoredEquationState } from "@/lib/authored-lesson";
 import { createLessonClock, mapLessonTimes } from "@/lib/editor/lesson-timing";
 import {
@@ -178,6 +181,7 @@ type DragTarget = {
 type HitBubblePair = "topLeftBottomRight" | "topRightBottomLeft" | "leftRight";
 
 type MechanicInstanceState = {
+  equation?: SavedEquation | null;
   id: string;
   tick?: number;
   endTick?: number;
@@ -189,6 +193,7 @@ type MechanicInstanceState = {
 type MechanicCounts = Record<GameplayMechanic, number>;
 
 type TimelineEventSlot = {
+  legacyEncounter?: LegacyEncounter;
   id: string;
   tick: number;
   endTick?: number;
@@ -231,6 +236,7 @@ type SidecarEquationStateEvent = {
 };
 
 type SidecarEventSlotEvent = {
+  legacyEncounter?: LegacyEncounter;
   tick: number;
   type: "ALG_EVENT_SLOT";
   endTick?: number;
@@ -242,6 +248,8 @@ type SidecarEvent =
   | SidecarEventSlotEvent;
 
 type SidecarPayload = {
+  legacySource?: LegacyEncounterSidecar;
+  authoredSource?: AuthoredLessonDraft;
   version: 1;
   // Seconds after the last event ends at which the game should stop.
   stopAtSeconds?: number;
@@ -476,6 +484,19 @@ function normalizeSidecar(value: unknown): SidecarPayload {
     return emptySidecar;
   }
 
+  if (isLegacyEncounterSidecar(value)) {
+    validateLegacyEncounters(value);
+    const extra = value.events === undefined ? [] : normalizeSidecar({ version: 1, events: value.events }).events;
+    return {
+      version: 1,
+      legacySource: value,
+      events: sortEvents([
+        ...value.encounters.map(row => ({ tick: row.tick, type: "ALG_EVENT_SLOT" as const, legacyEncounter: row })),
+        ...extra,
+      ]),
+    };
+  }
+
   if (
     value.version === 3 &&
     value.mode === "authored" &&
@@ -542,6 +563,7 @@ function normalizeSidecar(value: unknown): SidecarPayload {
 
     return {
       version: 1,
+      authoredSource: parseAuthoredLessonDraft(value),
       ...(typeof value.stopAtSeconds === "number"
         ? { stopAtSeconds: value.stopAtSeconds }
         : {}),
@@ -697,6 +719,7 @@ function normalizeSidecar(value: unknown): SidecarPayload {
     if (event.type === "ALG_EVENT_SLOT") {
       return [
         {
+          ...(isObject(event.legacyEncounter) ? { legacyEncounter: event.legacyEncounter as LegacyEncounter } : {}),
           tick: normalizeTick(event.tick),
           ...(typeof event.endTick === "number"
             ? { endTick: normalizeTick(event.endTick) }
@@ -711,6 +734,8 @@ function normalizeSidecar(value: unknown): SidecarPayload {
 
   return {
     version: 1,
+    ...(isLegacyEncounterSidecar(value.legacySource) ? { legacySource: value.legacySource } : {}),
+    ...(value.authoredSource ? { authoredSource: value.authoredSource as AuthoredLessonDraft } : {}),
     ...(typeof value.stopAtSeconds === "number"
       ? { stopAtSeconds: value.stopAtSeconds }
       : {}),
@@ -1197,6 +1222,7 @@ function timelineEventsFromSidecar(
       typeof eventSlotEvent?.endTick === "number" ? eventSlotEvent.endTick : undefined,
     );
     const firstEquationEvent = equationsAtTick[0];
+    if (eventSlotEvent?.legacyEncounter) slot.legacyEncounter = eventSlotEvent.legacyEncounter;
 
     if (firstEquationEvent?.state.trim()) {
       const equation = savedEquationFromState(
@@ -1343,6 +1369,7 @@ function sidecarInSecondsFromTimelineEvents(
 
     const serializedEvents: SidecarEvent[] = [
       {
+        ...(event.legacyEncounter ? { legacyEncounter: event.legacyEncounter } : {}),
         tick: event.tick,
         type: "ALG_EVENT_SLOT",
         ...(typeof event.endTick === "number"
@@ -1475,6 +1502,11 @@ function mergeTimelineSidecarSources(
   analysisMetadata?: LessonBuilderPayload["analysisMetadata"],
 ): SidecarPayload {
   const normalizedSidecar = normalizeSidecar(sidecarValue ?? emptySidecar);
+  // A supplied sidecar is authoritative, including deliberate deletions.
+  if (isObject(sidecarValue) && (
+    Array.isArray(sidecarValue.events) || Array.isArray(sidecarValue.encounters) ||
+    Array.isArray(sidecarValue.equations)
+  )) return normalizedSidecar;
   const chartSidecar = sidecarFromChartFile(chartText, analysisMetadata);
 
   if (chartSidecar.events.length === 0) {
@@ -9288,6 +9320,9 @@ export default function LessonBuilderClient({
   const [rctm2DragSourceHitIds, setRctm2DragSourceHitIds] =
     useState<Record<string, string>>({});
   const timelineRehydrateSourceRef = useRef<SidecarPayload>(emptySidecar);
+  const legacyEncounterSourceRef = useRef<LegacyEncounterSidecar | null>(null);
+  const loadedSongReadyRef = useRef(false);
+  const lessonLoadGenerationRef = useRef(0);
   const rctm2EntrySidecarRef = useRef<SidecarPayload>(emptySidecar);
   const rctm2EntryChartFileRef = useRef("");
 
@@ -9612,6 +9647,7 @@ export default function LessonBuilderClient({
     const clock = createLessonClock(chartFile || originalChartFileRef.current);
     return {
       ...seconds,
+      ...(legacyEncounterSourceRef.current ? { legacySource: legacyEncounterSourceRef.current } : {}),
       stopAtSeconds,
       events: mapLessonTimes(seconds.events, clock.toTick),
     };
@@ -9624,8 +9660,10 @@ export default function LessonBuilderClient({
           return true;
         }
 
-        const equation = event.assignments?.[mechanic];
-        return Boolean(equation?.id && equation.tokens.length > 0);
+        return Array.from({ length: event.counts[mechanic] }, (_, index) => {
+          const equation = event.mechanicInstances[mechanic]?.[index]?.equation ?? event.assignments?.[mechanic];
+          return Boolean(equation?.id && equation.tokens.length > 0);
+        }).every(Boolean);
       }),
     );
   }
@@ -9639,6 +9677,8 @@ export default function LessonBuilderClient({
     sourceChart = chartFile || originalChartFileRef.current,
   ) {
     const clock = createLessonClock(sourceChart);
+    legacyEncounterSourceRef.current = nextSidecar.legacySource ?? null;
+    const authoredInput = nextSidecar.authoredSource ?? nextSidecar;
 
     // v3 authored fast-path: strict-validate the draft, then hydrate through
     // the tempo map while preserving event/instance/equation identity and
@@ -9646,10 +9686,10 @@ export default function LessonBuilderClient({
     // bridge for non-authored content.
     if (
       nextSidecar &&
-      (nextSidecar as { version?: unknown }).version === 3 &&
-      (nextSidecar as { mode?: unknown }).mode === "authored"
+      (authoredInput as { version?: unknown }).version === 3 &&
+      (authoredInput as { mode?: unknown }).mode === "authored"
     ) {
-      const authoredDraft = parseAuthoredLessonDraft(nextSidecar);
+      const authoredDraft = parseAuthoredLessonDraft(authoredInput);
       const hydrated = timelineEventsFromAuthoredLesson(authoredDraft, clock);
       const nextEvents = hydrated.events as unknown as TimelineEventSlot[];
       const importedEquations = hydrated.equations as unknown as SavedEquation[];
@@ -9673,12 +9713,20 @@ export default function LessonBuilderClient({
       return;
     }
 
+    const legacySlots = nextSidecar.events.filter((event): event is SidecarEventSlotEvent => event.type === "ALG_EVENT_SLOT" && Boolean(event.legacyEncounter));
     const nextEvents = timelineEventsFromSidecar(
-      { ...nextSidecar, events: mapLessonTimes(nextSidecar.events, clock.toSeconds) },
+      { ...nextSidecar, events: mapLessonTimes(nextSidecar.events.filter(event => !(event.type === "ALG_EVENT_SLOT" && event.legacyEncounter)), clock.toSeconds) },
       equationSlotCount,
       eventCounts,
       eventTicks.map(clock.toSeconds),
     );
+    legacySlots.forEach((slot, index) => nextEvents.push({
+      ...makeTimelineEvent(index, clock.toSeconds(slot.tick), {},
+        typeof slot.legacyEncounter?.expectedSolveSeconds === "number"
+          ? clock.toSeconds(slot.tick) + slot.legacyEncounter.expectedSolveSeconds : undefined),
+      legacyEncounter: slot.legacyEncounter,
+    }));
+    nextEvents.sort((a, b) => a.tick - b.tick);
     const importedEquations = savedEquationsFromTimelineEvents(nextEvents);
 
     appendSongFlowDebug("lesson-builder:timeline:hydrate", "Converted chart/sidecar content into timeline events.", {
@@ -9887,6 +9935,7 @@ export default function LessonBuilderClient({
 
     // Nothing to rehydrate back to once mode is exited - the chart and json are blank now.
     timelineRehydrateSourceRef.current = emptySidecar;
+    legacyEncounterSourceRef.current = null;
     rctm2EntrySidecarRef.current = emptySidecar;
     rctm2EntryChartFileRef.current = "";
 
@@ -10661,6 +10710,10 @@ export default function LessonBuilderClient({
           metadata?.uploadedFileName || uploadedSongName || "audio.mp3",
       };
 
+      if (!loadedSongReadyRef.current || loadError) {
+        throw new Error(loadError || "Wait for the selected lesson to finish loading before saving.");
+      }
+
       const timelineSidecar = sidecarFromTimelineEvents(timelineEvents, true);
       const authoredClock = createLessonClock(chartFile || originalChartFileRef.current);
       const hasCompleteTimelineBindings = hasCompleteAuthoredEquationBindings(timelineEvents);
@@ -10674,7 +10727,11 @@ export default function LessonBuilderClient({
       if (rtcmDraftMechanics.length > 0 && !hasCompleteRtcmBindings) {
         throw new Error("RTCM mechanics must be assigned to a saved equation before saving.");
       }
-      const canSaveAsAuthored = hasCompleteTimelineBindings && hasCompleteRtcmBindings;
+      const hasLegacyEncounters = timelineEvents.some(event => event.legacyEncounter);
+      const canSaveAsAuthored = (!legacyEncounterSourceRef.current || (!hasLegacyEncounters && authoredEquationQueue.length > 0)) && hasCompleteTimelineBindings && hasCompleteRtcmBindings;
+      if (!canSaveAsAuthored && (authoredEquationQueue.length > 0 || rtcmDraftMechanics.length > 0)) {
+        throw new Error("This lesson mixes legacy or unassigned encounters with authored equations. Complete the assignments in an authored lesson before saving to avoid losing equation data.");
+      }
       const rtcmEvents: AuthoredTimelineEvent[] = rtcmDraftMechanics.map((draft) => {
         if (!draft.equationId) {
           throw new Error(`RTCM ${draft.mechanic} '${draft.id}' has no equation assignment`);
@@ -10742,8 +10799,17 @@ export default function LessonBuilderClient({
         throw new Error("Cannot save lesson: original chart content is empty.");
       }
 
-      const sidecarToPersist = authoredSidecar ?? timelineSidecar;
+      const legacySource = legacyEncounterSourceRef.current;
+      const legacyTimeline = { version: 1 as const, events: timelineSidecar.events, stopAtSeconds: timelineSidecar.stopAtSeconds };
+      const sidecarToPersist = legacySource && !authoredSidecar
+        ? {
+            ...persistLegacyEncounters(legacySource, timelineEvents, authoredClock.toTick),
+            events: legacyTimeline.events.filter(event => !(event.type === "ALG_EVENT_SLOT" && event.legacyEncounter)),
+            stopAtSeconds: legacyTimeline.stopAtSeconds,
+          }
+        : authoredSidecar ?? legacyTimeline;
       const sidecarJson = JSON.stringify(sidecarToPersist, null, 2);
+      validateLessonContent(chartText, sidecarJson, { forSave: true });
       const activityKey =
         selectedSongLaunch?.activityKey ??
         inferSongActivityKeyFromChartPath(selectedSongStorage.chart.path);
@@ -10799,6 +10865,9 @@ export default function LessonBuilderClient({
       } | null;
 
       if (!response.ok) {
+        appendSongFlowDebug("lesson-builder:save:failed", "The server rejected this save.", {
+          status: response.status, error: result?.error, sidecarVersion: sidecarToPersist.version,
+        });
         throw new Error(result?.error ?? "Unable to save lesson files");
       }
 
@@ -10867,6 +10936,9 @@ export default function LessonBuilderClient({
 
       return true;
     } catch (error) {
+      appendSongFlowDebug("lesson-builder:save:error", "Lesson save failed.", {
+        message: error instanceof Error ? error.message : "Unable to save lesson files",
+      });
       setSaveStatus(
         error instanceof Error ? error.message : "Unable to save lesson files",
       );
@@ -11019,6 +11091,9 @@ export default function LessonBuilderClient({
   }
 
   function hydrateSelectedSong(selectedSong: SelectedSongPayload) {
+    const generation = ++lessonLoadGenerationRef.current;
+    loadedSongReadyRef.current = false;
+    legacyEncounterSourceRef.current = null;
     appendSongFlowDebug(
       "lesson-builder:session:selected-song",
       "Hydrated selected song payload from session storage.",
@@ -11089,8 +11164,8 @@ export default function LessonBuilderClient({
     });
     setFilePickerActivityKey(resolvedActivityKey);
     setSelectedSongAuthorId(selectedSong.authorId ?? null);
-    setLastSavedAuthorId(null);
-    setLastSavedRevision(null);
+    setLastSavedAuthorId(selectedSong.authorId ?? null);
+    setLastSavedRevision(extractRevisionFromStoragePath(selectedSong.chart.path));
     setSelectedSongAuthorName(selectedSong.authorName ?? null);
     if (selectedSong.authorName) {
       setFilePickerAuthorName(selectedSong.authorName);
@@ -11154,6 +11229,7 @@ export default function LessonBuilderClient({
       debugLabel: "audio",
     })
       .then((file) => {
+        if (generation !== lessonLoadGenerationRef.current) return;
         appendSongFlowDebug(
           "lesson-builder:audio:file-ready",
           "Audio blob was converted into a File for the editor.",
@@ -11183,6 +11259,7 @@ export default function LessonBuilderClient({
         : Promise.resolve(emptySidecar),
     ])
       .then(([chartResult, sidecarResult]) => {
+        if (generation !== lessonLoadGenerationRef.current) return;
         appendSongFlowDebug(
           "lesson-builder:hydrate:fetch-results",
           "Recorded chart and sidecar fetch outcomes for selected song payload.",
@@ -11201,7 +11278,6 @@ export default function LessonBuilderClient({
           artist: selectedSong.artist ?? undefined,
           uploadedFileName: selectedSong.song.path,
         };
-        const fallbackChartFile = createBlankChartFile(selectedSongMetadata);
         if (chartResult.status !== "fulfilled" || !chartResult.value.trim()) {
           throw new Error(
             "Unable to load the original .chart file. The lesson editor will not use a blank chart fallback.",
@@ -11209,10 +11285,11 @@ export default function LessonBuilderClient({
         }
 
         const nextChartFile = chartResult.value;
-        const sidecarJson =
-          sidecarResult.status === "fulfilled"
-            ? sidecarResult.value
-            : emptySidecar;
+        if (sidecarResult.status !== "fulfilled") {
+          throw new Error("Unable to load the selected sidecar. Reload the lesson before saving; its existing encounters have not been replaced.");
+        }
+        const sidecarJson = sidecarResult.value;
+        validateLessonContent(nextChartFile, JSON.stringify(sidecarJson), { forSave: true });
         const nextChartName =
           selectedSong.chart.path.split("/").pop() ?? "selected.chart";
         const normalizedSidecar = mergeTimelineSidecarSources(
@@ -11234,16 +11311,11 @@ export default function LessonBuilderClient({
           },
         );
 
-        if (
-          chartResult.status !== "fulfilled" ||
-          sidecarResult.status !== "fulfilled"
-        ) {
-          
-        }
         originalChartFileRef.current = nextChartFile;
         setChartFile(nextChartFile);
         setUploadedChartName(nextChartName);
         loadSidecarIntoTimeline(normalizedSidecar, null, [], [], "event", nextChartFile);
+        loadedSongReadyRef.current = true;
 
         const payload: LessonBuilderPayload = {
           chartFile: nextChartFile,
@@ -11262,6 +11334,8 @@ export default function LessonBuilderClient({
         );
       })
       .catch((error) => {
+        if (generation !== lessonLoadGenerationRef.current) return;
+        loadedSongReadyRef.current = false;
         console.error("Failed to load selected chart or sidecar JSON", error);
         appendSongFlowDebug(
           "lesson-builder:hydrate:error",

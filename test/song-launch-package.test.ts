@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { resolveFreshSongLaunchPackage } from "../lib/song-launch-package";
 
 type SongChartTargets = {
   chartBucket: string;
@@ -10,6 +11,21 @@ type SongChartTargets = {
   revision?: string;
   counts?: { encounters: number; equations: number; targets: number };
 };
+
+test("existing unrevisioned legacy encounters launch, but authored and mixed revisions still fail", async () => {
+  const input = {
+    songAssetId: "jazzmaybach", activityKey: "early-algebra", authorId: "dev-id",
+    loadSongAsset: async () => ({id: "jazzmaybach", isActive: true, songBucket: "Songs", songPath: "jazz.mp3"}),
+    loadSongChart: async () => ({chartBucket: "Charts", chartPath: "dev/Early_Algebra/Melika.chart", sidecarBucket: "SidecarJsons", sidecarPath: "dev/Early_Algebra/Melika.encounters.json", legacy: true, counts: {encounters: 11, equations: 11, targets: 0}}),
+    createSignedUrl: async (_bucket: string, path: string) => `https://example.test/${path}`,
+  };
+  const result = await resolveFreshSongLaunchPackage(input);
+  assert.equal(result.revision, undefined);
+  assert.equal(result.sidecar.path, "dev/Early_Algebra/Melika.encounters.json");
+  await assert.rejects(resolveFreshSongLaunchPackage({...input, revision: "r1"}), /immutable revision/);
+  await assert.rejects(resolveFreshSongLaunchPackage({...input, loadSongChart: async () => ({...await input.loadSongChart(), legacy: false})}), /immutable revision/);
+  await assert.rejects(resolveFreshSongLaunchPackage({...input, loadSongChart: async () => ({...await input.loadSongChart(), chartPath: "dev/Early_Algebra/revisions/r1/Melika.chart"})}), /immutable revision/);
+});
 
 type SongLaunchPackageModule = {
   resolveFreshSongLaunchPackage?: (input: {
@@ -220,9 +236,9 @@ test("rejects a launch chart that does not match the requested immutable revisio
       }),
       loadSongChart: async () => ({
         chartBucket: "Charts",
-        chartPath: "author/revisions/rev-8/song.chart",
+        chartPath: "author/Early_Algebra/revisions/rev-8/song.chart",
         sidecarBucket: "SidecarJsons",
-        sidecarPath: "author/revisions/rev-8/song.json",
+        sidecarPath: "author/Early_Algebra/revisions/rev-8/song.json",
         authorId: "author-7",
         revision: "rev-8",
       }),

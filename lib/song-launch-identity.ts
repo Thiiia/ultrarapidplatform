@@ -35,7 +35,7 @@ export function requireMatchingRevision(
 
 export type SaveRevisionPrecondition =
   | { ok: true; currentRevision: string | null }
-  | { ok: false; expected: string; found: string | null };
+  | { ok: false; expected: string | null; found: string | null };
 
 /**
  * Concurrency precondition for a save: the previous revision carried by the
@@ -50,7 +50,7 @@ export function checkSaveRevisionPrecondition(
 ): SaveRevisionPrecondition {
   const currentRevision = extractRevisionFromStoragePath(currentChartPath);
 
-  if (requestedRevision && currentRevision !== requestedRevision) {
+  if (currentRevision !== requestedRevision) {
     return { ok: false, expected: requestedRevision, found: currentRevision };
   }
 

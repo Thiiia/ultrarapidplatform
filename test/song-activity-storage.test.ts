@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   buildAuthoredChartStoragePaths,
   inferSongActivityKeyFromChartPath,
+  normalizeAuthoredSidecarPath,
 } from "../lib/song-activity-storage";
 
 test("builds deterministic per-author storage paths under the author folder", () => {
@@ -15,6 +16,20 @@ test("builds deterministic per-author storage paths under the author folder", ()
     chartPath: "dev/Early_Algebra/song-123.chart",
     sidecarPath: "dev/Early_Algebra/song-123.json",
   });
+});
+
+test("preserves actual encounter filenames and rejects invented or swapped pointers", () => {
+  assert.throws(() => normalizeAuthoredSidecarPath("dev/Early_Algebra/Melika.chart", "dev/Early_Algebra/Melika.chart"), /actual JSON/);
+  assert.throws(() => normalizeAuthoredSidecarPath("dev/Early_Algebra/Melika.encounters.json", "dev/Early_Algebra/Melika.chart"), /chart path/);
+  assert.throws(() => normalizeAuthoredSidecarPath("dev/Early_Algebra/Melika.chart", null), /actual JSON/);
+  assert.equal(normalizeAuthoredSidecarPath("dev/Early_Algebra/Melika.chart", "dev/Early_Algebra/Melika.encounters.json"), "dev/Early_Algebra/Melika.encounters.json");
+  assert.equal(
+    normalizeAuthoredSidecarPath(
+      "dev/Early_Algebra/Melika.chart",
+      "dev/Early_Algebra/Melika.json",
+    ),
+    "dev/Early_Algebra/Melika.json",
+  );
 });
 
 type SongActivityStorageModule = {

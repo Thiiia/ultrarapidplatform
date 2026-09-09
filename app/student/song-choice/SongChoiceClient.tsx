@@ -568,6 +568,7 @@ export default function SongChoiceClient({
         }));
       })
       .catch((error) => {
+        if (selectionToken !== selectionTokenRef.current) return;
         setLaunchError(
           error instanceof Error
             ? error.message
@@ -721,12 +722,20 @@ export default function SongChoiceClient({
     if (!selectedSong) {
       return;
     }
+    if (!selectionPackages[selectedSong.id]) {
+      setLaunchError(launchError || "Wait for this song's lesson files to load before continuing.");
+      return;
+    }
 
     setIsCustomizePromptOpen(true);
   }
 
   function handleCustomizeYes() {
     if (!selectedSong) {
+      return;
+    }
+    if (!selectionPackages[selectedSong.id]) {
+      setLaunchError(launchError || "The selected lesson files could not be loaded.");
       return;
     }
 

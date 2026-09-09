@@ -1,4 +1,5 @@
 import type { ChartProject } from "./types";
+import { persistLegacyEncounters, type LegacyEncounter, type LegacyEncounterSidecar } from "../legacy-encounters";
 
 type LegacySidecarEvent = {
   tick: number;
@@ -8,6 +9,7 @@ type LegacySidecarEvent = {
 
 type LegacySidecarPayload = {
   version: 1;
+  legacySource?: LegacyEncounterSidecar;
   // Seconds after the last event ends at which the game should stop.
   stopAtSeconds?: number;
   events: LegacySidecarEvent[];
@@ -105,6 +107,13 @@ export function projectToChart(project: ChartProject): string {
 }
 
 export function projectToSidecarJson(sidecar: ProjectSidecarPayload): string {
+  if (sidecar.version === 1 && sidecar.legacySource) {
+    return JSON.stringify({
+      ...persistLegacyEncounters(sidecar.legacySource, sidecar.events as Array<{tick: number; legacyEncounter?: LegacyEncounter}>, tick => tick),
+      events: sidecar.events.filter(event => !event.legacyEncounter),
+      stopAtSeconds: sidecar.stopAtSeconds,
+    }, null, 2);
+  }
   if (sidecar.version === 2) {
     return JSON.stringify(
       {

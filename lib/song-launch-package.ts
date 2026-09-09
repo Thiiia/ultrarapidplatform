@@ -1,5 +1,5 @@
-import { resolveRequestedSongActivityKey } from "@/lib/song-activity-storage";
-import { requireMatchingRevision } from "@/lib/song-launch-identity";
+import { resolveRequestedSongActivityKey, resolveRequestedSongActivityPackage } from "@/lib/song-activity-storage";
+import { extractRevisionFromStoragePath, requireMatchingRevision } from "@/lib/song-launch-identity";
 
 type SignedStorageRef = {
   bucket: string;
@@ -8,6 +8,7 @@ type SignedStorageRef = {
 };
 
 type SongChartTargets = {
+  legacy?: boolean;
   chartBucket: string;
   chartPath: string;
   sidecarBucket: string;
@@ -148,7 +149,11 @@ export async function resolveFreshSongLaunchPackage({
     };
   }
 
-  const resolvedRevision = requireMatchingRevision(
+  resolveRequestedSongActivityPackage({ requestedActivityKey, chartPath: chartTargets.chartPath, sidecarPath: chartTargets.sidecarPath });
+  const unrevisionedLegacy = chartTargets.legacy === true && !revision &&
+    !extractRevisionFromStoragePath(chartTargets.chartPath) &&
+    !extractRevisionFromStoragePath(chartTargets.sidecarPath);
+  const resolvedRevision = unrevisionedLegacy ? undefined : requireMatchingRevision(
     chartTargets.chartPath,
     chartTargets.sidecarPath,
     revision,

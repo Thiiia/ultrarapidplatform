@@ -12,8 +12,11 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { resolveRequestedAuthor } from "@/lib/song-author";
 import { extractRevisionFromStoragePath } from "@/lib/song-launch-identity";
 import { parseAuthoredLessonDraft } from "@/lib/authored-lesson";
+import { countLegacySidecar } from "@/lib/legacy-sidecar-counts";
+import { validateLessonContent } from "@/lib/lesson-content";
 import {
   buildAuthoredChartStoragePaths,
+  normalizeAuthoredSidecarPath,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 
@@ -49,75 +52,6 @@ async function createSignedUrl(bucket: string, path: string) {
   return data.signedUrl;
 }
 
-function countLegacySidecar(value: unknown) {
-  if (!value || typeof value !== "object") {
-    throw new Error("Authored sidecar uses an unsupported sidecar format");
-  }
-
-  const payload = value as Record<string, unknown>;
-  if (payload.version === 1 && Array.isArray(payload.events)) {
-    let encounters = 0;
-    let targets = 0;
-    const equations = new Set<string>();
-
-    for (const rawEvent of payload.events) {
-      if (!rawEvent || typeof rawEvent !== "object") continue;
-      const event = rawEvent as Record<string, unknown>;
-      if (event.type === "ALG_EQUATION_STATE") {
-        if (typeof event.equationId === "string") equations.add(event.equationId);
-        continue;
-      }
-      if (event.type !== "ALG_MECHANIC") continue;
-
-      encounters += 1;
-      const mechanic = event.mechanic;
-      const targetField = mechanic === "hit"
-        ? "hitBubbles"
-        : mechanic === "spin"
-          ? "spinTargets"
-          : mechanic === "drag"
-            ? "dragTargets"
-            : null;
-      if (targetField && Array.isArray(event[targetField])) {
-        targets += event[targetField].length;
-      }
-    }
-
-    return { encounters, equations: equations.size, targets };
-  }
-
-  if (payload.version === 2 && Array.isArray(payload.equations)) {
-    let encounters = 0;
-    let targets = 0;
-
-    for (const rawEquation of payload.equations) {
-      if (!rawEquation || typeof rawEquation !== "object") continue;
-      const equation = rawEquation as Record<string, unknown>;
-      const counts = equation.counts && typeof equation.counts === "object"
-        ? equation.counts as Record<string, unknown>
-        : {};
-
-      for (const mechanic of ["hit", "spin", "drag"] as const) {
-        const count = Number(counts[mechanic] ?? counts[`${mechanic}s`] ?? 0);
-        if (Number.isFinite(count) && count > 0) encounters += Math.floor(count);
-
-        const instances = equation[`${mechanic}s`];
-        if (!Array.isArray(instances)) continue;
-        const targetField = mechanic === "hit" ? "bubbles" : "targets";
-        targets += instances.reduce((sum, rawInstance) => {
-          if (!rawInstance || typeof rawInstance !== "object") return sum;
-          const instance = rawInstance as Record<string, unknown>;
-          const targetList = instance[targetField];
-          return sum + (Array.isArray(targetList) ? targetList.length : 0);
-        }, 0);
-      }
-    }
-
-    return { encounters, equations: payload.equations.length, targets };
-  }
-
-  throw new Error("Authored sidecar uses an unsupported sidecar format");
-}
 
 /**
  * Count authored equations/encounters/targets from the exact sidecar selected
@@ -144,7 +78,7 @@ async function readAuthoredCounts(bucket: string, path: string) {
       (parsed as { mode?: unknown }).mode === "authored",
   );
 
-  if (!isAuthoredV3) return countLegacySidecar(parsed);
+  if (!isAuthoredV3) return { counts: countLegacySidecar(parsed), legacy: true as const, sidecar: parsed };
 
   let validated;
   try {
@@ -164,7 +98,7 @@ async function readAuthoredCounts(bucket: string, path: string) {
     return sum + (group?.length ?? 0);
   }, 0);
 
-  return { encounters: validated.encounters.length, equations: validated.equations.length, targets };
+  return { counts: { encounters: validated.encounters.length, equations: validated.equations.length, targets }, legacy: false as const, identity: validated };
 }
 
 /**
@@ -252,20 +186,39 @@ export async function POST(request: Request) {
             })
           : await findDevAuthoredChart({ songAssetId: assetId, activityKey: key });
 
-        if (!chart?.sidecarPath || !chart.sidecarBucket) {
+        const sidecarPath = chart
+          ? normalizeAuthoredSidecarPath(chart.chartPath, chart.sidecarPath)
+          : null;
+        if (!chart?.sidecarBucket || !sidecarPath) {
           return null;
         }
 
-        const counts = await readAuthoredCounts(chart.sidecarBucket, chart.sidecarPath);
+        const evidence = await readAuthoredCounts(chart.sidecarBucket, sidecarPath);
+        if (payload.allowBlankPackage !== true) {
+          if (evidence.legacy) {
+            const original = await getSupabaseAdmin().storage.from(chart.chartBucket).download(chart.chartPath);
+            if (original.error || !original.data) throw new Error(`Required chart is unreadable: ${chart.chartPath}`);
+            validateLessonContent(await original.data.text(), JSON.stringify(evidence.sidecar));
+          } else if (evidence.counts.encounters === 0 && evidence.counts.equations === 0) {
+            throw new Error("This saved lesson is empty. Add playable content before launching.");
+          }
+        }
+        if (!evidence.legacy && (
+          evidence.identity.songAssetId !== assetId ||
+          evidence.identity.activityKey !== key ||
+          evidence.identity.authorId !== author.id ||
+          evidence.identity.revision !== extractRevisionFromStoragePath(chart.chartPath)
+        )) throw new Error("Authored sidecar identity does not match its selected package");
 
         return {
           chartBucket: chart.chartBucket,
           chartPath: chart.chartPath,
           sidecarBucket: chart.sidecarBucket,
-          sidecarPath: chart.sidecarPath,
+          sidecarPath,
           authorId: author.id,
           revision: extractRevisionFromStoragePath(chart.chartPath) ?? undefined,
-          counts,
+          counts: evidence.counts,
+          legacy: evidence.legacy,
         };
       },
       loadBlankSongChart: async (assetId, resolvedActivityKey) => {

@@ -9,6 +9,7 @@ import {
   buildAuthoredChartStoragePaths,
   defaultSongActivityKey,
   normalizeSongActivityKey,
+  normalizeAuthoredSidecarPath,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import { DEV_AUTHOR_FOLDER, findAuthorByName, getOrCreateDevAuthor } from "@/lib/song-storage";
@@ -99,11 +100,11 @@ export function isSameOriginLessonSaveRequest(request: Request) {
 }
 
 /**
- * Finds (or lazily creates) the SongChart row that owns the chart for the
+ * Resolves storage targets for the SongChart row that owns the chart for the
  * given song + activity + author, returning its current storage targets.
  * Charts live under `{authorFolder}/{ActivityFolder}/` in storage.
  */
-async function getOrCreateAuthoredChartTargets({
+async function resolveAuthoredChartTargets({
   songAssetId,
   authorId,
   activityKey,
@@ -113,7 +114,16 @@ async function getOrCreateAuthoredChartTargets({
   authorId: string;
   activityKey: SongActivityKey;
   authorFolder: string;
-}): Promise<{ chart: Omit<UploadedFileRef, "contentType">; sidecar: Omit<UploadedFileRef, "contentType"> }> {
+}): Promise<{
+  chart: Omit<UploadedFileRef, "contentType">;
+  sidecar: Omit<UploadedFileRef, "contentType">;
+  current?: {
+    chartBucket: string;
+    chartPath: string;
+    sidecarBucket: string | null;
+    sidecarPath: string | null;
+  };
+}> {
   const existing = await prisma.songChart.findUnique({
     where: {
       songAssetId_authorId_activityKey: { songAssetId, authorId, activityKey },
@@ -125,26 +135,21 @@ async function getOrCreateAuthoredChartTargets({
       chart: { bucket: existing.chartBucket, path: existing.chartPath },
       sidecar: {
         bucket: existing.sidecarBucket ?? "SidecarJsons",
-        path:
-          existing.sidecarPath ??
-          buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorFolder }).sidecarPath,
+        path: normalizeAuthoredSidecarPath(
+          existing.chartPath,
+          existing.sidecarPath,
+        ),
+      },
+      current: {
+        chartBucket: existing.chartBucket,
+        chartPath: existing.chartPath,
+        sidecarBucket: existing.sidecarBucket,
+        sidecarPath: existing.sidecarPath,
       },
     };
   }
 
   const paths = buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorFolder });
-
-  await prisma.songChart.create({
-    data: {
-      songAssetId,
-      authorId,
-      activityKey,
-      chartBucket: "Charts",
-      chartPath: paths.chartPath,
-      sidecarBucket: "SidecarJsons",
-      sidecarPath: paths.sidecarPath,
-    },
-  });
 
   return {
     chart: { bucket: "Charts", path: paths.chartPath },
@@ -222,7 +227,7 @@ export async function POST(request: Request) {
 
     const chartContent = readRequiredString(payload.chart.content, "chart.content");
     const sidecarContent = readRequiredString(payload.sidecar.content, "sidecar.content");
-    try { validateLessonContent(chartContent, sidecarContent); }
+    try { validateLessonContent(chartContent, sidecarContent, { forSave: true }); }
     catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid lesson content" }, { status: 400 }); }
 
     let authoredDraft: ReturnType<typeof parseAuthoredLessonDraft> | null = null;
@@ -244,7 +249,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid authored lesson payload" }, { status: 400 });
     }
 
-    const targets = await getOrCreateAuthoredChartTargets({
+    const targets = await resolveAuthoredChartTargets({
       songAssetId,
       authorId: targetAuthor.id,
       activityKey,
@@ -279,15 +284,26 @@ export async function POST(request: Request) {
       },
       upload: async (file) => { await uploadTextFile(file); },
       updatePointers: async ({ chartPath, sidecarPath }) => {
+        if (!targets.current) {
+          // Publish new rows only after both uploads succeed. The unique key
+          // prevents two first saves from overwriting one another.
+          const { count } = await prisma.songChart.createMany({
+            data: [{ songAssetId, authorId: targetAuthor.id, activityKey,
+              chartBucket: targets.chart.bucket, chartPath,
+              sidecarBucket: targets.sidecar.bucket, sidecarPath }],
+            skipDuplicates: true,
+          });
+          return count === 1;
+        }
         const { count } = await prisma.songChart.updateMany({
           where: {
             songAssetId,
             authorId: targetAuthor.id,
             activityKey,
             chartBucket: targets.chart.bucket,
-            chartPath: targets.chart.path,
-            sidecarBucket: targets.sidecar.bucket,
-            sidecarPath: targets.sidecar.path,
+            chartPath: targets.current?.chartPath ?? targets.chart.path,
+            sidecarBucket: targets.current ? targets.current.sidecarBucket : targets.sidecar.bucket,
+            sidecarPath: targets.current ? targets.current.sidecarPath : targets.sidecar.path,
           },
           data: {
             chartBucket: targets.chart.bucket,

@@ -199,3 +199,21 @@ export function buildAuthoredChartStoragePaths({
   };
 }
 
+/**
+ * Validate stored references without guessing filenames. Historical sidecars
+ * use .encounters.json; editor-created sidecars may use .json.
+ */
+export function normalizeAuthoredSidecarPath(
+  chartPath: string,
+  sidecarPath?: string | null,
+) {
+  const sidecar = sidecarPath?.trim() ?? "";
+  if (!chartPath.trim().toLowerCase().endsWith(".chart")) {
+    throw new Error("Stored chart path must reference a .chart file; repair the lesson record");
+  }
+  if (!sidecar.toLowerCase().endsWith(".json")) {
+    throw new Error("Stored sidecar path must reference its actual JSON file; repair the lesson record");
+  }
+  return sidecar;
+}
+

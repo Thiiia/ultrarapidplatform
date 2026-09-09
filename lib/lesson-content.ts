@@ -1,9 +1,10 @@
 type Row = Record<string, unknown>;
 
 import { parseAuthoredLessonDraft } from "./authored-lesson";
+import { isLegacyEncounterSidecar, validateLegacyEncounters } from "./legacy-encounters";
 
 /** Companion ticks use chart coordinates and may lie between rhythm note ticks. */
-export function validateLessonContent(chart: string, json: string) {
+export function validateLessonContent(chart: string, json: string, options: { forSave?: boolean } = {}) {
   const section = (name: string) => chart.match(new RegExp(`\\[${name}\\]\\s*\\{([\\s\\S]*?)\\}`))?.[1];
   if (!section('Song') || !section('SyncTrack') || !/Resolution\s*=\s*"?[1-9]\d*/.test(section('Song')!)) {
     throw new Error('Invalid chart: Song, positive Resolution and SyncTrack are required');
@@ -16,7 +17,7 @@ export function validateLessonContent(chart: string, json: string) {
     return;
   }
   const difficulties = ['EasySingle','MediumSingle','HardSingle','ExpertSingle'].map(section).filter(Boolean);
-  if (!difficulties.some(body => /^\s*\d+\s*=\s*N\s+\d+\s+\d+/m.test(body!))) throw new Error('Invalid chart: no playable notes');
+  if (!options.forSave && !difficulties.some(body => /^\s*\d+\s*=\s*N\s+\d+\s+\d+/m.test(body!))) throw new Error('Invalid chart: no playable notes');
   for (const body of difficulties) {
     let previous = -1;
     for (const match of body!.matchAll(/^\s*(\d+)\s*=\s*N\s+\d+\s+\d+/gm)) {
@@ -24,6 +25,11 @@ export function validateLessonContent(chart: string, json: string) {
       if (tick < previous) throw new Error('Invalid chart: note ticks must be ordered');
       previous = tick;
     }
+  }
+  if (isLegacyEncounterSidecar(payload)) {
+    validateLegacyEncounters(payload);
+    // A legacy document may also contain newly edited event rows.
+    if (payload.events === undefined) return;
   }
   const rows = payload.version === 2 ? payload.equations : payload.events;
   // Saving may persist an empty editor timeline (including deleting its last
@@ -55,7 +61,7 @@ export function validateLessonContent(chart: string, json: string) {
       if (Array.isArray(array) && count !== undefined && count !== array.length) throw new Error('Companion action counts disagree');
       if ((Array.isArray(array) && array.length) || Number(count) > 0 || row.mechanic === action) tickActions.add(action);
     }
-    if (tickActions.has('spin') && tickActions.has('drag')) throw new Error(`Unsupported spin and drag collision at tick ${tick}`);
+    if (!options.forSave && tickActions.has('spin') && tickActions.has('drag')) throw new Error(`Unsupported spin and drag collision at tick ${tick}`);
     actions.set(tick, tickActions);
   }
 }
