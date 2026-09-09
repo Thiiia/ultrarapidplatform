@@ -49,6 +49,76 @@ async function createSignedUrl(bucket: string, path: string) {
   return data.signedUrl;
 }
 
+function countLegacySidecar(value: unknown) {
+  if (!value || typeof value !== "object") {
+    throw new Error("Authored sidecar uses an unsupported sidecar format");
+  }
+
+  const payload = value as Record<string, unknown>;
+  if (payload.version === 1 && Array.isArray(payload.events)) {
+    let encounters = 0;
+    let targets = 0;
+    const equations = new Set<string>();
+
+    for (const rawEvent of payload.events) {
+      if (!rawEvent || typeof rawEvent !== "object") continue;
+      const event = rawEvent as Record<string, unknown>;
+      if (event.type === "ALG_EQUATION_STATE") {
+        if (typeof event.equationId === "string") equations.add(event.equationId);
+        continue;
+      }
+      if (event.type !== "ALG_MECHANIC") continue;
+
+      encounters += 1;
+      const mechanic = event.mechanic;
+      const targetField = mechanic === "hit"
+        ? "hitBubbles"
+        : mechanic === "spin"
+          ? "spinTargets"
+          : mechanic === "drag"
+            ? "dragTargets"
+            : null;
+      if (targetField && Array.isArray(event[targetField])) {
+        targets += event[targetField].length;
+      }
+    }
+
+    return { encounters, equations: equations.size, targets };
+  }
+
+  if (payload.version === 2 && Array.isArray(payload.equations)) {
+    let encounters = 0;
+    let targets = 0;
+
+    for (const rawEquation of payload.equations) {
+      if (!rawEquation || typeof rawEquation !== "object") continue;
+      const equation = rawEquation as Record<string, unknown>;
+      const counts = equation.counts && typeof equation.counts === "object"
+        ? equation.counts as Record<string, unknown>
+        : {};
+
+      for (const mechanic of ["hit", "spin", "drag"] as const) {
+        const count = Number(counts[mechanic] ?? counts[`${mechanic}s`] ?? 0);
+        if (Number.isFinite(count) && count > 0) encounters += Math.floor(count);
+
+        const instances = equation[`${mechanic}s`];
+        if (!Array.isArray(instances)) continue;
+        const targetField = mechanic === "hit" ? "bubbles" : "targets";
+        targets += instances.reduce((sum, rawInstance) => {
+          if (!rawInstance || typeof rawInstance !== "object") return sum;
+          const instance = rawInstance as Record<string, unknown>;
+          const targetList = instance[targetField];
+          return sum + (Array.isArray(targetList) ? targetList.length : 0);
+        }, 0);
+      }
+    }
+
+    return { encounters, equations: payload.equations.length, targets };
+  }
+
+  throw new Error("Authored sidecar uses an unsupported sidecar format");
+}
+
 /**
  * Count authored equations/encounters/targets from the exact sidecar selected
  * for an authored launch. A receipt without these counts cannot be checked by
@@ -66,6 +136,15 @@ async function readAuthoredCounts(bucket: string, path: string) {
   } catch {
     throw new Error(`Authored sidecar is malformed JSON: ${bucket}/${path}`);
   }
+
+  const isAuthoredV3 = Boolean(
+    parsed &&
+      typeof parsed === "object" &&
+      (parsed as { version?: unknown }).version === 3 &&
+      (parsed as { mode?: unknown }).mode === "authored",
+  );
+
+  if (!isAuthoredV3) return countLegacySidecar(parsed);
 
   let validated;
   try {

@@ -9617,6 +9617,19 @@ export default function LessonBuilderClient({
     };
   }
 
+  function hasCompleteAuthoredEquationBindings(events: TimelineEventSlot[]) {
+    return events.every((event) =>
+      gameplayMechanics.every((mechanic) => {
+        if ((event.counts?.[mechanic] ?? 0) <= 0) {
+          return true;
+        }
+
+        const equation = event.assignments?.[mechanic];
+        return Boolean(equation?.id && equation.tokens.length > 0);
+      }),
+    );
+  }
+
   function loadSidecarIntoTimeline(
     nextSidecar: SidecarPayload,
     equationSlotCount: number | null,
@@ -10650,6 +10663,18 @@ export default function LessonBuilderClient({
 
       const timelineSidecar = sidecarFromTimelineEvents(timelineEvents, true);
       const authoredClock = createLessonClock(chartFile || originalChartFileRef.current);
+      const hasCompleteTimelineBindings = hasCompleteAuthoredEquationBindings(timelineEvents);
+      const hasCompleteRtcmBindings = rtcmDraftMechanics.every((draft) => {
+        if (!draft.equationId) {
+          return false;
+        }
+        const equation = authoredEquationQueue.find((entry) => entry.id === draft.equationId);
+        return Boolean(equation?.tokens.length);
+      });
+      if (rtcmDraftMechanics.length > 0 && !hasCompleteRtcmBindings) {
+        throw new Error("RTCM mechanics must be assigned to a saved equation before saving.");
+      }
+      const canSaveAsAuthored = hasCompleteTimelineBindings && hasCompleteRtcmBindings;
       const rtcmEvents: AuthoredTimelineEvent[] = rtcmDraftMechanics.map((draft) => {
         if (!draft.equationId) {
           throw new Error(`RTCM ${draft.mechanic} '${draft.id}' has no equation assignment`);
@@ -10687,21 +10712,23 @@ export default function LessonBuilderClient({
           },
         };
       });
-      const authoredSidecar = authoredSidecarFromTimelineEvents(
-        [...timelineEvents, ...rtcmEvents],
-        {
-          songAssetId: selectedSongStorage.id,
-          activityKey:
-            selectedSongLaunch?.activityKey ??
-            inferSongActivityKeyFromChartPath(selectedSongStorage.chart.path) ??
-            defaultSongActivityKey,
-          authorId: lastSavedAuthorId,
-          revision: lastSavedRevision,
-        },
-        authoredClock,
-        timelineSidecar.stopAtSeconds,
-        authoredEquationQueue,
-      );
+      const authoredSidecar = canSaveAsAuthored
+        ? authoredSidecarFromTimelineEvents(
+            [...timelineEvents, ...rtcmEvents],
+            {
+              songAssetId: selectedSongStorage.id,
+              activityKey:
+                selectedSongLaunch?.activityKey ??
+                inferSongActivityKeyFromChartPath(selectedSongStorage.chart.path) ??
+                defaultSongActivityKey,
+              authorId: lastSavedAuthorId,
+              revision: lastSavedRevision,
+            },
+            authoredClock,
+            timelineSidecar.stopAtSeconds,
+            authoredEquationQueue,
+          )
+        : null;
 
       /*
        * IMPORTANT:
@@ -10715,7 +10742,8 @@ export default function LessonBuilderClient({
         throw new Error("Cannot save lesson: original chart content is empty.");
       }
 
-      const sidecarJson = JSON.stringify(authoredSidecar, null, 2);
+      const sidecarToPersist = authoredSidecar ?? timelineSidecar;
+      const sidecarJson = JSON.stringify(sidecarToPersist, null, 2);
       const activityKey =
         selectedSongLaunch?.activityKey ??
         inferSongActivityKeyFromChartPath(selectedSongStorage.chart.path);
@@ -10818,7 +10846,7 @@ export default function LessonBuilderClient({
       });
 
       setChartFile(chartText);
-      setStoreSidecar(timelineSidecar as StoreSidecarPayload);
+      setStoreSidecar(sidecarToPersist as StoreSidecarPayload);
       setSaveStatus("Saved");
       setHasUnsavedChanges(false);
 
