@@ -69,7 +69,9 @@ export type AuthoredDraftEncounter = {
   id: string;
   eventId: string;
   type: "hit" | "spin" | "drag";
-  equationId: string;
+  // The serializer always emits this for playable mechanics; optional here
+  // keeps its draft shape compatible with the parsed transport DTO.
+  equationId?: string;
   startTick: number;
   endTick: number;
   hitBubbles?: AuthoredHitBubble[];
