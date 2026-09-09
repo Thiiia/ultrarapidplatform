@@ -39,6 +39,7 @@ model User {
 
   authoredMissions Mission[] @relation("MissionAuthor")
   authoredCharts   SongChart[] @relation("ChartAuthor")
+  gameContentRevisions GameContentRevision[] @relation("RevisionAuthor")
   progressRecords  Progress[]
 
   /*
@@ -217,6 +218,7 @@ model SongAsset {
   updatedAt DateTime @updatedAt
 
   charts SongChart[]
+  gameContentRevisions GameContentRevision[]
 
   @@index([isActive])
   @@index([title])
@@ -240,6 +242,8 @@ model SongChart {
   sidecarBucket String? @default("SidecarJsons")
   sidecarPath   String?
 
+  gameContentRevisions GameContentRevision[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -247,6 +251,39 @@ model SongChart {
   @@index([songAssetId])
   @@index([authorId])
   @@index([activityKey])
+}
+
+model GameContentRevision {
+  revision      String @id @db.Uuid
+  songChartId   String @map("song_chart_id")
+  songChart     SongChart @relation(fields: [songChartId], references: [id], onDelete: Restrict)
+  songAssetId   String @map("song_asset_id")
+  songAsset     SongAsset @relation(fields: [songAssetId], references: [id], onDelete: Restrict)
+  activityKey   String @map("activity_key")
+  authorId      String @map("author_id")
+  author        User @relation("RevisionAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  chartBucket   String @map("chart_bucket")
+  chartPath     String @map("chart_path")
+  sidecarBucket String @map("sidecar_bucket")
+  sidecarPath   String @map("sidecar_path")
+  audioBucket   String @map("audio_bucket")
+  audioPath     String @map("audio_path")
+  chartSha256   String? @map("chart_sha256")
+  sidecarSha256 String? @map("sidecar_sha256")
+  audioSha256   String? @map("audio_sha256")
+  authoredLessonVersion Int? @map("authored_lesson_version")
+  authoredMode String? @map("authored_mode")
+  equationCount Int? @map("equation_count")
+  encounterCount Int? @map("encounter_count")
+  targetCount Int? @map("target_count")
+  status GameContentRevisionStatus @default(draft)
+  failureCode String? @map("failure_code")
+  failureDetail String? @map("failure_detail")
+  createdAt DateTime @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+
+  @@index([songAssetId, activityKey, authorId, status, publishedAt])
+  @@map("game_content_revisions")
 }
 
 enum Role {
@@ -273,4 +310,13 @@ enum ProgressStatus {
   not_started
   in_progress
   complete
+}
+
+enum GameContentRevisionStatus {
+  draft
+  publishing
+  ready
+  failed
+
+  @@map("game_content_revision_status")
 }

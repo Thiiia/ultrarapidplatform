@@ -20,6 +20,11 @@ type SongChartTargets = {
     equations: number;
     targets: number;
   };
+  hashes?: {
+    chartSha256: string;
+    sidecarSha256: string;
+    audioSha256: string;
+  };
 };
 
 type BlankSongChartPackage = {
@@ -46,6 +51,11 @@ export type SongLaunchReceipt = {
     encounters: number;
     equations: number;
     targets: number;
+  };
+  hashes?: {
+    chartSha256: string;
+    sidecarSha256: string;
+    audioSha256: string;
   };
 };
 
@@ -167,6 +177,9 @@ export async function resolveFreshSongLaunchPackage({
 
   const resolvedAuthorId = chartTargets.authorId ?? authorId ?? "";
   const counts = requireCounts(chartTargets.counts);
+  if (!chartTargets.hashes) {
+    throw new Error("Authored launch package is missing immutable artifact hashes");
+  }
 
   const receipt: SongLaunchReceipt = {
     receiptVersion: 1,
@@ -178,6 +191,7 @@ export async function resolveFreshSongLaunchPackage({
     sidecar: { bucket: chartTargets.sidecarBucket, path: chartTargets.sidecarPath },
     audio: { bucket: audioBucket, path: audioPath },
     counts,
+    hashes: chartTargets.hashes,
   };
 
   const [chartUrl, sidecarUrl, audioUrl] = await Promise.all([

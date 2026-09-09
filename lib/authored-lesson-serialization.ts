@@ -69,7 +69,7 @@ export type AuthoredDraftEncounter = {
   id: string;
   eventId: string;
   type: "hit" | "spin" | "drag";
-  equationId?: string;
+  equationId: string;
   startTick: number;
   endTick: number;
   hitBubbles?: AuthoredHitBubble[];
@@ -185,6 +185,9 @@ export function serializeAuthoredLesson(
         }
 
         const equation = registerEquation(instance.equation ?? event.assignments[mechanic]);
+        if (!equation) {
+          throw new Error(`Authored lesson ${mechanic} mechanic for event '${event.id}' requires an assigned equation`);
+        }
 
         const startTick = secondsToTick(clock, instance.tick ?? event.tick);
         const endTick = secondsToTick(
@@ -196,9 +199,7 @@ export function serializeAuthoredLesson(
           id: instance.id,
           eventId: event.id,
           type: mechanic,
-          ...(equation
-            ? { equationId: equation.id }
-            : {}),
+          equationId: equation.id,
           startTick,
           endTick,
           ...(mechanic === "hit" ? { hitBubbles: instance.hitBubbles ?? [] } : {}),

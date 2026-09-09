@@ -38,8 +38,8 @@ function instance(
     tick: overrides.tick,
     endTick: overrides.endTick,
     hitBubbles: overrides.hitBubbles ?? [{ tokenIndex: 0, positions: [], pads: [] }],
-    spinTargets: overrides.spinTargets ?? [],
-    dragTargets: overrides.dragTargets ?? [],
+    spinTargets: overrides.spinTargets ?? [{ tokenIndex: 0 }],
+    dragTargets: overrides.dragTargets ?? [{ tokenIndex: 0 }],
   };
 }
 
@@ -71,9 +71,9 @@ function makeEvent(
     ...(typeof options.endTick === "number" ? { endTick: options.endTick } : {}),
     counts: normalizedCounts,
     assignments: {
-      hit: options.equation ?? null,
-      spin: options.equation ?? null,
-      drag: options.equation ?? null,
+      hit: options.equation ?? equation("eq-default", ["1", "+", "1", "=", "2"]),
+      spin: options.equation ?? equation("eq-default", ["1", "+", "1", "=", "2"]),
+      drag: options.equation ?? equation("eq-default", ["1", "+", "1", "=", "2"]),
     },
     mechanicInstances,
   };

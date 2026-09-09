@@ -3,20 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { resolveFreshSongLaunchPackage } from "@/lib/song-launch-package";
 import {
   DEV_AUTHOR_FOLDER,
-  findAuthoredChart,
   findAuthorByName,
   findDevAuthor,
-  findDevAuthoredChart,
 } from "@/lib/song-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { resolveRequestedAuthor } from "@/lib/song-author";
-import { extractRevisionFromStoragePath } from "@/lib/song-launch-identity";
-import { parseAuthoredLessonDraft } from "@/lib/authored-lesson";
-import { countLegacySidecar } from "@/lib/legacy-sidecar-counts";
-import { validateLessonContent } from "@/lib/lesson-content";
 import {
   buildAuthoredChartStoragePaths,
-  normalizeAuthoredSidecarPath,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 
@@ -52,54 +45,6 @@ async function createSignedUrl(bucket: string, path: string) {
   return data.signedUrl;
 }
 
-
-/**
- * Count authored equations/encounters/targets from the exact sidecar selected
- * for an authored launch. A receipt without these counts cannot be checked by
- * Unity, so malformed or unreadable evidence fails the launch explicitly.
- */
-async function readAuthoredCounts(bucket: string, path: string) {
-  const { data, error } = await getSupabaseAdmin().storage.from(bucket).download(path);
-  if (error || !data) {
-    throw new Error(`Authored sidecar is unreadable: ${bucket}/${path}`);
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(await data.text());
-  } catch {
-    throw new Error(`Authored sidecar is malformed JSON: ${bucket}/${path}`);
-  }
-
-  const isAuthoredV3 = Boolean(
-    parsed &&
-      typeof parsed === "object" &&
-      (parsed as { version?: unknown }).version === 3 &&
-      (parsed as { mode?: unknown }).mode === "authored",
-  );
-
-  if (!isAuthoredV3) return { counts: countLegacySidecar(parsed), legacy: true as const, sidecar: parsed };
-
-  let validated;
-  try {
-    validated = parseAuthoredLessonDraft(parsed, { requirePublishedIdentity: true });
-  } catch (validationError) {
-    throw new Error(
-      `Authored sidecar failed validation: ${validationError instanceof Error ? validationError.message : "invalid payload"}`,
-    );
-  }
-
-  const targets = validated.encounters.reduce((sum, encounter) => {
-    const group = encounter.type === "hit"
-      ? encounter.hitBubbles
-      : encounter.type === "spin"
-        ? encounter.spinTargets
-        : encounter.dragTargets;
-    return sum + (group?.length ?? 0);
-  }, 0);
-
-  return { counts: { encounters: validated.encounters.length, equations: validated.equations.length, targets }, legacy: false as const, identity: validated };
-}
 
 /**
  * Absolute URL of the blank chart/sidecar endpoint. Used in place of a signed
@@ -174,51 +119,33 @@ export async function POST(request: Request) {
           },
         }) as Promise<Record<string, unknown> | null>,
       loadSongChart: async (assetId, resolvedActivityKey, authorId) => {
-        // Read-only lookup of the author's SongChart for this song + activity.
-        // When no match exists, return null so the resolver falls back to the
-        // blank package below — nothing is created at load time.
-        const key = resolvedActivityKey as SongActivityKey;
-        const chart = authorId
-          ? await findAuthoredChart({
-              songAssetId: assetId,
-              activityKey: key,
-              authorId,
-            })
-          : await findDevAuthoredChart({ songAssetId: assetId, activityKey: key });
-
-        const sidecarPath = chart
-          ? normalizeAuthoredSidecarPath(chart.chartPath, chart.sidecarPath)
-          : null;
-        if (!chart?.sidecarBucket || !sidecarPath) {
-          return null;
-        }
-
-        const evidence = await readAuthoredCounts(chart.sidecarBucket, sidecarPath);
-        if (payload.allowBlankPackage !== true) {
-          if (evidence.legacy) {
-            const original = await getSupabaseAdmin().storage.from(chart.chartBucket).download(chart.chartPath);
-            if (original.error || !original.data) throw new Error(`Required chart is unreadable: ${chart.chartPath}`);
-            validateLessonContent(await original.data.text(), JSON.stringify(evidence.sidecar));
-          } else if (evidence.counts.encounters === 0 && evidence.counts.equations === 0) {
-            throw new Error("This saved lesson is empty. Add playable content before launching.");
-          }
-        }
-        if (!evidence.legacy && (
-          evidence.identity.songAssetId !== assetId ||
-          evidence.identity.activityKey !== key ||
-          evidence.identity.authorId !== author.id ||
-          evidence.identity.revision !== extractRevisionFromStoragePath(chart.chartPath)
-        )) throw new Error("Authored sidecar identity does not match its selected package");
-
+        if (!authorId) return null;
+        const revision = await prisma.gameContentRevision.findFirst({
+          where: {
+            songAssetId: assetId,
+            activityKey: resolvedActivityKey,
+            authorId,
+            status: "ready",
+            ...(requestedRevision ? { revision: requestedRevision } : {}),
+          },
+          orderBy: { publishedAt: "desc" },
+          select: {
+            revision: true, chartBucket: true, chartPath: true, sidecarBucket: true, sidecarPath: true,
+            chartSha256: true, sidecarSha256: true, audioSha256: true,
+            equationCount: true, encounterCount: true, targetCount: true,
+          },
+        });
+        if (!revision || !revision.chartSha256 || !revision.sidecarSha256 || !revision.audioSha256 ||
+          revision.equationCount == null || revision.encounterCount == null || revision.targetCount == null) return null;
         return {
-          chartBucket: chart.chartBucket,
-          chartPath: chart.chartPath,
-          sidecarBucket: chart.sidecarBucket,
-          sidecarPath,
-          authorId: author.id,
-          revision: extractRevisionFromStoragePath(chart.chartPath) ?? undefined,
-          counts: evidence.counts,
-          legacy: evidence.legacy,
+          chartBucket: revision.chartBucket,
+          chartPath: revision.chartPath,
+          sidecarBucket: revision.sidecarBucket,
+          sidecarPath: revision.sidecarPath,
+          authorId,
+          revision: revision.revision,
+          counts: { equations: revision.equationCount, encounters: revision.encounterCount, targets: revision.targetCount },
+          hashes: { chartSha256: revision.chartSha256, sidecarSha256: revision.sidecarSha256, audioSha256: revision.audioSha256 },
         };
       },
       loadBlankSongChart: async (assetId, resolvedActivityKey) => {
