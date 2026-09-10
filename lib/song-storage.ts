@@ -42,6 +42,15 @@ export type SongChoice = {
   } | null;
 };
 
+/** The editor must never offer a persisted package it cannot actually read. */
+export function isEditorSongChoiceLoadable(song: SongChoice) {
+  return Boolean(
+    song.signedUrl.trim() &&
+    song.chart.signedUrl.trim() &&
+    song.sidecar?.signedUrl.trim(),
+  );
+}
+
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message;
@@ -833,8 +842,8 @@ export async function getEditorSongChoices(
       )
     : [];
 
-  return [...authoredSongs.filter(isNonNull), ...blankSongs.filter(isNonNull)].filter(
-    (song, index, allSongs) => allSongs.findIndex((candidate) => candidate.id === song.id) === index,
-  );
+  return [...authoredSongs.filter(isNonNull), ...blankSongs.filter(isNonNull)]
+    .filter(isEditorSongChoiceLoadable)
+    .filter((song, index, allSongs) => allSongs.findIndex((candidate) => candidate.id === song.id) === index);
 }
 
