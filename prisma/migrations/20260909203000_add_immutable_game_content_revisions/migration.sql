@@ -22,7 +22,7 @@ CREATE TABLE public.game_content_revisions (
   target_count integer,
   status public.game_content_revision_status NOT NULL DEFAULT 'draft',
   failure_code text,
-  failure_detail text,
+  failure_message text,
   created_at timestamptz NOT NULL DEFAULT now(),
   published_at timestamptz,
   CONSTRAINT game_content_revision_ready_complete CHECK (

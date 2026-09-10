@@ -278,7 +278,7 @@ model GameContentRevision {
   targetCount Int? @map("target_count")
   status GameContentRevisionStatus @default(draft)
   failureCode String? @map("failure_code")
-  failureDetail String? @map("failure_detail")
+  failureMessage String? @map("failure_message")
   createdAt DateTime @default(now()) @map("created_at")
   publishedAt DateTime? @map("published_at")
 
