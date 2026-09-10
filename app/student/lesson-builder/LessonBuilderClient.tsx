@@ -34,6 +34,11 @@ import {
 import { requestFreshSongLaunchPackage } from "@/lib/song-launch-client";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import {
+  lessonLaunchStrategy,
+  libraryEquationsForTab,
+  shouldOfferStarterTemplate,
+} from "@/lib/starter-template-guidance";
+import {
   defaultSongActivityKey,
   inferSongActivityKeyFromChartPath,
   normalizeSongActivityKey,
@@ -1934,7 +1939,7 @@ function HeaderBar({
             onClick={onLaunch}
             disabled={!canLaunch || isSaving}
             aria-label="Play saved lesson in game"
-            title={canLaunch ? "Save and play this lesson in the game" : "Choose a song before playing"}
+            title={canLaunch ? "Play the safe published lesson. Changes publish automatically only when ready." : "Choose a song before playing"}
             style={{
               minWidth: 70,
               height: 30,
@@ -1956,8 +1961,8 @@ function HeaderBar({
             type="button"
             disabled={isSaving}
             onClick={onSave}
-            aria-label="Save lesson to Supabase"
-            title="Save lesson"
+            aria-label="Publish ready lesson changes"
+            title="Publish ready changes"
             style={{
               width: 60,
               height: 29,
@@ -8617,6 +8622,7 @@ function Rctm2ModePanel({
 function LibraryPanel({
   activeTab,
   savedEquations,
+  templateEquations,
   activeEventId,
   selectedEquationId,
   onTabChange,
@@ -8628,6 +8634,7 @@ function LibraryPanel({
 }: {
   activeTab: LibraryTab;
   savedEquations: SavedEquation[];
+  templateEquations: SavedEquation[];
   activeEventId: string | null;
   selectedEquationId: string | null;
   onTabChange: (tab: LibraryTab) => void;
@@ -8637,7 +8644,12 @@ function LibraryPanel({
   tutorialPrompt?: string | null;
   onSkipTutorial?: () => void;
 }) {
-  const canAddEquation = activeTab === "mine" && Boolean(activeEventId && selectedEquationId);
+  const displayedEquations = libraryEquationsForTab(
+    activeTab,
+    savedEquations,
+    templateEquations,
+  );
+  const canAddEquation = Boolean(activeEventId && selectedEquationId);
 
   return (
     <section
@@ -8689,7 +8701,7 @@ function LibraryPanel({
                   padding: "0 4px",
                 }}
               >
-                {tab === "mine" ? "My Equations" : "Pre-Made"}
+                {tab === "mine" ? "My Equations" : "Template"}
               </button>
             );
           })}
@@ -8715,14 +8727,15 @@ function LibraryPanel({
             boxSizing: "border-box",
           }}
         >
-          {activeTab === "mine" ? (
-            savedEquations.length === 0 ? (
+          {displayedEquations.length === 0 ? (
               <div style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700, lineHeight: 1.35 }}>
-                Saved equations will appear here.
+                {activeTab === "mine"
+                  ? "Equations you make in this session will appear here."
+                  : "This template has no reusable equations."}
               </div>
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
-                {savedEquations.map((equation) => {
+                {displayedEquations.map((equation) => {
                   const isSelected = equation.id === selectedEquationId;
 
                   return (
@@ -8772,9 +8785,6 @@ function LibraryPanel({
                   );
                 })}
               </div>
-            )
-          ) : (
-            <div style={{ color: "#FFFFFF66", fontSize: 11, fontWeight: 700, lineHeight: 1.35 }} />
           )}
         </div>
 
@@ -9257,6 +9267,7 @@ export default function LessonBuilderClient({
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventSlot[]>([]);
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [savedEquations, setSavedEquations] = useState<SavedEquation[]>([]);
+  const [templateEquations, setTemplateEquations] = useState<SavedEquation[]>([]);
   const [authoredEquationQueue, setAuthoredEquationQueue] = useState<SavedEquation[]>([]);
   const [mode, setMode] = useState<"event" | "equation" | "rctm1" | "rctm2">("event");
   const [centerChoice, setCenterChoice] = useState<CenterChoice>(null);
@@ -9293,6 +9304,8 @@ export default function LessonBuilderClient({
     chart: StorageFileRef;
     sidecar: StorageFileRef | null;
   } | null>(null);
+  const [starterTemplateDismissedForSongId, setStarterTemplateDismissedForSongId] =
+    useState<string | null>(null);
   const [selectedSongLaunch, setSelectedSongLaunch] = useState<{
     songAssetId: string;
     activityKey: SongActivityKey;
@@ -9452,6 +9465,12 @@ export default function LessonBuilderClient({
     () => timelineEvents.findIndex((eventSlot) => eventSlot.id === activeEventId),
     [activeEventId, timelineEvents],
   );
+
+  const shouldShowStarterTemplate = shouldOfferStarterTemplate({
+    songId: selectedSongStorage?.id ?? null,
+    encounterCount: timelineEvents.length,
+    dismissedForSongId: starterTemplateDismissedForSongId,
+  });
 
   const activeEventEquation = useMemo(() => {
     return activeTimelineEvent ? getTimelineEventEquation(activeTimelineEvent) : null;
@@ -9619,8 +9638,11 @@ export default function LessonBuilderClient({
   );
 
   const selectedEquation = useMemo(
-    () => savedEquations.find((equation) => equation.id === selectedEquationId) ?? null,
-    [savedEquations, selectedEquationId],
+    () =>
+      [...savedEquations, ...templateEquations].find(
+        (equation) => equation.id === selectedEquationId,
+      ) ?? null,
+    [savedEquations, selectedEquationId, templateEquations],
   );
 
   const payloadForProject: LessonBuilderPayload = useMemo(
@@ -9726,10 +9748,7 @@ export default function LessonBuilderClient({
       setTimelineEvents(nextEvents);
       timelineRehydrateSourceRef.current = nextSidecar;
       setAuthoredEquationQueue(importedEquations);
-      setSavedEquations((current) => {
-        const existingIds = new Set(current.map((equation) => equation.id));
-        return [...current, ...importedEquations.filter((equation) => !existingIds.has(equation.id))];
-      });
+      setTemplateEquations(importedEquations);
       setActiveEventId(nextEvents[0]?.id ?? null);
       setMode(nextMode);
       setStoreSidecar(nextSidecar as StoreSidecarPayload);
@@ -9770,23 +9789,7 @@ export default function LessonBuilderClient({
     setTimelineEvents(nextEvents);
     timelineRehydrateSourceRef.current = nextSidecar;
     setAuthoredEquationQueue(importedEquations);
-    setSavedEquations((current) => {
-      const existingStates = new Set(
-        current.map((equation) => tokensToEquationState(equation.tokens)),
-      );
-      const merged = [...current];
-
-      importedEquations.forEach((equation) => {
-        const state = tokensToEquationState(equation.tokens);
-
-        if (!existingStates.has(state)) {
-          merged.push(equation);
-          existingStates.add(state);
-        }
-      });
-
-      return merged;
-    });
+    setTemplateEquations(importedEquations);
     setActiveEventId(nextEvents[0]?.id ?? null);
     setMode(nextMode);
     setStoreSidecar(nextSidecar as StoreSidecarPayload);
@@ -9819,6 +9822,35 @@ export default function LessonBuilderClient({
     setDraftTokens([]);
     setCustomTokenLabel("");
     setMode("equation");
+  }
+
+  function handlePersonalizeStarterEncounter() {
+    const firstEncounter = timelineEvents[0];
+    if (!firstEncounter) {
+      return;
+    }
+
+    setActiveEventId(firstEncounter.id);
+    setMode("event");
+    setHideEquationHeader(false);
+    setStarterTemplateDismissedForSongId(selectedSongStorage?.id ?? null);
+    setSaveStatus(
+      "Editing Event 1. The rest of the starter template stays exactly as it is.",
+    );
+  }
+
+  function handleAddToStarterTemplate() {
+    handleNewEquation();
+    setLibraryTab("mine");
+    setStarterTemplateDismissedForSongId(selectedSongStorage?.id ?? null);
+    setSaveStatus(
+      "Add one equation if you want to. The existing encounters are already ready to play.",
+    );
+  }
+
+  function handleKeepStarterTemplate() {
+    setStarterTemplateDismissedForSongId(selectedSongStorage?.id ?? null);
+    setSaveStatus("Template kept intact. You can play it now or personalise one encounter later.");
   }
 
   function handleInsertEquationToken(index: number, label: string) {
@@ -10515,7 +10547,11 @@ export default function LessonBuilderClient({
 
   function handleSelectLibraryEquation(equationId: string) {
     setSelectedEquationId(equationId);
-    setLibraryTab("mine");
+  }
+
+  function handleSelectLibraryTab(tab: LibraryTab) {
+    setLibraryTab(tab);
+    setSelectedEquationId(null);
   }
 
   function handleAddSelectedEquationToEvent() {
@@ -10657,20 +10693,31 @@ export default function LessonBuilderClient({
       return;
     }
 
-    const didSave = await handleSaveToSupabase();
+    const strategy = lessonLaunchStrategy(hasUnsavedChanges);
+    let launchAuthorId = lastSavedAuthorId ?? selectedSongAuthorId ?? null;
+    let launchRevision = lastSavedRevision;
 
-    if (!didSave) {
-      return;
+    if (strategy === "publish-draft") {
+      const didSave = await handleSaveToSupabase();
+
+      if (didSave) {
+        launchAuthorId = didSave.authorId;
+        launchRevision = didSave.revision;
+      } else {
+        setSaveStatus(
+          "Your draft is not ready to publish yet. Playing the last safe template; your draft remains in the editor.",
+        );
+      }
     }
 
     try {
-    const freshSongLaunch = await requestFreshSongLaunchPackage({
-      ...selectedSongLaunch,
-      authorId: didSave.authorId,
-      authorName: selectedSongLaunch.authorName ?? null,
-      revision: didSave.revision,
-    });
-    const launchParams = createSongLaunchSearchParams({
+      const freshSongLaunch = await requestFreshSongLaunchPackage({
+        ...selectedSongLaunch,
+        authorId: launchAuthorId,
+        authorName: selectedSongLaunch.authorName ?? null,
+        revision: launchRevision,
+      });
+      const launchParams = createSongLaunchSearchParams({
       songAssetId: freshSongLaunch.songAssetId,
       activityKey: freshSongLaunch.activityKey,
       chartUrl: freshSongLaunch.chart.signedUrl,
@@ -10681,30 +10728,33 @@ export default function LessonBuilderClient({
       receipt: freshSongLaunch.receipt,
       rhythmDifficultyKey: "ExpertSingle",
     });
-    const launchRoute = navBasePath.startsWith("/demo")
+      const launchRoute = navBasePath.startsWith("/demo")
       ? "/demo/launch"
       : `${navBasePath}/game`;
-    const launchQuery = launchParams.toString();
-    const launchUrl = `${launchRoute}?${launchQuery}`;
-    const fullGameUrl = buildEmbeddedGameUrl(
-      process.env.NEXT_PUBLIC_GAME_URL ?? "https://ultrarapidtest.netlify.app/",
-      launchParams,
-    );
+      const launchQuery = launchParams.toString();
+      const launchUrl = `${launchRoute}?${launchQuery}`;
+      const fullGameUrl = buildEmbeddedGameUrl(
+        process.env.NEXT_PUBLIC_GAME_URL ?? "https://ultrarapidtest.netlify.app/",
+        launchParams,
+      );
 
-    appendSongFlowDebug(
-      "lesson-builder:launch:play",
-      "Play pressed. Launch URL and params prepared.",
-      {
-        launchRoute,
-        launchQuery,
-        launchUrl,
-        fullGameUrl,
-        selectedSongLaunch,
-      },
-    );
+      appendSongFlowDebug(
+        "lesson-builder:launch:play",
+        "Play pressed. Launch URL and params prepared.",
+        {
+          launchRoute,
+          launchQuery,
+          launchUrl,
+          fullGameUrl,
+          strategy,
+          launchAuthorId,
+          launchRevision,
+          selectedSongLaunch,
+        },
+      );
 
-    persistLaunchParams(launchParams);
-    router.push(launchRoute);
+      persistLaunchParams(launchParams);
+      router.push(launchRoute);
     } catch (error) {
       setSaveStatus(error instanceof Error ? error.message : "Unable to prepare game");
     }
@@ -10736,6 +10786,15 @@ export default function LessonBuilderClient({
 
       if (!loadedSongReadyRef.current || loadError) {
         throw new Error(loadError || "Wait for the selected lesson to finish loading before saving.");
+      }
+
+      if (!hasUnsavedChanges) {
+        const message = "No changes to publish. This template is already ready to play.";
+        setSaveStatus(message);
+        if (showNotice) {
+          setSaveNotice({ kind: "success", message });
+        }
+        return false;
       }
 
       const timelineSidecar = sidecarFromTimelineEvents(timelineEvents, true);
@@ -12608,7 +12667,73 @@ export default function LessonBuilderClient({
                         fontWeight: 800,
                       }}
                     >
-                      {centerContextEvent && centerContextEventIndex >= 0 ? (
+                      {shouldShowStarterTemplate ? (
+                        <div
+                          aria-label="Starter template choices"
+                          style={{
+                            display: "flex",
+                            width: "100%",
+                            alignItems: "center",
+                            gap: 8,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span style={{ color: "#CFFF04" }}>Starter template</span>
+                          <span style={{ color: "#FFFFFFB3", fontWeight: 700 }}>
+                            This lesson is ready to play. Keep it, change one encounter, or add one idea.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handlePersonalizeStarterEncounter}
+                            style={{
+                              border: "1px solid #CFFF04",
+                              borderRadius: 999,
+                              background: "rgba(207,255,4,0.12)",
+                              color: "#CFFF04",
+                              cursor: "pointer",
+                              fontFamily: "Space Grotesk, sans-serif",
+                              fontSize: 10,
+                              fontWeight: 900,
+                              padding: "4px 8px",
+                            }}
+                          >
+                            Personalize Event 1
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleAddToStarterTemplate}
+                            style={{
+                              border: `1px solid ${subtleBorderColor}`,
+                              borderRadius: 999,
+                              background: "#252525",
+                              color: "#FFFFFF",
+                              cursor: "pointer",
+                              fontFamily: "Space Grotesk, sans-serif",
+                              fontSize: 10,
+                              fontWeight: 900,
+                              padding: "4px 8px",
+                            }}
+                          >
+                            Add one equation
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleKeepStarterTemplate}
+                            style={{
+                              border: "none",
+                              background: "transparent",
+                              color: "#FFFFFF99",
+                              cursor: "pointer",
+                              fontFamily: "Space Grotesk, sans-serif",
+                              fontSize: 10,
+                              fontWeight: 800,
+                              padding: "4px 2px",
+                            }}
+                          >
+                            Keep as-is
+                          </button>
+                        </div>
+                      ) : centerContextEvent && centerContextEventIndex >= 0 ? (
                         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                           <span>{`Event ${centerContextEventIndex + 1}`}</span>
                           <span>{`Start ${formatTimelineTime(getTimelineEventTimeWindowSeconds(centerContextEvent).startSeconds, isAdvancedMode)}`}</span>
@@ -12787,9 +12912,10 @@ export default function LessonBuilderClient({
                 <LibraryPanel
                   activeTab={libraryTab}
                   savedEquations={savedEquations}
+                  templateEquations={templateEquations}
                   activeEventId={activeEventId}
                   selectedEquationId={selectedEquationId}
-                  onTabChange={setLibraryTab}
+                  onTabChange={handleSelectLibraryTab}
                   onSelectEquation={handleSelectLibraryEquation}
                   onAddSelectedEquationToEvent={handleAddSelectedEquationToEvent}
                   shouldScrollLibrary={isTimelineInstructionVisible}
