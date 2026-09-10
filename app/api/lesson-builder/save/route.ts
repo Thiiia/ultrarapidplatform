@@ -16,6 +16,7 @@ import { DEV_AUTHOR_FOLDER, findAuthorByName, getOrCreateDevAuthor } from "@/lib
 import { resolveRequestedAuthor } from "@/lib/song-author";
 import { checkSaveRevisionPrecondition } from "@/lib/song-launch-identity";
 import { prepareAuthoredLessonForPublication } from "@/lib/authored-lesson-publication";
+import { createLessonClock } from "@/lib/editor/lesson-timing";
 
 function resolveAuthorFolder(user: { name: string | null; email: string | null }) {
   const name = user.name?.trim();
@@ -247,9 +248,13 @@ export async function POST(request: Request) {
     const revisionId = randomUUID();
     let authoredPublication;
     try {
+      const authoredClock = createLessonClock(chartContent);
       authoredPublication = prepareAuthoredLessonForPublication({
         sidecarContent,
         identity: { songAssetId, activityKey, authorId: targetAuthor.id, revision: revisionId },
+        legacyToTickAfterSeconds: (tick, seconds) => {
+          return authoredClock.toTick(authoredClock.toSeconds(tick) + seconds);
+        },
       });
     } catch (error) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid authored lesson payload" }, { status: 400 });
@@ -381,6 +386,7 @@ export async function POST(request: Request) {
       authorId: targetAuthor.id,
       authorName: targetAuthor.name,
       revision: revisionId,
+      migratedFromLegacy: authoredPublication.migratedFromLegacy,
       songAsset: {
         id: songAssetId,
         chartBucket: chartRef.bucket,

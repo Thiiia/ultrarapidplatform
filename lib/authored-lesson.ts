@@ -53,7 +53,7 @@ export type AuthoredLessonPayload = {
   encounters: AuthoredLessonEncounter[];
 };
 
-type AuthoredLessonDraft = Omit<AuthoredLessonPayload, "authorId" | "revision"> & {
+export type AuthoredLessonDraft = Omit<AuthoredLessonPayload, "authorId" | "revision"> & {
   authorId?: string;
   revision?: string;
 };
