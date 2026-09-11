@@ -3011,7 +3011,7 @@ function EquationBuilderArea({
             cursor: draftTokens.length > 0 ? "pointer" : "not-allowed",
           }}
         >
-          Save Equation
+          Save to my templates
         </button>
       </div>
     </div>
@@ -3586,7 +3586,7 @@ function DragEquationEditor({
     const surface = surfaceRef.current;
 
     if (!surface || dragTargets.length === 0) {
-      setArcs([]);
+      queueMicrotask(() => setArcs([]));
       return;
     }
 
@@ -3962,9 +3962,9 @@ function MechanicInstanceRow({
     mechanic === "hit" ? "Hit" : mechanic === "spin" ? "Spin" : "Drag";
 
   useEffect(() => {
-    setActiveInstanceIndex((current) =>
+    queueMicrotask(() => setActiveInstanceIndex((current) =>
       safeCount > 0 ? Math.min(current, safeCount - 1) : 0,
-    );
+    ));
   }, [safeCount]);
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -6715,7 +6715,7 @@ function LeftEquationBuilderPanel({
                 cursor: hasDraft ? "pointer" : "not-allowed",
               }}
             >
-              Save Equation
+              Save to my templates
             </button>
           </div>
         </div>
@@ -8372,6 +8372,8 @@ function Rctm2ModePanel({
               zIndex: 4,
             }}
           >
+            {/* DOM positions are intentionally read by this render-only overlay after layout measurement. */}
+            {/* eslint-disable-next-line react-hooks/refs */}
             {activeDragAnimations.map((animation) => {
               const start = projectDisplayPointToOverlay(animation.startPoint);
               const end = getBondCenterInOverlay(animation.zone);
@@ -8633,11 +8635,15 @@ function LibraryPanel({
   activeTab,
   savedEquations,
   templateEquations,
+  hiddenSourceEquationIds,
   activeEventId,
   selectedEquationId,
   onTabChange,
   onSelectEquation,
   onAddSelectedEquationToEvent,
+  onHideSourceEquation,
+  onRestoreSourceEquation,
+  onDeleteMineEquation,
   shouldScrollLibrary,
   tutorialPrompt = null,
   onSkipTutorial,
@@ -8645,11 +8651,15 @@ function LibraryPanel({
   activeTab: LibraryTab;
   savedEquations: SavedEquation[];
   templateEquations: SavedEquation[];
+  hiddenSourceEquationIds: string[];
   activeEventId: string | null;
   selectedEquationId: string | null;
   onTabChange: (tab: LibraryTab) => void;
   onSelectEquation: (equationId: string) => void;
   onAddSelectedEquationToEvent: () => void;
+  onHideSourceEquation: (equationId: string) => void;
+  onRestoreSourceEquation: (equationId: string) => void;
+  onDeleteMineEquation: (equationId: string) => void;
   shouldScrollLibrary: boolean;
   tutorialPrompt?: string | null;
   onSkipTutorial?: () => void;
@@ -8657,7 +8667,7 @@ function LibraryPanel({
   const displayedEquations = libraryEquationsForTab(
     activeTab,
     savedEquations,
-    templateEquations,
+    templateEquations.filter((equation) => !hiddenSourceEquationIds.includes(equation.id)),
   );
   const canAddEquation = Boolean(activeEventId && selectedEquationId);
 
@@ -8711,7 +8721,7 @@ function LibraryPanel({
                   padding: "0 4px",
                 }}
               >
-                {tab === "mine" ? "My Equations" : "Template"}
+                {tab === "mine" ? "Mine" : "Lesson template"}
               </button>
             );
           })}
@@ -8749,8 +8759,8 @@ function LibraryPanel({
                   const isSelected = equation.id === selectedEquationId;
 
                   return (
+                    <div key={equation.id} style={{ display: "grid", gap: 5 }}>
                     <button
-                      key={equation.id}
                       type="button"
                       draggable
                       onClick={() => onSelectEquation(equation.id)}
@@ -8792,10 +8802,30 @@ function LibraryPanel({
                         {tokensToEquationState(equation.tokens)}
                       </span>
                     </button>
+                    {activeTab === "premade" ? (
+                      <button type="button" onClick={() => onHideSourceEquation(equation.id)} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 7, background: "#252525", color: "#FFFFFFAA", fontSize: 9, padding: "4px 2px", cursor: "pointer" }}>
+                        Hide source from my version
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => onDeleteMineEquation(equation.id)} style={{ border: "1px solid #FF7F7F66", borderRadius: 7, background: "#2A1414", color: "#FFB0B0", fontSize: 9, padding: "4px 2px", cursor: "pointer" }}>
+                        Delete Mine
+                      </button>
+                    )}
+                    </div>
                   );
                 })}
               </div>
           )}
+          {hiddenSourceEquationIds.length > 0 ? (
+            <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${subtleBorderColor}`, display: "grid", gap: 5 }}>
+              <span style={{ color: "#FFFFFF80", fontSize: 9, fontWeight: 800 }}>Hidden source equations</span>
+              {hiddenSourceEquationIds.map((equationId) => (
+                <button key={equationId} type="button" onClick={() => onRestoreSourceEquation(equationId)} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 7, background: "transparent", color: "#CFFF04", fontSize: 9, padding: "4px 2px", cursor: "pointer" }}>
+                  Restore {equationId}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         {activeEventId ? (
@@ -8833,7 +8863,7 @@ function LibraryPanel({
                 cursor: canAddEquation ? "pointer" : "not-allowed",
               }}
             >
-              Add Equation
+              Use in this encounter
             </button>
           </div>
         ) : null}
@@ -9278,6 +9308,7 @@ export default function LessonBuilderClient({
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [savedEquations, setSavedEquations] = useState<SavedEquation[]>([]);
   const [templateEquations, setTemplateEquations] = useState<SavedEquation[]>([]);
+  const [hiddenSourceEquationIds, setHiddenSourceEquationIds] = useState<string[]>([]);
   const [authoredEquationQueue, setAuthoredEquationQueue] = useState<SavedEquation[]>([]);
   const [mode, setMode] = useState<"event" | "equation" | "rctm1" | "rctm2">("event");
   const [centerChoice, setCenterChoice] = useState<CenterChoice>(null);
@@ -9340,6 +9371,11 @@ export default function LessonBuilderClient({
   const [lastSavedAuthorId, setLastSavedAuthorId] = useState<string | null>(null);
   const [lastSavedRevision, setLastSavedRevision] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const workspaceVersionRef = useRef(0);
+  const workspaceRestoredSourceRef = useRef<string | null>(null);
+  const [workspaceStatus, setWorkspaceStatus] = useState<"idle" | "loading" | "ready" | "offline" | "conflict">("idle");
+  const [workspaceConflict, setWorkspaceConflict] = useState<{ version: number; payload: { equations: SavedEquation[]; hiddenSourceEquationIds: string[]; timelineEdits: unknown[] } } | null>(null);
+  const [workspaceRetryNonce, setWorkspaceRetryNonce] = useState(0);
   // Pending in-app navigation blocked by the unsaved-changes popup.
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   const isDemoMode = navBasePath.startsWith("/demo");
@@ -9377,7 +9413,6 @@ export default function LessonBuilderClient({
   const lessonLoadGenerationRef = useRef(0);
   const rctm2EntrySidecarRef = useRef<SidecarPayload>(emptySidecar);
   const rctm2EntryChartFileRef = useRef("");
-  const workspaceRestoredRef = useRef(false);
 
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
@@ -9494,37 +9529,85 @@ export default function LessonBuilderClient({
   }, [selectedSongActivity, selectedSongAuthorId, selectedSongAuthorName, selectedSongStorage, lastSavedRevision]);
 
   useEffect(() => {
-    if (!isLessonLoaded || entryIntent !== "personalize" || guidedStarted || workspaceRestoredRef.current || !workspaceSource) return;
-    workspaceRestoredRef.current = true;
-    const draft = readPlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
-    if (!draft) return;
-    const restoredEvents = draft.timelineEvents as TimelineEventSlot[];
-    if (restoredEvents.length > 0) {
-      setTimelineEvents(restoredEvents);
-      setActiveEventId(restoredEvents[0]?.id ?? null);
-      setHasUnsavedChanges(true);
-      setSaveStatus("Your private changes were restored on this device. The template is still safe to play.");
-    }
-    if (draft.equationEdits.length > 0) setSavedEquations(draft.equationEdits as SavedEquation[]);
+    if (!isLessonLoaded || entryIntent !== "personalize" || guidedStarted || !workspaceSource) return;
+    const sourceKey = JSON.stringify(workspaceSource);
+    if (workspaceRestoredSourceRef.current === sourceKey) return;
+    workspaceRestoredSourceRef.current = sourceKey;
+    setWorkspaceStatus("loading");
+    let cancelled = false;
+    const applyPayload = (payload: { equations?: unknown[]; hiddenSourceEquationIds?: unknown[]; timelineEdits?: unknown[] }, message: string) => {
+      if (cancelled) return;
+      const restoredEvents = Array.isArray(payload.timelineEdits)
+        ? payload.timelineEdits.filter((event): event is TimelineEventSlot => Boolean(event && typeof event === "object" && typeof (event as { id?: unknown }).id === "string" && typeof (event as { tick?: unknown }).tick === "number"))
+        : [];
+      if (restoredEvents.length > 0) {
+        setTimelineEvents(restoredEvents);
+        setActiveEventId(restoredEvents[0]?.id ?? null);
+        setHasUnsavedChanges(true);
+      }
+      if (Array.isArray(payload.equations)) setSavedEquations(payload.equations as SavedEquation[]);
+      if (Array.isArray(payload.hiddenSourceEquationIds)) setHiddenSourceEquationIds(payload.hiddenSourceEquationIds.filter((id): id is string => typeof id === "string"));
+      setWorkspaceStatus("ready");
+      if (message) setSaveStatus(message);
+    };
+    fetch(`/api/player-workspace?${new URLSearchParams(workspaceSource as Record<string, string>)}`)
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((record: { version?: number; payload?: { equations?: unknown[]; hiddenSourceEquationIds?: unknown[]; timelineEdits?: unknown[] } | null } | null) => {
+        if (record?.payload) {
+          workspaceVersionRef.current = record.version ?? 0;
+          applyPayload(record.payload, "Your private workspace was restored. The lesson template remains unchanged.");
+          return;
+        }
+        const draft = readPlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
+        if (draft) applyPayload({ equations: draft.equationEdits, hiddenSourceEquationIds: draft.hiddenSourceEquationIds, timelineEdits: draft.timelineEvents }, "Your private changes were restored on this device. The template is still safe to play.");
+        else { setWorkspaceStatus("ready"); }
+      })
+      .catch(() => {
+        const draft = readPlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
+        if (draft) applyPayload({ equations: draft.equationEdits, hiddenSourceEquationIds: draft.hiddenSourceEquationIds, timelineEdits: draft.timelineEvents }, "Offline recovery copy restored. Changes will sync when connected.");
+        else { setWorkspaceStatus("offline"); }
+      });
+    return () => { cancelled = true; };
   }, [entryIntent, guidedStarted, isLessonLoaded, workspaceSource]);
 
   useEffect(() => {
-    if (!guidedStarted || !hasUnsavedChanges || !workspaceSource) return;
+    if (!guidedStarted || workspaceStatus === "loading" || !workspaceSource || (!hasUnsavedChanges && savedEquations.length === 0 && hiddenSourceEquationIds.length === 0)) return;
     const timer = window.setTimeout(() => {
+      const payload = {
+        version: 1,
+        equations: savedEquations,
+        hiddenSourceEquationIds,
+        timelineEdits: timelineEvents as unknown[],
+        tutorial: { step: tutorialStep === "welcome" ? "welcome" : tutorialStep === "build" || tutorialStep === "save" ? "equation" : tutorialStep === "add" ? "encounter" : "done" } as const,
+        updatedAt: Date.now(),
+      };
       try {
         writePlayerLessonWorkspaceDraft(sessionStorage, {
           version: 1,
           source: workspaceSource,
           timelineEvents,
           equationEdits: savedEquations,
+          hiddenSourceEquationIds,
           updatedAt: Date.now(),
         });
+        void fetch("/api/player-workspace", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: workspaceSource, expectedVersion: workspaceVersionRef.current, payload }) })
+          .then(async (response) => {
+            const result = await response.json().catch(() => null) as { version?: number; current?: { version?: number; payload?: typeof payload } } | null;
+            if (response.status === 409 && result?.current?.payload) {
+              workspaceVersionRef.current = result.current.version ?? workspaceVersionRef.current;
+              setWorkspaceConflict({ version: result.current.version ?? 0, payload: result.current.payload });
+              setWorkspaceStatus("conflict");
+              return;
+            }
+            if (response.ok) { workspaceVersionRef.current = result?.version ?? workspaceVersionRef.current; setWorkspaceStatus("ready"); }
+          })
+          .catch(() => setWorkspaceStatus("offline"));
       } catch (error) {
         console.warn("Unable to save private lesson recovery copy", error);
       }
-    }, 250);
+    }, 350);
     return () => window.clearTimeout(timer);
-  }, [guidedStarted, hasUnsavedChanges, savedEquations, timelineEvents, workspaceSource]);
+  }, [guidedStarted, hasUnsavedChanges, hiddenSourceEquationIds, savedEquations, timelineEvents, tutorialStep, workspaceRetryNonce, workspaceSource, workspaceStatus]);
 
   const shouldShowStarterTemplate = shouldOfferStarterTemplate({
     songId: selectedSongStorage?.id ?? null,
@@ -10625,6 +10708,47 @@ export default function LessonBuilderClient({
   function handleSelectLibraryTab(tab: LibraryTab) {
     setLibraryTab(tab);
     setSelectedEquationId(null);
+  }
+
+  function handleHideSourceEquation(equationId: string) {
+    setHiddenSourceEquationIds((current) => current.includes(equationId) ? current : [...current, equationId]);
+    setSelectedEquationId(null);
+    setHasUnsavedChanges(true);
+    setSaveStatus("Source equation hidden from your version. You can restore it any time.");
+  }
+
+  function handleRestoreSourceEquation(equationId: string) {
+    setHiddenSourceEquationIds((current) => current.filter((id) => id !== equationId));
+    setHasUnsavedChanges(true);
+    setSaveStatus("Source equation restored.");
+  }
+
+  function handleDeleteMineEquation(equationId: string) {
+    setSavedEquations((current) => current.filter((equation) => equation.id !== equationId));
+    setSelectedEquationId((current) => current === equationId ? null : current);
+    setHasUnsavedChanges(true);
+    setSaveStatus("Mine equation deleted. Any encounter already using it was left unchanged.");
+  }
+
+  function handleReloadLatestWorkspace() {
+    if (!workspaceConflict) return;
+    const latestEvents = workspaceConflict.payload.timelineEdits.filter((event): event is TimelineEventSlot => Boolean(event && typeof event === "object" && typeof (event as { id?: unknown }).id === "string" && typeof (event as { tick?: unknown }).tick === "number"));
+    setTimelineEvents(latestEvents);
+    setActiveEventId(latestEvents[0]?.id ?? null);
+    setSavedEquations(workspaceConflict.payload.equations);
+    setHiddenSourceEquationIds(workspaceConflict.payload.hiddenSourceEquationIds);
+    workspaceVersionRef.current = workspaceConflict.version;
+    setWorkspaceConflict(null);
+    setWorkspaceStatus("ready");
+    setHasUnsavedChanges(false);
+    setSaveStatus("Latest private workspace loaded.");
+  }
+
+  function handleKeepLocalWorkspace() {
+    setWorkspaceConflict(null);
+    setWorkspaceStatus("ready");
+    setWorkspaceRetryNonce((current) => current + 1);
+    setSaveStatus("Your local changes will replace the latest workspace after you confirm.");
   }
 
   function handleAddSelectedEquationToEvent() {
@@ -13007,11 +13131,15 @@ export default function LessonBuilderClient({
                   activeTab={libraryTab}
                   savedEquations={savedEquations}
                   templateEquations={templateEquations}
+                  hiddenSourceEquationIds={hiddenSourceEquationIds}
                   activeEventId={activeEventId}
                   selectedEquationId={selectedEquationId}
                   onTabChange={handleSelectLibraryTab}
                   onSelectEquation={handleSelectLibraryEquation}
                   onAddSelectedEquationToEvent={handleAddSelectedEquationToEvent}
+                  onHideSourceEquation={handleHideSourceEquation}
+                  onRestoreSourceEquation={handleRestoreSourceEquation}
+                  onDeleteMineEquation={handleDeleteMineEquation}
                   shouldScrollLibrary={isTimelineInstructionVisible}
                   tutorialPrompt={
                     tutorialStep === "add"
@@ -13086,6 +13214,19 @@ export default function LessonBuilderClient({
 
       {/* <SongFlowDebugger title="Lesson Builder Launch Debugger" /> */}
 
+      {workspaceConflict ? (
+        <div role="alertdialog" aria-modal="true" aria-labelledby="workspace-conflict-title" style={{ position: "fixed", inset: 0, zIndex: 1600, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.72)", padding: 20 }}>
+          <div style={{ width: "min(440px, 100%)", border: `1px solid ${subtleBorderColor}`, borderRadius: 16, background: "#101827", color: textColor, padding: 22, boxShadow: "0 20px 60px rgba(0,0,0,0.55)" }}>
+            <h2 id="workspace-conflict-title" style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>Private workspace changed elsewhere</h2>
+            <p style={{ color: "#FFFFFFAA", fontSize: 13, lineHeight: 1.5 }}>Choose whether to reload the latest account copy or keep the changes on this device. Nothing will be overwritten silently.</p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" onClick={handleKeepLocalWorkspace} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 9, background: "#252525", color: textColor, padding: "9px 12px", fontWeight: 800, cursor: "pointer" }}>Keep my local changes</button>
+              <button type="button" onClick={handleReloadLatestWorkspace} style={{ border: 0, borderRadius: 9, background: "#CFFF04", color: "#071222", padding: "9px 12px", fontWeight: 900, cursor: "pointer" }}>Reload latest</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {saveNotice ? (
         <div
           role="status"
@@ -13138,6 +13279,7 @@ export default function LessonBuilderClient({
               inset: 0,
               background: "rgba(0,0,0,0.65)",
               zIndex: 1100,
+              pointerEvents: "none",
             }}
           />
           <div
@@ -13148,6 +13290,7 @@ export default function LessonBuilderClient({
               transform: "translate(-50%, -50%)",
               width: "min(420px, 92vw)",
               zIndex: 1300,
+              pointerEvents: "auto",
             }}
           >
             <TutorialBubble

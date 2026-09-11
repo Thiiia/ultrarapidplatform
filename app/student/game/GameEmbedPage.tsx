@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FC, SVGProps } from "react";
 // import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { resolveLaunchParams } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
+import { createBridgeContext, getOrCreateInstallationId, needsCalibration, validateBridgeMessage, type BridgeContext } from "@/lib/platform-player-bridge";
 import styles from "../student.module.css";
 
 /* Header Icon imports */
@@ -270,12 +271,64 @@ export default function GameEmbedPage({
 }: GameEmbedPageProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [bridgeContext, setBridgeContext] = useState<BridgeContext | null>(null);
+  const [calibrationStatus, setCalibrationStatus] = useState<"loading" | "required" | "ready">("loading");
 
   const topTabs = getTopTabs(navBasePath);
 
-  const embeddedGameUrl = useMemo(() => {
-    return getEmbeddedGameUrl(searchParams);
+  useEffect(() => {
+    const receiptRaw = searchParams.get("receipt");
+    if (!receiptRaw) {
+      queueMicrotask(() => setCalibrationStatus("ready"));
+      return;
+    }
+    try {
+      const receipt = JSON.parse(receiptRaw);
+      const installationId = getOrCreateInstallationId(window.localStorage);
+      const context = createBridgeContext(receipt, GAME_URL, installationId);
+      queueMicrotask(() => setBridgeContext(context));
+      fetch(`/api/player-calibration?installationId=${encodeURIComponent(installationId)}`)
+        .then((response) => response.ok ? response.json() : null)
+        .then((calibration) => setCalibrationStatus(needsCalibration(calibration) ? "required" : "ready"))
+        .catch(() => setCalibrationStatus("required"));
+    } catch {
+      queueMicrotask(() => setCalibrationStatus("required"));
+    }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!bridgeContext) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== iframeRef.current?.contentWindow) return;
+      if (event.origin !== bridgeContext.origin) return;
+      const result = validateBridgeMessage(event.data, bridgeContext);
+      if (!result.ok) return;
+      if (result.message.type === "calibration-complete") {
+        fetch("/api/player-calibration", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ installationId: bridgeContext.installationId, offsetMs: result.message.offsetMs, protocolVersion: result.message.protocolVersion }),
+        }).then((response) => { if (response.ok) setCalibrationStatus("ready"); });
+      } else {
+        window.location.assign(`${navBasePath}/song-choice`);
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [bridgeContext, navBasePath]);
+
+  const embeddedGameUrl = useMemo(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (bridgeContext) {
+      params.set("bridgeNonce", bridgeContext.nonce);
+      params.set("installationId", bridgeContext.installationId);
+      params.set("requiresCalibration", String(calibrationStatus === "required"));
+      params.set("calibrationProtocolVersion", String(bridgeContext.protocolVersion));
+      params.set("platformOrigin", window.location.origin);
+    }
+    return getEmbeddedGameUrl(params);
+  }, [searchParams, bridgeContext, calibrationStatus]);
 
   return (
     <div
@@ -312,6 +365,7 @@ export default function GameEmbedPage({
           }}
         >
           <iframe
+            ref={iframeRef}
             src={embeddedGameUrl}
             title="UltraRapid Game"
             allow="fullscreen; gamepad; autoplay"
@@ -325,6 +379,9 @@ export default function GameEmbedPage({
               background: "#000000",
             }}
           />
+          {bridgeContext && calibrationStatus === "required" && (
+            <p className="mt-2 text-sm text-white/70">Complete calibration in the game before playing.</p>
+          )}
         </section>
       </main>
 

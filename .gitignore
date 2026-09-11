@@ -45,3 +45,5 @@ next-env.d.ts
 dev.db
 
 .env*.local
+/docs/superpowers
+/docs

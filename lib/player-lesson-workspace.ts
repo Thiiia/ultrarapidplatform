@@ -1,5 +1,6 @@
 export const PLAYER_LESSON_WORKSPACE_VERSION = 1;
 export const PLAYER_LESSON_WORKSPACE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+export const PLAYER_LESSON_WORKSPACE_MAX_BYTES = 48_000;
 
 export type PlayerLessonEntryIntent = "play" | "personalize";
 
@@ -15,6 +16,7 @@ export type PlayerLessonWorkspaceDraft = {
   source: LessonSourceIdentity;
   timelineEvents: unknown[];
   equationEdits: unknown[];
+  hiddenSourceEquationIds?: string[];
   updatedAt: number;
 };
 
@@ -56,9 +58,13 @@ export function readPlayerLessonWorkspaceDraft(
   const key = playerLessonWorkspaceKey(source);
   const raw = storage.getItem(key);
   if (!raw) return null;
+  if (new TextEncoder().encode(raw).byteLength > PLAYER_LESSON_WORKSPACE_MAX_BYTES) {
+    storage.removeItem(key);
+    return null;
+  }
   try {
     const parsed = JSON.parse(raw) as PlayerLessonWorkspaceDraft;
-    if (parsed.version !== PLAYER_LESSON_WORKSPACE_VERSION || parsed.updatedAt < now - PLAYER_LESSON_WORKSPACE_MAX_AGE_MS) {
+    if (parsed.version !== PLAYER_LESSON_WORKSPACE_VERSION || !Number.isSafeInteger(parsed.updatedAt) || parsed.updatedAt < now - PLAYER_LESSON_WORKSPACE_MAX_AGE_MS) {
       storage.removeItem(key);
       return null;
     }
@@ -75,7 +81,8 @@ export function readPlayerLessonWorkspaceDraft(
 
 export function writePlayerLessonWorkspaceDraft(storage: StorageLike, draft: PlayerLessonWorkspaceDraft): void {
   assertSource(draft.source);
-  if (draft.version !== PLAYER_LESSON_WORKSPACE_VERSION || containsCredentialLikeValue(draft)) {
+  const encoded = JSON.stringify(draft);
+  if (draft.version !== PLAYER_LESSON_WORKSPACE_VERSION || !Number.isSafeInteger(draft.updatedAt) || new TextEncoder().encode(encoded).byteLength > PLAYER_LESSON_WORKSPACE_MAX_BYTES || containsCredentialLikeValue(draft)) {
     throw new Error("Lesson workspace draft contains unsupported or credential-like data");
   }
   storage.setItem(playerLessonWorkspaceKey(draft.source), JSON.stringify(draft));

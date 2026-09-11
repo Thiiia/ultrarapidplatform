@@ -31,31 +31,34 @@ model User {
   status   UserStatus @default(active)
 
   schoolId String?
-  school   School?    @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  school   School? @relation(fields: [schoolId], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   lastLoginAt DateTime?
 
-  authoredMissions Mission[] @relation("MissionAuthor")
-  authoredCharts   SongChart[] @relation("ChartAuthor")
-  gameContentRevisions GameContentRevision[] @relation("RevisionAuthor")
-  progressRecords  Progress[]
+  authoredMissions      Mission[]                 @relation("MissionAuthor")
+  authoredCharts        SongChart[]               @relation("ChartAuthor")
+  gameContentRevisions  GameContentRevision[]     @relation("RevisionAuthor")
+  progressRecords       Progress[]
+  playerWorkspaces      PlayerLessonWorkspace[]
+  deviceCalibrations    PlayerDeviceCalibration[]
+  playerWriteRateLimits PlayerWriteRateLimit[]
 
-  /*
+  /**
    * Existing one-to-many teacher/class relationship.
    * This can be treated as the primary teacher relationship.
    */
   classesTaught Class[] @relation("ClassTeacher")
 
-  /*
+  /**
    * New many-to-many teacher/class assignments.
    * Use this when a teacher needs to be assigned to multiple classes,
    * and when a class may eventually support multiple teachers.
    */
   teacherClassAssignments TeacherClass[]
 
-  /*
+  /**
    * Existing student/class assignments.
    * This allows students to be assigned to multiple classes.
    */
@@ -79,19 +82,19 @@ model Class {
   schoolId String?
   school   School? @relation(fields: [schoolId], references: [id], onDelete: SetNull)
 
-  /*
+  /**
    * Existing primary teacher field.
    * Keep this for compatibility with your current dashboard/data code.
    */
   teacherId String
   teacher   User   @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
 
-  /*
+  /**
    * New assigned-teachers relationship.
    */
   teacherAssignments TeacherClass[]
 
-  /*
+  /**
    * Existing assigned-students relationship.
    */
   students ClassStudent[]
@@ -101,10 +104,10 @@ model Class {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([schoolId, name])
   @@index([schoolId])
   @@index([teacherId])
   @@index([isArchived])
-  @@unique([schoolId, name])
 }
 
 model TeacherClass {
@@ -172,7 +175,7 @@ model Assignment {
   status AssignmentStatus @default(assigned)
 
   dueAt          DateTime?
-  availableFrom DateTime?
+  availableFrom  DateTime?
   availableUntil DateTime?
 
   createdAt DateTime @default(now())
@@ -204,7 +207,7 @@ model Progress {
 }
 
 model SongAsset {
-  id              String @id @default(cuid())
+  id              String  @id @default(cuid())
   title           String
   artist          String?
   durationSeconds Int?
@@ -217,7 +220,7 @@ model SongAsset {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  charts SongChart[]
+  charts               SongChart[]
   gameContentRevisions GameContentRevision[]
 
   @@index([isActive])
@@ -254,36 +257,85 @@ model SongChart {
 }
 
 model GameContentRevision {
-  revision      String @id @db.Uuid
-  songChartId   String @map("song_chart_id")
-  songChart     SongChart @relation(fields: [songChartId], references: [id], onDelete: Restrict)
-  songAssetId   String @map("song_asset_id")
-  songAsset     SongAsset @relation(fields: [songAssetId], references: [id], onDelete: Restrict)
-  activityKey   String @map("activity_key")
-  authorId      String @map("author_id")
-  author        User @relation("RevisionAuthor", fields: [authorId], references: [id], onDelete: Restrict)
-  chartBucket   String @map("chart_bucket")
-  chartPath     String @map("chart_path")
-  sidecarBucket String @map("sidecar_bucket")
-  sidecarPath   String @map("sidecar_path")
-  audioBucket   String @map("audio_bucket")
-  audioPath     String @map("audio_path")
-  chartSha256   String? @map("chart_sha256")
-  sidecarSha256 String? @map("sidecar_sha256")
-  audioSha256   String? @map("audio_sha256")
-  authoredLessonVersion Int? @map("authored_lesson_version")
-  authoredMode String? @map("authored_mode")
-  equationCount Int? @map("equation_count")
-  encounterCount Int? @map("encounter_count")
-  targetCount Int? @map("target_count")
-  status GameContentRevisionStatus @default(draft)
-  failureCode String? @map("failure_code")
-  failureMessage String? @map("failure_message")
-  createdAt DateTime @default(now()) @map("created_at")
-  publishedAt DateTime? @map("published_at")
+  revision              String                    @id @db.Uuid
+  songChartId           String                    @map("song_chart_id")
+  songChart             SongChart                 @relation(fields: [songChartId], references: [id], onDelete: Restrict)
+  songAssetId           String                    @map("song_asset_id")
+  songAsset             SongAsset                 @relation(fields: [songAssetId], references: [id], onDelete: Restrict)
+  activityKey           String                    @map("activity_key")
+  authorId              String                    @map("author_id")
+  author                User                      @relation("RevisionAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  chartBucket           String                    @map("chart_bucket")
+  chartPath             String                    @map("chart_path")
+  sidecarBucket         String                    @map("sidecar_bucket")
+  sidecarPath           String                    @map("sidecar_path")
+  audioBucket           String                    @map("audio_bucket")
+  audioPath             String                    @map("audio_path")
+  chartSha256           String?                   @map("chart_sha256")
+  sidecarSha256         String?                   @map("sidecar_sha256")
+  audioSha256           String?                   @map("audio_sha256")
+  authoredLessonVersion Int?                      @map("authored_lesson_version")
+  authoredMode          String?                   @map("authored_mode")
+  equationCount         Int?                      @map("equation_count")
+  encounterCount        Int?                      @map("encounter_count")
+  targetCount           Int?                      @map("target_count")
+  status                GameContentRevisionStatus @default(draft)
+  failureCode           String?                   @map("failure_code")
+  failureMessage        String?                   @map("failure_message")
+  createdAt             DateTime                  @default(now()) @map("created_at")
+  publishedAt           DateTime?                 @map("published_at")
 
   @@index([songAssetId, activityKey, authorId, status, publishedAt])
   @@map("game_content_revisions")
+}
+
+model PlayerLessonWorkspace {
+  id          String   @id @default(cuid())
+  userId      String
+  songAssetId String
+  activityKey String
+  authorId    String
+  revision    String
+  payload     Json
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, songAssetId, activityKey, authorId, revision])
+  @@index([userId])
+  @@map("player_lesson_workspaces")
+}
+
+model PlayerDeviceCalibration {
+  id              String   @id @default(cuid())
+  userId          String
+  installationId  String   @db.Uuid
+  offsetMs        Int
+  protocolVersion Int
+  calibratedAt    DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, installationId])
+  @@index([userId])
+  @@map("player_device_calibrations")
+}
+
+model PlayerWriteRateLimit {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String
+  windowStart DateTime
+  count       Int      @default(0)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, action])
+  @@index([windowStart])
+  @@map("player_write_rate_limits")
 }
 
 enum Role {
