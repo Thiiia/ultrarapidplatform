@@ -752,6 +752,7 @@ export default function SongChoiceClient({
       "ultrarapid_selected_song",
       JSON.stringify(selectedSongPayload),
     );
+    window.sessionStorage.setItem("ultrarapid_player_entry_intent", "personalize");
 
     setIsCustomizePromptOpen(false);
     router.push(`${navBasePath}/lesson-builder`);
@@ -800,12 +801,22 @@ export default function SongChoiceClient({
       "ultrarapid_selected_song",
       JSON.stringify(selectedSongPayload),
     );
+    window.sessionStorage.setItem("ultrarapid_player_entry_intent", "play");
     persistLaunchParams(launchParams);
 
     setIsCustomizePromptOpen(false);
     router.push(launchUrl);
     } catch (error) { setLaunchError(error instanceof Error ? error.message : "Unable to prepare game"); }
   }
+
+  useEffect(() => {
+    if (!isCustomizePromptOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsCustomizePromptOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isCustomizePromptOpen]);
 
   return (
     <>
@@ -1238,7 +1249,7 @@ export default function SongChoiceClient({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Customize Gameplay"
+          aria-labelledby="lesson-entry-title"
           style={{
             position: "fixed",
             inset: 0,
@@ -1272,19 +1283,24 @@ export default function SongChoiceClient({
                 textAlign: "center",
               }}
             >
-              Customize Gameplay?
+              <span id="lesson-entry-title">Choose how to start</span>
             </h2>
+
+            <p style={{ margin: 0, color: "#D1D5DB", textAlign: "center", lineHeight: 1.45 }}>
+              This lesson is ready to play. You can keep the template safe while you make a private copy.
+            </p>
 
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
+                gridTemplateColumns: "1fr",
                 gap: 12,
               }}
             >
               <button
                 type="button"
                 onClick={handleCustomizeYes}
+                aria-label="Personalize a copy"
                 style={{
                   border: "none",
                   borderRadius: 999,
@@ -1296,12 +1312,14 @@ export default function SongChoiceClient({
                   cursor: "pointer",
                 }}
               >
-                Yes
+                <span>Personalize a copy</span>
+                <small style={{ display: "block", fontWeight: 600 }}>Change one encounter or add one equation. The template stays safe.</small>
               </button>
 
               <button
                 type="button"
                 onClick={handleCustomizeNo}
+                aria-label="Play this lesson"
                 style={{
                   border: "1px solid #7A8FA8",
                   borderRadius: 999,
@@ -1313,7 +1331,12 @@ export default function SongChoiceClient({
                   cursor: "pointer",
                 }}
               >
-                No
+                <span>Play this lesson</span>
+                <small style={{ display: "block", fontWeight: 600 }}>Start the ready-made lesson now. You can personalize it later.</small>
+              </button>
+
+              <button type="button" onClick={() => setIsCustomizePromptOpen(false)} aria-label="Back to songs" style={{ border: 0, background: "transparent", color: "#FFFFFF", padding: 8, cursor: "pointer", textDecoration: "underline" }}>
+                Back to songs
               </button>
             </div>
           </div>
