@@ -6783,7 +6783,7 @@ function LeftEquationBuilderPanel({
             cursor: hasDraft && activeEventLabel ? "pointer" : "not-allowed",
           }}
         >
-          Save and use in {activeEventLabel ?? "an event"}
+          Use this equation for every move in {activeEventLabel ?? "the selected event"}
         </button>
       </div>
     </section>
@@ -8790,7 +8790,12 @@ function LibraryPanel({
                 {tab === "mine" ? "Mine" : "Lesson template"}
               </button>
             );
-          })}
+            })}
+        </div>
+        <div style={{ color: "#FFFFFF80", fontSize: 9, lineHeight: 1.3 }}>
+          {activeTab === "premade"
+            ? "These are ready-made equations. Hide one just for your lesson, or show it again later."
+            : "Your saved equations are here. Choose one, then add it to the selected part."}
         </div>
       </div>
 
@@ -8869,7 +8874,7 @@ function LibraryPanel({
                       </span>
                     </button>
                     {activeTab === "premade" ? (
-                      <button type="button" onClick={() => onHideSourceEquation(equation.id)} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 7, background: "#252525", color: "#FFFFFFAA", fontSize: 9, padding: "4px 2px", cursor: "pointer" }}>
+                      <button type="button" aria-label={`Hide ${tokensToEquationState(equation.tokens)} from my lesson`} onClick={() => onHideSourceEquation(equation.id)} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 7, background: "#252525", color: "#FFFFFFAA", fontSize: 9, padding: "4px 2px", cursor: "pointer" }}>
                         Hide from my lesson
                       </button>
                     ) : (
@@ -8885,11 +8890,14 @@ function LibraryPanel({
           {hiddenSourceEquationIds.length > 0 ? (
             <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${subtleBorderColor}`, display: "grid", gap: 5 }}>
               <span style={{ color: "#FFFFFF80", fontSize: 9, fontWeight: 800 }}>Hidden in my lesson</span>
-              {hiddenSourceEquationIds.map((equationId) => (
-                <button key={equationId} type="button" onClick={() => onRestoreSourceEquation(equationId)} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 7, background: "transparent", color: "#CFFF04", fontSize: 9, padding: "4px 2px", cursor: "pointer" }}>
-                  Show this equation again
-                </button>
-              ))}
+              {hiddenSourceEquationIds.map((equationId) => {
+                const hiddenEquation = templateEquations.find((equation) => equation.id === equationId);
+                return (
+                  <button key={equationId} type="button" aria-label={`Show ${hiddenEquation ? tokensToEquationState(hiddenEquation.tokens) : "this equation"} again`} onClick={() => onRestoreSourceEquation(equationId)} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 7, background: "transparent", color: "#CFFF04", fontSize: 9, padding: "4px 2px", cursor: "pointer" }}>
+                    Show again: {hiddenEquation ? tokensToEquationState(hiddenEquation.tokens) : "this equation"}
+                  </button>
+                );
+              })}
             </div>
           ) : null}
         </div>
@@ -10916,8 +10924,8 @@ export default function LessonBuilderClient({
       : -1;
     setSaveStatus(
       activeEventIndex >= 0
-        ? `Equation added to Event ${activeEventIndex + 1}.`
-        : "Equation added to the selected event.",
+        ? `Saved your equation. Every move in Event ${activeEventIndex + 1} will use it.`
+        : "Saved your equation. Every move in the selected event will use it.",
     );
   }
 

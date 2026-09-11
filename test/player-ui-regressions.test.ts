@@ -30,7 +30,9 @@ test("player-facing equation actions explain what happens to the lesson", () => 
   const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
 
   assert.match(builder, /Hide from my lesson/);
-  assert.match(builder, /Show this equation again/);
-  assert.match(builder, /Save and use in/);
+  assert.match(builder, /Show again:/);
+  assert.match(builder, /Use this equation for every move in/);
+  assert.match(builder, /Every move in Event/);
+  assert.doesNotMatch(builder, /Equation added to Event/);
   assert.doesNotMatch(builder, /Hide source from my version/);
 });
