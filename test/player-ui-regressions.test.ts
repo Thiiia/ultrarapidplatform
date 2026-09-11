@@ -7,15 +7,13 @@ function source(relativePath: string) {
   return readFileSync(path.resolve(process.cwd(), relativePath), "utf8");
 }
 
-test("launch embed keeps the game and background video inside one viewport", () => {
+test("launch visual is decorative and game sizing stays route-local", () => {
   const launchPage = source("app/components/LaunchEmbedPage.tsx");
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
 
-  assert.match(launchPage, /height:\s*"100dvh"/);
-  assert.match(launchPage, /overflow:\s*"hidden"/);
+  assert.doesNotMatch(gameEmbed, /height:\s*"100dvh"[\s\S]{0,500}overflowY:\s*"hidden"/);
   assert.match(launchPage, /pointerEvents:\s*"none"/);
-  assert.doesNotMatch(launchPage, /controls\s*\n/);
-  assert.doesNotMatch(launchPage, /maxHeight:\s*"42vh"/);
-  assert.doesNotMatch(launchPage, /minHeight:\s*640/);
+  assert.doesNotMatch(launchPage, /\bcontrols\b/);
 });
 
 test("guided editing waits until the player chooses an editing action", () => {

@@ -334,14 +334,12 @@ export default function GameEmbedPage({
     <div
       className={styles.studentTypography}
       style={{
-        height: "100dvh",
-        minHeight: "100dvh",
+        minHeight: "100vh",
         background: pageBackgroundColor,
         color: textColor,
         display: "flex",
         flexDirection: "column",
         overflowX: "hidden",
-        overflowY: "hidden",
       }}
     >
       <HeaderBar pathname={pathname} topTabs={topTabs} />

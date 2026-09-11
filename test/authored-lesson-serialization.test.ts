@@ -6,6 +6,7 @@ import {
   timelineEventsFromAuthoredLesson,
   type AuthoredTimelineEvent,
 } from "../lib/authored-lesson-serialization";
+import { applyEquationToEvent } from "../lib/authored-lesson-event-assignment";
 import { createLessonClock } from "../lib/editor/lesson-timing";
 import { parseAuthoredLessonDraft } from "../lib/authored-lesson";
 
@@ -28,6 +29,7 @@ function instance(
   overrides: Partial<{
     tick: number;
     endTick: number;
+    equation?: ReturnType<typeof equation> | null;
     hitBubbles: Array<{ tokenIndex: number; positions: string[]; pads: string[] }>;
     spinTargets: Array<{ tokenIndex: number }>;
     dragTargets: Array<{ tokenIndex: number; sourceHitId?: string }>;
@@ -40,6 +42,7 @@ function instance(
     hitBubbles: overrides.hitBubbles ?? [{ tokenIndex: 0, positions: [], pads: [] }],
     spinTargets: overrides.spinTargets ?? [{ tokenIndex: 0 }],
     dragTargets: overrides.dragTargets ?? [{ tokenIndex: 0 }],
+    ...(overrides.equation ? { equation: overrides.equation } : {}),
   };
 }
 
@@ -150,6 +153,68 @@ test("preserves event, instance and equation identity instead of deriving from i
   assert.deepEqual(
     draft.equations.map((entry) => entry.id),
     ["eq-custom"],
+  );
+});
+
+test("preserves distinct encounter equations and simultaneous source order", () => {
+  const clock = createLessonClock(
+    `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+  );
+  const hitEquation = equation("eq-hit-a", ["1", "+", "1", "=", "2"]);
+  const spinEquation = equation("eq-spin-b", ["7", "=", "X"]);
+  const dragEquation = equation("eq-drag-c", ["Y", "+", "3", "=", "9"]);
+
+  const draft = serializeAuthoredLesson([
+    {
+      ...makeEvent("event-a", 1, { hit: 1, spin: 1, drag: 1 }),
+      assignments: {
+        hit: hitEquation,
+        spin: spinEquation,
+        drag: dragEquation,
+      },
+      mechanicInstances: {
+        hit: [instance("hit-a", { tick: 1, equation: hitEquation })],
+        spin: [instance("spin-a", { tick: 1, equation: spinEquation })],
+        drag: [instance("drag-a", { tick: 1.5, equation: dragEquation })],
+      },
+    },
+  ], IDENTITY, clock);
+
+  assert.deepEqual(
+    draft.encounters.map(({ id, eventId, type, equationId, startTick }) =>
+      ({ id, eventId, type, equationId, startTick })),
+    [
+      { id: "hit-a", eventId: "event-a", type: "hit", equationId: "eq-hit-a", startTick: 960 },
+      { id: "spin-a", eventId: "event-a", type: "spin", equationId: "eq-spin-b", startTick: 960 },
+      { id: "drag-a", eventId: "event-a", type: "drag", equationId: "eq-drag-c", startTick: 1440 },
+    ],
+  );
+});
+
+test("event-level assignment updates every concrete mechanic equation", () => {
+  const clock = createLessonClock(
+    `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+  );
+  const updatedEvent = applyEquationToEvent(
+    {
+      ...makeEvent("event-a", 1, { hit: 1, spin: 1, drag: 1 }),
+      assignments: {
+        hit: equation("eq-old-hit", ["1", "=", "1"]),
+        spin: equation("eq-old-spin", ["2", "=", "2"]),
+        drag: equation("eq-old-drag", ["3", "=", "3"]),
+      },
+      mechanicInstances: {
+        hit: [instance("hit-a", { equation: equation("eq-old-hit", ["1", "=", "1"]) })],
+        spin: [instance("spin-a", { equation: equation("eq-old-spin", ["2", "=", "2"]) })],
+        drag: [instance("drag-a", { equation: equation("eq-old-drag", ["3", "=", "3"]) })],
+      },
+    },
+    equation("eq-new", ["7", "=", "X"]),
+  );
+
+  assert.deepEqual(
+    serializeAuthoredLesson([updatedEvent], IDENTITY, clock).encounters.map(({ equationId }) => equationId),
+    ["eq-new", "eq-new", "eq-new"],
   );
 });
 

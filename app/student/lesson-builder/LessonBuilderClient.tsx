@@ -25,6 +25,7 @@ import {
   projectToChart,
   projectToSidecarJson,
 } from "@/lib/editor/project-to-chart";
+import { applyEquationToEvent as applyEquationToEventInstances } from "@/lib/authored-lesson-event-assignment";
 // import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { persistLaunchParams } from "@/lib/launch-handoff";
 import {
@@ -852,6 +853,32 @@ function cloneEquationForAssignment(equation: SavedEquation): SavedEquation {
     ...equation,
     tokens: cloneTokens(equation.tokens),
   };
+}
+
+function applyEquationToEvent(
+  eventSlot: TimelineEventSlot,
+  equation: SavedEquation,
+): TimelineEventSlot {
+  const applyToMechanic = (mechanic: GameplayMechanic) =>
+    resizeMechanicInstances(
+      eventSlot.mechanicInstances?.[mechanic],
+      eventSlot.counts?.[mechanic] ?? 0,
+    ).map((instance) => ({
+      ...instance,
+      equation: cloneEquationForAssignment(equation),
+    }));
+
+  return applyEquationToEventInstances(
+    {
+      ...eventSlot,
+      mechanicInstances: {
+        hit: applyToMechanic("hit"),
+        spin: applyToMechanic("spin"),
+        drag: applyToMechanic("drag"),
+      },
+    },
+    equation,
+  );
 }
 
 function makeTimelineEvent(
@@ -10486,8 +10513,8 @@ export default function LessonBuilderClient({
     const activeEventIndex = timelineEvents.findIndex((eventSlot) => eventSlot.id === activeEventId);
     setSaveStatus(
       activeEventIndex >= 0
-        ? `Saved and added your equation to Event ${activeEventIndex + 1}.`
-        : "Saved and added your equation to the selected event.",
+        ? `Saved your equation. Every move in Event ${activeEventIndex + 1} will use it.`
+        : "Saved your equation. Every move in the selected event will use it.",
     );
   }
 
@@ -10876,14 +10903,7 @@ export default function LessonBuilderClient({
           return eventSlot;
         }
 
-        return {
-          ...eventSlot,
-          assignments: {
-            hit: cloneEquationForAssignment(equation),
-            spin: cloneEquationForAssignment(equation),
-            drag: cloneEquationForAssignment(equation),
-          },
-        };
+        return applyEquationToEvent(eventSlot, equation);
       });
 
       syncTimelineFilesFromEvents(nextEvents);
