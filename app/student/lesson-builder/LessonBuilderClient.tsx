@@ -33,6 +33,14 @@ import {
 } from "@/lib/platform-launch";
 import { requestFreshSongLaunchPackage } from "@/lib/song-launch-client";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
+import GuidedTemplateStart from "./GuidedTemplateStart";
+import {
+  deletePlayerLessonWorkspaceDraft,
+  readPlayerLessonWorkspaceDraft,
+  writePlayerLessonWorkspaceDraft,
+  type LessonSourceIdentity,
+  type PlayerLessonEntryIntent,
+} from "@/lib/player-lesson-workspace";
 import {
   lessonLaunchStrategy,
   libraryEquationsForTab,
@@ -1684,6 +1692,7 @@ function HeaderBar({
   canLaunch,
   isRctm1Mode,
   isRctm2Mode,
+  hideChartmaker,
   onToggleRctm1Mode,
   onToggleRctm2Mode,
   selectedActivityKey,
@@ -1700,6 +1709,7 @@ function HeaderBar({
   canLaunch: boolean;
   isRctm1Mode: boolean;
   isRctm2Mode: boolean;
+  hideChartmaker?: boolean;
   onToggleRctm1Mode: () => void;
   onToggleRctm2Mode: () => void;
 }) {
@@ -1865,7 +1875,7 @@ function HeaderBar({
               return null;
             })();
 
-            if (!chartmakerInfo) return null;
+            if (!chartmakerInfo || hideChartmaker) return null;
 
             return (
               <button
@@ -1961,8 +1971,8 @@ function HeaderBar({
             type="button"
             disabled={isSaving}
             onClick={onSave}
-            aria-label="Publish ready lesson changes"
-            title="Publish ready changes"
+            aria-label="Publish my version"
+            title="Publish my version"
             style={{
               width: 60,
               height: 29,
@@ -9295,6 +9305,11 @@ export default function LessonBuilderClient({
   const [loadError, setLoadError] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [entryIntent, setEntryIntent] = useState<PlayerLessonEntryIntent>("play");
+  const [guidedStarted, setGuidedStarted] = useState(false);
+  const [advancedMode, setAdvancedMode] = useState(true);
+  const [isLessonLoaded, setIsLessonLoaded] = useState(false);
+  const [advancedConfirmOpen, setAdvancedConfirmOpen] = useState(false);
   const [saveNotice, setSaveNotice] = useState<{
     kind: "success" | "error";
     message: string;
@@ -9342,7 +9357,8 @@ export default function LessonBuilderClient({
   const [filePickerAuthorName, setFilePickerAuthorName] = useState<string | null>(null);
   const [filePickerActivityKey, setFilePickerActivityKey] =
     useState<SongActivityKey>(defaultSongActivityKey);
-  const isAdvancedMode = true;
+  const isAdvancedMode = advancedMode;
+  const isGuidedStart = entryIntent === "personalize" && !guidedStarted && isLessonLoaded;
   const [selectedContextMechanicKey, setSelectedContextMechanicKey] =
     useState<string | null>(null);
   const [pendingRangeSelection, setPendingRangeSelection] =
@@ -9361,6 +9377,7 @@ export default function LessonBuilderClient({
   const lessonLoadGenerationRef = useRef(0);
   const rctm2EntrySidecarRef = useRef<SidecarPayload>(emptySidecar);
   const rctm2EntryChartFileRef = useRef("");
+  const workspaceRestoredRef = useRef(false);
 
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
@@ -9465,6 +9482,49 @@ export default function LessonBuilderClient({
     () => timelineEvents.findIndex((eventSlot) => eventSlot.id === activeEventId),
     [activeEventId, timelineEvents],
   );
+
+  const workspaceSource = useMemo<LessonSourceIdentity | null>(() => {
+    if (!selectedSongStorage || !selectedSongActivity || !lastSavedRevision) return null;
+    return {
+      songAssetId: selectedSongStorage.id,
+      activityKey: selectedSongActivity.key,
+      authorId: selectedSongAuthorId ?? selectedSongAuthorName ?? "dev",
+      revision: lastSavedRevision,
+    };
+  }, [selectedSongActivity, selectedSongAuthorId, selectedSongAuthorName, selectedSongStorage, lastSavedRevision]);
+
+  useEffect(() => {
+    if (!isLessonLoaded || entryIntent !== "personalize" || guidedStarted || workspaceRestoredRef.current || !workspaceSource) return;
+    workspaceRestoredRef.current = true;
+    const draft = readPlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
+    if (!draft) return;
+    const restoredEvents = draft.timelineEvents as TimelineEventSlot[];
+    if (restoredEvents.length > 0) {
+      setTimelineEvents(restoredEvents);
+      setActiveEventId(restoredEvents[0]?.id ?? null);
+      setHasUnsavedChanges(true);
+      setSaveStatus("Your private changes were restored on this device. The template is still safe to play.");
+    }
+    if (draft.equationEdits.length > 0) setSavedEquations(draft.equationEdits as SavedEquation[]);
+  }, [entryIntent, guidedStarted, isLessonLoaded, workspaceSource]);
+
+  useEffect(() => {
+    if (!guidedStarted || !hasUnsavedChanges || !workspaceSource) return;
+    const timer = window.setTimeout(() => {
+      try {
+        writePlayerLessonWorkspaceDraft(sessionStorage, {
+          version: 1,
+          source: workspaceSource,
+          timelineEvents,
+          equationEdits: savedEquations,
+          updatedAt: Date.now(),
+        });
+      } catch (error) {
+        console.warn("Unable to save private lesson recovery copy", error);
+      }
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [guidedStarted, hasUnsavedChanges, savedEquations, timelineEvents, workspaceSource]);
 
   const shouldShowStarterTemplate = shouldOfferStarterTemplate({
     songId: selectedSongStorage?.id ?? null,
@@ -9824,6 +9884,15 @@ export default function LessonBuilderClient({
     setMode("equation");
   }
 
+  function beginGuidedEditing() {
+    setGuidedStarted(true);
+    setAdvancedMode(false);
+  }
+
+  function handleUseAdvanced() {
+    setAdvancedConfirmOpen(true);
+  }
+
   function handlePersonalizeStarterEncounter() {
     const firstEncounter = timelineEvents[0];
     if (!firstEncounter) {
@@ -9831,6 +9900,7 @@ export default function LessonBuilderClient({
     }
 
     setActiveEventId(firstEncounter.id);
+    beginGuidedEditing();
     setMode("event");
     setHideEquationHeader(false);
     setStarterTemplateDismissedForSongId(selectedSongStorage?.id ?? null);
@@ -9841,6 +9911,7 @@ export default function LessonBuilderClient({
 
   function handleAddToStarterTemplate() {
     handleNewEquation();
+    beginGuidedEditing();
     setLibraryTab("mine");
     setStarterTemplateDismissedForSongId(selectedSongStorage?.id ?? null);
     setSaveStatus(
@@ -9896,6 +9967,7 @@ export default function LessonBuilderClient({
   }
 
   function handleToggleRctm1Mode() {
+    setAdvancedMode(true);
     if (mode === "rctm1") {
       setMode("event");
       return;
@@ -9953,6 +10025,7 @@ export default function LessonBuilderClient({
   }
 
   function handleToggleRctm2Mode() {
+    setAdvancedMode(true);
     if (mode === "rctm2") {
       setMode("event");
       return;
@@ -10686,14 +10759,14 @@ export default function LessonBuilderClient({
     requestNavigation(() => router.push(`${navBasePath}/song-choice`));
   }
 
-  async function handleLaunchGame() {
+  async function handleLaunchGame(playTemplateOnly = false) {
     if (isSaving) return;
     if (!selectedSongLaunch) {
       setSaveStatus("Choose a song from song choice before launching the game.");
       return;
     }
 
-    const strategy = lessonLaunchStrategy(hasUnsavedChanges);
+    const strategy = playTemplateOnly ? "published-template" : lessonLaunchStrategy(hasUnsavedChanges);
     let launchAuthorId = lastSavedAuthorId ?? selectedSongAuthorId ?? null;
     let launchRevision = lastSavedRevision;
 
@@ -10960,6 +11033,7 @@ export default function LessonBuilderClient({
       if (!result?.authorId || !result.revision) {
         throw new Error("Saved lesson identity could not be verified");
       }
+      if (workspaceSource) deletePlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
       setLastSavedAuthorId(result.authorId);
       setLastSavedRevision(result.revision);
 
@@ -10999,7 +11073,7 @@ export default function LessonBuilderClient({
 
       setChartFile(chartText);
       setStoreSidecar(sidecarToPersist as StoreSidecarPayload);
-      setSaveStatus("Saved");
+      setSaveStatus("Published my version");
       setHasUnsavedChanges(false);
 
       if (showNotice) {
@@ -11028,7 +11102,9 @@ export default function LessonBuilderClient({
       if (showNotice) {
         setSaveNotice({
           kind: "error",
-          message: error instanceof Error ? error.message : "Unable to save lesson files",
+          message: guidedStarted
+            ? "Your changes are saved on this device. The template is still safe to play."
+            : error instanceof Error ? error.message : "Unable to save lesson files",
         });
       }
       return false;
@@ -11399,6 +11475,7 @@ export default function LessonBuilderClient({
         setUploadedChartName(nextChartName);
         loadSidecarIntoTimeline(normalizedSidecar, null, [], [], "event", nextChartFile);
         loadedSongReadyRef.current = true;
+        setIsLessonLoaded(true);
 
         const payload: LessonBuilderPayload = {
           chartFile: nextChartFile,
@@ -11419,6 +11496,7 @@ export default function LessonBuilderClient({
       .catch((error) => {
         if (generation !== lessonLoadGenerationRef.current) return;
         loadedSongReadyRef.current = false;
+        setIsLessonLoaded(false);
         console.error("Failed to load selected chart or sidecar JSON", error);
         appendSongFlowDebug(
           "lesson-builder:hydrate:error",
@@ -11483,6 +11561,11 @@ export default function LessonBuilderClient({
       console.error("Failed to rebuild project after sidecar update", error);
     }
   }, [chartFile, payloadForProject, setProject]);
+
+  useEffect(() => {
+    const intent = sessionStorage.getItem("ultrarapid_player_entry_intent");
+    if (intent === "personalize" || intent === "play") setEntryIntent(intent);
+  }, []);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("ultrarapid_selected_song");
@@ -12531,6 +12614,7 @@ export default function LessonBuilderClient({
         canLaunch={Boolean(selectedSongLaunch)}
         isRctm1Mode={isRctm1Mode}
         isRctm2Mode={isRctm2Mode}
+        hideChartmaker={isGuidedStart}
         onToggleRctm1Mode={handleToggleRctm1Mode}
         onToggleRctm2Mode={handleToggleRctm2Mode}
       />
@@ -12547,6 +12631,16 @@ export default function LessonBuilderClient({
           overflow: "hidden",
         }}
       >
+        {isGuidedStart ? (
+          <GuidedTemplateStart
+            encounterCount={timelineEvents.length}
+            onPlayTemplate={() => void handleLaunchGame(true)}
+            onChangeEvent={handlePersonalizeStarterEncounter}
+            onAddEquation={handleAddToStarterTemplate}
+            onUseAdvanced={handleUseAdvanced}
+          />
+        ) : (
+          <>
         <section
           aria-label="Main viewer"
           style={{
@@ -12973,7 +13067,22 @@ export default function LessonBuilderClient({
             isAdvancedMode={isAdvancedMode}
           />
         </section>
+          </>
+        )}
       </main>
+
+      {advancedConfirmOpen ? (
+        <div role="dialog" aria-modal="true" aria-labelledby="advanced-chartmaker-title" style={{ position: "fixed", inset: 0, zIndex: 1300, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.7)" }} onKeyDown={(event) => { if (event.key === "Escape") setAdvancedConfirmOpen(false); }}>
+          <div style={{ width: "min(440px, 92vw)", display: "grid", gap: 14, padding: 22, borderRadius: 16, background: "#182230", color: "#FFFFFF" }}>
+            <h2 id="advanced-chartmaker-title" style={{ margin: 0 }}>Use advanced chartmaker?</h2>
+            <p style={{ margin: 0, color: "#D1D5DB", lineHeight: 1.45 }}>Advanced chartmaker is for arranging the whole lesson. Your guided changes stay here.</p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+              <button type="button" onClick={() => setAdvancedConfirmOpen(false)} style={{ border: "1px solid #7A8FA8", background: "transparent", color: "#FFFFFF", borderRadius: 999, padding: "10px 14px", cursor: "pointer" }}>Stay in guided editing</button>
+              <button type="button" onClick={() => { setAdvancedConfirmOpen(false); setGuidedStarted(true); setAdvancedMode(true); }} style={{ border: 0, background: "#CFFF04", color: "#071222", borderRadius: 999, padding: "10px 14px", fontWeight: 800, cursor: "pointer" }}>Continue to advanced tools</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* <SongFlowDebugger title="Lesson Builder Launch Debugger" /> */}
 
