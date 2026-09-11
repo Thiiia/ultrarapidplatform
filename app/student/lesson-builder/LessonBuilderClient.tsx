@@ -2110,8 +2110,8 @@ function UnsavedChangesModal({
 }
 
 /**
- * Small tutorial callout used by the demo walkthrough. Renders a "Skip
- * tutorial" button in the upper-left corner that exits the whole tutorial.
+ * Small tutorial callout used by the demo walkthrough. It stays out of the
+ * way of the editor and offers a quick way to dismiss the tips.
  */
 function TutorialBubble({
   text,
@@ -2156,7 +2156,7 @@ function TutorialBubble({
           cursor: "pointer",
         }}
       >
-        Skip tutorial
+        Skip tips
       </button>
       {text}
     </div>
@@ -6521,16 +6521,22 @@ function EquationTileStrip({
 
 function LeftEquationBuilderPanel({
   draftTokens,
+  activeEventLabel,
+  activeEventEquationText,
   onAddToken,
   onClearEquation,
   onSaveEquation,
+  onUseDraftInEvent,
   tutorialPrompt = null,
   onSkipTutorial,
 }: {
   draftTokens: EquationToken[];
+  activeEventLabel: string | null;
+  activeEventEquationText: string | null;
   onAddToken: (label: string) => void;
   onClearEquation: () => void;
   onSaveEquation: () => void;
+  onUseDraftInEvent: () => void;
   tutorialPrompt?: string | null;
   onSkipTutorial?: () => void;
 }) {
@@ -6557,7 +6563,7 @@ function LeftEquationBuilderPanel({
         boxSizing: "border-box",
         overflow: "hidden",
         display: "grid",
-        gridTemplateRows: "calc(60vh * 0.1) minmax(0, 1fr) calc(60vh * 0.15)",
+        gridTemplateRows: "auto minmax(0, 1fr) auto",
       }}
     >
       <div
@@ -6570,12 +6576,12 @@ function LeftEquationBuilderPanel({
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "flex-start",
-          gap: 4,
+          gap: 6,
           fontFamily: "Space Grotesk, sans-serif",
         }}
       >
         <div style={{ fontSize: 13, fontWeight: 900, lineHeight: 1.1 }}>
-          Equation Builder
+          Make an equation
         </div>
         <div
           style={{
@@ -6587,7 +6593,22 @@ function LeftEquationBuilderPanel({
             animation: "urFlash 900ms ease-in-out infinite alternate",
           }}
         >
-          Start Here
+          {activeEventLabel ? `For ${activeEventLabel}` : "Choose an event below first"}
+        </div>
+        <div
+          title={activeEventEquationText ?? undefined}
+          style={{
+            width: "100%",
+            overflow: "hidden",
+            color: "#FFFFFF99",
+            fontSize: 10,
+            fontWeight: 700,
+            lineHeight: 1.25,
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {activeEventEquationText ? `Current: ${activeEventEquationText}` : "Your equation will be used by the selected event."}
         </div>
       </div>
 
@@ -6637,7 +6658,7 @@ function LeftEquationBuilderPanel({
           borderTop: `1px solid ${subtleBorderColor}`,
           boxSizing: "border-box",
           display: "grid",
-          gridTemplateRows: "auto auto",
+          gridTemplateRows: "auto auto auto",
           gap: 6,
           fontFamily: "Space Grotesk, sans-serif",
         }}
@@ -6719,6 +6740,24 @@ function LeftEquationBuilderPanel({
             </button>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={onUseDraftInEvent}
+          disabled={!hasDraft || !activeEventLabel}
+          style={{
+            width: "100%",
+            minHeight: 28,
+            borderRadius: 8,
+            border: `1px solid ${hasDraft && activeEventLabel ? "#2EA7FF" : subtleBorderColor}`,
+            background: hasDraft && activeEventLabel ? "rgba(46,167,255,0.16)" : "#252525",
+            color: hasDraft && activeEventLabel ? "#BDE4FF" : "#FFFFFF66",
+            fontSize: 10,
+            fontWeight: 900,
+            cursor: hasDraft && activeEventLabel ? "pointer" : "not-allowed",
+          }}
+        >
+          Save and use in {activeEventLabel ?? "an event"}
+        </button>
       </div>
     </section>
   );
@@ -8804,11 +8843,11 @@ function LibraryPanel({
                     </button>
                     {activeTab === "premade" ? (
                       <button type="button" onClick={() => onHideSourceEquation(equation.id)} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 7, background: "#252525", color: "#FFFFFFAA", fontSize: 9, padding: "4px 2px", cursor: "pointer" }}>
-                        Hide source from my version
+                        Hide from my lesson
                       </button>
                     ) : (
                       <button type="button" onClick={() => onDeleteMineEquation(equation.id)} style={{ border: "1px solid #FF7F7F66", borderRadius: 7, background: "#2A1414", color: "#FFB0B0", fontSize: 9, padding: "4px 2px", cursor: "pointer" }}>
-                        Delete Mine
+                        Delete my equation
                       </button>
                     )}
                     </div>
@@ -8818,10 +8857,10 @@ function LibraryPanel({
           )}
           {hiddenSourceEquationIds.length > 0 ? (
             <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${subtleBorderColor}`, display: "grid", gap: 5 }}>
-              <span style={{ color: "#FFFFFF80", fontSize: 9, fontWeight: 800 }}>Hidden source equations</span>
+              <span style={{ color: "#FFFFFF80", fontSize: 9, fontWeight: 800 }}>Hidden in my lesson</span>
               {hiddenSourceEquationIds.map((equationId) => (
                 <button key={equationId} type="button" onClick={() => onRestoreSourceEquation(equationId)} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 7, background: "transparent", color: "#CFFF04", fontSize: 9, padding: "4px 2px", cursor: "pointer" }}>
-                  Restore {equationId}
+                  Show this equation again
                 </button>
               ))}
             </div>
@@ -9106,6 +9145,8 @@ function TimelineControlsRow({
   isPlaying,
   currentSongSeconds,
   isAdvancedMode,
+  activeEventNumber,
+  activeEventHasEquation,
   onRewind,
   onTogglePlay,
   onFastForward,
@@ -9113,6 +9154,8 @@ function TimelineControlsRow({
   isPlaying: boolean;
   currentSongSeconds: number;
   isAdvancedMode: boolean;
+  activeEventNumber: number | null;
+  activeEventHasEquation: boolean;
   onRewind: () => void;
   onTogglePlay: () => void;
   onFastForward: () => void;
@@ -9178,6 +9221,25 @@ function TimelineControlsRow({
         }}
       >
         {formatSongTime(currentSongSeconds, isAdvancedMode)}
+      </div>
+      <div
+        aria-live="polite"
+        style={{
+          minWidth: 0,
+          marginLeft: "auto",
+          overflow: "hidden",
+          color: "#FFFFFF99",
+          fontSize: 10,
+          fontWeight: 800,
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {activeEventNumber === null
+          ? "Click an event below to edit it"
+          : activeEventHasEquation
+            ? `Editing Event ${activeEventNumber} · choose a move or change its equation`
+            : `Editing Event ${activeEventNumber} · build an equation on the left`}
       </div>
     </div>
   );
@@ -9379,10 +9441,9 @@ export default function LessonBuilderClient({
   // Pending in-app navigation blocked by the unsaved-changes popup.
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   const isDemoMode = navBasePath.startsWith("/demo");
-  // Demo tutorial: welcome -> build -> save -> add. null = tutorial off/done.
-  const [tutorialStep, setTutorialStep] = useState<"welcome" | "build" | "save" | "add" | null>(
-    () => (isDemoMode ? "welcome" : null),
-  );
+  // Demo tutorial: it starts only after the player chooses to personalise,
+  // never while they are still choosing between playing and editing.
+  const [tutorialStep, setTutorialStep] = useState<"welcome" | "build" | "save" | "add" | null>(null);
   const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
   const [isFilePickerLoading, setIsFilePickerLoading] = useState(false);
   const [filePickerError, setFilePickerError] = useState("");
@@ -9986,6 +10047,7 @@ export default function LessonBuilderClient({
     beginGuidedEditing();
     setMode("event");
     setHideEquationHeader(false);
+    setTutorialStep(null);
     setStarterTemplateDismissedForSongId(selectedSongStorage?.id ?? null);
     setSaveStatus(
       "Editing Event 1. The rest of the starter template stays exactly as it is.",
@@ -9995,6 +10057,7 @@ export default function LessonBuilderClient({
   function handleAddToStarterTemplate() {
     handleNewEquation();
     beginGuidedEditing();
+    setTutorialStep(isDemoMode ? "welcome" : null);
     setLibraryTab("mine");
     setStarterTemplateDismissedForSongId(selectedSongStorage?.id ?? null);
     setSaveStatus(
@@ -10047,6 +10110,7 @@ export default function LessonBuilderClient({
     setCenterChoice("create");
     setMode("equation");
     setHideEquationHeader(true);
+    setTutorialStep((current) => (isDemoMode && current === null ? "welcome" : current));
   }
 
   function handleToggleRctm1Mode() {
@@ -10393,6 +10457,40 @@ export default function LessonBuilderClient({
     setTutorialStep((current) => (current === null ? null : "add"));
   }
 
+  function handleUseDraftInActiveEvent() {
+    if (!activeEventId) {
+      setSaveStatus("Select an event on the timeline first.");
+      return;
+    }
+
+    const equalsIndex = draftTokens.findIndex((token) => token.label === "=");
+    if (equalsIndex <= 0 || equalsIndex >= draftTokens.length - 1) {
+      setSaveStatus("Finish the equation by adding something on both sides of =.");
+      return;
+    }
+
+    const nextEquation: SavedEquation = {
+      id: makeId("equation"),
+      tokens: cloneTokens(draftTokens),
+    };
+
+    setSavedEquations((current) => [nextEquation, ...current]);
+    setAuthoredEquationQueue((current) => [...current, nextEquation]);
+    handleDropEquation(nextEquation);
+    setSelectedEquationId(nextEquation.id);
+    setDraftTokens([]);
+    setCustomTokenLabel("");
+    setMode("event");
+    setHideEquationHeader(false);
+    setTutorialStep(null);
+    const activeEventIndex = timelineEvents.findIndex((eventSlot) => eventSlot.id === activeEventId);
+    setSaveStatus(
+      activeEventIndex >= 0
+        ? `Saved and added your equation to Event ${activeEventIndex + 1}.`
+        : "Saved and added your equation to the selected event.",
+    );
+  }
+
   // Draft counts as a full equation once "=" has tokens on both sides.
   const draftEqualsIndex = draftTokens.findIndex((token) => token.label === "=");
   const isDraftEquationValid =
@@ -10714,13 +10812,13 @@ export default function LessonBuilderClient({
     setHiddenSourceEquationIds((current) => current.includes(equationId) ? current : [...current, equationId]);
     setSelectedEquationId(null);
     setHasUnsavedChanges(true);
-    setSaveStatus("Source equation hidden from your version. You can restore it any time.");
+    setSaveStatus("This equation is hidden in your lesson. You can show it again any time.");
   }
 
   function handleRestoreSourceEquation(equationId: string) {
     setHiddenSourceEquationIds((current) => current.filter((id) => id !== equationId));
     setHasUnsavedChanges(true);
-    setSaveStatus("Source equation restored.");
+    setSaveStatus("This equation is showing in your lesson again.");
   }
 
   function handleDeleteMineEquation(equationId: string) {
@@ -10791,6 +10889,16 @@ export default function LessonBuilderClient({
       syncTimelineFilesFromEvents(nextEvents);
       return nextEvents;
     });
+    setHasUnsavedChanges(true);
+    setCenterChoice(null);
+    const activeEventIndex = activeEventId
+      ? timelineEvents.findIndex((eventSlot) => eventSlot.id === activeEventId)
+      : -1;
+    setSaveStatus(
+      activeEventIndex >= 0
+        ? `Equation added to Event ${activeEventIndex + 1}.`
+        : "Equation added to the selected event.",
+    );
   }
 
   function updateActiveMechanicInstance(
@@ -12833,12 +12941,15 @@ export default function LessonBuilderClient({
               >
                 <LeftEquationBuilderPanel
                   draftTokens={draftTokens}
+                  activeEventLabel={centerContextEventIndex >= 0 ? `Event ${centerContextEventIndex + 1}` : null}
+                  activeEventEquationText={centerContextEventEquation ? tokensToEquationState(centerContextEventEquation.tokens) : null}
                   onAddToken={handleAppendEquationToken}
                   onClearEquation={handleClearEquationDraft}
                   onSaveEquation={handleSaveEquation}
+                  onUseDraftInEvent={handleUseDraftInActiveEvent}
                   tutorialPrompt={
                     showSaveEquationTutorialPrompt
-                      ? "Click here to save your equation to the library!"
+                      ? "Save this equation so you can use it in your lesson."
                       : null
                   }
                   onSkipTutorial={() => setTutorialStep(null)}
@@ -13143,7 +13254,7 @@ export default function LessonBuilderClient({
                   shouldScrollLibrary={isTimelineInstructionVisible}
                   tutorialPrompt={
                     tutorialStep === "add"
-                      ? "Now click here to add this equation to Event 1!"
+                      ? "Choose this equation, then add it to Event 1."
                       : null
                   }
                   onSkipTutorial={() => setTutorialStep(null)}
@@ -13171,6 +13282,8 @@ export default function LessonBuilderClient({
             isPlaying={isSongPlaying}
             currentSongSeconds={currentSongSeconds}
             isAdvancedMode={isAdvancedMode}
+            activeEventNumber={centerContextEventIndex >= 0 ? centerContextEventIndex + 1 : null}
+            activeEventHasEquation={Boolean(centerContextEventEquation)}
             onRewind={handleRewindSong}
             onTogglePlay={handleToggleSongPlayback}
             onFastForward={handleFastForwardSong}
@@ -13202,11 +13315,11 @@ export default function LessonBuilderClient({
       {advancedConfirmOpen ? (
         <div role="dialog" aria-modal="true" aria-labelledby="advanced-chartmaker-title" style={{ position: "fixed", inset: 0, zIndex: 1300, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.7)" }} onKeyDown={(event) => { if (event.key === "Escape") setAdvancedConfirmOpen(false); }}>
           <div style={{ width: "min(440px, 92vw)", display: "grid", gap: 14, padding: 22, borderRadius: 16, background: "#182230", color: "#FFFFFF" }}>
-            <h2 id="advanced-chartmaker-title" style={{ margin: 0 }}>Use advanced chartmaker?</h2>
-            <p style={{ margin: 0, color: "#D1D5DB", lineHeight: 1.45 }}>Advanced chartmaker is for arranging the whole lesson. Your guided changes stay here.</p>
+            <h2 id="advanced-chartmaker-title" style={{ margin: 0 }}>Open all chart tools?</h2>
+            <p style={{ margin: 0, color: "#D1D5DB", lineHeight: 1.45 }}>These tools let you place and move every part of the lesson. Your private changes stay safe while you work.</p>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
-              <button type="button" onClick={() => setAdvancedConfirmOpen(false)} style={{ border: "1px solid #7A8FA8", background: "transparent", color: "#FFFFFF", borderRadius: 999, padding: "10px 14px", cursor: "pointer" }}>Stay in guided editing</button>
-              <button type="button" onClick={() => { setAdvancedConfirmOpen(false); setGuidedStarted(true); setAdvancedMode(true); }} style={{ border: 0, background: "#CFFF04", color: "#071222", borderRadius: 999, padding: "10px 14px", fontWeight: 800, cursor: "pointer" }}>Continue to advanced tools</button>
+              <button type="button" onClick={() => setAdvancedConfirmOpen(false)} style={{ border: "1px solid #7A8FA8", background: "transparent", color: "#FFFFFF", borderRadius: 999, padding: "10px 14px", cursor: "pointer" }}>Go back</button>
+              <button type="button" onClick={() => { setAdvancedConfirmOpen(false); setGuidedStarted(true); setAdvancedMode(true); }} style={{ border: 0, background: "#CFFF04", color: "#071222", borderRadius: 999, padding: "10px 14px", fontWeight: 800, cursor: "pointer" }}>Open chart tools</button>
             </div>
           </div>
         </div>
@@ -13294,7 +13407,7 @@ export default function LessonBuilderClient({
             }}
           >
             <TutorialBubble
-              text={"Welcome to the UltraRapid editor! Let's begin by making an equation. Try clicking the calculator buttons to the left."}
+              text={"Let’s make an equation. Click the number and symbol buttons on the left to build one."}
               onSkip={() => setTutorialStep(null)}
             />
           </div>

@@ -19,10 +19,12 @@ export default function LaunchEmbedPage({ videoUrl }: { videoUrl: string | null 
   return (
     <main
       style={{
-        minHeight: "100vh",
+        position: "relative",
         width: "100%",
-        padding: 16,
-        background: "#191919",
+        height: "100dvh",
+        minHeight: "100dvh",
+        overflow: "hidden",
+        background: "#05070A",
         boxSizing: "border-box",
       }}
     >
@@ -33,33 +35,56 @@ export default function LaunchEmbedPage({ videoUrl }: { videoUrl: string | null 
           muted
           loop
           playsInline
-          controls
+          aria-hidden="true"
+          tabIndex={-1}
           style={{
+            position: "absolute",
+            inset: 0,
             width: "100%",
-            maxHeight: "42vh",
-            objectFit: "contain",
-            marginBottom: 16,
-            marginTop: 40,
-            background: "#000000",
+            height: "100%",
+            objectFit: "cover",
+            opacity: 0.22,
+            pointerEvents: "none",
           }}
         />
       ) : null}
-      <iframe
-        src={embeddedGameUrl}
-        title="UltraRapid Game"
-        allow="fullscreen; gamepad; autoplay"
-        allowFullScreen
+      <div
+        aria-hidden="true"
         style={{
-          width: "100%",
-          height: "calc(100vh - 32px)",
-          minHeight: 640,
-          border: "1px solid #FFFFFF14",
-          borderRadius: 12,
-          background: "#000000",
+          position: "absolute",
+          inset: 0,
+          background: "rgba(5, 7, 10, 0.62)",
+          pointerEvents: "none",
         }}
       />
-
-      {/* <SongFlowDebugger title="Game Launch Debugger" /> */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          height: "100%",
+          padding: 16,
+          boxSizing: "border-box",
+          display: "flex",
+          alignItems: "stretch",
+          justifyContent: "center",
+        }}
+      >
+        <iframe
+          src={embeddedGameUrl}
+          title="UltraRapid Game"
+          allow="fullscreen; gamepad; autoplay"
+          allowFullScreen
+          style={{
+            width: "min(100%, 1440px)",
+            height: "100%",
+            minHeight: 0,
+            border: "1px solid #FFFFFF14",
+            borderRadius: 12,
+            background: "#000000",
+          }}
+        />
+      </div>
     </main>
   );
 }

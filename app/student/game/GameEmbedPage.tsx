@@ -334,23 +334,26 @@ export default function GameEmbedPage({
     <div
       className={styles.studentTypography}
       style={{
-        minHeight: "100vh",
+        height: "100dvh",
+        minHeight: "100dvh",
         background: pageBackgroundColor,
         color: textColor,
         display: "flex",
         flexDirection: "column",
         overflowX: "hidden",
+        overflowY: "hidden",
       }}
     >
       <HeaderBar pathname={pathname} topTabs={topTabs} />
 
       <main
-        style={{
-          width: "100%",
-          flex: 1,
-          background: pageBackgroundColor,
-          display: "flex",
-          flexDirection: "column",
+          style={{
+            width: "100%",
+            flex: 1,
+            minHeight: 0,
+            background: pageBackgroundColor,
+            display: "flex",
+            flexDirection: "column",
         }}
       >
         <section
@@ -360,8 +363,10 @@ export default function GameEmbedPage({
             padding: "16px 0",
             boxSizing: "border-box",
             flex: 1,
+            minHeight: 0,
             display: "flex",
             flexDirection: "column",
+            overflow: "hidden",
           }}
         >
           <iframe
@@ -372,8 +377,8 @@ export default function GameEmbedPage({
             allowFullScreen
             style={{
               width: "100%",
-              height: "calc(100vh - 105px)",
-              minHeight: 640,
+              height: "100%",
+              minHeight: 0,
               border: `1px solid ${subtleBorderColor}`,
               borderRadius: 12,
               background: "#000000",
