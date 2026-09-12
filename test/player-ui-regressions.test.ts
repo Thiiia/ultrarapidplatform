@@ -32,7 +32,18 @@ test("player-facing equation actions explain what happens to the lesson", () => 
   assert.match(builder, /Hide from my lesson/);
   assert.match(builder, /Show again:/);
   assert.match(builder, /Use this equation for every move in/);
+  assert.match(builder, /Assign to every move in this event/);
   assert.match(builder, /Every move in Event/);
   assert.doesNotMatch(builder, /Equation added to Event/);
   assert.doesNotMatch(builder, /Hide source from my version/);
+  assert.doesNotMatch(builder, /Use in this encounter/);
+});
+
+test("publish failures distinguish browser recovery from the Unity version", () => {
+  const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+
+  assert.doesNotMatch(builder, /Your changes are saved on this device/);
+  assert.match(builder, /Could not publish this lesson\. Unity is still using the last published version\./);
+  assert.match(builder, /A recovery copy stays in this browser\./);
+  assert.match(builder, /if \(!response\.ok\) \{[\s\S]*setWorkspaceStatus\("offline"\)/);
 });

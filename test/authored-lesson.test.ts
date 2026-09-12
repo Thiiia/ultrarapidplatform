@@ -95,7 +95,7 @@ test('authored v3 allows simultaneous spin and drag (legacy restriction must not
     ...authored,
     encounters: [
       { id: 'e1:spin:0', eventId: 'e1', type: 'spin', equationId: 'eq-a', startTick: 192, endTick: 384, spinTargets: [{ tokenIndex: 0 }] },
-      { id: 'e1:drag:0', eventId: 'e1', type: 'drag', equationId: 'eq-a', startTick: 192, endTick: 384, dragTargets: [{ tokenIndex: 1 }] },
+      { id: 'e1:drag:0', eventId: 'e1', type: 'drag', equationId: 'eq-a', startTick: 192, endTick: 384, dragTargets: [{ tokenIndex: 2 }] },
     ],
   };
   assert.doesNotThrow(() => parseAuthoredLessonDraft(overlap));
@@ -183,6 +183,21 @@ test('rejects target token indexes outside the referenced equation', () => {
     ...authored,
     encounters: [{ ...authored.encounters[0], hitBubbles: [{ tokenIndex: 99 }] }],
   }), /tokenIndex.*equation/i);
+});
+
+test('rejects targets aimed at non-playable operator tokens', () => {
+  assert.throws(() => parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [{
+      id: 'event-a:spin:0',
+      eventId: 'event-a',
+      type: 'spin',
+      equationId: 'eq-a',
+      startTick: 192,
+      endTick: 384,
+      spinTargets: [{ tokenIndex: 1 }],
+    }],
+  }), /non-playable operator/i);
 });
 
 test('rejects coerced stopAtSeconds strings and negative values', () => {

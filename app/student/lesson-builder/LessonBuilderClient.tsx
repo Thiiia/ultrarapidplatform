@@ -8937,7 +8937,7 @@ function LibraryPanel({
                 cursor: canAddEquation ? "pointer" : "not-allowed",
               }}
             >
-              Use in this encounter
+              Assign to every move in this event
             </button>
           </div>
         ) : null}
@@ -9695,7 +9695,13 @@ export default function LessonBuilderClient({
               setWorkspaceStatus("conflict");
               return;
             }
-            if (response.ok) { workspaceVersionRef.current = result?.version ?? workspaceVersionRef.current; setWorkspaceStatus("ready"); }
+            if (!response.ok) {
+              setWorkspaceStatus("offline");
+              setSaveStatus("Your private recovery copy is kept on this device, but it could not sync to your account yet.");
+              return;
+            }
+            workspaceVersionRef.current = result?.version ?? workspaceVersionRef.current;
+            setWorkspaceStatus("ready");
           })
           .catch(() => setWorkspaceStatus("offline"));
       } catch (error) {
@@ -11353,18 +11359,16 @@ export default function LessonBuilderClient({
 
       return { authorId: result.authorId, revision: result.revision };
     } catch (error) {
+      const reason = error instanceof Error ? error.message : "Unable to save lesson files";
+      const publishFailure = "Could not publish this lesson. Unity is still using the last published version.";
       appendSongFlowDebug("lesson-builder:save:error", "Lesson save failed.", {
-        message: error instanceof Error ? error.message : "Unable to save lesson files",
+        message: reason,
       });
-      setSaveStatus(
-        error instanceof Error ? error.message : "Unable to save lesson files",
-      );
+      setSaveStatus(`${publishFailure} ${reason}`);
       if (showNotice) {
         setSaveNotice({
           kind: "error",
-          message: guidedStarted
-            ? "Your changes are saved on this device. The template is still safe to play."
-            : error instanceof Error ? error.message : "Unable to save lesson files",
+          message: `${publishFailure} ${workspaceSource && guidedStarted ? "A recovery copy stays in this browser. " : ""}${reason}`,
         });
       }
       return false;

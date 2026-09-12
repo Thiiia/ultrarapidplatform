@@ -137,8 +137,8 @@ export function tokenizeAuthoredEquationState(state: string) {
   return tokens;
 }
 
-function equationTokenCount(state: string) {
-  return tokenizeAuthoredEquationState(state).length;
+function isPlayableAuthoredToken(token: string) {
+  return !/^[+\-=*/^()×÷−]$/.test(token);
 }
 
 export function parseAuthoredLessonDraft(
@@ -232,7 +232,8 @@ export function parseAuthoredLessonDraft(
     if (!encounter.equationId) {
       throw new Error(`Encounter '${encounter.id}' requires equationId`);
     }
-    const tokenCount = equation ? equationTokenCount(equation.state) : null;
+    const equationTokens = equation ? tokenizeAuthoredEquationState(equation.state) : null;
+    const tokenCount = equationTokens?.length ?? null;
     const targets = encounter.type === "hit"
       ? encounter.hitBubbles ?? []
       : encounter.type === "spin"
@@ -240,6 +241,9 @@ export function parseAuthoredLessonDraft(
         : encounter.dragTargets ?? [];
     if (tokenCount !== null && targets.some((target) => target.tokenIndex >= tokenCount)) {
       throw new Error(`Encounter '${encounter.id}' has a target tokenIndex outside its equation`);
+    }
+    if (equationTokens && targets.some((target) => !isPlayableAuthoredToken(equationTokens[target.tokenIndex]))) {
+      throw new Error(`Encounter '${encounter.id}' targets a non-playable operator token`);
     }
   }
   const hits = new Map(result.encounters.filter((encounter) => encounter.type === "hit").map((encounter) => [encounter.id, encounter]));

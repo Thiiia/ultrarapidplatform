@@ -3,6 +3,7 @@ import { z } from "zod";
 export const WORKSPACE_MAX_BYTES = 48_000;
 
 const SafeId = z.string().trim().min(1).max(160);
+const credentialLikeKeySuffix = /(?:url|token|credential|secret|signature|useragent|ipaddress)$/i;
 const EquationTokenSchema = z.object({
   id: SafeId,
   label: z.string().trim().min(1).max(80),
@@ -29,7 +30,7 @@ function containsCredentialLikeValue(value: unknown): boolean {
   if (typeof value === "string") return /https?:\/\/|x-amz-|token=|sig(nature)?=|access[_-]?token|secret/i.test(value);
   if (Array.isArray(value)) return value.some(containsCredentialLikeValue);
   if (value && typeof value === "object") {
-    return Object.entries(value).some(([key, nested]) => /url|token|credential|secret|signature|useragent|ipaddress/i.test(key) || containsCredentialLikeValue(nested));
+    return Object.entries(value).some(([key, nested]) => credentialLikeKeySuffix.test(key) || containsCredentialLikeValue(nested));
   }
   return false;
 }
