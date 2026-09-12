@@ -39,6 +39,8 @@ test("player-facing equation actions explain what happens to the lesson", () => 
   assert.match(builder, /Last action/);
   assert.match(builder, /Changes are only used in Unity after you publish\./);
   assert.match(builder, /Added your equation to this draft\./);
+  assert.match(builder, /Unity encounter\$\{authoredDraft\.encounters\.length === 1 \? "" : "s"\} across/);
+  assert.match(builder, /from this chart\./);
   assert.doesNotMatch(builder, /Equation added to Event/);
   assert.doesNotMatch(builder, /Hide source from my version/);
   assert.doesNotMatch(builder, /Use in this encounter/);

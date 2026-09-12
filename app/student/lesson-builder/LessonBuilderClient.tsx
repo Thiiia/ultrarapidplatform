@@ -10000,6 +10000,9 @@ export default function LessonBuilderClient({
       setActiveEventId(nextEvents[0]?.id ?? null);
       setMode(nextMode);
       setStoreSidecar(nextSidecar as StoreSidecarPayload);
+      setSaveStatus(
+        `Loaded ${authoredDraft.encounters.length} Unity encounter${authoredDraft.encounters.length === 1 ? "" : "s"} across ${nextEvents.length} event${nextEvents.length === 1 ? "" : "s"} from this chart.`,
+      );
       return;
     }
 
