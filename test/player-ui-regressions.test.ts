@@ -34,6 +34,8 @@ test("player-facing equation actions explain what happens to the lesson", () => 
   assert.match(builder, /Use this equation for every move in/);
   assert.match(builder, /Assign to every move in this event/);
   assert.match(builder, /Every move in Event/);
+  assert.match(builder, /Event \(timed group\)/);
+  assert.match(builder, /Each hit, spin, or drag becomes a separate Unity encounter when you publish\./);
   assert.doesNotMatch(builder, /Equation added to Event/);
   assert.doesNotMatch(builder, /Hide source from my version/);
   assert.doesNotMatch(builder, /Use in this encounter/);

@@ -276,7 +276,7 @@ test("editor -> v3 -> editor round-trip preserves identity, targets and queue or
       equation: equation("eq-1", ["2", "+", "3", "=", "5"]),
       instances: {
         hit: [instance("inst-hit-a", { tick: 2, hitBubbles: [{ tokenIndex: 0, positions: ["topLeft"], pads: ["topLeft"] }] })],
-        drag: [instance("inst-drag-a", { tick: 2, endTick: 4, dragTargets: [{ tokenIndex: 1, sourceHitId: "inst-hit-a" }] })],
+        drag: [instance("inst-drag-a", { tick: 2, endTick: 4, dragTargets: [{ tokenIndex: 2, sourceHitId: "inst-hit-a" }] })],
       },
     }),
     makeEvent("event-2", 6, {}, { equation: equation("eq-2", ["7", "=", "X"]) }),
@@ -309,7 +309,7 @@ test("editor -> v3 -> editor round-trip preserves identity, targets and queue or
     { tokenIndex: 0, positions: ["topLeft"], pads: ["topLeft"] },
   ]);
   assert.deepEqual(hydrated.events[0].mechanicInstances.drag[0].dragTargets, [
-    { tokenIndex: 1, sourceHitId: "inst-hit-a" },
+    { tokenIndex: 2, sourceHitId: "inst-hit-a" },
   ]);
 
   // Unreferenced equation kept in the queue.
@@ -344,7 +344,7 @@ test("round-trip preserves an explicit equation queue including an orphan equati
     }),
     makeEvent("event-2", 6.5, { drag: 1 }, {
       equation: eq2,
-      instances: { drag: [instance("inst-drag-1", { tick: 6.5, endTick: 9, dragTargets: [{ tokenIndex: 1, sourceHitId: "inst-hit-1" }] })] },
+      instances: { drag: [instance("inst-drag-1", { tick: 6.5, endTick: 9, dragTargets: [{ tokenIndex: 2, sourceHitId: "inst-hit-1" }] })] },
     }),
   ];
 

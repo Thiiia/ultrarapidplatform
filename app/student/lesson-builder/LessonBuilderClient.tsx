@@ -9084,12 +9084,15 @@ function InspectorPanel({
       </div>
 
       {renderInspectorRow(
-        "Selected Event",
+        "Event (timed group)",
         <>
           <div>{selectedEventSlot ? `Event ${eventIndex + 1}` : "No event selected"}</div>
           <div style={{ color: "#CFFF04", marginTop: 4 }}>{assignedEquationText}</div>
           <div style={{ marginTop: 4, color: "#FFFFFF99" }}>
             {`Playhead ${formatTimelineTime(currentSongSeconds, isAdvancedMode)}`}
+          </div>
+          <div style={{ marginTop: 6, color: "#FFFFFF99", fontSize: 10, fontWeight: 700 }}>
+            Each hit, spin, or drag becomes a separate Unity encounter when you publish.
           </div>
         </>,
       )}
