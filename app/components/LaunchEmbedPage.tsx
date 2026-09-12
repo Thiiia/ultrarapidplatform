@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 // import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { resolveLaunchParams } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
+import { webglLaunchFrameStyle, webglViewportHostStyle } from "@/lib/webgl-embed-layout";
 
 const GAME_URL =
   process.env.NEXT_PUBLIC_GAME_URL ?? "https://ultrarapidtest.netlify.app/";
@@ -19,10 +20,9 @@ export default function LaunchEmbedPage({ videoUrl }: { videoUrl: string | null 
   return (
     <main
       style={{
+        ...webglViewportHostStyle,
         position: "relative",
         width: "100%",
-        minHeight: "100vh",
-        overflowX: "hidden",
         background: "#05070A",
         boxSizing: "border-box",
       }}
@@ -61,7 +61,8 @@ export default function LaunchEmbedPage({ videoUrl }: { videoUrl: string | null 
           position: "relative",
           zIndex: 1,
           width: "100%",
-          minHeight: "100vh",
+          height: "100%",
+          minHeight: 0,
           padding: 16,
           boxSizing: "border-box",
           display: "flex",
@@ -75,9 +76,7 @@ export default function LaunchEmbedPage({ videoUrl }: { videoUrl: string | null 
           allow="fullscreen; gamepad; autoplay"
           allowFullScreen
           style={{
-            width: "min(100%, 1440px)",
-            height: "calc(100vh - 32px)",
-            minHeight: 640,
+            ...webglLaunchFrameStyle,
             border: "1px solid #FFFFFF14",
             borderRadius: 12,
             background: "#000000",

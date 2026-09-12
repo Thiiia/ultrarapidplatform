@@ -8,6 +8,7 @@ import type { FC, SVGProps } from "react";
 import { resolveLaunchParams } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 import { createBridgeContext, getOrCreateInstallationId, needsCalibration, validateBridgeMessage, type BridgeContext } from "@/lib/platform-player-bridge";
+import { webglFlexFrameStyle, webglViewportHostStyle } from "@/lib/webgl-embed-layout";
 import styles from "../student.module.css";
 
 /* Header Icon imports */
@@ -334,12 +335,11 @@ export default function GameEmbedPage({
     <div
       className={styles.studentTypography}
       style={{
-        minHeight: "100vh",
+        ...webglViewportHostStyle,
         background: pageBackgroundColor,
         color: textColor,
         display: "flex",
         flexDirection: "column",
-        overflowX: "hidden",
       }}
     >
       <HeaderBar pathname={pathname} topTabs={topTabs} />
@@ -374,9 +374,7 @@ export default function GameEmbedPage({
             allow="fullscreen; gamepad; autoplay"
             allowFullScreen
             style={{
-              width: "100%",
-              height: "100%",
-              minHeight: 0,
+              ...webglFlexFrameStyle,
               border: `1px solid ${subtleBorderColor}`,
               borderRadius: 12,
               background: "#000000",
