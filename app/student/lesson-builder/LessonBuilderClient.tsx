@@ -10530,8 +10530,8 @@ export default function LessonBuilderClient({
     const activeEventIndex = timelineEvents.findIndex((eventSlot) => eventSlot.id === activeEventId);
     setSaveStatus(
       activeEventIndex >= 0
-        ? `Saved your equation. Every move in Event ${activeEventIndex + 1} will use it.`
-        : "Saved your equation. Every move in the selected event will use it.",
+        ? `Added your equation to this draft. Every move in Event ${activeEventIndex + 1} will use it.`
+        : "Added your equation to this draft. Every move in the selected event will use it.",
     );
   }
 
@@ -10933,8 +10933,8 @@ export default function LessonBuilderClient({
       : -1;
     setSaveStatus(
       activeEventIndex >= 0
-        ? `Saved your equation. Every move in Event ${activeEventIndex + 1} will use it.`
-        : "Saved your equation. Every move in the selected event will use it.",
+        ? `Added your equation to this draft. Every move in Event ${activeEventIndex + 1} will use it.`
+        : "Added your equation to this draft. Every move in the selected event will use it.",
     );
   }
 
@@ -13372,6 +13372,39 @@ export default function LessonBuilderClient({
               <button type="button" onClick={handleReloadLatestWorkspace} style={{ border: 0, borderRadius: 9, background: "#CFFF04", color: "#071222", padding: "9px 12px", fontWeight: 900, cursor: "pointer" }}>Reload latest</button>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {saveStatus ? (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            left: 18,
+            top: "calc(5vh + 12px)",
+            zIndex: 1001,
+            width: "min(360px, calc(100vw - 36px))",
+            padding: "9px 11px",
+            borderRadius: 10,
+            border: `1px solid ${hasUnsavedChanges ? "#CFFF04" : "#7A8FA8"}`,
+            background: "#0A1222F5",
+            color: "#FFFFFF",
+            fontSize: 12,
+            fontWeight: 700,
+            lineHeight: 1.35,
+            boxShadow: "0 12px 24px rgba(0,0,0,0.35)",
+          }}
+        >
+          <div style={{ color: hasUnsavedChanges ? "#CFFF04" : "#B8C5D6", fontSize: 10, fontWeight: 900, letterSpacing: 0.35, textTransform: "uppercase" }}>
+            Last action
+          </div>
+          <div style={{ marginTop: 3 }}>{saveStatus}</div>
+          {hasUnsavedChanges ? (
+            <div style={{ marginTop: 5, color: "#FFFFFFAA", fontSize: 11 }}>
+              Changes are only used in Unity after you publish.
+            </div>
+          ) : null}
         </div>
       ) : null}
 
