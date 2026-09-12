@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  isAuthoredEquationOperator,
   parseAuthoredLessonDraft,
   stampAuthoredLessonIdentity,
 } from '../lib/authored-lesson';
@@ -22,6 +23,14 @@ const authored = {
     hitBubbles: [{ tokenIndex: 0, positions: ['left'], pads: ['left'] }],
   }],
 };
+
+test('operator classification matches every token Unity rejects as non-playable', () => {
+  for (const token of ['+', '-', '=', '*', '/', '^', '(', ')', '×', '÷', '−']) {
+    assert.equal(isAuthoredEquationOperator(token), true, `${token} should be an operator`);
+  }
+  assert.equal(isAuthoredEquationOperator('x'), false);
+  assert.equal(isAuthoredEquationOperator('12'), false);
+});
 
 test('authored payload is stamped with the selected identity and revision', () => {
   const draft = parseAuthoredLessonDraft(authored);

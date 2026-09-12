@@ -137,8 +137,12 @@ export function tokenizeAuthoredEquationState(state: string) {
   return tokens;
 }
 
+export function isAuthoredEquationOperator(token: string) {
+  return /^[+\-=*/^()×÷−]$/.test(token);
+}
+
 function isPlayableAuthoredToken(token: string) {
-  return !/^[+\-=*/^()×÷−]$/.test(token);
+  return !isAuthoredEquationOperator(token);
 }
 
 export function parseAuthoredLessonDraft(

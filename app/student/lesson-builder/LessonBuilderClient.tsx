@@ -15,7 +15,7 @@ import {
   type AuthoredLessonDraft,
   type AuthoredTimelineEvent,
 } from "@/lib/authored-lesson-serialization";
-import { parseAuthoredLessonDraft } from "@/lib/authored-lesson";
+import { isAuthoredEquationOperator, parseAuthoredLessonDraft } from "@/lib/authored-lesson";
 import { isLegacyEncounterSidecar, validateLegacyEncounters, persistLegacyEncounters, type LegacyEncounter, type LegacyEncounterSidecar } from "@/lib/legacy-encounters";
 import { validateLessonContent } from "@/lib/lesson-content";
 import { extractRevisionFromStoragePath } from "@/lib/song-launch-identity";
@@ -3046,13 +3046,7 @@ function EquationBuilderArea({
 }
 
 function isEquationOperator(label: string) {
-  return (
-    label === "+" ||
-    label === "-" ||
-    label === "×" ||
-    label === "÷" ||
-    label === "="
-  );
+  return isAuthoredEquationOperator(label);
 }
 
 function getHitBubblePairPads(pair: HitBubblePair): HitBubblePad[] {
