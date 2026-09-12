@@ -16,6 +16,7 @@ import {
   type AuthoredTimelineEvent,
 } from "@/lib/authored-lesson-serialization";
 import { isAuthoredEquationOperator, parseAuthoredLessonDraft } from "@/lib/authored-lesson";
+import { repairLegacyMigratedAuthoredLesson } from "@/lib/legacy-authored-migration";
 import { isLegacyEncounterSidecar, validateLegacyEncounters, persistLegacyEncounters, type LegacyEncounter, type LegacyEncounterSidecar } from "@/lib/legacy-encounters";
 import { validateLessonContent } from "@/lib/lesson-content";
 import { extractRevisionFromStoragePath } from "@/lib/song-launch-identity";
@@ -511,17 +512,18 @@ function normalizeSidecar(value: unknown): SidecarPayload {
     };
   }
 
+  const authoredSource = repairLegacyMigratedAuthoredLesson(value);
   if (
-    value.version === 3 &&
-    value.mode === "authored" &&
-    Array.isArray(value.equations) &&
-    Array.isArray(value.encounters)
+    authoredSource.version === 3 &&
+    authoredSource.mode === "authored" &&
+    Array.isArray(authoredSource.equations) &&
+    Array.isArray(authoredSource.encounters)
   ) {
     const events: SidecarEvent[] = [];
     const slotByEventId = new Map<string, SidecarEventSlotEvent>();
     const firstTickByEquationId = new Map<string, number>();
 
-    value.encounters.forEach((rawEncounter) => {
+    authoredSource.encounters.forEach((rawEncounter) => {
       if (!isObject(rawEncounter)) return;
       const mechanic = normalizeMechanic(rawEncounter.type);
       if (!mechanic) return;
@@ -565,7 +567,7 @@ function normalizeSidecar(value: unknown): SidecarPayload {
       });
     });
 
-    value.equations.forEach((rawEquation) => {
+    authoredSource.equations.forEach((rawEquation) => {
       if (!isObject(rawEquation)) return;
       const equationId = typeof rawEquation.id === "string" ? rawEquation.id : "";
       const state = typeof rawEquation.state === "string" ? rawEquation.state : "";
@@ -577,9 +579,9 @@ function normalizeSidecar(value: unknown): SidecarPayload {
 
     return {
       version: 1,
-      authoredSource: parseAuthoredLessonDraft(value),
-      ...(typeof value.stopAtSeconds === "number"
-        ? { stopAtSeconds: value.stopAtSeconds }
+      authoredSource: parseAuthoredLessonDraft(authoredSource),
+      ...(typeof authoredSource.stopAtSeconds === "number"
+        ? { stopAtSeconds: authoredSource.stopAtSeconds }
         : {}),
       events: sortEvents(events),
     };

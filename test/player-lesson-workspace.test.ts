@@ -22,3 +22,22 @@ test("writes and deletes a valid revision-scoped draft", () => {
   const s = storage(); const draft = { version: 1 as const, source, timelineEvents: [{ id: "event-1" }], equationEdits: [], updatedAt: Date.now() };
   writePlayerLessonWorkspaceDraft(s, draft); assert.deepEqual(readPlayerLessonWorkspaceDraft(s, source)?.timelineEvents, draft.timelineEvents); deletePlayerLessonWorkspaceDraft(s, source); assert.equal(readPlayerLessonWorkspaceDraft(s, source), null);
 });
+
+test("keeps gameplay token indexes in an offline recovery draft", () => {
+  const s = storage();
+  const draft = {
+    version: 1 as const,
+    source,
+    timelineEvents: [{
+      id: "event-1",
+      mechanicInstances: {
+        hit: [{ id: "event-1:hit:0", hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"] }] }],
+      },
+    }],
+    equationEdits: [],
+    updatedAt: Date.now(),
+  };
+
+  assert.doesNotThrow(() => writePlayerLessonWorkspaceDraft(s, draft));
+  assert.deepEqual(readPlayerLessonWorkspaceDraft(s, source)?.timelineEvents, draft.timelineEvents);
+});

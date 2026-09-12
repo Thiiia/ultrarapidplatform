@@ -3,7 +3,7 @@ import {
   stampAuthoredLessonIdentity,
 } from '@/lib/authored-lesson';
 import { isLegacyEncounterSidecar } from '@/lib/legacy-encounters';
-import { migrateLegacyEncounterSidecar } from '@/lib/legacy-authored-migration';
+import { migrateLegacyEncounterSidecar, repairLegacyMigratedAuthoredLesson } from '@/lib/legacy-authored-migration';
 
 export type AuthoredLessonPublication = {
   content: string;
@@ -41,7 +41,7 @@ export function prepareAuthoredLessonForPublication({
       toTickAfterSeconds: legacyToTickAfterSeconds,
     });
   } else {
-    draft = parseAuthoredLessonDraft(raw);
+    draft = parseAuthoredLessonDraft(repairLegacyMigratedAuthoredLesson(raw));
   }
   const published = stampAuthoredLessonIdentity(draft, identity);
   const targets = published.encounters.reduce((total, encounter) => {

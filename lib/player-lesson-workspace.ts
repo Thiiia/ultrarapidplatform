@@ -22,6 +22,8 @@ export type PlayerLessonWorkspaceDraft = {
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
+const credentialLikeKeySuffix = /(?:url|token|credential|secret|signature|useragent|ipaddress)$/i;
+
 function assertSource(source: LessonSourceIdentity) {
   for (const value of Object.values(source)) {
     if (!value || /https?:\/\//i.test(value) || /x-amz-|token=|sig(nature)?=/i.test(value)) {
@@ -37,7 +39,7 @@ function containsCredentialLikeValue(value: unknown): boolean {
   if (Array.isArray(value)) return value.some(containsCredentialLikeValue);
   if (value && typeof value === "object") {
     return Object.entries(value).some(([key, nested]) =>
-      /url|token|credential|secret|signature/i.test(key) || containsCredentialLikeValue(nested),
+      credentialLikeKeySuffix.test(key) || containsCredentialLikeValue(nested),
     );
   }
   return false;

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 import { parseAuthoredLessonDraft } from "../lib/authored-lesson";
+import { repairLegacyMigratedAuthoredLesson } from "../lib/legacy-authored-migration";
 import { isLegacyEncounterSidecar, validateLegacyEncounters } from "../lib/legacy-encounters";
 
 // Execute the editor's actual pure normalizer without booting Next/React.
@@ -12,7 +13,7 @@ const ast = ts.createSourceFile("editor.tsx", source, ts.ScriptTarget.Latest, tr
 const names = new Set(["isObject", "normalizeTick", "normalizeMechanic", "normalizeTokenIndex", "normalizeHitBubblePad", "normalizeHitBubblePlacements", "normalizeTokenTargets", "normalizeSidecar", "sortEvents", "mergeTimelineSidecarSources"]);
 const functions = ast.statements.filter(node => ts.isFunctionDeclaration(node) && node.name && names.has(node.name.text));
 const code = ts.transpileModule(functions.map(node => node.getText(ast)).join("\n"), {compilerOptions: {target: ts.ScriptTarget.ES2022}}).outputText;
-const context = vm.createContext({emptySidecar: {version: 1, events: []}, parseAuthoredLessonDraft, isLegacyEncounterSidecar, validateLegacyEncounters,
+const context = vm.createContext({emptySidecar: {version: 1, events: []}, parseAuthoredLessonDraft, repairLegacyMigratedAuthoredLesson, isLegacyEncounterSidecar, validateLegacyEncounters,
   sidecarFromChartFile: () => { throw new Error("Authoritative sidecars must not be replaced with chart-derived events"); },
 });
 vm.runInContext(code, context);
@@ -33,6 +34,12 @@ test("authored v3 survives normalization with its original IDs and orphan equati
   const raw = {version: 3, mode: "authored", songAssetId: "song", activityKey: "early-algebra", equations: [{id: "orphan", state: "x+1=2"}], encounters: []};
   assert.deepEqual(normalize(raw).authoredSource, parseAuthoredLessonDraft(raw));
   assert.deepEqual(normalize(normalize(raw)).authoredSource, parseAuthoredLessonDraft(raw));
+});
+
+test("editor normalizer rehydrates historical legacy-migrated operator targets", () => {
+  const raw = {version: 3, mode: "authored", songAssetId: "song", activityKey: "early-algebra", equations: [{id: "eq", state: "6x+5=35"}], encounters: [{id: "legacy-0-hit", eventId: "legacy-0", type: "hit", equationId: "eq", startTick: 0, endTick: 0, hitBubbles: [{tokenIndex: 1, pads: ["topLeft"], positions: ["topLeft"]}]}]};
+  const normalized = normalize(raw);
+  assert.equal(normalized.authoredSource.encounters[0].hitBubbles[0].tokenIndex, 2);
 });
 
 test("empty saved sidecar stays empty instead of resurrecting deleted chart events", () => {

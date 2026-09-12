@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseAuthoredLessonDraft } from "../lib/authored-lesson";
-import { migrateLegacyEncounterSidecar } from "../lib/legacy-authored-migration";
+import { migrateLegacyEncounterSidecar, repairLegacyMigratedAuthoredLesson } from "../lib/legacy-authored-migration";
 
 test("migrates known legacy catalogue encounters into a playable v3 authored lesson", () => {
   const migrated = migrateLegacyEncounterSidecar({
@@ -39,4 +39,28 @@ test("rejects a legacy equation that is absent from the canonical migration cata
     identity: { songAssetId: "waves", activityKey: "early-algebra" },
     toTickAfterSeconds: (tick, seconds) => tick + Math.round(seconds * 192),
   }), /no canonical equation state/i);
+});
+
+test("repairs historical legacy-migrated targets that point at operators", () => {
+  const historical = {
+    version: 3,
+    mode: "authored",
+    songAssetId: "waves",
+    activityKey: "early-algebra",
+    equations: [{ id: "Year7_011_mixedmultistep", state: "6x+5=35" }],
+    encounters: [{
+      id: "legacy-0-hit",
+      eventId: "legacy-0",
+      type: "hit",
+      equationId: "Year7_011_mixedmultistep",
+      startTick: 960,
+      endTick: 960,
+      hitBubbles: [{ tokenIndex: 1, positions: ["topLeft"], pads: ["topLeft"] }],
+    }],
+  };
+
+  assert.throws(() => parseAuthoredLessonDraft(historical), /non-playable operator/i);
+  const repaired = repairLegacyMigratedAuthoredLesson(historical);
+  assert.doesNotThrow(() => parseAuthoredLessonDraft(repaired));
+  assert.equal((repaired.encounters[0].hitBubbles?.[0] as { tokenIndex: number }).tokenIndex, 2);
 });
