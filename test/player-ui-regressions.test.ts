@@ -24,6 +24,8 @@ test("guided editing waits until the player chooses an editing action", () => {
   assert.match(builder, /setTutorialStep\(isDemoMode \? "welcome" : null\)/);
   assert.match(guidedStart, /Play the lesson as-is/);
   assert.match(guidedStart, /Make an equation/);
+  assert.match(guidedStart, /An event is a timed moment in the song\. Each part inside it is an encounter Unity plays\./);
+  assert.match(guidedStart, /After these authored encounters, Unity can continue with its built-in equation bank if the run needs more questions\./);
 });
 
 test("player-facing equation actions explain what happens to the lesson", () => {
