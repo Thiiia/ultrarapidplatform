@@ -49,6 +49,7 @@ test("malformed counterparts are rejected explicitly", () => {
     ["duplicate encounter id", { ...base, encounters: [...base.encounters, base.encounters[0]] }, /duplicate authored encounter id/i],
     ["missing equation reference", { ...base, encounters: [{ ...base.encounters[0], equationId: "eq-missing" }] }, /references missing equation/i],
     ["invalid pad", { ...base, encounters: [{ ...base.encounters[0], hitBubbles: [{ tokenIndex: 0, pads: ["center"] }] }] }, /one of/i],
+    ["operator target", { ...base, encounters: [{ ...base.encounters[3], dragTargets: [{ tokenIndex: 1, sourceHitId: "inst-hit-1" }] }] }, /non-playable operator/i],
     ["start after end", { ...base, encounters: [{ ...base.encounters[2], startTick: 99999 }] }, /startTick must not exceed endTick/i],
   ];
 
