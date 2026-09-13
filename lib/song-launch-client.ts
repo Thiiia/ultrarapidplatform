@@ -1,12 +1,20 @@
 import { createSongLaunchSearchParams } from "./platform-launch";
-import type { LessonReadiness, RhythmDifficultyKey, SongLaunchReceipt } from "./song-launch-package";
+import type { LessonReadiness, PlayableLessonSource, RhythmDifficultyKey, SongLaunchReceipt } from "./song-launch-package";
 
 export async function requestFreshSongLaunchParams(input: { songAssetId: string; activityKey: string; authorId?: string | null; authorName?: string | null; revision?: string | null; allowBlankPackage?: boolean; rhythmDifficultyKey?: RhythmDifficultyKey; learningDifficultyKey?: string | null }) {
   const fresh = await requestFreshSongLaunchPackage(input);
+  if (!fresh.readiness.canLaunch || fresh.source === "editor-scaffold") {
+    throw new Error(fresh.readiness.message);
+  }
   return createSongLaunchSearchParams({ songAssetId: fresh.songAssetId, activityKey: fresh.activityKey,
     chartUrl: fresh.chart.signedUrl, sidecarUrl: fresh.sidecar.signedUrl, audioUrl: fresh.audio.signedUrl,
     authorId: fresh.authorId, revision: fresh.revision, receipt: fresh.receipt,
-    rhythmDifficultyKey: input.rhythmDifficultyKey });
+    rhythmDifficultyKey: fresh.rhythmDifficultyKey ?? input.rhythmDifficultyKey,
+    learningDifficultyKey: fresh.learningDifficultyKey ?? input.learningDifficultyKey,
+    source: fresh.source as PlayableLessonSource,
+    templateProvenance: fresh.templateProvenance,
+    launchAttemptId: fresh.launchAttemptId,
+  });
 }
 
 export type FreshSongLaunchPackage = {
@@ -15,7 +23,7 @@ export type FreshSongLaunchPackage = {
   activityKey: string;
   authorId?: string;
   revision?: string;
-  source: "authored" | "starter-template";
+  source: "authored" | "starter-template" | "editor-scaffold";
   templateProvenance?: { templateId: string; label: string; origin: "verified-starter-template"; sourceRevision?: string };
   runtimeCapabilities: string[];
   rhythmDifficultyKey?: RhythmDifficultyKey;

@@ -65,6 +65,8 @@ type SelectedSongPayload = {
   title?: string;
   artist?: string | null;
   authorName?: string | null;
+  rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
+  rhythm_difficulty_key?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
   equationSlots?: unknown;
   equation_slots?: unknown;
   equationSlotTicks?: unknown;
@@ -4717,6 +4719,7 @@ export default function LessonBuilderClient({
     songAssetId: string;
     activityKey: SongActivityKey;
     authorName?: string | null;
+    rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
     chartUrl: string;
     sidecarUrl: string | null;
     audioUrl: string;
@@ -4902,6 +4905,7 @@ export default function LessonBuilderClient({
           inferSongActivityKeyFromChartPath(song.chart.path) ??
           "number-bonds",
         authorName: song.authorName ?? null,
+        rhythmDifficultyKey: song.rhythmDifficultyKey ?? song.rhythm_difficulty_key,
         chartUrl: song.chart.signedUrl,
         sidecarUrl: song.sidecar?.signedUrl ?? null,
         audioUrl: song.song.signedUrl,
@@ -5216,7 +5220,7 @@ export default function LessonBuilderClient({
 
     if (!(await handleSaveToSupabase())) return;
     try {
-    const launchParams = await requestFreshSongLaunchParams({ ...selectedSongLaunch, rhythmDifficultyKey: "ExpertSingle" });
+    const launchParams = await requestFreshSongLaunchParams({ ...selectedSongLaunch, rhythmDifficultyKey: selectedSongLaunch.rhythmDifficultyKey });
 
     persistLaunchParams(launchParams);
     router.push(navBasePath + "/game");

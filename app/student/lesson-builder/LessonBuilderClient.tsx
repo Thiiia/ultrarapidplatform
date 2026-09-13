@@ -11104,7 +11104,11 @@ export default function LessonBuilderClient({
       authorId: freshSongLaunch.authorId,
       revision: freshSongLaunch.revision,
       receipt: freshSongLaunch.receipt,
-      rhythmDifficultyKey: selectedSongLaunch.rhythmDifficultyKey,
+      rhythmDifficultyKey: freshSongLaunch.rhythmDifficultyKey ?? selectedSongLaunch.rhythmDifficultyKey,
+      learningDifficultyKey: freshSongLaunch.learningDifficultyKey,
+      source: freshSongLaunch.source === "editor-scaffold" ? undefined : freshSongLaunch.source,
+      templateProvenance: freshSongLaunch.templateProvenance,
+      launchAttemptId: freshSongLaunch.launchAttemptId,
     });
       const launchRoute = navBasePath.startsWith("/demo")
       ? "/demo/launch"

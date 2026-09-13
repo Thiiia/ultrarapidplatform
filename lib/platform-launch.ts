@@ -8,6 +8,13 @@ const platformLaunchParamKeys = [
   "songAssetId",
   "activityKey",
   "rhythmDifficultyKey",
+  "learningDifficultyKey",
+  "source",
+  "templateId",
+  "templateLabel",
+  "templateOrigin",
+  "templateSourceRevision",
+  "launchAttemptId",
   "trackId",
   "song",
   "manifestUrl",
@@ -60,6 +67,10 @@ type SongLaunchInput = {
     counts?: { encounters: number; equations: number; targets: number };
   } | null;
   rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
+  learningDifficultyKey?: string | null;
+  source?: "authored" | "starter-template";
+  templateProvenance?: { templateId: string; label: string; origin: "verified-starter-template"; sourceRevision?: string } | null;
+  launchAttemptId?: string | null;
 };
 
 export function createSongLaunchSearchParams({
@@ -72,6 +83,10 @@ export function createSongLaunchSearchParams({
   revision,
   receipt,
   rhythmDifficultyKey,
+  learningDifficultyKey,
+  source,
+  templateProvenance,
+  launchAttemptId,
 }: SongLaunchInput) {
   const params = new URLSearchParams({
     launch: "PlayNow",
@@ -88,6 +103,16 @@ export function createSongLaunchSearchParams({
   if (rhythmDifficultyKey) {
     params.set("rhythmDifficultyKey", rhythmDifficultyKey);
   }
+
+  if (learningDifficultyKey) params.set("learningDifficultyKey", learningDifficultyKey);
+  if (source) params.set("source", source);
+  if (templateProvenance) {
+    params.set("templateId", templateProvenance.templateId);
+    params.set("templateLabel", templateProvenance.label);
+    params.set("templateOrigin", templateProvenance.origin);
+    if (templateProvenance.sourceRevision) params.set("templateSourceRevision", templateProvenance.sourceRevision);
+  }
+  if (launchAttemptId) params.set("launchAttemptId", launchAttemptId);
 
   if (authorId) {
     params.set("authorId", authorId);

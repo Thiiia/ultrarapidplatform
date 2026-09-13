@@ -32,13 +32,30 @@ type BlankSongChartPackage = {
   sidecar: SignedStorageRef;
 };
 
+type VerifiedStarterTemplate = {
+  songAssetId: string;
+  activityKey: string;
+  authorId: string;
+  revision: string;
+  chartBucket: string;
+  chartPath: string;
+  sidecarBucket: string;
+  sidecarPath: string;
+  audioBucket: string;
+  audioPath: string;
+  counts: SongChartTargets["counts"];
+  hashes: NonNullable<SongChartTargets["hashes"]>;
+  templateProvenance: TemplateProvenance;
+};
+
 export type RhythmDifficultyKey = "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
-export type LessonSource = "authored" | "starter-template";
+export type LessonSource = "authored" | "starter-template" | "editor-scaffold";
+export type PlayableLessonSource = Exclude<LessonSource, "editor-scaffold">;
 export type TemplateProvenance = {
   templateId: string;
   label: string;
   origin: "verified-starter-template";
-  sourceRevision?: string;
+  sourceRevision: string;
 };
 export type LessonReadinessIssue = {
   code: string;
@@ -71,7 +88,7 @@ export type LessonReadiness =
   }
   | {
     state: "repairable" | "blocked";
-    source: "authored" | "starter-template";
+    source: LessonSource;
     canLaunch: false;
     message: string;
     issues?: LessonReadinessIssue[];
@@ -109,7 +126,7 @@ export type SongLaunchReceipt = {
   activityKey: string;
   authorId: string;
   revision?: string;
-  source: LessonSource;
+  source: PlayableLessonSource;
   templateProvenance?: TemplateProvenance;
   runtimeCapabilities: string[];
   rhythmDifficultyKey?: RhythmDifficultyKey;
@@ -159,6 +176,7 @@ export async function resolveFreshSongLaunchPackage({
   loadSongAsset,
   loadSongChart,
   loadBlankSongChart,
+  loadVerifiedStarterTemplate,
   createSignedUrl,
 }: {
   songAssetId: string;
@@ -182,6 +200,10 @@ export async function resolveFreshSongLaunchPackage({
     songAssetId: string,
     activityKey: string,
   ) => Promise<BlankSongChartPackage | null>;
+  loadVerifiedStarterTemplate?: (
+    songAssetId: string,
+    activityKey: string,
+  ) => Promise<VerifiedStarterTemplate | null>;
   createSignedUrl: (bucket: string, path: string) => Promise<string>;
 }) {
   const canonicalSongAssetId = readRequiredString(songAssetId, "songAssetId").toLowerCase();
@@ -204,8 +226,77 @@ export async function resolveFreshSongLaunchPackage({
   const audioBucket = readRequiredString(songAsset.songBucket, "songBucket");
   const audioPath = readRequiredString(songAsset.songPath, "songPath");
 
-  const buildStarterTemplatePackage = async (
+  const buildVerifiedStarterTemplatePackage = async (
+    template: VerifiedStarterTemplate,
     message = "A verified starter template is loaded because this song has no published lesson yet.",
+  ): Promise<PlayableLessonPackage> => {
+    if (template.songAssetId !== canonicalSongAssetId || template.activityKey !== requestedActivityKey) {
+      throw new Error("Verified starter template identity does not match the requested song activity");
+    }
+    const templateAuthorId = readRequiredString(template.authorId, "starter template author id");
+    const templateRevision = readRequiredString(template.revision, "starter template revision");
+    const counts = requireCounts(template.counts);
+    const hashes = template.hashes;
+    if (!hashes || !hashes.chartSha256 || !hashes.sidecarSha256 || !hashes.audioSha256) {
+      throw new Error("Verified starter template is missing immutable artifact hashes");
+    }
+    const provenance = template.templateProvenance;
+    if (!provenance || !readRequiredString(provenance.templateId, "starter template id") ||
+        !readRequiredString(provenance.label, "starter template label") ||
+        !readRequiredString(provenance.sourceRevision, "starter template source revision")) {
+      throw new Error("Verified starter template is missing provenance");
+    }
+    const [chartUrl, sidecarUrl, audioUrl] = await Promise.all([
+      createSignedUrl(template.chartBucket, template.chartPath),
+      createSignedUrl(template.sidecarBucket, template.sidecarPath),
+      createSignedUrl(template.audioBucket, template.audioPath),
+    ]);
+    const receipt: SongLaunchReceipt = {
+      receiptVersion: 1,
+      contractVersion: 1,
+      songAssetId: canonicalSongAssetId,
+      activityKey: requestedActivityKey,
+      authorId: templateAuthorId,
+      revision: templateRevision,
+      source: "starter-template",
+      templateProvenance: provenance,
+      runtimeCapabilities: ["launch-receipt-v1", "starter-template"],
+      ...(rhythmDifficultyKey ? { rhythmDifficultyKey } : {}),
+      ...(learningDifficultyKey ? { learningDifficultyKey } : {}),
+      ...(launchAttemptId ? { launchAttemptId } : {}),
+      chart: { bucket: template.chartBucket, path: template.chartPath },
+      sidecar: { bucket: template.sidecarBucket, path: template.sidecarPath },
+      audio: { bucket: template.audioBucket, path: template.audioPath },
+      counts,
+      hashes,
+    };
+    return {
+      contractVersion: 1,
+      songAssetId: canonicalSongAssetId,
+      activityKey: requestedActivityKey,
+      authorId: templateAuthorId,
+      revision: templateRevision,
+      source: "starter-template",
+      templateProvenance: provenance,
+      runtimeCapabilities: ["launch-receipt-v1", "starter-template"],
+      ...(rhythmDifficultyKey ? { rhythmDifficultyKey } : {}),
+      ...(learningDifficultyKey ? { learningDifficultyKey } : {}),
+      ...(launchAttemptId ? { launchAttemptId } : {}),
+      receipt,
+      readiness: {
+        state: "template-fallback",
+        source: "starter-template",
+        canLaunch: true,
+        message,
+      },
+      chart: { bucket: template.chartBucket, path: template.chartPath, signedUrl: chartUrl },
+      sidecar: { bucket: template.sidecarBucket, path: template.sidecarPath, signedUrl: sidecarUrl },
+      audio: { bucket: template.audioBucket, path: template.audioPath, signedUrl: audioUrl },
+    };
+  };
+
+  const buildEditorScaffoldPackage = async (
+    message = "No authored lesson or verified starter template is available. The blank chart is available for editing, but this scaffold cannot be launched as gameplay.",
   ): Promise<PlayableLessonPackage> => {
     const blankTargets =
       (await loadBlankSongChart?.(canonicalSongAssetId, requestedActivityKey)) ?? null;
@@ -220,20 +311,15 @@ export async function resolveFreshSongLaunchPackage({
       songAssetId: canonicalSongAssetId,
       activityKey: requestedActivityKey,
       ...(authorId ? { authorId } : {}),
-      source: "starter-template",
-      templateProvenance: {
-        templateId: `${requestedActivityKey}:verified-starter-template`,
-        label: `${requestedActivityKey} verified starter template`,
-        origin: "verified-starter-template",
-      },
-      runtimeCapabilities: ["launch-receipt-v1", "starter-template"],
+      source: "editor-scaffold",
+      runtimeCapabilities: ["editor-blank-scaffold"],
       ...(rhythmDifficultyKey ? { rhythmDifficultyKey } : {}),
       ...(learningDifficultyKey ? { learningDifficultyKey } : {}),
       ...(launchAttemptId ? { launchAttemptId } : {}),
       readiness: {
-        state: "template-fallback",
-        source: "starter-template",
-        canLaunch: true,
+        state: "blocked",
+        source: "editor-scaffold",
+        canLaunch: false,
         message,
       },
       chart: blankTargets.chart,
@@ -249,13 +335,20 @@ export async function resolveFreshSongLaunchPackage({
   const chartTargets = await loadSongChart(canonicalSongAssetId, requestedActivityKey, authorId);
 
   if (!chartTargets) {
+    const verifiedTemplate = await loadVerifiedStarterTemplate?.(
+      canonicalSongAssetId,
+      requestedActivityKey,
+    );
+    if (verifiedTemplate) {
+      return buildVerifiedStarterTemplatePackage(verifiedTemplate);
+    }
     if (!allowBlankPackage) {
       throw new Error(
-        `No chart has been authored for ${requestedActivityKey}; blank editor content is not playable`,
+        `No chart has been authored for ${requestedActivityKey}; no verified starter template is available`,
       );
     }
 
-    return buildStarterTemplatePackage();
+    return buildEditorScaffoldPackage();
   }
 
   try {
@@ -265,9 +358,19 @@ export async function resolveFreshSongLaunchPackage({
     // unpinned launch, prefer an explicitly-labelled starter template over
     // returning a package Unity cannot read. Pinned revisions always fail
     // closed so their immutable identity is never substituted.
-    if (allowBlankPackage && !revision) {
-      return buildStarterTemplatePackage(
+    const verifiedTemplate = await loadVerifiedStarterTemplate?.(
+      canonicalSongAssetId,
+      requestedActivityKey,
+    );
+    if (verifiedTemplate) {
+      return buildVerifiedStarterTemplatePackage(
+        verifiedTemplate,
         "The authored chart or sidecar needs repair, so a verified starter template is loaded instead.",
+      );
+    }
+    if (allowBlankPackage && !revision) {
+      return buildEditorScaffoldPackage(
+        "The authored chart or sidecar needs repair. A blank editor scaffold is available, but no verified playable template is configured.",
       );
     }
     throw error;

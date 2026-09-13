@@ -43,7 +43,7 @@ test("marks a complete immutable package ready for the editor and Unity", async 
   });
 });
 
-test("uses an explicit starter-template readiness when no authored lesson exists", async () => {
+test("keeps a blank editor scaffold blocked from gameplay when no verified template exists", async () => {
   const resolved = await resolveFreshSongLaunchPackage({
     songAssetId: "song-template",
     activityKey: "number-bonds",
@@ -61,14 +61,14 @@ test("uses an explicit starter-template readiness when no authored lesson exists
   });
 
   assert.deepEqual(resolved.readiness, {
-    state: "template-fallback",
-    source: "starter-template",
-    canLaunch: true,
-    message: "A verified starter template is loaded because this song has no published lesson yet.",
+    state: "blocked",
+    source: "editor-scaffold",
+    canLaunch: false,
+    message: "No authored lesson or verified starter template is available. The blank chart is available for editing, but this scaffold cannot be launched as gameplay.",
   });
 });
 
-test("uses the labelled starter template instead of signing swapped legacy assets", async () => {
+test("blocks swapped legacy assets instead of masquerading as a starter template", async () => {
   const signed: string[] = [];
   const resolved = await resolveFreshSongLaunchPackage({
     songAssetId: "song-swapped",
@@ -93,9 +93,61 @@ test("uses the labelled starter template instead of signing swapped legacy asset
     },
   });
 
-  assert.equal(resolved.readiness.state, "template-fallback");
+  assert.equal(resolved.readiness.state, "blocked");
   assert.match(resolved.readiness.message, /needs repair/i);
   assert.deepEqual(signed, ["songs/swapped.mp3"]);
+});
+
+test("launches only a complete verified starter template with its own receipt and audio", async () => {
+  const signed: string[] = [];
+  const resolved = await resolveFreshSongLaunchPackage({
+    songAssetId: "song-template",
+    activityKey: "number-bonds",
+    authorId: null,
+    allowBlankPackage: true,
+    launchAttemptId: "attempt-template",
+    loadSongAsset: async () => ({
+      id: "song-template", isActive: true, songBucket: "Songs", songPath: "songs/unrelated.mp3",
+    }),
+    loadSongChart: async () => null,
+    loadBlankSongChart: async () => null,
+    loadVerifiedStarterTemplate: async () => ({
+      songAssetId: "song-template",
+      activityKey: "number-bonds",
+      authorId: "template-author",
+      revision: "template-rev-1",
+      chartBucket: "Charts",
+      chartPath: "templates/Number_Bonds/revisions/template-rev-1/template.chart",
+      sidecarBucket: "SidecarJsons",
+      sidecarPath: "templates/Number_Bonds/revisions/template-rev-1/template.json",
+      audioBucket: "Songs",
+      audioPath: "songs/template.mp3",
+      counts: { encounters: 2, equations: 1, targets: 2 },
+      hashes: HASHES,
+      templateProvenance: {
+        templateId: "number-bonds:template-1",
+        label: "Number Bonds starter",
+        origin: "verified-starter-template" as const,
+        sourceRevision: "template-source-rev-1",
+      },
+    }),
+    createSignedUrl: async (_bucket, path) => {
+      signed.push(path);
+      return `https://storage.example/${path}`;
+    },
+  });
+
+  assert.equal(resolved.readiness.state, "template-fallback");
+  assert.equal(resolved.readiness.canLaunch, true);
+  assert.equal(resolved.source, "starter-template");
+  assert.equal(resolved.templateProvenance?.sourceRevision, "template-source-rev-1");
+  assert.equal(resolved.receipt?.revision, "template-rev-1");
+  assert.equal(resolved.receipt?.audio.path, "songs/template.mp3");
+  assert.deepEqual(signed, [
+    "templates/Number_Bonds/revisions/template-rev-1/template.chart",
+    "templates/Number_Bonds/revisions/template-rev-1/template.json",
+    "songs/template.mp3",
+  ]);
 });
 
 test("legacy packages cannot bypass the immutable receipt boundary", async () => {
@@ -383,7 +435,7 @@ test("rejects a song/activity nobody has authored yet before creating signed URL
   assert.equal(signedUrlCalls, 0);
 });
 
-test("serves the blank chart package when no chart is authored and a blank fallback is provided", async () => {
+test("serves a blocked editor scaffold when no chart is authored and a blank fallback is provided", async () => {
   const songLaunchPackage = await loadSongLaunchPackageModule();
   const signedTargets: Array<{ bucket: string; path: string }> = [];
 
@@ -425,24 +477,19 @@ test("serves the blank chart package when no chart is authored and a blank fallb
   });
 
   // Only the audio is a real storage object; chart/sidecar come from the
-  // blank fallback and must not be signed or persisted.
+  // blank editor fallback and must not be presented as playable content.
   assert.deepEqual(signedTargets, [{ bucket: "Songs", path: "albums/waves.mp3" }]);
   assert.deepEqual(resolved, {
     contractVersion: 1,
     songAssetId: "song-123",
     activityKey: "missing-numbers",
-    source: "starter-template",
-    templateProvenance: {
-      templateId: "missing-numbers:verified-starter-template",
-      label: "missing-numbers verified starter template",
-      origin: "verified-starter-template",
-    },
-    runtimeCapabilities: ["launch-receipt-v1", "starter-template"],
+    source: "editor-scaffold",
+    runtimeCapabilities: ["editor-blank-scaffold"],
     readiness: {
-      state: "template-fallback",
-      source: "starter-template",
-      canLaunch: true,
-      message: "A verified starter template is loaded because this song has no published lesson yet.",
+      state: "blocked",
+      source: "editor-scaffold",
+      canLaunch: false,
+      message: "No authored lesson or verified starter template is available. The blank chart is available for editing, but this scaffold cannot be launched as gameplay.",
     },
     chart: {
       bucket: "Charts",

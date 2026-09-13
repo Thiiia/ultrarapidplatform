@@ -770,6 +770,9 @@ export default function SongChoiceClient({
       songAssetId: selectedSong.id,
       activityKey: selectedSong.activityKey,
     });
+    if (!freshPackage.readiness.canLaunch || freshPackage.source === "editor-scaffold") {
+      throw new Error(freshPackage.readiness.message);
+    }
     const launchParams = createSongLaunchSearchParams({
       songAssetId: freshPackage.songAssetId,
       activityKey: freshPackage.activityKey,
@@ -779,6 +782,11 @@ export default function SongChoiceClient({
       authorId: freshPackage.authorId,
       revision: freshPackage.revision,
       receipt: freshPackage.receipt,
+      source: freshPackage.source,
+      templateProvenance: freshPackage.templateProvenance,
+      launchAttemptId: freshPackage.launchAttemptId,
+      rhythmDifficultyKey: freshPackage.rhythmDifficultyKey,
+      learningDifficultyKey: freshPackage.learningDifficultyKey,
     });
     const launchRoute = navBasePath.startsWith("/demo")
       ? "/demo/launch"
