@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -456,6 +457,47 @@ test("aggregates a shared event end from all encounters regardless of input orde
 
   assert.equal(hydrated.events[0].tick, 0.5);
   assert.equal(hydrated.events[0].endTick, 20);
+});
+
+test("hydrates the canonical authored fixture and preserves per-mechanic RTCM assignments", () => {
+  const clock = createLessonClock(
+    `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+  );
+  const raw = JSON.parse(
+    readFileSync(new URL("./fixtures/authored-playback/overlapping-mechanics.v3.json", import.meta.url), "utf8"),
+  );
+  const draft = parseAuthoredLessonDraft(raw, { requirePublishedIdentity: true });
+  const hydrated = timelineEventsFromAuthoredLesson(draft, clock);
+
+  assert.deepEqual(hydrated.equations.map((entry) => entry.id), ["eq-1", "eq-2", "eq-3"]);
+  assert.deepEqual(hydrated.events.map((event) => event.id), ["event-1", "event-2"]);
+  assert.deepEqual(
+    hydrated.events[0].mechanicInstances.hit.map((instance) => instance.id),
+    ["inst-hit-1", "inst-hit-2"],
+  );
+  assert.equal(hydrated.events[1].mechanicInstances.spin[0]?.equation?.id, "eq-2");
+  assert.equal(hydrated.events[1].mechanicInstances.drag[0]?.equation?.id, "eq-2");
+
+  const redraft = serializeAuthoredLesson(
+    hydrated.events,
+    { ...IDENTITY, authorId: raw.authorId, revision: raw.revision },
+    clock,
+    raw.stopAtSeconds,
+    hydrated.equations,
+  );
+
+  assert.deepEqual(redraft.equations.map((entry) => entry.id), ["eq-1", "eq-2", "eq-3"]);
+  assert.deepEqual(
+    redraft.encounters.map((encounter) => [encounter.id, encounter.eventId, encounter.type]),
+    [
+      ["inst-hit-1", "event-1", "hit"],
+      ["inst-hit-2", "event-1", "hit"],
+      ["inst-spin-1", "event-2", "spin"],
+      ["inst-drag-1", "event-2", "drag"],
+    ],
+  );
+  assert.equal(redraft.authorId, "author-dev");
+  assert.equal(redraft.revision, "rev-fixture-1");
 });
 
 test("rejects a non-finite position instead of coercing it to a near-zero tick", () => {
