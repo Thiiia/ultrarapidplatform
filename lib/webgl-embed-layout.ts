@@ -6,7 +6,10 @@ export const webglViewportHostStyle = {
 
 export const webglFlexFrameStyle = {
   width: "100%",
-  height: "100%",
+  // A 100%-height iframe is sized before sibling status text in a flex column
+  // is accounted for, then gets compressed unpredictably. Fill the remaining
+  // viewport instead, matching the standalone WebGL shell's sizing contract.
+  flex: "1 1 0",
   minHeight: 0,
 } as const;
 

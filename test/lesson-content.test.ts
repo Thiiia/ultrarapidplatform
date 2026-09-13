@@ -32,3 +32,26 @@ test('rejects missing or malformed encounter collections instead of treating the
     assert.throws(() => validateLessonContent(chart, JSON.stringify(sidecar)), /encounter/i);
   }
 });
+
+test('accepts only historical legacy-migrated v3 targets after repairing an operator index', () => {
+  const historical = {
+    version: 3,
+    mode: 'authored',
+    songAssetId: 'melika',
+    activityKey: 'early-algebra',
+    authorId: 'dev',
+    revision: 'revision-1',
+    equations: [{ id: 'Year7_011_mixedmultistep', state: '6x+5=35' }],
+    encounters: [{
+      id: 'legacy-0-hit',
+      eventId: 'legacy-0',
+      type: 'hit',
+      equationId: 'Year7_011_mixedmultistep',
+      startTick: 192,
+      endTick: 192,
+      hitBubbles: [{ tokenIndex: 1, positions: ['topLeft'], pads: ['topLeft'] }],
+    }],
+  };
+
+  assert.doesNotThrow(() => validateLessonContent(chart, JSON.stringify(historical), { forSave: true }));
+});

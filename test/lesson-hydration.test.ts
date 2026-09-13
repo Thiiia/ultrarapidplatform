@@ -40,6 +40,24 @@ test("refreshes expired signed URLs once and retries the same asset set", async 
   assert.deepEqual(result.urls, freshRefs);
 });
 
+test("refreshes Supabase signed URLs that report expiry as HTTP 400", async () => {
+  let refreshes = 0;
+  const freshRefs = { audioUrl: "audio-new", chartUrl: "chart-new", sidecarUrl: "sidecar-new" };
+  const expired = Object.assign(new Error("Unable to load file: 400"), { status: 400 });
+
+  const result = await loadLessonAssets({
+    refs,
+    refresh: async () => { refreshes += 1; return freshRefs; },
+    fetchAudio: async (url) => url === "audio-new" ? "audio" : Promise.reject(expired),
+    fetchChart: async (url) => url === "chart-new" ? "chart" : Promise.reject(expired),
+    fetchSidecar: async (url) => url === "sidecar-new" ? { events: [] } : Promise.reject(expired),
+  });
+
+  assert.equal(refreshes, 1);
+  assert.equal(result.retried, true);
+  assert.deepEqual(result.urls, freshRefs);
+});
+
 test("does not refresh invalid content or hide a missing sidecar", async () => {
   let refreshes = 0;
   await assert.rejects(

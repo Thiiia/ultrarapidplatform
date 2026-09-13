@@ -1,6 +1,7 @@
 type Row = Record<string, unknown>;
 
 import { parseAuthoredLessonDraft } from "./authored-lesson";
+import { repairLegacyMigratedAuthoredLesson } from "./legacy-authored-migration";
 import { isLegacyEncounterSidecar, validateLegacyEncounters } from "./legacy-encounters";
 import { parseSupportedChartSemantics, type SupportedRhythmDifficulty } from "./chart-semantics";
 
@@ -14,7 +15,9 @@ export function validateLessonContent(chart: string, json: string, options: { fo
   const payload = JSON.parse(json) as Row;
   if (!payload || ![1, 2, 3].includes(Number(payload.version))) throw new Error('Unsupported companion version');
   if (Number(payload.version) === 3) {
-    parseAuthoredLessonDraft(payload);
+    // Only the narrowly-identified legacy bridge rows are repaired. New v3
+    // authored content remains strict: operator targets still fail validation.
+    parseAuthoredLessonDraft(repairLegacyMigratedAuthoredLesson(payload));
     return;
   }
   const difficulties = ['EasySingle','MediumSingle','HardSingle','ExpertSingle'].map(section).filter(Boolean);

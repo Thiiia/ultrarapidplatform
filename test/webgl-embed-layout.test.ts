@@ -12,10 +12,10 @@ test("WebGL hosts use a fixed dynamic viewport without a document scroll fallbac
     minHeight: "100dvh",
     overflow: "hidden",
   });
-  assert.deepEqual(webglFlexFrameStyle, { width: "100%", height: "100%", minHeight: 0 });
+  assert.deepEqual(webglFlexFrameStyle, { width: "100%", flex: "1 1 0", minHeight: 0 });
   assert.deepEqual(webglLaunchFrameStyle, {
     width: "min(100%, 1440px)",
-    height: "100%",
+    flex: "1 1 0",
     minHeight: 0,
   });
 });

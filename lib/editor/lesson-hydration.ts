@@ -24,8 +24,12 @@ function isAbortError(error: unknown) {
 function isRefreshableError(error: unknown) {
   if (isAbortError(error)) return false;
   const status = (error as HydrationError | null)?.status;
-  if (status === 401 || status === 403 || status === 404) return true;
-  return /\b(?:401|403|404)\b|expired|signature|signed url/i.test(
+  // Supabase Storage reports an expired signed download token as HTTP 400.
+  // Refresh remains bounded to one attempt and preserves the immutable
+  // revision identity at the caller, so retrying this status cannot switch a
+  // lesson to different content.
+  if (status === 400 || status === 401 || status === 403 || status === 404) return true;
+  return /\b(?:400|401|403|404)\b|expired|signature|signed url/i.test(
     error instanceof Error ? error.message : String(error),
   );
 }
