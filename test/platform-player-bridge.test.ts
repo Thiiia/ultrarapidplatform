@@ -16,6 +16,20 @@ test("bridge validates nonce and receipt, and rejects arbitrary navigation", () 
   assert.equal(validateBridgeMessage({ ...valid, type: "navigate", url: "https://evil.example" }, context).ok, false);
 });
 
+test("bridge accepts a bounded, receipt-bound completion summary only", () => {
+  const context = createBridgeContext(receipt, "https://game.example/", crypto.randomUUID());
+  const completed = {
+    type: "run-complete" as const,
+    nonce: context.nonce,
+    receipt,
+    completion: { outcome: "completed" as const, completedEvents: 4, hitAttempts: 6 },
+  };
+
+  assert.equal(validateBridgeMessage(completed, context).ok, true);
+  assert.equal(validateBridgeMessage({ ...completed, completion: { ...completed.completion, completedEvents: -1 } }, context).ok, false);
+  assert.equal(validateBridgeMessage({ ...completed, receipt: { ...receipt, songAssetId: "another-song" } }, context).ok, false);
+});
+
 test("calibration is required when protocol is absent or stale", () => {
   assert.equal(needsCalibration({ protocolVersion: 0 }), true);
   assert.equal(needsCalibration({ protocolVersion: 1 }), false);

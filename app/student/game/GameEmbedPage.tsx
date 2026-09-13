@@ -275,6 +275,7 @@ export default function GameEmbedPage({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [bridgeContext, setBridgeContext] = useState<BridgeContext | null>(null);
   const [calibrationStatus, setCalibrationStatus] = useState<"loading" | "required" | "ready">("loading");
+  const [completedRun, setCompletedRun] = useState<{ completedEvents: number; hitAttempts: number } | null>(null);
 
   const topTabs = getTopTabs(navBasePath);
 
@@ -311,6 +312,11 @@ export default function GameEmbedPage({
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ installationId: bridgeContext.installationId, offsetMs: result.message.offsetMs, protocolVersion: result.message.protocolVersion }),
         }).then((response) => { if (response.ok) setCalibrationStatus("ready"); });
+      } else if (result.message.type === "run-complete") {
+        setCompletedRun({
+          completedEvents: result.message.completion.completedEvents,
+          hitAttempts: result.message.completion.hitAttempts,
+        });
       } else {
         window.location.assign(`${navBasePath}/song-choice`);
       }
@@ -382,6 +388,11 @@ export default function GameEmbedPage({
           />
           {bridgeContext && calibrationStatus === "required" && (
             <p className="mt-2 text-sm text-white/70">Complete calibration in the game before playing.</p>
+          )}
+          {completedRun && (
+            <p className="mt-2 text-sm text-emerald-200" role="status">
+              Lesson complete: {completedRun.completedEvents} player moments finished in {completedRun.hitAttempts} hit attempts. You can return to song choice when ready.
+            </p>
           )}
         </section>
       </main>

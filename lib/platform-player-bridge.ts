@@ -15,6 +15,7 @@ export const BridgeReceiptSchema = z.object({
 
 export const PlatformPlayerBridgeMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("calibration-complete"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema, offsetMs: z.number().int().min(-350).max(350), protocolVersion: z.number().int().positive().max(32) }).strict(),
+  z.object({ type: z.literal("run-complete"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema, completion: z.object({ outcome: z.literal("completed"), completedEvents: z.number().int().min(1).max(10_000), hitAttempts: z.number().int().min(1).max(100_000) }).strict() }).strict(),
   z.object({ type: z.literal("exit-to-song-select"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema }).strict(),
 ]);
 
