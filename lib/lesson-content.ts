@@ -2,14 +2,15 @@ type Row = Record<string, unknown>;
 
 import { parseAuthoredLessonDraft } from "./authored-lesson";
 import { isLegacyEncounterSidecar, validateLegacyEncounters } from "./legacy-encounters";
+import { parseSupportedChartSemantics, type SupportedRhythmDifficulty } from "./chart-semantics";
 
 /** Companion ticks use chart coordinates and may lie between rhythm note ticks. */
-export function validateLessonContent(chart: string, json: string, options: { forSave?: boolean } = {}) {
+export function validateLessonContent(chart: string, json: string, options: { forSave?: boolean; selectedDifficulty?: SupportedRhythmDifficulty } = {}) {
+  const semantics = parseSupportedChartSemantics(chart, {
+    selectedDifficulty: options.selectedDifficulty,
+    requireRhythmNotes: !options.forSave,
+  });
   const section = (name: string) => chart.match(new RegExp(`\\[${name}\\]\\s*\\{([\\s\\S]*?)\\}`))?.[1];
-  if (!section('Song') || !section('SyncTrack') || !/Resolution\s*=\s*"?[1-9]\d*/.test(section('Song')!)) {
-    throw new Error('Invalid chart: Song, positive Resolution and SyncTrack are required');
-  }
-  if (!/\b0\s*=\s*B\s+[1-9]\d*/.test(section('SyncTrack')!)) throw new Error('Invalid chart BPM at tick zero');
   const payload = JSON.parse(json) as Row;
   if (!payload || ![1, 2, 3].includes(Number(payload.version))) throw new Error('Unsupported companion version');
   if (Number(payload.version) === 3) {
