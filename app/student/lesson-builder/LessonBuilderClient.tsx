@@ -40,6 +40,13 @@ import {
 } from "@/lib/song-launch-client";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import GuidedTemplateStart from "./GuidedTemplateStart";
+import { GuidedEncounterComposer } from "./GuidedEncounterComposer";
+import { EncounterReadinessPanel } from "./EncounterReadinessPanel";
+import {
+  evaluateEncounterReadiness,
+  type GuidedEncounterInput,
+  evaluateLessonPublishReadiness,
+} from "@/lib/guided-authored-encounter";
 import {
 	deletePlayerLessonWorkspaceDraft,
 	readPlayerLessonWorkspaceDraft,
@@ -3973,6 +3980,8 @@ function MechanicInstanceRow({
   onAddHitPad,
   onToggleSpinTarget,
   onToggleDragTarget,
+  onPatchInstance,
+  dragSources = [],
 }: {
   mechanic: GameplayMechanic;
   count: number;
@@ -3995,6 +4004,8 @@ function MechanicInstanceRow({
     instanceIndex: number,
     tokenIndex: number,
   ) => void;
+  onPatchInstance: (instanceId: string, patch: Partial<MechanicInstanceState>) => void;
+  dragSources?: Array<{ id: string; label: string }>;
 }) {
   const [activeInstanceIndex, setActiveInstanceIndex] = useState(0);
   const safeCount = Math.max(0, Math.round(count));
@@ -4037,6 +4048,15 @@ function MechanicInstanceRow({
   }
 
   const activeInstance = instances[activeInstanceIndex];
+  const composerInstance = (activeInstance ?? {
+    ...makeMechanicInstance(),
+    id: `${mechanic}-draft-${activeInstanceIndex + 1}`,
+  }) as GuidedEncounterInput;
+  const guidedInstance: GuidedEncounterInput = {
+    ...composerInstance,
+    equation: activeInstance?.equation ?? equation,
+  };
+  const readiness = evaluateEncounterReadiness(guidedInstance, new Set());
 
   return (
     <div
@@ -4150,24 +4170,14 @@ function MechanicInstanceRow({
             overflow: "visible",
           }}
         >
-          <MechanicEquationEditor
-            mechanic={mechanic}
-            equation={equation}
-            instance={activeInstance}
-            onAddHitPad={(tokenIndex, pad) =>
-              onAddHitPad(
-                mechanic,
-                activeInstanceIndex,
-                tokenIndex,
-                pad,
-              )
-            }
-            onToggleSpinTarget={(tokenIndex) =>
-              onToggleSpinTarget(mechanic, activeInstanceIndex, tokenIndex)
-            }
-            onToggleDragTarget={(tokenIndex) =>
-              onToggleDragTarget(mechanic, activeInstanceIndex, tokenIndex)
-            }
+          <GuidedEncounterComposer
+            instance={guidedInstance}
+            tokens={equation?.tokens ?? []}
+            readiness={readiness}
+            step={activeInstanceIndex + 1}
+            stepCount={safeCount}
+            dragSources={dragSources}
+            onPatchInstance={(instanceId, patch) => onPatchInstance(instanceId, patch as Partial<MechanicInstanceState>)}
           />
         </div>
       </div>
@@ -4181,6 +4191,8 @@ function EventBuilderArea({
   onAddHitPad,
   onToggleSpinTarget,
   onToggleDragTarget,
+  onPatchInstance,
+  dragSources = [],
 }: {
   eventSlot: TimelineEventSlot | null;
   onDropEquation: (equation: SavedEquation) => void;
@@ -4200,6 +4212,8 @@ function EventBuilderArea({
     instanceIndex: number,
     tokenIndex: number,
   ) => void;
+  onPatchInstance: (mechanic: GameplayMechanic, instanceIndex: number, patch: Partial<MechanicInstanceState>) => void;
+  dragSources?: Array<{ id: string; label: string }>;
 }) {
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -4324,6 +4338,11 @@ function EventBuilderArea({
               onAddHitPad={onAddHitPad}
               onToggleSpinTarget={onToggleSpinTarget}
               onToggleDragTarget={onToggleDragTarget}
+              onPatchInstance={(instanceId, patch) => {
+                const instanceIndex = (eventSlot.mechanicInstances[mechanic] ?? []).findIndex((instance) => instance.id === instanceId);
+                onPatchInstance(mechanic, instanceIndex >= 0 ? instanceIndex : 0, patch);
+              }}
+              dragSources={dragSources}
             />
           ))
         )}
@@ -9312,6 +9331,8 @@ function CenterEditorPanel({
   onAddHitPad,
   onToggleSpinTarget,
   onToggleDragTarget,
+  onPatchInstance,
+  dragSources = [],
 }: {
   mode: "event" | "equation";
   timelineEvents: TimelineEventSlot[];
@@ -9341,6 +9362,8 @@ function CenterEditorPanel({
     instanceIndex: number,
     tokenIndex: number,
   ) => void;
+  onPatchInstance: (mechanic: GameplayMechanic, instanceIndex: number, patch: Partial<MechanicInstanceState>) => void;
+  dragSources?: Array<{ id: string; label: string }>;
 }) {
   const activeEvent =
     timelineEvents.find((eventSlot) => eventSlot.id === activeEventId) ?? null;
@@ -9378,6 +9401,8 @@ function CenterEditorPanel({
           onAddHitPad={onAddHitPad}
           onToggleSpinTarget={onToggleSpinTarget}
           onToggleDragTarget={onToggleDragTarget}
+          onPatchInstance={onPatchInstance}
+          dragSources={dragSources}
         />
       )}
 
@@ -12900,6 +12925,29 @@ export default function LessonBuilderClient({
     playheadEventId: rtcmPlayheadEvent?.id ?? null,
     eventIds: timelineEvents.map((eventSlot) => eventSlot.id),
   });
+  const lessonPublishReadiness = useMemo(
+    () => evaluateLessonPublishReadiness(timelineEvents as unknown as AuthoredTimelineEvent[]),
+    [timelineEvents],
+  );
+  const dragSources = useMemo(
+    () => timelineEvents.flatMap((eventSlot) =>
+      (eventSlot.mechanicInstances.hit ?? []).map((instance, index) => ({
+        id: instance.id,
+        label: `Hit ${index + 1} · ${formatTimelineTime(timelineTickToSeconds(instance.tick ?? eventSlot.tick), isAdvancedMode)}`,
+      })),
+    ),
+    [isAdvancedMode, timelineEvents],
+  );
+  function handleSelectReadinessEncounter(encounterId: string) {
+    const event = timelineEvents.find((eventSlot) =>
+      gameplayMechanics.some((mechanic) => eventSlot.mechanicInstances[mechanic]?.some((instance) => instance.id === encounterId)),
+    );
+    if (event) {
+      setActiveEventId(event.id);
+      setCenterChoice(null);
+      setSaveStatus(`Editing ${encounterId}. ${lessonPublishReadiness.nextAction}`);
+    }
+  }
   return (
     <div
       className={styles.studentTypography}
@@ -12958,6 +13006,14 @@ export default function LessonBuilderClient({
         onToggleRctm1Mode={handleToggleRctm1Mode}
         onToggleRctm2Mode={handleToggleRctm2Mode}
       />
+      {!isGuidedStart && !isRctm1Mode && !isRctm2Mode ? (
+        <div style={{ position: "fixed", right: 18, top: 84, width: "min(360px, calc(100vw - 36px))", zIndex: 1002 }}>
+          <EncounterReadinessPanel
+            readiness={lessonPublishReadiness}
+            onSelectEncounter={handleSelectReadinessEncounter}
+          />
+        </div>
+      ) : null}
 
       <main
         style={{
