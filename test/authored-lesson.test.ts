@@ -80,6 +80,67 @@ test('second save: previous revision is a precondition, new revision is stamped'
   assert.equal(r2.authorId, 'author-a');
 });
 
+test('canonical authored v3 sidecar keeps tick coordinates and server-stamped identity', () => {
+  const canonical = {
+    version: 3,
+    mode: 'authored',
+    songAssetId: 'waves',
+    activityKey: 'early-algebra',
+    authorId: 'author-dev',
+    revision: 'rev-fixture-1',
+    stopAtSeconds: 17,
+    equations: [
+      { id: 'eq-1', state: '3 + 4 = 7' },
+      { id: 'eq-2', state: 'X + 2 = 9' },
+      { id: 'eq-3', state: '5 = Y' },
+    ],
+    encounters: [{
+      id: 'inst-hit-1',
+      eventId: 'event-1',
+      type: 'hit',
+      equationId: 'eq-1',
+      startTick: 5568,
+      endTick: 5568,
+      hitBubbles: [{ tokenIndex: 0, positions: ['topLeft'], pads: ['topLeft'] }],
+    }, {
+      id: 'inst-spin-1',
+      eventId: 'event-2',
+      type: 'spin',
+      equationId: 'eq-2',
+      startTick: 9048,
+      endTick: 12528,
+      spinTargets: [{ tokenIndex: 0 }],
+    }, {
+      id: 'inst-drag-1',
+      eventId: 'event-2',
+      type: 'drag',
+      equationId: 'eq-2',
+      startTick: 9048,
+      endTick: 12528,
+      dragTargets: [{ tokenIndex: 1, sourceHitId: 'inst-hit-1' }],
+    }],
+  };
+
+  const parsed = parseAuthoredLessonDraft(canonical, { requirePublishedIdentity: true });
+  assert.deepEqual(parsed.equations.map((equation) => equation.id), ['eq-1', 'eq-2', 'eq-3']);
+  assert.equal(parsed.encounters[0].startTick, 5568);
+  assert.equal(parsed.encounters[0].endTick, 5568);
+  assert.equal(parsed.encounters[1].type, 'spin');
+  assert.ok(parsed.encounters[1].endTick > parsed.encounters[1].startTick);
+  assert.equal(parsed.encounters[2].type, 'drag');
+  assert.ok(parsed.encounters[2].endTick > parsed.encounters[2].startTick);
+
+  const stamped = stampAuthoredLessonIdentity(parsed, {
+    songAssetId: 'waves',
+    activityKey: 'early-algebra',
+    authorId: 'author-dev',
+    revision: 'rev-published-2',
+  });
+  assert.equal(stamped.authorId, 'author-dev');
+  assert.equal(stamped.revision, 'rev-published-2');
+  assert.equal(stamped.encounters[0].eventId, 'event-1');
+});
+
 test('mismatched author still rejected on repeat save', () => {
   const draft = parseAuthoredLessonDraft({ ...authored, authorId: 'author-a', revision: 'rev-1' });
   assert.throws(() => stampAuthoredLessonIdentity(draft, {
