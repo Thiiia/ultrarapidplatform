@@ -248,6 +248,31 @@ test("rebinds stale target identities when an event receives a new equation", ()
   assert.doesNotThrow(() => parseAuthoredLessonDraft(draft));
 });
 
+test("does not serialize an unconfigured spin placeholder", () => {
+  const clock = createLessonClock(
+    `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+  );
+  const draft = serializeAuthoredLesson(
+    [
+      makeEvent("event-a", 1, { spin: 1 }, {
+        equation: equation("eq-spin", ["7", "=", "X"]),
+        instances: {
+          spin: [instance("spin-placeholder", {
+            tick: 1,
+            endTick: 2,
+            spinTargets: [],
+          })],
+        },
+      }),
+    ],
+    IDENTITY,
+    clock,
+  );
+
+  assert.deepEqual(draft.encounters, []);
+  assert.doesNotThrow(() => parseAuthoredLessonDraft(draft));
+});
+
 test("serializes equations with zero mechanics so queue order is preserved", () => {
   const clock = createLessonClock(
     `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,

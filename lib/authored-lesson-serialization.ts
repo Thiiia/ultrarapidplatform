@@ -209,6 +209,16 @@ export function serializeAuthoredLesson(
           throw new Error(`Authored lesson ${mechanic} mechanic for event '${event.id}' requires an assigned equation`);
         }
 
+        // The editor creates an empty instance as soon as a mechanic is added,
+        // before the author picks its playable token. It is a draft placeholder,
+        // not a valid runtime encounter, so never let it poison the whole save.
+        const targetCount = mechanic === "hit"
+          ? instance.hitBubbles?.length ?? 0
+          : mechanic === "spin"
+            ? instance.spinTargets?.length ?? 0
+            : instance.dragTargets?.length ?? 0;
+        if (targetCount === 0) continue;
+
         const startTick = secondsToTick(clock, instance.tick ?? event.tick);
         const endTick = secondsToTick(
           clock,
