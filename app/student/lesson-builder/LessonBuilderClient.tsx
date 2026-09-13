@@ -41,10 +41,9 @@ import {
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import {
-  deletePlayerLessonWorkspaceDraft,
+	deletePlayerLessonWorkspaceDraft,
 	readPlayerLessonWorkspaceDraft,
 	resolveLessonWorkspaceSource,
-	shouldKeepLessonReadinessVisible,
 	writePlayerLessonWorkspaceDraft,
   type LessonSourceIdentity,
   type PlayerLessonEntryIntent,
@@ -12891,10 +12890,6 @@ export default function LessonBuilderClient({
     chartFile.trim().length === 0 && sidecar.events.length === 0;
   const isRctm1Mode = mode === "rctm1";
   const isRctm2Mode = mode === "rctm2";
-	const persistentLessonReadiness =
-		lessonReadiness && shouldKeepLessonReadinessVisible(lessonReadiness)
-			? lessonReadiness
-			: null;
   const rtcmPlayheadEvent = findTimelineEventAtSeconds(
     timelineEvents,
     currentSongSeconds,
@@ -13424,43 +13419,6 @@ export default function LessonBuilderClient({
           </>
         )}
       </main>
-
-      {persistentLessonReadiness ? (
-        <aside
-          aria-label="Unity handoff readiness"
-          aria-live="polite"
-          style={{
-            position: "fixed",
-            right: 18,
-            top: "calc(5vh + 12px)",
-            zIndex: 1001,
-            width: "min(440px, calc(100vw - 36px))",
-            padding: "12px 14px",
-            borderRadius: 12,
-            border: `1px solid ${persistentLessonReadiness.state === "ready" ? "#CFFF04" : persistentLessonReadiness.state === "template-fallback" ? "#77C7FF" : "#FF9A78"}`,
-            background: "#0A1222F5",
-            color: "#FFFFFF",
-            boxShadow: "0 12px 24px rgba(0,0,0,0.35)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-            <strong style={{ color: persistentLessonReadiness.state === "ready" ? "#CFFF04" : persistentLessonReadiness.state === "template-fallback" ? "#77C7FF" : "#FF9A78", fontSize: 11, letterSpacing: 0.7, textTransform: "uppercase" }}>
-              {persistentLessonReadiness.state === "ready" ? "Unity handoff ready" : persistentLessonReadiness.state === "template-fallback" ? "Starter template" : "Lesson needs repair"}
-            </strong>
-            <span style={{ color: "#FFFFFF99", fontSize: 11 }}>{selectedSongActivity?.label ?? "Choose activity"}</span>
-          </div>
-          <p style={{ margin: "6px 0 0", fontSize: 12, lineHeight: 1.4 }}>{persistentLessonReadiness.message}</p>
-          <p style={{ margin: "7px 0 0", color: "#FFFFFFA8", fontSize: 11, lineHeight: 1.4 }}>
-            Cue = song timing · Event = player moment · Encounter = Unity move · Equation = learning task
-          </p>
-          {!persistentLessonReadiness.canLaunch ? (
-            <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-              <button type="button" onClick={handleRetryCurrentLesson} style={{ border: 0, borderRadius: 8, background: "#CFFF04", color: "#071222", padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>Retry lesson</button>
-              <button type="button" onClick={handleOpenFilePicker} style={{ border: "1px solid #7A8FA8", borderRadius: 8, background: "transparent", color: "#FFFFFF", padding: "8px 10px", fontWeight: 800, cursor: "pointer" }}>Choose another song</button>
-            </div>
-          ) : null}
-        </aside>
-      ) : null}
 
       {advancedConfirmOpen ? (
         <div role="dialog" aria-modal="true" aria-labelledby="advanced-chartmaker-title" style={{ position: "fixed", inset: 0, zIndex: 1300, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.7)" }} onKeyDown={(event) => { if (event.key === "Escape") setAdvancedConfirmOpen(false); }}>

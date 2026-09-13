@@ -28,11 +28,6 @@ export function resolveLessonWorkspaceSource(input: {
   };
 }
 
-/** Launchable lessons should not obstruct the editor; only actionable failures persist. */
-export function shouldKeepLessonReadinessVisible(readiness: { canLaunch: boolean } | null | undefined): boolean {
-  return Boolean(readiness && !readiness.canLaunch);
-}
-
 export type PlayerLessonWorkspaceDraft = {
   version: typeof PLAYER_LESSON_WORKSPACE_VERSION;
   source: LessonSourceIdentity;

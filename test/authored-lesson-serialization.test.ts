@@ -30,9 +30,9 @@ function instance(
     tick: number;
     endTick: number;
     equation?: ReturnType<typeof equation> | null;
-    hitBubbles: Array<{ tokenIndex: number; positions: string[]; pads: string[] }>;
-    spinTargets: Array<{ tokenIndex: number }>;
-    dragTargets: Array<{ tokenIndex: number; sourceHitId?: string }>;
+    hitBubbles: Array<{ tokenIndex: number; targetId?: string; positions: string[]; pads: string[] }>;
+    spinTargets: Array<{ tokenIndex: number; targetId?: string }>;
+    dragTargets: Array<{ tokenIndex: number; targetId?: string; sourceHitId?: string }>;
   }> = {},
 ) {
   return {
@@ -216,6 +216,36 @@ test("event-level assignment updates every concrete mechanic equation", () => {
     serializeAuthoredLesson([updatedEvent], IDENTITY, clock).encounters.map(({ equationId }) => equationId),
     ["eq-new", "eq-new", "eq-new"],
   );
+});
+
+test("rebinds stale target identities when an event receives a new equation", () => {
+  const clock = createLessonClock(
+    `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+  );
+  const newEquation = equation("eq-new", ["7", "=", "X"]);
+  const updatedEvent = applyEquationToEvent(
+    makeEvent("event-a", 1, { hit: 1 }, {
+      equation: equation("eq-old", ["1", "=", "1"]),
+      instances: {
+        hit: [instance("hit-a", {
+          tick: 1,
+          hitBubbles: [{
+            tokenIndex: 2,
+            targetId: "eq-old-token-0",
+            positions: ["topLeft"],
+            pads: ["topLeft"],
+          }],
+        })],
+      },
+    }),
+    newEquation,
+  );
+
+  const draft = serializeAuthoredLesson([updatedEvent], IDENTITY, clock);
+  const target = draft.encounters[0].hitBubbles?.[0];
+
+  assert.equal(target?.targetId, "eq-new-token-2");
+  assert.doesNotThrow(() => parseAuthoredLessonDraft(draft));
 });
 
 test("serializes equations with zero mechanics so queue order is preserved", () => {

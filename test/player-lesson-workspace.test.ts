@@ -2,11 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   deletePlayerLessonWorkspaceDraft,
-  playerLessonWorkspaceKey,
-  readPlayerLessonWorkspaceDraft,
+	playerLessonWorkspaceKey,
+	readPlayerLessonWorkspaceDraft,
 	resolveLessonWorkspaceSource,
-	shouldKeepLessonReadinessVisible,
-  writePlayerLessonWorkspaceDraft,
+	writePlayerLessonWorkspaceDraft,
   type LessonSourceIdentity,
 } from "../lib/player-lesson-workspace";
 
@@ -30,11 +29,6 @@ test("uses the saved revision author for a private workspace", () => {
       revision: "b5515a55-31a6-48fe-9559-ee41e62a1b35",
     },
   );
-});
-
-test("keeps lesson readiness visible only when the lesson cannot launch", () => {
-  assert.equal(shouldKeepLessonReadinessVisible({ canLaunch: true }), false);
-  assert.equal(shouldKeepLessonReadinessVisible({ canLaunch: false }), true);
 });
 
 test("keys drafts by the complete source identity", () => assert.notEqual(playerLessonWorkspaceKey(source), playerLessonWorkspaceKey({ ...source, revision: "rev-2" })));

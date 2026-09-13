@@ -99,6 +99,23 @@ function tokensToState(tokens: AuthoredEquationToken[]) {
 }
 
 /**
+ * A targetId is a durable reference only while it belongs to the equation
+ * assigned to this mechanic. Reassigning an event used to retain the old
+ * equation's token ID, which made an otherwise valid target impossible to
+ * save. Keep valid stable IDs (so inserted-token edits remain safe), but
+ * rebind stale IDs to the editor's current token index.
+ */
+function bindTargetToEquation<T extends { tokenIndex: number; targetId?: string }>(
+  target: T,
+  equation: AuthoredSavedEquation,
+): T {
+  const targetId = target.targetId && equation.tokens.some((token) => token.id === target.targetId)
+    ? target.targetId
+    : equation.tokens[target.tokenIndex]?.id;
+  return { ...target, ...(targetId ? { targetId } : {}) };
+}
+
+/**
  * Convert a fractional editor-seconds position to an integer chart tick using
  * the shared tempo map. Rounds once, only at the tick boundary. Throws when
  * the position is not a finite number so a misinterpreted unit can never reach
@@ -205,9 +222,9 @@ export function serializeAuthoredLesson(
           equationId: equation.id,
           startTick,
           endTick,
-          ...(mechanic === "hit" ? { hitBubbles: (instance.hitBubbles ?? []).map((target) => ({ ...target, targetId: target.targetId ?? equation.tokens[target.tokenIndex]?.id })) } : {}),
-          ...(mechanic === "spin" ? { spinTargets: (instance.spinTargets ?? []).map((target) => ({ ...target, targetId: target.targetId ?? equation.tokens[target.tokenIndex]?.id })) } : {}),
-          ...(mechanic === "drag" ? { dragTargets: (instance.dragTargets ?? []).map((target) => ({ ...target, targetId: target.targetId ?? equation.tokens[target.tokenIndex]?.id })) } : {}),
+          ...(mechanic === "hit" ? { hitBubbles: (instance.hitBubbles ?? []).map((target) => bindTargetToEquation(target, equation)) } : {}),
+          ...(mechanic === "spin" ? { spinTargets: (instance.spinTargets ?? []).map((target) => bindTargetToEquation(target, equation)) } : {}),
+          ...(mechanic === "drag" ? { dragTargets: (instance.dragTargets ?? []).map((target) => bindTargetToEquation(target, equation)) } : {}),
         });
       }
     });
