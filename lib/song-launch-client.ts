@@ -1,7 +1,7 @@
 import { createSongLaunchSearchParams } from "./platform-launch";
 import type { LessonReadiness, PlayableLessonSource, RhythmDifficultyKey, SongLaunchReceipt } from "./song-launch-package";
 
-export async function requestFreshSongLaunchParams(input: { songAssetId: string; activityKey: string; authorId?: string | null; authorName?: string | null; revision?: string | null; allowBlankPackage?: boolean; rhythmDifficultyKey?: RhythmDifficultyKey; learningDifficultyKey?: string | null }) {
+export async function requestFreshSongLaunchParams(input: { songAssetId: string; activityKey: string; authorId?: string | null; authorName?: string | null; revision?: string | null; allowBlankPackage?: boolean; rhythmDifficultyKey?: RhythmDifficultyKey; learningDifficultyKey?: string | null; refreshLaunchAttemptId?: string | null }) {
   const fresh = await requestFreshSongLaunchPackage(input);
   if (!fresh.readiness.canLaunch || fresh.source === "editor-scaffold") {
     throw new Error(fresh.readiness.message);
@@ -45,6 +45,7 @@ export async function requestFreshSongLaunchPackage({
   allowBlankPackage = false,
   rhythmDifficultyKey,
   learningDifficultyKey = null,
+  refreshLaunchAttemptId = null,
 }: {
   songAssetId: string;
   activityKey: string;
@@ -54,11 +55,23 @@ export async function requestFreshSongLaunchPackage({
   allowBlankPackage?: boolean;
   rhythmDifficultyKey?: RhythmDifficultyKey;
   learningDifficultyKey?: string | null;
+  refreshLaunchAttemptId?: string | null;
 }): Promise<FreshSongLaunchPackage> {
   const response = await fetch("/api/song-package/launch", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ songAssetId, activityKey, authorId, authorName, revision, allowBlankPackage, rhythmDifficultyKey, learningDifficultyKey }),
+    body: JSON.stringify({
+      songAssetId,
+      activityKey,
+      authorId,
+      authorName,
+      revision,
+      allowBlankPackage,
+      rhythmDifficultyKey,
+      learningDifficultyKey,
+      refreshLaunchAttemptId,
+      refreshOnly: Boolean(refreshLaunchAttemptId),
+    }),
   });
   const result = (await response.json().catch(() => null)) as
     | (FreshSongLaunchPackage & { error?: string })

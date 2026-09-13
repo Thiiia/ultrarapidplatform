@@ -85,6 +85,8 @@ export async function POST(request: Request) {
       allowBlankPackage?: unknown;
       rhythmDifficultyKey?: unknown;
       learningDifficultyKey?: unknown;
+      refreshLaunchAttemptId?: unknown;
+      refreshOnly?: unknown;
     };
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId");
     const activityKey = readRequiredString(payload.activityKey, "activityKey");
@@ -110,6 +112,10 @@ export async function POST(request: Request) {
     const learningDifficultyKey =
       typeof payload.learningDifficultyKey === "string" && payload.learningDifficultyKey.trim()
         ? payload.learningDifficultyKey.trim()
+        : null;
+    const refreshLaunchAttemptId =
+      payload.refreshOnly === true && typeof payload.refreshLaunchAttemptId === "string" && payload.refreshLaunchAttemptId.trim()
+        ? payload.refreshLaunchAttemptId.trim()
         : null;
     const author = await resolveRequestedAuthor({
       authorId: requestedAuthorId,
@@ -137,7 +143,7 @@ export async function POST(request: Request) {
       allowBlankPackage: payload.allowBlankPackage === true && !requestedRevision,
       rhythmDifficultyKey,
       learningDifficultyKey,
-      launchAttemptId: randomUUID(),
+      launchAttemptId: refreshLaunchAttemptId ?? randomUUID(),
       loadSongAsset: async (id) =>
         prisma.songAsset.findUnique({
           where: { id },
@@ -205,7 +211,7 @@ export async function POST(request: Request) {
       createSignedUrl,
     });
 
-    if (player && songPackage.receipt && songPackage.launchAttemptId && songPackage.source !== "editor-scaffold") {
+    if (!refreshLaunchAttemptId && player && songPackage.receipt && songPackage.launchAttemptId && songPackage.source !== "editor-scaffold") {
       await prisma.playerLaunchAttempt.create({
         data: {
           launchAttemptId: songPackage.launchAttemptId,

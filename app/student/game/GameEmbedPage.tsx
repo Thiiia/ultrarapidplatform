@@ -8,6 +8,7 @@ import type { FC, SVGProps } from "react";
 import { resolveLaunchParams } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 import { createBridgeContext, getOrCreateInstallationId, needsCalibration, validateBridgeMessage, type BridgeContext } from "@/lib/platform-player-bridge";
+import { requestFreshSongLaunchParams } from "@/lib/song-launch-client";
 import { webglFlexFrameStyle, webglViewportHostStyle } from "@/lib/webgl-embed-layout";
 import styles from "../student.module.css";
 
@@ -273,16 +274,54 @@ export default function GameEmbedPage({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [launchParams, setLaunchParams] = useState<URLSearchParams | null>(null);
+  const [launchPreparationError, setLaunchPreparationError] = useState("");
   const [bridgeContext, setBridgeContext] = useState<BridgeContext | null>(null);
   const [calibrationStatus, setCalibrationStatus] = useState<"loading" | "required" | "ready">("loading");
   const [completedRun, setCompletedRun] = useState<{ completedEvents: number; hitAttempts: number } | null>(null);
 
   const topTabs = getTopTabs(navBasePath);
+  const serializedSearchParams = searchParams.toString();
 
   useEffect(() => {
-    const receiptRaw = searchParams.get("receipt");
+    let cancelled = false;
+    const originalParams = new URLSearchParams(serializedSearchParams);
+    const songAssetId = originalParams.get("songAssetId");
+    const activityKey = originalParams.get("activityKey");
+
+    setLaunchParams(null);
+    setLaunchPreparationError("");
+    if (!songAssetId || !activityKey) {
+      setLaunchParams(originalParams);
+      return () => { cancelled = true; };
+    }
+
+    requestFreshSongLaunchParams({
+      songAssetId,
+      activityKey,
+      authorId: originalParams.get("authorId"),
+      revision: originalParams.get("revision"),
+      rhythmDifficultyKey: originalParams.get("rhythmDifficultyKey") as "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle" | null ?? undefined,
+      learningDifficultyKey: originalParams.get("learningDifficultyKey"),
+      refreshLaunchAttemptId: originalParams.get("launchAttemptId"),
+    })
+      .then((freshLaunchParams) => {
+        if (!cancelled) setLaunchParams(freshLaunchParams);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setLaunchPreparationError(error instanceof Error ? error.message : "Unable to prepare the game files.");
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [serializedSearchParams]);
+
+  useEffect(() => {
+    const receiptRaw = launchParams?.get("receipt");
     if (!receiptRaw) {
       queueMicrotask(() => setCalibrationStatus("ready"));
+      queueMicrotask(() => setBridgeContext(null));
       return;
     }
     try {
@@ -297,7 +336,7 @@ export default function GameEmbedPage({
     } catch {
       queueMicrotask(() => setCalibrationStatus("required"));
     }
-  }, [searchParams]);
+  }, [launchParams]);
 
   useEffect(() => {
     if (!bridgeContext) return;
@@ -355,7 +394,7 @@ export default function GameEmbedPage({
   }, [bridgeContext, navBasePath]);
 
   const embeddedGameUrl = useMemo(() => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(launchParams?.toString() ?? "");
     if (bridgeContext) {
       params.set("bridgeNonce", bridgeContext.nonce);
       params.set("installationId", bridgeContext.installationId);
@@ -364,7 +403,7 @@ export default function GameEmbedPage({
       params.set("platformOrigin", window.location.origin);
     }
     return getEmbeddedGameUrl(params);
-  }, [searchParams, bridgeContext, calibrationStatus]);
+  }, [launchParams, bridgeContext, calibrationStatus]);
 
   return (
     <div
@@ -402,19 +441,25 @@ export default function GameEmbedPage({
             overflow: "hidden",
           }}
         >
-          <iframe
-            ref={iframeRef}
-            src={embeddedGameUrl}
-            title="UltraRapid Game"
-            allow="fullscreen; gamepad; autoplay"
-            allowFullScreen
-            style={{
-              ...webglFlexFrameStyle,
-              border: `1px solid ${subtleBorderColor}`,
-              borderRadius: 12,
-              background: "#000000",
-            }}
-          />
+          {launchParams ? (
+            <iframe
+              ref={iframeRef}
+              src={embeddedGameUrl}
+              title="UltraRapid Game"
+              allow="fullscreen; gamepad; autoplay"
+              allowFullScreen
+              style={{
+                ...webglFlexFrameStyle,
+                border: `1px solid ${subtleBorderColor}`,
+                borderRadius: 12,
+                background: "#000000",
+              }}
+            />
+          ) : (
+            <div role={launchPreparationError ? "alert" : "status"} style={{ ...webglFlexFrameStyle, display: "grid", placeItems: "center", border: `1px solid ${subtleBorderColor}`, borderRadius: 12 }}>
+              {launchPreparationError || "Preparing your game files…"}
+            </div>
+          )}
           {bridgeContext && calibrationStatus === "required" && (
             <p className="mt-2 text-sm text-white/70">Complete calibration in the game before playing.</p>
           )}

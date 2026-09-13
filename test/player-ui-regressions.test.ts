@@ -16,6 +16,14 @@ test("launch visual is decorative and game sizing stays route-local", () => {
   assert.doesNotMatch(launchPage, /\bcontrols\b/);
 });
 
+test("game embed refreshes its signed song package before loading Unity", () => {
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+
+  assert.match(gameEmbed, /requestFreshSongLaunchParams/);
+  assert.match(gameEmbed, /setLaunchParams\(freshLaunchParams\)/);
+  assert.match(gameEmbed, /Preparing your game files/);
+});
+
 test("guided editing waits until the player chooses an editing action", () => {
   const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
   const guidedStart = source("app/student/lesson-builder/GuidedTemplateStart.tsx");
