@@ -20,6 +20,7 @@ CREATE TABLE public.game_content_revisions (
   equation_count integer,
   encounter_count integer,
   target_count integer,
+  publication_request_id text UNIQUE,
   status public.game_content_revision_status NOT NULL DEFAULT 'draft',
   failure_code text,
   failure_message text,

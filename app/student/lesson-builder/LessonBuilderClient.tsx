@@ -90,6 +90,8 @@ type SelectedSongPayload = {
   artist?: string | null;
   authorId?: string | null;
   authorName?: string | null;
+  rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
+  rhythm_difficulty_key?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
   activity?: {
     key?: string;
     label?: string;
@@ -9458,6 +9460,7 @@ export default function LessonBuilderClient({
     songAssetId: string;
     activityKey: SongActivityKey;
     authorName?: string | null;
+    rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
     chartUrl: string;
     sidecarUrl: string | null;
     audioUrl: string;
@@ -9473,6 +9476,13 @@ export default function LessonBuilderClient({
   const [lastSavedAuthorId, setLastSavedAuthorId] = useState<string | null>(null);
   const [lastSavedRevision, setLastSavedRevision] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const editGenerationRef = useRef(0);
+  const publicationRequestIdRef = useRef<string | null>(null);
+  function markDirty() {
+    editGenerationRef.current += 1;
+    publicationRequestIdRef.current = null;
+    setHasUnsavedChanges(true);
+  }
   const workspaceVersionRef = useRef(0);
   const workspaceRestoredSourceRef = useRef<string | null>(null);
   const [workspaceStatus, setWorkspaceStatus] = useState<"idle" | "loading" | "ready" | "offline" | "conflict">("idle");
@@ -9644,7 +9654,7 @@ export default function LessonBuilderClient({
       if (restoredEvents.length > 0) {
         setTimelineEvents(restoredEvents);
         setActiveEventId(restoredEvents[0]?.id ?? null);
-        setHasUnsavedChanges(true);
+        markDirty();
       }
       if (Array.isArray(payload.equations)) setSavedEquations(payload.equations as SavedEquation[]);
       if (Array.isArray(payload.hiddenSourceEquationIds)) setHiddenSourceEquationIds(payload.hiddenSourceEquationIds.filter((id): id is string => typeof id === "string"));
@@ -10501,7 +10511,7 @@ export default function LessonBuilderClient({
     setDraftTokens([]);
     setCustomTokenLabel("");
     setMode("event");
-    setHasUnsavedChanges(true);
+    markDirty();
     // Demo tutorial step 2 -> 3: equation saved, point at the Add Equation button.
     setTutorialStep((current) => (current === null ? null : "add"));
   }
@@ -10860,20 +10870,20 @@ export default function LessonBuilderClient({
   function handleHideSourceEquation(equationId: string) {
     setHiddenSourceEquationIds((current) => current.includes(equationId) ? current : [...current, equationId]);
     setSelectedEquationId(null);
-    setHasUnsavedChanges(true);
+    markDirty();
     setSaveStatus("This equation is hidden in your lesson. You can show it again any time.");
   }
 
   function handleRestoreSourceEquation(equationId: string) {
     setHiddenSourceEquationIds((current) => current.filter((id) => id !== equationId));
-    setHasUnsavedChanges(true);
+    markDirty();
     setSaveStatus("This equation is showing in your lesson again.");
   }
 
   function handleDeleteMineEquation(equationId: string) {
     setSavedEquations((current) => current.filter((equation) => equation.id !== equationId));
     setSelectedEquationId((current) => current === equationId ? null : current);
-    setHasUnsavedChanges(true);
+    markDirty();
     setSaveStatus("Mine equation deleted. Any encounter already using it was left unchanged.");
   }
 
@@ -10931,7 +10941,7 @@ export default function LessonBuilderClient({
       syncTimelineFilesFromEvents(nextEvents);
       return nextEvents;
     });
-    setHasUnsavedChanges(true);
+    markDirty();
     setCenterChoice(null);
     const activeEventIndex = activeEventId
       ? timelineEvents.findIndex((eventSlot) => eventSlot.id === activeEventId)
@@ -11047,14 +11057,14 @@ export default function LessonBuilderClient({
     if (strategy === "publish-draft") {
       const didSave = await handleSaveToSupabase();
 
-      if (didSave) {
-        launchAuthorId = didSave.authorId;
-        launchRevision = didSave.revision;
-      } else {
+      if (!didSave) {
         setSaveStatus(
-          "Your draft is not ready to publish yet. Playing the last safe template; your draft remains in the editor.",
+          "Your draft could not be published. Repair it or play the last published version from the lesson actions.",
         );
+        return;
       }
+      launchAuthorId = didSave.authorId;
+      launchRevision = didSave.revision;
     }
 
     try {
@@ -11082,7 +11092,7 @@ export default function LessonBuilderClient({
       authorId: freshSongLaunch.authorId,
       revision: freshSongLaunch.revision,
       receipt: freshSongLaunch.receipt,
-      rhythmDifficultyKey: "ExpertSingle",
+      rhythmDifficultyKey: selectedSongLaunch.rhythmDifficultyKey,
     });
       const launchRoute = navBasePath.startsWith("/demo")
       ? "/demo/launch"
@@ -11152,6 +11162,8 @@ export default function LessonBuilderClient({
         }
         return false;
       }
+
+      const saveEditGeneration = editGenerationRef.current;
 
       const timelineSidecar = sidecarFromTimelineEvents(timelineEvents, true);
       const authoredClock = createLessonClock(chartFile || originalChartFileRef.current);
@@ -11265,10 +11277,13 @@ export default function LessonBuilderClient({
         sidecarEventCount: timelineSidecar.events.length,
       });
 
+      const publicationRequestId = publicationRequestIdRef.current ?? crypto.randomUUID();
+      publicationRequestIdRef.current = publicationRequestId;
       const response = await fetch("/api/lesson-builder/save", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Idempotency-Key": publicationRequestId,
         },
         body: JSON.stringify({
           songAssetId: selectedSongStorage.id,
@@ -11276,6 +11291,7 @@ export default function LessonBuilderClient({
           authorId: lastSavedAuthorId ?? selectedSongAuthorId ?? undefined,
           authorName: selectedSongAuthorName ?? undefined,
           revision: lastSavedRevision ?? undefined,
+          publicationRequestId,
           chart: {
             ...selectedSongStorage.chart,
             path: selectedSongStorage.chart.path,
@@ -11316,7 +11332,8 @@ export default function LessonBuilderClient({
       if (!result?.authorId || !result.revision) {
         throw new Error("Saved lesson identity could not be verified");
       }
-      if (workspaceSource) deletePlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
+      const publishedCurrentSnapshot = editGenerationRef.current === saveEditGeneration;
+      if (publishedCurrentSnapshot && workspaceSource) deletePlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
       setLastSavedAuthorId(result.authorId);
       setLastSavedRevision(result.revision);
 
@@ -11354,10 +11371,16 @@ export default function LessonBuilderClient({
         result,
       });
 
-      setChartFile(chartText);
-      setStoreSidecar(sidecarToPersist as StoreSidecarPayload);
-      setSaveStatus("Published my version");
-      setHasUnsavedChanges(false);
+      if (publishedCurrentSnapshot) {
+        setChartFile(chartText);
+        setStoreSidecar(sidecarToPersist as StoreSidecarPayload);
+        setSaveStatus("Published my version");
+        setHasUnsavedChanges(false);
+      } else {
+        setSaveStatus("Published the saved snapshot. Newer edits remain unsaved in the editor.");
+        setHasUnsavedChanges(true);
+      }
+      publicationRequestIdRef.current = null;
       setLessonReadiness({
         state: "ready",
         source: "authored",
@@ -11660,6 +11683,7 @@ export default function LessonBuilderClient({
       songAssetId: selectedSong.id,
       activityKey: resolvedActivityKey,
       authorName: selectedSong.authorName ?? null,
+      rhythmDifficultyKey: selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key,
       chartUrl: selectedSong.chart.signedUrl,
       sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
       audioUrl: selectedSong.song.signedUrl,
@@ -12289,7 +12313,7 @@ export default function LessonBuilderClient({
   }, [currentSongSeconds, timelineDurationSeconds]);
 
   function syncTimelineFilesFromEvents(nextEvents: TimelineEventSlot[]) {
-    setHasUnsavedChanges(true);
+    markDirty();
     const nextSidecar = sidecarFromTimelineEvents(nextEvents);
     timelineRehydrateSourceRef.current = nextSidecar;
 

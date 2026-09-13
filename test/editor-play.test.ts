@@ -47,7 +47,7 @@ test("header exposes Play wired to launch, disabled during save or without a son
   assert.equal(launches, 1);
 });
 
-for (const saveFails of [false, true]) test(`launch publishes a draft when possible and falls back safely when not; saveFails=${saveFails}`, async () => {
+for (const saveFails of [false, true]) test(`launch publishes a draft only when publication succeeds; saveFails=${saveFails}`, async () => {
   const requests: any[] = [];
   const routes: string[] = [];
   const launch = load("handleLaunchGame", {
@@ -58,21 +58,22 @@ for (const saveFails of [false, true]) test(`launch publishes a draft when possi
     requestFreshSongLaunchPackage: async (request: any) => {
       requests.push(request);
       return {songAssetId: "song", activityKey: "early-algebra", chart: {signedUrl: "chart"},
-        sidecar: {signedUrl: "sidecar"}, audio: {signedUrl: "audio"}, ...request};
+        sidecar: {signedUrl: "sidecar"}, audio: {signedUrl: "audio"}, readiness: {canLaunch: true, state: "ready", message: ""}, ...request};
     },
     createSongLaunchSearchParams: () => new URLSearchParams(), navBasePath: "/demo/student",
     buildEmbeddedGameUrl: () => "game", process: {env: {}}, appendSongFlowDebug: () => {},
     persistLaunchParams: () => {}, router: {push: (route: string) => routes.push(route)}, setSaveStatus: () => {},
+    setLessonReadiness: () => {}, loadedSongReadyRef: {current: true},
   });
   await launch();
-  assert.equal(requests.length, 1);
-  assert.equal(routes.length, 1);
   if (!saveFails) {
+    assert.equal(requests.length, 1);
+    assert.equal(routes.length, 1);
     assert.equal(requests[0].revision, "new-revision");
     assert.equal(requests[0].authorId, "saved-author");
   } else {
-    assert.equal(requests[0].revision, "old-revision");
-    assert.equal(requests[0].authorId, "old-author");
+    assert.equal(requests.length, 0);
+    assert.equal(routes.length, 0);
   }
 });
 
@@ -87,11 +88,12 @@ test("launches a published template without asking it to save again", async () =
     lessonLaunchStrategy: (hasUnsavedChanges: boolean) => hasUnsavedChanges ? "publish-draft" : "published-template",
     requestFreshSongLaunchPackage: async (request: any) => {
       requests.push(request);
-      return {songAssetId: "song", activityKey: "early-algebra", chart: {signedUrl: "chart"}, sidecar: {signedUrl: "sidecar"}, audio: {signedUrl: "audio"}, ...request};
+      return {songAssetId: "song", activityKey: "early-algebra", chart: {signedUrl: "chart"}, sidecar: {signedUrl: "sidecar"}, audio: {signedUrl: "audio"}, readiness: {canLaunch: true, state: "ready", message: ""}, ...request};
     },
     createSongLaunchSearchParams: () => new URLSearchParams(), navBasePath: "/demo/student",
     buildEmbeddedGameUrl: () => "game", process: {env: {}}, appendSongFlowDebug: () => {},
     persistLaunchParams: () => {}, router: {push: () => {}}, setSaveStatus: () => {},
+    setLessonReadiness: () => {}, loadedSongReadyRef: {current: true},
   });
   await launch();
   assert.equal(saves, 0);

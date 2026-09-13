@@ -279,6 +279,7 @@ model GameContentRevision {
   equationCount         Int?                      @map("equation_count")
   encounterCount        Int?                      @map("encounter_count")
   targetCount           Int?                      @map("target_count")
+  publicationRequestId  String?                   @unique @map("publication_request_id")
   status                GameContentRevisionStatus @default(draft)
   failureCode           String?                   @map("failure_code")
   failureMessage        String?                   @map("failure_message")

@@ -36,6 +36,7 @@ type SavePayload = {
   authorId?: unknown;
   authorName?: unknown;
   revision?: unknown;
+  publicationRequestId?: unknown;
   chart?: SaveFilePayload;
   sidecar?: SaveFilePayload;
 };
@@ -197,6 +198,11 @@ export async function POST(request: Request) {
       typeof payload.revision === "string" && payload.revision.trim()
         ? payload.revision.trim()
         : null;
+    const publicationRequestId =
+      request.headers.get("idempotency-key")?.trim() ||
+      (typeof payload.publicationRequestId === "string" && payload.publicationRequestId.trim()
+        ? payload.publicationRequestId.trim()
+        : randomUUID());
 
     if (!payload.chart || !payload.sidecar) {
       return NextResponse.json(
@@ -242,6 +248,45 @@ export async function POST(request: Request) {
 
     const chartContent = readRequiredString(payload.chart.content, "chart.content");
     const sidecarContent = readRequiredString(payload.sidecar.content, "sidecar.content");
+
+    const replayedPublication = await prisma.gameContentRevision.findUnique({
+      where: { publicationRequestId },
+      select: {
+        revision: true,
+        songAssetId: true,
+        activityKey: true,
+        authorId: true,
+        chartBucket: true,
+        chartPath: true,
+        sidecarBucket: true,
+        sidecarPath: true,
+        status: true,
+      },
+    });
+    if (replayedPublication) {
+      if (
+        replayedPublication.songAssetId !== songAssetId ||
+        replayedPublication.activityKey !== activityKey ||
+        replayedPublication.authorId !== targetAuthor.id
+      ) {
+        return NextResponse.json({ error: "Publication request id belongs to a different lesson" }, { status: 409 });
+      }
+      if (replayedPublication.status !== "ready") {
+        return NextResponse.json({ error: "Publication request is still being finalized" }, { status: 409 });
+      }
+      return NextResponse.json({
+        ok: true,
+        authorId: targetAuthor.id,
+        authorName: targetAuthor.name,
+        revision: replayedPublication.revision,
+        publicationRequestId,
+        migratedFromLegacy: false,
+        songAsset: { id: songAssetId, chartBucket: replayedPublication.chartBucket, sidecarBucket: replayedPublication.sidecarBucket },
+        chart: { bucket: replayedPublication.chartBucket, path: replayedPublication.chartPath, contentType: "text/plain;charset=utf-8" },
+        sidecar: { bucket: replayedPublication.sidecarBucket, path: replayedPublication.sidecarPath, contentType: "application/json;charset=utf-8" },
+      });
+    }
+
     try { validateLessonContent(chartContent, sidecarContent, { forSave: true }); }
     catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid lesson content" }, { status: 400 }); }
 
@@ -278,6 +323,10 @@ export async function POST(request: Request) {
       );
     }
     const persistedSidecarContent = authoredPublication.content;
+    const [chartSha256, audioSha256] = await Promise.all([
+      Promise.resolve(sha256(chartContent)),
+      sha256ForStoredFile(existingSongAsset.songBucket, existingSongAsset.songPath),
+    ]);
     const revisionTargets = await publishLessonSaveRevision({
       targets,
       revisionId,
@@ -286,89 +335,89 @@ export async function POST(request: Request) {
         sidecar: persistedSidecarContent,
       },
       upload: async (file) => { await uploadTextFile(file); },
-      recordRevision: async ({ revisionId: publishedRevisionId, chart, sidecar }) => {
-        // New authors need a stable SongChart identity before the immutable
-        // registry row can be created. It starts at the base path; gameplay
-        // never reads this pointer once the registry is deployed.
-        if (!targets.songChartId) {
-          const created = await prisma.songChart.create({
-            data: {
-              songAssetId,
-              authorId: targetAuthor.id,
-              activityKey,
-              chartBucket: targets.chart.bucket,
-              chartPath: targets.chart.path,
-              sidecarBucket: targets.sidecar.bucket,
-              sidecarPath: targets.sidecar.path,
-            },
-            select: { id: true },
+      commitRevision: async ({ revisionId: publishedRevisionId, chart, sidecar }) => {
+        try {
+          await prisma.$transaction(async (transaction) => {
+            const current = await transaction.songChart.findUnique({
+              where: { songAssetId_authorId_activityKey: { songAssetId, authorId: targetAuthor.id, activityKey } },
+              select: { id: true, chartBucket: true, chartPath: true, sidecarBucket: true, sidecarPath: true },
+            });
+
+            let songChartId = current?.id;
+            if (!current) {
+              const created = await transaction.songChart.create({
+                data: {
+                  songAssetId,
+                  authorId: targetAuthor.id,
+                  activityKey,
+                  chartBucket: targets.chart.bucket,
+                  chartPath: chart.path,
+                  sidecarBucket: targets.sidecar.bucket,
+                  sidecarPath: sidecar.path,
+                },
+                select: { id: true },
+              });
+              songChartId = created.id;
+            } else {
+              const expected = targets.current;
+              const stillAtExpectedRevision = Boolean(
+                expected &&
+                current.chartBucket === expected.chartBucket &&
+                current.chartPath === expected.chartPath &&
+                current.sidecarBucket === expected.sidecarBucket &&
+                current.sidecarPath === expected.sidecarPath,
+              );
+              if (!stillAtExpectedRevision) {
+                throw new Error("Save revision conflict: the lesson changed while this publication was being prepared");
+              }
+              const updated = await transaction.songChart.updateMany({
+                where: {
+                  id: current.id,
+                  chartBucket: current.chartBucket,
+                  chartPath: current.chartPath,
+                  sidecarBucket: current.sidecarBucket,
+                  sidecarPath: current.sidecarPath,
+                },
+                data: { chartBucket: targets.chart.bucket, chartPath: chart.path, sidecarBucket: targets.sidecar.bucket, sidecarPath: sidecar.path },
+              });
+              if (updated.count !== 1) {
+                throw new Error("Save revision conflict: the lesson changed while this publication was being committed");
+              }
+            }
+
+            await transaction.gameContentRevision.create({
+              data: {
+                revision: publishedRevisionId,
+                publicationRequestId,
+                songChartId: songChartId!,
+                songAssetId,
+                activityKey,
+                authorId: targetAuthor.id,
+                chartBucket: chart.bucket,
+                chartPath: chart.path,
+                sidecarBucket: sidecar.bucket,
+                sidecarPath: sidecar.path,
+                audioBucket: existingSongAsset.songBucket,
+                audioPath: existingSongAsset.songPath,
+                chartSha256,
+                sidecarSha256: sha256(sidecar.content),
+                audioSha256,
+                authoredLessonVersion: 3,
+                authoredMode: "authored",
+                equationCount: authoredPublication.counts.equations,
+                encounterCount: authoredPublication.counts.encounters,
+                targetCount: authoredPublication.counts.targets,
+                status: "ready",
+                publishedAt: new Date(),
+              },
+            });
           });
-          targets.songChartId = created.id;
-          targets.current = {
-            chartBucket: targets.chart.bucket,
-            chartPath: targets.chart.path,
-            sidecarBucket: targets.sidecar.bucket,
-            sidecarPath: targets.sidecar.path,
-          };
+        } catch (error) {
+          if (error instanceof Error && (error.message.startsWith("Save revision conflict") || (error as { code?: string }).code === "P2002")) {
+            throw new Error("Save revision conflict: the lesson changed while this publication was being committed");
+          }
+          throw error;
         }
-
-        const [chartSha256, audioSha256] = await Promise.all([
-          Promise.resolve(sha256(chart.content)),
-          sha256ForStoredFile(existingSongAsset.songBucket, existingSongAsset.songPath),
-        ]);
-        await prisma.gameContentRevision.create({
-          data: {
-            revision: publishedRevisionId,
-            songChartId: targets.songChartId!,
-            songAssetId,
-            activityKey,
-            authorId: targetAuthor.id,
-            chartBucket: chart.bucket,
-            chartPath: chart.path,
-            sidecarBucket: sidecar.bucket,
-            sidecarPath: sidecar.path,
-            audioBucket: existingSongAsset.songBucket,
-            audioPath: existingSongAsset.songPath,
-            chartSha256,
-            sidecarSha256: sha256(sidecar.content),
-            audioSha256,
-            authoredLessonVersion: 3,
-            authoredMode: "authored",
-            equationCount: authoredPublication.counts.equations,
-            encounterCount: authoredPublication.counts.encounters,
-            targetCount: authoredPublication.counts.targets,
-            status: "draft",
-          },
-        });
-        await prisma.gameContentRevision.update({
-          where: { revision: publishedRevisionId },
-          data: { status: "publishing" },
-        });
-        await prisma.gameContentRevision.update({
-          where: { revision: publishedRevisionId },
-          data: { status: "ready", publishedAt: new Date() },
-        });
-      },
-      updatePointers: async ({ chartPath, sidecarPath }) => {
-        const { count } = await prisma.songChart.updateMany({
-          where: {
-            songAssetId,
-            authorId: targetAuthor.id,
-            activityKey,
-            chartBucket: targets.chart.bucket,
-            chartPath: targets.current?.chartPath ?? targets.chart.path,
-            sidecarBucket: targets.current ? targets.current.sidecarBucket : targets.sidecar.bucket,
-            sidecarPath: targets.current ? targets.current.sidecarPath : targets.sidecar.path,
-          },
-          data: {
-            chartBucket: targets.chart.bucket,
-            chartPath,
-            sidecarBucket: targets.sidecar.bucket,
-            sidecarPath,
-          },
-        });
-
-        return count === 1;
       },
     });
 
@@ -386,6 +435,7 @@ export async function POST(request: Request) {
       authorId: targetAuthor.id,
       authorName: targetAuthor.name,
       revision: revisionId,
+      publicationRequestId,
       migratedFromLegacy: authoredPublication.migratedFromLegacy,
       songAsset: {
         id: songAssetId,

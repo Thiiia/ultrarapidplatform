@@ -15,6 +15,16 @@ type LessonSaveRevisionModule = {
       content: string;
       contentType: string;
     }) => Promise<void>;
+    commitRevision?: (next: {
+      revisionId: string;
+      chart: { bucket: string; path: string; content: string };
+      sidecar: { bucket: string; path: string; content: string };
+    }) => Promise<void>;
+    recordRevision?: (next: {
+      revisionId: string;
+      chart: { bucket: string; path: string; content: string };
+      sidecar: { bucket: string; path: string; content: string };
+    }) => Promise<void>;
     updatePointers: (next: {
       chartPath: string;
       sidecarPath: string;
@@ -111,4 +121,36 @@ test("moves both pointers to the same immutable revision after both uploads succ
       sidecarPath: "Early_Algebra/revisions/revision-456/waves.json",
     },
   ]);
+});
+
+test("uses one atomic commit callback after both immutable assets upload", async () => {
+  const revision = await loadLessonSaveRevisionModule();
+  let legacyRecordCalls = 0;
+  let legacyPointerCalls = 0;
+  const commits: string[] = [];
+
+  const published = await revision!.publishLessonSaveRevision!({
+    targets: {
+      chart: { bucket: "Charts", path: "Early_Algebra/waves.chart" },
+      sidecar: { bucket: "SidecarJsons", path: "Early_Algebra/waves.json" },
+    },
+    revisionId: "revision-atomic",
+    content: { chart: "[Song]", sidecar: "{\"events\":[]}" },
+    upload: async () => undefined,
+    commitRevision: async (next) => {
+      commits.push(`${next.revisionId}:${next.chart.path}:${next.sidecar.path}`);
+    },
+    recordRevision: async () => { legacyRecordCalls += 1; },
+    updatePointers: async () => {
+      legacyPointerCalls += 1;
+      return true;
+    },
+  });
+
+  assert.equal(published.chart.path, "Early_Algebra/revisions/revision-atomic/waves.chart");
+  assert.deepEqual(commits, [
+    "revision-atomic:Early_Algebra/revisions/revision-atomic/waves.chart:Early_Algebra/revisions/revision-atomic/waves.json",
+  ]);
+  assert.equal(legacyRecordCalls, 0);
+  assert.equal(legacyPointerCalls, 0);
 });

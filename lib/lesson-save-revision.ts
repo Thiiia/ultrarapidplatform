@@ -54,6 +54,7 @@ export async function publishLessonSaveRevision({
   revisionId,
   content,
   upload,
+  commitRevision,
   recordRevision,
   updatePointers,
 }: {
@@ -61,12 +62,17 @@ export async function publishLessonSaveRevision({
   revisionId: string;
   content: RevisionContent;
   upload: (file: StorageTarget & { content: string; contentType: string }) => Promise<void>;
+  commitRevision?: (next: {
+    revisionId: string;
+    chart: StorageTarget & { content: string };
+    sidecar: StorageTarget & { content: string };
+  }) => Promise<void>;
   recordRevision?: (next: {
     revisionId: string;
     chart: StorageTarget & { content: string };
     sidecar: StorageTarget & { content: string };
   }) => Promise<void>;
-  updatePointers: (next: { chartPath: string; sidecarPath: string }) => Promise<boolean>;
+  updatePointers?: (next: { chartPath: string; sidecarPath: string }) => Promise<boolean>;
 }) {
   const revisionTargets = buildLessonSaveRevisionTargets({ targets, revisionId });
 
@@ -81,19 +87,29 @@ export async function publishLessonSaveRevision({
     contentType: "application/json;charset=utf-8",
   });
 
-  await recordRevision?.({
+  const committedRevision = {
     revisionId,
     chart: { ...revisionTargets.chart, content: content.chart },
     sidecar: { ...revisionTargets.sidecar, content: content.sidecar },
-  });
+  };
 
-  const pointersUpdated = await updatePointers({
-    chartPath: revisionTargets.chart.path,
-    sidecarPath: revisionTargets.sidecar.path,
-  });
+  if (commitRevision) {
+    await commitRevision(committedRevision);
+  } else {
+    await recordRevision?.(committedRevision);
 
-  if (!pointersUpdated) {
-    throw new Error("Song activity changed before this revision could be saved");
+    if (!updatePointers) {
+      throw new Error("A pointer update is required when no atomic commit is provided");
+    }
+
+    const pointersUpdated = await updatePointers({
+      chartPath: revisionTargets.chart.path,
+      sidecarPath: revisionTargets.sidecar.path,
+    });
+
+    if (!pointersUpdated) {
+      throw new Error("Song activity changed before this revision could be saved");
+    }
   }
 
   return revisionTargets;
