@@ -11,6 +11,28 @@ export type LessonSourceIdentity = {
   revision: string;
 };
 
+export function resolveLessonWorkspaceSource(input: {
+  songAssetId: string | null | undefined;
+  activityKey: string | null | undefined;
+  lastSavedAuthorId: string | null | undefined;
+  selectedAuthorId: string | null | undefined;
+  selectedAuthorName: string | null | undefined;
+  revision: string | null | undefined;
+}): LessonSourceIdentity | null {
+  if (!input.songAssetId || !input.activityKey || !input.revision) return null;
+  return {
+    songAssetId: input.songAssetId,
+    activityKey: input.activityKey,
+    authorId: input.lastSavedAuthorId ?? input.selectedAuthorId ?? input.selectedAuthorName ?? "dev",
+    revision: input.revision,
+  };
+}
+
+/** Launchable lessons should not obstruct the editor; only actionable failures persist. */
+export function shouldKeepLessonReadinessVisible(readiness: { canLaunch: boolean } | null | undefined): boolean {
+  return Boolean(readiness && !readiness.canLaunch);
+}
+
 export type PlayerLessonWorkspaceDraft = {
   version: typeof PLAYER_LESSON_WORKSPACE_VERSION;
   source: LessonSourceIdentity;

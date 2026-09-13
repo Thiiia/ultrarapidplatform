@@ -4,12 +4,38 @@ import {
   deletePlayerLessonWorkspaceDraft,
   playerLessonWorkspaceKey,
   readPlayerLessonWorkspaceDraft,
+	resolveLessonWorkspaceSource,
+	shouldKeepLessonReadinessVisible,
   writePlayerLessonWorkspaceDraft,
   type LessonSourceIdentity,
 } from "../lib/player-lesson-workspace";
 
 const source: LessonSourceIdentity = { songAssetId: "waves", activityKey: "early-algebra", authorId: "author", revision: "rev-1" };
 const storage = () => { const data = new Map<string, string>(); return { data, getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) }; };
+
+test("uses the saved revision author for a private workspace", () => {
+  assert.deepEqual(
+    resolveLessonWorkspaceSource({
+      songAssetId: "oneone",
+      activityKey: "early-algebra",
+      lastSavedAuthorId: "author-uuid",
+      selectedAuthorId: null,
+      selectedAuthorName: "dev",
+      revision: "b5515a55-31a6-48fe-9559-ee41e62a1b35",
+    }),
+    {
+      songAssetId: "oneone",
+      activityKey: "early-algebra",
+      authorId: "author-uuid",
+      revision: "b5515a55-31a6-48fe-9559-ee41e62a1b35",
+    },
+  );
+});
+
+test("keeps lesson readiness visible only when the lesson cannot launch", () => {
+  assert.equal(shouldKeepLessonReadinessVisible({ canLaunch: true }), false);
+  assert.equal(shouldKeepLessonReadinessVisible({ canLaunch: false }), true);
+});
 
 test("keys drafts by the complete source identity", () => assert.notEqual(playerLessonWorkspaceKey(source), playerLessonWorkspaceKey({ ...source, revision: "rev-2" })));
 test("rejects malformed, stale, wrong-source, and credential-bearing drafts", () => {

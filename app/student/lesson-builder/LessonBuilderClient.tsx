@@ -42,8 +42,10 @@ import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import {
   deletePlayerLessonWorkspaceDraft,
-  readPlayerLessonWorkspaceDraft,
-  writePlayerLessonWorkspaceDraft,
+	readPlayerLessonWorkspaceDraft,
+	resolveLessonWorkspaceSource,
+	shouldKeepLessonReadinessVisible,
+	writePlayerLessonWorkspaceDraft,
   type LessonSourceIdentity,
   type PlayerLessonEntryIntent,
 } from "@/lib/player-lesson-workspace";
@@ -9642,14 +9644,15 @@ export default function LessonBuilderClient({
   );
 
   const workspaceSource = useMemo<LessonSourceIdentity | null>(() => {
-    if (!selectedSongStorage || !selectedSongActivity || !lastSavedRevision) return null;
-    return {
-      songAssetId: selectedSongStorage.id,
-      activityKey: selectedSongActivity.key,
-      authorId: selectedSongAuthorId ?? selectedSongAuthorName ?? "dev",
+    return resolveLessonWorkspaceSource({
+      songAssetId: selectedSongStorage?.id,
+      activityKey: selectedSongActivity?.key,
+      lastSavedAuthorId,
+      selectedAuthorId: selectedSongAuthorId,
+      selectedAuthorName: selectedSongAuthorName,
       revision: lastSavedRevision,
-    };
-  }, [selectedSongActivity, selectedSongAuthorId, selectedSongAuthorName, selectedSongStorage, lastSavedRevision]);
+    });
+  }, [lastSavedAuthorId, lastSavedRevision, selectedSongActivity, selectedSongAuthorId, selectedSongAuthorName, selectedSongStorage]);
 
   useEffect(() => {
     if (!isLessonLoaded || entryIntent !== "personalize" || guidedStarted || !workspaceSource) return;
@@ -12888,6 +12891,10 @@ export default function LessonBuilderClient({
     chartFile.trim().length === 0 && sidecar.events.length === 0;
   const isRctm1Mode = mode === "rctm1";
   const isRctm2Mode = mode === "rctm2";
+	const persistentLessonReadiness =
+		lessonReadiness && shouldKeepLessonReadinessVisible(lessonReadiness)
+			? lessonReadiness
+			: null;
   const rtcmPlayheadEvent = findTimelineEventAtSeconds(
     timelineEvents,
     currentSongSeconds,
@@ -13418,7 +13425,7 @@ export default function LessonBuilderClient({
         )}
       </main>
 
-      {lessonReadiness ? (
+      {persistentLessonReadiness ? (
         <aside
           aria-label="Unity handoff readiness"
           aria-live="polite"
@@ -13430,23 +13437,23 @@ export default function LessonBuilderClient({
             width: "min(440px, calc(100vw - 36px))",
             padding: "12px 14px",
             borderRadius: 12,
-            border: `1px solid ${lessonReadiness.state === "ready" ? "#CFFF04" : lessonReadiness.state === "template-fallback" ? "#77C7FF" : "#FF9A78"}`,
+            border: `1px solid ${persistentLessonReadiness.state === "ready" ? "#CFFF04" : persistentLessonReadiness.state === "template-fallback" ? "#77C7FF" : "#FF9A78"}`,
             background: "#0A1222F5",
             color: "#FFFFFF",
             boxShadow: "0 12px 24px rgba(0,0,0,0.35)",
           }}
         >
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-            <strong style={{ color: lessonReadiness.state === "ready" ? "#CFFF04" : lessonReadiness.state === "template-fallback" ? "#77C7FF" : "#FF9A78", fontSize: 11, letterSpacing: 0.7, textTransform: "uppercase" }}>
-              {lessonReadiness.state === "ready" ? "Unity handoff ready" : lessonReadiness.state === "template-fallback" ? "Starter template" : "Lesson needs repair"}
+            <strong style={{ color: persistentLessonReadiness.state === "ready" ? "#CFFF04" : persistentLessonReadiness.state === "template-fallback" ? "#77C7FF" : "#FF9A78", fontSize: 11, letterSpacing: 0.7, textTransform: "uppercase" }}>
+              {persistentLessonReadiness.state === "ready" ? "Unity handoff ready" : persistentLessonReadiness.state === "template-fallback" ? "Starter template" : "Lesson needs repair"}
             </strong>
             <span style={{ color: "#FFFFFF99", fontSize: 11 }}>{selectedSongActivity?.label ?? "Choose activity"}</span>
           </div>
-          <p style={{ margin: "6px 0 0", fontSize: 12, lineHeight: 1.4 }}>{lessonReadiness.message}</p>
+          <p style={{ margin: "6px 0 0", fontSize: 12, lineHeight: 1.4 }}>{persistentLessonReadiness.message}</p>
           <p style={{ margin: "7px 0 0", color: "#FFFFFFA8", fontSize: 11, lineHeight: 1.4 }}>
             Cue = song timing · Event = player moment · Encounter = Unity move · Equation = learning task
           </p>
-          {!lessonReadiness.canLaunch ? (
+          {!persistentLessonReadiness.canLaunch ? (
             <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
               <button type="button" onClick={handleRetryCurrentLesson} style={{ border: 0, borderRadius: 8, background: "#CFFF04", color: "#071222", padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>Retry lesson</button>
               <button type="button" onClick={handleOpenFilePicker} style={{ border: "1px solid #7A8FA8", borderRadius: 8, background: "transparent", color: "#FFFFFF", padding: "8px 10px", fontWeight: 800, cursor: "pointer" }}>Choose another song</button>
