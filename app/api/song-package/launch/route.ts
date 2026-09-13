@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { randomUUID } from "crypto";
 import { resolveFreshSongLaunchPackage } from "@/lib/song-launch-package";
 import {
   DEV_AUTHOR_FOLDER,
@@ -69,6 +70,8 @@ export async function POST(request: Request) {
       authorName?: unknown;
       revision?: unknown;
       allowBlankPackage?: unknown;
+      rhythmDifficultyKey?: unknown;
+      learningDifficultyKey?: unknown;
     };
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId");
     const activityKey = readRequiredString(payload.activityKey, "activityKey");
@@ -83,6 +86,17 @@ export async function POST(request: Request) {
     const requestedRevision =
       typeof payload.revision === "string" && payload.revision.trim()
         ? payload.revision.trim()
+        : null;
+    const rhythmDifficultyKey =
+      payload.rhythmDifficultyKey === "EasySingle" ||
+      payload.rhythmDifficultyKey === "MediumSingle" ||
+      payload.rhythmDifficultyKey === "HardSingle" ||
+      payload.rhythmDifficultyKey === "ExpertSingle"
+        ? payload.rhythmDifficultyKey
+        : null;
+    const learningDifficultyKey =
+      typeof payload.learningDifficultyKey === "string" && payload.learningDifficultyKey.trim()
+        ? payload.learningDifficultyKey.trim()
         : null;
     const author = await resolveRequestedAuthor({
       authorId: requestedAuthorId,
@@ -108,6 +122,9 @@ export async function POST(request: Request) {
       authorId: author.id,
       revision: requestedRevision,
       allowBlankPackage: payload.allowBlankPackage === true && !requestedRevision,
+      rhythmDifficultyKey,
+      learningDifficultyKey,
+      launchAttemptId: randomUUID(),
       loadSongAsset: async (id) =>
         prisma.songAsset.findUnique({
           where: { id },

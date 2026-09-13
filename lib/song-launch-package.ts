@@ -32,6 +32,22 @@ type BlankSongChartPackage = {
   sidecar: SignedStorageRef;
 };
 
+export type RhythmDifficultyKey = "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
+export type LessonSource = "authored" | "starter-template";
+export type TemplateProvenance = {
+  templateId: string;
+  label: string;
+  origin: "verified-starter-template";
+  sourceRevision?: string;
+};
+export type LessonReadinessIssue = {
+  code: string;
+  severity: "error" | "warning";
+  message: string;
+  recoveryAction?: string;
+  affectedAsset?: "chart" | "sidecar" | "audio";
+};
+
 /**
  * A small, user-facing summary of whether this package can cross the editor →
  * Unity boundary. It intentionally travels with the signed package so the
@@ -44,25 +60,35 @@ export type LessonReadiness =
     source: "authored";
     canLaunch: true;
     message: string;
+    issues?: LessonReadinessIssue[];
   }
   | {
     state: "template-fallback";
     source: "starter-template";
     canLaunch: true;
     message: string;
+    issues?: LessonReadinessIssue[];
   }
   | {
     state: "repairable" | "blocked";
     source: "authored" | "starter-template";
     canLaunch: false;
     message: string;
+    issues?: LessonReadinessIssue[];
   };
 
 export type PlayableLessonPackage = {
+  contractVersion: 1;
   songAssetId: string;
   activityKey: string;
   authorId?: string;
   revision?: string;
+  source: LessonSource;
+  templateProvenance?: TemplateProvenance;
+  runtimeCapabilities: string[];
+  rhythmDifficultyKey?: RhythmDifficultyKey;
+  learningDifficultyKey?: string;
+  launchAttemptId?: string;
   receipt?: SongLaunchReceipt;
   readiness: LessonReadiness;
   chart: SignedStorageRef;
@@ -78,10 +104,17 @@ export type PlayableLessonPackage = {
  */
 export type SongLaunchReceipt = {
   receiptVersion: 1;
+  contractVersion: 1;
   songAssetId: string;
   activityKey: string;
   authorId: string;
   revision?: string;
+  source: LessonSource;
+  templateProvenance?: TemplateProvenance;
+  runtimeCapabilities: string[];
+  rhythmDifficultyKey?: RhythmDifficultyKey;
+  learningDifficultyKey?: string;
+  launchAttemptId?: string;
   chart: { bucket: string; path: string };
   sidecar: { bucket: string; path: string };
   audio: { bucket: string; path: string };
@@ -120,6 +153,9 @@ export async function resolveFreshSongLaunchPackage({
   authorId,
   revision,
   allowBlankPackage = false,
+  rhythmDifficultyKey,
+  learningDifficultyKey,
+  launchAttemptId,
   loadSongAsset,
   loadSongChart,
   loadBlankSongChart,
@@ -130,6 +166,9 @@ export async function resolveFreshSongLaunchPackage({
   authorId: string | null;
   revision?: string | null;
   allowBlankPackage?: boolean;
+  rhythmDifficultyKey?: RhythmDifficultyKey | null;
+  learningDifficultyKey?: string | null;
+  launchAttemptId?: string | null;
   loadSongAsset: (id: string) => Promise<Record<string, unknown> | null>;
   loadSongChart: (
     songAssetId: string,
@@ -177,9 +216,20 @@ export async function resolveFreshSongLaunchPackage({
 
     const blankAudioUrl = await createSignedUrl(audioBucket, audioPath);
     return {
+      contractVersion: 1,
       songAssetId: canonicalSongAssetId,
       activityKey: requestedActivityKey,
       ...(authorId ? { authorId } : {}),
+      source: "starter-template",
+      templateProvenance: {
+        templateId: `${requestedActivityKey}:verified-starter-template`,
+        label: `${requestedActivityKey} verified starter template`,
+        origin: "verified-starter-template",
+      },
+      runtimeCapabilities: ["launch-receipt-v1", "starter-template"],
+      ...(rhythmDifficultyKey ? { rhythmDifficultyKey } : {}),
+      ...(learningDifficultyKey ? { learningDifficultyKey } : {}),
+      ...(launchAttemptId ? { launchAttemptId } : {}),
       readiness: {
         state: "template-fallback",
         source: "starter-template",
@@ -245,10 +295,16 @@ export async function resolveFreshSongLaunchPackage({
 
   const receipt: SongLaunchReceipt = {
     receiptVersion: 1,
+    contractVersion: 1,
     songAssetId: canonicalSongAssetId,
     activityKey: requestedActivityKey,
     authorId: resolvedAuthorId,
     revision: chartTargets.revision ?? resolvedRevision,
+    source: "authored",
+    runtimeCapabilities: ["authored-lesson-v3", "launch-receipt-v1"],
+    ...(rhythmDifficultyKey ? { rhythmDifficultyKey } : {}),
+    ...(learningDifficultyKey ? { learningDifficultyKey } : {}),
+    ...(launchAttemptId ? { launchAttemptId } : {}),
     chart: { bucket: chartTargets.chartBucket, path: chartTargets.chartPath },
     sidecar: { bucket: chartTargets.sidecarBucket, path: chartTargets.sidecarPath },
     audio: { bucket: audioBucket, path: audioPath },
@@ -263,10 +319,16 @@ export async function resolveFreshSongLaunchPackage({
   ]);
 
   return {
+    contractVersion: 1,
     songAssetId: canonicalSongAssetId,
     activityKey: requestedActivityKey,
     authorId: resolvedAuthorId,
     revision: chartTargets.revision ?? resolvedRevision,
+    source: "authored",
+    runtimeCapabilities: ["authored-lesson-v3", "launch-receipt-v1"],
+    ...(rhythmDifficultyKey ? { rhythmDifficultyKey } : {}),
+    ...(learningDifficultyKey ? { learningDifficultyKey } : {}),
+    ...(launchAttemptId ? { launchAttemptId } : {}),
     receipt,
     readiness: {
       state: "ready",

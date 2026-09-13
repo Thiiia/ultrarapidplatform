@@ -115,6 +115,9 @@ type SongLaunchPackageModule = {
     authorId: string | null;
     revision?: string | null;
     allowBlankPackage?: boolean;
+    rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
+    learningDifficultyKey?: string | null;
+    launchAttemptId?: string | null;
     loadSongAsset: (id: string) => Promise<Record<string, unknown> | null>;
     loadSongChart: (
       songAssetId: string,
@@ -174,6 +177,9 @@ test("resolves and signs the current complete activity package for the requestin
     activityKey: "early-algebra",
     authorId: "author-7",
     revision: "rev-7",
+    rhythmDifficultyKey: "HardSingle",
+    learningDifficultyKey: "guided",
+    launchAttemptId: "attempt-7",
     loadSongAsset: async (id) => {
       assert.equal(id, "song-123");
       return {
@@ -210,16 +216,28 @@ test("resolves and signs the current complete activity package for the requestin
     { bucket: "Songs", path: "albums/waves.mp3" },
   ]);
   assert.deepEqual(resolved, {
+    contractVersion: 1,
     songAssetId: "song-123",
     activityKey: "early-algebra",
     authorId: "author-7",
     revision: "rev-7",
+    source: "authored",
+    runtimeCapabilities: ["authored-lesson-v3", "launch-receipt-v1"],
+    rhythmDifficultyKey: "HardSingle",
+    learningDifficultyKey: "guided",
+    launchAttemptId: "attempt-7",
     receipt: {
       receiptVersion: 1,
+      contractVersion: 1,
       songAssetId: "song-123",
       activityKey: "early-algebra",
       authorId: "author-7",
       revision: "rev-7",
+      source: "authored",
+      runtimeCapabilities: ["authored-lesson-v3", "launch-receipt-v1"],
+      rhythmDifficultyKey: "HardSingle",
+      learningDifficultyKey: "guided",
+      launchAttemptId: "attempt-7",
       chart: { bucket: "Charts", path: "Early_Algebra/revisions/rev-7/waves.chart" },
       sidecar: { bucket: "SidecarJsons", path: "Early_Algebra/revisions/rev-7/waves.json" },
       audio: { bucket: "Songs", path: "albums/waves.mp3" },
@@ -410,8 +428,16 @@ test("serves the blank chart package when no chart is authored and a blank fallb
   // blank fallback and must not be signed or persisted.
   assert.deepEqual(signedTargets, [{ bucket: "Songs", path: "albums/waves.mp3" }]);
   assert.deepEqual(resolved, {
+    contractVersion: 1,
     songAssetId: "song-123",
     activityKey: "missing-numbers",
+    source: "starter-template",
+    templateProvenance: {
+      templateId: "missing-numbers:verified-starter-template",
+      label: "missing-numbers verified starter template",
+      origin: "verified-starter-template",
+    },
+    runtimeCapabilities: ["launch-receipt-v1", "starter-template"],
     readiness: {
       state: "template-fallback",
       source: "starter-template",
