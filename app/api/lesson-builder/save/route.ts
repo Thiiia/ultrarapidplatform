@@ -448,6 +448,13 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Unable to save lesson files:", error);
 
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Save revision conflict")
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+
     return NextResponse.json(
       {
         error:

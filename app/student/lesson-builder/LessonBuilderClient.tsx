@@ -9,6 +9,7 @@ import {
   type SidecarPayload as StoreSidecarPayload,
 } from "@/lib/editor/editor-store";
 import { chartToProject } from "@/lib/editor/chart-to-project";
+import { loadLessonAssets } from "@/lib/editor/lesson-hydration";
 import {
   serializeAuthoredLesson,
   timelineEventsFromAuthoredLesson,
@@ -1606,12 +1607,14 @@ async function fileFromSignedUrl({
   name,
   contentType,
   debugLabel,
+  signal,
 }: {
   signedUrl: string;
   path: string;
   name: string;
   contentType: string | null;
   debugLabel?: string;
+  signal?: AbortSignal;
 }) {
   appendSongFlowDebug(
     `lesson-builder:${debugLabel ?? "file"}:fetch:start`,
@@ -1619,7 +1622,7 @@ async function fileFromSignedUrl({
     { path, signedUrl, contentType },
   );
 
-  const response = await fetch(signedUrl);
+  const response = await fetch(signedUrl, { signal });
 
   appendSongFlowDebug(
     `lesson-builder:${debugLabel ?? "file"}:fetch:response`,
@@ -1633,7 +1636,9 @@ async function fileFromSignedUrl({
   );
 
   if (!response.ok) {
-    throw new Error(`Unable to load file: ${response.status}`);
+    const error = new Error(`Unable to load file: ${response.status}`) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
   }
 
   const blob = await response.blob();
@@ -1645,13 +1650,14 @@ async function fileFromSignedUrl({
   });
 }
 
-async function textFromSignedUrl(signedUrl: string) {
+async function textFromSignedUrl(signedUrl: string, signal?: AbortSignal) {
   appendSongFlowDebug("lesson-builder:chart:fetch:start", "Fetching chart text from signed URL.", {
     signedUrl,
   });
 
   const response = await fetch(signedUrl, {
     cache: "no-store",
+    signal,
     headers: {
       "Cache-Control": "no-cache",
       Pragma: "no-cache",
@@ -1665,7 +1671,9 @@ async function textFromSignedUrl(signedUrl: string) {
   });
 
   if (!response.ok) {
-    throw new Error(`Unable to load text file: ${response.status}`);
+    const error = new Error(`Unable to load text file: ${response.status}`) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
   }
 
   const text = await response.text();
@@ -1678,13 +1686,14 @@ async function textFromSignedUrl(signedUrl: string) {
   return text;
 }
 
-async function jsonFromSignedUrl(signedUrl: string) {
+async function jsonFromSignedUrl(signedUrl: string, signal?: AbortSignal) {
   appendSongFlowDebug("lesson-builder:sidecar:fetch:start", "Fetching sidecar JSON from signed URL.", {
     signedUrl,
   });
 
   const response = await fetch(signedUrl, {
     cache: "no-store",
+    signal,
     headers: {
       "Cache-Control": "no-cache",
       Pragma: "no-cache",
@@ -1698,7 +1707,9 @@ async function jsonFromSignedUrl(signedUrl: string) {
   });
 
   if (!response.ok) {
-    throw new Error(`Unable to load JSON file: ${response.status}`);
+    const error = new Error(`Unable to load JSON file: ${response.status}`) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
   }
 
   const payload = await response.json();
@@ -9522,6 +9533,7 @@ export default function LessonBuilderClient({
   const legacyEncounterSourceRef = useRef<LegacyEncounterSidecar | null>(null);
   const loadedSongReadyRef = useRef(false);
   const lessonLoadGenerationRef = useRef(0);
+  const lessonLoadAbortRef = useRef<AbortController | null>(null);
   const rctm2EntrySidecarRef = useRef<SidecarPayload>(emptySidecar);
   const rctm2EntryChartFileRef = useRef("");
 
@@ -11561,9 +11573,14 @@ export default function LessonBuilderClient({
 
   function hydrateSelectedSong(selectedSong: SelectedSongPayload) {
     const generation = ++lessonLoadGenerationRef.current;
+    lessonLoadAbortRef.current?.abort();
+    const controller = new AbortController();
+    lessonLoadAbortRef.current = controller;
     loadedSongReadyRef.current = false;
     legacyEncounterSourceRef.current = null;
     setLessonReadiness(null);
+    setIsLessonLoaded(false);
+    setSaveStatus("Loading selected lesson…");
     appendSongFlowDebug(
       "lesson-builder:session:selected-song",
       "Hydrated selected song payload from session storage.",
@@ -11689,7 +11706,6 @@ export default function LessonBuilderClient({
       audioUrl: selectedSong.song.signedUrl,
     });
 
-    loadSidecarIntoTimeline(emptySidecar, null);
     setUploadedSongName(selectedSong.name);
     setMetadata((current) => ({
       ...current,
@@ -11698,102 +11714,95 @@ export default function LessonBuilderClient({
       uploadedFileName: selectedSong.song.path,
     }));
 
-    fileFromSignedUrl({
-      signedUrl: selectedSong.song.signedUrl,
-      path: selectedSong.song.path,
-      name: selectedSong.name,
-      contentType: selectedSong.song.contentType,
-      debugLabel: "audio",
-    })
-      .then((file) => {
-        if (generation !== lessonLoadGenerationRef.current) return;
-        appendSongFlowDebug(
-          "lesson-builder:audio:file-ready",
-          "Audio blob was converted into a File for the editor.",
-          {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-          },
-        );
-        setPendingSongFile(file);
-      })
-      .catch((error) => {
-        console.error("Failed to load selected song file", error);
-        appendSongFlowDebug(
-          "lesson-builder:audio:file-error",
-          "Audio fetch failed while hydrating the selected song.",
-          {
-            message: error instanceof Error ? error.message : String(error),
-          },
-        );
-      });
+    const selectedSongMetadata = {
+      songTitle: selectedSong.title ?? selectedSong.name,
+      artist: selectedSong.artist ?? undefined,
+      uploadedFileName: selectedSong.song.path,
+    };
+    const initialRefs = {
+      audioUrl: selectedSong.song.signedUrl,
+      chartUrl: selectedSong.chart.signedUrl,
+      sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
+    };
 
-    Promise.allSettled([
-      textFromSignedUrl(selectedSong.chart.signedUrl),
-      selectedSong.sidecar
-        ? jsonFromSignedUrl(selectedSong.sidecar.signedUrl)
+    void loadLessonAssets({
+      refs: initialRefs,
+      signal: controller.signal,
+      fetchAudio: (url, signal) => fileFromSignedUrl({
+        signedUrl: url,
+        path: selectedSong.song.path,
+        name: selectedSong.name,
+        contentType: selectedSong.song.contentType,
+        debugLabel: "audio",
+        signal,
+      }),
+      fetchChart: (url, signal) => textFromSignedUrl(url, signal),
+      fetchSidecar: (url, signal) => selectedSong.sidecar
+        ? jsonFromSignedUrl(url, signal)
         : Promise.resolve(emptySidecar),
-    ])
-      .then(([chartResult, sidecarResult]) => {
-        if (generation !== lessonLoadGenerationRef.current) return;
+      refresh: async () => {
+        const revision = extractRevisionFromStoragePath(selectedSong.chart.path);
+        if (!revision) return null;
+        const fresh = await requestFreshSongLaunchPackage({
+          songAssetId: selectedSong.id,
+          activityKey: resolvedActivityKey,
+          authorId: selectedSong.authorId ?? null,
+          authorName: selectedSong.authorName ?? null,
+          revision,
+          allowBlankPackage: false,
+          rhythmDifficultyKey: selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key,
+        });
+        if (fresh.revision !== revision) {
+          throw new Error("Lesson refresh returned a different revision; reload the lesson before editing.");
+        }
+        return {
+          audioUrl: fresh.audio.signedUrl,
+          chartUrl: fresh.chart.signedUrl,
+          sidecarUrl: fresh.sidecar.signedUrl,
+        };
+      },
+    })
+      .then(({ audio, chart, sidecar, urls, retried }) => {
+        if (generation !== lessonLoadGenerationRef.current || controller.signal.aborted) return;
         appendSongFlowDebug(
           "lesson-builder:hydrate:fetch-results",
-          "Recorded chart and sidecar fetch outcomes for selected song payload.",
+          "Loaded the audio, chart, and sidecar as one lesson package.",
           {
-            chartStatus: chartResult.status,
-            sidecarStatus: sidecarResult.status,
+            retried,
             chartPath: selectedSong.chart.path,
             sidecarPath: selectedSong.sidecar?.path ?? null,
-            chartUrl: selectedSong.chart.signedUrl,
-            sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
           },
         );
 
-        const selectedSongMetadata = {
-          songTitle: selectedSong.title ?? selectedSong.name,
-          artist: selectedSong.artist ?? undefined,
-          uploadedFileName: selectedSong.song.path,
-        };
-        if (chartResult.status !== "fulfilled" || !chartResult.value.trim()) {
+        if (!chart.trim()) {
           throw new Error(
             "Unable to load the original .chart file. The lesson editor will not use a blank chart fallback.",
           );
         }
-
-        const nextChartFile = chartResult.value;
-        if (sidecarResult.status !== "fulfilled") {
-          throw new Error("Unable to load the selected sidecar. Reload the lesson before saving; its existing encounters have not been replaced.");
-        }
-        const sidecarJson = sidecarResult.value;
-        validateLessonContent(nextChartFile, JSON.stringify(sidecarJson), { forSave: true });
-        const nextChartName =
-          selectedSong.chart.path.split("/").pop() ?? "selected.chart";
+        validateLessonContent(chart, JSON.stringify(sidecar), { forSave: true });
+        const nextChartName = selectedSong.chart.path.split("/").pop() ?? "selected.chart";
         const normalizedSidecar = mergeTimelineSidecarSources(
-          sidecarJson ?? emptySidecar,
-          nextChartFile,
+          sidecar ?? emptySidecar,
+          chart,
           selectedSongMetadata,
         );
 
-        appendSongFlowDebug(
-          "lesson-builder:merge:chart-sidecar",
-          "Merged sidecar JSON with chart-derived events before populating the timeline.",
-          {
-            chartLoaded: chartResult.status === "fulfilled",
-            sidecarLoaded: sidecarResult.status === "fulfilled",
-            chartLength: nextChartFile.length,
-            normalizedSidecarEventCount: normalizedSidecar.events.length,
-            selectedSongEventCount: 0,
-            selectedSongEventTicks: [],
-          },
-        );
-
-        originalChartFileRef.current = nextChartFile;
-        setChartFile(nextChartFile);
+        originalChartFileRef.current = chart;
+        setChartFile(chart);
         setUploadedChartName(nextChartName);
-        loadSidecarIntoTimeline(normalizedSidecar, null, [], [], "event", nextChartFile);
+        loadSidecarIntoTimeline(normalizedSidecar, null, [], [], "event", chart);
+        setPendingSongFile(audio);
+        if (retried) {
+          setSelectedSongLaunch((current) => current ? {
+            ...current,
+            audioUrl: urls.audioUrl,
+            chartUrl: urls.chartUrl,
+            sidecarUrl: urls.sidecarUrl,
+          } : current);
+        }
         loadedSongReadyRef.current = true;
         setIsLessonLoaded(true);
+        setSaveStatus("Selected lesson is ready.");
         setLessonReadiness({
           state: "ready",
           source: "authored",
@@ -11801,46 +11810,25 @@ export default function LessonBuilderClient({
           message: "Chart, cues, events, encounters and equations are ready for Unity.",
         });
 
-        const payload: LessonBuilderPayload = {
-          chartFile: nextChartFile,
+        setProject(chartToProject({
+          chartFile: chart,
           analysisMetadata: selectedSongMetadata,
           rawResults: normalizedSidecar,
-        };
-
-        setProject(chartToProject(payload));
-        appendSongFlowDebug(
-          "lesson-builder:project:rebuilt",
-          "Chart project was rebuilt after chart and sidecar hydration.",
-          {
-            chartName: nextChartName,
-            timelineEvents: normalizedSidecar.events.length,
-          },
-        );
+        }));
       })
       .catch((error) => {
-        if (generation !== lessonLoadGenerationRef.current) return;
+        if (generation !== lessonLoadGenerationRef.current || controller.signal.aborted) return;
         loadedSongReadyRef.current = false;
         setIsLessonLoaded(false);
-        console.error("Failed to load selected chart or sidecar JSON", error);
-        appendSongFlowDebug(
-          "lesson-builder:hydrate:error",
-          "Failed while loading chart or sidecar from signed URLs.",
-          {
-            message: error instanceof Error ? error.message : String(error),
-          },
-        );
-        setLoadError(
-          error instanceof Error
-            ? error.message
-            : "Failed to load selected song package",
-        );
+        console.error("Failed to hydrate selected lesson", error);
+        const message = error instanceof Error ? error.message : "Failed to load selected song package";
+        setLoadError(message);
+        setSaveStatus("Selected lesson could not be loaded; the current editor content was preserved.");
         setLessonReadiness({
           state: "repairable",
           source: "authored",
           canLaunch: false,
-          message: `This lesson could not be read. It has not been replaced: ${
-            error instanceof Error ? error.message : "reload or choose a verified starter template"
-          }`,
+          message: `This lesson could not be read. It has not been replaced: ${message}`,
         });
       });
   }
