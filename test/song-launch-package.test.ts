@@ -17,6 +17,87 @@ const HASHES = {
   chartSha256: "a".repeat(64), sidecarSha256: "b".repeat(64), audioSha256: "c".repeat(64),
 };
 
+test("marks a complete immutable package ready for the editor and Unity", async () => {
+  const resolved = await resolveFreshSongLaunchPackage({
+    songAssetId: "song-ready",
+    activityKey: "number-bonds",
+    authorId: "author-ready",
+    revision: "rev-ready",
+    loadSongAsset: async () => ({
+      id: "song-ready", isActive: true, songBucket: "Songs", songPath: "songs/ready.mp3",
+    }),
+    loadSongChart: async () => ({
+      chartBucket: "Charts", chartPath: "Number_Bonds/revisions/rev-ready/ready.chart",
+      sidecarBucket: "SidecarJsons", sidecarPath: "Number_Bonds/revisions/rev-ready/ready.json",
+      authorId: "author-ready", revision: "rev-ready",
+      counts: { encounters: 3, equations: 2, targets: 3 }, hashes: HASHES,
+    }),
+    createSignedUrl: async (_bucket, path) => `https://storage.example/${path}`,
+  });
+
+  assert.deepEqual(resolved.readiness, {
+    state: "ready",
+    source: "authored",
+    canLaunch: true,
+    message: "Your authored lesson is ready for Unity.",
+  });
+});
+
+test("uses an explicit starter-template readiness when no authored lesson exists", async () => {
+  const resolved = await resolveFreshSongLaunchPackage({
+    songAssetId: "song-template",
+    activityKey: "number-bonds",
+    authorId: "author-template",
+    allowBlankPackage: true,
+    loadSongAsset: async () => ({
+      id: "song-template", isActive: true, songBucket: "Songs", songPath: "songs/template.mp3",
+    }),
+    loadSongChart: async () => null,
+    loadBlankSongChart: async () => ({
+      chart: { bucket: "Charts", path: "dev/Number_Bonds/song-template.chart", signedUrl: "chart" },
+      sidecar: { bucket: "SidecarJsons", path: "dev/Number_Bonds/song-template.json", signedUrl: "sidecar" },
+    }),
+    createSignedUrl: async () => "audio",
+  });
+
+  assert.deepEqual(resolved.readiness, {
+    state: "template-fallback",
+    source: "starter-template",
+    canLaunch: true,
+    message: "A verified starter template is loaded because this song has no published lesson yet.",
+  });
+});
+
+test("uses the labelled starter template instead of signing swapped legacy assets", async () => {
+  const signed: string[] = [];
+  const resolved = await resolveFreshSongLaunchPackage({
+    songAssetId: "song-swapped",
+    activityKey: "early-algebra",
+    authorId: "author-swapped",
+    allowBlankPackage: true,
+    loadSongAsset: async () => ({
+      id: "song-swapped", isActive: true, songBucket: "Songs", songPath: "songs/swapped.mp3",
+    }),
+    loadSongChart: async () => ({
+      chartBucket: "Charts", chartPath: "Early_Algebra/swapped.encounters.json",
+      sidecarBucket: "SidecarJsons", sidecarPath: "Early_Algebra/swapped.chart",
+      authorId: "author-swapped", counts: { encounters: 1, equations: 1, targets: 1 }, hashes: HASHES,
+    }),
+    loadBlankSongChart: async () => ({
+      chart: { bucket: "Charts", path: "templates/Early_Algebra/default.chart", signedUrl: "template-chart" },
+      sidecar: { bucket: "SidecarJsons", path: "templates/Early_Algebra/default.json", signedUrl: "template-sidecar" },
+    }),
+    createSignedUrl: async (_bucket, path) => {
+      signed.push(path);
+      return `https://storage.example/${path}`;
+    },
+  });
+
+  assert.equal(resolved.readiness.state, "template-fallback");
+  assert.match(resolved.readiness.message, /needs repair/i);
+  assert.deepEqual(signed, ["songs/swapped.mp3"]);
+});
+
 test("legacy packages cannot bypass the immutable receipt boundary", async () => {
   const input = {
     songAssetId: "jazzmaybach", activityKey: "early-algebra", authorId: "dev-id",
@@ -144,6 +225,12 @@ test("resolves and signs the current complete activity package for the requestin
       audio: { bucket: "Songs", path: "albums/waves.mp3" },
       counts: { encounters: 4, equations: 3, targets: 5 },
       hashes: HASHES,
+    },
+    readiness: {
+      state: "ready",
+      source: "authored",
+      canLaunch: true,
+      message: "Your authored lesson is ready for Unity.",
     },
     chart: {
       bucket: "Charts",
@@ -325,6 +412,12 @@ test("serves the blank chart package when no chart is authored and a blank fallb
   assert.deepEqual(resolved, {
     songAssetId: "song-123",
     activityKey: "missing-numbers",
+    readiness: {
+      state: "template-fallback",
+      source: "starter-template",
+      canLaunch: true,
+      message: "A verified starter template is loaded because this song has no published lesson yet.",
+    },
     chart: {
       bucket: "Charts",
       path: "dev/Missing_Numbers/song-123.chart",

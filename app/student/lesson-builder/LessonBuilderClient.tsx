@@ -33,7 +33,10 @@ import {
   buildEmbeddedGameUrl,
   createSongLaunchSearchParams,
 } from "@/lib/platform-launch";
-import { requestFreshSongLaunchPackage } from "@/lib/song-launch-client";
+import {
+  requestFreshSongLaunchPackage,
+  type FreshSongLaunchPackage,
+} from "@/lib/song-launch-client";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import {
@@ -9430,6 +9433,9 @@ export default function LessonBuilderClient({
   const [draftTokens, setDraftTokens] = useState<EquationToken[]>([]);
   const [customTokenLabel, setCustomTokenLabel] = useState("");
   const [loadError, setLoadError] = useState("");
+  const [lessonReadiness, setLessonReadiness] = useState<
+    FreshSongLaunchPackage["readiness"] | null
+  >(null);
   const [saveStatus, setSaveStatus] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [entryIntent, setEntryIntent] = useState<PlayerLessonEntryIntent>("play");
@@ -11057,7 +11063,16 @@ export default function LessonBuilderClient({
         authorId: launchAuthorId,
         authorName: selectedSongLaunch.authorName ?? null,
         revision: launchRevision,
+        allowBlankPackage: !loadedSongReadyRef.current && !launchRevision,
       });
+      setLessonReadiness(freshSongLaunch.readiness);
+      if (!freshSongLaunch.readiness.canLaunch) {
+        setSaveStatus(freshSongLaunch.readiness.message);
+        return;
+      }
+      if (freshSongLaunch.readiness.state === "template-fallback") {
+        setSaveStatus(freshSongLaunch.readiness.message);
+      }
       const launchParams = createSongLaunchSearchParams({
       songAssetId: freshSongLaunch.songAssetId,
       activityKey: freshSongLaunch.activityKey,
@@ -11343,6 +11358,12 @@ export default function LessonBuilderClient({
       setStoreSidecar(sidecarToPersist as StoreSidecarPayload);
       setSaveStatus("Published my version");
       setHasUnsavedChanges(false);
+      setLessonReadiness({
+        state: "ready",
+        source: "authored",
+        canLaunch: true,
+        message: `Published revision ${result.revision}. Unity will use this exact chart, sidecar, encounters and equations.`,
+      });
 
       if (showNotice) {
         const activityKey =
@@ -11519,6 +11540,7 @@ export default function LessonBuilderClient({
     const generation = ++lessonLoadGenerationRef.current;
     loadedSongReadyRef.current = false;
     legacyEncounterSourceRef.current = null;
+    setLessonReadiness(null);
     appendSongFlowDebug(
       "lesson-builder:session:selected-song",
       "Hydrated selected song payload from session storage.",
@@ -11572,6 +11594,12 @@ export default function LessonBuilderClient({
       setSelectedSongLaunch(null);
       setSelectedSongActivity(null);
       setLoadError(message);
+      setLessonReadiness({
+        state: "repairable",
+        source: "authored",
+        canLaunch: false,
+        message: `This lesson needs repair before Unity can use it: ${message}`,
+      });
       return;
     }
 
@@ -11742,6 +11770,12 @@ export default function LessonBuilderClient({
         loadSidecarIntoTimeline(normalizedSidecar, null, [], [], "event", nextChartFile);
         loadedSongReadyRef.current = true;
         setIsLessonLoaded(true);
+        setLessonReadiness({
+          state: "ready",
+          source: "authored",
+          canLaunch: true,
+          message: "Chart, cues, events, encounters and equations are ready for Unity.",
+        });
 
         const payload: LessonBuilderPayload = {
           chartFile: nextChartFile,
@@ -11776,7 +11810,29 @@ export default function LessonBuilderClient({
             ? error.message
             : "Failed to load selected song package",
         );
+        setLessonReadiness({
+          state: "repairable",
+          source: "authored",
+          canLaunch: false,
+          message: `This lesson could not be read. It has not been replaced: ${
+            error instanceof Error ? error.message : "reload or choose a verified starter template"
+          }`,
+        });
       });
+  }
+
+  function handleRetryCurrentLesson() {
+    const stored = window.sessionStorage.getItem("ultrarapid_selected_song");
+    if (!stored) {
+      handleOpenFilePicker();
+      return;
+    }
+
+    try {
+      hydrateSelectedSong(JSON.parse(stored) as SelectedSongPayload);
+    } catch {
+      handleOpenFilePicker();
+    }
   }
 
   function handleLoadSongFromFilePicker() {
@@ -13345,6 +13401,43 @@ export default function LessonBuilderClient({
           </>
         )}
       </main>
+
+      {lessonReadiness ? (
+        <aside
+          aria-label="Unity handoff readiness"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            right: 18,
+            top: "calc(5vh + 12px)",
+            zIndex: 1001,
+            width: "min(440px, calc(100vw - 36px))",
+            padding: "12px 14px",
+            borderRadius: 12,
+            border: `1px solid ${lessonReadiness.state === "ready" ? "#CFFF04" : lessonReadiness.state === "template-fallback" ? "#77C7FF" : "#FF9A78"}`,
+            background: "#0A1222F5",
+            color: "#FFFFFF",
+            boxShadow: "0 12px 24px rgba(0,0,0,0.35)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+            <strong style={{ color: lessonReadiness.state === "ready" ? "#CFFF04" : lessonReadiness.state === "template-fallback" ? "#77C7FF" : "#FF9A78", fontSize: 11, letterSpacing: 0.7, textTransform: "uppercase" }}>
+              {lessonReadiness.state === "ready" ? "Unity handoff ready" : lessonReadiness.state === "template-fallback" ? "Starter template" : "Lesson needs repair"}
+            </strong>
+            <span style={{ color: "#FFFFFF99", fontSize: 11 }}>{selectedSongActivity?.label ?? "Choose activity"}</span>
+          </div>
+          <p style={{ margin: "6px 0 0", fontSize: 12, lineHeight: 1.4 }}>{lessonReadiness.message}</p>
+          <p style={{ margin: "7px 0 0", color: "#FFFFFFA8", fontSize: 11, lineHeight: 1.4 }}>
+            Cue = song timing · Event = player moment · Encounter = Unity move · Equation = learning task
+          </p>
+          {!lessonReadiness.canLaunch ? (
+            <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+              <button type="button" onClick={handleRetryCurrentLesson} style={{ border: 0, borderRadius: 8, background: "#CFFF04", color: "#071222", padding: "8px 10px", fontWeight: 900, cursor: "pointer" }}>Retry lesson</button>
+              <button type="button" onClick={handleOpenFilePicker} style={{ border: "1px solid #7A8FA8", borderRadius: 8, background: "transparent", color: "#FFFFFF", padding: "8px 10px", fontWeight: 800, cursor: "pointer" }}>Choose another song</button>
+            </div>
+          ) : null}
+        </aside>
+      ) : null}
 
       {advancedConfirmOpen ? (
         <div role="dialog" aria-modal="true" aria-labelledby="advanced-chartmaker-title" style={{ position: "fixed", inset: 0, zIndex: 1300, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.7)" }} onKeyDown={(event) => { if (event.key === "Escape") setAdvancedConfirmOpen(false); }}>

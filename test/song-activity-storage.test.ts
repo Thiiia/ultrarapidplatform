@@ -190,6 +190,20 @@ test("rejects an Early Algebra package that points at a Missing Numbers sidecar"
   );
 });
 
+test("rejects swapped chart and sidecar file types before content is fetched", async () => {
+  const songActivityStorage = await loadSongActivityStorageModule();
+
+  assert.throws(
+    () =>
+      songActivityStorage!.resolveRequestedSongActivityPackage!({
+        requestedActivityKey: "early-algebra",
+        chartPath: "Early_Algebra/waves.encounters.json",
+        sidecarPath: "Early_Algebra/waves.chart",
+      }),
+    /Stored chart path must reference a .chart file/,
+  );
+});
+
 test("rejects an Early Algebra package without its own sidecar", async () => {
   const songActivityStorage = await loadSongActivityStorageModule();
 

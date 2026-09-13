@@ -33,6 +33,44 @@ type BlankSongChartPackage = {
 };
 
 /**
+ * A small, user-facing summary of whether this package can cross the editor →
+ * Unity boundary. It intentionally travels with the signed package so the
+ * editor never has to infer readiness from an empty timeline or a transport
+ * error.
+ */
+export type LessonReadiness =
+  | {
+    state: "ready";
+    source: "authored";
+    canLaunch: true;
+    message: string;
+  }
+  | {
+    state: "template-fallback";
+    source: "starter-template";
+    canLaunch: true;
+    message: string;
+  }
+  | {
+    state: "repairable" | "blocked";
+    source: "authored" | "starter-template";
+    canLaunch: false;
+    message: string;
+  };
+
+export type PlayableLessonPackage = {
+  songAssetId: string;
+  activityKey: string;
+  authorId?: string;
+  revision?: string;
+  receipt?: SongLaunchReceipt;
+  readiness: LessonReadiness;
+  chart: SignedStorageRef;
+  sidecar: SignedStorageRef;
+  audio: SignedStorageRef;
+};
+
+/**
  * Versioned launch receipt: stable identity + object references + content
  * counts, used to compare the platform's delivered package against Unity's
  * received one. Signed URLs (credentials) are excluded; only bucket/path
@@ -127,6 +165,37 @@ export async function resolveFreshSongLaunchPackage({
   const audioBucket = readRequiredString(songAsset.songBucket, "songBucket");
   const audioPath = readRequiredString(songAsset.songPath, "songPath");
 
+  const buildStarterTemplatePackage = async (
+    message = "A verified starter template is loaded because this song has no published lesson yet.",
+  ): Promise<PlayableLessonPackage> => {
+    const blankTargets =
+      (await loadBlankSongChart?.(canonicalSongAssetId, requestedActivityKey)) ?? null;
+
+    if (!blankTargets) {
+      throw new Error(`No verified starter template is available for ${requestedActivityKey}`);
+    }
+
+    const blankAudioUrl = await createSignedUrl(audioBucket, audioPath);
+    return {
+      songAssetId: canonicalSongAssetId,
+      activityKey: requestedActivityKey,
+      ...(authorId ? { authorId } : {}),
+      readiness: {
+        state: "template-fallback",
+        source: "starter-template",
+        canLaunch: true,
+        message,
+      },
+      chart: blankTargets.chart,
+      sidecar: blankTargets.sidecar,
+      audio: {
+        bucket: audioBucket,
+        path: audioPath,
+        signedUrl: blankAudioUrl,
+      },
+    };
+  };
+
   const chartTargets = await loadSongChart(canonicalSongAssetId, requestedActivityKey, authorId);
 
   if (!chartTargets) {
@@ -136,30 +205,23 @@ export async function resolveFreshSongLaunchPackage({
       );
     }
 
-    const blankTargets =
-      (await loadBlankSongChart?.(canonicalSongAssetId, requestedActivityKey)) ?? null;
-
-    if (!blankTargets) {
-      throw new Error(`No chart has been authored for ${requestedActivityKey} yet`);
-    }
-
-    const blankAudioUrl = await createSignedUrl(audioBucket, audioPath);
-
-    return {
-      songAssetId: canonicalSongAssetId,
-      activityKey: requestedActivityKey,
-      ...(authorId ? { authorId } : {}),
-      chart: blankTargets.chart,
-      sidecar: blankTargets.sidecar,
-      audio: {
-        bucket: audioBucket,
-        path: audioPath,
-        signedUrl: blankAudioUrl,
-      } satisfies SignedStorageRef,
-    };
+    return buildStarterTemplatePackage();
   }
 
-  resolveRequestedSongActivityPackage({ requestedActivityKey, chartPath: chartTargets.chartPath, sidecarPath: chartTargets.sidecarPath });
+  try {
+    resolveRequestedSongActivityPackage({ requestedActivityKey, chartPath: chartTargets.chartPath, sidecarPath: chartTargets.sidecarPath });
+  } catch (error) {
+    // A historical row can contain swapped chart/sidecar paths. In an
+    // unpinned launch, prefer an explicitly-labelled starter template over
+    // returning a package Unity cannot read. Pinned revisions always fail
+    // closed so their immutable identity is never substituted.
+    if (allowBlankPackage && !revision) {
+      return buildStarterTemplatePackage(
+        "The authored chart or sidecar needs repair, so a verified starter template is loaded instead.",
+      );
+    }
+    throw error;
+  }
   const unrevisionedLegacy = chartTargets.legacy === true && !revision &&
     !extractRevisionFromStoragePath(chartTargets.chartPath) &&
     !extractRevisionFromStoragePath(chartTargets.sidecarPath);
@@ -206,6 +268,12 @@ export async function resolveFreshSongLaunchPackage({
     authorId: resolvedAuthorId,
     revision: chartTargets.revision ?? resolvedRevision,
     receipt,
+    readiness: {
+      state: "ready",
+      source: "authored",
+      canLaunch: true,
+      message: "Your authored lesson is ready for Unity.",
+    },
     chart: {
       bucket: chartTargets.chartBucket,
       path: chartTargets.chartPath,
@@ -221,6 +289,6 @@ export async function resolveFreshSongLaunchPackage({
       path: audioPath,
       signedUrl: audioUrl,
     } satisfies SignedStorageRef,
-  };
+  } satisfies PlayableLessonPackage;
 }
 

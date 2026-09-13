@@ -142,6 +142,14 @@ export function resolveRequestedSongActivityPackage({
       path: resolvedSidecarPath,
       pathKind: "sidecar",
     });
+
+    // Folder ownership alone is not enough: historical database rows have
+    // accidentally stored a JSON sidecar in chartPath (and vice versa). Reject
+    // that record before a signed URL is fetched so the editor can show a
+    // repairable package state rather than an empty timeline.
+    normalizeAuthoredSidecarPath(chartPath, resolvedSidecarPath);
+  } else if (!chartPath.trim().toLowerCase().endsWith(".chart")) {
+    throw new Error("Stored chart path must reference a .chart file; repair the lesson record");
   }
 
   return {

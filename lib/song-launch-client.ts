@@ -1,4 +1,5 @@
 import { createSongLaunchSearchParams } from "./platform-launch";
+import type { LessonReadiness } from "./song-launch-package";
 
 export async function requestFreshSongLaunchParams(input: { songAssetId: string; activityKey: string; authorId?: string | null; authorName?: string | null; revision?: string | null; allowBlankPackage?: boolean; rhythmDifficultyKey?: "ExpertSingle" }) {
   const fresh = await requestFreshSongLaunchPackage(input);
@@ -13,6 +14,7 @@ export type FreshSongLaunchPackage = {
   activityKey: string;
   authorId?: string;
   revision?: string;
+  readiness: LessonReadiness;
   receipt?: {
     receiptVersion: 1;
     songAssetId: string;
