@@ -301,6 +301,22 @@ export default function GameEmbedPage({
 
   useEffect(() => {
     if (!bridgeContext) return;
+
+    const launchAttemptId = bridgeContext.receipt.launchAttemptId;
+    if (launchAttemptId) {
+      fetch(`/api/player-outcomes?launchAttemptId=${encodeURIComponent(launchAttemptId)}`)
+        .then((response) => response.ok ? response.json() : null)
+        .then((stored) => {
+          if (stored?.outcome?.outcome === "completed") {
+            setCompletedRun({
+              completedEvents: stored.outcome.completedEvents,
+              hitAttempts: stored.outcome.hitAttempts,
+            });
+          }
+        })
+        .catch(() => undefined);
+    }
+
     const onMessage = (event: MessageEvent) => {
       if (event.source !== iframeRef.current?.contentWindow) return;
       if (event.origin !== bridgeContext.origin) return;
@@ -313,10 +329,23 @@ export default function GameEmbedPage({
           body: JSON.stringify({ installationId: bridgeContext.installationId, offsetMs: result.message.offsetMs, protocolVersion: result.message.protocolVersion }),
         }).then((response) => { if (response.ok) setCalibrationStatus("ready"); });
       } else if (result.message.type === "run-complete") {
-        setCompletedRun({
-          completedEvents: result.message.completion.completedEvents,
-          hitAttempts: result.message.completion.hitAttempts,
-        });
+        const completion = result.message.completion;
+        fetch("/api/player-outcomes", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            receipt: result.message.receipt,
+            completion,
+          }),
+        }).then((response) => {
+          if (!response.ok) return;
+          if (completion.outcome === "completed") {
+            setCompletedRun({
+              completedEvents: completion.completedEvents,
+              hitAttempts: completion.hitAttempts,
+            });
+          }
+        }).catch(() => undefined);
       } else {
         window.location.assign(`${navBasePath}/song-choice`);
       }

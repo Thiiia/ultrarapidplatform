@@ -1,11 +1,25 @@
 import { z } from "zod";
 
+const BridgeTemplateProvenanceSchema = z.object({
+  templateId: z.string().min(1).max(160),
+  label: z.string().min(1).max(200),
+  origin: z.literal("verified-starter-template"),
+  sourceRevision: z.string().min(1).max(160),
+}).strict();
+
 export const BridgeReceiptSchema = z.object({
   receiptVersion: z.literal(1),
+  contractVersion: z.literal(1),
   songAssetId: z.string().min(1).max(160),
   activityKey: z.string().min(1).max(80),
   authorId: z.string().min(1).max(160),
   revision: z.string().min(1).max(160).optional(),
+  source: z.enum(["authored", "starter-template"]),
+  templateProvenance: BridgeTemplateProvenanceSchema.optional(),
+  runtimeCapabilities: z.array(z.string().min(1).max(80)).min(1).max(16),
+  rhythmDifficultyKey: z.enum(["EasySingle", "MediumSingle", "HardSingle", "ExpertSingle"]).optional(),
+  learningDifficultyKey: z.string().min(1).max(80).optional(),
+  launchAttemptId: z.string().uuid(),
   chart: z.object({ bucket: z.string().min(1).max(80), path: z.string().min(1).max(500) }).strict(),
   sidecar: z.object({ bucket: z.string().min(1).max(80), path: z.string().min(1).max(500) }).strict(),
   audio: z.object({ bucket: z.string().min(1).max(80), path: z.string().min(1).max(500) }).strict(),
@@ -15,7 +29,7 @@ export const BridgeReceiptSchema = z.object({
 
 export const PlatformPlayerBridgeMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("calibration-complete"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema, offsetMs: z.number().int().min(-350).max(350), protocolVersion: z.number().int().positive().max(32) }).strict(),
-  z.object({ type: z.literal("run-complete"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema, completion: z.object({ outcome: z.literal("completed"), completedEvents: z.number().int().min(1).max(10_000), hitAttempts: z.number().int().min(1).max(100_000) }).strict() }).strict(),
+  z.object({ type: z.literal("run-complete"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema, completion: z.object({ outcome: z.enum(["completed", "failed", "abandoned", "cancelled"]), completedEvents: z.number().int().min(0).max(10_000), hitAttempts: z.number().int().min(0).max(100_000) }).strict() }).strict(),
   z.object({ type: z.literal("exit-to-song-select"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema }).strict(),
 ]);
 

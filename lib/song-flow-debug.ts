@@ -12,12 +12,16 @@ const maxEntries = 200;
 
 export function redactSongFlowPayload(value: unknown): unknown {
   if (typeof value === "string") {
-    return /https?:|token|%3f|\?/i.test(value) ? "[redacted transport value]" : value;
+    return /https?:|token\s*[:=]|%3f|\?|x-amz-|signature|sig\s*[:=]|secret|password/i.test(value)
+      ? "[redacted transport value]"
+      : value;
   }
   if (Array.isArray(value)) return value.map(redactSongFlowPayload);
   if (value && typeof value === "object") return Object.fromEntries(
     Object.entries(value).map(([key, item]) => [key,
-      /token|url|query/i.test(key) ? "[redacted transport value]" : redactSongFlowPayload(item)]),
+      /token|url|query|authorization|cookie|password|secret|signature|credential|access[_-]?key/i.test(key)
+        ? "[redacted transport value]"
+        : redactSongFlowPayload(item)]),
   );
   return value;
 }

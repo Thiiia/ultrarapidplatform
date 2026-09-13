@@ -44,6 +44,8 @@ model User {
   playerWorkspaces      PlayerLessonWorkspace[]
   deviceCalibrations    PlayerDeviceCalibration[]
   playerWriteRateLimits PlayerWriteRateLimit[]
+  playerLaunchAttempts  PlayerLaunchAttempt[]
+  playerRunOutcomes      PlayerRunOutcome[]
 
   /**
    * Existing one-to-many teacher/class relationship.
@@ -337,6 +339,47 @@ model PlayerWriteRateLimit {
   @@unique([userId, action])
   @@index([windowStart])
   @@map("player_write_rate_limits")
+}
+
+model PlayerLaunchAttempt {
+  id              String           @id @default(cuid())
+  launchAttemptId String           @unique @db.Uuid
+  userId          String
+  songAssetId     String
+  activityKey     String
+  authorId        String
+  revision        String?
+  source          String
+  templateId      String?
+  receipt         Json
+  createdAt       DateTime         @default(now())
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outcome   PlayerRunOutcome?
+
+  @@index([userId, createdAt])
+  @@index([songAssetId, activityKey, revision])
+  @@unique([launchAttemptId, userId])
+  @@map("player_launch_attempts")
+}
+
+model PlayerRunOutcome {
+  id              String   @id @default(cuid())
+  launchAttemptId String   @unique @db.Uuid
+  userId          String
+  outcome         String
+  completedEvents Int      @default(0)
+  hitAttempts     Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  launchAttempt PlayerLaunchAttempt @relation(fields: [launchAttemptId, userId], references: [launchAttemptId, userId], onDelete: Cascade)
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, outcome])
+  @@unique([launchAttemptId, userId])
+  @@map("player_run_outcomes")
 }
 
 enum Role {

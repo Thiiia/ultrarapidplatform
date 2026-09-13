@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { resolveFreshSongLaunchPackage } from "@/lib/song-launch-package";
+import { getCurrentAppUser } from "@/lib/current-user";
 import {
   DEV_AUTHOR_FOLDER,
   findAuthorByName,
@@ -63,6 +65,17 @@ function buildBlankAssetUrl(request: Request, kind: "chart" | "sidecar", activit
 
 export async function POST(request: Request) {
   try {
+    // The package route is also used by local/demo flows, so an absent auth
+    // session does not prevent package resolution. Authenticated launches are
+    // registered below and are the only launches eligible for server-side
+    // outcome persistence.
+    let player = null;
+    try {
+      player = await getCurrentAppUser();
+    } catch {
+      player = null;
+    }
+
     const payload = (await request.json()) as {
       songAssetId?: unknown;
       activityKey?: unknown;
@@ -191,6 +204,22 @@ export async function POST(request: Request) {
       },
       createSignedUrl,
     });
+
+    if (player && songPackage.receipt && songPackage.launchAttemptId && songPackage.source !== "editor-scaffold") {
+      await prisma.playerLaunchAttempt.create({
+        data: {
+          launchAttemptId: songPackage.launchAttemptId,
+          userId: player.id,
+          songAssetId: songPackage.receipt.songAssetId,
+          activityKey: songPackage.receipt.activityKey,
+          authorId: songPackage.receipt.authorId,
+          revision: songPackage.receipt.revision,
+          source: songPackage.receipt.source,
+          templateId: songPackage.receipt.templateProvenance?.templateId,
+          receipt: songPackage.receipt as unknown as Prisma.InputJsonValue,
+        },
+      });
+    }
 
     return NextResponse.json(songPackage, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

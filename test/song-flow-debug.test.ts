@@ -6,3 +6,12 @@ test('diagnostics never retain signed URLs or nested launch tokens', () => {
   assert.ok(!JSON.stringify(result).includes('secret'));
   assert.equal((result as Record<string, unknown>).songAssetId, 'waves');
 });
+
+test('diagnostics also redact provider signatures and authorization-shaped fields', () => {
+  const result = redactSongFlowPayload({
+    chart: { 'x-amz-signature': 'provider-secret' },
+    headers: { authorization: 'Bearer provider-secret' },
+    text: 'https://storage.example/chart?X-Amz-Signature=provider-secret',
+  });
+  assert.ok(!JSON.stringify(result).includes('provider-secret'));
+});
