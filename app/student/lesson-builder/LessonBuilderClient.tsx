@@ -44,6 +44,7 @@ import { GuidedEncounterComposer } from "./GuidedEncounterComposer";
 import { EncounterReadinessPanel } from "./EncounterReadinessPanel";
 import {
   evaluateEncounterReadiness,
+  normalizeStagedMechanic,
   type GuidedEncounterInput,
   evaluateLessonPublishReadiness,
 } from "@/lib/guided-authored-encounter";
@@ -4581,7 +4582,6 @@ function getTimelineMarkerShapeStyles(mechanic: GameplayMechanic) {
 /* VERIFIED_LAYOUT_PATCH_2026_06_23: row2 shrinks; timeline has no horizontal scrollbar; draggable playhead controls song time; shared equation tiles. */
 function EquationTimeline({
   events,
-  rtcmDraftMechanics = [],
   hideSpinouts = false,
   activeEventId,
   onSelectEvent,
@@ -4597,7 +4597,6 @@ function EquationTimeline({
   isAdvancedMode,
 }: {
   events: TimelineEventSlot[];
-  rtcmDraftMechanics?: RtcmDraftMechanic[];
   hideSpinouts?: boolean;
   activeEventId: string | null;
   onSelectEvent: (eventId: string) => void;
@@ -5316,7 +5315,6 @@ function EquationTimeline({
             const color =
               mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF";
             const markerShapeStyle = getTimelineMarkerShapeStyles(mechanic);
-            const draftMechanics = rtcmDraftMechanics.filter((draft) => draft.mechanic === mechanic);
 
             return (
               <div
@@ -5482,110 +5480,6 @@ function EquationTimeline({
                     </span>
                   );
                 })}
-
-                {draftMechanics.length > 0
-                  ? draftMechanics.map((draft) => {
-                    const markerSeconds = timelineTickToSeconds(draft.tick);
-                    const markerLeft = Math.min(
-                      trackWidth,
-                      Math.max(0, markerSeconds * pixelsPerSecond),
-                    );
-
-                    if (mechanic === "hit") {
-                      return (
-                        <button
-                          key={draft.id}
-                          type="button"
-                          aria-hidden="true"
-                          tabIndex={-1}
-                          style={{
-                            position: "absolute",
-                            left: markerLeft,
-                            top: "50%",
-                            width: 20,
-                            height: 20,
-                            border: `1px solid ${color}`,
-                            borderRadius: 999,
-                            background: color,
-                            boxShadow: `0 0 12px ${color}`,
-                            transform: "translate(-50%, -50%)",
-                            cursor: "default",
-                            touchAction: "none",
-                            padding: 0,
-                            opacity: 0.92,
-                            color: "#071222",
-                            fontSize: 10,
-                            fontWeight: 900,
-                            lineHeight: "20px",
-                            textAlign: "center",
-                          }}
-                        >
-                          {getHitPadNumberFromPlacement(draft.hitBubbles?.[0]) ?? ""}
-                        </button>
-                      );
-                    }
-
-                    const window = {
-                      startSeconds: timelineTickToSeconds(draft.tick),
-                      endSeconds: timelineTickToSeconds(draft.endTick ?? draft.tick),
-                    };
-                    const startLeft = Math.min(
-                      trackWidth,
-                      Math.max(0, window.startSeconds * pixelsPerSecond),
-                    );
-                    const endLeft = Math.min(
-                      trackWidth,
-                      Math.max(0, window.endSeconds * pixelsPerSecond),
-                    );
-                    const pathLeft = Math.min(startLeft, endLeft);
-                    const pathWidth = Math.max(2, Math.abs(endLeft - startLeft));
-
-                    return (
-                      <span key={draft.id}>
-                        <span
-                          aria-hidden="true"
-                          style={{
-                            position: "absolute",
-                            left: pathLeft,
-                            top: "50%",
-                            width: pathWidth,
-                            height: 4,
-                            borderRadius: 999,
-                            background: `${color}55`,
-                            transform: "translateY(-50%)",
-                            opacity: 0.92,
-                          }}
-                        />
-                        {([
-                          ["start", startLeft],
-                          ["end", endLeft],
-                        ] as Array<[TimelineMarkerEdge, number]>).map(([edge, left]) => (
-                          <button
-                            key={`${draft.id}-${edge}`}
-                            type="button"
-                            aria-hidden="true"
-                            tabIndex={-1}
-                            style={{
-                              position: "absolute",
-                              left,
-                              top: "50%",
-                              width: 10,
-                              height: 10,
-                              border: "none",
-                              background: color,
-                              boxShadow: `0 0 12px ${color}`,
-                              ...markerShapeStyle,
-                              cursor: "default",
-                              touchAction: "none",
-                              padding: 0,
-                              opacity: 0.92,
-                            }}
-                          />
-                        ))}
-                      </span>
-                    );
-                  })
-                  : null}
 
               </div>
             );
@@ -10344,6 +10238,22 @@ export default function LessonBuilderClient({
           ? undefined
           : tick;
     const draftId = makeId("rtcm");
+    const hitBubbles: HitBubblePlacement[] = mechanic === "hit" && options.hitPad
+      ? [{ tokenIndex: 0, positions: [options.hitPad], pads: [options.hitPad] }]
+      : [];
+    const normalized = normalizeStagedMechanic(
+      {
+        id: draftId,
+        mechanic,
+        tick,
+        ...(typeof endTick === "number" ? { endTick } : {}),
+        ...(selectedEquationId ? { equationId: selectedEquationId } : {}),
+        hitBubbles,
+        spinTargets: [],
+        dragTargets: [],
+      },
+      selectedEquation,
+    );
 
     setRtcmDraftMechanics((current) => [
       ...current,
@@ -10353,21 +10263,12 @@ export default function LessonBuilderClient({
         ...(selectedEquationId ? { equationId: selectedEquationId } : {}),
         tick,
         ...(typeof endTick === "number" ? { endTick } : {}),
-        hitBubbles:
-          mechanic === "hit" && options.hitPad
-            ? [
-              {
-                tokenIndex: 0,
-                positions: [options.hitPad],
-                pads: [options.hitPad],
-              },
-            ]
-            : [],
+        hitBubbles,
         spinTargets: [],
         dragTargets: [],
       },
     ]);
-    setSaveStatus(`${mechanic.toUpperCase()} drafted at ${formatSongTime(seconds, isAdvancedMode)}.`);
+    setSaveStatus(`${mechanic.toUpperCase()} drafted at ${formatSongTime(seconds, isAdvancedMode)}. ${normalized.readiness.nextAction}`);
 
     return draftId;
   }
@@ -11211,29 +11112,13 @@ export default function LessonBuilderClient({
       const timelineSidecar = sidecarFromTimelineEvents(timelineEvents, true);
       const authoredClock = createLessonClock(chartFile || originalChartFileRef.current);
       const hasCompleteTimelineBindings = hasCompleteAuthoredEquationBindings(timelineEvents);
-      const hasCompleteRtcmBindings = rtcmDraftMechanics.every((draft) => {
-        if (!draft.equationId) {
-          return false;
-        }
-        const equation = authoredEquationQueue.find((entry) => entry.id === draft.equationId);
-        return Boolean(equation?.tokens.length);
-      });
-      if (rtcmDraftMechanics.length > 0 && !hasCompleteRtcmBindings) {
-        throw new Error("RTCM mechanics must be assigned to a saved equation before saving.");
-      }
       const hasLegacyEncounters = timelineEvents.some(event => event.legacyEncounter);
-      const canSaveAsAuthored = (!legacyEncounterSourceRef.current || (!hasLegacyEncounters && authoredEquationQueue.length > 0)) && hasCompleteTimelineBindings && hasCompleteRtcmBindings;
+      const canSaveAsAuthored = (!legacyEncounterSourceRef.current || (!hasLegacyEncounters && authoredEquationQueue.length > 0)) && hasCompleteTimelineBindings;
       if (!canSaveAsAuthored && (authoredEquationQueue.length > 0 || rtcmDraftMechanics.length > 0)) {
         throw new Error("This lesson mixes legacy or unassigned encounters with authored equations. Complete the assignments in an authored lesson before saving to avoid losing equation data.");
       }
       const rtcmEvents: AuthoredTimelineEvent[] = rtcmDraftMechanics.map((draft) => {
-        if (!draft.equationId) {
-          throw new Error(`RTCM ${draft.mechanic} '${draft.id}' has no equation assignment`);
-        }
-        const equation = authoredEquationQueue.find((entry) => entry.id === draft.equationId);
-        if (!equation) {
-          throw new Error(`RTCM ${draft.mechanic} '${draft.id}' references missing equation '${draft.equationId}'`);
-        }
+        const equation = authoredEquationQueue.find((entry) => entry.id === draft.equationId) ?? null;
         const endSeconds =
           draft.id === rtcmPendingHold?.draftId
             ? Math.max(draft.tick, currentSongSeconds)
@@ -11257,9 +11142,9 @@ export default function LessonBuilderClient({
             drag: draft.mechanic === "drag" ? equation : null,
           },
           mechanicInstances: {
-            hit: draft.mechanic === "hit" ? [instance] : [],
-            spin: draft.mechanic === "spin" ? [instance] : [],
-            drag: draft.mechanic === "drag" ? [instance] : [],
+            hit: draft.mechanic === "hit" ? [{ ...instance, equation }] : [],
+            spin: draft.mechanic === "spin" ? [{ ...instance, equation }] : [],
+            drag: draft.mechanic === "drag" ? [{ ...instance, equation }] : [],
           },
         };
       });
@@ -13454,7 +13339,6 @@ export default function LessonBuilderClient({
           />
           <EquationTimeline
             events={timelineEvents}
-            rtcmDraftMechanics={rtcmDraftMechanics}
             hideSpinouts={isRctm2Mode}
             activeEventId={activeEventId}
             onSelectEvent={handleSelectEvent}
