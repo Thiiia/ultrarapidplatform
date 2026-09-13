@@ -306,10 +306,10 @@ test("editor -> v3 -> editor round-trip preserves identity, targets and queue or
 
   // Targets and sourceHitId preserved.
   assert.deepEqual(hydrated.events[0].mechanicInstances.hit[0].hitBubbles, [
-    { tokenIndex: 0, positions: ["topLeft"], pads: ["topLeft"] },
+    { tokenIndex: 0, targetId: "eq-1-token-0", positions: ["topLeft"], pads: ["topLeft"] },
   ]);
   assert.deepEqual(hydrated.events[0].mechanicInstances.drag[0].dragTargets, [
-    { tokenIndex: 2, sourceHitId: "inst-hit-a" },
+    { tokenIndex: 2, targetId: "eq-1-token-2", sourceHitId: "inst-hit-a" },
   ]);
 
   // Unreferenced equation kept in the queue.

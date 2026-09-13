@@ -13,6 +13,7 @@ type AuthoredHitPad = (typeof AUTHORED_HIT_PADS)[number];
 
 export type AuthoredLessonTarget = {
   tokenIndex: number;
+  targetId?: string;
   sourceHitId?: string;
   positions?: string[];
   pads?: string[];
@@ -20,13 +21,20 @@ export type AuthoredLessonTarget = {
 
 export type AuthoredLessonHitBubble = {
   tokenIndex: number;
+  targetId?: string;
   positions?: AuthoredHitPad[];
   pads?: AuthoredHitPad[];
+};
+
+export type AuthoredLessonToken = {
+  id: string;
+  label: string;
 };
 
 export type AuthoredLessonEquation = {
   id: string;
   state: string;
+  tokens?: AuthoredLessonToken[];
 };
 
 export type AuthoredLessonEncounter = {
@@ -95,9 +103,10 @@ function normalizeHitBubble(value: unknown, label: string): AuthoredLessonHitBub
   }
   const bubble = value as Record<string, unknown>;
   const tokenIndex = requireTick(bubble.tokenIndex, `${label}.tokenIndex`);
+  const targetId = bubble.targetId == null ? undefined : requireString(bubble.targetId, `${label}.targetId`);
   const positions = normalizePadList(bubble.positions, `${label}.positions`);
   const pads = normalizePadList(bubble.pads, `${label}.pads`);
-  return { tokenIndex, ...(positions ? { positions } : {}), ...(pads ? { pads } : {}) };
+  return { tokenIndex, ...(targetId ? { targetId } : {}), ...(positions ? { positions } : {}), ...(pads ? { pads } : {}) };
 }
 
 function normalizeTarget(value: unknown, label: string): AuthoredLessonTarget {
@@ -106,12 +115,32 @@ function normalizeTarget(value: unknown, label: string): AuthoredLessonTarget {
   }
   const target = value as Record<string, unknown>;
   const tokenIndex = requireTick(target.tokenIndex, `${label}.tokenIndex`);
+  const targetId = target.targetId == null ? undefined : requireString(target.targetId, `${label}.targetId`);
   const sourceHitId = target.sourceHitId == null
     ? undefined
     : requireString(target.sourceHitId, `${label}.sourceHitId`);
   const positions = normalizePadList(target.positions, `${label}.positions`);
   const pads = normalizePadList(target.pads, `${label}.pads`);
-  return { tokenIndex, ...(sourceHitId ? { sourceHitId } : {}), ...(positions ? { positions } : {}), ...(pads ? { pads } : {}) };
+  return { tokenIndex, ...(targetId ? { targetId } : {}), ...(sourceHitId ? { sourceHitId } : {}), ...(positions ? { positions } : {}), ...(pads ? { pads } : {}) };
+}
+
+function normalizeEquationTokens(value: unknown, state: string, label: string): AuthoredLessonToken[] | undefined {
+  if (value == null) return undefined;
+  if (!Array.isArray(value)) throw new Error(`Authored lesson ${label}.tokens must be an array`);
+  const ids = new Set<string>();
+  const tokens = value.map((entry, index) => {
+    if (!entry || typeof entry !== "object") throw new Error(`Authored lesson ${label}.tokens[${index}] is invalid`);
+    const token = entry as Record<string, unknown>;
+    const id = requireString(token.id, `${label}.tokens[${index}].id`);
+    const tokenLabel = requireString(token.label, `${label}.tokens[${index}].label`);
+    if (!ids.add(id)) throw new Error(`Duplicate authored token id '${id}' in equation '${label}'`);
+    return { id, label: tokenLabel };
+  });
+  const stateTokens = tokenizeAuthoredEquationState(state);
+  if (stateTokens.length !== tokens.length || stateTokens.some((token, index) => token !== tokens[index].label)) {
+    throw new Error(`Authored lesson ${label}.tokens do not match its state`);
+  }
+  return tokens;
 }
 
 export function tokenizeAuthoredEquationState(state: string) {
@@ -159,7 +188,9 @@ export function parseAuthoredLessonDraft(
   const equations = Array.isArray(payload.equations) ? payload.equations.map((value, index) => {
     if (!value || typeof value !== "object") throw new Error(`Authored lesson equation ${index} is invalid`);
     const equation = value as Record<string, unknown>;
-    return { id: requireString(equation.id, `equation[${index}].id`), state: requireString(equation.state, `equation[${index}].state`) };
+    const state = requireString(equation.state, `equation[${index}].state`);
+    const tokens = normalizeEquationTokens(equation.tokens, state, `equation[${index}]`);
+    return { id: requireString(equation.id, `equation[${index}].id`), state, ...(tokens ? { tokens } : {}) };
   }) : (() => { throw new Error("Authored lesson equations must be an array"); })();
   const equationIds = new Set(equations.map((equation) => equation.id));
   const equationById = new Map(equations.map((equation) => [equation.id, equation]));
@@ -238,11 +269,24 @@ export function parseAuthoredLessonDraft(
     }
     const equationTokens = equation ? tokenizeAuthoredEquationState(equation.state) : null;
     const tokenCount = equationTokens?.length ?? null;
-    const targets = encounter.type === "hit"
+    let targets = encounter.type === "hit"
       ? encounter.hitBubbles ?? []
       : encounter.type === "spin"
         ? encounter.spinTargets ?? []
         : encounter.dragTargets ?? [];
+    const stableTokens = equation?.tokens ?? [];
+    if (stableTokens.length > 0 && targets.some((target) => target.targetId && !stableTokens.some((token) => token.id === target.targetId))) {
+      const invalid = targets.find((target) => target.targetId && !stableTokens.some((token) => token.id === target.targetId));
+      throw new Error(`Encounter '${encounter.id}' target identity '${invalid?.targetId}' requires repair`);
+    }
+    if (stableTokens.length > 0 && targets.some((target) => target.targetId)) {
+      targets = targets.map((target) => target.targetId
+        ? { ...target, tokenIndex: stableTokens.findIndex((token) => token.id === target.targetId) }
+        : target);
+      if (encounter.type === "hit") encounter.hitBubbles = targets as AuthoredLessonHitBubble[];
+      if (encounter.type === "spin") encounter.spinTargets = targets;
+      if (encounter.type === "drag") encounter.dragTargets = targets;
+    }
     if (tokenCount !== null && targets.some((target) => target.tokenIndex >= tokenCount)) {
       throw new Error(`Encounter '${encounter.id}' has a target tokenIndex outside its equation`);
     }

@@ -209,6 +209,49 @@ test('rejects targets aimed at non-playable operator tokens', () => {
   }), /non-playable operator/i);
 });
 
+test('resolves stable target identity after an equation token is inserted', () => {
+  const withTokenIds = {
+    ...authored,
+    equations: [{
+      id: 'eq-a',
+      state: 'x + 1 = 2',
+      tokens: [
+        { id: 'tok-x', label: 'x' },
+        { id: 'tok-plus', label: '+' },
+        { id: 'tok-one', label: '1' },
+        { id: 'tok-equals', label: '=' },
+        { id: 'tok-two', label: '2' },
+      ],
+    }],
+    encounters: [{
+      ...authored.encounters[0],
+      hitBubbles: [{ tokenIndex: 0, targetId: 'tok-one' }],
+    }],
+  };
+
+  const parsed = parseAuthoredLessonDraft(withTokenIds);
+  assert.equal(parsed.encounters[0].hitBubbles?.[0].tokenIndex, 2);
+  assert.equal(parsed.encounters[0].hitBubbles?.[0].targetId, 'tok-one');
+});
+
+test('quarantines a target identity that no longer exists in the edited equation', () => {
+  assert.throws(() => parseAuthoredLessonDraft({
+    ...authored,
+    equations: [{
+      id: 'eq-a',
+      state: 'x + 1 = 2',
+      tokens: [
+        { id: 'tok-x', label: 'x' },
+        { id: 'tok-plus', label: '+' },
+        { id: 'tok-one', label: '1' },
+        { id: 'tok-equals', label: '=' },
+        { id: 'tok-two', label: '2' },
+      ],
+    }],
+    encounters: [{ ...authored.encounters[0], hitBubbles: [{ tokenIndex: 0, targetId: 'deleted-token' }] }],
+  }), /requires repair/i);
+});
+
 test('rejects coerced stopAtSeconds strings and negative values', () => {
   assert.throws(() => parseAuthoredLessonDraft({ ...authored, stopAtSeconds: '12' }), /stopAtSeconds/);
   assert.throws(() => parseAuthoredLessonDraft({ ...authored, stopAtSeconds: -1 }), /stopAtSeconds/);

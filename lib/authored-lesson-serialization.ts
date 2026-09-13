@@ -30,6 +30,7 @@ export type AuthoredSavedEquation = {
 
 export type AuthoredHitBubble = {
   tokenIndex: number;
+  targetId?: string;
   positions?: string[];
   pads?: string[];
 };
@@ -41,8 +42,8 @@ export type AuthoredMechanicInstance = {
   /** Editor end position in audio seconds (fractional). */
   endTick?: number;
   hitBubbles: AuthoredHitBubble[];
-  spinTargets: Array<{ tokenIndex: number }>;
-  dragTargets: Array<{ tokenIndex: number; sourceHitId?: string }>;
+  spinTargets: Array<{ tokenIndex: number; targetId?: string }>;
+  dragTargets: Array<{ tokenIndex: number; targetId?: string; sourceHitId?: string }>;
   /** Optional per-instance binding; event assignment is only the legacy fallback. */
   equation?: AuthoredSavedEquation | null;
 };
@@ -75,8 +76,8 @@ export type AuthoredDraftEncounter = {
   startTick: number;
   endTick: number;
   hitBubbles?: AuthoredHitBubble[];
-  spinTargets?: Array<{ tokenIndex: number }>;
-  dragTargets?: Array<{ tokenIndex: number; sourceHitId?: string }>;
+  spinTargets?: Array<{ tokenIndex: number; targetId?: string }>;
+  dragTargets?: Array<{ tokenIndex: number; targetId?: string; sourceHitId?: string }>;
 };
 
 export type AuthoredLessonDraft = {
@@ -87,7 +88,7 @@ export type AuthoredLessonDraft = {
   authorId?: string;
   revision?: string;
   stopAtSeconds?: number;
-  equations: Array<{ id: string; state: string }>;
+  equations: Array<{ id: string; state: string; tokens?: AuthoredEquationToken[] }>;
   encounters: AuthoredDraftEncounter[];
 };
 
@@ -136,9 +137,9 @@ export function serializeAuthoredLesson(
   stopAtSeconds?: number,
   equationQueue: AuthoredSavedEquation[] = [],
 ): AuthoredLessonDraft {
-  const equations: AuthoredLessonDraft["equations"] = [];
+  const equations: Array<{ id: string; state: string; tokens: AuthoredEquationToken[] }> = [];
   const encounters: AuthoredLessonDraft["encounters"] = [];
-  const equationById = new Map<string, { id: string; state: string }>();
+  const equationById = new Map<string, { id: string; state: string; tokens: AuthoredEquationToken[] }>();
 
   // Stable equation identity: the equation's own id when present; otherwise a
   // deterministic id derived from its authored state (never its array index).
@@ -148,7 +149,7 @@ export function serializeAuthoredLesson(
     if (!equation.id.trim()) {
       throw new Error("Authored lesson equation id is required");
     }
-    return { id: equation.id, state };
+    return { id: equation.id, state, tokens: equation.tokens.map((token) => ({ ...token })) };
   };
 
   const registerEquation = (equation: AuthoredSavedEquation | null | undefined) => {
@@ -204,9 +205,9 @@ export function serializeAuthoredLesson(
           equationId: equation.id,
           startTick,
           endTick,
-          ...(mechanic === "hit" ? { hitBubbles: instance.hitBubbles ?? [] } : {}),
-          ...(mechanic === "spin" ? { spinTargets: instance.spinTargets ?? [] } : {}),
-          ...(mechanic === "drag" ? { dragTargets: instance.dragTargets ?? [] } : {}),
+          ...(mechanic === "hit" ? { hitBubbles: (instance.hitBubbles ?? []).map((target) => ({ ...target, targetId: target.targetId ?? equation.tokens[target.tokenIndex]?.id })) } : {}),
+          ...(mechanic === "spin" ? { spinTargets: (instance.spinTargets ?? []).map((target) => ({ ...target, targetId: target.targetId ?? equation.tokens[target.tokenIndex]?.id })) } : {}),
+          ...(mechanic === "drag" ? { dragTargets: (instance.dragTargets ?? []).map((target) => ({ ...target, targetId: target.targetId ?? equation.tokens[target.tokenIndex]?.id })) } : {}),
         });
       }
     });
@@ -220,7 +221,7 @@ export function serializeAuthoredLesson(
     ...(identity.authorId ? { authorId: identity.authorId } : {}),
     ...(identity.revision ? { revision: identity.revision } : {}),
     ...(typeof stopAtSeconds === "number" ? { stopAtSeconds } : {}),
-    equations,
+    equations: equations.map((equation) => ({ ...equation, tokens: equation.tokens.map((token) => ({ ...token })) })),
     encounters,
   };
 }
@@ -236,6 +237,10 @@ export type HydratedAuthoredTimeline = {
 function stateToTokens(equationId: string, state: string) {
   return tokenizeAuthoredEquationState(state)
     .map((label, index) => ({ id: `${equationId}-token-${index}`, label }));
+}
+
+function equationTokens(entry: { id: string; state: string; tokens?: AuthoredEquationToken[] }) {
+  return entry.tokens?.map((token) => ({ ...token })) ?? stateToTokens(entry.id, entry.state);
 }
 
 function emptyAssignments(): Record<"hit" | "spin" | "drag", HydrationEquation | null> {
@@ -260,7 +265,7 @@ function emptyInstances(): Record<"hit" | "spin" | "drag", AuthoredMechanicInsta
  */
 export function timelineEventsFromAuthoredLesson(
   draft: {
-    equations: Array<{ id: string; state: string }>;
+    equations: Array<{ id: string; state: string; tokens?: AuthoredEquationToken[] }>;
     encounters: Array<{
       id: string;
       eventId: string;
@@ -269,8 +274,8 @@ export function timelineEventsFromAuthoredLesson(
       startTick: number;
       endTick: number;
       hitBubbles?: unknown[];
-      spinTargets?: Array<{ tokenIndex: number }>;
-      dragTargets?: Array<{ tokenIndex: number; sourceHitId?: string }>;
+      spinTargets?: Array<{ tokenIndex: number; targetId?: string }>;
+      dragTargets?: Array<{ tokenIndex: number; targetId?: string; sourceHitId?: string }>;
     }>;
   },
   clock: AuthoredLessonClock,
@@ -279,7 +284,7 @@ export function timelineEventsFromAuthoredLesson(
   const equations = draft.equations.map((entry) => {
     const hydrated: HydrationEquation = {
       id: entry.id,
-      tokens: stateToTokens(entry.id, entry.state),
+      tokens: equationTokens(entry),
     };
     equationById.set(entry.id, hydrated);
     return hydrated;
@@ -333,20 +338,24 @@ export function timelineEventsFromAuthoredLesson(
         }
         const record = bubble as {
           tokenIndex: number;
+          targetId?: string;
           positions?: string[];
           pads?: string[];
         };
         return {
           tokenIndex: record.tokenIndex,
+          ...(typeof record.targetId === "string" ? { targetId: record.targetId } : {}),
           ...(record.positions ? { positions: record.positions } : {}),
           ...(record.pads ? { pads: record.pads } : {}),
         };
       }),
       spinTargets: (encounter.spinTargets ?? []).map((target) => ({
-        tokenIndex: target.tokenIndex,
+          tokenIndex: target.tokenIndex,
+          ...(typeof target.targetId === "string" ? { targetId: target.targetId } : {}),
       })),
       dragTargets: (encounter.dragTargets ?? []).map((target) => ({
         tokenIndex: target.tokenIndex,
+        ...(typeof target.targetId === "string" ? { targetId: target.targetId } : {}),
         ...(target.sourceHitId ? { sourceHitId: target.sourceHitId } : {}),
       })),
     };
