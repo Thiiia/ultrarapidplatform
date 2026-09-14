@@ -1,10 +1,19 @@
-import LaunchEmbedPage from "@/app/components/LaunchEmbedPage";
-import { getStorageSignedUrl } from "@/lib/storage-media";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default async function LaunchPage() {
-  const videoUrl = await getStorageSignedUrl("Videos", "Bars.mp4");
+type LaunchPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-  return <LaunchEmbedPage videoUrl={videoUrl} />;
+export default async function LaunchPage({ searchParams }: LaunchPageProps) {
+  const params = await searchParams;
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string") query.set(key, value);
+    else if (Array.isArray(value) && value.length > 0) query.set(key, value[0]);
+  }
+
+  redirect(`/student/game${query.toString() ? `?${query.toString()}` : ""}`);
 }
