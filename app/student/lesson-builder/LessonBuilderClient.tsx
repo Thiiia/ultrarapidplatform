@@ -1466,6 +1466,7 @@ function authoredSidecarFromTimelineEvents(
   clock: ReturnType<typeof createLessonClock>,
   stopAtSeconds?: number,
   equationQueue: SavedEquation[] = [],
+  options: { forPublish?: boolean } = {},
 ): AuthoredLessonDraft {
   return serializeAuthoredLesson(
     events as unknown as AuthoredTimelineEvent[],
@@ -1473,6 +1474,7 @@ function authoredSidecarFromTimelineEvents(
     clock,
     stopAtSeconds,
     equationQueue,
+    options,
   );
 }
 
@@ -1744,6 +1746,7 @@ function HeaderBar({
   onLaunch,
   onSave,
   canLaunch,
+  canPublish = true,
   isRctm1Mode,
   isRctm2Mode,
   hideChartmaker,
@@ -1761,6 +1764,7 @@ function HeaderBar({
   onLaunch: () => void;
   onSave: () => void;
   canLaunch: boolean;
+  canPublish?: boolean;
   isRctm1Mode: boolean;
   isRctm2Mode: boolean;
   hideChartmaker?: boolean;
@@ -2023,10 +2027,10 @@ function HeaderBar({
 
           <button
             type="button"
-            disabled={isSaving}
+            disabled={!canPublish || isSaving}
             onClick={onSave}
-            aria-label="Publish my version"
-            title="Publish my version"
+            aria-label="Publish changes"
+            title={canPublish ? "Publish changes" : "Complete the lesson before publishing"}
             style={{
               width: 60,
               height: 29,
@@ -2034,8 +2038,8 @@ function HeaderBar({
               borderRadius: 12,
               background: "transparent",
               padding: 0,
-              cursor: isSaving ? "not-allowed" : "pointer",
-              opacity: isSaving ? 0.55 : 1,
+              cursor: canPublish && !isSaving ? "pointer" : "not-allowed",
+              opacity: canPublish && !isSaving ? 1 : 0.55,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -10521,7 +10525,7 @@ export default function LessonBuilderClient({
       return;
     }
 
-    const didSave = await handleSaveToSupabase();
+    const didSave = await handlePublishChanges();
 
     if (!didSave) {
       return;
@@ -10985,6 +10989,13 @@ export default function LessonBuilderClient({
 
   async function handleLaunchGame(playTemplateOnly = false) {
     if (isSaving) return;
+    if (!playTemplateOnly && !lessonPublishReadiness.ready) {
+      const blocker = lessonPublishReadiness.blockers[0];
+      savePrivateDraft();
+      handleSelectReadinessEncounter(blocker.encounterId);
+      setSaveStatus(`Draft saved on this device. ${blocker.message} ${blocker.nextAction}`);
+      return;
+    }
     if (!selectedSongLaunch) {
       setSaveStatus("Choose a song from song choice before launching the game.");
       return;
@@ -11163,6 +11174,7 @@ export default function LessonBuilderClient({
             authoredClock,
             timelineSidecar.stopAtSeconds,
             authoredEquationQueue,
+            { forPublish: true },
           )
         : null;
 
@@ -11747,6 +11759,38 @@ export default function LessonBuilderClient({
           message: `This lesson could not be read. It has not been replaced: ${message}`,
         });
       });
+  }
+
+  function savePrivateDraft() {
+    try {
+      if (workspaceSource && typeof window !== "undefined") {
+        writePlayerLessonWorkspaceDraft(sessionStorage, {
+          version: 1,
+          source: workspaceSource,
+          timelineEvents,
+          equationEdits: savedEquations,
+          hiddenSourceEquationIds,
+          updatedAt: Date.now(),
+        });
+      }
+      setSaveStatus("Draft saved on this device.");
+      return true;
+    } catch {
+      setSaveStatus("Your draft is still open in this editor, but this device could not store a recovery copy.");
+      return false;
+    }
+  }
+
+  async function handlePublishChanges(options: { showNotice?: boolean } = {}) {
+    if (!lessonPublishReadiness.ready) {
+      const blocker = lessonPublishReadiness.blockers[0];
+      savePrivateDraft();
+      handleSelectReadinessEncounter(blocker.encounterId);
+      setSaveStatus(`Draft saved on this device. ${blocker.message} ${blocker.nextAction}`);
+      return false;
+    }
+
+    return handleSaveToSupabase(options);
   }
 
   function handleRetryCurrentLesson() {
@@ -12882,9 +12926,10 @@ export default function LessonBuilderClient({
         onOpenFile={handleOpenFilePicker}
         onLaunch={handleLaunchGame}
         onSave={() => {
-          void handleSaveToSupabase({ showNotice: true });
+          void handlePublishChanges({ showNotice: true });
         }}
-        canLaunch={Boolean(selectedSongLaunch)}
+        canLaunch={Boolean(selectedSongLaunch) && lessonPublishReadiness.ready}
+        canPublish={lessonPublishReadiness.ready}
         isRctm1Mode={isRctm1Mode}
         isRctm2Mode={isRctm2Mode}
         hideChartmaker={isGuidedStart}

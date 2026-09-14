@@ -53,6 +53,7 @@ for (const saveFails of [false, true]) test(`launch publishes a draft only when 
   const launch = load("handleLaunchGame", {
     selectedSongLaunch: {songAssetId: "song", activityKey: "early-algebra", authorName: "dev"},
     lastSavedAuthorId: "old-author", lastSavedRevision: "old-revision", isSaving: false, hasUnsavedChanges: true,
+    lessonPublishReadiness: {ready: true, blockers: []},
     handleSaveToSupabase: async () => saveFails ? false : {authorId: "saved-author", revision: "new-revision"},
     lessonLaunchStrategy: (hasUnsavedChanges: boolean) => hasUnsavedChanges ? "publish-draft" : "published-template",
     requestFreshSongLaunchPackage: async (request: any) => {
@@ -84,6 +85,7 @@ test("launches a published template without asking it to save again", async () =
     selectedSongLaunch: {songAssetId: "song", activityKey: "early-algebra", authorName: "dev"},
     selectedSongAuthorId: "template-author", lastSavedAuthorId: null, lastSavedRevision: "template-revision",
     isSaving: false, hasUnsavedChanges: false,
+    lessonPublishReadiness: {ready: true, blockers: []},
     handleSaveToSupabase: async () => { saves += 1; return false; },
     lessonLaunchStrategy: (hasUnsavedChanges: boolean) => hasUnsavedChanges ? "publish-draft" : "published-template",
     requestFreshSongLaunchPackage: async (request: any) => {
@@ -99,4 +101,41 @@ test("launches a published template without asking it to save again", async () =
   assert.equal(saves, 0);
   assert.equal(requests[0].authorId, "template-author");
   assert.equal(requests[0].revision, "template-revision");
+});
+
+test("incomplete lesson saves locally but never calls publish", async () => {
+  let publishRequests = 0;
+  let saveStatus = "";
+  const publish = load("handlePublishChanges", {
+    lessonPublishReadiness: {
+      ready: false,
+      blockers: [{ encounterId: "spin-1", code: "spin_target_required", message: "Spin 1 needs a target.", nextAction: "Select the token to spin." }],
+    },
+    savePrivateDraft: () => true,
+    handleSelectReadinessEncounter: () => undefined,
+    setSaveStatus: (value: string) => { saveStatus = value; },
+    handleSaveToSupabase: async () => { publishRequests += 1; return false; },
+  });
+  const result = await publish({});
+  assert.equal(result, false);
+  assert.equal(publishRequests, 0);
+  assert.match(saveStatus, /Spin 1 needs a target/);
+});
+
+test("Play skips package request while blockers exist", async () => {
+  let requests = 0;
+  const launch = load("handleLaunchGame", {
+    lessonPublishReadiness: {
+      ready: false,
+      blockers: [{ encounterId: "spin-1", code: "spin_target_required", message: "Spin 1 needs a target.", nextAction: "Select the token to spin." }],
+    },
+    isSaving: false,
+    savePrivateDraft: () => true,
+    handleSelectReadinessEncounter: () => undefined,
+    setSaveStatus: () => undefined,
+    selectedSongLaunch: {songAssetId: "song", activityKey: "early-algebra"},
+    requestFreshSongLaunchPackage: async () => { requests += 1; return null; },
+  });
+  await launch();
+  assert.equal(requests, 0);
 });
