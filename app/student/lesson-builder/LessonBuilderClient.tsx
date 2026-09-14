@@ -2230,6 +2230,133 @@ function TutorialBubble({
   );
 }
 
+type EditorToastKind = "info" | "success" | "error";
+
+function editorToastKindForMessage(message: string): EditorToastKind {
+  if (/could not|unable|failed|rejected|blocked|conflict|error|invalid|unavailable/i.test(message)) {
+    return "error";
+  }
+
+  if (/saved|published|ready|loaded|added|showing|deleted|kept|downloaded|updated|created|removed/i.test(message)) {
+    return "success";
+  }
+
+  return "info";
+}
+
+function EditorToast({
+  message,
+  hasUnsavedChanges,
+}: {
+  message: string;
+  hasUnsavedChanges: boolean;
+}) {
+  const [isMounted, setIsMounted] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const removeTimerRef = useRef<number | null>(null);
+  const hideTimerRef = useRef<number | null>(null);
+  const kind = editorToastKindForMessage(message);
+
+  useEffect(() => {
+    if (removeTimerRef.current !== null) {
+      window.clearTimeout(removeTimerRef.current);
+    }
+    if (hideTimerRef.current !== null) {
+      window.clearTimeout(hideTimerRef.current);
+    }
+
+    if (!message) {
+      const hideFrameId = window.requestAnimationFrame(() => setIsVisible(false));
+      removeTimerRef.current = window.setTimeout(() => setIsMounted(false), 220);
+      return () => {
+        window.cancelAnimationFrame(hideFrameId);
+        if (removeTimerRef.current !== null) {
+          window.clearTimeout(removeTimerRef.current);
+        }
+      };
+    }
+
+    let enterFrameId: number | null = null;
+    const mountFrameId = window.requestAnimationFrame(() => {
+      setIsMounted(true);
+      setIsVisible(false);
+      enterFrameId = window.requestAnimationFrame(() => setIsVisible(true));
+    });
+    const duration = kind === "error" ? 7200 : kind === "success" ? 3800 : 3200;
+    hideTimerRef.current = window.setTimeout(() => {
+      setIsVisible(false);
+      removeTimerRef.current = window.setTimeout(() => setIsMounted(false), 240);
+    }, duration);
+
+    return () => {
+      window.cancelAnimationFrame(mountFrameId);
+      if (enterFrameId !== null) {
+        window.cancelAnimationFrame(enterFrameId);
+      }
+      if (hideTimerRef.current !== null) {
+        window.clearTimeout(hideTimerRef.current);
+      }
+      if (removeTimerRef.current !== null) {
+        window.clearTimeout(removeTimerRef.current);
+      }
+    };
+  }, [kind, message]);
+
+  if (!isMounted || !message) {
+    return null;
+  }
+
+  return (
+    <div
+      className={`${styles.editorToast} ${styles[`editorToast${kind[0].toUpperCase()}${kind.slice(1)}`]} ${isVisible ? styles.editorToastVisible : styles.editorToastHiding}`}
+      role={kind === "error" ? "alert" : "status"}
+      aria-live={kind === "error" ? "assertive" : "polite"}
+      aria-atomic="true"
+    >
+      <span className={styles.editorToastIndicator} aria-hidden="true" />
+      <span className={styles.editorToastMessage}>
+        <span className={styles.editorToastLabel}>
+          {kind === "error" ? "Needs attention" : "Last action"}
+        </span>
+        <span>{message}</span>
+        {hasUnsavedChanges ? (
+          <span className={styles.editorToastSecondary}>
+            Changes are only used in Unity after you publish.
+          </span>
+        ) : null}
+      </span>
+      <button
+        type="button"
+        className={styles.editorToastDismiss}
+        aria-label="Dismiss notification"
+        onClick={() => {
+          setIsVisible(false);
+          removeTimerRef.current = window.setTimeout(() => setIsMounted(false), 240);
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+function EditorPanelRail({
+  label,
+  onOpen,
+}: {
+  label: string;
+  onOpen: () => void;
+}) {
+  return (
+    <div className={styles.editorPanelRail}>
+      <button type="button" onClick={onOpen} className={styles.editorPanelRailButton} aria-label={`Open ${label}`}>
+        <span aria-hidden="true">{label}</span>
+        <span className={styles.editorPanelRailIcon} aria-hidden="true">+</span>
+      </button>
+    </div>
+  );
+}
+
 function SongFilePickerModal({
   isOpen,
   isLoading,
@@ -9389,10 +9516,9 @@ export default function LessonBuilderClient({
   const [advancedMode, setAdvancedMode] = useState(true);
   const [isLessonLoaded, setIsLessonLoaded] = useState(false);
   const [advancedConfirmOpen, setAdvancedConfirmOpen] = useState(false);
-  const [saveNotice, setSaveNotice] = useState<{
-    kind: "success" | "error";
-    message: string;
-  } | null>(null);
+  const [isReadinessOpen, setIsReadinessOpen] = useState(false);
+  const [isBuilderPanelOpen, setIsBuilderPanelOpen] = useState(true);
+  const [isLibraryPanelOpen, setIsLibraryPanelOpen] = useState(false);
   const [selectedSongStorage, setSelectedSongStorage] = useState<{
     id: string;
     chart: StorageFileRef;
@@ -9479,20 +9605,6 @@ export default function LessonBuilderClient({
     () => row2ColumnWidths[1] * 0.12,
     [row2ColumnWidths],
   );
-
-  useEffect(() => {
-    if (!saveNotice) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setSaveNotice(null);
-    }, 2600);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [saveNotice]);
 
   useEffect(() => {
     if (activeResizeHandle === null) {
@@ -10126,6 +10238,7 @@ export default function LessonBuilderClient({
   function handleNewEquation() {
     setDraftTokens([]);
     setCustomTokenLabel("");
+    setIsBuilderPanelOpen(true);
     setMode("equation");
   }
 
@@ -10533,6 +10646,7 @@ export default function LessonBuilderClient({
     setCenterChoice("premade");
     setLibraryTab("premade");
     setHideEquationHeader(true);
+    setIsLibraryPanelOpen(true);
   }
 
   function handleRemoveEquationToken(id: string) {
@@ -10557,6 +10671,7 @@ export default function LessonBuilderClient({
     );
     setSelectedEquationId(nextEquation.id);
     setLibraryTab("mine");
+    setIsLibraryPanelOpen(true);
     setDraftTokens([]);
     setCustomTokenLabel("");
     setMode("event");
@@ -10909,11 +11024,13 @@ export default function LessonBuilderClient({
 
   function handleSelectLibraryEquation(equationId: string) {
     setSelectedEquationId(equationId);
+    setIsLibraryPanelOpen(true);
   }
 
   function handleSelectLibraryTab(tab: LibraryTab) {
     setLibraryTab(tab);
     setSelectedEquationId(null);
+    setIsLibraryPanelOpen(true);
   }
 
   function handleHideSourceEquation(equationId: string) {
@@ -10992,6 +11109,7 @@ export default function LessonBuilderClient({
     });
     markDirty();
     setCenterChoice(null);
+    setIsLibraryPanelOpen(false);
     const activeEventIndex = activeEventId
       ? timelineEvents.findIndex((eventSlot) => eventSlot.id === activeEventId)
       : -1;
@@ -11225,12 +11343,6 @@ export default function LessonBuilderClient({
 
     if (!selectedSongStorage) {
       setSaveStatus("No selected song asset is loaded.");
-      if (showNotice) {
-        setSaveNotice({
-          kind: "error",
-          message: "No selected song asset is loaded.",
-        });
-      }
       return false;
     }
 
@@ -11251,9 +11363,6 @@ export default function LessonBuilderClient({
       if (!hasUnsavedChanges) {
         const message = "No changes to publish. This template is already ready to play.";
         setSaveStatus(message);
-        if (showNotice) {
-          setSaveNotice({ kind: "success", message });
-        }
         return false;
       }
 
@@ -11476,10 +11585,7 @@ export default function LessonBuilderClient({
         const songLabel =
           metadata?.songTitle?.trim() || uploadedSongName || "Selected song";
 
-        setSaveNotice({
-          kind: "success",
-          message: `Saved ${songLabel} as ${activityLabel} chart/sidecar.`,
-        });
+        setSaveStatus(`Saved ${songLabel} as ${activityLabel} chart/sidecar.`);
       }
 
       return { authorId: result.authorId, revision: result.revision };
@@ -11489,13 +11595,7 @@ export default function LessonBuilderClient({
       appendSongFlowDebug("lesson-builder:save:error", "Lesson save failed.", {
         message: reason,
       });
-      setSaveStatus(`${publishFailure} ${reason}`);
-      if (showNotice) {
-        setSaveNotice({
-          kind: "error",
-          message: `${publishFailure} ${workspaceSource && guidedStarted ? "A recovery copy stays in this browser. " : ""}${reason}`,
-        });
-      }
+      setSaveStatus(`${publishFailure} ${workspaceSource && guidedStarted ? "A recovery copy stays in this browser. " : ""}${reason}`);
       return false;
     } finally {
       setIsSaving(false);
@@ -11645,6 +11745,8 @@ export default function LessonBuilderClient({
     lessonLoadAbortRef.current = controller;
     loadedSongReadyRef.current = false;
     legacyEncounterSourceRef.current = null;
+    setIsReadinessOpen(false);
+    setIsLibraryPanelOpen(false);
     setLessonReadiness(null);
     setIsLessonLoaded(false);
     setSaveStatus("Loading selected lesson…");
@@ -13009,6 +13111,7 @@ export default function LessonBuilderClient({
     if (event) {
       setActiveEventId(event.id);
       setCenterChoice(null);
+      setIsReadinessOpen(false);
       setSaveStatus(`Editing ${encounterId}. ${lessonPublishReadiness.nextAction}`);
     }
   }
@@ -13072,13 +13175,23 @@ export default function LessonBuilderClient({
         onToggleRctm2Mode={handleToggleRctm2Mode}
       />
       {!isGuidedStart && !isRctm1Mode && !isRctm2Mode ? (
-        <div style={{ position: "fixed", right: 18, top: 84, width: "min(360px, calc(100vw - 36px))", zIndex: 1002 }}>
+        <div
+          style={{
+            position: "fixed",
+            right: 18,
+            top: "calc(5vh + 12px)",
+            width: "min(320px, calc(100vw - 36px))",
+            zIndex: 1002,
+          }}
+        >
           <EncounterReadinessPanel
             readiness={lessonPublishReadiness}
             hasSong={Boolean(selectedSongStorage || selectedSongLaunch)}
             canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
             canPlay={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
             onSelectEncounter={handleSelectReadinessEncounter}
+            isOpen={isReadinessOpen}
+            onToggle={() => setIsReadinessOpen((current) => !current)}
           />
         </div>
       ) : null}
@@ -13160,47 +13273,63 @@ export default function LessonBuilderClient({
             </div>
           ) : (
             <>
-              <div
-                style={{
-                  flex: `0 0 ${row2DisplayWidths.column1}px`,
-                  minWidth: 0,
-                  height: "100%",
-                  // Demo tutorial step 1: keep the equation builder above the
-                  // dimming overlay so its buttons stay clickable.
-                  position: "relative",
-                  zIndex: tutorialStep === "welcome" ? 1200 : undefined,
-                }}
-              >
-                <LeftEquationBuilderPanel
-                  draftTokens={draftTokens}
-                  activeEventLabel={centerContextEventIndex >= 0 ? `Event ${centerContextEventIndex + 1}` : null}
-                  activeEventEquationText={centerContextEventEquation ? tokensToEquationState(centerContextEventEquation.tokens) : null}
-                  onAddToken={handleAppendEquationToken}
-                  onClearEquation={handleClearEquationDraft}
-                  onSaveEquation={handleSaveEquation}
-                  onUseDraftInEvent={handleUseDraftInActiveEvent}
-                  tutorialPrompt={
-                    showSaveEquationTutorialPrompt
-                      ? "Save this equation so you can use it in your lesson."
-                      : null
-                  }
-                  onSkipTutorial={() => setTutorialStep(null)}
+              {isBuilderPanelOpen ? (
+                <div
+                  className={styles.editorPanelSurface}
+                  style={{
+                    flex: `0 0 ${row2DisplayWidths.column1}px`,
+                    minWidth: 0,
+                    height: "100%",
+                    // Demo tutorial step 1: keep the equation builder above the
+                    // dimming overlay so its buttons stay clickable.
+                    position: "relative",
+                    zIndex: tutorialStep === "welcome" ? 1200 : undefined,
+                  }}
+                >
+                  <button
+                    type="button"
+                    className={styles.editorPanelCloseButton}
+                    onClick={() => setIsBuilderPanelOpen(false)}
+                    aria-label="Collapse equation builder"
+                    title="Collapse equation builder"
+                  >
+                    ×
+                  </button>
+                  <LeftEquationBuilderPanel
+                    draftTokens={draftTokens}
+                    activeEventLabel={centerContextEventIndex >= 0 ? `Event ${centerContextEventIndex + 1}` : null}
+                    activeEventEquationText={centerContextEventEquation ? tokensToEquationState(centerContextEventEquation.tokens) : null}
+                    onAddToken={handleAppendEquationToken}
+                    onClearEquation={handleClearEquationDraft}
+                    onSaveEquation={handleSaveEquation}
+                    onUseDraftInEvent={handleUseDraftInActiveEvent}
+                    tutorialPrompt={
+                      showSaveEquationTutorialPrompt
+                        ? "Save this equation so you can use it in your lesson."
+                        : null
+                    }
+                    onSkipTutorial={() => setTutorialStep(null)}
+                  />
+                </div>
+              ) : (
+                <EditorPanelRail label="Build" onOpen={() => setIsBuilderPanelOpen(true)} />
+              )}
+
+              {isBuilderPanelOpen ? (
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  onPointerDown={(event) => beginColumnResize(0, event)}
+                  style={{
+                    width: 6,
+                    flex: "0 0 6px",
+                    cursor: "col-resize",
+                    background: activeResizeHandle === 0 ? "rgba(207,255,4,0.22)" : "transparent",
+                  }}
                 />
-              </div>
+              ) : null}
 
-              <div
-                role="separator"
-                aria-orientation="vertical"
-                onPointerDown={(event) => beginColumnResize(0, event)}
-                style={{
-                  width: 6,
-                  flex: "0 0 6px",
-                  cursor: "col-resize",
-                  background: activeResizeHandle === 0 ? "rgba(207,255,4,0.22)" : "transparent",
-                }}
-              />
-
-              <div style={{ flex: `0 0 ${row2DisplayWidths.column2}px`, minWidth: 0, height: "100%" }}>
+              <div style={{ flex: "1 1 auto", minWidth: 0, height: "100%" }}>
                 <div
                   style={{
                     width: "100%",
@@ -13478,41 +13607,56 @@ export default function LessonBuilderClient({
                 </div>
               </div>
 
-              <div
-                role="separator"
-                aria-orientation="vertical"
-                onPointerDown={(event) => beginColumnResize(1, event)}
-                style={{
-                  width: 6,
-                  flex: "0 0 6px",
-                  cursor: "col-resize",
-                  background: activeResizeHandle === 1 ? "rgba(207,255,4,0.22)" : "transparent",
-                }}
-              />
+              {isLibraryPanelOpen ? (
+                <>
+                  <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    onPointerDown={(event) => beginColumnResize(1, event)}
+                    style={{
+                      width: 6,
+                      flex: "0 0 6px",
+                      cursor: "col-resize",
+                      background: activeResizeHandle === 1 ? "rgba(207,255,4,0.22)" : "transparent",
+                    }}
+                  />
 
-              <div style={{ flex: `0 0 ${row2DisplayWidths.column3}px`, minWidth: 0, height: "100%" }}>
-                <LibraryPanel
-                  activeTab={libraryTab}
-                  savedEquations={savedEquations}
-                  templateEquations={templateEquations}
-                  hiddenSourceEquationIds={hiddenSourceEquationIds}
-                  activeEventId={activeEventId}
-                  selectedEquationId={selectedEquationId}
-                  onTabChange={handleSelectLibraryTab}
-                  onSelectEquation={handleSelectLibraryEquation}
-                  onAddSelectedEquationToEvent={handleAddSelectedEquationToEvent}
-                  onHideSourceEquation={handleHideSourceEquation}
-                  onRestoreSourceEquation={handleRestoreSourceEquation}
-                  onDeleteMineEquation={handleDeleteMineEquation}
-                  shouldScrollLibrary={isTimelineInstructionVisible}
-                  tutorialPrompt={
-                    tutorialStep === "add"
-                      ? "Choose this equation, then add it to Event 1."
-                      : null
-                  }
-                  onSkipTutorial={() => setTutorialStep(null)}
-                />
-              </div>
+                  <div className={styles.editorPanelSurface} style={{ flex: `0 0 ${row2DisplayWidths.column3}px`, minWidth: 0, height: "100%", position: "relative" }}>
+                    <button
+                      type="button"
+                      className={styles.editorPanelCloseButton}
+                      onClick={() => setIsLibraryPanelOpen(false)}
+                      aria-label="Collapse equation library"
+                      title="Collapse equation library"
+                    >
+                      ×
+                    </button>
+                    <LibraryPanel
+                      activeTab={libraryTab}
+                      savedEquations={savedEquations}
+                      templateEquations={templateEquations}
+                      hiddenSourceEquationIds={hiddenSourceEquationIds}
+                      activeEventId={activeEventId}
+                      selectedEquationId={selectedEquationId}
+                      onTabChange={handleSelectLibraryTab}
+                      onSelectEquation={handleSelectLibraryEquation}
+                      onAddSelectedEquationToEvent={handleAddSelectedEquationToEvent}
+                      onHideSourceEquation={handleHideSourceEquation}
+                      onRestoreSourceEquation={handleRestoreSourceEquation}
+                      onDeleteMineEquation={handleDeleteMineEquation}
+                      shouldScrollLibrary={isTimelineInstructionVisible}
+                      tutorialPrompt={
+                        tutorialStep === "add"
+                          ? "Choose this equation, then add it to Event 1."
+                          : null
+                      }
+                      onSkipTutorial={() => setTutorialStep(null)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <EditorPanelRail label="Library" onOpen={() => setIsLibraryPanelOpen(true)} />
+              )}
 
             </>
           )}
@@ -13592,63 +13736,7 @@ export default function LessonBuilderClient({
         </div>
       ) : null}
 
-      {saveStatus ? (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: "fixed",
-            left: 18,
-            top: "calc(5vh + 12px)",
-            zIndex: 1001,
-            width: "min(360px, calc(100vw - 36px))",
-            padding: "9px 11px",
-            borderRadius: 10,
-            border: `1px solid ${hasUnsavedChanges ? "#CFFF04" : "#7A8FA8"}`,
-            background: "#0A1222F5",
-            color: "#FFFFFF",
-            fontSize: 12,
-            fontWeight: 700,
-            lineHeight: 1.35,
-            boxShadow: "0 12px 24px rgba(0,0,0,0.35)",
-          }}
-        >
-          <div style={{ color: hasUnsavedChanges ? "#CFFF04" : "#B8C5D6", fontSize: 10, fontWeight: 900, letterSpacing: 0.35, textTransform: "uppercase" }}>
-            Last action
-          </div>
-          <div style={{ marginTop: 3 }}>{saveStatus}</div>
-          {hasUnsavedChanges ? (
-            <div style={{ marginTop: 5, color: "#FFFFFFAA", fontSize: 11 }}>
-              Changes are only used in Unity after you publish.
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {saveNotice ? (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: "fixed",
-            right: 18,
-            top: 84,
-            zIndex: 1001,
-            minWidth: 260,
-            maxWidth: 420,
-            padding: "10px 12px",
-            borderRadius: 10,
-            border: `1px solid ${saveNotice.kind === "success" ? "#CFFF04" : "#FF7F7F"}`,
-            background: saveNotice.kind === "success" ? "#111D0F" : "#2A1414",
-            color: "#FFFFFF",
-            fontSize: 12,
-            fontWeight: 700,
-            boxShadow: "0 12px 24px rgba(0,0,0,0.35)",
-          }}
-        >
-          {saveNotice.message}
-        </div>
-      ) : null}
+      <EditorToast message={saveStatus} hasUnsavedChanges={hasUnsavedChanges} />
 
       <SongFilePickerModal
         isOpen={isFilePickerOpen}
