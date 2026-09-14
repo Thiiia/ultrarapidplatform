@@ -8,6 +8,7 @@ import type { FC, SVGProps } from "react";
 import { resolveLaunchParams } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 import { createBridgeContext, getOrCreateInstallationId, needsCalibration, validateBridgeMessage, type BridgeContext } from "@/lib/platform-player-bridge";
+import { getSongLaunchErrorMessage } from "@/lib/song-choice-flow";
 import { requestFreshSongLaunchParams } from "@/lib/song-launch-client";
 import { webglFlexFrameStyle, webglViewportHostStyle } from "@/lib/webgl-embed-layout";
 import styles from "../student.module.css";
@@ -276,6 +277,8 @@ export default function GameEmbedPage({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [launchParams, setLaunchParams] = useState<URLSearchParams | null>(null);
   const [launchPreparationError, setLaunchPreparationError] = useState("");
+  const [needsSongChoice, setNeedsSongChoice] = useState(false);
+  const [launchRetryNonce, setLaunchRetryNonce] = useState(0);
   const [bridgeContext, setBridgeContext] = useState<BridgeContext | null>(null);
   const [calibrationStatus, setCalibrationStatus] = useState<"loading" | "required" | "ready">("loading");
   const [completedRun, setCompletedRun] = useState<{ completedEvents: number; hitAttempts: number } | null>(null);
@@ -286,18 +289,26 @@ export default function GameEmbedPage({
   useEffect(() => {
     let cancelled = false;
     const originalParams = new URLSearchParams(serializedSearchParams);
-    const songAssetId = originalParams.get("songAssetId");
-    const activityKey = originalParams.get("activityKey");
+    const resolvedParams = resolveLaunchParams(originalParams);
+    const songAssetId = resolvedParams.get("songAssetId");
+    const activityKey = resolvedParams.get("activityKey");
 
     queueMicrotask(() => {
       if (!cancelled) {
         setLaunchParams(null);
         setLaunchPreparationError("");
+        setNeedsSongChoice(false);
       }
     });
     if (!songAssetId || !activityKey) {
       queueMicrotask(() => {
-        if (!cancelled) setLaunchParams(originalParams);
+        if (!cancelled) {
+          if (resolvedParams.size > 0) {
+            setLaunchParams(resolvedParams);
+          } else {
+            setNeedsSongChoice(true);
+          }
+        }
       });
       return () => { cancelled = true; };
     }
@@ -305,23 +316,23 @@ export default function GameEmbedPage({
     requestFreshSongLaunchParams({
       songAssetId,
       activityKey,
-      authorId: originalParams.get("authorId"),
-      revision: originalParams.get("revision"),
-      rhythmDifficultyKey: originalParams.get("rhythmDifficultyKey") as "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle" | null ?? undefined,
-      learningDifficultyKey: originalParams.get("learningDifficultyKey"),
-      refreshLaunchAttemptId: originalParams.get("launchAttemptId"),
+      authorId: resolvedParams.get("authorId"),
+      revision: resolvedParams.get("revision"),
+      rhythmDifficultyKey: resolvedParams.get("rhythmDifficultyKey") as "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle" | null ?? undefined,
+      learningDifficultyKey: resolvedParams.get("learningDifficultyKey"),
+      refreshLaunchAttemptId: resolvedParams.get("launchAttemptId"),
     })
       .then((freshLaunchParams) => {
         if (!cancelled) setLaunchParams(freshLaunchParams);
       })
       .catch((error) => {
         if (!cancelled) {
-          setLaunchPreparationError(error instanceof Error ? error.message : "Unable to prepare the game files.");
+          setLaunchPreparationError(getSongLaunchErrorMessage(error));
         }
       });
 
     return () => { cancelled = true; };
-  }, [serializedSearchParams]);
+  }, [launchRetryNonce, serializedSearchParams]);
 
   useEffect(() => {
     const receiptRaw = launchParams?.get("receipt");
@@ -462,8 +473,27 @@ export default function GameEmbedPage({
               }}
             />
           ) : (
-            <div role={launchPreparationError ? "alert" : "status"} style={{ ...webglFlexFrameStyle, display: "grid", placeItems: "center", border: `1px solid ${subtleBorderColor}`, borderRadius: 12 }}>
-              {launchPreparationError || "Preparing your game files…"}
+            <div role={launchPreparationError ? "alert" : "status"} style={{ ...webglFlexFrameStyle, display: "grid", placeItems: "center", border: `1px solid ${subtleBorderColor}`, borderRadius: 12, padding: 24, boxSizing: "border-box", textAlign: "center" }}>
+              <div style={{ display: "grid", gap: 14, justifyItems: "center", maxWidth: 460 }}>
+                <strong>{launchPreparationError ? "We couldn’t prepare this lesson" : needsSongChoice ? "Choose a song to play" : "Preparing your game files…"}</strong>
+                <span style={{ color: "#FFFFFFB3", lineHeight: 1.45 }}>
+                  {launchPreparationError || (needsSongChoice ? "Pick a song first, then return here to start the lesson." : "Your signed lesson files are being prepared.")}
+                </span>
+                {launchPreparationError ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
+                    <button type="button" onClick={() => setLaunchRetryNonce((current) => current + 1)} style={{ border: "none", borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}>
+                      Try again
+                    </button>
+                    <Link href={`${navBasePath}/song-choice`} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 999, color: "#FFFFFF", padding: "9px 16px", textDecoration: "none", fontWeight: 700 }}>
+                      Choose another song
+                    </Link>
+                  </div>
+                ) : needsSongChoice ? (
+                  <Link href={`${navBasePath}/song-choice`} style={{ border: "none", borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "10px 18px", textDecoration: "none", fontWeight: 800 }}>
+                    Choose a song
+                  </Link>
+                ) : null}
+              </div>
             </div>
           )}
           {bridgeContext && calibrationStatus === "required" && (

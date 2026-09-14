@@ -2015,14 +2015,14 @@ function HeaderBar({
             onClick={onLaunch}
             disabled={!canLaunch || isSaving}
             aria-label="Play saved lesson in game"
-            title={canLaunch ? "Play the safe published lesson. Changes publish automatically only when ready." : "Choose a song before playing"}
+            title={isSaving ? "Saving lesson changes" : canLaunch ? "Play the safe published lesson. Changes publish automatically only when ready." : "Choose a song before playing"}
             style={{
               minWidth: 70,
               height: 30,
               borderRadius: 12,
               border: `1px solid ${subtleBorderColor}`,
-              background: "#CFFF04",
-              color: "#071222",
+              background: canLaunch && !isSaving ? "#CFFF04" : "rgba(207,255,4,0.12)",
+              color: canLaunch && !isSaving ? "#071222" : "#7A8FA8",
               fontFamily: "Space Grotesk, sans-serif",
               fontSize: 11,
               fontWeight: 800,
@@ -13065,7 +13065,7 @@ export default function LessonBuilderClient({
           void handlePublishChanges({ showNotice: true });
         }}
         canLaunch={Boolean(selectedSongLaunch) && lessonPublishReadiness.ready}
-        canPublish={lessonPublishReadiness.ready}
+        canPublish={Boolean(selectedSongStorage) && lessonPublishReadiness.ready}
         isRctm1Mode={isRctm1Mode}
         isRctm2Mode={isRctm2Mode}
         hideChartmaker={isGuidedStart}
@@ -13076,6 +13076,9 @@ export default function LessonBuilderClient({
         <div style={{ position: "fixed", right: 18, top: 84, width: "min(360px, calc(100vw - 36px))", zIndex: 1002 }}>
           <EncounterReadinessPanel
             readiness={lessonPublishReadiness}
+            hasSong={Boolean(selectedSongStorage || selectedSongLaunch)}
+            canPublish={Boolean(selectedSongStorage) && lessonPublishReadiness.ready}
+            canPlay={Boolean(selectedSongLaunch) && lessonPublishReadiness.ready}
             onSelectEncounter={handleSelectReadinessEncounter}
           />
         </div>

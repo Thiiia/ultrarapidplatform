@@ -12,6 +12,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { persistLaunchParams } from "@/lib/launch-handoff";
 import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
+import {
+  getSongLaunchErrorMessage,
+  type SongPackageLoadStatus,
+} from "@/lib/song-choice-flow";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
 
@@ -476,6 +480,9 @@ export default function SongChoiceClient({
   const [selectionPackages, setSelectionPackages] = useState<
     Record<string, FreshSongLaunchPackage>
   >({});
+  const [selectionStatusById, setSelectionStatusById] = useState<
+    Record<string, SongPackageLoadStatus>
+  >({});
   const pendingSelectionsRef = useRef<Set<string>>(new Set());
   // Monotonic token: only the newest selection's async resolution is applied.
   const selectionTokenRef = useRef(0);
@@ -535,17 +542,32 @@ export default function SongChoiceClient({
     };
   }, [selectedSongId, songs, selectionPackages]);
 
+  const selectedSongPackage = selectedSong
+    ? selectionPackages[selectedSong.id]
+    : undefined;
+  const selectedSongStatus: SongPackageLoadStatus = selectedSong
+    ? selectionStatusById[selectedSong.id] ??
+      (selectedSongPackage ? "ready" : "idle")
+    : "idle";
+
   function handleSelectSong(song: SongChoiceWithEquationSlots) {
     setSelectedSongId(song.id);
     setLaunchError("");
     selectionTokenRef.current += 1;
     const selectionToken = selectionTokenRef.current;
 
-    if (selectionPackages[song.id] || pendingSelectionsRef.current.has(song.id)) {
+    if (selectionPackages[song.id]) {
+      setSelectionStatusById((current) => ({ ...current, [song.id]: "ready" }));
+      return;
+    }
+
+    if (pendingSelectionsRef.current.has(song.id)) {
+      setSelectionStatusById((current) => ({ ...current, [song.id]: "loading" }));
       return;
     }
 
     pendingSelectionsRef.current.add(song.id);
+    setSelectionStatusById((current) => ({ ...current, [song.id]: "loading" }));
 
     // Resolving the selection checks for the dev-authored SongChart and signs
     // its chart/sidecar when present; when nothing is authored yet it serves
@@ -557,23 +579,22 @@ export default function SongChoiceClient({
       allowBlankPackage: true,
     })
       .then((freshPackage) => {
+        setSelectionPackages((current) => ({
+          ...current,
+          [song.id]: freshPackage,
+        }));
+
         // Drop stale responses: a slower earlier selection must not overwrite
         // the package for the song the user selected most recently.
         if (selectionToken !== selectionTokenRef.current) {
           return;
         }
-        setSelectionPackages((current) => ({
-          ...current,
-          [song.id]: freshPackage,
-        }));
+        setSelectionStatusById((current) => ({ ...current, [song.id]: "ready" }));
       })
       .catch((error) => {
         if (selectionToken !== selectionTokenRef.current) return;
-        setLaunchError(
-          error instanceof Error
-            ? error.message
-            : "Unable to prepare the selected song",
-        );
+        setSelectionStatusById((current) => ({ ...current, [song.id]: "error" }));
+        setLaunchError(getSongLaunchErrorMessage(error));
       })
       .finally(() => {
         pendingSelectionsRef.current.delete(song.id);
@@ -722,8 +743,12 @@ export default function SongChoiceClient({
     if (!selectedSong) {
       return;
     }
-    if (!selectionPackages[selectedSong.id]) {
-      setLaunchError(launchError || "Wait for this song's lesson files to load before continuing.");
+    if (selectedSongStatus === "error") {
+      handleSelectSong(selectedSong);
+      return;
+    }
+    if (selectedSongStatus !== "ready" || !selectedSongPackage) {
+      setLaunchError("Preparing this song’s lesson files. Please wait a moment.");
       return;
     }
 
@@ -734,8 +759,8 @@ export default function SongChoiceClient({
     if (!selectedSong) {
       return;
     }
-    if (!selectionPackages[selectedSong.id]) {
-      setLaunchError(launchError || "The selected lesson files could not be loaded.");
+    if (selectedSongStatus !== "ready" || !selectedSongPackage) {
+      setLaunchError("Preparing this song’s lesson files. Please wait a moment.");
       return;
     }
 
@@ -814,7 +839,7 @@ export default function SongChoiceClient({
 
     setIsCustomizePromptOpen(false);
     router.push(launchUrl);
-    } catch (error) { setLaunchError(error instanceof Error ? error.message : "Unable to prepare game"); }
+    } catch (error) { setLaunchError(getSongLaunchErrorMessage(error)); }
   }
 
   useEffect(() => {
@@ -1233,26 +1258,48 @@ export default function SongChoiceClient({
 
         <button
           type="button"
-          disabled={!selectedSong}
+          disabled={!selectedSong || selectedSongStatus === "idle" || selectedSongStatus === "loading"}
           onClick={handleContinue}
           aria-label="Continue to Lesson Builder"
+          title={
+            selectedSongStatus === "loading"
+              ? "Preparing this song’s lesson files"
+              : selectedSongStatus === "error"
+                ? "Try loading this song again"
+                : selectedSongStatus === "idle"
+                  ? "Select a song to continue"
+                  : "Continue to Lesson Builder"
+          }
           style={{
             border: "none",
             borderRadius: 999,
-            background: selectedSong ? "#CFFF04" : "rgba(207,255,4,0.35)",
-            color: selectedSong ? "#082733" : "#FFFFFF",
+            background:
+              selectedSongStatus === "ready"
+                ? "#CFFF04"
+                : selectedSongStatus === "error"
+                  ? "#FFCB6B"
+                  : "rgba(207,255,4,0.35)",
+            color: selectedSongStatus === "ready" ? "#082733" : "#082733",
             padding: "10px 24px",
             fontSize: 14,
             fontWeight: 700,
-            cursor: selectedSong ? "pointer" : "not-allowed",
-            opacity: selectedSong ? 1 : 0.7,
+            cursor: selectedSongStatus === "error" || selectedSongStatus === "ready" ? "pointer" : "not-allowed",
+            opacity: selectedSongStatus === "ready" || selectedSongStatus === "error" ? 1 : 0.7,
           }}
         >
-          Next
+          {selectedSongStatus === "loading"
+            ? "Preparing…"
+            : selectedSongStatus === "error"
+              ? "Try again"
+              : "Next"}
         </button>
       </div>
 
-      {launchError && <p role="alert">{launchError}</p>}
+      {launchError && !isCustomizePromptOpen ? (
+        <p role="alert" style={{ margin: "0 24px 12px", color: "#FFCB6B", textAlign: "center" }}>
+          {launchError}
+        </p>
+      ) : null}
       {isCustomizePromptOpen ? (
         <div
           role="dialog"
@@ -1295,8 +1342,16 @@ export default function SongChoiceClient({
             </h2>
 
             <p style={{ margin: 0, color: "#D1D5DB", textAlign: "center", lineHeight: 1.45 }}>
-              This lesson is ready to play. You can keep the template safe while you make a private copy.
+              {selectedSongPackage?.readiness.canLaunch && selectedSongPackage.source !== "editor-scaffold"
+                ? "This lesson is ready to play. You can keep the template safe while you make a private copy."
+                : "This song is ready to personalize, but it is not playable until a complete lesson is available."}
             </p>
+
+            {launchError ? (
+              <p role="alert" style={{ margin: 0, color: "#FFCB6B", textAlign: "center", lineHeight: 1.45 }}>
+                {launchError}
+              </p>
+            ) : null}
 
             <div
               style={{
@@ -1327,16 +1382,19 @@ export default function SongChoiceClient({
               <button
                 type="button"
                 onClick={handleCustomizeNo}
+                disabled={!selectedSongPackage?.readiness.canLaunch || selectedSongPackage.source === "editor-scaffold"}
                 aria-label="Play this lesson"
+                title={selectedSongPackage?.readiness.canLaunch && selectedSongPackage.source !== "editor-scaffold" ? "Start the ready-made lesson" : "Complete the lesson before playing"}
                 style={{
                   border: "1px solid #7A8FA8",
                   borderRadius: 999,
-                  background: "transparent",
-                  color: "#FFFFFF",
+                  background: selectedSongPackage?.readiness.canLaunch && selectedSongPackage.source !== "editor-scaffold" ? "transparent" : "rgba(255,255,255,0.06)",
+                  color: selectedSongPackage?.readiness.canLaunch && selectedSongPackage.source !== "editor-scaffold" ? "#FFFFFF" : "#7A8FA8",
                   padding: "10px 18px",
                   fontSize: 14,
                   fontWeight: 700,
-                  cursor: "pointer",
+                  cursor: selectedSongPackage?.readiness.canLaunch && selectedSongPackage.source !== "editor-scaffold" ? "pointer" : "not-allowed",
+                  opacity: selectedSongPackage?.readiness.canLaunch && selectedSongPackage.source !== "editor-scaffold" ? 1 : 0.65,
                 }}
               >
                 <span>Play this lesson</span>

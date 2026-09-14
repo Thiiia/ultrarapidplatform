@@ -22,6 +22,29 @@ test("game embed refreshes its signed song package before loading Unity", () => 
   assert.match(gameEmbed, /requestFreshSongLaunchParams/);
   assert.match(gameEmbed, /setLaunchParams\(freshLaunchParams\)/);
   assert.match(gameEmbed, /Preparing your game files/);
+  assert.match(gameEmbed, /resolveLaunchParams\(originalParams\)/);
+  assert.match(gameEmbed, /Choose a song to play/);
+  assert.match(gameEmbed, /Try again/);
+});
+
+test("song choice does not present a package that is still loading as ready", () => {
+  const songChoice = source("app/student/song-choice/SongChoiceClient.tsx");
+
+  assert.match(songChoice, /selectionStatusById/);
+  assert.match(songChoice, /selectedSongStatus === "loading"/);
+  assert.match(songChoice, /selectedSongStatus === "error"/);
+  assert.match(songChoice, /Preparing…/);
+  assert.match(songChoice, /Try again/);
+});
+
+test("builder readiness reflects song, publish, and play prerequisites", () => {
+  const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+  const panel = source("app/student/lesson-builder/EncounterReadinessPanel.tsx");
+
+  assert.match(builder, /canPublish=\{Boolean\(selectedSongStorage\) && lessonPublishReadiness\.ready\}/);
+  assert.match(builder, /hasSong=\{Boolean\(selectedSongStorage \|\| selectedSongLaunch\)\}/);
+  assert.match(panel, /Choose a song before publishing or playing this lesson/);
+  assert.match(panel, /Play is waiting for the song files/);
 });
 
 test("guided editing waits until the player chooses an editing action", () => {
