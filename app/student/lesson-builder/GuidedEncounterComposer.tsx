@@ -1,4 +1,11 @@
 import type { ChangeEvent, ReactNode } from "react";
+import NorthEastRoundedIcon from "@mui/icons-material/NorthEastRounded";
+import NorthWestRoundedIcon from "@mui/icons-material/NorthWestRounded";
+import SouthEastRoundedIcon from "@mui/icons-material/SouthEastRounded";
+import SouthWestRoundedIcon from "@mui/icons-material/SouthWestRounded";
+import EastRoundedIcon from "@mui/icons-material/EastRounded";
+import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
+import WestRoundedIcon from "@mui/icons-material/WestRounded";
 
 import { isAuthoredEquationOperator } from "@/lib/authored-lesson";
 import { studentCopy } from "@/lib/student-copy";
@@ -24,12 +31,12 @@ export type GuidedEncounterComposerProps = {
 };
 
 const hitPads = [
-  ["topLeft", "Top left"],
-  ["topRight", "Top right"],
-  ["left", "Left"],
-  ["right", "Right"],
-  ["bottomLeft", "Bottom left"],
-  ["bottomRight", "Bottom right"],
+  { pad: "topLeft", label: "Top left", column: 1, row: 1, Icon: NorthWestRoundedIcon },
+  { pad: "topRight", label: "Top right", column: 3, row: 1, Icon: NorthEastRoundedIcon },
+  { pad: "left", label: "Left", column: 1, row: 2, Icon: WestRoundedIcon },
+  { pad: "right", label: "Right", column: 3, row: 2, Icon: EastRoundedIcon },
+  { pad: "bottomLeft", label: "Bottom left", column: 1, row: 3, Icon: SouthWestRoundedIcon },
+  { pad: "bottomRight", label: "Bottom right", column: 3, row: 3, Icon: SouthEastRoundedIcon },
 ] as const;
 
 function timeValue(value: number | undefined) {
@@ -173,18 +180,19 @@ function HitControls({
   const selectedTokenIndex = instance.hitBubbles[0]?.tokenIndex;
   const selectedPads = instance.hitBubbles[0]?.pads ?? [];
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, alignItems: "center" }}>
       <TargetPicker instance={instance} tokens={tokens} kind="Target token" displayLabel={studentCopy.mechanics.pickHitTarget} onPatchInstance={onPatchInstance} />
-      <div style={{ display: "grid", gap: 7 }}>
+      <div style={{ display: "grid", gap: 7, justifyItems: "center" }}>
         <div style={{ color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>{studentCopy.mechanics.chooseButtons}</div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {hitPads.map(([pad, label]) => (
+        <div role="group" aria-label="Choose where the hit appears" style={{ display: "grid", gridTemplateColumns: "repeat(3, 42px)", gridTemplateRows: "repeat(3, 42px)", gap: 6, padding: 8, border: "1px solid #FFFFFF14", borderRadius: 14, background: "#0C1422" }}>
+          {hitPads.map(({ pad, label, column, row, Icon }) => (
             <button
               key={pad}
               type="button"
               disabled={selectedTokenIndex === undefined}
               aria-label={`Pad ${label}`}
               aria-pressed={selectedPads.includes(pad)}
+              title={label}
               onClick={() => {
                 if (selectedTokenIndex === undefined) return;
                 const pads = selectedPads.includes(pad)
@@ -192,11 +200,12 @@ function HitControls({
                   : [...selectedPads, pad];
                 onPatchInstance(instance.id, { hitBubbles: [{ tokenIndex: selectedTokenIndex, pads }] });
               }}
-              style={{ borderRadius: 8, border: "1px solid #7A8FA8", background: selectedPads.includes(pad) ? "#CFFF04" : "#111B2A", color: selectedPads.includes(pad) ? "#071222" : "#FFFFFF", padding: "7px 9px", cursor: selectedTokenIndex === undefined ? "not-allowed" : "pointer", fontWeight: 800 }}
+              style={{ gridColumn: column, gridRow: row, display: "grid", placeItems: "center", minWidth: 42, minHeight: 42, borderRadius: 12, border: `1px solid ${selectedPads.includes(pad) ? "#CFFF04" : "#7A8FA8"}`, background: selectedPads.includes(pad) ? "#CFFF04" : "#111B2A", color: selectedPads.includes(pad) ? "#071222" : "#FFFFFF", cursor: selectedTokenIndex === undefined ? "not-allowed" : "pointer", boxShadow: selectedPads.includes(pad) ? "0 0 18px rgba(207,255,4,.3)" : "none" }}
             >
-              {label}
+              <Icon aria-hidden="true" fontSize="small" />
             </button>
           ))}
+          <div aria-hidden="true" style={{ gridColumn: 2, gridRow: 2, borderRadius: 999, border: "1px solid #2EA7FF", background: "rgba(46,167,255,.12)", boxShadow: "0 0 16px rgba(46,167,255,.16)" }} />
         </div>
       </div>
     </div>
@@ -254,7 +263,7 @@ export function GuidedEncounterComposer({
       <div style={{ display: "grid", gap: 12 }}>
         <TargetPicker instance={instance} tokens={tokens} kind="Spin target" displayLabel={studentCopy.mechanics.pickSpinTarget} onPatchInstance={onPatchInstance} />
         <TimeControls instance={instance} onPatchInstance={onPatchInstance} />
-        <div aria-label="Spin cue" style={{ color: "#FFFFFF80", fontSize: 11 }}>↻ {studentCopy.mechanics.spinCue}</div>
+        <div aria-label="Spin cue" style={{ display: "flex", alignItems: "center", gap: 5, color: "#FFFFFF80", fontSize: 11 }}><ReplayRoundedIcon aria-hidden="true" fontSize="small" />{studentCopy.mechanics.spinCue}</div>
       </div>
     );
   } else {
@@ -262,7 +271,7 @@ export function GuidedEncounterComposer({
   }
 
   return (
-    <section aria-label={`${heading} composer`} style={{ display: "grid", gap: 12, padding: 14, borderRadius: 14, border: "1px solid #7A8FA8", background: "#101827" }}>
+    <section aria-label={`${heading} composer`} style={{ display: "grid", gap: 12, width: "min(100%, 760px)", margin: "0 auto", padding: "clamp(12px, 2vw, 18px)", borderRadius: 16, border: "1px solid #7A8FA8", background: "linear-gradient(145deg, #101827, #0C1422)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
         <h3 style={{ margin: 0, color: "#FFFFFF", fontSize: 15 }}>{heading}</h3>
         <span style={{ color: "#CFFF04", fontSize: 11, fontWeight: 900 }}>Step {step} of {stepCount}</span>

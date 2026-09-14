@@ -994,10 +994,10 @@
 
 .editorToast {
   position: fixed;
-  left: 50%;
-  bottom: max(18px, calc(34vh + 12px));
+  right: clamp(12px, 2vw, 28px);
+  top: max(58px, env(safe-area-inset-top));
   z-index: 1005;
-  width: min(520px, calc(100vw - 32px));
+  width: min(360px, calc(100vw - 24px));
   display: grid;
   grid-template-columns: 4px minmax(0, 1fr) auto;
   align-items: stretch;
@@ -1012,20 +1012,20 @@
   backdrop-filter: blur(16px);
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, 10px) scale(0.98);
+  transform: translateY(-10px) scale(0.98);
   transition: opacity 240ms ease, transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .editorToastVisible {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-50%, 0) scale(1);
+  transform: translateY(0) scale(1);
 }
 
 .editorToastHiding {
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, 8px) scale(0.98);
+  transform: translateY(-8px) scale(0.98);
 }
 
 .editorToastSuccess {
@@ -1116,7 +1116,7 @@
 
 @media (max-width: 900px) {
   .editorToast {
-    bottom: max(18px, calc(34vh + 8px));
+    top: max(52px, env(safe-area-inset-top));
   }
 }
 

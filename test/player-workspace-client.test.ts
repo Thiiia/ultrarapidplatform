@@ -52,6 +52,17 @@ test("422 is permanent and 429 is retryable", async () => {
   assert.equal(retryable.retryAfterMs, 7_000);
 });
 
+test("401 explains that sign-in is needed instead of exposing a rejected private workspace", async () => {
+  const result = await classifyWorkspaceResponse(new Response(JSON.stringify({
+    error: { code: "unauthorized", message: "Sign in is required to sync this private workspace." },
+  }), { status: 401, headers: { "content-type": "application/json" } }));
+
+  assert.equal(result.kind, "permanent");
+  assert.equal(result.code, "unauthorized");
+  assert.match(result.message, /sign in/i);
+  assert.doesNotMatch(result.message, /rejected private workspace/i);
+});
+
 test("409 remains a mergeable workspace conflict", async () => {
   const result = await classifyWorkspaceResponse(new Response(JSON.stringify({
     error: { code: "workspace_version_conflict", message: "Workspace changed elsewhere" },

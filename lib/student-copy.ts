@@ -157,6 +157,7 @@ export function getLearnerFacingError(error: unknown, fallback: string): string 
   if (/equation/i.test(raw) && /assign|complete|missing|required/i.test(raw)) {
     return studentCopy.mechanics.chooseEquation;
   }
+  if (/sign in|unauthorized|not authenticated/i.test(raw)) return "Your changes are safe on this device. Sign in again to save them across devices.";
   if (/workspace|recovery copy|backup|sync/i.test(raw)) return studentCopy.editor.draftRecoveryFailed;
   if (/load|prepare|package|chart|sidecar|lesson files/i.test(raw)) return studentCopy.editor.lessonLoadFailed;
   if (/save|publish|revision|identity|verified/i.test(raw)) return studentCopy.editor.lessonSaveFailed;

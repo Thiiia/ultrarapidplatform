@@ -25,6 +25,7 @@ export type WorkspaceMutationPreparation = Extract<WorkspaceSyncResult, { kind: 
 export type WorkspaceResponseResult = Exclude<WorkspaceSyncResult, { kind: "ready" | "invalid-local" }>;
 
 const ERROR_MESSAGES: Record<string, string> = {
+  unauthorized: "Please sign in again to save changes across devices.",
   invalid_json: "The workspace request was not valid JSON.",
   invalid_workspace_payload: "This private workspace change is not valid and was kept on this device.",
   lesson_revision_not_found: "This lesson revision is no longer available.",

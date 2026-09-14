@@ -3,5 +3,5 @@ import LessonBuilderClient from "@/app/student/lesson-builder/LessonBuilderClien
 export const dynamic = "force-dynamic";
 
 export default function DemoStudentLessonBuilderPage() {
-  return <LessonBuilderClient navBasePath="/demo/student" />;
+  return <LessonBuilderClient navBasePath="/demo/student" enableWorkspaceSync={false} />;
 }

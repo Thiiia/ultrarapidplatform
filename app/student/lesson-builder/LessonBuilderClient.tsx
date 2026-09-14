@@ -299,6 +299,8 @@ type SidecarPayload = {
 type LessonBuilderClientProps = {
   studentName?: string;
   navBasePath?: string;
+  /** Demo lessons are intentionally local-only; authenticated lessons sync recovery drafts. */
+  enableWorkspaceSync?: boolean;
 };
 
 type PendingMechanicRangeSelection = {
@@ -2283,7 +2285,7 @@ function EditorToast({
       setIsVisible(false);
       enterFrameId = window.requestAnimationFrame(() => setIsVisible(true));
     });
-    const duration = kind === "error" ? 7200 : kind === "success" ? 3800 : 3200;
+    const duration = kind === "error" ? 5000 : kind === "success" ? 2800 : 2400;
     hideTimerRef.current = window.setTimeout(() => {
       setIsVisible(false);
       removeTimerRef.current = window.setTimeout(() => setIsMounted(false), 240);
@@ -9457,6 +9459,7 @@ function CenterEditorPanel({
 export default function LessonBuilderClient({
   studentName = "Student",
   navBasePath = "/student",
+  enableWorkspaceSync = true,
 }: LessonBuilderClientProps) {
   type EditorStoreState = ReturnType<typeof useEditorStore.getState>;
 
@@ -9562,6 +9565,7 @@ export default function LessonBuilderClient({
   // Pending in-app navigation blocked by the unsaved-changes popup.
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   const isDemoMode = navBasePath.startsWith("/demo");
+  const canSyncWorkspace = enableWorkspaceSync && !isDemoMode;
   // Demo tutorial: it starts only after the player chooses to personalise,
   // never while they are still choosing between playing and editing.
   const [tutorialStep, setTutorialStep] = useState<"welcome" | "build" | "save" | "add" | null>(null);
@@ -9654,11 +9658,16 @@ export default function LessonBuilderClient({
 
     const calcWidths = () => {
       const w = window.innerWidth;
+      if (w < 1050) {
+        setIsBuilderPanelOpen(false);
+        setIsLibraryPanelOpen(false);
+      }
       // Stretch the viewer/equation-builder/library columns across the full
       // width now that there is no fourth (inspector) column reserving space.
-      const col1 = Math.round(w * (0.17 / 0.83));
-      const col3 = Math.round(w * (0.18 / 0.83));
-      const col2 = Math.max(200, w - separatorsWidth - col1 - col3);
+      const availableWidth = Math.max(0, w - separatorsWidth);
+      const col1 = Math.round(Math.min(300, Math.max(210, availableWidth * 0.19)));
+      const col3 = Math.round(Math.min(260, Math.max(180, availableWidth * 0.15)));
+      const col2 = Math.max(320, availableWidth - col1 - col3);
       setRow2ColumnWidths([col1, col2, col3]);
     };
 
@@ -9720,6 +9729,16 @@ export default function LessonBuilderClient({
       setWorkspaceStatus("ready");
       if (message) setSaveStatus(message);
     };
+    if (!canSyncWorkspace) {
+      const draft = readPlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
+      if (draft) {
+        applyPayload({ equations: draft.equationEdits, hiddenSourceEquationIds: draft.hiddenSourceEquationIds, timelineEdits: draft.timelineEvents }, "Your saved changes are back on this device. The original lesson stays safe to play.");
+      } else {
+        setWorkspaceStatus("ready");
+      }
+      return;
+    }
+
     fetch(`/api/player-workspace?${new URLSearchParams(workspaceSource as Record<string, string>)}`)
       .then(async (response) => {
         const result = await classifyWorkspaceResponse(response);
@@ -9745,7 +9764,7 @@ export default function LessonBuilderClient({
         else { setWorkspaceStatus("offline"); }
       });
     return () => { cancelled = true; };
-  }, [entryIntent, guidedStarted, isLessonLoaded, workspaceSource]);
+  }, [canSyncWorkspace, entryIntent, guidedStarted, isLessonLoaded, workspaceSource]);
 
   useEffect(() => {
     if (!guidedStarted || workspaceStatus === "loading" || !workspaceSource || (!hasUnsavedChanges && savedEquations.length === 0 && hiddenSourceEquationIds.length === 0)) return;
@@ -9769,6 +9788,10 @@ export default function LessonBuilderClient({
           hiddenSourceEquationIds,
           updatedAt: Date.now(),
         });
+        if (!canSyncWorkspace) {
+          setWorkspaceStatus("ready");
+          return;
+        }
         const prepared = prepareWorkspaceMutation({ key: workspaceSource, expectedVersion: workspaceVersionRef.current, payload });
         if (prepared.kind !== "ready") {
           setWorkspaceStatus("offline");
@@ -9829,7 +9852,7 @@ export default function LessonBuilderClient({
       window.clearTimeout(timer);
       if (retryTimer !== null) window.clearTimeout(retryTimer);
     };
-  }, [guidedStarted, hasUnsavedChanges, hiddenSourceEquationIds, savedEquations, timelineEvents, tutorialStep, workspaceRetryNonce, workspaceSource]);
+  }, [canSyncWorkspace, guidedStarted, hasUnsavedChanges, hiddenSourceEquationIds, savedEquations, timelineEvents, tutorialStep, workspaceRetryNonce, workspaceSource]);
 
   const shouldShowStarterTemplate = shouldOfferStarterTemplate({
     songId: selectedSongStorage?.id ?? null,
@@ -9973,6 +9996,11 @@ export default function LessonBuilderClient({
     () => evaluateLessonPublishReadiness(timelineEvents as unknown as AuthoredTimelineEvent[]),
     [timelineEvents],
   );
+
+  const needsReadinessCheck = !lessonPublishReadiness.ready
+    || !(selectedSongStorage || selectedSongLaunch)
+    || !isLessonLoaded
+    || Boolean(loadError);
 
   const selectedGuidedEncounter = useMemo<GuidedEncounterInput | null>(() => {
     if (!centerContextEvent || !selectedCenterContextMechanic) {
@@ -13178,7 +13206,7 @@ export default function LessonBuilderClient({
         onToggleRctm1Mode={handleToggleRctm1Mode}
         onToggleRctm2Mode={handleToggleRctm2Mode}
       />
-      {!isGuidedStart && !isRctm1Mode && !isRctm2Mode ? (
+      {needsReadinessCheck && !isGuidedStart && !isRctm1Mode && !isRctm2Mode ? (
         <div
           style={{
             position: "fixed",

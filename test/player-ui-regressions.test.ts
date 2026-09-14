@@ -56,6 +56,33 @@ test("builder readiness reflects song, publish, and play prerequisites", () => {
   assert.match(panel, /studentCopy\.editor\.gameFilesPreparing/);
 });
 
+test("the unauthenticated demo keeps its recovery draft local and does not call private workspace sync", () => {
+  const demoPage = source("app/demo/student/lesson-builder/page.tsx");
+  const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+
+  assert.match(demoPage, /enableWorkspaceSync=\{false\}/);
+  assert.match(builder, /const canSyncWorkspace = enableWorkspaceSync && !isDemoMode;/);
+  assert.match(builder, /if \(!canSyncWorkspace\) \{[\s\S]{0,900}readPlayerLessonWorkspaceDraft/);
+  assert.match(builder, /writePlayerLessonWorkspaceDraft\([\s\S]{0,900}if \(!canSyncWorkspace\)/);
+});
+
+test("a ready lesson does not reserve a permanent readiness panel", () => {
+  const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+
+  assert.match(builder, /const needsReadinessCheck = !lessonPublishReadiness\.ready/);
+  assert.match(builder, /needsReadinessCheck && !isGuidedStart/);
+});
+
+test("hit placement uses a spatial icon grid instead of a row of location words", () => {
+  const composer = source("app/student/lesson-builder/GuidedEncounterComposer.tsx");
+
+  assert.match(composer, /NorthWestRoundedIcon/);
+  assert.match(composer, /SouthEastRoundedIcon/);
+  assert.match(composer, /gridTemplateColumns: "repeat\(3, 42px\)"/);
+  assert.match(composer, /title=\{label\}/);
+  assert.match(composer, /repeat\(auto-fit, minmax\(220px, 1fr\)\)/);
+});
+
 test("guided editing waits until the player chooses an editing action", () => {
   const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
   const guidedStart = source("app/student/lesson-builder/GuidedTemplateStart.tsx");
