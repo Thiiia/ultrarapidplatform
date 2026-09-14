@@ -41,7 +41,7 @@ test("builder readiness reflects song, publish, and play prerequisites", () => {
   const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
   const panel = source("app/student/lesson-builder/EncounterReadinessPanel.tsx");
 
-  assert.match(builder, /canPublish=\{Boolean\(selectedSongStorage\) && lessonPublishReadiness\.ready\}/);
+  assert.match(builder, /canPublish=\{Boolean\(selectedSongStorage\) && isLessonLoaded && !loadError && lessonPublishReadiness\.ready\}/);
   assert.match(builder, /hasSong=\{Boolean\(selectedSongStorage \|\| selectedSongLaunch\)\}/);
   assert.match(panel, /Choose a song before publishing or playing this lesson/);
   assert.match(panel, /Play is waiting for the song files/);

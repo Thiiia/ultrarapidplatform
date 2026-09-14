@@ -13,7 +13,9 @@ import { persistLaunchParams } from "@/lib/launch-handoff";
 import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import {
+  buildSongSelectionCacheKey,
   getSongLaunchErrorMessage,
+  isPlayableSongLaunchPackage,
   type SongPackageLoadStatus,
 } from "@/lib/song-choice-flow";
 import type { SongChoice } from "@/lib/song-storage";
@@ -510,7 +512,9 @@ export default function SongChoiceClient({
       return null;
     }
 
-    const freshPackage = selectionPackages[baseSong.id];
+    const freshPackage = selectionPackages[
+      buildSongSelectionCacheKey(baseSong.id, baseSong.activityKey)
+    ];
 
     if (!freshPackage) {
       return baseSong;
@@ -542,32 +546,37 @@ export default function SongChoiceClient({
     };
   }, [selectedSongId, songs, selectionPackages]);
 
-  const selectedSongPackage = selectedSong
-    ? selectionPackages[selectedSong.id]
+  const selectedSongCacheKey = selectedSong
+    ? buildSongSelectionCacheKey(selectedSong.id, selectedSong.activityKey)
+    : null;
+  const selectedSongPackage = selectedSongCacheKey
+    ? selectionPackages[selectedSongCacheKey]
     : undefined;
-  const selectedSongStatus: SongPackageLoadStatus = selectedSong
-    ? selectionStatusById[selectedSong.id] ??
+  const selectedSongCanPlay = isPlayableSongLaunchPackage(selectedSongPackage);
+  const selectedSongStatus: SongPackageLoadStatus = selectedSongCacheKey
+    ? selectionStatusById[selectedSongCacheKey] ??
       (selectedSongPackage ? "ready" : "idle")
     : "idle";
 
   function handleSelectSong(song: SongChoiceWithEquationSlots) {
+    const selectionKey = buildSongSelectionCacheKey(song.id, song.activityKey);
     setSelectedSongId(song.id);
     setLaunchError("");
     selectionTokenRef.current += 1;
     const selectionToken = selectionTokenRef.current;
 
-    if (selectionPackages[song.id]) {
-      setSelectionStatusById((current) => ({ ...current, [song.id]: "ready" }));
+    if (selectionPackages[selectionKey]) {
+      setSelectionStatusById((current) => ({ ...current, [selectionKey]: "ready" }));
       return;
     }
 
-    if (pendingSelectionsRef.current.has(song.id)) {
-      setSelectionStatusById((current) => ({ ...current, [song.id]: "loading" }));
+    if (pendingSelectionsRef.current.has(selectionKey)) {
+      setSelectionStatusById((current) => ({ ...current, [selectionKey]: "loading" }));
       return;
     }
 
-    pendingSelectionsRef.current.add(song.id);
-    setSelectionStatusById((current) => ({ ...current, [song.id]: "loading" }));
+    pendingSelectionsRef.current.add(selectionKey);
+    setSelectionStatusById((current) => ({ ...current, [selectionKey]: "loading" }));
 
     // Resolving the selection checks for the dev-authored SongChart and signs
     // its chart/sidecar when present; when nothing is authored yet it serves
@@ -581,7 +590,7 @@ export default function SongChoiceClient({
       .then((freshPackage) => {
         setSelectionPackages((current) => ({
           ...current,
-          [song.id]: freshPackage,
+          [selectionKey]: freshPackage,
         }));
 
         // Drop stale responses: a slower earlier selection must not overwrite
@@ -589,15 +598,15 @@ export default function SongChoiceClient({
         if (selectionToken !== selectionTokenRef.current) {
           return;
         }
-        setSelectionStatusById((current) => ({ ...current, [song.id]: "ready" }));
+        setSelectionStatusById((current) => ({ ...current, [selectionKey]: "ready" }));
       })
       .catch((error) => {
         if (selectionToken !== selectionTokenRef.current) return;
-        setSelectionStatusById((current) => ({ ...current, [song.id]: "error" }));
+        setSelectionStatusById((current) => ({ ...current, [selectionKey]: "error" }));
         setLaunchError(getSongLaunchErrorMessage(error));
       })
       .finally(() => {
-        pendingSelectionsRef.current.delete(song.id);
+        pendingSelectionsRef.current.delete(selectionKey);
       });
   }
 
@@ -795,7 +804,7 @@ export default function SongChoiceClient({
       songAssetId: selectedSong.id,
       activityKey: selectedSong.activityKey,
     });
-    if (!freshPackage.readiness.canLaunch || freshPackage.source === "editor-scaffold") {
+    if (!isPlayableSongLaunchPackage(freshPackage)) {
       throw new Error(freshPackage.readiness.message);
     }
     const launchParams = createSongLaunchSearchParams({
@@ -1052,9 +1061,10 @@ export default function SongChoiceClient({
                   <button
                     key={song.id}
                     type="button"
-                    onClick={() => handleSelectSong(song)}
-                    className="songChoiceRow"
-                    data-selected={isSelected ? "true" : "false"}
+                  onClick={() => handleSelectSong(song)}
+                  className="songChoiceRow"
+                  data-selected={isSelected ? "true" : "false"}
+                  aria-pressed={isSelected}
                     style={{
                       width: "100%",
                       minHeight: 58,
@@ -1260,7 +1270,7 @@ export default function SongChoiceClient({
           type="button"
           disabled={!selectedSong || selectedSongStatus === "idle" || selectedSongStatus === "loading"}
           onClick={handleContinue}
-          aria-label="Continue to Lesson Builder"
+          aria-label={selectedSongStatus === "error" ? "Try loading this song again" : "Continue to Lesson Builder"}
           title={
             selectedSongStatus === "loading"
               ? "Preparing this song’s lesson files"
@@ -1296,7 +1306,7 @@ export default function SongChoiceClient({
       </div>
 
       {launchError && !isCustomizePromptOpen ? (
-        <p role="alert" style={{ margin: "0 24px 12px", color: "#FFCB6B", textAlign: "center" }}>
+        <p role="alert" style={{ position: "fixed", left: "50%", bottom: "calc(8.5vh + 12px)", transform: "translateX(-50%)", zIndex: 1201, margin: 0, padding: "8px 12px", border: "1px solid #FFCB6B", borderRadius: 10, background: "#241D0E", color: "#FFCB6B", textAlign: "center", maxWidth: "min(680px, calc(100vw - 48px))", boxSizing: "border-box" }}>
           {launchError}
         </p>
       ) : null}
@@ -1342,7 +1352,7 @@ export default function SongChoiceClient({
             </h2>
 
             <p style={{ margin: 0, color: "#D1D5DB", textAlign: "center", lineHeight: 1.45 }}>
-              {selectedSongPackage?.readiness.canLaunch && selectedSongPackage.source !== "editor-scaffold"
+              {selectedSongCanPlay
                 ? "This lesson is ready to play. You can keep the template safe while you make a private copy."
                 : "This song is ready to personalize, but it is not playable until a complete lesson is available."}
             </p>
@@ -1382,19 +1392,19 @@ export default function SongChoiceClient({
               <button
                 type="button"
                 onClick={handleCustomizeNo}
-                disabled={!selectedSongPackage?.readiness.canLaunch || selectedSongPackage.source === "editor-scaffold"}
+                disabled={!selectedSongCanPlay}
                 aria-label="Play this lesson"
-                title={selectedSongPackage?.readiness.canLaunch && selectedSongPackage.source !== "editor-scaffold" ? "Start the ready-made lesson" : "Complete the lesson before playing"}
+                title={selectedSongCanPlay ? "Start the ready-made lesson" : "Complete the lesson before playing"}
                 style={{
                   border: "1px solid #7A8FA8",
                   borderRadius: 999,
-                  background: selectedSongPackage?.readiness.canLaunch && selectedSongPackage.source !== "editor-scaffold" ? "transparent" : "rgba(255,255,255,0.06)",
-                  color: selectedSongPackage?.readiness.canLaunch && selectedSongPackage.source !== "editor-scaffold" ? "#FFFFFF" : "#7A8FA8",
+                  background: selectedSongCanPlay ? "transparent" : "rgba(255,255,255,0.06)",
+                  color: selectedSongCanPlay ? "#FFFFFF" : "#7A8FA8",
                   padding: "10px 18px",
                   fontSize: 14,
                   fontWeight: 700,
-                  cursor: selectedSongPackage?.readiness.canLaunch && selectedSongPackage.source !== "editor-scaffold" ? "pointer" : "not-allowed",
-                  opacity: selectedSongPackage?.readiness.canLaunch && selectedSongPackage.source !== "editor-scaffold" ? 1 : 0.65,
+                  cursor: selectedSongCanPlay ? "pointer" : "not-allowed",
+                  opacity: selectedSongCanPlay ? 1 : 0.65,
                 }}
               >
                 <span>Play this lesson</span>

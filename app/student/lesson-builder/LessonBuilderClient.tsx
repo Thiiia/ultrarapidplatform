@@ -13064,8 +13064,8 @@ export default function LessonBuilderClient({
         onSave={() => {
           void handlePublishChanges({ showNotice: true });
         }}
-        canLaunch={Boolean(selectedSongLaunch) && lessonPublishReadiness.ready}
-        canPublish={Boolean(selectedSongStorage) && lessonPublishReadiness.ready}
+        canLaunch={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
+        canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
         isRctm1Mode={isRctm1Mode}
         isRctm2Mode={isRctm2Mode}
         hideChartmaker={isGuidedStart}
@@ -13077,8 +13077,8 @@ export default function LessonBuilderClient({
           <EncounterReadinessPanel
             readiness={lessonPublishReadiness}
             hasSong={Boolean(selectedSongStorage || selectedSongLaunch)}
-            canPublish={Boolean(selectedSongStorage) && lessonPublishReadiness.ready}
-            canPlay={Boolean(selectedSongLaunch) && lessonPublishReadiness.ready}
+            canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
+            canPlay={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
             onSelectEncounter={handleSelectReadinessEncounter}
           />
         </div>

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildSongSelectionCacheKey,
   getSongLaunchErrorMessage,
   isPlayableSongLaunchPackage,
 } from "../lib/song-choice-flow";
@@ -33,5 +34,12 @@ test("song choice replaces infrastructure details with recoverable player copy",
   assert.equal(
     getSongLaunchErrorMessage(new Error("No authored lesson or verified starter template is available. The blank chart is available for editing.")),
     "No authored lesson or verified starter template is available. The blank chart is available for editing.",
+  );
+});
+
+test("song package cache keys include activity identity", () => {
+  assert.notEqual(
+    buildSongSelectionCacheKey("song-1", "number-bonds"),
+    buildSongSelectionCacheKey("song-1", "early-algebra"),
   );
 });
