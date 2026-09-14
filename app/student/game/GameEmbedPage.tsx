@@ -48,6 +48,23 @@ type GameEmbedPageProps = {
   navBasePath?: string;
 };
 
+type CompletionSummary = {
+  outcome: "completed" | "failed" | "abandoned" | "cancelled";
+  completedEvents: number;
+  hitAttempts: number;
+};
+
+type PendingOutcome = {
+  receipt: BridgeContext["receipt"];
+  completion: CompletionSummary;
+};
+
+type GameEmbedSessionProps = GameEmbedPageProps & {
+  pathname: string;
+  serializedSearchParams: string;
+  onRetry: () => void;
+};
+
 function getEmbeddedGameUrl(searchParams: Pick<URLSearchParams, "get">) {
   return buildEmbeddedGameUrl(GAME_URL, resolveLaunchParams(searchParams));
 }
@@ -283,43 +300,74 @@ export default function GameEmbedPage({
 }: GameEmbedPageProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [retryNonce, setRetryNonce] = useState(0);
+  const serializedSearchParams = searchParams.toString();
+
+  return (
+    <GameEmbedSession
+      key={`${serializedSearchParams}:${retryNonce}`}
+      navBasePath={navBasePath}
+      pathname={pathname}
+      serializedSearchParams={serializedSearchParams}
+      onRetry={() => setRetryNonce((current) => current + 1)}
+    />
+  );
+}
+
+function GameEmbedSession({
+  navBasePath = "/student",
+  pathname,
+  serializedSearchParams,
+  onRetry,
+}: GameEmbedSessionProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [launchParams, setLaunchParams] = useState<URLSearchParams | null>(null);
   const [launchPreparationError, setLaunchPreparationError] = useState("");
-  const [needsSongChoice, setNeedsSongChoice] = useState(false);
-  const [launchRetryNonce, setLaunchRetryNonce] = useState(0);
-  const [bridgeContext, setBridgeContext] = useState<BridgeContext | null>(null);
   const [calibrationStatus, setCalibrationStatus] = useState<"loading" | "required" | "ready">("loading");
   const [completedRun, setCompletedRun] = useState<{ completedEvents: number; hitAttempts: number } | null>(null);
+  const [bridgeStatusMessage, setBridgeStatusMessage] = useState("");
+  const [pendingOutcome, setPendingOutcome] = useState<PendingOutcome | null>(null);
+  const [outcomeSyncState, setOutcomeSyncState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const outcomeKeyRef = useRef("");
 
   const topTabs = getTopTabs(navBasePath);
   const utilityTabs = getUtilityTabs(navBasePath);
-  const serializedSearchParams = searchParams.toString();
+  const resolvedParams = useMemo(
+    () => resolveLaunchParams(new URLSearchParams(serializedSearchParams)),
+    [serializedSearchParams],
+  );
+  const songAssetId = resolvedParams.get("songAssetId");
+  const activityKey = resolvedParams.get("activityKey");
+  const needsSongChoice = resolvedParams.size === 0;
+  const activeLaunchParams = launchParams ?? (
+    !songAssetId || !activityKey ? resolvedParams : null
+  );
+  const bridgeSetup = useMemo(() => {
+    const receiptRaw = activeLaunchParams?.get("receipt");
+    if (!receiptRaw || typeof window === "undefined") {
+      return { context: null, error: "" };
+    }
+
+    try {
+      const receipt = JSON.parse(receiptRaw);
+      const installationId = getOrCreateInstallationId(window.localStorage);
+      return {
+        context: createBridgeContext(receipt, GAME_URL, installationId),
+        error: "",
+      };
+    } catch {
+      return {
+        context: null,
+        error: "The lesson handoff could not be verified. Return to song choice and start it again.",
+      };
+    }
+  }, [activeLaunchParams]);
+  const bridgeContext = bridgeSetup.context;
 
   useEffect(() => {
     let cancelled = false;
-    const originalParams = new URLSearchParams(serializedSearchParams);
-    const resolvedParams = resolveLaunchParams(originalParams);
-    const songAssetId = resolvedParams.get("songAssetId");
-    const activityKey = resolvedParams.get("activityKey");
 
-    queueMicrotask(() => {
-      if (!cancelled) {
-        setLaunchParams(null);
-        setLaunchPreparationError("");
-        setNeedsSongChoice(false);
-      }
-    });
     if (!songAssetId || !activityKey) {
-      queueMicrotask(() => {
-        if (!cancelled) {
-          if (resolvedParams.size > 0) {
-            setLaunchParams(resolvedParams);
-          } else {
-            setNeedsSongChoice(true);
-          }
-        }
-      });
       return () => { cancelled = true; };
     }
 
@@ -342,38 +390,35 @@ export default function GameEmbedPage({
       });
 
     return () => { cancelled = true; };
-  }, [launchRetryNonce, serializedSearchParams]);
+  }, [activityKey, resolvedParams, serializedSearchParams, songAssetId]);
 
   useEffect(() => {
-    const receiptRaw = launchParams?.get("receipt");
-    if (!receiptRaw) {
-      queueMicrotask(() => setCalibrationStatus("ready"));
-      queueMicrotask(() => setBridgeContext(null));
-      return;
+    let cancelled = false;
+    if (!bridgeContext) {
+      return () => { cancelled = true; };
     }
-    try {
-      const receipt = JSON.parse(receiptRaw);
-      const installationId = getOrCreateInstallationId(window.localStorage);
-      const context = createBridgeContext(receipt, GAME_URL, installationId);
-      queueMicrotask(() => setBridgeContext(context));
-      fetch(`/api/player-calibration?installationId=${encodeURIComponent(installationId)}`)
-        .then((response) => response.ok ? response.json() : null)
-        .then((calibration) => setCalibrationStatus(needsCalibration(calibration) ? "required" : "ready"))
-        .catch(() => setCalibrationStatus("required"));
-    } catch {
-      queueMicrotask(() => setCalibrationStatus("required"));
-    }
-  }, [launchParams]);
+
+    fetch(`/api/player-calibration?installationId=${encodeURIComponent(bridgeContext.installationId)}`)
+      .then((response) => response.ok ? response.json() : null)
+      .then((calibration) => {
+        if (!cancelled) setCalibrationStatus(needsCalibration(calibration) ? "required" : "ready");
+      })
+      .catch(() => {
+        if (!cancelled) setCalibrationStatus("required");
+      });
+    return () => { cancelled = true; };
+  }, [bridgeContext]);
 
   useEffect(() => {
     if (!bridgeContext) return;
 
+    let cancelled = false;
     const launchAttemptId = bridgeContext.receipt.launchAttemptId;
     if (launchAttemptId) {
       fetch(`/api/player-outcomes?launchAttemptId=${encodeURIComponent(launchAttemptId)}`)
         .then((response) => response.ok ? response.json() : null)
         .then((stored) => {
-          if (stored?.outcome?.outcome === "completed") {
+          if (!cancelled && stored?.outcome?.outcome === "completed") {
             setCompletedRun({
               completedEvents: stored.outcome.completedEvents,
               hitAttempts: stored.outcome.hitAttempts,
@@ -393,35 +438,68 @@ export default function GameEmbedPage({
           method: "PUT",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ installationId: bridgeContext.installationId, offsetMs: result.message.offsetMs, protocolVersion: result.message.protocolVersion }),
-        }).then((response) => { if (response.ok) setCalibrationStatus("ready"); });
+        }).then((response) => {
+          if (cancelled) return;
+          if (response.ok) {
+            setCalibrationStatus("ready");
+            setBridgeStatusMessage("");
+          } else {
+            setBridgeStatusMessage("Calibration finished, but could not be saved. You can try again before leaving this lesson.");
+          }
+        }).catch(() => {
+          if (!cancelled) setBridgeStatusMessage("Calibration finished, but could not be saved. You can try again before leaving this lesson.");
+        });
       } else if (result.message.type === "run-complete") {
         const completion = result.message.completion;
-        fetch("/api/player-outcomes", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            receipt: result.message.receipt,
-            completion,
-          }),
-        }).then((response) => {
-          if (!response.ok) return;
-          if (completion.outcome === "completed") {
-            setCompletedRun({
-              completedEvents: completion.completedEvents,
-              hitAttempts: completion.hitAttempts,
-            });
-          }
-        }).catch(() => undefined);
+        const outcomeKey = `${result.message.receipt.launchAttemptId}:${completion.outcome}:${completion.completedEvents}:${completion.hitAttempts}`;
+        if (outcomeKeyRef.current === outcomeKey) return;
+        outcomeKeyRef.current = outcomeKey;
+        setOutcomeSyncState("saving");
+        setPendingOutcome({ receipt: result.message.receipt, completion });
       } else {
         window.location.assign(`${navBasePath}/song-choice`);
       }
     };
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("message", onMessage);
+    };
   }, [bridgeContext, navBasePath]);
 
+  useEffect(() => {
+    if (!pendingOutcome) return;
+
+    let cancelled = false;
+    fetch("/api/player-outcomes", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(pendingOutcome),
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("outcome sync failed");
+        if (cancelled) return;
+        setOutcomeSyncState("saved");
+        if (pendingOutcome.completion.outcome === "completed") {
+          setCompletedRun({
+            completedEvents: pendingOutcome.completion.completedEvents,
+            hitAttempts: pendingOutcome.completion.hitAttempts,
+          });
+        }
+        setPendingOutcome(null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOutcomeSyncState("failed");
+          setBridgeStatusMessage("Your lesson result could not be synced yet. Keep this tab open and try again.");
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [pendingOutcome]);
+
   const embeddedGameUrl = useMemo(() => {
-    const params = new URLSearchParams(launchParams?.toString() ?? "");
+    const params = new URLSearchParams(activeLaunchParams?.toString() ?? "");
     if (bridgeContext) {
       params.set("bridgeNonce", bridgeContext.nonce);
       params.set("installationId", bridgeContext.installationId);
@@ -430,7 +508,13 @@ export default function GameEmbedPage({
       params.set("platformOrigin", window.location.origin);
     }
     return getEmbeddedGameUrl(params);
-  }, [launchParams, bridgeContext, calibrationStatus]);
+  }, [activeLaunchParams, bridgeContext, calibrationStatus]);
+
+  const canRenderEmbeddedGame = Boolean(
+    activeLaunchParams &&
+    (!activeLaunchParams.get("receipt") || (bridgeContext && calibrationStatus !== "loading")),
+  );
+  const visibleBridgeStatusMessage = bridgeStatusMessage || bridgeSetup.error;
 
   return (
     <div
@@ -468,7 +552,7 @@ export default function GameEmbedPage({
             overflow: "hidden",
           }}
         >
-          {launchParams ? (
+          {canRenderEmbeddedGame ? (
             <iframe
               ref={iframeRef}
               src={embeddedGameUrl}
@@ -491,7 +575,7 @@ export default function GameEmbedPage({
                 </span>
                 {launchPreparationError ? (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
-                    <button type="button" onClick={() => setLaunchRetryNonce((current) => current + 1)} style={{ border: "none", borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}>
+                    <button type="button" onClick={onRetry} style={{ border: "none", borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}>
                       Try again
                     </button>
                     <Link href={`${navBasePath}/song-choice`} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 999, color: "#FFFFFF", padding: "9px 16px", textDecoration: "none", fontWeight: 700 }}>
@@ -508,6 +592,27 @@ export default function GameEmbedPage({
           )}
           {bridgeContext && calibrationStatus === "required" && (
             <p className="mt-2 text-sm text-white/70">Complete calibration in the game before playing.</p>
+          )}
+          {visibleBridgeStatusMessage && (
+            <p className="mt-2 text-sm text-amber-200" role="alert">{visibleBridgeStatusMessage}</p>
+          )}
+          {pendingOutcome && outcomeSyncState === "saving" && (
+            <p className="mt-2 text-sm text-white/70" role="status">Saving your lesson result…</p>
+          )}
+          {pendingOutcome && outcomeSyncState === "failed" && (
+            <p className="mt-2 text-sm text-amber-200" role="alert">
+              <button
+                type="button"
+                onClick={() => {
+                  setOutcomeSyncState("saving");
+                  setPendingOutcome((current) => current ? { ...current } : current);
+                }}
+                style={{ marginRight: 6, border: 0, borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "5px 10px", fontWeight: 800, cursor: "pointer" }}
+              >
+                Sync result again
+              </button>
+              Your result is still waiting to be saved.
+            </p>
           )}
           {completedRun && (
             <p className="mt-2 text-sm text-emerald-200" role="status">
