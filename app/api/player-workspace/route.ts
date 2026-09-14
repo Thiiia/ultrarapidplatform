@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { ZodError } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireCurrentAppUser } from "@/lib/current-user";
 import {
@@ -10,6 +11,32 @@ import {
 } from "@/lib/player-workspace-contract";
 
 const MAX_WRITES_PER_MINUTE = 60;
+
+function errorResponse(status: number, code: string, message: string, paths?: string[], headers?: HeadersInit) {
+  return NextResponse.json({ error: { code, message, ...(paths && paths.length > 0 ? { paths } : {}) } }, { status, headers });
+}
+
+function validationResponse(error: ZodError) {
+  const paths = error.issues
+    .map((issue) => issue.path.join("."))
+    .map((path) => path || "payload")
+    .filter((path, index, all) => all.indexOf(path) === index)
+    .slice(0, 12);
+  const message = error.issues[0]?.message ?? "Workspace payload failed validation.";
+  return errorResponse(422, "invalid_workspace_payload", message, paths);
+}
+
+function unexpectedResponse() {
+  return errorResponse(500, "workspace_unavailable", "The private workspace is temporarily unavailable.");
+}
+
+function safeCaughtResponse(error: unknown) {
+  if (error instanceof Error && error.message === "User is not authenticated.") {
+    return errorResponse(401, "unauthorized", "Sign in is required to sync this private workspace.");
+  }
+  if (error instanceof ZodError) return validationResponse(error);
+  return unexpectedResponse();
+}
 
 function keyFromRequest(request: Request) {
   return PlayerWorkspaceKeySchema.parse(Object.fromEntries(new URL(request.url).searchParams));
@@ -46,25 +73,33 @@ export async function GET(request: Request) {
   try {
     const user = await requireCurrentAppUser();
     const key = keyFromRequest(request);
-    if (!(await sourceRevisionExists(key))) return NextResponse.json({ error: "Lesson revision not found" }, { status: 404 });
+    if (!(await sourceRevisionExists(key))) return errorResponse(404, "lesson_revision_not_found", "The lesson revision was not found.");
     const record = await prisma.playerLessonWorkspace.findUnique({
       where: { userId_songAssetId_activityKey_authorId_revision: { userId: user.id, ...key } },
     });
     return NextResponse.json(record ? safeWorkspace(record) : { key, version: 0, payload: null });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Bad request" }, { status: 400 });
+    return safeCaughtResponse(error);
   }
 }
 
 export async function PUT(request: Request) {
   try {
     const user = await requireCurrentAppUser();
-    if (await limited(user.id)) return NextResponse.json({ error: "Too many workspace writes" }, { status: 429, headers: { "Retry-After": "60" } });
+    if (await limited(user.id)) return errorResponse(429, "rate_limited", "Workspace writes are temporarily rate limited.", undefined, { "Retry-After": "60" });
     const raw = await request.text();
-    if (Buffer.byteLength(raw, "utf8") > WORKSPACE_MAX_BYTES + 2_000) return NextResponse.json({ error: "Payload too large" }, { status: 413 });
-    const mutation = WorkspaceMutationSchema.parse(JSON.parse(raw));
+    if (Buffer.byteLength(raw, "utf8") > WORKSPACE_MAX_BYTES + 2_000) return errorResponse(413, "payload_too_large", "The private workspace payload is too large.");
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(raw);
+    } catch {
+      return errorResponse(400, "invalid_json", "The workspace request was not valid JSON.");
+    }
+    const parsedMutation = WorkspaceMutationSchema.safeParse(parsedJson);
+    if (!parsedMutation.success) return validationResponse(parsedMutation.error);
+    const mutation = parsedMutation.data;
     const { key, expectedVersion, payload } = mutation;
-    if (!(await sourceRevisionExists(key))) return NextResponse.json({ error: "Lesson revision not found" }, { status: 404 });
+    if (!(await sourceRevisionExists(key))) return errorResponse(404, "lesson_revision_not_found", "The lesson revision was not found.");
     const result = await prisma.$transaction(async (tx) => {
       if (expectedVersion === 0) {
         return tx.playerLessonWorkspace.create({ data: { userId: user.id, ...key, version: 1, payload: payload as Prisma.InputJsonValue } });
@@ -78,22 +113,22 @@ export async function PUT(request: Request) {
     });
     if (!result) {
       const current = await prisma.playerLessonWorkspace.findUnique({ where: { userId_songAssetId_activityKey_authorId_revision: { userId: user.id, ...key } } });
-      return NextResponse.json({ error: "Workspace version conflict", current: current ? safeWorkspace(current) : null }, { status: 409 });
+      return NextResponse.json({ error: { code: "workspace_version_conflict", message: "The workspace changed elsewhere." }, current: current ? safeWorkspace(current) : null }, { status: 409 });
     }
     return NextResponse.json(safeWorkspace(result));
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Bad request" }, { status: 400 });
+    return safeCaughtResponse(error);
   }
 }
 
 export async function DELETE(request: Request) {
   try {
     const user = await requireCurrentAppUser();
-    if (await limited(user.id)) return NextResponse.json({ error: "Too many workspace writes" }, { status: 429, headers: { "Retry-After": "60" } });
+    if (await limited(user.id)) return errorResponse(429, "rate_limited", "Workspace writes are temporarily rate limited.", undefined, { "Retry-After": "60" });
     const key = keyFromRequest(request);
     await prisma.playerLessonWorkspace.deleteMany({ where: { userId: user.id, ...key } });
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Bad request" }, { status: 400 });
+    return safeCaughtResponse(error);
   }
 }

@@ -8,6 +8,7 @@ import {
 	writePlayerLessonWorkspaceDraft,
   type LessonSourceIdentity,
 } from "../lib/player-lesson-workspace";
+import { prepareWorkspaceMutation } from "../lib/player-workspace-client";
 
 const source: LessonSourceIdentity = { songAssetId: "waves", activityKey: "early-algebra", authorId: "author", revision: "rev-1" };
 const storage = () => { const data = new Map<string, string>(); return { data, getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) }; };
@@ -60,4 +61,33 @@ test("keeps gameplay token indexes in an offline recovery draft", () => {
 
   assert.doesNotThrow(() => writePlayerLessonWorkspaceDraft(s, draft));
   assert.deepEqual(readPlayerLessonWorkspaceDraft(s, source)?.timelineEvents, draft.timelineEvents);
+});
+
+test("keeps an incomplete local event when remote workspace conversion fails", () => {
+  const s = storage();
+  const incompleteEvent = {
+    id: "spin-draft",
+    mechanic: "spin",
+    tick: 8,
+    mechanicInstances: { spin: [{ id: "spin-draft:spin:0", spinTargets: [] }] },
+  };
+  const draft = { version: 1 as const, source, timelineEvents: [incompleteEvent], equationEdits: [], updatedAt: Date.now() };
+  writePlayerLessonWorkspaceDraft(s, draft);
+
+  const prepared = prepareWorkspaceMutation({
+    key: { ...source, revision: "00000000-0000-4000-8000-000000000001" },
+    expectedVersion: 0,
+    payload: {
+      version: 1,
+      equations: [],
+      hiddenSourceEquationIds: [],
+      timelineEdits: [incompleteEvent, ["remote-conversion-failed"]],
+      tutorial: { step: "encounter" },
+      updatedAt: Date.now(),
+    },
+  });
+
+  assert.equal(prepared.kind, "invalid-local");
+  assert.match(prepared.message, /kept only on this device/);
+  assert.deepEqual(readPlayerLessonWorkspaceDraft(s, source)?.timelineEvents, [incompleteEvent]);
 });

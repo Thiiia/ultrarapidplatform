@@ -57,6 +57,14 @@ import {
   type PlayerLessonEntryIntent,
 } from "@/lib/player-lesson-workspace";
 import {
+  classifyWorkspaceError,
+  classifyWorkspaceResponse,
+  MAX_WORKSPACE_RETRIES,
+  prepareWorkspaceMutation,
+  workspaceRetryDelay,
+  type WorkspaceResponseResult,
+} from "@/lib/player-workspace-client";
+import {
   lessonLaunchStrategy,
   libraryEquationsForTab,
   shouldOfferStarterTemplate,
@@ -9599,7 +9607,12 @@ export default function LessonBuilderClient({
       if (message) setSaveStatus(message);
     };
     fetch(`/api/player-workspace?${new URLSearchParams(workspaceSource as Record<string, string>)}`)
-      .then(async (response) => response.ok ? response.json() : null)
+      .then(async (response) => {
+        const result = await classifyWorkspaceResponse(response);
+        if (result.kind === "success") return result.record;
+        if (result.kind === "permanent" || result.kind === "retryable") setSaveStatus(result.message);
+        return null;
+      })
       .then((record: { version?: number; payload?: { equations?: unknown[]; hiddenSourceEquationIds?: unknown[]; timelineEdits?: unknown[] } | null } | null) => {
         if (record?.payload) {
           workspaceVersionRef.current = record.version ?? 0;
@@ -9620,6 +9633,8 @@ export default function LessonBuilderClient({
 
   useEffect(() => {
     if (!guidedStarted || workspaceStatus === "loading" || !workspaceSource || (!hasUnsavedChanges && savedEquations.length === 0 && hiddenSourceEquationIds.length === 0)) return;
+    let cancelled = false;
+    let retryTimer: number | null = null;
     const timer = window.setTimeout(() => {
       const payload = {
         version: 1,
@@ -9638,30 +9653,67 @@ export default function LessonBuilderClient({
           hiddenSourceEquationIds,
           updatedAt: Date.now(),
         });
-        void fetch("/api/player-workspace", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: workspaceSource, expectedVersion: workspaceVersionRef.current, payload }) })
-          .then(async (response) => {
-            const result = await response.json().catch(() => null) as { version?: number; current?: { version?: number; payload?: typeof payload } } | null;
-            if (response.status === 409 && result?.current?.payload) {
+        const prepared = prepareWorkspaceMutation({ key: workspaceSource, expectedVersion: workspaceVersionRef.current, payload });
+        if (prepared.kind !== "ready") {
+          setWorkspaceStatus("offline");
+          setSaveStatus(prepared.message);
+          return;
+        }
+
+        let attempt = 0;
+        const sync = async () => {
+          if (cancelled) return;
+          let result: WorkspaceResponseResult;
+          try {
+            const response = await fetch("/api/player-workspace", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(prepared.mutation) });
+            result = await classifyWorkspaceResponse(response);
+          } catch {
+            result = classifyWorkspaceError();
+          }
+          if (cancelled) return;
+          if (result.kind === "success") {
+            workspaceVersionRef.current = result.record?.version ?? workspaceVersionRef.current;
+            setWorkspaceStatus("ready");
+            return;
+          }
+          if (result.kind === "conflict") {
+            if (result.current?.payload) {
               workspaceVersionRef.current = result.current.version ?? workspaceVersionRef.current;
               setWorkspaceConflict({ version: result.current.version ?? 0, payload: result.current.payload });
               setWorkspaceStatus("conflict");
-              return;
-            }
-            if (!response.ok) {
+            } else {
               setWorkspaceStatus("offline");
-              setSaveStatus("Your private recovery copy is kept on this device, but it could not sync to your account yet.");
-              return;
+              setSaveStatus(result.message);
             }
-            workspaceVersionRef.current = result?.version ?? workspaceVersionRef.current;
-            setWorkspaceStatus("ready");
-          })
-          .catch(() => setWorkspaceStatus("offline"));
+            return;
+          }
+          if (result.kind === "permanent") {
+            setWorkspaceStatus("offline");
+            setSaveStatus(result.message);
+            return;
+          }
+          if (attempt < MAX_WORKSPACE_RETRIES) {
+            const delay = workspaceRetryDelay(attempt, result.retryAfterMs);
+            attempt += 1;
+            retryTimer = window.setTimeout(() => void sync(), delay);
+            return;
+          }
+          setWorkspaceStatus("offline");
+          setSaveStatus(result.message);
+        };
+        void sync();
       } catch (error) {
         console.warn("Unable to save private lesson recovery copy", error);
+        setWorkspaceStatus("offline");
+        setSaveStatus("Your lesson remains open, but this device could not store a recovery copy.");
       }
-    }, 350);
-    return () => window.clearTimeout(timer);
-  }, [guidedStarted, hasUnsavedChanges, hiddenSourceEquationIds, savedEquations, timelineEvents, tutorialStep, workspaceRetryNonce, workspaceSource, workspaceStatus]);
+    }, 750);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+    };
+  }, [guidedStarted, hasUnsavedChanges, hiddenSourceEquationIds, savedEquations, timelineEvents, tutorialStep, workspaceRetryNonce, workspaceSource]);
 
   const shouldShowStarterTemplate = shouldOfferStarterTemplate({
     songId: selectedSongStorage?.id ?? null,
