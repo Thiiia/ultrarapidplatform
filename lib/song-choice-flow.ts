@@ -2,6 +2,10 @@ import type { FreshSongLaunchPackage } from "./song-launch-client";
 
 export type SongPackageLoadStatus = "idle" | "loading" | "ready" | "error";
 
+export function getPlayerLaunchRoute(navBasePath: string): string {
+  return `${navBasePath}/game`;
+}
+
 export function buildSongSelectionCacheKey(songId: string, activityKey: string) {
   return `${activityKey}:${songId}`;
 }

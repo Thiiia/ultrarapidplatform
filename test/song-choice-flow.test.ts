@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildSongSelectionCacheKey,
+  getPlayerLaunchRoute,
   getSongLaunchErrorMessage,
   isPlayableSongLaunchPackage,
 } from "../lib/song-choice-flow";
@@ -42,4 +43,9 @@ test("song package cache keys include activity identity", () => {
     buildSongSelectionCacheKey("song-1", "number-bonds"),
     buildSongSelectionCacheKey("song-1", "early-algebra"),
   );
+});
+
+test("all player entry points use the route-local game flow", () => {
+  assert.equal(getPlayerLaunchRoute("/demo/student"), "/demo/student/game");
+  assert.equal(getPlayerLaunchRoute("/student"), "/student/game");
 });

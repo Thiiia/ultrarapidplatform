@@ -39,6 +39,7 @@ import {
   type FreshSongLaunchPackage,
 } from "@/lib/song-launch-client";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
+import { getPlayerLaunchRoute } from "@/lib/song-choice-flow";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import { GuidedEncounterComposer } from "./GuidedEncounterComposer";
 import { EncounterReadinessPanel } from "./EncounterReadinessPanel";
@@ -11189,9 +11190,7 @@ export default function LessonBuilderClient({
       templateProvenance: freshSongLaunch.templateProvenance,
       launchAttemptId: freshSongLaunch.launchAttemptId,
     });
-      const launchRoute = navBasePath.startsWith("/demo")
-      ? "/demo/launch"
-      : `${navBasePath}/game`;
+      const launchRoute = getPlayerLaunchRoute(navBasePath);
       const launchQuery = launchParams.toString();
       const launchUrl = `${launchRoute}?${launchQuery}`;
       const fullGameUrl = buildEmbeddedGameUrl(

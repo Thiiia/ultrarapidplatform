@@ -14,6 +14,7 @@ import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import {
   buildSongSelectionCacheKey,
+  getPlayerLaunchRoute,
   getSongLaunchErrorMessage,
   isPlayableSongLaunchPackage,
   type SongPackageLoadStatus,
@@ -822,9 +823,7 @@ export default function SongChoiceClient({
       rhythmDifficultyKey: freshPackage.rhythmDifficultyKey,
       learningDifficultyKey: freshPackage.learningDifficultyKey,
     });
-    const launchRoute = navBasePath.startsWith("/demo")
-      ? "/demo/launch"
-      : `${navBasePath}/game`;
+    const launchRoute = getPlayerLaunchRoute(navBasePath);
     const launchUrl = `${launchRoute}?${launchParams.toString()}`;
 
     appendSongFlowDebug(
