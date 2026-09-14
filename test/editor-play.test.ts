@@ -63,6 +63,7 @@ for (const saveFails of [false, true]) test(`launch publishes a draft only when 
     },
     createSongLaunchSearchParams: () => new URLSearchParams(), navBasePath: "/demo/student",
     buildEmbeddedGameUrl: () => "game", process: {env: {}}, appendSongFlowDebug: () => {},
+    getPlayerLaunchRoute: (basePath: string) => `${basePath}/game`,
     persistLaunchParams: () => {}, router: {push: (route: string) => routes.push(route)}, setSaveStatus: () => {},
     setLessonReadiness: () => {}, loadedSongReadyRef: {current: true},
   });
@@ -94,6 +95,7 @@ test("launches a published template without asking it to save again", async () =
     },
     createSongLaunchSearchParams: () => new URLSearchParams(), navBasePath: "/demo/student",
     buildEmbeddedGameUrl: () => "game", process: {env: {}}, appendSongFlowDebug: () => {},
+    getPlayerLaunchRoute: (basePath: string) => `${basePath}/game`,
     persistLaunchParams: () => {}, router: {push: () => {}}, setSaveStatus: () => {},
     setLessonReadiness: () => {}, loadedSongReadyRef: {current: true},
   });
