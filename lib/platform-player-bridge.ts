@@ -45,10 +45,21 @@ export function createBridgeContext(receipt: unknown, gameUrl: string, installat
 
 export function validateBridgeMessage(value: unknown, active: BridgeContext) {
   const parsed = PlatformPlayerBridgeMessageSchema.safeParse(value);
-  if (!parsed.success || parsed.data.nonce !== active.nonce || JSON.stringify(parsed.data.receipt) !== JSON.stringify(active.receipt)) {
+  if (!parsed.success || parsed.data.nonce !== active.nonce || canonicalJson(parsed.data.receipt) !== canonicalJson(active.receipt)) {
     return { ok: false as const };
   }
   return { ok: true as const, message: parsed.data };
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 export function getOrCreateInstallationId(storage: Pick<Storage, "getItem" | "setItem">) {

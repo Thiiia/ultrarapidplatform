@@ -22,9 +22,18 @@ test("game embed refreshes its signed song package before loading Unity", () => 
   assert.match(gameEmbed, /requestFreshSongLaunchParams/);
   assert.match(gameEmbed, /setLaunchParams\(freshLaunchParams\)/);
   assert.match(gameEmbed, /Preparing your game files/);
-  assert.match(gameEmbed, /resolveLaunchParams\(originalParams\)/);
+  assert.match(gameEmbed, /resolveLaunchParams\(new URLSearchParams\(serializedSearchParams\)\)/);
   assert.match(gameEmbed, /Choose a song to play/);
   assert.match(gameEmbed, /Try again/);
+});
+
+test("game embed waits for the verified bridge and reports result-sync failures", () => {
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+
+  assert.match(gameEmbed, /canRenderEmbeddedGame/);
+  assert.match(gameEmbed, /calibrationStatus !== "loading"/);
+  assert.match(gameEmbed, /Sync result again/);
+  assert.match(gameEmbed, /Your lesson result could not be synced yet/);
 });
 
 test("song choice does not present a package that is still loading as ready", () => {
