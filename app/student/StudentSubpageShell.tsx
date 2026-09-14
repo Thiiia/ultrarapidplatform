@@ -92,11 +92,18 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   ];
 }
 
-const utilityTabs: UtilityTab[] = [
-  // { label: "Notifications", href: "/student/notifications", Icon: NotificationsIcon, width: 38 },
-  // { label: "Settings", href: "/student/settings", Icon: SettingsIcon, width: 38 },
-  { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 134.45 },
-];
+function getUtilityTabs(navBasePath = "/student"): UtilityTab[] {
+  return [
+    // { label: "Notifications", href: "/student/notifications", Icon: NotificationsIcon, width: 38 },
+    // { label: "Settings", href: "/student/settings", Icon: SettingsIcon, width: 38 },
+    {
+      label: "Profile",
+      href: navBasePath === "/demo/student" ? `${navBasePath}/profile` : "/student/profile",
+      Icon: ProfileIcon,
+      width: 134.45,
+    },
+  ];
+}
 
 const headerStyles = {
   backgroundColor: "#2B2B2B",
@@ -152,10 +159,13 @@ function DashboardSection({ title, children }: SectionProps) {
 function HeaderBar({
   pathname,
   topTabs,
+  navBasePath,
 }: {
   pathname: string;
   topTabs: HeaderTab[];
+  navBasePath: string;
 }) {
+  const utilityTabs = getUtilityTabs(navBasePath);
   return (
     <header
       style={{
@@ -410,7 +420,7 @@ export default function StudentSubpageShell({
         overflowX: "hidden",
       }}
     >
-      <HeaderBar pathname={pathname} topTabs={topTabs} />
+      <HeaderBar pathname={pathname} topTabs={topTabs} navBasePath={navBasePath} />
 
       <DashboardSection title={title}>
         <div

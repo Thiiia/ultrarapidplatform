@@ -82,9 +82,16 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   ];
 }
 
-const utilityTabs: UtilityTab[] = [
-  { label: "Profile", href: "/student/profile", Icon: ProfileIcon, width: 134.45 },
-];
+function getUtilityTabs(navBasePath = "/student"): UtilityTab[] {
+  return [
+    {
+      label: "Profile",
+      href: navBasePath === "/demo/student" ? `${navBasePath}/profile` : "/student/profile",
+      Icon: ProfileIcon,
+      width: 134.45,
+    },
+  ];
+}
 
 const pagePanelWidth = "92vw";
 const headerBackgroundColor = "#2B2B2B";
@@ -95,9 +102,11 @@ const textColor = "#FFFFFF";
 function HeaderBar({
   pathname,
   topTabs,
+  utilityTabs,
 }: {
   pathname: string;
   topTabs: HeaderTab[];
+  utilityTabs: UtilityTab[];
 }) {
   return (
     <header
@@ -284,6 +293,7 @@ export default function GameEmbedPage({
   const [completedRun, setCompletedRun] = useState<{ completedEvents: number; hitAttempts: number } | null>(null);
 
   const topTabs = getTopTabs(navBasePath);
+  const utilityTabs = getUtilityTabs(navBasePath);
   const serializedSearchParams = searchParams.toString();
 
   useEffect(() => {
@@ -433,7 +443,7 @@ export default function GameEmbedPage({
         flexDirection: "column",
       }}
     >
-      <HeaderBar pathname={pathname} topTabs={topTabs} />
+      <HeaderBar pathname={pathname} topTabs={topTabs} utilityTabs={utilityTabs} />
 
       <main
           style={{
