@@ -27,7 +27,7 @@ export default function GuidedTemplateStart({ encounterCount, onPlayTemplate, on
             <span>A Hit, Spin, or Drag is one move inside an encounter.</span>
           </div>
         </div>
-        <p style={{ margin: 0, color: "#FFFFFFB3" }}>{encounterCount} encounter{encounterCount === 1 ? "" : "s"} are ready for this song.</p>
+        <p style={{ margin: 0, color: "#FFFFFFB3" }}>{encounterCount} {encounterCount === 1 ? "encounter" : "encounters"} are ready for this song.</p>
         <p style={{ margin: 0, color: "#FFFFFF99", fontSize: 13, lineHeight: 1.45 }}>After these encounters, the game can use its own questions if it needs more.</p>
         <button type="button" onClick={onPlayTemplate} style={{ border: 0, borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "14px 20px", fontWeight: 900, cursor: "pointer" }}>Play this lesson</button>
         <div style={{ color: "#FFFFFFB3", fontSize: 13, fontWeight: 800 }}>Change it first</div>
