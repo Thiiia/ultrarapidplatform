@@ -514,7 +514,7 @@ function GameEmbedSession({
     activeLaunchParams &&
     (!activeLaunchParams.get("receipt") || (bridgeContext && calibrationStatus !== "loading")),
   );
-  const visibleBridgeStatusMessage = bridgeStatusMessage || bridgeSetup.error;
+  const launchErrorMessage = launchPreparationError || bridgeSetup.error;
 
   return (
     <div
@@ -567,17 +567,19 @@ function GameEmbedSession({
               }}
             />
           ) : (
-            <div role={launchPreparationError ? "alert" : "status"} style={{ ...webglFlexFrameStyle, display: "grid", placeItems: "center", border: `1px solid ${subtleBorderColor}`, borderRadius: 12, padding: 24, boxSizing: "border-box", textAlign: "center" }}>
+            <div role={launchErrorMessage ? "alert" : "status"} style={{ ...webglFlexFrameStyle, display: "grid", placeItems: "center", border: `1px solid ${subtleBorderColor}`, borderRadius: 12, padding: 24, boxSizing: "border-box", textAlign: "center" }}>
               <div style={{ display: "grid", gap: 14, justifyItems: "center", maxWidth: 460 }}>
-                <strong>{launchPreparationError ? "We couldn’t prepare this lesson" : needsSongChoice ? "Choose a song to play" : "Preparing your game files…"}</strong>
+                <strong>{launchErrorMessage ? "We couldn’t prepare this lesson" : needsSongChoice ? "Choose a song to play" : "Preparing your game files…"}</strong>
                 <span style={{ color: "#FFFFFFB3", lineHeight: 1.45 }}>
-                  {launchPreparationError || (needsSongChoice ? "Pick a song first, then return here to start the lesson." : "Your signed lesson files are being prepared.")}
+                  {launchErrorMessage || (needsSongChoice ? "Pick a song first, then return here to start the lesson." : "Your signed lesson files are being prepared.")}
                 </span>
-                {launchPreparationError ? (
+                {launchErrorMessage ? (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
-                    <button type="button" onClick={onRetry} style={{ border: "none", borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}>
-                      Try again
-                    </button>
+                    {launchPreparationError && (
+                      <button type="button" onClick={onRetry} style={{ border: "none", borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}>
+                        Try again
+                      </button>
+                    )}
                     <Link href={`${navBasePath}/song-choice`} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 999, color: "#FFFFFF", padding: "9px 16px", textDecoration: "none", fontWeight: 700 }}>
                       Choose another song
                     </Link>
@@ -593,8 +595,8 @@ function GameEmbedSession({
           {bridgeContext && calibrationStatus === "required" && (
             <p className="mt-2 text-sm text-white/70">Complete calibration in the game before playing.</p>
           )}
-          {visibleBridgeStatusMessage && (
-            <p className="mt-2 text-sm text-amber-200" role="alert">{visibleBridgeStatusMessage}</p>
+          {bridgeStatusMessage && (
+            <p className="mt-2 text-sm text-amber-200" role="alert">{bridgeStatusMessage}</p>
           )}
           {pendingOutcome && outcomeSyncState === "saving" && (
             <p className="mt-2 text-sm text-white/70" role="status">Saving your lesson result…</p>
