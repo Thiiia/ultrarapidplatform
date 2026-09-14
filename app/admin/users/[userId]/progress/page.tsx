@@ -157,3 +157,4 @@ export default async function AdminProgressPreviewPage({
 
   notFound();
 }
+export const dynamic = "force-dynamic";

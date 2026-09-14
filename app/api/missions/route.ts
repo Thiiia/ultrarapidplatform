@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   DEFAULT_MISSION_CONTENT,
@@ -62,9 +63,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: any = {};
+  let body: Record<string, unknown> = {};
   try {
-    body = await request.json();
+    const parsedBody: unknown = await request.json();
+    if (parsedBody && typeof parsedBody === "object" && !Array.isArray(parsedBody)) {
+      body = parsedBody as Record<string, unknown>;
+    }
   } catch {
     // allow empty body
   }
@@ -108,7 +112,7 @@ export async function POST(request: Request) {
       title,
       description,
       published,
-      contentJson: validation.data as any,
+      contentJson: validation.data as Prisma.InputJsonValue,
       authorId: teacher.id,
     },
     select: {

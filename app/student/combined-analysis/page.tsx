@@ -64,55 +64,59 @@ type EditorAnalysisMetadata = {
 type EditorRedirectPayload = {
   chartFile: string;
   analysisMetadata: EditorAnalysisMetadata;
-  rawResults: any;
+  rawResults: unknown;
 };
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function firstString(values: unknown[]) {
+  return values.find((value): value is string => typeof value === "string" && value.length > 0);
+}
+
+function firstNumber(values: unknown[]) {
+  for (const value of values) {
+    const number = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
+    if (Number.isFinite(number)) return number;
+  }
+  return undefined;
+}
+
+function firstArray(values: unknown[]) {
+  return values.find((value): value is unknown[] => Array.isArray(value)) ?? [];
+}
+
 function getEditorRedirectPayload(
-  nextResults: any,
+  nextResults: unknown,
   processingData: ProcessingData
 ): EditorRedirectPayload {
-  const chartFile =
-    nextResults?.chart_file ??
-    nextResults?.chartFile ??
-    nextResults?.results?.chart_file ??
-    "";
-
-  const vocalSyllables =
-    nextResults?.vocal_analysis?.syllables ??
-    nextResults?.results?.vocal_analysis?.syllables ??
-    [];
-
-  const drumHits =
-    nextResults?.percussion_analysis?.drum_hits ??
-    nextResults?.results?.percussion_analysis?.drum_hits ??
-    [];
+  const root = asRecord(nextResults);
+  const nested = asRecord(root.results);
+  const metadata = asRecord(root.metadata);
+  const vocal = asRecord(root.vocal_analysis);
+  const nestedVocal = asRecord(asRecord(nested).vocal_analysis);
+  const percussion = asRecord(root.percussion_analysis);
+  const nestedPercussion = asRecord(asRecord(nested).percussion_analysis);
+  const chartFile = firstString([root.chart_file, root.chartFile, nested.chart_file]) ?? "";
+  const vocalSyllables = firstArray([vocal.syllables, nestedVocal.syllables]);
+  const drumHits = firstArray([percussion.drum_hits, nestedPercussion.drum_hits]);
 
   const analysisMetadata: EditorAnalysisMetadata = {
-    songTitle:
-      nextResults?.song_title ??
-      nextResults?.songTitle ??
-      nextResults?.metadata?.song_title ??
+    songTitle: firstString([
+      root.song_title,
+      root.songTitle,
+      metadata.song_title,
       processingData?.file?.name?.replace(/\.[^/.]+$/, "") ??
       "Untitled Song",
-    artist:
-      nextResults?.artist ??
-      nextResults?.metadata?.artist ??
-      "Unknown Artist",
-    bpm:
-      Number(
-        nextResults?.bpm ??
-          nextResults?.metadata?.bpm ??
-          nextResults?.results?.bpm
-      ) || 120,
-    durationSeconds:
-      Number(
-        nextResults?.duration_seconds ??
-          nextResults?.durationSeconds ??
-          nextResults?.metadata?.duration_seconds ??
-          nextResults?.results?.duration_seconds
-      ) || 0,
-    vocalSyllableCount: Array.isArray(vocalSyllables) ? vocalSyllables.length : 0,
-    percussionHitCount: Array.isArray(drumHits) ? drumHits.length : 0,
+    ]) ?? "Untitled Song",
+    artist: firstString([root.artist, metadata.artist]) ?? "Unknown Artist",
+    bpm: firstNumber([root.bpm, metadata.bpm, nested.bpm]) ?? 120,
+    durationSeconds: firstNumber([root.duration_seconds, root.durationSeconds, metadata.duration_seconds, nested.duration_seconds]) ?? 0,
+    vocalSyllableCount: vocalSyllables.length,
+    percussionHitCount: drumHits.length,
     uploadedFileName: processingData?.file?.name ?? "",
   };
 
@@ -134,7 +138,7 @@ export default function CombinedAnalysisPage() {
     setProcessingData({ file });
   };
 
-const handleProcessingComplete = (nextResults: any) => {
+const handleProcessingComplete = (nextResults: unknown) => {
   const editorPayload = getEditorRedirectPayload(nextResults, processingData);
 
   sessionStorage.setItem(

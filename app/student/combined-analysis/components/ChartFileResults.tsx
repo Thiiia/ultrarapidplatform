@@ -20,9 +20,19 @@ import {
 import { motion } from "framer-motion";
 import API_CONFIG from "../config";
 
+type VocalChartData = {
+  processing?: { total_syllables?: number };
+  timing?: { song_duration?: number };
+  syllables?: unknown[];
+};
+
+type PercussionChartData = {
+  analysis?: { total_drums?: number; kicks?: unknown[]; snares?: unknown[]; timing_analysis?: { average_bpm?: number } };
+};
+
 type Props = {
-  vocalData: any;
-  percussionData: any;
+  vocalData: VocalChartData;
+  percussionData: PercussionChartData;
   audioFilename?: string;
 };
 
@@ -64,9 +74,9 @@ export default function ChartFileResults({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Chart generation error:", err);
-      setError(err.message || "Failed to generate chart");
+      setError(err instanceof Error ? err.message : "Failed to generate chart");
     } finally {
       setIsGenerating(false);
     }

@@ -36,3 +36,4 @@ export default async function AdminStudentGamePreviewPage({
 
   return <GameEmbedPage navBasePath={`/admin/users/${targetUser.id}`} />;
 }
+export const dynamic = "force-dynamic";

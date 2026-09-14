@@ -4,6 +4,11 @@ import { getCurrentAppUser } from "@/lib/current-user";
 import Link from "next/link";
 import type { Role, UserStatus } from "@prisma/client";
 
+// This page reads the Auth0 session and database at request time. Keeping it
+// dynamic prevents a local or CI build without production credentials from
+// attempting to prerender the protected admin surface.
+export const dynamic = "force-dynamic";
+
 type AdminUserRow = {
   id: string;
   auth0Sub: string;

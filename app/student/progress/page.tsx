@@ -74,3 +74,4 @@ export default async function ProgressPage() {
     />
   );
 }
+export const dynamic = "force-dynamic";

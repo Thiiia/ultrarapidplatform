@@ -23,3 +23,4 @@ export default async function LessonBuilderPage() {
     />
   );
 }
+export const dynamic = "force-dynamic";

@@ -39,7 +39,16 @@ import {
   type FreshSongLaunchPackage,
 } from "@/lib/song-launch-client";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
+import { getPlayerLaunchRoute } from "@/lib/song-choice-flow";
 import GuidedTemplateStart from "./GuidedTemplateStart";
+import { GuidedEncounterComposer } from "./GuidedEncounterComposer";
+import { EncounterReadinessPanel } from "./EncounterReadinessPanel";
+import {
+  evaluateEncounterReadiness,
+  normalizeStagedMechanic,
+  type GuidedEncounterInput,
+  evaluateLessonPublishReadiness,
+} from "@/lib/guided-authored-encounter";
 import {
 	deletePlayerLessonWorkspaceDraft,
 	readPlayerLessonWorkspaceDraft,
@@ -48,6 +57,14 @@ import {
   type LessonSourceIdentity,
   type PlayerLessonEntryIntent,
 } from "@/lib/player-lesson-workspace";
+import {
+  classifyWorkspaceError,
+  classifyWorkspaceResponse,
+  MAX_WORKSPACE_RETRIES,
+  prepareWorkspaceMutation,
+  workspaceRetryDelay,
+  type WorkspaceResponseResult,
+} from "@/lib/player-workspace-client";
 import {
   lessonLaunchStrategy,
   libraryEquationsForTab,
@@ -1458,6 +1475,7 @@ function authoredSidecarFromTimelineEvents(
   clock: ReturnType<typeof createLessonClock>,
   stopAtSeconds?: number,
   equationQueue: SavedEquation[] = [],
+  options: { forPublish?: boolean } = {},
 ): AuthoredLessonDraft {
   return serializeAuthoredLesson(
     events as unknown as AuthoredTimelineEvent[],
@@ -1465,6 +1483,7 @@ function authoredSidecarFromTimelineEvents(
     clock,
     stopAtSeconds,
     equationQueue,
+    options,
   );
 }
 
@@ -1736,6 +1755,7 @@ function HeaderBar({
   onLaunch,
   onSave,
   canLaunch,
+  canPublish = true,
   isRctm1Mode,
   isRctm2Mode,
   hideChartmaker,
@@ -1753,6 +1773,7 @@ function HeaderBar({
   onLaunch: () => void;
   onSave: () => void;
   canLaunch: boolean;
+  canPublish?: boolean;
   isRctm1Mode: boolean;
   isRctm2Mode: boolean;
   hideChartmaker?: boolean;
@@ -1995,14 +2016,14 @@ function HeaderBar({
             onClick={onLaunch}
             disabled={!canLaunch || isSaving}
             aria-label="Play saved lesson in game"
-            title={canLaunch ? "Play the safe published lesson. Changes publish automatically only when ready." : "Choose a song before playing"}
+            title={isSaving ? "Saving lesson changes" : canLaunch ? "Play the safe published lesson. Changes publish automatically only when ready." : "Choose a song before playing"}
             style={{
               minWidth: 70,
               height: 30,
               borderRadius: 12,
               border: `1px solid ${subtleBorderColor}`,
-              background: "#CFFF04",
-              color: "#071222",
+              background: canLaunch && !isSaving ? "#CFFF04" : "rgba(207,255,4,0.12)",
+              color: canLaunch && !isSaving ? "#071222" : "#7A8FA8",
               fontFamily: "Space Grotesk, sans-serif",
               fontSize: 11,
               fontWeight: 800,
@@ -2015,10 +2036,10 @@ function HeaderBar({
 
           <button
             type="button"
-            disabled={isSaving}
+            disabled={!canPublish || isSaving}
             onClick={onSave}
-            aria-label="Publish my version"
-            title="Publish my version"
+            aria-label="Publish changes"
+            title={canPublish ? "Publish changes" : "Complete the lesson before publishing"}
             style={{
               width: 60,
               height: 29,
@@ -2026,8 +2047,8 @@ function HeaderBar({
               borderRadius: 12,
               background: "transparent",
               padding: 0,
-              cursor: isSaving ? "not-allowed" : "pointer",
-              opacity: isSaving ? 0.55 : 1,
+              cursor: canPublish && !isSaving ? "pointer" : "not-allowed",
+              opacity: canPublish && !isSaving ? 1 : 0.55,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -3973,6 +3994,8 @@ function MechanicInstanceRow({
   onAddHitPad,
   onToggleSpinTarget,
   onToggleDragTarget,
+  onPatchInstance,
+  dragSources = [],
 }: {
   mechanic: GameplayMechanic;
   count: number;
@@ -3995,6 +4018,8 @@ function MechanicInstanceRow({
     instanceIndex: number,
     tokenIndex: number,
   ) => void;
+  onPatchInstance: (instanceId: string, patch: Partial<MechanicInstanceState>) => void;
+  dragSources?: Array<{ id: string; label: string }>;
 }) {
   const [activeInstanceIndex, setActiveInstanceIndex] = useState(0);
   const safeCount = Math.max(0, Math.round(count));
@@ -4037,6 +4062,15 @@ function MechanicInstanceRow({
   }
 
   const activeInstance = instances[activeInstanceIndex];
+  const composerInstance = (activeInstance ?? {
+    ...makeMechanicInstance(),
+    id: `${mechanic}-draft-${activeInstanceIndex + 1}`,
+  }) as GuidedEncounterInput;
+  const guidedInstance: GuidedEncounterInput = {
+    ...composerInstance,
+    equation: activeInstance?.equation ?? equation,
+  };
+  const readiness = evaluateEncounterReadiness(guidedInstance, new Set());
 
   return (
     <div
@@ -4150,24 +4184,14 @@ function MechanicInstanceRow({
             overflow: "visible",
           }}
         >
-          <MechanicEquationEditor
-            mechanic={mechanic}
-            equation={equation}
-            instance={activeInstance}
-            onAddHitPad={(tokenIndex, pad) =>
-              onAddHitPad(
-                mechanic,
-                activeInstanceIndex,
-                tokenIndex,
-                pad,
-              )
-            }
-            onToggleSpinTarget={(tokenIndex) =>
-              onToggleSpinTarget(mechanic, activeInstanceIndex, tokenIndex)
-            }
-            onToggleDragTarget={(tokenIndex) =>
-              onToggleDragTarget(mechanic, activeInstanceIndex, tokenIndex)
-            }
+          <GuidedEncounterComposer
+            instance={guidedInstance}
+            tokens={equation?.tokens ?? []}
+            readiness={readiness}
+            step={activeInstanceIndex + 1}
+            stepCount={safeCount}
+            dragSources={dragSources}
+            onPatchInstance={(instanceId, patch) => onPatchInstance(instanceId, patch as Partial<MechanicInstanceState>)}
           />
         </div>
       </div>
@@ -4181,6 +4205,8 @@ function EventBuilderArea({
   onAddHitPad,
   onToggleSpinTarget,
   onToggleDragTarget,
+  onPatchInstance,
+  dragSources = [],
 }: {
   eventSlot: TimelineEventSlot | null;
   onDropEquation: (equation: SavedEquation) => void;
@@ -4200,6 +4226,8 @@ function EventBuilderArea({
     instanceIndex: number,
     tokenIndex: number,
   ) => void;
+  onPatchInstance: (mechanic: GameplayMechanic, instanceIndex: number, patch: Partial<MechanicInstanceState>) => void;
+  dragSources?: Array<{ id: string; label: string }>;
 }) {
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -4324,6 +4352,11 @@ function EventBuilderArea({
               onAddHitPad={onAddHitPad}
               onToggleSpinTarget={onToggleSpinTarget}
               onToggleDragTarget={onToggleDragTarget}
+              onPatchInstance={(instanceId, patch) => {
+                const instanceIndex = (eventSlot.mechanicInstances[mechanic] ?? []).findIndex((instance) => instance.id === instanceId);
+                onPatchInstance(mechanic, instanceIndex >= 0 ? instanceIndex : 0, patch);
+              }}
+              dragSources={dragSources}
             />
           ))
         )}
@@ -4562,7 +4595,6 @@ function getTimelineMarkerShapeStyles(mechanic: GameplayMechanic) {
 /* VERIFIED_LAYOUT_PATCH_2026_06_23: row2 shrinks; timeline has no horizontal scrollbar; draggable playhead controls song time; shared equation tiles. */
 function EquationTimeline({
   events,
-  rtcmDraftMechanics = [],
   hideSpinouts = false,
   activeEventId,
   onSelectEvent,
@@ -4578,7 +4610,6 @@ function EquationTimeline({
   isAdvancedMode,
 }: {
   events: TimelineEventSlot[];
-  rtcmDraftMechanics?: RtcmDraftMechanic[];
   hideSpinouts?: boolean;
   activeEventId: string | null;
   onSelectEvent: (eventId: string) => void;
@@ -5297,7 +5328,6 @@ function EquationTimeline({
             const color =
               mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF";
             const markerShapeStyle = getTimelineMarkerShapeStyles(mechanic);
-            const draftMechanics = rtcmDraftMechanics.filter((draft) => draft.mechanic === mechanic);
 
             return (
               <div
@@ -5463,110 +5493,6 @@ function EquationTimeline({
                     </span>
                   );
                 })}
-
-                {draftMechanics.length > 0
-                  ? draftMechanics.map((draft) => {
-                    const markerSeconds = timelineTickToSeconds(draft.tick);
-                    const markerLeft = Math.min(
-                      trackWidth,
-                      Math.max(0, markerSeconds * pixelsPerSecond),
-                    );
-
-                    if (mechanic === "hit") {
-                      return (
-                        <button
-                          key={draft.id}
-                          type="button"
-                          aria-hidden="true"
-                          tabIndex={-1}
-                          style={{
-                            position: "absolute",
-                            left: markerLeft,
-                            top: "50%",
-                            width: 20,
-                            height: 20,
-                            border: `1px solid ${color}`,
-                            borderRadius: 999,
-                            background: color,
-                            boxShadow: `0 0 12px ${color}`,
-                            transform: "translate(-50%, -50%)",
-                            cursor: "default",
-                            touchAction: "none",
-                            padding: 0,
-                            opacity: 0.92,
-                            color: "#071222",
-                            fontSize: 10,
-                            fontWeight: 900,
-                            lineHeight: "20px",
-                            textAlign: "center",
-                          }}
-                        >
-                          {getHitPadNumberFromPlacement(draft.hitBubbles?.[0]) ?? ""}
-                        </button>
-                      );
-                    }
-
-                    const window = {
-                      startSeconds: timelineTickToSeconds(draft.tick),
-                      endSeconds: timelineTickToSeconds(draft.endTick ?? draft.tick),
-                    };
-                    const startLeft = Math.min(
-                      trackWidth,
-                      Math.max(0, window.startSeconds * pixelsPerSecond),
-                    );
-                    const endLeft = Math.min(
-                      trackWidth,
-                      Math.max(0, window.endSeconds * pixelsPerSecond),
-                    );
-                    const pathLeft = Math.min(startLeft, endLeft);
-                    const pathWidth = Math.max(2, Math.abs(endLeft - startLeft));
-
-                    return (
-                      <span key={draft.id}>
-                        <span
-                          aria-hidden="true"
-                          style={{
-                            position: "absolute",
-                            left: pathLeft,
-                            top: "50%",
-                            width: pathWidth,
-                            height: 4,
-                            borderRadius: 999,
-                            background: `${color}55`,
-                            transform: "translateY(-50%)",
-                            opacity: 0.92,
-                          }}
-                        />
-                        {([
-                          ["start", startLeft],
-                          ["end", endLeft],
-                        ] as Array<[TimelineMarkerEdge, number]>).map(([edge, left]) => (
-                          <button
-                            key={`${draft.id}-${edge}`}
-                            type="button"
-                            aria-hidden="true"
-                            tabIndex={-1}
-                            style={{
-                              position: "absolute",
-                              left,
-                              top: "50%",
-                              width: 10,
-                              height: 10,
-                              border: "none",
-                              background: color,
-                              boxShadow: `0 0 12px ${color}`,
-                              ...markerShapeStyle,
-                              cursor: "default",
-                              touchAction: "none",
-                              padding: 0,
-                              opacity: 0.92,
-                            }}
-                          />
-                        ))}
-                      </span>
-                    );
-                  })
-                  : null}
 
               </div>
             );
@@ -9312,6 +9238,8 @@ function CenterEditorPanel({
   onAddHitPad,
   onToggleSpinTarget,
   onToggleDragTarget,
+  onPatchInstance,
+  dragSources = [],
 }: {
   mode: "event" | "equation";
   timelineEvents: TimelineEventSlot[];
@@ -9341,6 +9269,8 @@ function CenterEditorPanel({
     instanceIndex: number,
     tokenIndex: number,
   ) => void;
+  onPatchInstance: (mechanic: GameplayMechanic, instanceIndex: number, patch: Partial<MechanicInstanceState>) => void;
+  dragSources?: Array<{ id: string; label: string }>;
 }) {
   const activeEvent =
     timelineEvents.find((eventSlot) => eventSlot.id === activeEventId) ?? null;
@@ -9378,6 +9308,8 @@ function CenterEditorPanel({
           onAddHitPad={onAddHitPad}
           onToggleSpinTarget={onToggleSpinTarget}
           onToggleDragTarget={onToggleDragTarget}
+          onPatchInstance={onPatchInstance}
+          dragSources={dragSources}
         />
       )}
 
@@ -9676,7 +9608,12 @@ export default function LessonBuilderClient({
       if (message) setSaveStatus(message);
     };
     fetch(`/api/player-workspace?${new URLSearchParams(workspaceSource as Record<string, string>)}`)
-      .then(async (response) => response.ok ? response.json() : null)
+      .then(async (response) => {
+        const result = await classifyWorkspaceResponse(response);
+        if (result.kind === "success") return result.record;
+        if (result.kind === "permanent" || result.kind === "retryable") setSaveStatus(result.message);
+        return null;
+      })
       .then((record: { version?: number; payload?: { equations?: unknown[]; hiddenSourceEquationIds?: unknown[]; timelineEdits?: unknown[] } | null } | null) => {
         if (record?.payload) {
           workspaceVersionRef.current = record.version ?? 0;
@@ -9697,6 +9634,8 @@ export default function LessonBuilderClient({
 
   useEffect(() => {
     if (!guidedStarted || workspaceStatus === "loading" || !workspaceSource || (!hasUnsavedChanges && savedEquations.length === 0 && hiddenSourceEquationIds.length === 0)) return;
+    let cancelled = false;
+    let retryTimer: number | null = null;
     const timer = window.setTimeout(() => {
       const payload = {
         version: 1,
@@ -9715,30 +9654,67 @@ export default function LessonBuilderClient({
           hiddenSourceEquationIds,
           updatedAt: Date.now(),
         });
-        void fetch("/api/player-workspace", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: workspaceSource, expectedVersion: workspaceVersionRef.current, payload }) })
-          .then(async (response) => {
-            const result = await response.json().catch(() => null) as { version?: number; current?: { version?: number; payload?: typeof payload } } | null;
-            if (response.status === 409 && result?.current?.payload) {
+        const prepared = prepareWorkspaceMutation({ key: workspaceSource, expectedVersion: workspaceVersionRef.current, payload });
+        if (prepared.kind !== "ready") {
+          setWorkspaceStatus("offline");
+          setSaveStatus(prepared.message);
+          return;
+        }
+
+        let attempt = 0;
+        const sync = async () => {
+          if (cancelled) return;
+          let result: WorkspaceResponseResult;
+          try {
+            const response = await fetch("/api/player-workspace", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(prepared.mutation) });
+            result = await classifyWorkspaceResponse(response);
+          } catch {
+            result = classifyWorkspaceError();
+          }
+          if (cancelled) return;
+          if (result.kind === "success") {
+            workspaceVersionRef.current = result.record?.version ?? workspaceVersionRef.current;
+            setWorkspaceStatus("ready");
+            return;
+          }
+          if (result.kind === "conflict") {
+            if (result.current?.payload) {
               workspaceVersionRef.current = result.current.version ?? workspaceVersionRef.current;
               setWorkspaceConflict({ version: result.current.version ?? 0, payload: result.current.payload });
               setWorkspaceStatus("conflict");
-              return;
-            }
-            if (!response.ok) {
+            } else {
               setWorkspaceStatus("offline");
-              setSaveStatus("Your private recovery copy is kept on this device, but it could not sync to your account yet.");
-              return;
+              setSaveStatus(result.message);
             }
-            workspaceVersionRef.current = result?.version ?? workspaceVersionRef.current;
-            setWorkspaceStatus("ready");
-          })
-          .catch(() => setWorkspaceStatus("offline"));
+            return;
+          }
+          if (result.kind === "permanent") {
+            setWorkspaceStatus("offline");
+            setSaveStatus(result.message);
+            return;
+          }
+          if (attempt < MAX_WORKSPACE_RETRIES) {
+            const delay = workspaceRetryDelay(attempt, result.retryAfterMs);
+            attempt += 1;
+            retryTimer = window.setTimeout(() => void sync(), delay);
+            return;
+          }
+          setWorkspaceStatus("offline");
+          setSaveStatus(result.message);
+        };
+        void sync();
       } catch (error) {
         console.warn("Unable to save private lesson recovery copy", error);
+        setWorkspaceStatus("offline");
+        setSaveStatus("Your lesson remains open, but this device could not store a recovery copy.");
       }
-    }, 350);
-    return () => window.clearTimeout(timer);
-  }, [guidedStarted, hasUnsavedChanges, hiddenSourceEquationIds, savedEquations, timelineEvents, tutorialStep, workspaceRetryNonce, workspaceSource, workspaceStatus]);
+    }, 750);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+    };
+  }, [guidedStarted, hasUnsavedChanges, hiddenSourceEquationIds, savedEquations, timelineEvents, tutorialStep, workspaceRetryNonce, workspaceSource]);
 
   const shouldShowStarterTemplate = shouldOfferStarterTemplate({
     songId: selectedSongStorage?.id ?? null,
@@ -9877,6 +9853,58 @@ export default function LessonBuilderClient({
       endSeconds: timelineTickToSeconds(selectedCenterContextMechanic.endTick),
     };
   }, [selectedCenterContextMechanic]);
+
+  const lessonPublishReadiness = useMemo(
+    () => evaluateLessonPublishReadiness(timelineEvents as unknown as AuthoredTimelineEvent[]),
+    [timelineEvents],
+  );
+
+  const selectedGuidedEncounter = useMemo<GuidedEncounterInput | null>(() => {
+    if (!centerContextEvent || !selectedCenterContextMechanic) {
+      return null;
+    }
+
+    const instance =
+      centerContextEvent.mechanicInstances?.[
+        selectedCenterContextMechanic.mechanic
+      ]?.[selectedCenterContextMechanic.instanceIndex];
+
+    if (!instance) {
+      return null;
+    }
+
+    return {
+      id: instance.id,
+      mechanic: selectedCenterContextMechanic.mechanic,
+      tick: instance.tick ?? centerContextEvent.tick,
+      endTick: instance.endTick ?? centerContextEvent.endTick,
+      equation:
+        instance.equation ??
+        centerContextEvent.assignments[selectedCenterContextMechanic.mechanic] ??
+        centerContextEventEquation,
+      hitBubbles: instance.hitBubbles,
+      spinTargets: instance.spinTargets,
+      dragTargets: instance.dragTargets,
+    };
+  }, [centerContextEvent, centerContextEventEquation, selectedCenterContextMechanic]);
+
+  const selectedGuidedReadiness = useMemo(() => {
+    if (!selectedGuidedEncounter) {
+      return null;
+    }
+
+    const issues = lessonPublishReadiness.blockers.filter(
+      (blocker) => blocker.encounterId === selectedGuidedEncounter.id,
+    );
+
+    return {
+      encounterId: selectedGuidedEncounter.id,
+      ready: issues.length === 0,
+      issueCodes: issues.map((item) => item.code),
+      issues,
+      nextAction: issues[0]?.nextAction ?? "Ready to publish and play.",
+    };
+  }, [lessonPublishReadiness, selectedGuidedEncounter]);
 
   useEffect(() => {
     if (centerContextMechanicItems.length === 0) {
@@ -10319,6 +10347,22 @@ export default function LessonBuilderClient({
           ? undefined
           : tick;
     const draftId = makeId("rtcm");
+    const hitBubbles: HitBubblePlacement[] = mechanic === "hit" && options.hitPad
+      ? [{ tokenIndex: 0, positions: [options.hitPad], pads: [options.hitPad] }]
+      : [];
+    const normalized = normalizeStagedMechanic(
+      {
+        id: draftId,
+        mechanic,
+        tick,
+        ...(typeof endTick === "number" ? { endTick } : {}),
+        ...(selectedEquationId ? { equationId: selectedEquationId } : {}),
+        hitBubbles,
+        spinTargets: [],
+        dragTargets: [],
+      },
+      selectedEquation,
+    );
 
     setRtcmDraftMechanics((current) => [
       ...current,
@@ -10328,21 +10372,12 @@ export default function LessonBuilderClient({
         ...(selectedEquationId ? { equationId: selectedEquationId } : {}),
         tick,
         ...(typeof endTick === "number" ? { endTick } : {}),
-        hitBubbles:
-          mechanic === "hit" && options.hitPad
-            ? [
-              {
-                tokenIndex: 0,
-                positions: [options.hitPad],
-                pads: [options.hitPad],
-              },
-            ]
-            : [],
+        hitBubbles,
         spinTargets: [],
         dragTargets: [],
       },
     ]);
-    setSaveStatus(`${mechanic.toUpperCase()} drafted at ${formatSongTime(seconds, isAdvancedMode)}.`);
+    setSaveStatus(`${mechanic.toUpperCase()} drafted at ${formatSongTime(seconds, isAdvancedMode)}. ${normalized.readiness.nextAction}`);
 
     return draftId;
   }
@@ -10595,7 +10630,7 @@ export default function LessonBuilderClient({
       return;
     }
 
-    const didSave = await handleSaveToSupabase();
+    const didSave = await handlePublishChanges();
 
     if (!didSave) {
       return;
@@ -11053,12 +11088,55 @@ export default function LessonBuilderClient({
     });
   }
 
+  function handlePatchSelectedGuidedEncounter(
+    instanceId: string,
+    patch: Partial<GuidedEncounterInput>,
+  ) {
+    if (!activeEventId || !selectedCenterContextMechanic || selectedGuidedEncounter?.id !== instanceId) {
+      return;
+    }
+
+    const { mechanic, instanceIndex } = selectedCenterContextMechanic;
+
+    setTimelineEvents((current) => {
+      const nextEvents = current.map((eventSlot) => {
+        if (eventSlot.id !== activeEventId) {
+          return eventSlot;
+        }
+
+        const instances = eventSlot.mechanicInstances[mechanic] ?? [];
+        return {
+          ...eventSlot,
+          mechanicInstances: {
+            ...eventSlot.mechanicInstances,
+            [mechanic]: instances.map((instance, index) =>
+              index === instanceIndex
+                ? { ...instance, ...patch, id: instance.id }
+                : instance,
+            ),
+          },
+        };
+      });
+
+      syncTimelineFilesFromEvents(nextEvents);
+      return nextEvents;
+    });
+    markDirty();
+  }
+
   function handleBackToSongChoice() {
     requestNavigation(() => router.push(`${navBasePath}/song-choice`));
   }
 
   async function handleLaunchGame(playTemplateOnly = false) {
     if (isSaving) return;
+    if (!playTemplateOnly && !lessonPublishReadiness.ready) {
+      const blocker = lessonPublishReadiness.blockers[0];
+      savePrivateDraft();
+      handleSelectReadinessEncounter(blocker.encounterId);
+      setSaveStatus(`Draft saved on this device. ${blocker.message} ${blocker.nextAction}`);
+      return;
+    }
     if (!selectedSongLaunch) {
       setSaveStatus("Choose a song from song choice before launching the game.");
       return;
@@ -11112,9 +11190,7 @@ export default function LessonBuilderClient({
       templateProvenance: freshSongLaunch.templateProvenance,
       launchAttemptId: freshSongLaunch.launchAttemptId,
     });
-      const launchRoute = navBasePath.startsWith("/demo")
-      ? "/demo/launch"
-      : `${navBasePath}/game`;
+      const launchRoute = getPlayerLaunchRoute(navBasePath);
       const launchQuery = launchParams.toString();
       const launchUrl = `${launchRoute}?${launchQuery}`;
       const fullGameUrl = buildEmbeddedGameUrl(
@@ -11186,29 +11262,13 @@ export default function LessonBuilderClient({
       const timelineSidecar = sidecarFromTimelineEvents(timelineEvents, true);
       const authoredClock = createLessonClock(chartFile || originalChartFileRef.current);
       const hasCompleteTimelineBindings = hasCompleteAuthoredEquationBindings(timelineEvents);
-      const hasCompleteRtcmBindings = rtcmDraftMechanics.every((draft) => {
-        if (!draft.equationId) {
-          return false;
-        }
-        const equation = authoredEquationQueue.find((entry) => entry.id === draft.equationId);
-        return Boolean(equation?.tokens.length);
-      });
-      if (rtcmDraftMechanics.length > 0 && !hasCompleteRtcmBindings) {
-        throw new Error("RTCM mechanics must be assigned to a saved equation before saving.");
-      }
       const hasLegacyEncounters = timelineEvents.some(event => event.legacyEncounter);
-      const canSaveAsAuthored = (!legacyEncounterSourceRef.current || (!hasLegacyEncounters && authoredEquationQueue.length > 0)) && hasCompleteTimelineBindings && hasCompleteRtcmBindings;
+      const canSaveAsAuthored = (!legacyEncounterSourceRef.current || (!hasLegacyEncounters && authoredEquationQueue.length > 0)) && hasCompleteTimelineBindings;
       if (!canSaveAsAuthored && (authoredEquationQueue.length > 0 || rtcmDraftMechanics.length > 0)) {
         throw new Error("This lesson mixes legacy or unassigned encounters with authored equations. Complete the assignments in an authored lesson before saving to avoid losing equation data.");
       }
       const rtcmEvents: AuthoredTimelineEvent[] = rtcmDraftMechanics.map((draft) => {
-        if (!draft.equationId) {
-          throw new Error(`RTCM ${draft.mechanic} '${draft.id}' has no equation assignment`);
-        }
-        const equation = authoredEquationQueue.find((entry) => entry.id === draft.equationId);
-        if (!equation) {
-          throw new Error(`RTCM ${draft.mechanic} '${draft.id}' references missing equation '${draft.equationId}'`);
-        }
+        const equation = authoredEquationQueue.find((entry) => entry.id === draft.equationId) ?? null;
         const endSeconds =
           draft.id === rtcmPendingHold?.draftId
             ? Math.max(draft.tick, currentSongSeconds)
@@ -11232,9 +11292,9 @@ export default function LessonBuilderClient({
             drag: draft.mechanic === "drag" ? equation : null,
           },
           mechanicInstances: {
-            hit: draft.mechanic === "hit" ? [instance] : [],
-            spin: draft.mechanic === "spin" ? [instance] : [],
-            drag: draft.mechanic === "drag" ? [instance] : [],
+            hit: draft.mechanic === "hit" ? [{ ...instance, equation }] : [],
+            spin: draft.mechanic === "spin" ? [{ ...instance, equation }] : [],
+            drag: draft.mechanic === "drag" ? [{ ...instance, equation }] : [],
           },
         };
       });
@@ -11253,6 +11313,7 @@ export default function LessonBuilderClient({
             authoredClock,
             timelineSidecar.stopAtSeconds,
             authoredEquationQueue,
+            { forPublish: true },
           )
         : null;
 
@@ -11837,6 +11898,38 @@ export default function LessonBuilderClient({
           message: `This lesson could not be read. It has not been replaced: ${message}`,
         });
       });
+  }
+
+  function savePrivateDraft() {
+    try {
+      if (workspaceSource && typeof window !== "undefined") {
+        writePlayerLessonWorkspaceDraft(sessionStorage, {
+          version: 1,
+          source: workspaceSource,
+          timelineEvents,
+          equationEdits: savedEquations,
+          hiddenSourceEquationIds,
+          updatedAt: Date.now(),
+        });
+      }
+      setSaveStatus("Draft saved on this device.");
+      return true;
+    } catch {
+      setSaveStatus("Your draft is still open in this editor, but this device could not store a recovery copy.");
+      return false;
+    }
+  }
+
+  async function handlePublishChanges(options: { showNotice?: boolean } = {}) {
+    if (!lessonPublishReadiness.ready) {
+      const blocker = lessonPublishReadiness.blockers[0];
+      savePrivateDraft();
+      handleSelectReadinessEncounter(blocker.encounterId);
+      setSaveStatus(`Draft saved on this device. ${blocker.message} ${blocker.nextAction}`);
+      return false;
+    }
+
+    return handleSaveToSupabase(options);
   }
 
   function handleRetryCurrentLesson() {
@@ -12900,6 +12993,25 @@ export default function LessonBuilderClient({
     playheadEventId: rtcmPlayheadEvent?.id ?? null,
     eventIds: timelineEvents.map((eventSlot) => eventSlot.id),
   });
+  const dragSources = useMemo(
+    () => timelineEvents.flatMap((eventSlot) =>
+      (eventSlot.mechanicInstances.hit ?? []).map((instance, index) => ({
+        id: instance.id,
+        label: `Hit ${index + 1} · ${formatTimelineTime(timelineTickToSeconds(instance.tick ?? eventSlot.tick), isAdvancedMode)}`,
+      })),
+    ),
+    [isAdvancedMode, timelineEvents],
+  );
+  function handleSelectReadinessEncounter(encounterId: string) {
+    const event = timelineEvents.find((eventSlot) =>
+      gameplayMechanics.some((mechanic) => eventSlot.mechanicInstances[mechanic]?.some((instance) => instance.id === encounterId)),
+    );
+    if (event) {
+      setActiveEventId(event.id);
+      setCenterChoice(null);
+      setSaveStatus(`Editing ${encounterId}. ${lessonPublishReadiness.nextAction}`);
+    }
+  }
   return (
     <div
       className={styles.studentTypography}
@@ -12949,15 +13061,27 @@ export default function LessonBuilderClient({
         onOpenFile={handleOpenFilePicker}
         onLaunch={handleLaunchGame}
         onSave={() => {
-          void handleSaveToSupabase({ showNotice: true });
+          void handlePublishChanges({ showNotice: true });
         }}
-        canLaunch={Boolean(selectedSongLaunch)}
+        canLaunch={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
+        canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
         isRctm1Mode={isRctm1Mode}
         isRctm2Mode={isRctm2Mode}
         hideChartmaker={isGuidedStart}
         onToggleRctm1Mode={handleToggleRctm1Mode}
         onToggleRctm2Mode={handleToggleRctm2Mode}
       />
+      {!isGuidedStart && !isRctm1Mode && !isRctm2Mode ? (
+        <div style={{ position: "fixed", right: 18, top: 84, width: "min(360px, calc(100vw - 36px))", zIndex: 1002 }}>
+          <EncounterReadinessPanel
+            readiness={lessonPublishReadiness}
+            hasSong={Boolean(selectedSongStorage || selectedSongLaunch)}
+            canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
+            canPlay={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
+            onSelectEncounter={handleSelectReadinessEncounter}
+          />
+        </div>
+      ) : null}
 
       <main
         style={{
@@ -13181,36 +13305,57 @@ export default function LessonBuilderClient({
                       ) : null}
                     </div>
 
-                    <div style={{ gridRow: 2, minHeight: 0 }}>
-                      <CenterChoicePanel
-                        choice={centerChoice}
-                        draftTokens={draftTokens}
-                        activeEventEquation={centerContextEventEquation ?? activeEventEquation}
-                        hasSelectedEvent={Boolean(centerContextEvent)}
-                        selectedTokenIndex={selectedContextMechanicAssignedTokenIndex}
-                        onSelectToken={
-                          selectedCenterContextMechanic && centerContextEventEquation
-                            ? handleAssignTokenToSelectedContextMechanic
-                            : null
-                        }
-                        selectedMechanic={selectedCenterContextMechanic?.mechanic ?? null}
-                        selectedHitPad={selectedContextHitPad}
-                        onSelectHitPad={
-                          selectedCenterContextMechanic?.mechanic === "hit"
-                            ? handleSetSelectedContextHitPad
-                            : null
-                        }
-                        equationViewerBlockSize={equationViewerBlockSize}
-                        currentSongSeconds={currentSongSeconds}
-                        mechanicStartSeconds={selectedContextMechanicTimeWindow.startSeconds}
-                        mechanicEndSeconds={selectedContextMechanicTimeWindow.endSeconds}
-                        isSongPlaying={isSongPlaying}
-                        onQuickAddHit={handleAddHitAtPlayhead}
-                        onCreateEquation={handleCreateEquationChoice}
-                        onBrowseLibrary={handleBrowsePremadeChoice}
-                        showWorkspacePrompt={showCenterWorkspacePrompt}
-                        hideHeader={hideEquationHeader}
-                      />
+                    <div
+                      style={{
+                        gridRow: 2,
+                        minHeight: 0,
+                        overflowY: "auto",
+                        display: "grid",
+                        gridTemplateRows: selectedGuidedEncounter ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)",
+                      }}
+                    >
+                      {selectedGuidedEncounter && selectedGuidedReadiness ? (
+                        <GuidedEncounterComposer
+                          instance={selectedGuidedEncounter}
+                          tokens={selectedGuidedEncounter.equation?.tokens ?? []}
+                          readiness={selectedGuidedReadiness}
+                          step={selectedGuidedReadiness.issueCodes.includes("equation_required") ? 1 : 2}
+                          stepCount={3}
+                          dragSources={dragSources}
+                          onPatchInstance={handlePatchSelectedGuidedEncounter}
+                        />
+                      ) : null}
+                      <div style={{ minHeight: 0, overflow: "hidden" }}>
+                        <CenterChoicePanel
+                          choice={centerChoice}
+                          draftTokens={draftTokens}
+                          activeEventEquation={centerContextEventEquation ?? activeEventEquation}
+                          hasSelectedEvent={Boolean(centerContextEvent)}
+                          selectedTokenIndex={selectedContextMechanicAssignedTokenIndex}
+                          onSelectToken={
+                            selectedCenterContextMechanic && centerContextEventEquation
+                              ? handleAssignTokenToSelectedContextMechanic
+                              : null
+                          }
+                          selectedMechanic={selectedCenterContextMechanic?.mechanic ?? null}
+                          selectedHitPad={selectedContextHitPad}
+                          onSelectHitPad={
+                            selectedCenterContextMechanic?.mechanic === "hit"
+                              ? handleSetSelectedContextHitPad
+                              : null
+                          }
+                          equationViewerBlockSize={equationViewerBlockSize}
+                          currentSongSeconds={currentSongSeconds}
+                          mechanicStartSeconds={selectedContextMechanicTimeWindow.startSeconds}
+                          mechanicEndSeconds={selectedContextMechanicTimeWindow.endSeconds}
+                          isSongPlaying={isSongPlaying}
+                          onQuickAddHit={handleAddHitAtPlayhead}
+                          onCreateEquation={handleCreateEquationChoice}
+                          onBrowseLibrary={handleBrowsePremadeChoice}
+                          showWorkspacePrompt={showCenterWorkspacePrompt}
+                          hideHeader={hideEquationHeader}
+                        />
+                      </div>
                     </div>
 
                     <div
@@ -13398,7 +13543,6 @@ export default function LessonBuilderClient({
           />
           <EquationTimeline
             events={timelineEvents}
-            rtcmDraftMechanics={rtcmDraftMechanics}
             hideSpinouts={isRctm2Mode}
             activeEventId={activeEventId}
             onSelectEvent={handleSelectEvent}

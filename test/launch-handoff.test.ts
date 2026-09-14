@@ -17,3 +17,32 @@ test('handoff retains activity, difficulty and complete nested signed asset URLs
   assert.equal(output.searchParams.get('rhythmDifficultyKey'), 'ExpertSingle');
   assert.equal(output.searchParams.get('chartUrl'), signed);
 });
+
+test('handoff retains the receipt aliases and authored identity needed by Unity bootstrap', () => {
+  const receipt = JSON.stringify({
+    receiptVersion: 1,
+    contractVersion: 1,
+    songAssetId: 'waves',
+    activityKey: 'early-algebra',
+    authorId: 'author-7',
+    revision: 'rev-7',
+    source: 'authored',
+  });
+  const input = new URLSearchParams({
+    launch: 'PlayNow',
+    songAssetId: 'waves',
+    activityKey: 'early-algebra',
+    authorId: 'author-7',
+    revision: 'rev-7',
+    launchAttemptId: '00000000-0000-4000-8000-000000000007',
+    receipt,
+    receiptJson: receipt,
+  });
+
+  const output = resolveLaunchParams(input);
+  assert.equal(output.get('authorId'), 'author-7');
+  assert.equal(output.get('revision'), 'rev-7');
+  assert.equal(output.get('launchAttemptId'), '00000000-0000-4000-8000-000000000007');
+  assert.equal(output.get('receipt'), receipt);
+  assert.equal(output.get('receiptJson'), receipt);
+});

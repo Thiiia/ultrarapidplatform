@@ -1,4 +1,5 @@
 import { tokenizeAuthoredEquationState } from "./authored-lesson";
+import { evaluateLessonPublishReadiness } from "./guided-authored-encounter";
 
 /**
  * v3 authored-lesson serialization boundary for the lesson builder.
@@ -153,7 +154,18 @@ export function serializeAuthoredLesson(
   clock: AuthoredLessonClock,
   stopAtSeconds?: number,
   equationQueue: AuthoredSavedEquation[] = [],
+  options: { forPublish?: boolean } = {},
 ): AuthoredLessonDraft {
+  if (options.forPublish) {
+    const readiness = evaluateLessonPublishReadiness(events);
+    if (!readiness.ready) {
+      const firstBlocker = readiness.blockers[0];
+      throw new Error(
+        `Authored lesson is not ready to publish: ${firstBlocker.encounterId} ${firstBlocker.nextAction}`,
+      );
+    }
+  }
+
   const equations: Array<{ id: string; state: string; tokens: AuthoredEquationToken[] }> = [];
   const encounters: AuthoredLessonDraft["encounters"] = [];
   const equationById = new Map<string, { id: string; state: string; tokens: AuthoredEquationToken[] }>();
@@ -209,9 +221,10 @@ export function serializeAuthoredLesson(
           throw new Error(`Authored lesson ${mechanic} mechanic for event '${event.id}' requires an assigned equation`);
         }
 
-        // The editor creates an empty instance as soon as a mechanic is added,
-        // before the author picks its playable token. It is a draft placeholder,
-        // not a valid runtime encounter, so never let it poison the whole save.
+        // Historical data can contain a mechanic count without a declared
+        // instance. Keep that targetless skip for backwards compatibility.
+        // A declared empty instance is author intent and is blocked by the
+        // publish readiness check above instead of being silently hidden.
         const targetCount = mechanic === "hit"
           ? instance.hitBubbles?.length ?? 0
           : mechanic === "spin"

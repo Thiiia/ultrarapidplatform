@@ -26,3 +26,4 @@ export default async function TeacherPage() {
 
   return <TeacherDashboard dashboardData={dashboardData} />;
 }
+export const dynamic = "force-dynamic";

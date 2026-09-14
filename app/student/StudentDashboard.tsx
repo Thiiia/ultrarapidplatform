@@ -214,7 +214,7 @@ function HeaderBar({
           }}
         >
           <Link
-            href="/student/profile"
+            href={navBasePath === "/demo/student" ? `${navBasePath}/profile` : "/student/profile"}
             aria-label="Profile"
             className={styles.utilityButton}
             style={{

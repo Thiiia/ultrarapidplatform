@@ -84,4 +84,11 @@ test("forwards a selected song package from the platform iframe to Unity", async
     authorId: "author-7",
     revision: "rev-7",
   });
+  assert.deepEqual(JSON.parse(embeddedUrl.searchParams.get("receiptJson") ?? "null"), {
+    receiptVersion: 1,
+    songAssetId: "song-123",
+    activityKey: "early-algebra",
+    authorId: "author-7",
+    revision: "rev-7",
+  });
 });

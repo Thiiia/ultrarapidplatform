@@ -36,7 +36,7 @@ type ProcessingData = {
 
 type Props = {
   processingData: ProcessingData;
-  onComplete: (results: any) => void;
+  onComplete: (results: unknown) => void;
   onReset: () => void;
 };
 
@@ -143,10 +143,10 @@ export default function ProcessingSection({
       }
 
       throw new Error("Analysis timed out while waiting for completion");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Processing error:", err);
 
-      let errorMessage = err?.message || "Unknown processing error";
+      let errorMessage = err instanceof Error ? err.message : "Unknown processing error";
 
       if (
         errorMessage.includes("NetworkError") ||

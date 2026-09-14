@@ -45,6 +45,9 @@ const platformLaunchParamKeys = [
   "callback",
   "returnTarget",
   "return",
+  // Unity's current bootstrapper reads the versioned receipt from this
+  // legacy-compatible key. Keep `receipt` below for platform-side consumers.
+  "receiptJson",
 ] as const;
 
 type SongLaunchInput = {
@@ -123,7 +126,9 @@ export function createSongLaunchSearchParams({
   }
 
   if (receipt) {
-    params.set("receipt", JSON.stringify(receipt));
+    const serializedReceipt = JSON.stringify(receipt);
+    params.set("receipt", serializedReceipt);
+    params.set("receiptJson", serializedReceipt);
   }
 
   return params;

@@ -67,6 +67,7 @@ export const WorkspaceMutationSchema = z.object({
 
 export type PlayerWorkspaceKey = z.infer<typeof PlayerWorkspaceKeySchema>;
 export type PlayerWorkspacePayload = z.infer<typeof PlayerWorkspacePayloadSchema>;
+export type WorkspaceMutation = z.infer<typeof WorkspaceMutationSchema>;
 
 export function mergeWorkspacePayload(
   base: PlayerWorkspacePayload,

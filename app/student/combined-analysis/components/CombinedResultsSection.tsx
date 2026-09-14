@@ -26,10 +26,39 @@ import {
 import { motion } from "framer-motion";
 import ChartFileResults from "./ChartFileResults";
 import PercussionResults from "./PercussionResults";
+import type { PercussionAnalysis } from "./PercussionResults";
 import VocalResults from "./VocalResults";
 
+type VocalSyllable = {
+  syllable: string;
+  word: string;
+  start_time: number;
+  end_time: number;
+  duration: number;
+  confidence: number;
+};
+
+type CombinedResults = {
+  filename: string;
+  summary: { total_syllables: number; drum_hits: number };
+  vocal_analysis: {
+    success: boolean;
+    error?: string;
+    data: {
+      syllables: VocalSyllable[];
+      processing: { processing_time: number; total_syllables: number; confidence: number };
+      timing: { song_duration: number };
+    };
+  };
+  percussion_analysis: {
+    success: boolean;
+    error?: string;
+    data: { session_id: string; analysis: PercussionAnalysis };
+  };
+};
+
 type Props = {
-  results: any;
+  results: CombinedResults;
   onReset: () => void;
   audioFile?: File | null;
 };
@@ -54,7 +83,7 @@ export default function CombinedResultsSection({
     const syllables = results.vocal_analysis.data.syllables;
     const csvContent = [
       ["Syllable", "Word", "Start Time (s)", "End Time (s)", "Duration (s)", "Confidence"],
-      ...syllables.map((syl: any) => [
+      ...syllables.map((syl) => [
         syl.syllable,
         syl.word,
         syl.start_time,

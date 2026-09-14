@@ -49,3 +49,4 @@ export default async function MyLessonsPage() {
 
   return <StudentSubpageShell title="My Lessons" cards={lessonCards.slice(0, 6)} />;
 }
+export const dynamic = "force-dynamic";

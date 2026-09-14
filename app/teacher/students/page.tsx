@@ -42,3 +42,4 @@ export default async function TeacherStudentsPage() {
 
   return <TeacherSubpageShell title="Students" cards={cards} />;
 }
+export const dynamic = "force-dynamic";

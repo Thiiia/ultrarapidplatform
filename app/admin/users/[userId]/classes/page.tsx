@@ -66,3 +66,4 @@ export default async function AdminTeacherClassesPreviewPage({
     />
   );
 }
+export const dynamic = "force-dynamic";

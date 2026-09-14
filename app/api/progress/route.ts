@@ -6,16 +6,20 @@ export const runtime = "nodejs";
 type ProgressStatus = "not_started" | "in_progress" | "complete";
 
 export async function POST(request: Request) {
-  let body: any;
+  let body: Record<string, unknown>;
   try {
-    body = await request.json();
+    const parsedBody: unknown = await request.json();
+    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+      return NextResponse.json({ error: "Request body must be an object" }, { status: 400 });
+    }
+    body = parsedBody as Record<string, unknown>;
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const missionId: string | undefined = body?.missionId;
-  const status: ProgressStatus | undefined = body?.status;
-  const scoreRaw = body?.score;
+  const missionId = typeof body.missionId === "string" ? body.missionId : undefined;
+  const status = typeof body.status === "string" ? body.status as ProgressStatus : undefined;
+  const scoreRaw = body.score;
 
   const allowed: ProgressStatus[] = ["not_started", "in_progress", "complete"];
 

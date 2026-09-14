@@ -274,6 +274,34 @@ test("does not serialize an unconfigured spin placeholder", () => {
   assert.doesNotThrow(() => parseAuthoredLessonDraft(draft));
 });
 
+test("publish serialization rejects a declared incomplete encounter", () => {
+  const clock = createLessonClock(
+    `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+  );
+
+  assert.throws(
+    () => serializeAuthoredLesson(
+      [makeEvent("event-draft", 1, { spin: 1 }, {
+        instances: {
+          spin: [instance("spin-draft", {
+            tick: 1,
+            endTick: 1,
+            hitBubbles: [],
+            spinTargets: [],
+            dragTargets: [],
+          })],
+        },
+      })],
+      IDENTITY,
+      clock,
+      undefined,
+      [],
+      { forPublish: true },
+    ),
+    /Authored lesson is not ready to publish/,
+  );
+});
+
 test("serializes equations with zero mechanics so queue order is preserved", () => {
   const clock = createLessonClock(
     `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
