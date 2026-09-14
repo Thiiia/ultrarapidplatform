@@ -8,7 +8,10 @@ export function buildSongSelectionCacheKey(songId: string, activityKey: string) 
 
 export function isPlayableSongLaunchPackage(
   songPackage: FreshSongLaunchPackage | null | undefined,
-) {
+): songPackage is FreshSongLaunchPackage & {
+  source: "authored" | "starter-template";
+  readiness: FreshSongLaunchPackage["readiness"] & { canLaunch: true };
+} {
   return Boolean(
     songPackage &&
       songPackage.source !== "editor-scaffold" &&
