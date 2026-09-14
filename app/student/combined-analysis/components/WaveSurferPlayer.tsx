@@ -36,7 +36,7 @@ export default function WaveSurferPlayer({
   syllables = [],
 }: Props) {
   const waveformRef = useRef<HTMLDivElement | null>(null);
-  const wavesurfer = useRef<any>(null);
+  const wavesurfer = useRef<ReturnType<typeof WaveSurfer.create> | null>(null);
   const syllablesRef = useRef<Syllable[]>(syllables);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -51,7 +51,7 @@ export default function WaveSurferPlayer({
   useEffect(() => {
     if (waveformRef.current && audioFile) {
       try {
-        wavesurfer.current = WaveSurfer.create({
+        const instance = WaveSurfer.create({
           container: waveformRef.current,
           waveColor: "#3f51b5",
           progressColor: "#1976d2",
@@ -62,17 +62,18 @@ export default function WaveSurferPlayer({
           normalize: true,
           mediaControls: false,
         });
+        wavesurfer.current = instance;
 
         const audioUrl = URL.createObjectURL(audioFile);
-        wavesurfer.current.load(audioUrl);
+        instance.load(audioUrl);
 
-        wavesurfer.current.on("ready", () => {
-          setDuration(wavesurfer.current.getDuration());
-          wavesurfer.current.setVolume(volume);
+        instance.on("ready", () => {
+          setDuration(instance.getDuration());
+          instance.setVolume(volume);
         });
 
-        wavesurfer.current.on("audioprocess", () => {
-          const time = wavesurfer.current.getCurrentTime();
+        instance.on("audioprocess", () => {
+          const time = instance.getCurrentTime();
           setCurrentTime(time);
 
           const current =
@@ -86,8 +87,7 @@ export default function WaveSurferPlayer({
           });
         });
 
-        wavesurfer.current.on("seek", () => {
-          const time = wavesurfer.current.getCurrentTime();
+        instance.on("interaction", (time) => {
           setCurrentTime(time);
 
           const current =
@@ -98,15 +98,14 @@ export default function WaveSurferPlayer({
           setCurrentSyllable(current);
         });
 
-        wavesurfer.current.on("play", () => setIsPlaying(true));
-        wavesurfer.current.on("pause", () => setIsPlaying(false));
-        wavesurfer.current.on("finish", () => setIsPlaying(false));
+        instance.on("play", () => setIsPlaying(true));
+        instance.on("pause", () => setIsPlaying(false));
+        instance.on("finish", () => setIsPlaying(false));
 
         return () => {
-          if (wavesurfer.current) {
-            wavesurfer.current.pause();
-            wavesurfer.current.destroy();
-          }
+          instance.pause();
+          instance.destroy();
+          if (wavesurfer.current === instance) wavesurfer.current = null;
           URL.revokeObjectURL(audioUrl);
         };
       } catch (error) {

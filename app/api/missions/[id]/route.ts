@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { validateMissionContent } from "@/lib/contracts/missionContent";
 
@@ -91,14 +92,17 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Missing mission id" }, { status: 400 });
   }
 
-  let body: any = {};
+  let body: Record<string, unknown> = {};
   try {
-    body = await request.json();
+    const parsedBody: unknown = await request.json();
+    if (parsedBody && typeof parsedBody === "object" && !Array.isArray(parsedBody)) {
+      body = parsedBody as Record<string, unknown>;
+    }
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const data: Record<string, any> = {};
+  const data: Prisma.MissionUpdateInput = {};
 
   if (typeof body.title === "string") data.title = body.title.trim();
   if (typeof body.description === "string") data.description = body.description;
@@ -112,7 +116,7 @@ export async function PATCH(request: Request) {
         { status: 400 }
       );
     }
-    data.contentJson = validation.data as any;
+    data.contentJson = validation.data as Prisma.InputJsonValue;
   }
 
   if (Object.keys(data).length === 0) {

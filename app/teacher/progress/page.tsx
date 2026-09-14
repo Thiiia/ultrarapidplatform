@@ -71,3 +71,4 @@ export default async function TeacherProgressPage() {
     />
   );
 }
+export const dynamic = "force-dynamic";

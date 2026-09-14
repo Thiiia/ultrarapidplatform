@@ -35,3 +35,4 @@ export default async function StudentProfilePage() {
     />
   );
 }
+export const dynamic = "force-dynamic";

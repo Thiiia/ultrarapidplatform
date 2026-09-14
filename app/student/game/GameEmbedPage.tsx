@@ -289,10 +289,16 @@ export default function GameEmbedPage({
     const songAssetId = originalParams.get("songAssetId");
     const activityKey = originalParams.get("activityKey");
 
-    setLaunchParams(null);
-    setLaunchPreparationError("");
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setLaunchParams(null);
+        setLaunchPreparationError("");
+      }
+    });
     if (!songAssetId || !activityKey) {
-      setLaunchParams(originalParams);
+      queueMicrotask(() => {
+        if (!cancelled) setLaunchParams(originalParams);
+      });
       return () => { cancelled = true; };
     }
 

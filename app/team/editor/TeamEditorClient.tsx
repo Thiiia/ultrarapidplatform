@@ -3047,7 +3047,7 @@ function DragEquationEditor({
     const surface = surfaceRef.current;
 
     if (!surface || dragTargets.length === 0) {
-      setArcs([]);
+      queueMicrotask(() => setArcs([]));
       return;
     }
 
@@ -3081,7 +3081,7 @@ function DragEquationEditor({
       ];
     });
 
-    setArcs(nextArcs);
+    queueMicrotask(() => setArcs(nextArcs));
   }, [dragTargets, tokens]);
 
   useEffect(() => {
@@ -3367,14 +3367,9 @@ function MechanicInstanceRow({
 }) {
   const [activeInstanceIndex, setActiveInstanceIndex] = useState(0);
   const safeCount = Math.max(0, Math.round(count));
+  const safeInstanceIndex = safeCount > 0 ? Math.min(activeInstanceIndex, safeCount - 1) : 0;
   const tabLabel =
     mechanic === "hit" ? "Hit" : mechanic === "spin" ? "Spin" : "Drag";
-
-  useEffect(() => {
-    setActiveInstanceIndex((current) =>
-      safeCount > 0 ? Math.min(current, safeCount - 1) : 0,
-    );
-  }, [safeCount]);
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -3405,7 +3400,7 @@ function MechanicInstanceRow({
     return null;
   }
 
-  const activeInstance = instances[activeInstanceIndex];
+  const activeInstance = instances[safeInstanceIndex];
 
   return (
     <div
@@ -3478,7 +3473,7 @@ function MechanicInstanceRow({
           }}
         >
           {Array.from({ length: safeCount }, (_, index) => {
-            const isActive = index === activeInstanceIndex;
+            const isActive = index === safeInstanceIndex;
 
             return (
               <button
@@ -3526,16 +3521,16 @@ function MechanicInstanceRow({
             onAddHitBubblePair={(tokenIndex, pair) =>
               onAddHitBubblePair(
                 mechanic,
-                activeInstanceIndex,
+                  safeInstanceIndex,
                 tokenIndex,
                 pair,
               )
             }
             onToggleSpinTarget={(tokenIndex) =>
-              onToggleSpinTarget(mechanic, activeInstanceIndex, tokenIndex)
+                onToggleSpinTarget(mechanic, safeInstanceIndex, tokenIndex)
             }
             onToggleDragTarget={(tokenIndex) =>
-              onToggleDragTarget(mechanic, activeInstanceIndex, tokenIndex)
+              onToggleDragTarget(mechanic, safeInstanceIndex, tokenIndex)
             }
           />
         </div>

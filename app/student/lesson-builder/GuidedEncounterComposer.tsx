@@ -79,13 +79,11 @@ function TimeControls({
 
 function TokenButton({
   token,
-  tokenIndex,
   selected,
   label,
   onSelect,
 }: {
   token: AuthoredEquationToken;
-  tokenIndex: number;
   selected: boolean;
   label: string;
   onSelect: () => void;
@@ -151,7 +149,6 @@ function TargetPicker({
           <TokenButton
             key={token.id}
             token={token}
-            tokenIndex={tokenIndex}
             selected={selected === tokenIndex}
             label={kind}
             onSelect={() => select(tokenIndex)}

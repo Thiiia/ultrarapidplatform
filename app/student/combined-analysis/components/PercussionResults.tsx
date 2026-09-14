@@ -21,8 +21,18 @@ import {
 import API_CONFIG from "../config";
 import styles from "./PercussionResults.module.css";
 
+export type PercussionAnalysis = {
+  kicks?: number[];
+  snares?: number[];
+  all_drums?: number[];
+  total_drums?: number;
+  drums_by_type?: Record<string, number[]>;
+  timing_analysis?: { average_bpm?: number };
+  visualization?: string;
+};
+
 type Props = {
-  analysis: any;
+  analysis: PercussionAnalysis;
   session_id: string;
 };
 
@@ -61,7 +71,7 @@ export default function PercussionResults({ analysis, session_id }: Props) {
     other: { name: "Other", color: "#2ecc71", icon: "🎹" },
   };
 
-  const tracks = session_id
+  const tracks: Record<string, string> = session_id
     ? {
         vocals: `${API_CONFIG.COMBINED_API_URL}/api/download/${session_id}/vocals`,
         drums: `${API_CONFIG.COMBINED_API_URL}/api/download/${session_id}/drums`,
@@ -245,7 +255,7 @@ export default function PercussionResults({ analysis, session_id }: Props) {
 
   const downloadTrack = async (trackType: string) => {
     try {
-      const response = await fetch((tracks as any)[trackType]);
+      const response = await fetch(tracks[trackType]);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -257,7 +267,7 @@ export default function PercussionResults({ analysis, session_id }: Props) {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error(`Failed to download ${trackType}:`, error);
-      window.open((tracks as any)[trackType], "_blank");
+      window.open(tracks[trackType], "_blank");
     }
   };
 
@@ -519,7 +529,7 @@ export default function PercussionResults({ analysis, session_id }: Props) {
               Drum Types Detected
             </Typography>
             <Grid container spacing={1} className={styles.drumTypesGrid}>
-              {Object.entries(drumsByType).map(([type, times]: any) => (
+              {Object.entries(drumsByType).map(([type, times]) => (
                 <Grid key={type} size={{ xs: 4, sm: 3, md: 2 }}>
                   <Paper className={styles.drumTypeCard} elevation={0}>
                     <Typography variant="h5" className={styles.drumTypeCount}>{times.length}</Typography>
@@ -582,7 +592,7 @@ export default function PercussionResults({ analysis, session_id }: Props) {
               All Drum Timestamps
             </Typography>
             <Grid container spacing={2} className={styles.timestampGridAll}>
-              {Object.entries(drumsByType).map(([drumType, times]: any) => (
+              {Object.entries(drumsByType).map(([drumType, times]) => (
                 <Grid key={drumType} size={{ xs: 12, sm: 6, md: 4 }}>
                   <Box className={styles.timestampColumn}>
                     <Typography variant="subtitle1" className={styles.drumTypeHeader}>

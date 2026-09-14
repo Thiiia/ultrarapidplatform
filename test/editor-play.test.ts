@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import vm from "node:vm";
 import ts from "typescript";
-import { Children, isValidElement } from "react";
+import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 
 const source = readFileSync(new URL("../app/student/lesson-builder/LessonBuilderClient.tsx", import.meta.url), "utf8");
 const ast = ts.createSourceFile("editor.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -30,25 +30,25 @@ test("header exposes Play wired to launch, disabled during save or without a son
   let launches = 0;
   for (const [canLaunch, isSaving, disabled] of [[true, false, false], [false, false, true], [true, true, true]]) {
     const tree = header({canLaunch, isSaving, onLaunch: () => launches++, selectedActivityKey: "early-algebra"});
-    const buttons: any[] = [];
-    function visit(value: any) {
+    const buttons: Array<ReactElement<{ children?: ReactNode; disabled?: boolean; onClick?: () => void }>> = [];
+    function visit(value: ReactNode) {
       Children.forEach(value, child => {
-        if (!isValidElement<{children?: any}>(child)) return;
+        if (!isValidElement<{ children?: ReactNode; disabled?: boolean; onClick?: () => void }>(child)) return;
         if (child.type === "button") buttons.push(child);
         visit(child.props.children);
       });
     }
-    visit(tree);
+    visit(tree as ReactNode);
     const play = buttons.find(button => button.props.children === "Play");
     assert.ok(play, "Play must be visible beside Save");
     assert.equal(play.props.disabled, disabled);
-    if (!disabled) play.props.onClick();
+    if (!disabled) play.props.onClick?.();
   }
   assert.equal(launches, 1);
 });
 
 for (const saveFails of [false, true]) test(`launch publishes a draft only when publication succeeds; saveFails=${saveFails}`, async () => {
-  const requests: any[] = [];
+  const requests: Array<Record<string, unknown>> = [];
   const routes: string[] = [];
   const launch = load("handleLaunchGame", {
     selectedSongLaunch: {songAssetId: "song", activityKey: "early-algebra", authorName: "dev"},
@@ -56,7 +56,7 @@ for (const saveFails of [false, true]) test(`launch publishes a draft only when 
     lessonPublishReadiness: {ready: true, blockers: []},
     handleSaveToSupabase: async () => saveFails ? false : {authorId: "saved-author", revision: "new-revision"},
     lessonLaunchStrategy: (hasUnsavedChanges: boolean) => hasUnsavedChanges ? "publish-draft" : "published-template",
-    requestFreshSongLaunchPackage: async (request: any) => {
+    requestFreshSongLaunchPackage: async (request: Record<string, unknown>) => {
       requests.push(request);
       return {songAssetId: "song", activityKey: "early-algebra", chart: {signedUrl: "chart"},
         sidecar: {signedUrl: "sidecar"}, audio: {signedUrl: "audio"}, readiness: {canLaunch: true, state: "ready", message: ""}, ...request};
@@ -79,7 +79,7 @@ for (const saveFails of [false, true]) test(`launch publishes a draft only when 
 });
 
 test("launches a published template without asking it to save again", async () => {
-  const requests: any[] = [];
+  const requests: Array<Record<string, unknown>> = [];
   let saves = 0;
   const launch = load("handleLaunchGame", {
     selectedSongLaunch: {songAssetId: "song", activityKey: "early-algebra", authorName: "dev"},
@@ -88,7 +88,7 @@ test("launches a published template without asking it to save again", async () =
     lessonPublishReadiness: {ready: true, blockers: []},
     handleSaveToSupabase: async () => { saves += 1; return false; },
     lessonLaunchStrategy: (hasUnsavedChanges: boolean) => hasUnsavedChanges ? "publish-draft" : "published-template",
-    requestFreshSongLaunchPackage: async (request: any) => {
+    requestFreshSongLaunchPackage: async (request: Record<string, unknown>) => {
       requests.push(request);
       return {songAssetId: "song", activityKey: "early-algebra", chart: {signedUrl: "chart"}, sidecar: {signedUrl: "sidecar"}, audio: {signedUrl: "audio"}, readiness: {canLaunch: true, state: "ready", message: ""}, ...request};
     },

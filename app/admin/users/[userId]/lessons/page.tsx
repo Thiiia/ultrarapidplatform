@@ -127,3 +127,4 @@ export default async function AdminLessonsPreviewPage({
 
   notFound();
 }
+export const dynamic = "force-dynamic";

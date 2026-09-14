@@ -40,3 +40,4 @@ export default async function AdminLessonBuilderPreviewPage({
     />
   );
 }
+export const dynamic = "force-dynamic";

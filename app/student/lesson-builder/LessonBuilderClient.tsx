@@ -9853,6 +9853,58 @@ export default function LessonBuilderClient({
     };
   }, [selectedCenterContextMechanic]);
 
+  const lessonPublishReadiness = useMemo(
+    () => evaluateLessonPublishReadiness(timelineEvents as unknown as AuthoredTimelineEvent[]),
+    [timelineEvents],
+  );
+
+  const selectedGuidedEncounter = useMemo<GuidedEncounterInput | null>(() => {
+    if (!centerContextEvent || !selectedCenterContextMechanic) {
+      return null;
+    }
+
+    const instance =
+      centerContextEvent.mechanicInstances?.[
+        selectedCenterContextMechanic.mechanic
+      ]?.[selectedCenterContextMechanic.instanceIndex];
+
+    if (!instance) {
+      return null;
+    }
+
+    return {
+      id: instance.id,
+      mechanic: selectedCenterContextMechanic.mechanic,
+      tick: instance.tick ?? centerContextEvent.tick,
+      endTick: instance.endTick ?? centerContextEvent.endTick,
+      equation:
+        instance.equation ??
+        centerContextEvent.assignments[selectedCenterContextMechanic.mechanic] ??
+        centerContextEventEquation,
+      hitBubbles: instance.hitBubbles,
+      spinTargets: instance.spinTargets,
+      dragTargets: instance.dragTargets,
+    };
+  }, [centerContextEvent, centerContextEventEquation, selectedCenterContextMechanic]);
+
+  const selectedGuidedReadiness = useMemo(() => {
+    if (!selectedGuidedEncounter) {
+      return null;
+    }
+
+    const issues = lessonPublishReadiness.blockers.filter(
+      (blocker) => blocker.encounterId === selectedGuidedEncounter.id,
+    );
+
+    return {
+      encounterId: selectedGuidedEncounter.id,
+      ready: issues.length === 0,
+      issueCodes: issues.map((item) => item.code),
+      issues,
+      nextAction: issues[0]?.nextAction ?? "Ready to publish and play.",
+    };
+  }, [lessonPublishReadiness, selectedGuidedEncounter]);
+
   useEffect(() => {
     if (centerContextMechanicItems.length === 0) {
       if (selectedContextMechanicKey !== null) {
@@ -11033,6 +11085,42 @@ export default function LessonBuilderClient({
         dragTargets: isSameTokenAlreadySelected ? [] : [{ tokenIndex }],
       };
     });
+  }
+
+  function handlePatchSelectedGuidedEncounter(
+    instanceId: string,
+    patch: Partial<GuidedEncounterInput>,
+  ) {
+    if (!activeEventId || !selectedCenterContextMechanic || selectedGuidedEncounter?.id !== instanceId) {
+      return;
+    }
+
+    const { mechanic, instanceIndex } = selectedCenterContextMechanic;
+
+    setTimelineEvents((current) => {
+      const nextEvents = current.map((eventSlot) => {
+        if (eventSlot.id !== activeEventId) {
+          return eventSlot;
+        }
+
+        const instances = eventSlot.mechanicInstances[mechanic] ?? [];
+        return {
+          ...eventSlot,
+          mechanicInstances: {
+            ...eventSlot.mechanicInstances,
+            [mechanic]: instances.map((instance, index) =>
+              index === instanceIndex
+                ? { ...instance, ...patch, id: instance.id }
+                : instance,
+            ),
+          },
+        };
+      });
+
+      syncTimelineFilesFromEvents(nextEvents);
+      return nextEvents;
+    });
+    markDirty();
   }
 
   function handleBackToSongChoice() {
@@ -12906,10 +12994,6 @@ export default function LessonBuilderClient({
     playheadEventId: rtcmPlayheadEvent?.id ?? null,
     eventIds: timelineEvents.map((eventSlot) => eventSlot.id),
   });
-  const lessonPublishReadiness = useMemo(
-    () => evaluateLessonPublishReadiness(timelineEvents as unknown as AuthoredTimelineEvent[]),
-    [timelineEvents],
-  );
   const dragSources = useMemo(
     () => timelineEvents.flatMap((eventSlot) =>
       (eventSlot.mechanicInstances.hit ?? []).map((instance, index) => ({
@@ -13219,36 +13303,57 @@ export default function LessonBuilderClient({
                       ) : null}
                     </div>
 
-                    <div style={{ gridRow: 2, minHeight: 0 }}>
-                      <CenterChoicePanel
-                        choice={centerChoice}
-                        draftTokens={draftTokens}
-                        activeEventEquation={centerContextEventEquation ?? activeEventEquation}
-                        hasSelectedEvent={Boolean(centerContextEvent)}
-                        selectedTokenIndex={selectedContextMechanicAssignedTokenIndex}
-                        onSelectToken={
-                          selectedCenterContextMechanic && centerContextEventEquation
-                            ? handleAssignTokenToSelectedContextMechanic
-                            : null
-                        }
-                        selectedMechanic={selectedCenterContextMechanic?.mechanic ?? null}
-                        selectedHitPad={selectedContextHitPad}
-                        onSelectHitPad={
-                          selectedCenterContextMechanic?.mechanic === "hit"
-                            ? handleSetSelectedContextHitPad
-                            : null
-                        }
-                        equationViewerBlockSize={equationViewerBlockSize}
-                        currentSongSeconds={currentSongSeconds}
-                        mechanicStartSeconds={selectedContextMechanicTimeWindow.startSeconds}
-                        mechanicEndSeconds={selectedContextMechanicTimeWindow.endSeconds}
-                        isSongPlaying={isSongPlaying}
-                        onQuickAddHit={handleAddHitAtPlayhead}
-                        onCreateEquation={handleCreateEquationChoice}
-                        onBrowseLibrary={handleBrowsePremadeChoice}
-                        showWorkspacePrompt={showCenterWorkspacePrompt}
-                        hideHeader={hideEquationHeader}
-                      />
+                    <div
+                      style={{
+                        gridRow: 2,
+                        minHeight: 0,
+                        overflowY: "auto",
+                        display: "grid",
+                        gridTemplateRows: selectedGuidedEncounter ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)",
+                      }}
+                    >
+                      {selectedGuidedEncounter && selectedGuidedReadiness ? (
+                        <GuidedEncounterComposer
+                          instance={selectedGuidedEncounter}
+                          tokens={selectedGuidedEncounter.equation?.tokens ?? []}
+                          readiness={selectedGuidedReadiness}
+                          step={selectedGuidedReadiness.issueCodes.includes("equation_required") ? 1 : 2}
+                          stepCount={3}
+                          dragSources={dragSources}
+                          onPatchInstance={handlePatchSelectedGuidedEncounter}
+                        />
+                      ) : null}
+                      <div style={{ minHeight: 0, overflow: "hidden" }}>
+                        <CenterChoicePanel
+                          choice={centerChoice}
+                          draftTokens={draftTokens}
+                          activeEventEquation={centerContextEventEquation ?? activeEventEquation}
+                          hasSelectedEvent={Boolean(centerContextEvent)}
+                          selectedTokenIndex={selectedContextMechanicAssignedTokenIndex}
+                          onSelectToken={
+                            selectedCenterContextMechanic && centerContextEventEquation
+                              ? handleAssignTokenToSelectedContextMechanic
+                              : null
+                          }
+                          selectedMechanic={selectedCenterContextMechanic?.mechanic ?? null}
+                          selectedHitPad={selectedContextHitPad}
+                          onSelectHitPad={
+                            selectedCenterContextMechanic?.mechanic === "hit"
+                              ? handleSetSelectedContextHitPad
+                              : null
+                          }
+                          equationViewerBlockSize={equationViewerBlockSize}
+                          currentSongSeconds={currentSongSeconds}
+                          mechanicStartSeconds={selectedContextMechanicTimeWindow.startSeconds}
+                          mechanicEndSeconds={selectedContextMechanicTimeWindow.endSeconds}
+                          isSongPlaying={isSongPlaying}
+                          onQuickAddHit={handleAddHitAtPlayhead}
+                          onCreateEquation={handleCreateEquationChoice}
+                          onBrowseLibrary={handleBrowsePremadeChoice}
+                          showWorkspacePrompt={showCenterWorkspacePrompt}
+                          hideHeader={hideEquationHeader}
+                        />
+                      </div>
                     </div>
 
                     <div

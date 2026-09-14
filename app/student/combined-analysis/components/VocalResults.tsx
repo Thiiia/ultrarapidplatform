@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -23,15 +23,35 @@ import {
 import WaveSurferPlayer from "./WaveSurferPlayer";
 
 type Props = {
-  data: any;
+  data: {
+    syllables: Syllable[];
+    song_info?: { identified?: boolean; title?: string; artist?: string };
+    processing: { total_syllables: number; confidence: number; processing_time: number };
+    timing: { song_duration: number };
+  };
   audioFile?: File | null;
+};
+
+type Syllable = {
+  syllable: string;
+  word: string;
+  start_time: number;
+  end_time: number;
+  duration: number;
+  confidence: number;
 };
 
 export default function VocalResults({ data, audioFile }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredSyllables, setFilteredSyllables] = useState<any[]>(
-    data.syllables || [],
-  );
+  const filteredSyllables = useMemo(() => {
+    const normalizedSearch = searchTerm.toLowerCase();
+    if (!normalizedSearch) return data.syllables || [];
+    return (data.syllables || []).filter(
+      (syl) =>
+        syl.syllable.toLowerCase().includes(normalizedSearch) ||
+        syl.word.toLowerCase().includes(normalizedSearch),
+    );
+  }, [data.syllables, searchTerm]);
 
   const handleDownloadJSON = () => {
     const jsonData = JSON.stringify(data, null, 2);
@@ -49,7 +69,7 @@ export default function VocalResults({ data, audioFile }: Props) {
   const handleDownloadCSV = () => {
     const csvContent = [
       ["Syllable", "Word", "Start (s)", "End (s)", "Duration (s)", "Confidence"].join(","),
-      ...(data.syllables || []).map((syl: any) =>
+      ...(data.syllables || []).map((syl) =>
         [
           syl.syllable,
           syl.word,
@@ -71,19 +91,6 @@ export default function VocalResults({ data, audioFile }: Props) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-
-  useEffect(() => {
-    if (!searchTerm) {
-      setFilteredSyllables(data.syllables || []);
-    } else {
-      const filtered = (data.syllables || []).filter(
-        (syl: any) =>
-          syl.syllable.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          syl.word.toLowerCase().includes(searchTerm.toLowerCase()),
-      );
-      setFilteredSyllables(filtered);
-    }
-  }, [searchTerm, data.syllables]);
 
   return (
     <Box>

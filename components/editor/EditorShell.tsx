@@ -46,10 +46,12 @@ export function EditorShell({ chartFile = "" }: EditorShellProps) {
 
   useEffect(() => {
     if (chartFile && chartFile.trim()) {
-      setChartText(chartFile)
-      if (!chartFileName) {
-        setChartFileName("generated.chart")
-      }
+      queueMicrotask(() => {
+        setChartText(chartFile)
+        if (!chartFileName) {
+          setChartFileName("generated.chart")
+        }
+      })
     }
   }, [chartFile, chartFileName])
 

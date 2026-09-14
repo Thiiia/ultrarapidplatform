@@ -72,3 +72,4 @@ export default async function AdminUserPreviewPage({
 
   redirect("/admin");
 }
+export const dynamic = "force-dynamic";

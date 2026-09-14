@@ -19,3 +19,4 @@ export default async function TeacherLessonBuilderPage() {
 
   return <LessonBuilderClient navBasePath="/teacher" />;
 }
+export const dynamic = "force-dynamic";

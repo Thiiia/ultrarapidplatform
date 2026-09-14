@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import UnityPlayer from './UnityPlayer';
 
 type GameLauncherProps = {
@@ -10,13 +10,8 @@ type GameLauncherProps = {
 export default function GameLauncher({
   autoStart = false,
 }: GameLauncherProps) {
-  const [launched, setLaunched] = useState(autoStart);
-
-  useEffect(() => {
-    if (autoStart) {
-      setLaunched(true);
-    }
-  }, [autoStart]);
+  const [manuallyLaunched, setManuallyLaunched] = useState(false);
+  const launched = autoStart || manuallyLaunched;
 
   const launchPayload = {
     userId: 'user_123',
@@ -34,7 +29,7 @@ export default function GameLauncher({
 
         <button
           type="button"
-          onClick={() => setLaunched(true)}
+          onClick={() => setManuallyLaunched(true)}
           className="rounded border px-4 py-2"
         >
           Launch

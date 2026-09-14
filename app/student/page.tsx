@@ -26,3 +26,4 @@ export default async function StudentPage() {
 
   return <StudentDashboard dashboardData={dashboardData} />;
 }
+export const dynamic = "force-dynamic";

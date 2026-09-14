@@ -19,3 +19,4 @@ export default async function TeacherGamePage() {
 
   return <GameEmbedPage navBasePath="/teacher" />;
 }
+export const dynamic = "force-dynamic";
