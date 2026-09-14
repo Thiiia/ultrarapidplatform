@@ -52,23 +52,23 @@ export default async function ProgressPage() {
       title="Progress"
       cards={[
         {
-          title: "Completed Lessons",
+          title: "Lessons finished",
           description: `${completedCount} lesson${
             completedCount === 1 ? "" : "s"
           } completed recently.`,
         },
         {
-          title: "In Progress",
+          title: "Keep going",
           description: `${inProgressCount} lesson${
             inProgressCount === 1 ? "" : "s"
           } currently in progress.`,
         },
         {
-          title: "Average Score",
+          title: "Practice score",
           description:
             progressRecords.length > 0
               ? `${averageScore}% average across recent lessons.`
-              : "Scores will appear here after you complete lessons.",
+              : "Finish a lesson to see your practice here.",
         },
       ]}
     />

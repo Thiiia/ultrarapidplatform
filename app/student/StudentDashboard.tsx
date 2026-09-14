@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { StudentDashboardData } from "@/lib/student-dashboard";
+import { studentCopy } from "@/lib/student-copy";
 import styles from "./student.module.css";
 
 import URIcon from "@/public/header_icons/URIcon.svg";
@@ -70,14 +71,14 @@ function HeaderBar({
       width: 99,
     },
     {
-      label: "My Lessons",
+      label: studentCopy.navigation.lessons,
       href: `${navBasePath}/lessons`,
       Icon: MyLessonsTab,
       ActiveIcon: MyLessonsPressedTab,
       width: 139,
     },
     {
-      label: "Lesson Builder",
+      label: studentCopy.navigation.builder,
       href: `${navBasePath}/song-choice`,
       Icon: LessonBuilderTab,
       ActiveIcon: LessonBuilderPressedTab,
@@ -160,7 +161,7 @@ function HeaderBar({
                 "/lesson-builder",
               );
               const isHomeTab = tab.label === "Home";
-              const isLessonBuilderTab = tab.label === "Lesson Builder";
+              const isLessonBuilderTab = tab.label === studentCopy.navigation.builder;
               const isActive =
                 pathname === tab.href ||
                 (isHomeTab && pathname === navBasePath) ||
@@ -247,7 +248,7 @@ function HeaderBar({
               borderRadius: 999,
             }}
           >
-            Log out
+            {studentCopy.navigation.logout}
           </a>
         </div>
       </div>
@@ -269,8 +270,7 @@ export default function StudentDashboard({
       title: "Number Bonds",
       icon: numberBondsImage,
       alt: "Number bonds",
-      description:
-        "Use smaller numbers to build bigger numbers.",
+      description: studentCopy.dashboard.gameDescriptions.numberBonds,
       action: "play",
       disabled: false,
     },
@@ -278,8 +278,7 @@ export default function StudentDashboard({
       title: "Equations",
       icon: equationsImage,
       alt: "Equations",
-      description:
-        "Learn the language of equations to see when two quantities are equal to each other.",
+      description: studentCopy.dashboard.gameDescriptions.equations,
       action: "coming-soon",
       disabled: true,
     },
@@ -287,8 +286,7 @@ export default function StudentDashboard({
       title: "Missing Numbers",
       icon: missingNumbersImage,
       alt: "Missing numbers",
-      description:
-        "Use knowledge of number bonds and equations to find the missing quantities that make the equations true.",
+      description: studentCopy.dashboard.gameDescriptions.missingNumbers,
       action: "coming-soon",
       disabled: true,
     },
@@ -296,8 +294,7 @@ export default function StudentDashboard({
       title: "Early Algebra",
       icon: earlyAlgebraImage,
       alt: "Early algebra",
-      description:
-        "Solve equations utilizing variables that stand for unknown quantities.",
+      description: studentCopy.dashboard.gameDescriptions.earlyAlgebra,
       action: "play",
       disabled: false,
     },
@@ -375,7 +372,7 @@ export default function StudentDashboard({
               marginLeft: 0,
             }}
           >
-            NEW ACCOUNT
+            {studentCopy.dashboard.welcomeKicker}
           </div>
           <div
             style={{
@@ -385,7 +382,7 @@ export default function StudentDashboard({
               lineHeight: 1.2,
             }}
           >
-            Welcome to Ultra Rapid, Layla
+            {studentCopy.dashboard.welcome(profileLabel)}
           </div>
           <div
             style={{
@@ -395,7 +392,7 @@ export default function StudentDashboard({
               lineHeight: 1.4,
             }}
           >
-            Your dashboard is ready - lessons will appear here once your teacher assigns them
+            {studentCopy.dashboard.welcomeBody}
           </div>
         </div>
       </div>
@@ -457,7 +454,7 @@ export default function StudentDashboard({
                 }}
               >
                 <CheckIcon style={{ width: 18, height: 18, flexShrink: 0 }} />
-                <span>Your Learning Queue</span>
+                <span>{studentCopy.dashboard.queueTitle}</span>
               </div>
 
               <div
@@ -486,7 +483,7 @@ export default function StudentDashboard({
                     fontWeight: 600,
                   }}
                 >
-                  Your queue is empty
+                  {studentCopy.dashboard.queueEmptyTitle}
                 </div>
                 <div
                   style={{
@@ -496,7 +493,7 @@ export default function StudentDashboard({
                     lineHeight: 1.4,
                   }}
                 >
-                  Lessons assigned by your teacher will appear here.
+                  {studentCopy.dashboard.queueEmptyBody}
                 </div>
                 <div
                   style={{
@@ -506,7 +503,7 @@ export default function StudentDashboard({
                     lineHeight: 1.4,
                   }}
                 >
-                  Jump into the games below while you wait.
+                  {studentCopy.dashboard.queueEmptyAction}
                 </div>
               </div>
             </div>
@@ -533,7 +530,7 @@ export default function StudentDashboard({
                 }}
               >
                 <ControllerIcon style={{ width: 22, height: 22, flexShrink: 0 }} />
-                <span>Games</span>
+                <span>{studentCopy.dashboard.gamesTitle}</span>
               </div>
 
               <div
@@ -654,10 +651,10 @@ export default function StudentDashboard({
                           {game.action === "play" ? (
                             <>
                               <PlayIcon style={{ width: 16, height: 16, display: "block" }} />
-                              <span>Play</span>
+                              <span>{studentCopy.dashboard.play}</span>
                             </>
                           ) : (
-                            "Coming Soon"
+                            studentCopy.dashboard.comingSoon
                           )}
                         </button>
                       </div>

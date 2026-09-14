@@ -1,4 +1,5 @@
 import type { LessonPublishReadiness } from "@/lib/guided-authored-encounter";
+import { studentCopy } from "@/lib/student-copy";
 import styles from "../student.module.css";
 
 export type EncounterReadinessPanelProps = {
@@ -23,18 +24,18 @@ export function EncounterReadinessPanel({
   const contentReady = readiness.ready;
   const fullyReady = contentReady && hasSong && canPublish && canPlay;
   const statusLabel = !hasSong
-    ? "Choose a song"
+    ? "Pick a song"
     : !contentReady
-      ? `${readiness.blockers.length} blocker${readiness.blockers.length === 1 ? "" : "s"}`
+      ? studentCopy.editor.thingsToFix(readiness.blockers.length)
       : !canPlay
-        ? "Play unavailable"
+        ? "Play is waiting"
         : !canPublish
-          ? "Publish unavailable"
-          : "Ready";
+          ? "Save is waiting"
+          : studentCopy.editor.ready;
 
   return (
     <aside
-      aria-label="Encounter readiness"
+      aria-label="Ready check"
       className={`${styles.editorReadiness} ${isOpen ? styles.editorReadinessOpen : ""}`}
       data-open={isOpen ? "true" : "false"}
     >
@@ -45,7 +46,7 @@ export function EncounterReadinessPanel({
         aria-expanded={isOpen}
         aria-controls="lesson-readiness-details"
       >
-        <span className={styles.editorReadinessTitle}>Lesson check</span>
+        <span className={styles.editorReadinessTitle}>{studentCopy.editor.readyCheck}</span>
         <span
           className={styles.editorReadinessStatus}
           data-ready={fullyReady ? "true" : "false"}
@@ -63,7 +64,7 @@ export function EncounterReadinessPanel({
       >
         {!hasSong ? (
           <div className={styles.editorReadinessCopy}>
-            Choose a song before publishing or playing this lesson.
+            {studentCopy.editor.pickSongBeforePlay}
           </div>
         ) : !contentReady ? (
           <div className={styles.editorReadinessBlockers}>
@@ -80,12 +81,12 @@ export function EncounterReadinessPanel({
             ))}
           </div>
         ) : fullyReady ? (
-          <div className={styles.editorReadinessCopy}>Publish and Play are available.</div>
+          <div className={styles.editorReadinessCopy}>{studentCopy.editor.readyToPlay}</div>
         ) : (
           <div className={styles.editorReadinessCopy}>
             {canPublish
-              ? "Publishing is available, but Play is waiting for the song files."
-              : "Finish loading the selected lesson before publishing."}
+              ? studentCopy.editor.gameFilesPreparing
+              : studentCopy.editor.finishLoadingBeforeSave}
           </div>
         )}
       </div>

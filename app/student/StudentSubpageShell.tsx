@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { FC, ReactNode, SVGProps } from "react";
+import { studentCopy } from "@/lib/student-copy";
 import styles from "./student.module.css";
 
 /* Header Icon imports */
@@ -62,28 +63,28 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
       width: 99,
     },
     {
-      label: "My Lessons",
+      label: studentCopy.navigation.lessons,
       href: `${navBasePath}/lessons`,
       Icon: MyLessonsTab,
       ActiveIcon: MyLessonsPressedTab,
       width: 139,
     },
     {
-      label: "Lesson Builder",
+      label: studentCopy.navigation.builder,
       href: `${navBasePath}/song-choice`,
       Icon: LessonBuilderTab,
       ActiveIcon: LessonBuilderPressedTab,
       width: 159,
     },
     {
-      label: "Progress",
+      label: studentCopy.navigation.progress,
       href: `${navBasePath}/progress`,
       Icon: ProgressTab,
       ActiveIcon: ProgressPressedTab,
       width: 120,
     },
         {
-      label: "Play",
+      label: studentCopy.navigation.play,
       href: `${navBasePath}/game`,
       Icon: PlayTab,
       ActiveIcon: PlayPressedTab,
@@ -241,7 +242,7 @@ function HeaderBar({
 const cleanTabHref = tab.href.split("?")[0];
 const isHomeTab = tab.label === "Home";
 const isPlayTab = tab.label === "Play";
-const isLessonBuilderTab = tab.label === "Lesson Builder";
+const isLessonBuilderTab = tab.label === studentCopy.navigation.builder;
 
 const lessonBuilderPath = cleanTabHref.replace(
   "/song-choice",
@@ -333,7 +334,7 @@ const isActive =
             aria-label="Log out"
             className={`${styles.utilityButton} ${styles.logoutButton}`}
           >
-            Log out
+            {studentCopy.navigation.logout}
           </a>
         </div>
       </div>

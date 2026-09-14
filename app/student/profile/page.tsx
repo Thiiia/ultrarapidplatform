@@ -19,16 +19,16 @@ export default async function StudentProfilePage() {
       cards={[
         {
           title: user.name?.trim() || "Student",
-          description: "Your account is connected to your learning progress and lesson workspace.",
+          description: "Your profile keeps your lessons and progress together.",
         },
         {
-          title: "Learning progress",
-          description: "Review completed runs and return to your current learning path.",
+          title: "Your progress",
+          description: "See lessons you have finished and keep learning.",
           href: "/student/progress",
         },
         {
-          title: "Build a lesson",
-          description: "Choose a song, shape a player experience, and launch it in Unity.",
+          title: "Make a lesson",
+          description: "Pick a song, shape a game experience, and play it.",
           href: "/student/song-choice",
         },
       ]}

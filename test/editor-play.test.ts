@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import vm from "node:vm";
 import ts from "typescript";
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
+import { getLearnerFacingError, studentCopy } from "../lib/student-copy";
 
 const source = readFileSync(new URL("../app/student/lesson-builder/LessonBuilderClient.tsx", import.meta.url), "utf8");
 const ast = ts.createSourceFile("editor.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -19,7 +20,7 @@ function load(name: string, globals: Record<string, unknown>) {
   const code = ts.transpileModule(found.getText(ast), {compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
   }}).outputText;
-  const context = vm.createContext({require: createRequire(import.meta.url), exports: {}, ...globals});
+  const context = vm.createContext({require: createRequire(import.meta.url), exports: {}, studentCopy, getLearnerFacingError, ...globals});
   vm.runInContext(code, context);
   return context[name];
 }

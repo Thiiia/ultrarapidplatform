@@ -21,9 +21,9 @@ test("game embed refreshes its signed song package before loading Unity", () => 
 
   assert.match(gameEmbed, /requestFreshSongLaunchParams/);
   assert.match(gameEmbed, /setLaunchParams\(freshLaunchParams\)/);
-  assert.match(gameEmbed, /Preparing your game files/);
+  assert.match(gameEmbed, /studentCopy\.game\.preparingTitle/);
   assert.match(gameEmbed, /resolveLaunchParams\(new URLSearchParams\(serializedSearchParams\)\)/);
-  assert.match(gameEmbed, /Choose a song to play/);
+  assert.match(gameEmbed, /studentCopy\.game\.chooseSongTitle/);
   assert.match(gameEmbed, /Try again/);
 });
 
@@ -32,8 +32,8 @@ test("game embed waits for the verified bridge and reports result-sync failures"
 
   assert.match(gameEmbed, /canRenderEmbeddedGame/);
   assert.match(gameEmbed, /calibrationStatus !== "loading"/);
-  assert.match(gameEmbed, /Sync result again/);
-  assert.match(gameEmbed, /Your lesson result could not be synced yet/);
+  assert.match(gameEmbed, /studentCopy\.game\.syncAgain/);
+  assert.match(gameEmbed, /studentCopy\.game\.resultSyncFailed/);
 });
 
 test("song choice does not present a package that is still loading as ready", () => {
@@ -42,7 +42,7 @@ test("song choice does not present a package that is still loading as ready", ()
   assert.match(songChoice, /selectionStatusById/);
   assert.match(songChoice, /selectedSongStatus === "loading"/);
   assert.match(songChoice, /selectedSongStatus === "error"/);
-  assert.match(songChoice, /Preparing…/);
+  assert.match(songChoice, /studentCopy\.songChoice\.preparing/);
   assert.match(songChoice, /Try again/);
 });
 
@@ -52,8 +52,8 @@ test("builder readiness reflects song, publish, and play prerequisites", () => {
 
   assert.match(builder, /canPublish=\{Boolean\(selectedSongStorage\) && isLessonLoaded && !loadError && lessonPublishReadiness\.ready\}/);
   assert.match(builder, /hasSong=\{Boolean\(selectedSongStorage \|\| selectedSongLaunch\)\}/);
-  assert.match(panel, /Choose a song before publishing or playing this lesson/);
-  assert.match(panel, /Play is waiting for the song files/);
+  assert.match(panel, /studentCopy\.editor\.pickSongBeforePlay/);
+  assert.match(panel, /studentCopy\.editor\.gameFilesPreparing/);
 });
 
 test("guided editing waits until the player chooses an editing action", () => {
@@ -62,10 +62,11 @@ test("guided editing waits until the player chooses an editing action", () => {
 
   assert.match(builder, /const \[tutorialStep, setTutorialStep\][\s\S]*?= useState<[^>]+>\(null\)/);
   assert.match(builder, /setTutorialStep\(isDemoMode \? "welcome" : null\)/);
-  assert.match(guidedStart, /Play the lesson as-is/);
-  assert.match(guidedStart, /Make an equation/);
-  assert.match(guidedStart, /An event is a timed moment in the song\. Each part inside it is an encounter Unity plays\./);
-  assert.match(guidedStart, /After these authored encounters, Unity can continue with its built-in equation bank if the run needs more questions\./);
+  assert.match(guidedStart, /Play this lesson/);
+  assert.match(guidedStart, /Make a new equation/);
+  assert.match(guidedStart, /Move group/);
+  assert.match(guidedStart, /A Hit, Spin, or Drag is one move you can change here\./);
+  assert.match(guidedStart, /After these moves, the game can use its own questions if it needs more\./);
 });
 
 test("player-facing equation actions explain what happens to the lesson", () => {
@@ -73,16 +74,17 @@ test("player-facing equation actions explain what happens to the lesson", () => 
 
   assert.match(builder, /Hide from my lesson/);
   assert.match(builder, /Show again:/);
-  assert.match(builder, /Use this equation for every move in/);
-  assert.match(builder, /Assign to every move in this event/);
-  assert.match(builder, /Every move in Event/);
-  assert.match(builder, /Event \(timed group\)/);
-  assert.match(builder, /Each hit, spin, or drag becomes a separate Unity encounter when you publish\./);
-  assert.match(builder, /Last action/);
-  assert.match(builder, /Changes are only used in Unity after you publish\./);
-  assert.match(builder, /Added your equation to this draft\./);
-  assert.match(builder, /Unity encounter\$\{authoredDraft\.encounters\.length === 1 \? "" : "s"\} across/);
-  assert.match(builder, /from this chart\./);
+  assert.match(builder, /studentCopy\.editor\.useEquationForGroup/);
+  assert.match(builder, /Assign to every move in this group/);
+  assert.match(builder, /Every move in \$\{studentCopy\.editor\.moveGroup/);
+  assert.match(builder, /Move group \(timed\)/);
+  assert.match(builder, /Each Hit, Spin, or Drag becomes its own move in the game when you save\./);
+  assert.match(builder, /studentCopy\.editor\.saveEquation/);
+  assert.match(builder, /Added your equation to this lesson\./);
+  assert.match(builder, /Loaded \$\{authoredDraft\.encounters\.length\} move/);
+  assert.doesNotMatch(builder, /Unity encounter/);
+  assert.doesNotMatch(builder, /Last action/);
+  assert.doesNotMatch(builder, /Changes are only used in Unity after you publish\./);
   assert.doesNotMatch(builder, /Equation added to Event/);
   assert.doesNotMatch(builder, /Hide source from my version/);
   assert.doesNotMatch(builder, /Use in this encounter/);
@@ -91,8 +93,7 @@ test("player-facing equation actions explain what happens to the lesson", () => 
 test("publish failures distinguish browser recovery from the Unity version", () => {
   const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
 
-  assert.doesNotMatch(builder, /Your changes are saved on this device/);
-  assert.match(builder, /Could not publish this lesson\. Unity is still using the last published version\./);
+  assert.match(builder, /studentCopy\.editor\.lessonSaveFailed/);
   assert.match(builder, /A recovery copy stays in this browser\./);
   assert.match(builder, /if \(!response\.ok\) \{[\s\S]*setWorkspaceStatus\("offline"\)/);
 });

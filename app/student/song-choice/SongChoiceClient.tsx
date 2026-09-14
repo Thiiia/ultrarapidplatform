@@ -19,6 +19,7 @@ import {
   isPlayableSongLaunchPackage,
   type SongPackageLoadStatus,
 } from "@/lib/song-choice-flow";
+import { studentCopy } from "@/lib/student-copy";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
 
@@ -108,28 +109,28 @@ function getStudentTopTabs(navBasePath = "/student"): HeaderTab[] {
       width: 99,
     },
     {
-      label: "My Lessons",
+      label: studentCopy.navigation.lessons,
       href: `${navBasePath}/lessons`,
       Icon: MyLessonsTab,
       ActiveIcon: MyLessonsPressedTab,
       width: 139,
     },
     {
-      label: "Lesson Builder",
+      label: studentCopy.navigation.builder,
       href: `${navBasePath}/song-choice`,
       Icon: LessonBuilderTab,
       ActiveIcon: LessonBuilderPressedTab,
       width: 159,
     },
     {
-      label: "Progress",
+      label: studentCopy.navigation.progress,
       href: `${navBasePath}/progress`,
       Icon: ProgressTab,
       ActiveIcon: ProgressPressedTab,
       width: 120,
     },
     {
-      label: "Play",
+      label: studentCopy.navigation.play,
       href: `${navBasePath}/game`,
       Icon: PlayTab,
       ActiveIcon: PlayPressedTab,
@@ -288,7 +289,7 @@ function HeaderBar({
               const cleanTabHref = tab.href.split("?")[0];
               const isHomeTab = tab.label === "Home";
               const isPlayTab = tab.label === "Play";
-              const isLessonBuilderTab = tab.label === "Lesson Builder";
+              const isLessonBuilderTab = tab.label === studentCopy.navigation.builder;
 
               const lessonBuilderPath = cleanTabHref.replace(
                 "/song-choice",
@@ -758,7 +759,7 @@ export default function SongChoiceClient({
       return;
     }
     if (selectedSongStatus !== "ready" || !selectedSongPackage) {
-      setLaunchError("Preparing this song’s lesson files. Please wait a moment.");
+      setLaunchError(studentCopy.songChoice.preparingMessage);
       return;
     }
 
@@ -770,7 +771,7 @@ export default function SongChoiceClient({
       return;
     }
     if (selectedSongStatus !== "ready" || !selectedSongPackage) {
-      setLaunchError("Preparing this song’s lesson files. Please wait a moment.");
+      setLaunchError(studentCopy.songChoice.preparingMessage);
       return;
     }
 
@@ -936,7 +937,7 @@ export default function SongChoiceClient({
                 lineHeight: 1.1,
               }}
             >
-              Choose Song
+              {studentCopy.songChoice.title}
             </h1>
 
             <p
@@ -949,7 +950,7 @@ export default function SongChoiceClient({
                 textAlign: "left",
               }}
             >
-              Pick a song to play alongside your game
+              {studentCopy.songChoice.subtitle}
             </p>
           </div>
         </div>
@@ -1021,8 +1022,8 @@ export default function SongChoiceClient({
                 type="search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search for a song"
-                aria-label="Search for a song"
+                placeholder={studentCopy.songChoice.searchPlaceholder}
+                aria-label={studentCopy.songChoice.searchLabel}
                 style={{
                   width: "100%",
                   height: "100%",
@@ -1159,7 +1160,7 @@ export default function SongChoiceClient({
                           width: "100%",
                         }}
                       >
-                        {song.artist ?? "Unknown artist"}
+                        {song.artist ?? studentCopy.songChoice.unknownArtist}
                       </span>
                     </div>
 
@@ -1216,7 +1217,7 @@ export default function SongChoiceClient({
                     fontWeight: 600,
                   }}
                 >
-                  No matching songs
+                  {studentCopy.songChoice.noSongsTitle}
                 </h2>
                 <p
                   style={{
@@ -1227,7 +1228,7 @@ export default function SongChoiceClient({
                     lineHeight: "19.5px",
                   }}
                 >
-                  Try a different search term.
+                  {studentCopy.songChoice.noSongsBody}
                 </p>
               </div>
             )}
@@ -1262,22 +1263,22 @@ export default function SongChoiceClient({
             cursor: "pointer",
           }}
         >
-          Back
+          {studentCopy.songChoice.back}
         </button>
 
         <button
           type="button"
           disabled={!selectedSong || selectedSongStatus === "idle" || selectedSongStatus === "loading"}
           onClick={handleContinue}
-          aria-label={selectedSongStatus === "error" ? "Try loading this song again" : "Continue to Lesson Builder"}
+          aria-label={selectedSongStatus === "error" ? "Try loading this song again" : `Continue to ${studentCopy.navigation.builder}`}
           title={
             selectedSongStatus === "loading"
-              ? "Preparing this song’s lesson files"
+              ? studentCopy.songChoice.preparingMessage
               : selectedSongStatus === "error"
                 ? "Try loading this song again"
                 : selectedSongStatus === "idle"
                   ? "Select a song to continue"
-                  : "Continue to Lesson Builder"
+                  : `Continue to ${studentCopy.navigation.builder}`
           }
           style={{
             border: "none",
@@ -1297,10 +1298,10 @@ export default function SongChoiceClient({
           }}
         >
           {selectedSongStatus === "loading"
-            ? "Preparing…"
+            ? studentCopy.songChoice.preparing
             : selectedSongStatus === "error"
               ? "Try again"
-              : "Next"}
+              : studentCopy.songChoice.continue}
         </button>
       </div>
 
@@ -1347,13 +1348,13 @@ export default function SongChoiceClient({
                 textAlign: "center",
               }}
             >
-              <span id="lesson-entry-title">Choose how to start</span>
+              <span id="lesson-entry-title">{studentCopy.songChoice.chooseHowToStart}</span>
             </h2>
 
             <p style={{ margin: 0, color: "#D1D5DB", textAlign: "center", lineHeight: 1.45 }}>
               {selectedSongCanPlay
-                ? "This lesson is ready to play. You can keep the template safe while you make a private copy."
-                : "This song is ready to personalize, but it is not playable until a complete lesson is available."}
+                ? studentCopy.songChoice.readyToPlayBody
+                : studentCopy.songChoice.needsWorkBody}
             </p>
 
             {launchError ? (
@@ -1372,7 +1373,7 @@ export default function SongChoiceClient({
               <button
                 type="button"
                 onClick={handleCustomizeYes}
-                aria-label="Personalize a copy"
+                aria-label={studentCopy.songChoice.makeCopy}
                 style={{
                   border: "none",
                   borderRadius: 999,
@@ -1384,16 +1385,16 @@ export default function SongChoiceClient({
                   cursor: "pointer",
                 }}
               >
-                <span>Personalize a copy</span>
-                <small style={{ display: "block", fontWeight: 600 }}>Change one encounter or add one equation. The template stays safe.</small>
+                <span>{studentCopy.songChoice.makeCopy}</span>
+                <small style={{ display: "block", fontWeight: 600 }}>{studentCopy.songChoice.makeCopyBody}</small>
               </button>
 
               <button
                 type="button"
                 onClick={handleCustomizeNo}
                 disabled={!selectedSongCanPlay}
-                aria-label="Play this lesson"
-                title={selectedSongCanPlay ? "Start the ready-made lesson" : "Complete the lesson before playing"}
+                  aria-label={studentCopy.songChoice.playLesson}
+                title={selectedSongCanPlay ? studentCopy.songChoice.playLessonBody : "Finish the lesson before playing"}
                 style={{
                   border: "1px solid #7A8FA8",
                   borderRadius: 999,
@@ -1406,12 +1407,12 @@ export default function SongChoiceClient({
                   opacity: selectedSongCanPlay ? 1 : 0.65,
                 }}
               >
-                <span>Play this lesson</span>
-                <small style={{ display: "block", fontWeight: 600 }}>Start the ready-made lesson now. You can personalize it later.</small>
+                <span>{studentCopy.songChoice.playLesson}</span>
+                <small style={{ display: "block", fontWeight: 600 }}>{studentCopy.songChoice.playLessonBody}</small>
               </button>
 
-              <button type="button" onClick={() => setIsCustomizePromptOpen(false)} aria-label="Back to songs" style={{ border: 0, background: "transparent", color: "#FFFFFF", padding: 8, cursor: "pointer", textDecoration: "underline" }}>
-                Back to songs
+              <button type="button" onClick={() => setIsCustomizePromptOpen(false)} aria-label={studentCopy.songChoice.chooseDifferentSong} style={{ border: 0, background: "transparent", color: "#FFFFFF", padding: 8, cursor: "pointer", textDecoration: "underline" }}>
+                {studentCopy.songChoice.chooseDifferentSong}
               </button>
             </div>
           </div>

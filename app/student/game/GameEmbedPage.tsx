@@ -10,6 +10,7 @@ import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 import { createBridgeContext, getOrCreateInstallationId, needsCalibration, validateBridgeMessage, type BridgeContext } from "@/lib/platform-player-bridge";
 import { getSongLaunchErrorMessage } from "@/lib/song-choice-flow";
 import { requestFreshSongLaunchParams } from "@/lib/song-launch-client";
+import { studentCopy } from "@/lib/student-copy";
 import { webglFlexFrameStyle, webglViewportHostStyle } from "@/lib/webgl-embed-layout";
 import styles from "../student.module.css";
 
@@ -73,25 +74,25 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
     { label: "Home", href: navBasePath, Icon: HomeIcon, width: 99 },
     {
-      label: "My Lessons",
+      label: studentCopy.navigation.lessons,
       href: `${navBasePath}/lessons`,
       Icon: MyLessonsTab,
       width: 139,
     },
     {
-      label: "Lesson Builder",
+      label: studentCopy.navigation.builder,
       href: `${navBasePath}/song-choice`,
       Icon: LessonBuilderTab,
       width: 159,
     },
     {
-      label: "Progress",
+      label: studentCopy.navigation.progress,
       href: `${navBasePath}/progress`,
       Icon: ProgressTab,
       width: 120,
     },
         {
-      label: "Play",
+      label: studentCopy.navigation.play,
       href: `${navBasePath}/game`,
       Icon: PlayTab,
       width: 99,
@@ -200,7 +201,7 @@ function HeaderBar({
 const cleanTabHref = tab.href.split("?")[0];
 const isHomeTab = tab.label === "Home";
 const isPlayTab = tab.label === "Play";
-const isLessonBuilderTab = tab.label === "Lesson Builder";
+const isLessonBuilderTab = tab.label === studentCopy.navigation.builder;
 
 const lessonBuilderPath = cleanTabHref.replace(
   "/song-choice",
@@ -358,7 +359,7 @@ function GameEmbedSession({
     } catch {
       return {
         context: null,
-        error: "The lesson handoff could not be verified. Return to song choice and start it again.",
+        error: studentCopy.game.handoffError,
       };
     }
   }, [activeLaunchParams]);
@@ -444,10 +445,10 @@ function GameEmbedSession({
             setCalibrationStatus("ready");
             setBridgeStatusMessage("");
           } else {
-            setBridgeStatusMessage("Calibration finished, but could not be saved. You can try again before leaving this lesson.");
+            setBridgeStatusMessage(studentCopy.game.calibrationSaveFailed);
           }
         }).catch(() => {
-          if (!cancelled) setBridgeStatusMessage("Calibration finished, but could not be saved. You can try again before leaving this lesson.");
+          if (!cancelled) setBridgeStatusMessage(studentCopy.game.calibrationSaveFailed);
         });
       } else if (result.message.type === "run-complete") {
         const completion = result.message.completion;
@@ -491,7 +492,7 @@ function GameEmbedSession({
       .catch(() => {
         if (!cancelled) {
           setOutcomeSyncState("failed");
-          setBridgeStatusMessage("Your lesson result could not be synced yet. Keep this tab open and try again.");
+          setBridgeStatusMessage(studentCopy.game.resultSyncFailed);
         }
       });
 
@@ -569,9 +570,9 @@ function GameEmbedSession({
           ) : (
             <div role={launchErrorMessage ? "alert" : "status"} style={{ ...webglFlexFrameStyle, display: "grid", placeItems: "center", border: `1px solid ${subtleBorderColor}`, borderRadius: 12, padding: 24, boxSizing: "border-box", textAlign: "center" }}>
               <div style={{ display: "grid", gap: 14, justifyItems: "center", maxWidth: 460 }}>
-                <strong>{launchErrorMessage ? "We couldn’t prepare this lesson" : needsSongChoice ? "Choose a song to play" : "Preparing your game files…"}</strong>
+                <strong>{launchErrorMessage ? studentCopy.game.prepareErrorTitle : needsSongChoice ? studentCopy.game.chooseSongTitle : studentCopy.game.preparingTitle}</strong>
                 <span style={{ color: "#FFFFFFB3", lineHeight: 1.45 }}>
-                  {launchErrorMessage || (needsSongChoice ? "Pick a song first, then return here to start the lesson." : "Your signed lesson files are being prepared.")}
+                  {launchErrorMessage || (needsSongChoice ? studentCopy.game.chooseSongBody : studentCopy.game.preparingBody)}
                 </span>
                 {launchErrorMessage ? (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
@@ -581,25 +582,25 @@ function GameEmbedSession({
                       </button>
                     )}
                     <Link href={`${navBasePath}/song-choice`} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 999, color: "#FFFFFF", padding: "9px 16px", textDecoration: "none", fontWeight: 700 }}>
-                      Choose another song
+                      {studentCopy.game.chooseAnotherSong}
                     </Link>
                   </div>
                 ) : needsSongChoice ? (
                   <Link href={`${navBasePath}/song-choice`} style={{ border: "none", borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "10px 18px", textDecoration: "none", fontWeight: 800 }}>
-                    Choose a song
+                    {studentCopy.game.chooseSong}
                   </Link>
                 ) : null}
               </div>
             </div>
           )}
           {bridgeContext && calibrationStatus === "required" && (
-            <p className="mt-2 text-sm text-white/70">Complete calibration in the game before playing.</p>
+            <p className="mt-2 text-sm text-white/70">{studentCopy.game.calibrationRequired}</p>
           )}
           {bridgeStatusMessage && (
             <p className="mt-2 text-sm text-amber-200" role="alert">{bridgeStatusMessage}</p>
           )}
           {pendingOutcome && outcomeSyncState === "saving" && (
-            <p className="mt-2 text-sm text-white/70" role="status">Saving your lesson result…</p>
+            <p className="mt-2 text-sm text-white/70" role="status">{studentCopy.game.savingResult}</p>
           )}
           {pendingOutcome && outcomeSyncState === "failed" && (
             <p className="mt-2 text-sm text-amber-200" role="alert">
@@ -611,14 +612,14 @@ function GameEmbedSession({
                 }}
                 style={{ marginRight: 6, border: 0, borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "5px 10px", fontWeight: 800, cursor: "pointer" }}
               >
-                Sync result again
+                {studentCopy.game.syncAgain}
               </button>
-              Your result is still waiting to be saved.
+              {studentCopy.game.waitingToSave}
             </p>
           )}
           {completedRun && (
             <p className="mt-2 text-sm text-emerald-200" role="status">
-              Lesson complete: {completedRun.completedEvents} player moments finished in {completedRun.hitAttempts} hit attempts. You can return to song choice when ready.
+              {studentCopy.game.lessonComplete(completedRun.completedEvents, completedRun.hitAttempts)} {studentCopy.game.returnToSongs}
             </p>
           )}
         </section>

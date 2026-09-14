@@ -46,16 +46,16 @@ export default async function DemoStudentLessonsPage() {
         }))
       : [
           {
-            title: "No Assigned Lessons",
-            description: "This demo student does not have any assigned lessons yet.",
+            title: "No lessons yet",
+            description: "Lessons will appear here when they are ready.",
           },
           {
-            title: "In Progress",
-            description: "Lessons this student starts will appear here.",
+            title: "Keep going",
+            description: "Lessons you start will appear here.",
           },
           {
-            title: "Completed",
-            description: "Finished lessons will appear here for review.",
+            title: "Finished lessons",
+            description: "Review the lessons you have finished.",
           },
         ];
 

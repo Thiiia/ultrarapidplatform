@@ -31,19 +31,19 @@ export default async function MyLessonsPage() {
         }))
       : [
           {
-            title: "No Assigned Lessons",
+            title: "No lessons yet",
             description:
-              "Your assigned lessons will appear here after your teacher adds you to a class and assigns work.",
+              "Lessons from your teacher will appear here when they are ready.",
           },
           {
-            title: "In Progress",
+            title: "Keep going",
             description:
-              "Lessons you start will appear here so you can continue where you left off.",
+              "Lessons you start will appear here so you can pick up where you left off.",
           },
           {
-            title: "Completed",
+            title: "Finished lessons",
             description:
-              "Finished lessons will appear here for review and progress tracking.",
+              "Review the lessons you have finished.",
           },
         ];
 

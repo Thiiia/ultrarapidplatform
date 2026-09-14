@@ -10,16 +10,16 @@ export default function DemoStudentProfilePage() {
       cards={[
         {
           title: "Demo student",
-          description: "This preview profile keeps your lesson-building and player navigation in the demo workspace.",
+          description: "This preview profile keeps your lessons and progress together.",
         },
         {
-          title: "Learning progress",
-          description: "Review completed runs and return to the current learning path.",
+          title: "Your progress",
+          description: "See lessons you have finished and keep learning.",
           href: "/demo/student/progress",
         },
         {
-          title: "Build a lesson",
-          description: "Choose a song, shape a player experience, and launch it in Unity.",
+          title: "Make a lesson",
+          description: "Pick a song, shape a game experience, and play it.",
           href: "/demo/student/song-choice",
         },
       ]}

@@ -50,7 +50,7 @@ function renderComposer(overrides: Partial<GuidedEncounterInput> = {}) {
 test("spin labels target and duration without hit-pad controls", () => {
   const tree = renderComposer();
   assert.match(text(tree), /Select the token to spin/);
-  assert.match(text(tree), /End time/);
+  assert.match(text(tree), /Ends at/);
   assert.doesNotMatch(text(tree), /Hit pad/);
 });
 

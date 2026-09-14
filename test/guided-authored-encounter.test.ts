@@ -81,7 +81,7 @@ test("drag source must be an earlier ready Hit", () => {
   ];
   const result = evaluateLessonPublishReadiness(events);
   assert.equal(result.ready, false);
-  assert.match(result.blockers[0].message, /earlier ready Hit/);
+  assert.match(result.blockers[0].message, /Hit that comes first/);
 });
 
 test("RCTM without saved equation remains a visible non-publishable draft", () => {

@@ -1,6 +1,7 @@
 import type { ChangeEvent, ReactNode } from "react";
 
 import { isAuthoredEquationOperator } from "@/lib/authored-lesson";
+import { studentCopy } from "@/lib/student-copy";
 import type { AuthoredEquationToken } from "@/lib/authored-lesson-serialization";
 import type {
   EncounterReadiness,
@@ -50,9 +51,9 @@ function TimeControls({
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end" }}>
       <label style={{ display: "grid", gap: 4, color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>
-        Start time
+        {studentCopy.mechanics.startTime}
         <input
-          aria-label="Start time"
+          aria-label={studentCopy.mechanics.startTime}
           type="number"
           min="0"
           step="0.01"
@@ -62,9 +63,9 @@ function TimeControls({
         />
       </label>
       <label style={{ display: "grid", gap: 4, color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>
-        End time
+        {studentCopy.mechanics.endTime}
         <input
-          aria-label="End time"
+          aria-label={studentCopy.mechanics.endTime}
           type="number"
           min="0"
           step="0.01"
@@ -93,9 +94,9 @@ function TokenButton({
     <button
       type="button"
       disabled={operator}
-      aria-label={operator ? `${token.label} operator` : `${label} ${token.label}`}
+      aria-label={operator ? `${token.label} sign` : `${label} ${token.label}`}
       aria-pressed={!operator && selected}
-      title={operator ? "Operators cannot be gameplay targets." : `Select ${label.toLowerCase()}`}
+      title={operator ? studentCopy.mechanics.operatorHint : `Choose ${label.toLowerCase()}`}
       onClick={onSelect}
       style={{
         borderRadius: 999,
@@ -116,11 +117,13 @@ function TargetPicker({
   instance,
   tokens,
   kind,
+  displayLabel,
   onPatchInstance,
 }: {
   instance: GuidedEncounterInput;
   tokens: AuthoredEquationToken[];
   kind: "Target token" | "Spin target" | "Drag target";
+  displayLabel: string;
   onPatchInstance: GuidedEncounterComposerProps["onPatchInstance"];
 }) {
   const selected = kind === "Target token"
@@ -143,20 +146,20 @@ function TargetPicker({
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
-      <div style={{ color: "#CFFF04", fontSize: 12, fontWeight: 900 }}>{kind}</div>
+      <div style={{ color: "#CFFF04", fontSize: 12, fontWeight: 900 }}>{displayLabel}</div>
       <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
         {tokens.map((token, tokenIndex) => (
           <TokenButton
             key={token.id}
             token={token}
             selected={selected === tokenIndex}
-            label={kind}
+            label={kind === "Target token" ? "what to hit" : kind === "Spin target" ? "what to spin" : "what to drag"}
             onSelect={() => select(tokenIndex)}
           />
         ))}
       </div>
       {tokens.some((token) => isAuthoredEquationOperator(token.label)) ? (
-        <div style={{ color: "#FFFFFF80", fontSize: 11 }}>Operators cannot be gameplay targets.</div>
+        <div style={{ color: "#FFFFFF80", fontSize: 11 }}>{studentCopy.mechanics.operatorHint}</div>
       ) : null}
     </div>
   );
@@ -171,9 +174,9 @@ function HitControls({
   const selectedPads = instance.hitBubbles[0]?.pads ?? [];
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      <TargetPicker instance={instance} tokens={tokens} kind="Target token" onPatchInstance={onPatchInstance} />
+      <TargetPicker instance={instance} tokens={tokens} kind="Target token" displayLabel={studentCopy.mechanics.pickHitTarget} onPatchInstance={onPatchInstance} />
       <div style={{ display: "grid", gap: 7 }}>
-        <div style={{ color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>Pad buttons</div>
+        <div style={{ color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>{studentCopy.mechanics.chooseButtons}</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {hitPads.map(([pad, label]) => (
             <button
@@ -208,11 +211,11 @@ function DragControls({
 }: Pick<GuidedEncounterComposerProps, "instance" | "tokens" | "dragSources" | "onPatchInstance">) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      <TargetPicker instance={instance} tokens={tokens} kind="Drag target" onPatchInstance={onPatchInstance} />
+      <TargetPicker instance={instance} tokens={tokens} kind="Drag target" displayLabel={studentCopy.mechanics.pickDragTarget} onPatchInstance={onPatchInstance} />
       <label style={{ display: "grid", gap: 4, color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>
-        Earlier ready Hit source
+        {studentCopy.mechanics.chooseEarlierHit}
         <select
-          aria-label="Earlier ready Hit source"
+          aria-label={studentCopy.mechanics.chooseEarlierHitLabel}
           value={instance.dragTargets[0]?.sourceHitId ?? ""}
           onChange={(event) => {
             const target = instance.dragTargets[0];
@@ -221,12 +224,12 @@ function DragControls({
           }}
           style={{ maxWidth: 260, borderRadius: 8, border: "1px solid #7A8FA8", background: "#0C1422", color: "#FFFFFF", padding: "7px 8px" }}
         >
-          <option value="">Choose the earlier Hit</option>
+          <option value="">{studentCopy.mechanics.chooseEarlierHitOption}</option>
           {(dragSources ?? []).map((source) => <option key={source.id} value={source.id}>{source.label}</option>)}
         </select>
       </label>
       <TimeControls instance={instance} onPatchInstance={onPatchInstance} />
-      <div aria-hidden="true" style={{ color: "#FFFFFF80", fontSize: 11 }}>Drag from the earlier Hit into the selected target.</div>
+      <div aria-hidden="true" style={{ color: "#FFFFFF80", fontSize: 11 }}>{studentCopy.mechanics.connectEarlierHit}</div>
     </div>
   );
 }
@@ -240,18 +243,18 @@ export function GuidedEncounterComposer({
   dragSources = [],
   onPatchInstance,
 }: GuidedEncounterComposerProps) {
-  const heading = instance.mechanic === "hit" ? "Create a Hit" : instance.mechanic === "spin" ? "Create a Spin" : "Create a Drag";
+  const heading = instance.mechanic === "hit" ? studentCopy.mechanics.makeHit : instance.mechanic === "spin" ? studentCopy.mechanics.makeSpin : studentCopy.mechanics.makeDrag;
   let controls: ReactNode;
   if (!instance.equation || tokens.length === 0) {
-    controls = <div style={{ color: "#FFFFFFB3", fontSize: 12 }}>Save or choose an equation to start this encounter.</div>;
+    controls = <div style={{ color: "#FFFFFFB3", fontSize: 12 }}>{studentCopy.mechanics.chooseEquation}</div>;
   } else if (instance.mechanic === "hit") {
     controls = <HitControls instance={instance} tokens={tokens} onPatchInstance={onPatchInstance} />;
   } else if (instance.mechanic === "spin") {
     controls = (
       <div style={{ display: "grid", gap: 12 }}>
-        <TargetPicker instance={instance} tokens={tokens} kind="Spin target" onPatchInstance={onPatchInstance} />
+        <TargetPicker instance={instance} tokens={tokens} kind="Spin target" displayLabel={studentCopy.mechanics.pickSpinTarget} onPatchInstance={onPatchInstance} />
         <TimeControls instance={instance} onPatchInstance={onPatchInstance} />
-        <div aria-label="Rotation cue" style={{ color: "#FFFFFF80", fontSize: 11 }}>↻ Rotate this token during the selected time.</div>
+        <div aria-label="Spin cue" style={{ color: "#FFFFFF80", fontSize: 11 }}>↻ {studentCopy.mechanics.spinCue}</div>
       </div>
     );
   } else {
@@ -264,7 +267,7 @@ export function GuidedEncounterComposer({
         <h3 style={{ margin: 0, color: "#FFFFFF", fontSize: 15 }}>{heading}</h3>
         <span style={{ color: "#CFFF04", fontSize: 11, fontWeight: 900 }}>Step {step} of {stepCount}</span>
       </div>
-      {readiness.ready ? <div style={{ color: "#CFFF04", fontSize: 11, fontWeight: 800 }}>Ready to publish and play.</div> : <div role="status" style={{ color: "#FFCB6B", fontSize: 11, fontWeight: 800 }}>{readiness.nextAction}</div>}
+      {readiness.ready ? <div style={{ color: "#CFFF04", fontSize: 11, fontWeight: 800 }}>{studentCopy.editor.readyToPlay}</div> : <div role="status" style={{ color: "#FFCB6B", fontSize: 11, fontWeight: 800 }}>{readiness.nextAction}</div>}
       {controls}
     </section>
   );

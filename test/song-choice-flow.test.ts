@@ -34,7 +34,7 @@ test("song choice replaces infrastructure details with recoverable player copy",
   );
   assert.equal(
     getSongLaunchErrorMessage(new Error("No authored lesson or verified starter template is available. The blank chart is available for editing.")),
-    "No authored lesson or verified starter template is available. The blank chart is available for editing.",
+    "This lesson is not ready to play yet. Try another song or ask your teacher for help.",
   );
 });
 

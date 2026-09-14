@@ -63,13 +63,13 @@ export default async function DemoStudentProgressPage() {
       navBasePath="/demo/student"
       cards={[
         {
-          title: "Completed Lessons",
+          title: "Lessons finished",
           description: `${completedCount} lesson${
             completedCount === 1 ? "" : "s"
           } completed recently.`,
         },
         {
-          title: "In Progress",
+          title: "Keep going",
           description: `${inProgressCount} lesson${
             inProgressCount === 1 ? "" : "s"
           } currently in progress.`,
@@ -79,7 +79,7 @@ export default async function DemoStudentProgressPage() {
           description:
             progressRecords.length > 0
               ? `${averageScore}% average across recent lessons.`
-              : "Scores will appear here after this student completes lessons.",
+              : "Finish a lesson to see your practice here.",
         },
       ]}
     />

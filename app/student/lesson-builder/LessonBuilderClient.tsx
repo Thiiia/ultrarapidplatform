@@ -40,6 +40,7 @@ import {
 } from "@/lib/song-launch-client";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import { getPlayerLaunchRoute } from "@/lib/song-choice-flow";
+import { getLearnerFacingError, studentCopy } from "@/lib/student-copy";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import { GuidedEncounterComposer } from "./GuidedEncounterComposer";
 import { EncounterReadinessPanel } from "./EncounterReadinessPanel";
@@ -1931,13 +1932,13 @@ function HeaderBar({
           {(() => {
             const chartmakerInfo = (() => {
               if (selectedActivityKey === "early-algebra") {
-                return { label: "RCTM1 Chartmaker", onClick: onToggleRctm1Mode, isActive: isRctm1Mode };
+                return { label: studentCopy.editor.advancedTools, onClick: onToggleRctm1Mode, isActive: isRctm1Mode };
               } else if (selectedActivityKey === "number-bonds") {
-                return { label: "RCTM2 Chartmaker", onClick: onToggleRctm2Mode, isActive: isRctm2Mode };
+                return { label: studentCopy.editor.advancedTools, onClick: onToggleRctm2Mode, isActive: isRctm2Mode };
               } else if (selectedActivityKey === "equations") {
-                return { label: "RCTM3 Chartmaker", onClick: onToggleRctm1Mode, isActive: isRctm1Mode };
+                return { label: studentCopy.editor.advancedTools, onClick: onToggleRctm1Mode, isActive: isRctm1Mode };
               } else if (selectedActivityKey === "missing-numbers") {
-                return { label: "RCTM4 Chartmaker", onClick: onToggleRctm2Mode, isActive: isRctm2Mode };
+                return { label: studentCopy.editor.advancedTools, onClick: onToggleRctm2Mode, isActive: isRctm2Mode };
               }
               return null;
             })();
@@ -1982,8 +1983,8 @@ function HeaderBar({
           <button
             type="button"
             onClick={onOpenFile}
-            aria-label="Open file picker"
-            title="Choose a different song or activity"
+            aria-label={studentCopy.editor.changeSongLabel}
+            title={studentCopy.editor.changeSongLabel}
             style={{
               width: 64,
               height: 30,
@@ -2008,15 +2009,15 @@ function HeaderBar({
               aria-hidden="true"
               style={{ width: 12, height: 12, display: "block" }}
             />
-            File
+            {studentCopy.editor.changeSong}
           </button>
 
           <button
             type="button"
             onClick={onLaunch}
             disabled={!canLaunch || isSaving}
-            aria-label="Play saved lesson in game"
-            title={isSaving ? "Saving lesson changes" : canLaunch ? "Play the safe published lesson. Changes publish automatically only when ready." : "Choose a song before playing"}
+            aria-label={studentCopy.editor.playLessonLabel}
+            title={isSaving ? "Saving lesson changes" : canLaunch ? studentCopy.editor.playLessonLabel : studentCopy.editor.pickSongBeforePlay}
             style={{
               minWidth: 70,
               height: 30,
@@ -2038,8 +2039,8 @@ function HeaderBar({
             type="button"
             disabled={!canPublish || isSaving}
             onClick={onSave}
-            aria-label="Publish changes"
-            title={canPublish ? "Publish changes" : "Complete the lesson before publishing"}
+            aria-label={studentCopy.editor.saveLessonLabel}
+            title={canPublish ? studentCopy.editor.saveLessonLabel : "Finish the lesson before saving"}
             style={{
               width: 60,
               height: 29,
@@ -2112,9 +2113,9 @@ function UnsavedChangesModal({
           gap: 14,
         }}
       >
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Unsaved changes</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{studentCopy.editor.unsavedTitle}</h2>
         <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#D1D5DB", lineHeight: 1.45 }}>
-          You have changes that are not saved. Do you want to save before leaving?
+          {studentCopy.editor.unsavedBody}
         </p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
           <button
@@ -2132,7 +2133,7 @@ function UnsavedChangesModal({
               cursor: "pointer",
             }}
           >
-            Stay
+            {studentCopy.editor.keepEditing}
           </button>
           <button
             type="button"
@@ -2149,7 +2150,7 @@ function UnsavedChangesModal({
               cursor: "pointer",
             }}
           >
-            Leave Without Saving
+            {studentCopy.editor.leaveWithoutSaving}
           </button>
           <button
             type="button"
@@ -2168,7 +2169,7 @@ function UnsavedChangesModal({
               opacity: isSaving ? 0.6 : 1,
             }}
           >
-            {isSaving ? "Saving..." : "Save & Leave"}
+            {isSaving ? "Saving…" : studentCopy.editor.saveAndLeave}
           </button>
         </div>
       </div>
@@ -2223,7 +2224,7 @@ function TutorialBubble({
           cursor: "pointer",
         }}
       >
-        Skip tips
+        {studentCopy.editor.tutorialSkip}
       </button>
       {text}
     </div>
@@ -2316,12 +2317,12 @@ function EditorToast({
       <span className={styles.editorToastIndicator} aria-hidden="true" />
       <span className={styles.editorToastMessage}>
         <span className={styles.editorToastLabel}>
-          {kind === "error" ? "Needs attention" : "Last action"}
+          {kind === "error" ? "Needs attention" : "Update"}
         </span>
         <span>{message}</span>
         {hasUnsavedChanges ? (
           <span className={styles.editorToastSecondary}>
-            Changes are only used in Unity after you publish.
+            Save your lesson to use these changes when you play.
           </span>
         ) : null}
       </span>
@@ -2422,7 +2423,7 @@ function SongFilePickerModal({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Choose Song File</h2>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Choose a song</h2>
           <button
             type="button"
             onClick={onClose}
@@ -2444,7 +2445,7 @@ function SongFilePickerModal({
 
         <div style={{ display: "grid", gap: 6 }}>
           <label htmlFor="lesson-builder-author-select" style={{ fontSize: 12, fontWeight: 700, color: "#D1D5DB" }}>
-            Author
+            Teacher or creator
           </label>
           <select
             id="lesson-builder-author-select"
@@ -2464,7 +2465,7 @@ function SongFilePickerModal({
           >
             {authors.length === 0 ? (
               <option value="">
-                {isLoadingAuthors ? "Loading authors..." : "No authors found"}
+                {isLoadingAuthors ? "Loading creators…" : "No creators found"}
               </option>
             ) : (
               authors.map((author) => (
@@ -2478,7 +2479,7 @@ function SongFilePickerModal({
 
         <div style={{ display: "grid", gap: 6 }}>
           <label htmlFor="lesson-builder-activity-select" style={{ fontSize: 12, fontWeight: 700, color: "#D1D5DB" }}>
-            Activity
+            Learning activity
           </label>
           <select
             id="lesson-builder-activity-select"
@@ -2526,7 +2527,7 @@ function SongFilePickerModal({
           >
             {songs.length === 0 ? (
               <option value="">
-                {authorName ? "No songs found" : "Select an author first"}
+                {authorName ? "No songs found" : "Choose a creator first"}
               </option>
             ) : (
               songs.map((song) => (
@@ -2540,7 +2541,7 @@ function SongFilePickerModal({
 
         {isLoading ? (
           <div style={{ color: "#D1D5DB", fontSize: 12, fontWeight: 600 }}>
-            Loading songs...
+            Loading songs…
           </div>
         ) : null}
 
@@ -2568,7 +2569,7 @@ function SongFilePickerModal({
               opacity: isLoading || !selectedSongId ? 0.6 : 1,
             }}
           >
-            Load Song
+            Choose this song
           </button>
         </div>
       </div>
@@ -3138,7 +3139,7 @@ function EquationBuilderArea({
                 transition: "background 140ms ease",
               }}
             >
-              Drag a token here to start the equation
+              {studentCopy.editor.emptyEquation}
             </div>
           ) : (
             <>
@@ -3205,7 +3206,7 @@ function EquationBuilderArea({
             cursor: draftTokens.length > 0 ? "pointer" : "not-allowed",
           }}
         >
-          Save to my templates
+          {studentCopy.editor.saveEquation}
         </button>
       </div>
     </div>
@@ -4397,7 +4398,7 @@ function EventBuilderArea({
           fontWeight: 800,
         }}
       >
-        Select an event from the timeline to start assigning equations.
+        {studentCopy.editor.chooseEventFirst}
       </div>
     );
   }
@@ -4465,7 +4466,7 @@ function EventBuilderArea({
               overflow: "hidden",
             }}
           >
-            This event does not have any hits, spins, or drags.
+            No moves in this group yet.
           </div>
         ) : (
           visibleMechanics.map((mechanic) => (
@@ -5409,8 +5410,8 @@ function EquationTimeline({
                     >
                       <span style={{ fontSize: 11, fontWeight: 900 }}>
                         {eventSlot.rctm2Number
-                          ? `Event ${index + 1} · #${eventSlot.rctm2Number}`
-                          : `Event ${index + 1}`}
+                          ? `${studentCopy.editor.moveGroup(index + 1)} · #${eventSlot.rctm2Number}`
+                          : studentCopy.editor.moveGroup(index + 1)}
                       </span>
                     </button>
 
@@ -6686,7 +6687,7 @@ function LeftEquationBuilderPanel({
             animation: "urFlash 900ms ease-in-out infinite alternate",
           }}
         >
-          {activeEventLabel ? `For ${activeEventLabel}` : "Choose an event below first"}
+          {activeEventLabel ? `For ${activeEventLabel}` : "Choose a move group below first"}
         </div>
         <div
           title={activeEventEquationText ?? undefined}
@@ -6701,7 +6702,7 @@ function LeftEquationBuilderPanel({
             whiteSpace: "nowrap",
           }}
         >
-          {activeEventEquationText ? `Current: ${activeEventEquationText}` : "Your equation will be used by the selected event."}
+          {activeEventEquationText ? `Current: ${activeEventEquationText}` : "Your equation will be used by the selected move group."}
         </div>
       </div>
 
@@ -6829,7 +6830,7 @@ function LeftEquationBuilderPanel({
                 cursor: hasDraft ? "pointer" : "not-allowed",
               }}
             >
-              Save to my templates
+          {studentCopy.editor.saveEquation}
             </button>
           </div>
         </div>
@@ -6849,7 +6850,7 @@ function LeftEquationBuilderPanel({
             cursor: hasDraft && activeEventLabel ? "pointer" : "not-allowed",
           }}
         >
-          Use this equation for every move in {activeEventLabel ?? "the selected event"}
+          {studentCopy.editor.useEquationForGroup(activeEventLabel ?? "the selected move group")}
         </button>
       </div>
     </section>
@@ -6907,18 +6908,18 @@ function CenterChoicePanel({
     : activeEventEquation
       ? ""
       : hasSelectedEvent
-        ? "No equation is assigned to this event."
+        ? "No equation is assigned to this move group."
         : "";
   const title = isCreate
     ? "Build your equation"
     : isPremade
-      ? "Choose a pre-made equation"
-      : "Build or choose a pre-made equation";
+    ? "Choose an equation"
+      : "Build or choose an equation";
   const subtitle = isCreate
-    ? "Use the builder on the left, then assign it to a timeline event."
+      ? "Use the builder on the left, then add it to a move group."
     : isPremade
-      ? "Select an equation from the library, then click a timeline event to assign it."
-      : "Create an equation from scratch or start with a curriculum-aligned equation";
+      ? "Choose an equation from the library, then add it to a move group."
+      : "Make an equation or start with one from the lesson library.";
   const selectedTokenOutlineColor =
     selectedMechanic === "hit"
       ? "#2EA7FF"
@@ -6998,7 +6999,7 @@ function CenterChoicePanel({
                     cursor: "pointer",
                   }}
                 >
-                  Create Equation
+                  Make an equation
                 </button>
                 <button
                   type="button"
@@ -7015,7 +7016,7 @@ function CenterChoicePanel({
                     cursor: "pointer",
                   }}
                 >
-                  Browse Pre-Made Library
+                  Browse the equation library
                 </button>
               </div>
             ) : (
@@ -7029,7 +7030,7 @@ function CenterChoicePanel({
                   gap: 8,
                 }}
               >
-                {isCreate ? "← Start in the Equation Builder" : "Browse the Pre-Made Library →"}
+                {isCreate ? "← Use the equation builder" : "Browse the equation library →"}
               </div>
             )}
           </>
@@ -9003,7 +9004,7 @@ function LibraryPanel({
                 cursor: canAddEquation ? "pointer" : "not-allowed",
               }}
             >
-              Assign to every move in this event
+              Assign to every move in this group
             </button>
           </div>
         ) : null}
@@ -9041,7 +9042,7 @@ function InspectorPanel({
     ? assignedEquation
       ? tokensToEquationState(assignedEquation.tokens)
       : "No equation assigned"
-    : "No event selected. Add hit/spin/drag to create one.";
+    : "No move group selected. Add a Hit, Spin, or Drag to create one.";
 
   function renderInspectorRow(title: string, children: ReactNode) {
     return (
@@ -9150,15 +9151,15 @@ function InspectorPanel({
       </div>
 
       {renderInspectorRow(
-        "Event (timed group)",
+        "Move group (timed)",
         <>
-          <div>{selectedEventSlot ? `Event ${eventIndex + 1}` : "No event selected"}</div>
+          <div>{selectedEventSlot ? studentCopy.editor.moveGroup(eventIndex + 1) : "No move group selected"}</div>
           <div style={{ color: "#CFFF04", marginTop: 4 }}>{assignedEquationText}</div>
           <div style={{ marginTop: 4, color: "#FFFFFF99" }}>
             {`Playhead ${formatTimelineTime(currentSongSeconds, isAdvancedMode)}`}
           </div>
           <div style={{ marginTop: 6, color: "#FFFFFF99", fontSize: 10, fontWeight: 700 }}>
-            Each hit, spin, or drag becomes a separate Unity encounter when you publish.
+            Each Hit, Spin, or Drag becomes its own move in the game when you save.
           </div>
         </>,
       )}
@@ -9340,10 +9341,10 @@ function TimelineControlsRow({
         }}
       >
         {activeEventNumber === null
-          ? "Click an event below to edit it"
+          ? "Click a move group below to edit it"
           : activeEventHasEquation
-            ? `Editing Event ${activeEventNumber} · choose a move or change its equation`
-            : `Editing Event ${activeEventNumber} · build an equation on the left`}
+            ? studentCopy.editor.editingMoveGroup(activeEventNumber)
+            : `Editing ${studentCopy.editor.moveGroup(activeEventNumber)} · build an equation on the left`}
       </div>
     </div>
   );
@@ -9723,22 +9724,24 @@ export default function LessonBuilderClient({
       .then(async (response) => {
         const result = await classifyWorkspaceResponse(response);
         if (result.kind === "success") return result.record;
-        if (result.kind === "permanent" || result.kind === "retryable") setSaveStatus(result.message);
+        if (result.kind === "permanent" || result.kind === "retryable") {
+          setSaveStatus(getLearnerFacingError(result.message, studentCopy.editor.draftRecoveryFailed));
+        }
         return null;
       })
       .then((record: { version?: number; payload?: { equations?: unknown[]; hiddenSourceEquationIds?: unknown[]; timelineEdits?: unknown[] } | null } | null) => {
         if (record?.payload) {
           workspaceVersionRef.current = record.version ?? 0;
-          applyPayload(record.payload, "Your private workspace was restored. The lesson template remains unchanged.");
+          applyPayload(record.payload, "Your saved changes are back. The original lesson stays safe.");
           return;
         }
         const draft = readPlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
-        if (draft) applyPayload({ equations: draft.equationEdits, hiddenSourceEquationIds: draft.hiddenSourceEquationIds, timelineEdits: draft.timelineEvents }, "Your private changes were restored on this device. The template is still safe to play.");
+        if (draft) applyPayload({ equations: draft.equationEdits, hiddenSourceEquationIds: draft.hiddenSourceEquationIds, timelineEdits: draft.timelineEvents }, "Your saved changes are back on this device. The original lesson stays safe to play.");
         else { setWorkspaceStatus("ready"); }
       })
       .catch(() => {
         const draft = readPlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
-        if (draft) applyPayload({ equations: draft.equationEdits, hiddenSourceEquationIds: draft.hiddenSourceEquationIds, timelineEdits: draft.timelineEvents }, "Offline recovery copy restored. Changes will sync when connected.");
+        if (draft) applyPayload({ equations: draft.equationEdits, hiddenSourceEquationIds: draft.hiddenSourceEquationIds, timelineEdits: draft.timelineEvents }, "Your saved changes are back. They will sync when you are connected.");
         else { setWorkspaceStatus("offline"); }
       });
     return () => { cancelled = true; };
@@ -9769,7 +9772,7 @@ export default function LessonBuilderClient({
         const prepared = prepareWorkspaceMutation({ key: workspaceSource, expectedVersion: workspaceVersionRef.current, payload });
         if (prepared.kind !== "ready") {
           setWorkspaceStatus("offline");
-          setSaveStatus(prepared.message);
+          setSaveStatus(getLearnerFacingError(prepared.message, studentCopy.editor.draftRecoveryFailed));
           return;
         }
 
@@ -9796,13 +9799,13 @@ export default function LessonBuilderClient({
               setWorkspaceStatus("conflict");
             } else {
               setWorkspaceStatus("offline");
-              setSaveStatus(result.message);
+              setSaveStatus(getLearnerFacingError(result.message, studentCopy.editor.draftRecoveryFailed));
             }
             return;
           }
           if (result.kind === "permanent") {
             setWorkspaceStatus("offline");
-            setSaveStatus(result.message);
+            setSaveStatus(getLearnerFacingError(result.message, studentCopy.editor.draftRecoveryFailed));
             return;
           }
           if (attempt < MAX_WORKSPACE_RETRIES) {
@@ -9812,13 +9815,13 @@ export default function LessonBuilderClient({
             return;
           }
           setWorkspaceStatus("offline");
-          setSaveStatus(result.message);
+          setSaveStatus(getLearnerFacingError(result.message, studentCopy.editor.draftRecoveryFailed));
         };
         void sync();
       } catch (error) {
         console.warn("Unable to save private lesson recovery copy", error);
         setWorkspaceStatus("offline");
-        setSaveStatus("Your lesson remains open, but this device could not store a recovery copy.");
+        setSaveStatus(studentCopy.editor.draftRecoveryFailed);
       }
     }, 750);
     return () => {
@@ -10167,7 +10170,7 @@ export default function LessonBuilderClient({
       setMode(nextMode);
       setStoreSidecar(nextSidecar as StoreSidecarPayload);
       setSaveStatus(
-        `Loaded ${authoredDraft.encounters.length} Unity encounter${authoredDraft.encounters.length === 1 ? "" : "s"} across ${nextEvents.length} event${nextEvents.length === 1 ? "" : "s"} from this chart.`,
+        `Loaded ${authoredDraft.encounters.length} move${authoredDraft.encounters.length === 1 ? "" : "s"} across ${nextEvents.length} move group${nextEvents.length === 1 ? "" : "s"}.`,
       );
       return;
     }
@@ -10263,9 +10266,7 @@ export default function LessonBuilderClient({
     setHideEquationHeader(false);
     setTutorialStep(null);
     setStarterTemplateDismissedForSongId(selectedSongStorage?.id ?? null);
-    setSaveStatus(
-      "Editing Event 1. The rest of the starter template stays exactly as it is.",
-    );
+    setSaveStatus("Editing move group 1. The other moves stay the same.");
   }
 
   function handleAddToStarterTemplate() {
@@ -10274,14 +10275,12 @@ export default function LessonBuilderClient({
     setTutorialStep(isDemoMode ? "welcome" : null);
     setLibraryTab("mine");
     setStarterTemplateDismissedForSongId(selectedSongStorage?.id ?? null);
-    setSaveStatus(
-      "Add one equation if you want to. The existing encounters are already ready to play.",
-    );
+    setSaveStatus("Add an equation if you want to. The other moves are ready to play.");
   }
 
   function handleKeepStarterTemplate() {
     setStarterTemplateDismissedForSongId(selectedSongStorage?.id ?? null);
-    setSaveStatus("Template kept intact. You can play it now or personalise one encounter later.");
+    setSaveStatus("Lesson kept safe. You can play it now or change a move later.");
   }
 
   function handleInsertEquationToken(index: number, label: string) {
@@ -10444,7 +10443,7 @@ export default function LessonBuilderClient({
       console.error("Failed to rebuild project after clearing the chart", error);
     }
 
-    setSaveStatus("Chart and JSON cleared.");
+    setSaveStatus("Lesson data cleared.");
   }
 
   function addRtcmDraftMechanic(
@@ -10490,7 +10489,13 @@ export default function LessonBuilderClient({
         dragTargets: [],
       },
     ]);
-    setSaveStatus(`${mechanic.toUpperCase()} drafted at ${formatSongTime(seconds, isAdvancedMode)}. ${normalized.readiness.nextAction}`);
+    setSaveStatus(
+      studentCopy.editor.moveDrafted(
+        studentCopy.mechanics[mechanic],
+        formatSongTime(seconds, isAdvancedMode),
+        getLearnerFacingError(new Error(normalized.readiness.nextAction), studentCopy.editor.readyToPlay),
+      ),
+    );
 
     return draftId;
   }
@@ -10499,7 +10504,7 @@ export default function LessonBuilderClient({
     setCenterChoice(null);
     setRtcmEventRangeStartTick(Number(currentSongSeconds.toFixed(3)));
     setRctm2PendingEventNumber(pendingRctm2Number);
-    setSaveStatus(`Event start set at ${formatSongTime(currentSongSeconds, isAdvancedMode)}. Drag the playhead to choose the end time.`);
+    setSaveStatus(`Move group starts at ${formatSongTime(currentSongSeconds, isAdvancedMode)}. Move the playhead to choose when it ends.`);
   }
 
   function handleToggleRtcmEventCreation(pendingRctm2Number: number | null = null) {
@@ -10550,7 +10555,7 @@ export default function LessonBuilderClient({
     );
 
     setRtcmPendingHold(null);
-    setSaveStatus(`${rtcmPendingHold.mechanic.toUpperCase()} drafted to ${formatSongTime(currentSongSeconds, isAdvancedMode)}.`);
+    setSaveStatus(`${studentCopy.mechanics[rtcmPendingHold.mechanic]} set to ${formatSongTime(currentSongSeconds, isAdvancedMode)}.`);
   }
 
   function handleFinalizeRtcmEventCreation(options: { rctm2Number?: number } = {}) {
@@ -10563,7 +10568,7 @@ export default function LessonBuilderClient({
     const finalEndTick = Math.max(rtcmEventRangeStartTick, endTick);
 
     if (Math.abs(finalEndTick - startTick) < 0.001) {
-      setSaveStatus("Drag the playhead to give the event a non-zero duration.");
+      setSaveStatus("Move the playhead to set how long this move group lasts.");
       return;
     }
 
@@ -10638,7 +10643,7 @@ export default function LessonBuilderClient({
     setRtcmEventRangeStartTick(null);
     setRctm2PendingEventNumber(null);
     setSaveStatus(
-      `Created event ${formatSongTime(startTick, isAdvancedMode)} - ${formatSongTime(finalEndTick, isAdvancedMode)}.`,
+      `Move group created from ${formatSongTime(startTick, isAdvancedMode)} to ${formatSongTime(finalEndTick, isAdvancedMode)}.`,
     );
   }
 
@@ -10682,13 +10687,13 @@ export default function LessonBuilderClient({
 
   function handleUseDraftInActiveEvent() {
     if (!activeEventId) {
-      setSaveStatus("Select an event on the timeline first.");
+      setSaveStatus(studentCopy.editor.chooseEventFirst);
       return;
     }
 
     const equalsIndex = draftTokens.findIndex((token) => token.label === "=");
     if (equalsIndex <= 0 || equalsIndex >= draftTokens.length - 1) {
-      setSaveStatus("Finish the equation by adding something on both sides of =.");
+      setSaveStatus(studentCopy.editor.equationNeedsBothSides);
       return;
     }
 
@@ -10709,8 +10714,8 @@ export default function LessonBuilderClient({
     const activeEventIndex = timelineEvents.findIndex((eventSlot) => eventSlot.id === activeEventId);
     setSaveStatus(
       activeEventIndex >= 0
-        ? `Added your equation to this draft. Every move in Event ${activeEventIndex + 1} will use it.`
-        : "Added your equation to this draft. Every move in the selected event will use it.",
+        ? `Added your equation to this lesson. Every move in ${studentCopy.editor.moveGroup(activeEventIndex + 1)} will use it.`
+        : "Added your equation to this lesson. Every move in the selected move group will use it.",
     );
   }
 
@@ -10794,8 +10799,8 @@ export default function LessonBuilderClient({
     if (!targetEventId) {
       setSaveStatus(
         mode === "rctm1" || mode === "rctm2"
-          ? "Move the playhead over an event to delete it."
-          : "Select an event to delete.",
+          ? "Move the playhead over a move group to remove it."
+          : "Pick a move group to remove.",
       );
       return;
     }
@@ -10854,7 +10859,7 @@ export default function LessonBuilderClient({
         setActiveEventId(nextActiveEvent?.id ?? null);
       }
 
-      setSaveStatus(`Deleted event ${deleteIndex + 1}.`);
+      setSaveStatus(`${studentCopy.editor.moveGroup(deleteIndex + 1)} removed.`);
 
       return nextEvents;
     });
@@ -11004,7 +11009,7 @@ export default function LessonBuilderClient({
 
       syncTimelineFilesFromEvents(nextEvents);
       setSaveStatus(
-        `Removed ${selectedCenterContextMechanic.mechanic} ${selectedCenterContextMechanic.instanceIndex + 1}.`,
+        `${studentCopy.mechanics[selectedCenterContextMechanic.mechanic]} ${selectedCenterContextMechanic.instanceIndex + 1} removed.`,
       );
 
       return nextEvents;
@@ -11037,20 +11042,20 @@ export default function LessonBuilderClient({
     setHiddenSourceEquationIds((current) => current.includes(equationId) ? current : [...current, equationId]);
     setSelectedEquationId(null);
     markDirty();
-    setSaveStatus("This equation is hidden in your lesson. You can show it again any time.");
+    setSaveStatus("This equation is hidden. You can show it again any time.");
   }
 
   function handleRestoreSourceEquation(equationId: string) {
     setHiddenSourceEquationIds((current) => current.filter((id) => id !== equationId));
     markDirty();
-    setSaveStatus("This equation is showing in your lesson again.");
+    setSaveStatus("This equation is back in your lesson.");
   }
 
   function handleDeleteMineEquation(equationId: string) {
     setSavedEquations((current) => current.filter((equation) => equation.id !== equationId));
     setSelectedEquationId((current) => current === equationId ? null : current);
     markDirty();
-    setSaveStatus("Mine equation deleted. Any encounter already using it was left unchanged.");
+    setSaveStatus("Your saved equation was deleted. Moves already using it stay the same.");
   }
 
   function handleReloadLatestWorkspace() {
@@ -11064,14 +11069,14 @@ export default function LessonBuilderClient({
     setWorkspaceConflict(null);
     setWorkspaceStatus("ready");
     setHasUnsavedChanges(false);
-    setSaveStatus("Latest private workspace loaded.");
+    setSaveStatus("Latest saved copy loaded.");
   }
 
   function handleKeepLocalWorkspace() {
     setWorkspaceConflict(null);
     setWorkspaceStatus("ready");
     setWorkspaceRetryNonce((current) => current + 1);
-    setSaveStatus("Your local changes will replace the latest workspace after you confirm.");
+    setSaveStatus("Your changes will replace the latest saved copy after you confirm.");
   }
 
   function handleAddSelectedEquationToEvent() {
@@ -11115,8 +11120,8 @@ export default function LessonBuilderClient({
       : -1;
     setSaveStatus(
       activeEventIndex >= 0
-        ? `Added your equation to this draft. Every move in Event ${activeEventIndex + 1} will use it.`
-        : "Added your equation to this draft. Every move in the selected event will use it.",
+        ? `Added your equation to this lesson. Every move in ${studentCopy.editor.moveGroup(activeEventIndex + 1)} will use it.`
+        : "Added your equation to this lesson. Every move in the selected move group will use it.",
     );
   }
 
@@ -11252,11 +11257,11 @@ export default function LessonBuilderClient({
       const blocker = lessonPublishReadiness.blockers[0];
       savePrivateDraft();
       handleSelectReadinessEncounter(blocker.encounterId);
-      setSaveStatus(`Draft saved on this device. ${blocker.message} ${blocker.nextAction}`);
+      setSaveStatus(`${studentCopy.editor.draftSaved} ${blocker.message} ${blocker.nextAction}`);
       return;
     }
     if (!selectedSongLaunch) {
-      setSaveStatus("Choose a song from song choice before launching the game.");
+      setSaveStatus(studentCopy.editor.pickSongBeforePlay);
       return;
     }
 
@@ -11269,7 +11274,7 @@ export default function LessonBuilderClient({
 
       if (!didSave) {
         setSaveStatus(
-          "Your draft could not be published. Repair it or play the last published version from the lesson actions.",
+          `${studentCopy.editor.lessonSaveFailed} Fix the highlighted move, or play the saved lesson instead.`,
         );
         return;
       }
@@ -11287,11 +11292,11 @@ export default function LessonBuilderClient({
       });
       setLessonReadiness(freshSongLaunch.readiness);
       if (!freshSongLaunch.readiness.canLaunch) {
-        setSaveStatus(freshSongLaunch.readiness.message);
+        setSaveStatus(getLearnerFacingError(freshSongLaunch.readiness.message, studentCopy.game.preparingBody));
         return;
       }
       if (freshSongLaunch.readiness.state === "template-fallback") {
-        setSaveStatus(freshSongLaunch.readiness.message);
+        setSaveStatus(getLearnerFacingError(freshSongLaunch.readiness.message, studentCopy.game.preparingBody));
       }
       const launchParams = createSongLaunchSearchParams({
       songAssetId: freshSongLaunch.songAssetId,
@@ -11334,7 +11339,7 @@ export default function LessonBuilderClient({
       persistLaunchParams(launchParams);
       router.push(launchRoute);
     } catch (error) {
-      setSaveStatus(error instanceof Error ? error.message : "Unable to prepare game");
+      setSaveStatus(getLearnerFacingError(error, `${studentCopy.game.prepareErrorTitle}. Try again, or choose another song.`));
     }
   }
 
@@ -11342,12 +11347,12 @@ export default function LessonBuilderClient({
     const { showNotice = false } = options;
 
     if (!selectedSongStorage) {
-      setSaveStatus("No selected song asset is loaded.");
+      setSaveStatus(studentCopy.editor.chooseSong);
       return false;
     }
 
     setIsSaving(true);
-    setSaveStatus("Saving...");
+    setSaveStatus("Saving…");
 
     try {
       const fallbackMetadata = {
@@ -11361,7 +11366,7 @@ export default function LessonBuilderClient({
       }
 
       if (!hasUnsavedChanges) {
-        const message = "No changes to publish. This template is already ready to play.";
+        const message = studentCopy.editor.noChanges;
         setSaveStatus(message);
         return false;
       }
@@ -11562,10 +11567,10 @@ export default function LessonBuilderClient({
       if (publishedCurrentSnapshot) {
         setChartFile(chartText);
         setStoreSidecar(sidecarToPersist as StoreSidecarPayload);
-        setSaveStatus("Published my version");
+        setSaveStatus(studentCopy.editor.changesSaved);
         setHasUnsavedChanges(false);
       } else {
-        setSaveStatus("Published the saved snapshot. Newer edits remain unsaved in the editor.");
+        setSaveStatus(studentCopy.editor.newerChangesRemain);
         setHasUnsavedChanges(true);
       }
       publicationRequestIdRef.current = null;
@@ -11573,7 +11578,7 @@ export default function LessonBuilderClient({
         state: "ready",
         source: "authored",
         canLaunch: true,
-        message: `Published revision ${result.revision}. Unity will use this exact chart, sidecar, encounters and equations.`,
+        message: "Your saved lesson is ready to play.",
       });
 
       if (showNotice) {
@@ -11585,17 +11590,16 @@ export default function LessonBuilderClient({
         const songLabel =
           metadata?.songTitle?.trim() || uploadedSongName || "Selected song";
 
-        setSaveStatus(`Saved ${songLabel} as ${activityLabel} chart/sidecar.`);
+        setSaveStatus(studentCopy.editor.savedSnapshot(songLabel, activityLabel));
       }
 
       return { authorId: result.authorId, revision: result.revision };
     } catch (error) {
-      const reason = error instanceof Error ? error.message : "Unable to save lesson files";
-      const publishFailure = "Could not publish this lesson. Unity is still using the last published version.";
+      const reason = getLearnerFacingError(error, studentCopy.editor.lessonSaveFailed);
       appendSongFlowDebug("lesson-builder:save:error", "Lesson save failed.", {
-        message: reason,
+        message: error instanceof Error ? error.message : String(error),
       });
-      setSaveStatus(`${publishFailure} ${workspaceSource && guidedStarted ? "A recovery copy stays in this browser. " : ""}${reason}`);
+      setSaveStatus(`${reason}${workspaceSource && guidedStarted ? " A recovery copy stays in this browser." : ""}`);
       return false;
     } finally {
       setIsSaving(false);
@@ -11749,7 +11753,7 @@ export default function LessonBuilderClient({
     setIsLibraryPanelOpen(false);
     setLessonReadiness(null);
     setIsLessonLoaded(false);
-    setSaveStatus("Loading selected lesson…");
+    setSaveStatus("Loading your lesson…");
     appendSongFlowDebug(
       "lesson-builder:session:selected-song",
       "Hydrated selected song payload from session storage.",
@@ -11807,7 +11811,7 @@ export default function LessonBuilderClient({
         state: "repairable",
         source: "authored",
         canLaunch: false,
-        message: `This lesson needs repair before Unity can use it: ${message}`,
+        message: `This lesson needs a quick fix before it can play: ${message}`,
       });
       return;
     }
@@ -11945,7 +11949,7 @@ export default function LessonBuilderClient({
 
         if (!chart.trim()) {
           throw new Error(
-            "Unable to load the original .chart file. The lesson editor will not use a blank chart fallback.",
+            "We could not load the original lesson file. Your current work is still here.",
           );
         }
         validateLessonContent(chart, JSON.stringify(sidecar), { forSave: true });
@@ -11971,12 +11975,12 @@ export default function LessonBuilderClient({
         }
         loadedSongReadyRef.current = true;
         setIsLessonLoaded(true);
-        setSaveStatus("Selected lesson is ready.");
+        setSaveStatus(studentCopy.editor.lessonLoaded);
         setLessonReadiness({
           state: "ready",
           source: "authored",
           canLaunch: true,
-          message: "Chart, cues, events, encounters and equations are ready for Unity.",
+          message: studentCopy.editor.readyToPlay,
         });
 
         setProject(chartToProject({
@@ -11990,9 +11994,9 @@ export default function LessonBuilderClient({
         loadedSongReadyRef.current = false;
         setIsLessonLoaded(false);
         console.error("Failed to hydrate selected lesson", error);
-        const message = error instanceof Error ? error.message : "Failed to load selected song package";
+        const message = getLearnerFacingError(error, studentCopy.editor.lessonLoadFailed);
         setLoadError(message);
-        setSaveStatus("Selected lesson could not be loaded; the current editor content was preserved.");
+        setSaveStatus(studentCopy.editor.lessonLoadFailed);
         setLessonReadiness({
           state: "repairable",
           source: "authored",
@@ -12014,10 +12018,10 @@ export default function LessonBuilderClient({
           updatedAt: Date.now(),
         });
       }
-      setSaveStatus("Draft saved on this device.");
+      setSaveStatus(studentCopy.editor.draftSaved);
       return true;
     } catch {
-      setSaveStatus("Your draft is still open in this editor, but this device could not store a recovery copy.");
+      setSaveStatus(studentCopy.editor.draftRecoveryFailed);
       return false;
     }
   }
@@ -12027,7 +12031,7 @@ export default function LessonBuilderClient({
       const blocker = lessonPublishReadiness.blockers[0];
       savePrivateDraft();
       handleSelectReadinessEncounter(blocker.encounterId);
-      setSaveStatus(`Draft saved on this device. ${blocker.message} ${blocker.nextAction}`);
+      setSaveStatus(`${studentCopy.editor.draftSaved} ${blocker.message} ${blocker.nextAction}`);
       return false;
     }
 
@@ -12522,10 +12526,10 @@ export default function LessonBuilderClient({
 
       setProject(nextProject);
       setChartFile(projectToChart(nextProject));
-      setSaveStatus("Updated .chart and sidecar JSON");
+      setSaveStatus(studentCopy.editor.changesSaved);
     } catch (error) {
       console.error("Failed to update chart after timeline edit", error);
-      setSaveStatus("Updated sidecar JSON. Unable to rebuild .chart from the current chart text.");
+      setSaveStatus(studentCopy.editor.lessonSaveFailed);
     }
   }
 
@@ -12666,7 +12670,7 @@ export default function LessonBuilderClient({
       );
 
       if (overlappingEvent) {
-        setSaveStatus("Event not added: playhead overlaps an existing event window.");
+        setSaveStatus("Move group not added: the playhead is already inside another group.");
         return current;
       }
 
@@ -12804,7 +12808,7 @@ export default function LessonBuilderClient({
       }
       syncTimelineFilesFromEvents(nextEvents);
       setSaveStatus(
-        `${mechanic.toUpperCase()} added at ${formatSongTime(mechanicSeconds, isAdvancedMode)}.`,
+        `${studentCopy.mechanics[mechanic]} added at ${formatSongTime(mechanicSeconds, isAdvancedMode)}.`,
       );
 
       return nextEvents;
@@ -12982,7 +12986,7 @@ export default function LessonBuilderClient({
       );
 
       if (!nearestMatch) {
-        setSaveStatus(`No ${mechanic} to remove.`);
+        setSaveStatus(studentCopy.editor.noMoveToRemove(studentCopy.mechanics[mechanic]));
         return current;
       }
 
@@ -13020,7 +13024,7 @@ export default function LessonBuilderClient({
       setActiveEventId(eventIdToUpdate);
       syncTimelineFilesFromEvents(nextEvents);
       setSaveStatus(
-        `Removed nearest ${mechanic} to ${formatSongTime(targetSeconds)}.`,
+        `${studentCopy.mechanics[mechanic]} removed near ${formatSongTime(targetSeconds)}.`,
       );
 
       return nextEvents;
@@ -13071,7 +13075,7 @@ export default function LessonBuilderClient({
       chartText,
       "text/plain;charset=utf-8",
     );
-    setSaveStatus("Downloaded .chart and sidecar JSON");
+    setSaveStatus("Lesson files downloaded.");
   }
 
   useEffect(() => {
@@ -13112,7 +13116,7 @@ export default function LessonBuilderClient({
       setActiveEventId(event.id);
       setCenterChoice(null);
       setIsReadinessOpen(false);
-      setSaveStatus(`Editing ${encounterId}. ${lessonPublishReadiness.nextAction}`);
+      setSaveStatus(`Editing this move. ${lessonPublishReadiness.nextAction}`);
     }
   }
   return (
@@ -13152,9 +13156,9 @@ export default function LessonBuilderClient({
       `}</style>
       <HeaderBar
         selectedSongTitle={
-          metadata?.songTitle?.trim() || uploadedSongName || "No song selected"
+          metadata?.songTitle?.trim() || uploadedSongName || "Pick a song"
         }
-        selectedSongArtist={metadata?.artist?.trim() || "Unknown artist"}
+        selectedSongArtist={metadata?.artist?.trim() || "Artist not listed"}
         selectedActivityLabel={
           selectedSongActivity?.label ?? getActivityLabel(defaultSongActivityKey)
         }
@@ -13297,7 +13301,7 @@ export default function LessonBuilderClient({
                   </button>
                   <LeftEquationBuilderPanel
                     draftTokens={draftTokens}
-                    activeEventLabel={centerContextEventIndex >= 0 ? `Event ${centerContextEventIndex + 1}` : null}
+                    activeEventLabel={centerContextEventIndex >= 0 ? studentCopy.editor.moveGroup(centerContextEventIndex + 1) : null}
                     activeEventEquationText={centerContextEventEquation ? tokensToEquationState(centerContextEventEquation.tokens) : null}
                     onAddToken={handleAppendEquationToken}
                     onClearEquation={handleClearEquationDraft}
@@ -13359,7 +13363,7 @@ export default function LessonBuilderClient({
                     >
                       {shouldShowStarterTemplate ? (
                         <div
-                          aria-label="Starter template choices"
+                          aria-label="Starting lesson choices"
                           style={{
                             display: "flex",
                             width: "100%",
@@ -13368,9 +13372,9 @@ export default function LessonBuilderClient({
                             flexWrap: "wrap",
                           }}
                         >
-                          <span style={{ color: "#CFFF04" }}>Starter template</span>
+                            <span style={{ color: "#CFFF04" }}>{studentCopy.editor.starterLabel}</span>
                           <span style={{ color: "#FFFFFFB3", fontWeight: 700 }}>
-                            This lesson is ready to play. Keep it, change one encounter, or add one idea.
+                            {studentCopy.editor.starterBody}
                           </span>
                           <button
                             type="button"
@@ -13387,7 +13391,7 @@ export default function LessonBuilderClient({
                               padding: "4px 8px",
                             }}
                           >
-                            Personalize Event 1
+                            {studentCopy.editor.changeFirstMove}
                           </button>
                           <button
                             type="button"
@@ -13404,7 +13408,7 @@ export default function LessonBuilderClient({
                               padding: "4px 8px",
                             }}
                           >
-                            Add one equation
+                            {studentCopy.editor.addEquation}
                           </button>
                           <button
                             type="button"
@@ -13420,16 +13424,16 @@ export default function LessonBuilderClient({
                               padding: "4px 2px",
                             }}
                           >
-                            Keep as-is
+                            {studentCopy.editor.keepIt}
                           </button>
                         </div>
                       ) : centerContextEvent && centerContextEventIndex >= 0 ? (
                         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                          <span>{`Event ${centerContextEventIndex + 1}`}</span>
-                          <span>{`Start ${formatTimelineTime(getTimelineEventTimeWindowSeconds(centerContextEvent).startSeconds, isAdvancedMode)}`}</span>
-                          <span>{`Spins ${centerContextEvent.counts?.spin ?? 0}`}</span>
-                          <span>{`Hits ${centerContextEvent.counts?.hit ?? 0}`}</span>
-                          <span>{`Drags ${centerContextEvent.counts?.drag ?? 0}`}</span>
+                          <span>{studentCopy.editor.moveGroup(centerContextEventIndex + 1)}</span>
+                          <span>{`Starts at ${formatTimelineTime(getTimelineEventTimeWindowSeconds(centerContextEvent).startSeconds, isAdvancedMode)}`}</span>
+                          <span>{`Spins: ${centerContextEvent.counts?.spin ?? 0}`}</span>
+                          <span>{`Hits: ${centerContextEvent.counts?.hit ?? 0}`}</span>
+                          <span>{`Drags: ${centerContextEvent.counts?.drag ?? 0}`}</span>
                         </div>
                       ) : null}
                     </div>
@@ -13564,7 +13568,7 @@ export default function LessonBuilderClient({
                           </div>
                         ) : (
                           <span style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700 }}>
-                            No hit/spin/drag assigned
+                            No move assigned yet.
                           </span>
                         )}
                       </div>
@@ -13647,7 +13651,7 @@ export default function LessonBuilderClient({
                       shouldScrollLibrary={isTimelineInstructionVisible}
                       tutorialPrompt={
                         tutorialStep === "add"
-                          ? "Choose this equation, then add it to Event 1."
+                          ? "Choose this equation, then add it to move group 1."
                           : null
                       }
                       onSkipTutorial={() => setTutorialStep(null)}
@@ -13711,11 +13715,11 @@ export default function LessonBuilderClient({
       {advancedConfirmOpen ? (
         <div role="dialog" aria-modal="true" aria-labelledby="advanced-chartmaker-title" style={{ position: "fixed", inset: 0, zIndex: 1300, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.7)" }} onKeyDown={(event) => { if (event.key === "Escape") setAdvancedConfirmOpen(false); }}>
           <div style={{ width: "min(440px, 92vw)", display: "grid", gap: 14, padding: 22, borderRadius: 16, background: "#182230", color: "#FFFFFF" }}>
-            <h2 id="advanced-chartmaker-title" style={{ margin: 0 }}>Open all chart tools?</h2>
-            <p style={{ margin: 0, color: "#D1D5DB", lineHeight: 1.45 }}>These tools let you place and move every part of the lesson. Your private changes stay safe while you work.</p>
+            <h2 id="advanced-chartmaker-title" style={{ margin: 0 }}>{studentCopy.editor.advancedToolsTitle}</h2>
+            <p style={{ margin: 0, color: "#D1D5DB", lineHeight: 1.45 }}>{studentCopy.editor.advancedToolsBody}</p>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
               <button type="button" onClick={() => setAdvancedConfirmOpen(false)} style={{ border: "1px solid #7A8FA8", background: "transparent", color: "#FFFFFF", borderRadius: 999, padding: "10px 14px", cursor: "pointer" }}>Go back</button>
-              <button type="button" onClick={() => { setAdvancedConfirmOpen(false); setGuidedStarted(true); setAdvancedMode(true); }} style={{ border: 0, background: "#CFFF04", color: "#071222", borderRadius: 999, padding: "10px 14px", fontWeight: 800, cursor: "pointer" }}>Open chart tools</button>
+              <button type="button" onClick={() => { setAdvancedConfirmOpen(false); setGuidedStarted(true); setAdvancedMode(true); }} style={{ border: 0, background: "#CFFF04", color: "#071222", borderRadius: 999, padding: "10px 14px", fontWeight: 800, cursor: "pointer" }}>{studentCopy.editor.openAdvancedTools}</button>
             </div>
           </div>
         </div>
@@ -13726,11 +13730,11 @@ export default function LessonBuilderClient({
       {workspaceConflict ? (
         <div role="alertdialog" aria-modal="true" aria-labelledby="workspace-conflict-title" style={{ position: "fixed", inset: 0, zIndex: 1600, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.72)", padding: 20 }}>
           <div style={{ width: "min(440px, 100%)", border: `1px solid ${subtleBorderColor}`, borderRadius: 16, background: "#101827", color: textColor, padding: 22, boxShadow: "0 20px 60px rgba(0,0,0,0.55)" }}>
-            <h2 id="workspace-conflict-title" style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>Private workspace changed elsewhere</h2>
-            <p style={{ color: "#FFFFFFAA", fontSize: 13, lineHeight: 1.5 }}>Choose whether to reload the latest account copy or keep the changes on this device. Nothing will be overwritten silently.</p>
+            <h2 id="workspace-conflict-title" style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>Your lesson changed somewhere else</h2>
+            <p style={{ color: "#FFFFFFAA", fontSize: 13, lineHeight: 1.5 }}>Choose the latest saved copy or keep the changes on this device. Nothing will be overwritten without your choice.</p>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button type="button" onClick={handleKeepLocalWorkspace} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 9, background: "#252525", color: textColor, padding: "9px 12px", fontWeight: 800, cursor: "pointer" }}>Keep my local changes</button>
-              <button type="button" onClick={handleReloadLatestWorkspace} style={{ border: 0, borderRadius: 9, background: "#CFFF04", color: "#071222", padding: "9px 12px", fontWeight: 900, cursor: "pointer" }}>Reload latest</button>
+              <button type="button" onClick={handleKeepLocalWorkspace} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 9, background: "#252525", color: textColor, padding: "9px 12px", fontWeight: 800, cursor: "pointer" }}>Keep my changes</button>
+              <button type="button" onClick={handleReloadLatestWorkspace} style={{ border: 0, borderRadius: 9, background: "#CFFF04", color: "#071222", padding: "9px 12px", fontWeight: 900, cursor: "pointer" }}>Use latest copy</button>
             </div>
           </div>
         </div>

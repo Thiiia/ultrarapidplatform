@@ -67,32 +67,35 @@ export type NormalizedStagedMechanic = {
 };
 
 const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
-  equation_required: "Save or choose an equation for this encounter.",
-  target_required: "Select a playable token for this encounter.",
-  hit_pad_required: "Choose at least one hit pad for the selected target.",
-  spin_target_required: "Select the token to spin.",
-  drag_source_required: "Choose an earlier ready Hit as the drag source.",
-  duration_required: "Set an end time after the start time.",
-  operator_target: "Choose a number or variable; operators cannot be gameplay targets.",
-  drag_source_not_ready: "Choose an earlier ready Hit before this Drag.",
+  equation_required: "Choose an equation to get started.",
+  target_required: "Pick a token for this move.",
+  hit_pad_required: "Choose at least one button for the token.",
+  spin_target_required: "Pick the token to spin.",
+  drag_source_required: "Choose an earlier Hit to start this Drag.",
+  duration_required: "Set when this move ends.",
+  operator_target: "Pick a number or variable, not a + or = sign.",
+  drag_source_not_ready: "Choose a Hit that comes before this Drag.",
 };
 
-function issue(encounterId: string, code: EncounterIssueCode): EncounterIssue {
+function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): EncounterIssue {
   const nextAction = ISSUE_ACTIONS[code];
   const labels: Record<EncounterIssueCode, string> = {
     equation_required: "needs an equation",
-    target_required: "needs a playable target",
-    hit_pad_required: "needs a hit pad",
-    spin_target_required: "needs a spin target",
-    drag_source_required: "needs an earlier ready Hit source",
-    duration_required: "needs an end time after its start",
-    operator_target: "targets an operator",
-    drag_source_not_ready: "needs an earlier ready Hit source",
+    target_required: "needs a token",
+    hit_pad_required: "needs a button",
+    spin_target_required: "needs a token to spin",
+    drag_source_required: "needs an earlier Hit",
+    duration_required: "needs an end time",
+    operator_target: "uses a + or = sign as its target",
+    drag_source_not_ready: "needs a Hit that comes first",
   };
+  const mechanicLabel = encounter.mechanic[0].toUpperCase() + encounter.mechanic.slice(1);
+  const numberMatch = encounter.id.match(/(?:hit|spin|drag)[-_ ]?(\d+)/i);
+  const moveLabel = `${mechanicLabel}${numberMatch ? ` ${numberMatch[1]}` : ""}`;
   return {
-    encounterId,
+    encounterId: encounter.id,
     code,
-    message: `${encounterId} ${labels[code]}.`,
+    message: `${moveLabel} ${labels[code]}.`,
     nextAction,
   };
 }
@@ -109,27 +112,27 @@ export function evaluateEncounterReadiness(
 ): EncounterReadiness {
   const issues: EncounterIssue[] = [];
   if (!encounter.equation || encounter.equation.tokens.length === 0) {
-    issues.push(issue(encounter.id, "equation_required"));
+    issues.push(issue(encounter, "equation_required"));
   }
 
   const targets = targetIndexes(encounter);
   if (targets.length === 0) {
-    issues.push(issue(encounter.id, encounter.mechanic === "spin" ? "spin_target_required" : "target_required"));
+    issues.push(issue(encounter, encounter.mechanic === "spin" ? "spin_target_required" : "target_required"));
   }
 
   if (encounter.mechanic === "hit" && !encounter.hitBubbles.some((target) => (target.pads?.length ?? 0) > 0)) {
-    issues.push(issue(encounter.id, "hit_pad_required"));
+    issues.push(issue(encounter, "hit_pad_required"));
   }
 
   if (encounter.mechanic !== "hit" && (typeof encounter.endTick !== "number" || encounter.endTick <= (encounter.tick ?? 0))) {
-    issues.push(issue(encounter.id, "duration_required"));
+    issues.push(issue(encounter, "duration_required"));
   }
 
   if (encounter.equation) {
     for (const tokenIndex of targets) {
       const token = encounter.equation.tokens[tokenIndex];
       if (!token || isAuthoredEquationOperator(token.label)) {
-        issues.push(issue(encounter.id, "operator_target"));
+        issues.push(issue(encounter, "operator_target"));
         break;
       }
     }
@@ -138,9 +141,9 @@ export function evaluateEncounterReadiness(
   if (encounter.mechanic === "drag") {
     const sourceHitId = encounter.dragTargets[0]?.sourceHitId;
     if (!sourceHitId) {
-      issues.push(issue(encounter.id, "drag_source_required"));
+      issues.push(issue(encounter, "drag_source_required"));
     } else if (!readyHitIds.has(sourceHitId)) {
-      issues.push(issue(encounter.id, "drag_source_not_ready"));
+      issues.push(issue(encounter, "drag_source_not_ready"));
     }
   }
 
@@ -150,7 +153,7 @@ export function evaluateEncounterReadiness(
     ready: issues.length === 0,
     issueCodes,
     issues,
-    nextAction: issues[0]?.nextAction ?? "Ready to publish and play.",
+    nextAction: issues[0]?.nextAction ?? "Ready to play!",
   };
 }
 
@@ -193,7 +196,7 @@ export function evaluateLessonPublishReadiness(
   return {
     ready: blockers.length === 0,
     blockers,
-    nextAction: blockers[0]?.nextAction ?? "Ready to publish and play.",
+    nextAction: blockers[0]?.nextAction ?? "Ready to play!",
   };
 }
 
