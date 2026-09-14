@@ -13178,8 +13178,8 @@ export default function LessonBuilderClient({
         <div
           style={{
             position: "fixed",
-            right: 18,
-            top: "calc(5vh + 12px)",
+            right: "clamp(18px, calc(8vw + 150px), 260px)",
+            top: 8,
             width: "min(320px, calc(100vw - 36px))",
             zIndex: 1002,
           }}
