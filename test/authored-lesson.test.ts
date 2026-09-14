@@ -117,7 +117,7 @@ test('canonical authored v3 sidecar keeps tick coordinates and server-stamped id
       equationId: 'eq-2',
       startTick: 9048,
       endTick: 12528,
-      dragTargets: [{ tokenIndex: 1, sourceHitId: 'inst-hit-1' }],
+      dragTargets: [{ tokenIndex: 2, sourceHitId: 'inst-hit-1' }],
     }],
   };
 
@@ -129,6 +129,7 @@ test('canonical authored v3 sidecar keeps tick coordinates and server-stamped id
   assert.ok(parsed.encounters[1].endTick > parsed.encounters[1].startTick);
   assert.equal(parsed.encounters[2].type, 'drag');
   assert.ok(parsed.encounters[2].endTick > parsed.encounters[2].startTick);
+  assert.equal(parsed.encounters[2].dragTargets?.[0].tokenIndex, 2);
 
   const stamped = stampAuthoredLessonIdentity(parsed, {
     songAssetId: 'waves',
