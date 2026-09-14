@@ -5,6 +5,9 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { parseAuthoredLessonDraft } from "../lib/authored-lesson";
+import { evaluateLessonPublishReadiness } from "../lib/guided-authored-encounter";
+import { createLessonClock } from "../lib/editor/lesson-timing";
+import { timelineEventsFromAuthoredLesson } from "../lib/authored-lesson-serialization";
 import { validateLessonContent } from "../lib/lesson-content";
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "authored-playback");
@@ -24,6 +27,7 @@ test("producer fixture: note-free chart with authored overlapping content valida
   assert.equal(parsed.encounters.length, 4);
   assert.equal(parsed.equations.length, 3);
   assert.equal(parsed.stopAtSeconds, 17);
+  assert.equal(parsed.equations[0]?.state, "4x + 3 = 7");
   assert.deepEqual(
     parsed.encounters.map((encounter) => encounter.type),
     ["hit", "hit", "spin", "drag"],
@@ -35,6 +39,9 @@ test("producer fixture: note-free chart with authored overlapping content valida
   const drag = parsed.encounters.find((encounter) => encounter.type === "drag");
   assert.equal(spin?.eventId, drag?.eventId);
   assert.equal(spin?.startTick, drag?.startTick);
+
+  const timeline = timelineEventsFromAuthoredLesson(parsed, createLessonClock(chart));
+  assert.equal(evaluateLessonPublishReadiness(timeline.events).ready, true);
 });
 
 test("malformed counterparts are rejected explicitly", () => {
