@@ -4466,7 +4466,7 @@ function EventBuilderArea({
               overflow: "hidden",
             }}
           >
-            No moves in this group yet.
+            No moves in this encounter yet.
           </div>
         ) : (
           visibleMechanics.map((mechanic) => (
@@ -6687,7 +6687,7 @@ function LeftEquationBuilderPanel({
             animation: "urFlash 900ms ease-in-out infinite alternate",
           }}
         >
-          {activeEventLabel ? `For ${activeEventLabel}` : "Choose a move group below first"}
+          {activeEventLabel ? `For ${activeEventLabel}` : "Choose an encounter below to start"}
         </div>
         <div
           title={activeEventEquationText ?? undefined}
@@ -6702,7 +6702,7 @@ function LeftEquationBuilderPanel({
             whiteSpace: "nowrap",
           }}
         >
-          {activeEventEquationText ? `Current: ${activeEventEquationText}` : "Your equation will be used by the selected move group."}
+          {activeEventEquationText ? `Current: ${activeEventEquationText}` : "Your equation will be used by the selected encounter."}
         </div>
       </div>
 
@@ -6850,7 +6850,7 @@ function LeftEquationBuilderPanel({
             cursor: hasDraft && activeEventLabel ? "pointer" : "not-allowed",
           }}
         >
-          {studentCopy.editor.useEquationForGroup(activeEventLabel ?? "the selected move group")}
+          {studentCopy.editor.useEquationForGroup(activeEventLabel ?? "the selected encounter")}
         </button>
       </div>
     </section>
@@ -6908,7 +6908,7 @@ function CenterChoicePanel({
     : activeEventEquation
       ? ""
       : hasSelectedEvent
-        ? "No equation is assigned to this move group."
+        ? "No equation is assigned to this encounter."
         : "";
   const title = isCreate
     ? "Build your equation"
@@ -6916,9 +6916,9 @@ function CenterChoicePanel({
     ? "Choose an equation"
       : "Build or choose an equation";
   const subtitle = isCreate
-      ? "Use the builder on the left, then add it to a move group."
+      ? "Use the builder on the left, then add it to an encounter."
     : isPremade
-      ? "Choose an equation from the library, then add it to a move group."
+      ? "Choose an equation from the library, then add it to an encounter."
       : "Make an equation or start with one from the lesson library.";
   const selectedTokenOutlineColor =
     selectedMechanic === "hit"
@@ -9004,7 +9004,7 @@ function LibraryPanel({
                 cursor: canAddEquation ? "pointer" : "not-allowed",
               }}
             >
-              Assign to every move in this group
+              Assign to every move in this encounter
             </button>
           </div>
         ) : null}
@@ -9042,7 +9042,7 @@ function InspectorPanel({
     ? assignedEquation
       ? tokensToEquationState(assignedEquation.tokens)
       : "No equation assigned"
-    : "No move group selected. Add a Hit, Spin, or Drag to create one.";
+    : "No encounter selected. Add a Hit, Spin, or Drag to create one.";
 
   function renderInspectorRow(title: string, children: ReactNode) {
     return (
@@ -9146,14 +9146,14 @@ function InspectorPanel({
             whiteSpace: "nowrap",
           }}
         >
-          Add Event
+          Add encounter
         </button>
       </div>
 
       {renderInspectorRow(
-        "Move group (timed)",
+        "Encounter (timed)",
         <>
-          <div>{selectedEventSlot ? studentCopy.editor.moveGroup(eventIndex + 1) : "No move group selected"}</div>
+          <div>{selectedEventSlot ? studentCopy.editor.moveGroup(eventIndex + 1) : "No encounter selected"}</div>
           <div style={{ color: "#CFFF04", marginTop: 4 }}>{assignedEquationText}</div>
           <div style={{ marginTop: 4, color: "#FFFFFF99" }}>
             {`Playhead ${formatTimelineTime(currentSongSeconds, isAdvancedMode)}`}
@@ -9341,7 +9341,7 @@ function TimelineControlsRow({
         }}
       >
         {activeEventNumber === null
-          ? "Click a move group below to edit it"
+          ? "Choose an encounter below to edit it"
           : activeEventHasEquation
             ? studentCopy.editor.editingMoveGroup(activeEventNumber)
             : `Editing ${studentCopy.editor.moveGroup(activeEventNumber)} · build an equation on the left`}
@@ -10170,7 +10170,7 @@ export default function LessonBuilderClient({
       setMode(nextMode);
       setStoreSidecar(nextSidecar as StoreSidecarPayload);
       setSaveStatus(
-        `Loaded ${authoredDraft.encounters.length} move${authoredDraft.encounters.length === 1 ? "" : "s"} across ${nextEvents.length} move group${nextEvents.length === 1 ? "" : "s"}.`,
+        `Loaded ${authoredDraft.encounters.length} move${authoredDraft.encounters.length === 1 ? "" : "s"} across ${nextEvents.length} encounter${nextEvents.length === 1 ? "" : "s"}.`,
       );
       return;
     }
@@ -10266,7 +10266,7 @@ export default function LessonBuilderClient({
     setHideEquationHeader(false);
     setTutorialStep(null);
     setStarterTemplateDismissedForSongId(selectedSongStorage?.id ?? null);
-    setSaveStatus("Editing move group 1. The other moves stay the same.");
+    setSaveStatus("Editing encounter 1. The other moves stay the same.");
   }
 
   function handleAddToStarterTemplate() {
@@ -10504,7 +10504,7 @@ export default function LessonBuilderClient({
     setCenterChoice(null);
     setRtcmEventRangeStartTick(Number(currentSongSeconds.toFixed(3)));
     setRctm2PendingEventNumber(pendingRctm2Number);
-    setSaveStatus(`Move group starts at ${formatSongTime(currentSongSeconds, isAdvancedMode)}. Move the playhead to choose when it ends.`);
+    setSaveStatus(`Encounter starts at ${formatSongTime(currentSongSeconds, isAdvancedMode)}. Move the playhead to choose when it ends.`);
   }
 
   function handleToggleRtcmEventCreation(pendingRctm2Number: number | null = null) {
@@ -10568,7 +10568,7 @@ export default function LessonBuilderClient({
     const finalEndTick = Math.max(rtcmEventRangeStartTick, endTick);
 
     if (Math.abs(finalEndTick - startTick) < 0.001) {
-      setSaveStatus("Move the playhead to set how long this move group lasts.");
+      setSaveStatus("Move the playhead to set how long this encounter lasts.");
       return;
     }
 
@@ -10643,7 +10643,7 @@ export default function LessonBuilderClient({
     setRtcmEventRangeStartTick(null);
     setRctm2PendingEventNumber(null);
     setSaveStatus(
-      `Move group created from ${formatSongTime(startTick, isAdvancedMode)} to ${formatSongTime(finalEndTick, isAdvancedMode)}.`,
+      `Encounter created from ${formatSongTime(startTick, isAdvancedMode)} to ${formatSongTime(finalEndTick, isAdvancedMode)}.`,
     );
   }
 
@@ -10715,7 +10715,7 @@ export default function LessonBuilderClient({
     setSaveStatus(
       activeEventIndex >= 0
         ? `Added your equation to this lesson. Every move in ${studentCopy.editor.moveGroup(activeEventIndex + 1)} will use it.`
-        : "Added your equation to this lesson. Every move in the selected move group will use it.",
+        : "Added your equation to this lesson. Every move in the selected encounter will use it.",
     );
   }
 
@@ -10799,8 +10799,8 @@ export default function LessonBuilderClient({
     if (!targetEventId) {
       setSaveStatus(
         mode === "rctm1" || mode === "rctm2"
-          ? "Move the playhead over a move group to remove it."
-          : "Pick a move group to remove.",
+          ? "Move the playhead over an encounter to remove it."
+          : "Pick an encounter to remove.",
       );
       return;
     }
@@ -11121,7 +11121,7 @@ export default function LessonBuilderClient({
     setSaveStatus(
       activeEventIndex >= 0
         ? `Added your equation to this lesson. Every move in ${studentCopy.editor.moveGroup(activeEventIndex + 1)} will use it.`
-        : "Added your equation to this lesson. Every move in the selected move group will use it.",
+        : "Added your equation to this lesson. Every move in the selected encounter will use it.",
     );
   }
 
@@ -11599,7 +11599,7 @@ export default function LessonBuilderClient({
       appendSongFlowDebug("lesson-builder:save:error", "Lesson save failed.", {
         message: error instanceof Error ? error.message : String(error),
       });
-      setSaveStatus(`${reason}${workspaceSource && guidedStarted ? " A recovery copy stays in this browser." : ""}`);
+      setSaveStatus(`${reason}${workspaceSource && guidedStarted ? " A backup stays in this browser." : ""}`);
       return false;
     } finally {
       setIsSaving(false);
@@ -12670,7 +12670,7 @@ export default function LessonBuilderClient({
       );
 
       if (overlappingEvent) {
-        setSaveStatus("Move group not added: the playhead is already inside another group.");
+        setSaveStatus("Encounter not added: the playhead is already inside another encounter.");
         return current;
       }
 
@@ -13651,7 +13651,7 @@ export default function LessonBuilderClient({
                       shouldScrollLibrary={isTimelineInstructionVisible}
                       tutorialPrompt={
                         tutorialStep === "add"
-                          ? "Choose this equation, then add it to move group 1."
+                          ? "Choose this equation, then add it to encounter 1."
                           : null
                       }
                       onSkipTutorial={() => setTutorialStep(null)}

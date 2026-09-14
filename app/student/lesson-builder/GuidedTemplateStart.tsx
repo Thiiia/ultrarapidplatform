@@ -19,21 +19,21 @@ export default function GuidedTemplateStart({ encounterCount, onPlayTemplate, on
         <p style={{ margin: 0, color: "#D1D5DB", lineHeight: 1.5 }}>Play it now, or make your own copy and change it first. Your original stays safe.</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10, textAlign: "left" }}>
           <div style={explanationCard}>
-            <strong style={{ color: "#CFFF04" }}>Move group</strong>
+            <strong style={{ color: "#CFFF04" }}>Encounter</strong>
             <span>A moment in the song where one or more moves happen.</span>
           </div>
           <div style={explanationCard}>
             <strong style={{ color: "#CFFF04" }}>Move</strong>
-            <span>A Hit, Spin, or Drag is one move you can change here.</span>
+            <span>A Hit, Spin, or Drag is one move inside an encounter.</span>
           </div>
         </div>
-        <p style={{ margin: 0, color: "#FFFFFFB3" }}>{encounterCount} move{encounterCount === 1 ? "" : "s"} are ready for this song.</p>
-        <p style={{ margin: 0, color: "#FFFFFF99", fontSize: 13, lineHeight: 1.45 }}>After these moves, the game can use its own questions if it needs more.</p>
+        <p style={{ margin: 0, color: "#FFFFFFB3" }}>{encounterCount} encounter{encounterCount === 1 ? "" : "s"} are ready for this song.</p>
+        <p style={{ margin: 0, color: "#FFFFFF99", fontSize: 13, lineHeight: 1.45 }}>After these encounters, the game can use its own questions if it needs more.</p>
         <button type="button" onClick={onPlayTemplate} style={{ border: 0, borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "14px 20px", fontWeight: 900, cursor: "pointer" }}>Play this lesson</button>
         <div style={{ color: "#FFFFFFB3", fontSize: 13, fontWeight: 800 }}>Change it first</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
-          <button type="button" onClick={onChangeEvent} style={secondary}>Change first move</button>
-          <button type="button" onClick={onAddEquation} style={secondary}>Make a new equation</button>
+          <button type="button" onClick={onChangeEvent} style={secondary}>Change first encounter</button>
+          <button type="button" onClick={onAddEquation} style={secondary}>Add an equation</button>
         </div>
         <button type="button" onClick={onUseAdvanced} style={{ ...secondary, borderColor: "#CFFF04" }}>Open more tools</button>
       </div>

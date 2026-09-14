@@ -63,10 +63,10 @@ test("guided editing waits until the player chooses an editing action", () => {
   assert.match(builder, /const \[tutorialStep, setTutorialStep\][\s\S]*?= useState<[^>]+>\(null\)/);
   assert.match(builder, /setTutorialStep\(isDemoMode \? "welcome" : null\)/);
   assert.match(guidedStart, /Play this lesson/);
-  assert.match(guidedStart, /Make a new equation/);
-  assert.match(guidedStart, /Move group/);
-  assert.match(guidedStart, /A Hit, Spin, or Drag is one move you can change here\./);
-  assert.match(guidedStart, /After these moves, the game can use its own questions if it needs more\./);
+  assert.match(guidedStart, /Add an equation/);
+  assert.match(guidedStart, /Encounter/);
+  assert.match(guidedStart, /A Hit, Spin, or Drag is one move inside an encounter\./);
+  assert.match(guidedStart, /After these encounters, the game can use its own questions if it needs more\./);
 });
 
 test("player-facing equation actions explain what happens to the lesson", () => {
@@ -75,9 +75,9 @@ test("player-facing equation actions explain what happens to the lesson", () => 
   assert.match(builder, /Hide from my lesson/);
   assert.match(builder, /Show again:/);
   assert.match(builder, /studentCopy\.editor\.useEquationForGroup/);
-  assert.match(builder, /Assign to every move in this group/);
+  assert.match(builder, /Assign to every move in this encounter/);
   assert.match(builder, /Every move in \$\{studentCopy\.editor\.moveGroup/);
-  assert.match(builder, /Move group \(timed\)/);
+  assert.match(builder, /Encounter \(timed\)/);
   assert.match(builder, /Each Hit, Spin, or Drag becomes its own move in the game when you save\./);
   assert.match(builder, /studentCopy\.editor\.saveEquation/);
   assert.match(builder, /Added your equation to this lesson\./);
@@ -94,6 +94,6 @@ test("publish failures distinguish browser recovery from the Unity version", () 
   const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
 
   assert.match(builder, /studentCopy\.editor\.lessonSaveFailed/);
-  assert.match(builder, /A recovery copy stays in this browser\./);
+  assert.match(builder, /A backup stays in this browser\./);
   assert.match(builder, /if \(!response\.ok\) \{[\s\S]*setWorkspaceStatus\("offline"\)/);
 });

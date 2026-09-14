@@ -1,9 +1,9 @@
 /**
  * Learner-facing copy for the student and demo routes.
  *
- * Keep product/infrastructure vocabulary out of this layer. Authoring and
- * debugging tools can still use their precise internal names, but a learner
- * should always see the next useful action in familiar language.
+ * Keep infrastructure vocabulary out of this layer. Product concepts such as
+ * equations, encounters, and mechanics stay visible when they help a learner
+ * understand what they are making or playing.
  */
 export const studentCopy = {
   navigation: {
@@ -67,10 +67,10 @@ export const studentCopy = {
     thingsToFix: (count: number) => `${count} thing${count === 1 ? "" : "s"} to fix`,
     pickSongBeforePlay: "Pick a song before you play this lesson.",
     finishLoadingBeforeSave: "Your lesson is still loading. Try again in a moment.",
-    gameFilesPreparing: "The game files are still getting ready.",
+    gameFilesPreparing: "Your lesson is still getting ready.",
     noChanges: "There are no new changes to save. This lesson is ready to play.",
     draftSaved: "Your changes are saved on this device.",
-    draftRecoveryFailed: "Your lesson is still open, but this device could not save a recovery copy.",
+    draftRecoveryFailed: "Your lesson is still open, but this device could not save a backup.",
     lessonLoaded: "Your lesson is ready.",
     lessonLoadFailed: "We could not load this lesson. Your current work is still here.",
     lessonSaveFailed: "We could not save these changes. Your current work is still here.",
@@ -92,18 +92,18 @@ export const studentCopy = {
     saveEquation: "Save this equation",
     useEquationForGroup: (group: string) => `Use this equation for every move in ${group}`,
     emptyEquation: "Drag a number or symbol here to start.",
-    moveGroup: (number: number) => `Move group ${number}`,
-    editingMoveGroup: (number: number) => `Editing move group ${number} · choose a move or change its equation`,
+    moveGroup: (number: number) => `Encounter ${number}`,
+    editingMoveGroup: (number: number) => `Editing encounter ${number} · choose a move or change its equation`,
     starterLabel: "Starting lesson",
-    starterBody: "This lesson is ready to play. Keep it, change one move, or add an idea.",
-    changeFirstMove: "Change first move",
+    starterBody: "This lesson is ready to play. Keep it, change one encounter, or add an equation.",
+    changeFirstMove: "Change first encounter",
     addEquation: "Add an equation",
     keepIt: "Keep it",
     moveRemoved: (kind: string) => `${kind} removed.`,
     noMoveToRemove: (kind: string) => `There is no ${kind.toLowerCase()} to remove yet.`,
     moveAdded: (kind: string, time: string) => `${kind} added at ${time}.`,
     moveDrafted: (kind: string, time: string, nextAction: string) => `${kind} started at ${time}. ${nextAction}`,
-    chooseEventFirst: "Pick a move group on the timeline first.",
+    chooseEventFirst: "Pick an encounter on the timeline first.",
     equationNeedsBothSides: "Add something on both sides of the = sign to finish the equation.",
     chooseSong: "Pick a song before you continue.",
   },
@@ -157,7 +157,7 @@ export function getLearnerFacingError(error: unknown, fallback: string): string 
   if (/equation/i.test(raw) && /assign|complete|missing|required/i.test(raw)) {
     return studentCopy.mechanics.chooseEquation;
   }
-  if (/workspace|recovery copy|sync/i.test(raw)) return studentCopy.editor.draftRecoveryFailed;
+  if (/workspace|recovery copy|backup|sync/i.test(raw)) return studentCopy.editor.draftRecoveryFailed;
   if (/load|prepare|package|chart|sidecar|lesson files/i.test(raw)) return studentCopy.editor.lessonLoadFailed;
   if (/save|publish|revision|identity|verified/i.test(raw)) return studentCopy.editor.lessonSaveFailed;
   return fallback;
