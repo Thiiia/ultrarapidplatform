@@ -23,8 +23,8 @@ export default function GuidedTemplateStart({ encounterCount, onPlayTemplate, on
             <span>A moment in the song where one or more moves happen.</span>
           </div>
           <div style={explanationCard}>
-            <strong style={{ color: "#CFFF04" }}>Move</strong>
-            <span>A Hit, Spin, or Drag is one move inside an encounter.</span>
+            <strong style={{ color: "#CFFF04" }}>Game action</strong>
+            <span>A Hit, Spin, or Drag is an action you set inside an encounter.</span>
           </div>
         </div>
         <p style={{ margin: 0, color: "#FFFFFFB3" }}>{encounterCount} {encounterCount === 1 ? "encounter" : "encounters"} are ready for this song.</p>

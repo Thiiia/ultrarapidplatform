@@ -24,6 +24,7 @@ export type GuidedEncounterComposerProps = {
   step?: number;
   stepCount?: number;
   dragSources?: DragSource[];
+  onRemove?: () => void;
   onPatchInstance: (
     instanceId: string,
     patch: Partial<GuidedEncounterInput>,
@@ -82,6 +83,20 @@ function TimeControls({
         />
       </label>
     </div>
+  );
+}
+
+function TimingDetails({
+  instance,
+  onPatchInstance,
+}: Pick<GuidedEncounterComposerProps, "instance" | "onPatchInstance">) {
+  return (
+    <details style={{ color: "#FFFFFFB3", fontSize: 11 }}>
+      <summary style={{ cursor: "pointer", fontWeight: 800 }}>Fine-tune timing</summary>
+      <div style={{ marginTop: 8 }}>
+        <TimeControls instance={instance} onPatchInstance={onPatchInstance} />
+      </div>
+    </details>
   );
 }
 
@@ -237,7 +252,7 @@ function DragControls({
           {(dragSources ?? []).map((source) => <option key={source.id} value={source.id}>{source.label}</option>)}
         </select>
       </label>
-      <TimeControls instance={instance} onPatchInstance={onPatchInstance} />
+      <TimingDetails instance={instance} onPatchInstance={onPatchInstance} />
       <div aria-hidden="true" style={{ color: "#FFFFFF80", fontSize: 11 }}>{studentCopy.mechanics.connectEarlierHit}</div>
     </div>
   );
@@ -251,6 +266,7 @@ export function GuidedEncounterComposer({
   stepCount = 3,
   dragSources = [],
   onPatchInstance,
+  onRemove,
 }: GuidedEncounterComposerProps) {
   const heading = instance.mechanic === "hit" ? studentCopy.mechanics.makeHit : instance.mechanic === "spin" ? studentCopy.mechanics.makeSpin : studentCopy.mechanics.makeDrag;
   let controls: ReactNode;
@@ -262,7 +278,7 @@ export function GuidedEncounterComposer({
     controls = (
       <div style={{ display: "grid", gap: 12 }}>
         <TargetPicker instance={instance} tokens={tokens} kind="Spin target" displayLabel={studentCopy.mechanics.pickSpinTarget} onPatchInstance={onPatchInstance} />
-        <TimeControls instance={instance} onPatchInstance={onPatchInstance} />
+        <TimingDetails instance={instance} onPatchInstance={onPatchInstance} />
         <div aria-label="Spin cue" style={{ display: "flex", alignItems: "center", gap: 5, color: "#FFFFFF80", fontSize: 11 }}><ReplayRoundedIcon aria-hidden="true" fontSize="small" />{studentCopy.mechanics.spinCue}</div>
       </div>
     );
@@ -274,7 +290,10 @@ export function GuidedEncounterComposer({
     <section aria-label={`${heading} composer`} style={{ display: "grid", gap: 12, width: "min(100%, 760px)", margin: "0 auto", padding: "clamp(12px, 2vw, 18px)", borderRadius: 16, border: "1px solid #7A8FA8", background: "linear-gradient(145deg, #101827, #0C1422)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
         <h3 style={{ margin: 0, color: "#FFFFFF", fontSize: 15 }}>{heading}</h3>
-        <span style={{ color: "#CFFF04", fontSize: 11, fontWeight: 900 }}>Step {step} of {stepCount}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ color: "#CFFF04", fontSize: 11, fontWeight: 900 }}>Step {step} of {stepCount}</span>
+          {onRemove ? <button type="button" onClick={onRemove} style={{ border: "1px solid #7A3A3A", borderRadius: 999, background: "transparent", color: "#FFB4B4", cursor: "pointer", fontSize: 11, fontWeight: 800, padding: "4px 8px" }}>Remove action</button> : null}
+        </div>
       </div>
       {readiness.ready ? <div style={{ color: "#CFFF04", fontSize: 11, fontWeight: 800 }}>{studentCopy.editor.readyToPlay}</div> : <div role="status" style={{ color: "#FFCB6B", fontSize: 11, fontWeight: 800 }}>{readiness.nextAction}</div>}
       {controls}

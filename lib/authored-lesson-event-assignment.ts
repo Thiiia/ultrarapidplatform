@@ -7,6 +7,9 @@ type EquationAssignment = {
 
 type MechanicInstance = {
   equation?: EquationAssignment | null;
+  hitBubbles?: Array<{ tokenIndex: number; targetId?: string }>;
+  spinTargets?: Array<{ tokenIndex: number; targetId?: string }>;
+  dragTargets?: Array<{ tokenIndex: number; targetId?: string; sourceHitId?: string }>;
 };
 
 type TimelineEvent = {
@@ -19,6 +22,19 @@ function cloneEquation<TEquation extends EquationAssignment>(equation: TEquation
     ...equation,
     tokens: equation.tokens.map((token) => ({ ...token })),
   } as TEquation;
+}
+
+function rebindTargets<TTarget extends { tokenIndex: number; targetId?: string }>(
+  targets: TTarget[] | undefined,
+  equation: EquationAssignment,
+) {
+  return targets?.map((target) => {
+    const reboundTarget = { ...target };
+    const targetId = equation.tokens[target.tokenIndex]?.id;
+    if (targetId) reboundTarget.targetId = targetId;
+    else delete reboundTarget.targetId;
+    return reboundTarget;
+  });
 }
 
 /** Applies one authored equation to every concrete mechanic instance in an event. */
@@ -34,6 +50,9 @@ export function applyEquationToEvent<
     event.mechanicInstances[mechanic].map((instance) => ({
       ...instance,
       equation: cloneEquation(equation),
+      ...(instance.hitBubbles ? { hitBubbles: rebindTargets(instance.hitBubbles, equation) } : {}),
+      ...(instance.spinTargets ? { spinTargets: rebindTargets(instance.spinTargets, equation) } : {}),
+      ...(instance.dragTargets ? { dragTargets: rebindTargets(instance.dragTargets, equation) } : {}),
     }));
 
   return {

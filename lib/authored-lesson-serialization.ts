@@ -113,7 +113,10 @@ function bindTargetToEquation<T extends { tokenIndex: number; targetId?: string 
   const targetId = target.targetId && equation.tokens.some((token) => token.id === target.targetId)
     ? target.targetId
     : equation.tokens[target.tokenIndex]?.id;
-  return { ...target, ...(targetId ? { targetId } : {}) };
+  const reboundTarget = { ...target };
+  if (targetId) reboundTarget.targetId = targetId;
+  else delete reboundTarget.targetId;
+  return reboundTarget;
 }
 
 /**

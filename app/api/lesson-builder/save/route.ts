@@ -101,6 +101,36 @@ async function sha256ForStoredFile(bucket: string, path: string) {
   if (error || !data) throw new Error(`Unable to hash required asset: ${bucket}/${path}`);
   return createHash("sha256").update(Buffer.from(await data.arrayBuffer())).digest("hex");
 }
+async function readStoredUtf8Text(
+  bucket: string,
+  path: string,
+  label: string,
+): Promise<string> {
+  const { data, error } = await getSupabaseServerClient()
+    .storage
+    .from(bucket)
+    .download(path);
+
+  if (error || !data) {
+    throw new Error(
+      `Unable to preserve ${label}: ${bucket}/${path}${error?.message ? ` (${error.message})` : ""
+      }`,
+    );
+  }
+
+  // Decode the stored bytes directly so an unchanged chart is carried
+  // forward instead of being reconstructed from editor timeline state.
+  const bytes = Buffer.from(await data.arrayBuffer());
+  const content = bytes.toString("utf8");
+
+  if (!content.trim()) {
+    throw new Error(
+      `Unable to preserve ${label}: stored file is empty (${bucket}/${path})`,
+    );
+  }
+
+  return content;
+}
 
 export function isSameOriginLessonSaveRequest(request: Request) {
   const origin = request.headers.get("origin");
@@ -204,9 +234,9 @@ export async function POST(request: Request) {
         ? payload.publicationRequestId.trim()
         : randomUUID());
 
-    if (!payload.chart || !payload.sidecar) {
+    if (!payload.sidecar) {
       return NextResponse.json(
-        { error: "Both chart and sidecar payloads are required" },
+        { error: "sidecar payload is required" },
         { status: 400 },
       );
     }
@@ -244,10 +274,71 @@ export async function POST(request: Request) {
     if (!targetAuthor) {
       return NextResponse.json({ error: "No default author is configured" }, { status: 400 });
     }
-    const authorFolder = resolveAuthorFolder({ name: targetAuthor.name, email: null });
+    const authorFolder = resolveAuthorFolder({
+      name: targetAuthor.name,
+      email: null,
+    });
 
-    const chartContent = readRequiredString(payload.chart.content, "chart.content");
-    const sidecarContent = readRequiredString(payload.sidecar.content, "sidecar.content");
+    // Resolve the currently-published lesson BEFORE deciding where chart content
+    // should come from.
+    //
+    // A sidecar-only edit should preserve the existing authoritative .chart.
+    // The browser does not need to round-trip/reconstruct the rhythm chart.
+    const targets = await resolveAuthoredChartTargets({
+      songAssetId,
+      authorId: targetAuthor.id,
+      activityKey,
+      authorFolder,
+    });
+
+    const submittedChartContent =
+      typeof payload.chart?.content === "string" &&
+        payload.chart.content.trim().length > 0
+        ? payload.chart.content
+        : null;
+
+    let chartContent: string;
+    let chartSource: "submitted" | "preserved";
+
+    if (submittedChartContent != null) {
+      chartContent = submittedChartContent;
+      chartSource = "submitted";
+    } else {
+      if (!targets.current) {
+        return NextResponse.json(
+          {
+            error:
+              "chart.content is required for the first publication because there is no existing chart to preserve",
+          },
+          { status: 400 },
+        );
+      }
+
+      chartContent = await readStoredUtf8Text(
+        targets.current.chartBucket,
+        targets.current.chartPath,
+        "current chart",
+      );
+
+      chartSource = "preserved";
+    }
+
+    const sidecarContent = readRequiredString(
+      payload.sidecar.content,
+      "sidecar.content",
+    );
+
+    console.info("[lesson-builder/save] chart source", {
+      songAssetId,
+      activityKey,
+      authorId: targetAuthor.id,
+      requestedRevision,
+      chartSource,
+      sourceChartPath:
+        chartSource === "preserved"
+          ? targets.current?.chartPath ?? null
+          : null,
+    });
 
     const replayedPublication = await prisma.gameContentRevision.findUnique({
       where: { publicationRequestId },
@@ -304,13 +395,7 @@ export async function POST(request: Request) {
     } catch (error) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid authored lesson payload" }, { status: 400 });
     }
-
-    const targets = await resolveAuthoredChartTargets({
-      songAssetId,
-      authorId: targetAuthor.id,
-      activityKey,
-      authorFolder,
-    });
+    
     // Concurrency precondition: the draft's previous revision must match the
     // revision currently published in storage. The NEW revision (revisionId) is
     // generated below and stamped as output identity, never equated with the

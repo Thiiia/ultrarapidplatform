@@ -34,6 +34,11 @@ test("editor side panels progressively disclose without removing access", () => 
   assert.match(lessonBuilderSource, /Collapse equation library/);
 });
 
+test("guided editing names actions and avoids exposing internal action codes", () => {
+  assert.match(lessonBuilderSource, /Choose an action/);
+  assert.doesNotMatch(lessonBuilderSource, /\$\{item\.mechanic\[0\]\.toUpperCase\(\)\}\$\{item\.instanceIndex \+ 1\}/);
+});
+
 test("lesson readiness is an expandable status control", () => {
   assert.match(readinessSource, /isOpen: boolean/);
   assert.match(readinessSource, /aria-expanded=\{isOpen\}/);

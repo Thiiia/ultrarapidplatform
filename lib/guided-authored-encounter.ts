@@ -21,6 +21,7 @@ export type GuidedEncounterInput = {
 export type EncounterIssueCode =
   | "equation_required"
   | "target_required"
+  | "target_identity_invalid"
   | "hit_pad_required"
   | "spin_target_required"
   | "drag_source_required"
@@ -69,6 +70,7 @@ export type NormalizedStagedMechanic = {
 const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   equation_required: "Choose an equation to get started.",
   target_required: "Pick a token for this move.",
+  target_identity_invalid: "Choose the token again.",
   hit_pad_required: "Choose at least one button for the token.",
   spin_target_required: "Pick the token to spin.",
   drag_source_required: "Choose an earlier Hit to start this Drag.",
@@ -82,6 +84,7 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
   const labels: Record<EncounterIssueCode, string> = {
     equation_required: "needs an equation",
     target_required: "needs a token",
+    target_identity_invalid: "needs its token chosen again",
     hit_pad_required: "needs a button",
     spin_target_required: "needs a token to spin",
     drag_source_required: "needs an earlier Hit",
@@ -104,6 +107,12 @@ function targetIndexes(encounter: GuidedEncounterInput) {
   if (encounter.mechanic === "hit") return encounter.hitBubbles.map((target) => target.tokenIndex);
   if (encounter.mechanic === "spin") return encounter.spinTargets.map((target) => target.tokenIndex);
   return encounter.dragTargets.map((target) => target.tokenIndex);
+}
+
+function targetIds(encounter: GuidedEncounterInput) {
+  if (encounter.mechanic === "hit") return encounter.hitBubbles.map((target) => target.targetId);
+  if (encounter.mechanic === "spin") return encounter.spinTargets.map((target) => target.targetId);
+  return encounter.dragTargets.map((target) => target.targetId);
 }
 
 export function evaluateEncounterReadiness(
@@ -129,6 +138,11 @@ export function evaluateEncounterReadiness(
   }
 
   if (encounter.equation) {
+    const stableTokenIds = new Set(encounter.equation.tokens.map((token) => token.id));
+    if (targetIds(encounter).some((targetId) => targetId && !stableTokenIds.has(targetId))) {
+      issues.push(issue(encounter, "target_identity_invalid"));
+    }
+
     for (const tokenIndex of targets) {
       const token = encounter.equation.tokens[tokenIndex];
       if (!token || isAuthoredEquationOperator(token.label)) {

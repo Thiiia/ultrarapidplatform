@@ -92,7 +92,7 @@ test("guided editing waits until the player chooses an editing action", () => {
   assert.match(guidedStart, /Play this lesson/);
   assert.match(guidedStart, /Add an equation/);
   assert.match(guidedStart, /Encounter/);
-  assert.match(guidedStart, /A Hit, Spin, or Drag is one move inside an encounter\./);
+  assert.match(guidedStart, /A Hit, Spin, or Drag is an action you set inside an encounter\./);
   assert.match(guidedStart, /After these encounters, the game can use its own questions if it needs more\./);
 });
 

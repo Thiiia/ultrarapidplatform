@@ -74,6 +74,16 @@ test("hit requires playable targets and at least one pad", () => {
   assert.deepEqual(result.issueCodes, ["hit_pad_required", "operator_target"]);
 });
 
+test("a stale target identity asks the author to choose the token again", () => {
+  const result = evaluateEncounterReadiness(encounter("hit", {
+    hitBubbles: [{ tokenIndex: 0, targetId: "removed-token", pads: ["left"] }],
+  }), new Set());
+
+  assert.equal(result.ready, false);
+  assert.deepEqual(result.issueCodes, ["target_identity_invalid"]);
+  assert.equal(result.nextAction, "Choose the token again.");
+});
+
 test("drag source must be an earlier ready Hit", () => {
   const events = [
     eventWith(encounter("drag", { id: "drag-1", tick: 12, endTick: 16, dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-1" }] })),

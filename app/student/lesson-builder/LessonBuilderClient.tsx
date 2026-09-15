@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import type { ChangeEvent, DragEvent, PointerEvent, ReactNode } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
+import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
+import SwipeRoundedIcon from "@mui/icons-material/SwipeRounded";
+import TouchAppRoundedIcon from "@mui/icons-material/TouchAppRounded";
 import {
   useEditorStore,
   type SidecarPayload as StoreSidecarPayload,
@@ -10049,6 +10052,8 @@ export default function LessonBuilderClient({
     };
   }, [lessonPublishReadiness, selectedGuidedEncounter]);
 
+  const isFocusedGuidedEditor = Boolean(selectedGuidedEncounter) && !isAdvancedMode;
+
   useEffect(() => {
     if (centerContextMechanicItems.length === 0) {
       if (selectedContextMechanicKey !== null) {
@@ -10276,6 +10281,7 @@ export default function LessonBuilderClient({
   function beginGuidedEditing() {
     setGuidedStarted(true);
     setAdvancedMode(false);
+    setIsBuilderPanelOpen(false);
   }
 
   function handleUseAdvanced() {
@@ -13368,7 +13374,11 @@ export default function LessonBuilderClient({
                     height: "100%",
                     minHeight: 0,
                     display: "grid",
-                    gridTemplateRows: centerContextEvent ? "7% 80% 13%" : "0 100% 0",
+                    gridTemplateRows: centerContextEvent
+                      ? isFocusedGuidedEditor
+                        ? "auto minmax(0, 1fr) 0"
+                        : "7% 80% 13%"
+                      : "0 100% 0",
                     background: row2Column2BackgroundColor,
                     overflow: "hidden",
                   }}
@@ -13457,11 +13467,20 @@ export default function LessonBuilderClient({
                         </div>
                       ) : centerContextEvent && centerContextEventIndex >= 0 ? (
                         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                          <span>{studentCopy.editor.moveGroup(centerContextEventIndex + 1)}</span>
-                          <span>{`Starts at ${formatTimelineTime(getTimelineEventTimeWindowSeconds(centerContextEvent).startSeconds, isAdvancedMode)}`}</span>
-                          <span>{`Spins: ${centerContextEvent.counts?.spin ?? 0}`}</span>
-                          <span>{`Hits: ${centerContextEvent.counts?.hit ?? 0}`}</span>
-                          <span>{`Drags: ${centerContextEvent.counts?.drag ?? 0}`}</span>
+                          {isFocusedGuidedEditor ? (
+                            <>
+                              <span>{studentCopy.editor.moveGroup(centerContextEventIndex + 1)}</span>
+                              <span style={{ color: "#FFFFFF99", fontWeight: 700 }}>Choose an action, then set it up below.</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>{studentCopy.editor.moveGroup(centerContextEventIndex + 1)}</span>
+                              <span>{`Starts at ${formatTimelineTime(getTimelineEventTimeWindowSeconds(centerContextEvent).startSeconds, isAdvancedMode)}`}</span>
+                              <span>{`Spins: ${centerContextEvent.counts?.spin ?? 0}`}</span>
+                              <span>{`Hits: ${centerContextEvent.counts?.hit ?? 0}`}</span>
+                              <span>{`Drags: ${centerContextEvent.counts?.drag ?? 0}`}</span>
+                            </>
+                          )}
                         </div>
                       ) : null}
                     </div>
@@ -13472,21 +13491,59 @@ export default function LessonBuilderClient({
                         minHeight: 0,
                         overflowY: "auto",
                         display: "grid",
-                        gridTemplateRows: selectedGuidedEncounter ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)",
+                        gridTemplateRows: isFocusedGuidedEditor
+                          ? "minmax(0, 1fr)"
+                          : selectedGuidedEncounter
+                            ? "auto minmax(0, 1fr)"
+                            : "minmax(0, 1fr)",
                       }}
                     >
                       {selectedGuidedEncounter && selectedGuidedReadiness ? (
-                        <GuidedEncounterComposer
-                          instance={selectedGuidedEncounter}
-                          tokens={selectedGuidedEncounter.equation?.tokens ?? []}
-                          readiness={selectedGuidedReadiness}
-                          step={selectedGuidedReadiness.issueCodes.includes("equation_required") ? 1 : 2}
-                          stepCount={3}
-                          dragSources={dragSources}
-                          onPatchInstance={handlePatchSelectedGuidedEncounter}
-                        />
+                        <div style={{ display: "grid", gridTemplateRows: "auto minmax(0, 1fr)", gap: 12, minHeight: 0, overflowY: "auto", padding: "clamp(12px, 2vw, 20px)" }}>
+                          {isFocusedGuidedEditor ? (
+                            <div aria-label="Choose an action" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(132px, 1fr))", gap: 8, width: "min(100%, 760px)", margin: "0 auto" }}>
+                              {centerContextMechanicItems.map((item) => {
+                                const isSelected = item.key === selectedCenterContextMechanic?.key;
+                                const ActionIcon = item.mechanic === "hit"
+                                  ? TouchAppRoundedIcon
+                                  : item.mechanic === "spin"
+                                    ? ReplayRoundedIcon
+                                    : SwipeRoundedIcon;
+                                return (
+                                  <button
+                                    key={item.key}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedContextMechanicKey(item.key);
+                                      seekSong(timelineTickToSeconds(item.startTick));
+                                    }}
+                                    aria-pressed={isSelected}
+                                    aria-label={`Select ${studentCopy.mechanics[item.mechanic]} action ${item.instanceIndex + 1}`}
+                                    style={{ minHeight: 66, display: "grid", gridTemplateColumns: "auto 1fr", alignItems: "center", gap: 9, borderRadius: 14, border: `1px solid ${isSelected ? "#CFFF04" : "#42536A"}`, background: isSelected ? "rgba(207,255,4,0.12)" : "#101827", color: isSelected ? "#CFFF04" : "#FFFFFF", cursor: "pointer", padding: "9px 12px", textAlign: "left", fontFamily: "Space Grotesk, sans-serif" }}
+                                  >
+                                    <ActionIcon aria-hidden="true" fontSize="small" />
+                                    <span style={{ display: "grid", gap: 2 }}>
+                                      <strong style={{ fontSize: 13 }}>{studentCopy.mechanics[item.mechanic]} action {item.instanceIndex + 1}</strong>
+                                      <span style={{ color: isSelected ? "#DFFF70" : "#FFFFFF99", fontSize: 11 }}>{formatTimelineTime(timelineTickToSeconds(item.startTick), isAdvancedMode)}</span>
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : null}
+                          <GuidedEncounterComposer
+                            instance={selectedGuidedEncounter}
+                            tokens={selectedGuidedEncounter.equation?.tokens ?? []}
+                            readiness={selectedGuidedReadiness}
+                            step={selectedGuidedReadiness.issueCodes.includes("equation_required") ? 1 : 2}
+                            stepCount={3}
+                            dragSources={dragSources}
+                            onPatchInstance={handlePatchSelectedGuidedEncounter}
+                            onRemove={isFocusedGuidedEditor ? handleRemoveSelectedContextMechanic : undefined}
+                          />
+                        </div>
                       ) : null}
-                      <div style={{ minHeight: 0, overflow: "hidden" }}>
+                      {!isFocusedGuidedEditor ? <div style={{ minHeight: 0, overflow: "hidden" }}>
                         <CenterChoicePanel
                           choice={centerChoice}
                           draftTokens={draftTokens}
@@ -13516,13 +13573,13 @@ export default function LessonBuilderClient({
                           showWorkspacePrompt={showCenterWorkspacePrompt}
                           hideHeader={hideEquationHeader}
                         />
-                      </div>
+                      </div> : null}
                     </div>
 
                     <div
                       style={{
                         gridRow: 3,
-                        display: centerContextEvent ? "grid" : "none",
+                        display: centerContextEvent && !isFocusedGuidedEditor ? "grid" : "none",
                         minHeight: 0,
                         gridTemplateColumns: "minmax(0, 1fr) auto",
                         alignItems: "center",
@@ -13629,7 +13686,7 @@ export default function LessonBuilderClient({
                               }}
                               aria-label={`Select ${item.mechanic} ${item.instanceIndex + 1}`}
                             >
-                              {`${item.mechanic[0].toUpperCase()}${item.instanceIndex + 1}`}
+                              {`${studentCopy.mechanics[item.mechanic]} ${item.instanceIndex + 1}`}
                             </button>
                           );
                         })}

@@ -243,6 +243,10 @@ test("rebinds stale target identities when an event receives a new equation", ()
   );
 
   const draft = serializeAuthoredLesson([updatedEvent], IDENTITY, clock);
+  assert.equal(
+    updatedEvent.mechanicInstances.hit[0].hitBubbles[0]?.targetId,
+    "eq-new-token-2",
+  );
   const target = draft.encounters[0].hitBubbles?.[0];
 
   assert.equal(target?.targetId, "eq-new-token-2");
@@ -590,4 +594,23 @@ test("does not silently drop an empty queued equation", () => {
     () => serializeAuthoredLesson([], IDENTITY, clock, undefined, [{ id: "empty", tokens: [] }]),
     /at least one token/i,
   );
+});
+
+test("never serializes a foreign target identity after an equation edit", () => {
+  const clock = { toTick: (seconds: number) => Math.round(seconds * 1000), toSeconds: (tick: number) => tick / 1000 };
+  const draft = serializeAuthoredLesson(
+    [makeEvent("event-stale-target", 1, { hit: 1 }, {
+      equation: equation("eq-current", ["3", "=", "3"]),
+      instances: {
+        hit: [instance("hit-stale-target", {
+          tick: 1,
+          hitBubbles: [{ tokenIndex: 99, targetId: "eq-previous-token-0", positions: ["left"], pads: ["left"] }],
+        })],
+      },
+    })],
+    IDENTITY,
+    clock,
+  );
+
+  assert.equal(draft.encounters[0].hitBubbles?.[0]?.targetId, undefined);
 });
