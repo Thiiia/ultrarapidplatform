@@ -174,6 +174,69 @@ function isPlayableAuthoredToken(token: string) {
   return !isAuthoredEquationOperator(token);
 }
 
+function resolvedHitPads(bubble: AuthoredLessonHitBubble): AuthoredHitPad[] {
+  // Unity reads both spellings then folds them into one bit mask. A duplicate
+  // inside one Hit is harmless, but a duplicate across concurrent Hits is not.
+  return [...new Set([...(bubble.pads ?? []), ...(bubble.positions ?? [])])];
+}
+
+function encountersOverlap(left: AuthoredLessonEncounter, right: AuthoredLessonEncounter) {
+  // A mechanic ending on the same tick another begins is still unsafe: Unity
+  // dispatches authored events before presenter teardown in that frame.
+  return left.startTick <= right.endTick && right.startTick <= left.endTick;
+}
+
+/**
+ * Keep the platform's publish contract aligned with the current Unity runtime.
+ * The runtime has one shared interaction/presenter path: only disjoint HITs
+ * from the same tick, event and equation can coexist. SPIN/DRAG overlaps (and
+ * HIT mixed with either) would otherwise reach a runtime rejection after an
+ * author has already published the revision.
+ */
+function validateRuntimeConcurrency(encounters: readonly AuthoredLessonEncounter[]) {
+  const ordered = [...encounters].sort((left, right) =>
+    left.startTick - right.startTick ||
+    left.endTick - right.endTick ||
+    left.id.localeCompare(right.id),
+  );
+
+  for (let index = 0; index < ordered.length; index += 1) {
+    const left = ordered[index];
+    for (let candidateIndex = index + 1; candidateIndex < ordered.length; candidateIndex += 1) {
+      const right = ordered[candidateIndex];
+      if (right.startTick > left.endTick) break;
+      if (!encountersOverlap(left, right)) continue;
+
+      const sameHitGroup = left.type === "hit" && right.type === "hit" &&
+        left.startTick === right.startTick &&
+        left.eventId === right.eventId &&
+        left.equationId === right.equationId;
+
+      if (sameHitGroup) {
+        const leftAssignedPads = (left.hitBubbles ?? []).flatMap(resolvedHitPads);
+        const rightAssignedPads = (right.hitBubbles ?? []).flatMap(resolvedHitPads);
+        if (leftAssignedPads.length === 0 || rightAssignedPads.length === 0) {
+          throw new Error(
+            `Authored lesson concurrent hits '${left.id}' and '${right.id}' must declare pads so Unity can keep them disjoint`,
+          );
+        }
+        const leftPads = new Set(leftAssignedPads);
+        const sharedPad = rightAssignedPads
+          .find((pad) => leftPads.has(pad));
+        if (!sharedPad) continue;
+        throw new Error(
+          `Authored lesson concurrent hits '${left.id}' and '${right.id}' both assign pad '${sharedPad}'`,
+        );
+      }
+
+      throw new Error(
+        `Authored lesson encounters '${left.id}' and '${right.id}' overlap in a combination Unity does not support; ` +
+        "only disjoint same-event, same-equation Hits may share a tick",
+      );
+    }
+  }
+}
+
 export function parseAuthoredLessonDraft(
   value: unknown,
   options: { requirePublishedIdentity?: boolean } = {},
@@ -293,6 +356,9 @@ export function parseAuthoredLessonDraft(
     if (equationTokens && targets.some((target) => !isPlayableAuthoredToken(equationTokens[target.tokenIndex]))) {
       throw new Error(`Encounter '${encounter.id}' targets a non-playable operator token`);
     }
+    if (encounter.type === "hit" && !(encounter.hitBubbles ?? []).some((bubble) => resolvedHitPads(bubble).length > 0)) {
+      throw new Error(`Authored lesson hit '${encounter.id}' requires at least one authored hit pad`);
+    }
   }
   const hits = new Map(result.encounters.filter((encounter) => encounter.type === "hit").map((encounter) => [encounter.id, encounter]));
   for (const encounter of result.encounters) {
@@ -302,8 +368,8 @@ export function parseAuthoredLessonDraft(
       if (!source) {
         throw new Error(`Encounter '${encounter.id}' sourceHitId '${target.sourceHitId}' references a missing hit`);
       }
-      if (source.startTick > encounter.startTick) {
-        throw new Error(`Encounter '${encounter.id}' sourceHitId '${target.sourceHitId}' starts after the drag`);
+      if (source.endTick >= encounter.startTick) {
+        throw new Error(`Encounter '${encounter.id}' sourceHitId '${target.sourceHitId}' must complete before the drag begins`);
       }
     }
   }
@@ -318,6 +384,7 @@ export function parseAuthoredLessonDraft(
       throw new Error(`Authored lesson hit '${encounter.id}' must be instantaneous (startTick === endTick)`);
     }
   }
+  validateRuntimeConcurrency(result.encounters);
   if (result.equations.length === 0 && result.encounters.length === 0) {
     throw new Error("Authored lesson contains no equations or encounters");
   }

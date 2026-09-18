@@ -13249,6 +13249,13 @@ export default function LessonBuilderClient({
         {isGuidedStart ? (
           <GuidedTemplateStart
             encounterCount={timelineEvents.length}
+            actionCount={timelineEvents.reduce(
+              (total, event) => total + gameplayMechanics.reduce(
+                (eventTotal, mechanic) => eventTotal + Math.max(0, event.counts?.[mechanic] ?? 0),
+                0,
+              ),
+              0,
+            )}
             onPlayTemplate={() => void handleLaunchGame(true)}
             onChangeEvent={handlePersonalizeStarterEncounter}
             onAddEquation={handleAddToStarterTemplate}

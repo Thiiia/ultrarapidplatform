@@ -31,6 +31,7 @@ test("migrates known legacy catalogue encounters into a playable v3 authored les
   assert.equal(parsed.encounters[2].type, "hit");
   assert.equal(parsed.encounters[3].type, "drag");
   assert.equal(parsed.encounters[3].dragTargets?.[0].sourceHitId, parsed.encounters[2].id);
+  assert.ok(parsed.encounters[2].endTick < parsed.encounters[3].startTick);
 });
 
 test("rejects a legacy equation that is absent from the canonical migration catalogue", () => {
@@ -55,7 +56,7 @@ test("repairs historical legacy-migrated targets that point at operators", () =>
       equationId: "Year7_011_mixedmultistep",
       startTick: 960,
       endTick: 960,
-      hitBubbles: [{ tokenIndex: 1, positions: ["topLeft"], pads: ["topLeft"] }],
+      hitBubbles: [{ tokenIndex: 1 }],
     }],
   };
 
@@ -63,4 +64,41 @@ test("repairs historical legacy-migrated targets that point at operators", () =>
   const repaired = repairLegacyMigratedAuthoredLesson(historical);
   assert.doesNotThrow(() => parseAuthoredLessonDraft(repaired));
   assert.equal((repaired.encounters[0].hitBubbles?.[0] as { tokenIndex: number }).tokenIndex, 2);
+  assert.deepEqual(repaired.encounters[0].hitBubbles?.[0], {
+    tokenIndex: 2,
+    positions: ["topLeft"],
+    pads: ["topLeft"],
+  });
+});
+
+test("repairs a historical same-tick legacy hit and dependent drag", () => {
+  const historical = {
+    version: 3,
+    mode: "authored",
+    songAssetId: "waves",
+    activityKey: "early-algebra",
+    equations: [{ id: "Year7_011_mixedmultistep", state: "6x+5=35" }],
+    encounters: [{
+      id: "legacy-0-hit",
+      eventId: "legacy-0",
+      type: "hit",
+      equationId: "Year7_011_mixedmultistep",
+      startTick: 960,
+      endTick: 960,
+      hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"] }],
+    }, {
+      id: "legacy-0-drag",
+      eventId: "legacy-0",
+      type: "drag",
+      equationId: "Year7_011_mixedmultistep",
+      startTick: 960,
+      endTick: 1152,
+      dragTargets: [{ tokenIndex: 2, sourceHitId: "legacy-0-hit" }],
+    }],
+  };
+
+  const repaired = repairLegacyMigratedAuthoredLesson(historical);
+  const parsed = parseAuthoredLessonDraft(repaired);
+  assert.equal(parsed.encounters[1].startTick, 961);
+  assert.equal(parsed.encounters[1].endTick, 1153);
 });

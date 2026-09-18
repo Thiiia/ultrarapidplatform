@@ -16,7 +16,7 @@ function readFixture(name: string) {
   return readFileSync(join(fixtures, name), "utf8");
 }
 
-test("producer fixture: note-free chart with authored overlapping content validates", () => {
+test("producer fixture: note-free chart with runtime-compatible authored content validates", () => {
   const chart = readFixture("note-free.chart");
   const sidecar = readFixture("overlapping-mechanics.v3.json");
 
@@ -34,11 +34,13 @@ test("producer fixture: note-free chart with authored overlapping content valida
   );
   // 174 BPM, resolution 480: 4s -> 5568 ticks.
   assert.equal(parsed.encounters[0].startTick, 5568);
-  // Simultaneous spin and drag coexist at the same event and tick.
+  // The runtime accepts simultaneous disjoint Hits, then Spin and Drag run
+  // sequentially through the shared interaction presenter.
   const spin = parsed.encounters.find((encounter) => encounter.type === "spin");
   const drag = parsed.encounters.find((encounter) => encounter.type === "drag");
-  assert.equal(spin?.eventId, drag?.eventId);
-  assert.equal(spin?.startTick, drag?.startTick);
+  assert.equal(parsed.encounters.filter((encounter) => encounter.type === "hit").length, 2);
+  assert.notEqual(spin?.eventId, drag?.eventId);
+  assert.ok((spin?.endTick ?? 0) < (drag?.startTick ?? 0));
 
   const timeline = timelineEventsFromAuthoredLesson(parsed, createLessonClock(chart));
   assert.equal(evaluateLessonPublishReadiness(timeline.events).ready, true);

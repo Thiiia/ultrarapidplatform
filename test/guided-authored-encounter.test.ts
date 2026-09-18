@@ -94,6 +94,40 @@ test("drag source must be an earlier ready Hit", () => {
   assert.match(result.blockers[0].message, /Hit that comes first/);
 });
 
+test("drag cannot share the source Hit's tick", () => {
+  const hit = encounter("hit", { id: "hit-1", tick: 12 });
+  const drag = encounter("drag", {
+    id: "drag-1", tick: 12, endTick: 16,
+    dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-1" }],
+  });
+  const result = evaluateLessonPublishReadiness([eventWith(hit), eventWith(drag)]);
+  assert.equal(result.ready, false);
+  assert.ok(result.blockers.some((blocker) => blocker.code === "drag_source_not_earlier"));
+});
+
+test("publish readiness blocks overlapping mechanics but permits disjoint multi-hit", () => {
+  const spin = encounter("spin", { id: "spin-1", tick: 8, endTick: 12 });
+  const drag = encounter("drag", { id: "drag-1", tick: 9, endTick: 13 });
+  const overlap = evaluateLessonPublishReadiness([eventWith(spin), eventWith(drag)]);
+  assert.equal(overlap.ready, false);
+  assert.ok(overlap.blockers.some((blocker) => blocker.code === "unsupported_concurrency"));
+
+  const firstHit = encounter("hit", { id: "hit-1", tick: 8, hitBubbles: [{ tokenIndex: 0, pads: ["left"] }] });
+  const secondHit = encounter("hit", { id: "hit-2", tick: 8, hitBubbles: [{ tokenIndex: 2, pads: ["right"] }] });
+  const multiHit = evaluateLessonPublishReadiness([eventWith(firstHit, secondHit)]);
+  assert.equal(multiHit.ready, true);
+
+  const legacyPadCollision = evaluateLessonPublishReadiness([eventWith(
+    encounter("hit", {
+      id: "hit-left-and-right",
+      tick: 8,
+      hitBubbles: [{ tokenIndex: 0, pads: ["left"], positions: ["right"] }],
+    }),
+    secondHit,
+  )]);
+  assert.ok(legacyPadCollision.blockers.some((blocker) => blocker.code === "unsupported_concurrency"));
+});
+
 test("RCTM without saved equation remains a visible non-publishable draft", () => {
   const result = normalizeStagedMechanic({ id: "r-1", mechanic: "spin", tick: 12 }, null);
   assert.equal(result.publishable, false);
@@ -101,9 +135,9 @@ test("RCTM without saved equation remains a visible non-publishable draft", () =
 });
 
 test("a complete mixed lesson is ready", () => {
-  const hit = encounter("hit", { id: "hit-1", tick: 4 });
+  const hit = encounter("hit", { id: "hit-1", tick: 4, endTick: 4 });
   const spin = encounter("spin", { id: "spin-1", tick: 8 });
-  const drag = encounter("drag", { id: "drag-1", tick: 12, endTick: 16 });
+  const drag = encounter("drag", { id: "drag-1", tick: 13, endTick: 16 });
   const result = evaluateLessonPublishReadiness([
     eventWith(hit),
     eventWith(spin),

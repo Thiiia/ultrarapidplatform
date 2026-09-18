@@ -40,7 +40,7 @@ function instance(
     id,
     tick: overrides.tick,
     endTick: overrides.endTick,
-    hitBubbles: overrides.hitBubbles ?? [{ tokenIndex: 0, positions: [], pads: [] }],
+    hitBubbles: overrides.hitBubbles ?? [{ tokenIndex: 0, positions: ["left"], pads: ["left"] }],
     spinTargets: overrides.spinTargets ?? [{ tokenIndex: 0 }],
     dragTargets: overrides.dragTargets ?? [{ tokenIndex: 0 }],
     ...(overrides.equation ? { equation: overrides.equation } : {}),
@@ -364,7 +364,7 @@ test("editor -> v3 -> editor round-trip preserves identity, targets and queue or
       equation: equation("eq-1", ["2", "+", "3", "=", "5"]),
       instances: {
         hit: [instance("inst-hit-a", { tick: 2, hitBubbles: [{ tokenIndex: 0, positions: ["topLeft"], pads: ["topLeft"] }] })],
-        drag: [instance("inst-drag-a", { tick: 2, endTick: 4, dragTargets: [{ tokenIndex: 2, sourceHitId: "inst-hit-a" }] })],
+        drag: [instance("inst-drag-a", { tick: 2.25, endTick: 4, dragTargets: [{ tokenIndex: 2, sourceHitId: "inst-hit-a" }] })],
       },
     }),
     makeEvent("event-2", 6, {}, { equation: equation("eq-2", ["7", "=", "X"]) }),
@@ -502,13 +502,13 @@ test("hydrates the canonical authored fixture and preserves per-mechanic RTCM as
   const hydrated = timelineEventsFromAuthoredLesson(draft, clock);
 
   assert.deepEqual(hydrated.equations.map((entry) => entry.id), ["eq-1", "eq-2", "eq-3"]);
-  assert.deepEqual(hydrated.events.map((event) => event.id), ["event-1", "event-2"]);
+  assert.deepEqual(hydrated.events.map((event) => event.id), ["event-1", "event-2", "event-3"]);
   assert.deepEqual(
     hydrated.events[0].mechanicInstances.hit.map((instance) => instance.id),
     ["inst-hit-1", "inst-hit-2"],
   );
   assert.equal(hydrated.events[1].mechanicInstances.spin[0]?.equation?.id, "eq-2");
-  assert.equal(hydrated.events[1].mechanicInstances.drag[0]?.equation?.id, "eq-2");
+  assert.equal(hydrated.events[2].mechanicInstances.drag[0]?.equation?.id, "eq-2");
 
   const redraft = serializeAuthoredLesson(
     hydrated.events,
@@ -525,7 +525,7 @@ test("hydrates the canonical authored fixture and preserves per-mechanic RTCM as
       ["inst-hit-1", "event-1", "hit"],
       ["inst-hit-2", "event-1", "hit"],
       ["inst-spin-1", "event-2", "spin"],
-      ["inst-drag-1", "event-2", "drag"],
+      ["inst-drag-1", "event-3", "drag"],
     ],
   );
   assert.equal(redraft.authorId, "author-dev");

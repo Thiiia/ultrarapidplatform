@@ -65,7 +65,7 @@
       "type": "spin",
       "equationId": "eq-2",
       "startTick": 9048,
-      "endTick": 12528,
+      "endTick": 11000,
       "spinTargets": [
         {
           "tokenIndex": 0
@@ -74,11 +74,11 @@
     },
     {
       "id": "inst-drag-1",
-      "eventId": "event-2",
+      "eventId": "event-3",
       "type": "drag",
       "equationId": "eq-2",
-      "startTick": 9048,
-      "endTick": 12528,
+      "startTick": 12000,
+      "endTick": 15000,
       "dragTargets": [
         {
           "tokenIndex": 2,

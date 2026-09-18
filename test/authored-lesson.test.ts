@@ -108,15 +108,15 @@ test('canonical authored v3 sidecar keeps tick coordinates and server-stamped id
       type: 'spin',
       equationId: 'eq-2',
       startTick: 9048,
-      endTick: 12528,
+      endTick: 11000,
       spinTargets: [{ tokenIndex: 0 }],
     }, {
       id: 'inst-drag-1',
-      eventId: 'event-2',
+      eventId: 'event-3',
       type: 'drag',
       equationId: 'eq-2',
-      startTick: 9048,
-      endTick: 12528,
+      startTick: 12000,
+      endTick: 15000,
       dragTargets: [{ tokenIndex: 2, sourceHitId: 'inst-hit-1' }],
     }],
   };
@@ -161,7 +161,7 @@ test('lesson validation accepts a note-free authored chart but not a malformed a
   })), /endTick/i);
 });
 
-test('authored v3 allows simultaneous spin and drag (legacy restriction must not leak in)', () => {
+test('authored v3 rejects overlapping mechanics Unity cannot present together', () => {
   const overlap = {
     ...authored,
     encounters: [
@@ -169,9 +169,46 @@ test('authored v3 allows simultaneous spin and drag (legacy restriction must not
       { id: 'e1:drag:0', eventId: 'e1', type: 'drag', equationId: 'eq-a', startTick: 192, endTick: 384, dragTargets: [{ tokenIndex: 2 }] },
     ],
   };
-  assert.doesNotThrow(() => parseAuthoredLessonDraft(overlap));
+  assert.throws(() => parseAuthoredLessonDraft(overlap), /overlap.*does not support/i);
   const chart = '[Song]\n{\n Resolution = 192\n}\n[SyncTrack]\n{\n 0 = B 120000\n}\n[ExpertSingle]\n{\n}';
-  assert.doesNotThrow(() => validateLessonContent(chart, JSON.stringify(overlap)));
+  assert.throws(() => validateLessonContent(chart, JSON.stringify(overlap)), /overlap.*does not support/i);
+});
+
+test('authored v3 permits disjoint concurrent hits in one event and equation', () => {
+  const multiHit = {
+    ...authored,
+    encounters: [
+      { id: 'e1:hit:0', eventId: 'e1', type: 'hit', equationId: 'eq-a', startTick: 192, endTick: 192, hitBubbles: [{ tokenIndex: 0, pads: ['left'] }] },
+      { id: 'e1:hit:1', eventId: 'e1', type: 'hit', equationId: 'eq-a', startTick: 192, endTick: 192, hitBubbles: [{ tokenIndex: 2, pads: ['right'] }] },
+    ],
+  };
+  assert.doesNotThrow(() => parseAuthoredLessonDraft(multiHit));
+
+  assert.throws(() => parseAuthoredLessonDraft({
+    ...multiHit,
+    encounters: [
+      {
+        ...multiHit.encounters[0],
+        hitBubbles: [{ tokenIndex: 0, pads: ['left'], positions: ['right'] }],
+      },
+      multiHit.encounters[1],
+    ],
+  }), /both assign pad 'right'/i);
+});
+
+test('authored v3 requires a hit pad and rejects a drag that starts with its source hit', () => {
+  assert.throws(() => parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [{ id: 'e:hit:0', eventId: 'e', type: 'hit', equationId: 'eq-a', startTick: 192, endTick: 192, hitBubbles: [{ tokenIndex: 0 }] }],
+  }), /requires at least one authored hit pad/i);
+
+  assert.throws(() => parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [
+      authored.encounters[0],
+      { id: 'e:drag:0', eventId: 'e', type: 'drag', equationId: 'eq-a', startTick: 192, endTick: 384, dragTargets: [{ tokenIndex: 2, sourceHitId: authored.encounters[0].id }] },
+    ],
+  }), /must complete before the drag begins/i);
 });
 
 test('rejects start > end and non-instantaneous hit durations', () => {
@@ -182,7 +219,7 @@ test('rejects start > end and non-instantaneous hit durations', () => {
 
   assert.throws(() => parseAuthoredLessonDraft({
     ...authored,
-    encounters: [{ id: 'e:hit:0', eventId: 'e', type: 'hit', equationId: 'eq-a', startTick: 192, endTick: 200, hitBubbles: [{ tokenIndex: 0 }] }],
+    encounters: [{ id: 'e:hit:0', eventId: 'e', type: 'hit', equationId: 'eq-a', startTick: 192, endTick: 200, hitBubbles: [{ tokenIndex: 0, pads: ['left'] }] }],
   }), /instantaneous/i);
 
   for (const type of ['spin', 'drag'] as const) {
@@ -287,7 +324,7 @@ test('resolves stable target identity after an equation token is inserted', () =
     }],
     encounters: [{
       ...authored.encounters[0],
-      hitBubbles: [{ tokenIndex: 0, targetId: 'tok-one' }],
+      hitBubbles: [{ tokenIndex: 0, targetId: 'tok-one', pads: ['left'] }],
     }],
   };
 
@@ -310,7 +347,7 @@ test('quarantines a target identity that no longer exists in the edited equation
         { id: 'tok-two', label: '2' },
       ],
     }],
-    encounters: [{ ...authored.encounters[0], hitBubbles: [{ tokenIndex: 0, targetId: 'deleted-token' }] }],
+    encounters: [{ ...authored.encounters[0], hitBubbles: [{ tokenIndex: 0, targetId: 'deleted-token', pads: ['left'] }] }],
   }), /requires repair/i);
 });
 

@@ -36,6 +36,16 @@ test("game embed waits for the verified bridge and reports result-sync failures"
   assert.match(gameEmbed, /studentCopy\.game\.resultSyncFailed/);
 });
 
+test("the demo game keeps calibration and completion state local instead of calling private player APIs", () => {
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+
+  assert.match(gameEmbed, /const isDemoMode = navBasePath\.startsWith\("\/demo\/"\)/);
+  assert.match(gameEmbed, /if \(isDemoMode\) \{[\s\S]{0,700}demoCalibrationStorageKey[\s\S]{0,700}setCalibrationStatus/);
+  assert.match(gameEmbed, /if \(!isDemoMode && launchAttemptId\)/);
+  assert.match(gameEmbed, /if \(isDemoMode\) \{[\s\S]{0,500}setCompletedRun/);
+  assert.match(gameEmbed, /if \(isDemoMode \|\| !pendingOutcome\) return;/);
+});
+
 test("song choice does not present a package that is still loading as ready", () => {
   const songChoice = source("app/student/song-choice/SongChoiceClient.tsx");
 
@@ -92,6 +102,9 @@ test("guided editing waits until the player chooses an editing action", () => {
   assert.match(guidedStart, /Play this lesson/);
   assert.match(guidedStart, /Add an equation/);
   assert.match(guidedStart, /Encounter/);
+  assert.match(guidedStart, /encounter group/);
+  assert.match(guidedStart, /game action/);
+  assert.match(builder, /actionCount=\{timelineEvents\.reduce/);
   assert.match(guidedStart, /A Hit, Spin, or Drag is an action you set inside an encounter\./);
   assert.match(guidedStart, /After these encounters, the game can use its own questions if it needs more\./);
 });

@@ -4,13 +4,14 @@ import { studentCopy } from "@/lib/student-copy";
 
 type GuidedTemplateStartProps = {
   encounterCount: number;
+  actionCount: number;
   onPlayTemplate: () => void;
   onChangeEvent: () => void;
   onAddEquation: () => void;
   onUseAdvanced: () => void;
 };
 
-export default function GuidedTemplateStart({ encounterCount, onPlayTemplate, onChangeEvent, onAddEquation, onUseAdvanced }: GuidedTemplateStartProps) {
+export default function GuidedTemplateStart({ encounterCount, actionCount, onPlayTemplate, onChangeEvent, onAddEquation, onUseAdvanced }: GuidedTemplateStartProps) {
   return (
     <section aria-labelledby="guided-template-title" style={{ minHeight: "100%", display: "grid", placeItems: "center", padding: 24, background: "#101820", color: "#FFFFFF" }}>
       <div style={{ width: "min(560px, 100%)", display: "grid", gap: 16, textAlign: "center" }}>
@@ -27,7 +28,9 @@ export default function GuidedTemplateStart({ encounterCount, onPlayTemplate, on
             <span>A Hit, Spin, or Drag is an action you set inside an encounter.</span>
           </div>
         </div>
-        <p style={{ margin: 0, color: "#FFFFFFB3" }}>{encounterCount} {encounterCount === 1 ? "encounter" : "encounters"} are ready for this song.</p>
+        <p style={{ margin: 0, color: "#FFFFFFB3" }}>
+          {encounterCount} {encounterCount === 1 ? "encounter group" : "encounter groups"} with {actionCount} {actionCount === 1 ? "game action" : "game actions"} are ready for this song.
+        </p>
         <p style={{ margin: 0, color: "#FFFFFF99", fontSize: 13, lineHeight: 1.45 }}>After these encounters, the game can use its own questions if it needs more.</p>
         <button type="button" onClick={onPlayTemplate} style={{ border: 0, borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "14px 20px", fontWeight: 900, cursor: "pointer" }}>Play this lesson</button>
         <div style={{ color: "#FFFFFFB3", fontSize: 13, fontWeight: 800 }}>Change it first</div>

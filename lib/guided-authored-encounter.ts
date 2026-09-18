@@ -23,11 +23,14 @@ export type EncounterIssueCode =
   | "target_required"
   | "target_identity_invalid"
   | "hit_pad_required"
+  | "hit_timing_invalid"
   | "spin_target_required"
   | "drag_source_required"
   | "duration_required"
   | "operator_target"
-  | "drag_source_not_ready";
+  | "drag_source_not_ready"
+  | "drag_source_not_earlier"
+  | "unsupported_concurrency";
 
 export type EncounterIssue = {
   encounterId: string;
@@ -72,11 +75,14 @@ const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   target_required: "Pick a token for this move.",
   target_identity_invalid: "Choose the token again.",
   hit_pad_required: "Choose at least one button for the token.",
+  hit_timing_invalid: "A Hit must begin and end on the same tick.",
   spin_target_required: "Pick the token to spin.",
   drag_source_required: "Choose an earlier Hit to start this Drag.",
   duration_required: "Set when this move ends.",
   operator_target: "Pick a number or variable, not a + or = sign.",
   drag_source_not_ready: "Choose a Hit that comes before this Drag.",
+  drag_source_not_earlier: "Move this Drag after its source Hit.",
+  unsupported_concurrency: "Move this action so it does not overlap another mechanic.",
 };
 
 function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): EncounterIssue {
@@ -86,11 +92,14 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
     target_required: "needs a token",
     target_identity_invalid: "needs its token chosen again",
     hit_pad_required: "needs a button",
+    hit_timing_invalid: "must begin and end on the same tick",
     spin_target_required: "needs a token to spin",
     drag_source_required: "needs an earlier Hit",
     duration_required: "needs an end time",
     operator_target: "uses a + or = sign as its target",
     drag_source_not_ready: "needs a Hit that comes first",
+    drag_source_not_earlier: "must start after its source Hit",
+    unsupported_concurrency: "overlaps an unsupported mechanic",
   };
   const mechanicLabel = encounter.mechanic[0].toUpperCase() + encounter.mechanic.slice(1);
   const numberMatch = encounter.id.match(/(?:hit|spin|drag)[-_ ]?(\d+)/i);
@@ -129,8 +138,15 @@ export function evaluateEncounterReadiness(
     issues.push(issue(encounter, encounter.mechanic === "spin" ? "spin_target_required" : "target_required"));
   }
 
-  if (encounter.mechanic === "hit" && !encounter.hitBubbles.some((target) => (target.pads?.length ?? 0) > 0)) {
+  if (encounter.mechanic === "hit" && !encounter.hitBubbles.some((target) =>
+    (target.pads?.length ?? 0) > 0 || (target.positions?.length ?? 0) > 0,
+  )) {
     issues.push(issue(encounter, "hit_pad_required"));
+  }
+
+  if (encounter.mechanic === "hit" &&
+    typeof encounter.endTick === "number" && encounter.endTick !== (encounter.tick ?? 0)) {
+    issues.push(issue(encounter, "hit_timing_invalid"));
   }
 
   if (encounter.mechanic !== "hit" && (typeof encounter.endTick !== "number" || encounter.endTick <= (encounter.tick ?? 0))) {
@@ -198,13 +214,67 @@ export function evaluateLessonPublishReadiness(
       (event.mechanicInstances?.[mechanic] ?? []).map((instance) => ({ event, mechanic, instance })),
     ),
   ).sort((left, right) =>
-    (left.instance.tick ?? left.event.tick) - (right.instance.tick ?? right.event.tick),
+    (left.instance.tick ?? left.event.tick) - (right.instance.tick ?? right.event.tick) ||
+    (left.instance.endTick ?? left.event.endTick ?? left.instance.tick ?? left.event.tick) -
+      (right.instance.endTick ?? right.event.endTick ?? right.instance.tick ?? right.event.tick) ||
+    left.event.id.localeCompare(right.event.id) ||
+    left.instance.id.localeCompare(right.instance.id),
+  );
+
+  const inputById = new Map(
+    ordered.map(({ event, mechanic, instance }) => [
+      instance.id,
+      { event, mechanic, input: inputFromEvent(event, mechanic, instance) },
+    ]),
   );
 
   for (const { event, mechanic, instance } of ordered) {
-    const readiness = evaluateEncounterReadiness(inputFromEvent(event, mechanic, instance), readyHitIds);
+    const input = inputFromEvent(event, mechanic, instance);
+    const readiness = evaluateEncounterReadiness(input, readyHitIds);
     blockers.push(...readiness.issues);
+
+    const sourceHitId = mechanic === "drag" ? input.dragTargets[0]?.sourceHitId : undefined;
+    const source = sourceHitId ? inputById.get(sourceHitId) : undefined;
+    if (source && source.mechanic === "hit" &&
+      (source.input.tick ?? source.event.tick) >= (input.tick ?? event.tick)) {
+      blockers.push(issue(input, "drag_source_not_earlier"));
+    }
+
     if (mechanic === "hit" && readiness.ready) readyHitIds.add(instance.id);
+  }
+
+  for (let index = 0; index < ordered.length; index += 1) {
+    const left = ordered[index];
+    const leftInput = inputFromEvent(left.event, left.mechanic, left.instance);
+    const leftStart = leftInput.tick ?? left.event.tick;
+    const leftEnd = leftInput.endTick ?? leftStart;
+    for (let candidateIndex = index + 1; candidateIndex < ordered.length; candidateIndex += 1) {
+      const right = ordered[candidateIndex];
+      const rightInput = inputFromEvent(right.event, right.mechanic, right.instance);
+      const rightStart = rightInput.tick ?? right.event.tick;
+      if (rightStart > leftEnd) break;
+      const rightEnd = rightInput.endTick ?? rightStart;
+      if (leftStart > rightEnd) continue;
+
+      const sameHitGroup = left.mechanic === "hit" && right.mechanic === "hit" &&
+        leftStart === rightStart && left.event.id === right.event.id &&
+        leftInput.equation?.id === rightInput.equation?.id;
+      if (sameHitGroup) {
+        // Unity's presenter unions `pads` with the legacy-compatible
+        // `positions` field before testing ownership. Match it here so an
+        // imported payload cannot pass the editor then collide at launch.
+        const leftPads = new Set(leftInput.hitBubbles.flatMap((target) => [
+          ...(target.pads ?? []),
+          ...(target.positions ?? []),
+        ]));
+        const sharedPad = rightInput.hitBubbles
+          .flatMap((target) => [...(target.pads ?? []), ...(target.positions ?? [])])
+          .find((pad) => leftPads.has(pad));
+        if (!sharedPad) continue;
+      }
+
+      blockers.push(issue(rightInput, "unsupported_concurrency"));
+    }
   }
 
   return {

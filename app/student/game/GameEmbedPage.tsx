@@ -28,6 +28,7 @@ import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
 
 const GAME_URL =
   process.env.NEXT_PUBLIC_GAME_URL ?? "https://ultrarapidtest.netlify.app/";
+const DemoCalibrationStoragePrefix = "ultrarapid-demo-calibration-v1:";
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
 
@@ -68,6 +69,10 @@ type GameEmbedSessionProps = GameEmbedPageProps & {
 
 function getEmbeddedGameUrl(searchParams: Pick<URLSearchParams, "get">) {
   return buildEmbeddedGameUrl(GAME_URL, resolveLaunchParams(searchParams));
+}
+
+function demoCalibrationStorageKey(installationId: string) {
+  return `${DemoCalibrationStoragePrefix}${installationId}`;
 }
 
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
@@ -330,6 +335,7 @@ function GameEmbedSession({
   const [pendingOutcome, setPendingOutcome] = useState<PendingOutcome | null>(null);
   const [outcomeSyncState, setOutcomeSyncState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const outcomeKeyRef = useRef("");
+  const isDemoMode = navBasePath.startsWith("/demo/");
 
   const topTabs = getTopTabs(navBasePath);
   const utilityTabs = getUtilityTabs(navBasePath);
@@ -399,6 +405,20 @@ function GameEmbedSession({
       return () => { cancelled = true; };
     }
 
+    if (isDemoMode) {
+      const storedProtocolVersion = window.localStorage.getItem(
+        demoCalibrationStorageKey(bridgeContext.installationId),
+      );
+      if (!cancelled) {
+        setCalibrationStatus(
+          storedProtocolVersion === String(bridgeContext.protocolVersion)
+            ? "ready"
+            : "required",
+        );
+      }
+      return () => { cancelled = true; };
+    }
+
     fetch(`/api/player-calibration?installationId=${encodeURIComponent(bridgeContext.installationId)}`)
       .then((response) => response.ok ? response.json() : null)
       .then((calibration) => {
@@ -408,14 +428,14 @@ function GameEmbedSession({
         if (!cancelled) setCalibrationStatus("required");
       });
     return () => { cancelled = true; };
-  }, [bridgeContext]);
+  }, [bridgeContext, isDemoMode]);
 
   useEffect(() => {
     if (!bridgeContext) return;
 
     let cancelled = false;
     const launchAttemptId = bridgeContext.receipt.launchAttemptId;
-    if (launchAttemptId) {
+    if (!isDemoMode && launchAttemptId) {
       fetch(`/api/player-outcomes?launchAttemptId=${encodeURIComponent(launchAttemptId)}`)
         .then((response) => response.ok ? response.json() : null)
         .then((stored) => {
@@ -435,6 +455,15 @@ function GameEmbedSession({
       const result = validateBridgeMessage(event.data, bridgeContext);
       if (!result.ok) return;
       if (result.message.type === "calibration-complete") {
+        if (isDemoMode) {
+          window.localStorage.setItem(
+            demoCalibrationStorageKey(bridgeContext.installationId),
+            String(bridgeContext.protocolVersion),
+          );
+          setCalibrationStatus("ready");
+          setBridgeStatusMessage("");
+          return;
+        }
         fetch("/api/player-calibration", {
           method: "PUT",
           headers: { "content-type": "application/json" },
@@ -455,6 +484,17 @@ function GameEmbedSession({
         const outcomeKey = `${result.message.receipt.launchAttemptId}:${completion.outcome}:${completion.completedEvents}:${completion.hitAttempts}`;
         if (outcomeKeyRef.current === outcomeKey) return;
         outcomeKeyRef.current = outcomeKey;
+        if (isDemoMode) {
+          setOutcomeSyncState("idle");
+          setPendingOutcome(null);
+          if (completion.outcome === "completed") {
+            setCompletedRun({
+              completedEvents: completion.completedEvents,
+              hitAttempts: completion.hitAttempts,
+            });
+          }
+          return;
+        }
         setOutcomeSyncState("saving");
         setPendingOutcome({ receipt: result.message.receipt, completion });
       } else {
@@ -466,10 +506,10 @@ function GameEmbedSession({
       cancelled = true;
       window.removeEventListener("message", onMessage);
     };
-  }, [bridgeContext, navBasePath]);
+  }, [bridgeContext, isDemoMode, navBasePath]);
 
   useEffect(() => {
-    if (!pendingOutcome) return;
+    if (isDemoMode || !pendingOutcome) return;
 
     let cancelled = false;
     fetch("/api/player-outcomes", {
@@ -497,7 +537,7 @@ function GameEmbedSession({
       });
 
     return () => { cancelled = true; };
-  }, [pendingOutcome]);
+  }, [isDemoMode, pendingOutcome]);
 
   const embeddedGameUrl = useMemo(() => {
     const params = new URLSearchParams(activeLaunchParams?.toString() ?? "");
