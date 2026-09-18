@@ -1,9 +1,13 @@
 type Row = Record<string, unknown>;
 
-import { parseAuthoredLessonDraft } from "./authored-lesson";
+import {
+  parseAuthoredLessonDraft,
+  validateAuthoredRuntimePresentationConcurrency,
+} from "./authored-lesson";
 import { repairLegacyMigratedAuthoredLesson } from "./legacy-authored-migration";
 import { isLegacyEncounterSidecar, validateLegacyEncounters } from "./legacy-encounters";
 import { parseSupportedChartSemantics, type SupportedRhythmDifficulty } from "./chart-semantics";
+import { createLessonClock } from "./editor/lesson-timing";
 
 /** Companion ticks use chart coordinates and may lie between rhythm note ticks. */
 export function validateLessonContent(chart: string, json: string, options: { forSave?: boolean; selectedDifficulty?: SupportedRhythmDifficulty } = {}) {
@@ -17,7 +21,8 @@ export function validateLessonContent(chart: string, json: string, options: { fo
   if (Number(payload.version) === 3) {
     // Only the narrowly-identified legacy bridge rows are repaired. New v3
     // authored content remains strict: operator targets still fail validation.
-    parseAuthoredLessonDraft(repairLegacyMigratedAuthoredLesson(payload));
+    const authored = parseAuthoredLessonDraft(repairLegacyMigratedAuthoredLesson(payload));
+    validateAuthoredRuntimePresentationConcurrency(authored.encounters, createLessonClock(chart));
     return;
   }
   const difficulties = ['EasySingle','MediumSingle','HardSingle','ExpertSingle'].map(section).filter(Boolean);

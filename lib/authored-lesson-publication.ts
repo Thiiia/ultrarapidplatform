@@ -1,6 +1,7 @@
 import {
   parseAuthoredLessonDraft,
   stampAuthoredLessonIdentity,
+  validateAuthoredRuntimePresentationConcurrency,
 } from '@/lib/authored-lesson';
 import { isLegacyEncounterSidecar } from '@/lib/legacy-encounters';
 import { migrateLegacyEncounterSidecar, repairLegacyMigratedAuthoredLesson } from '@/lib/legacy-authored-migration';
@@ -19,10 +20,12 @@ export function prepareAuthoredLessonForPublication({
   sidecarContent,
   identity,
   legacyToTickAfterSeconds,
+  runtimeClock,
 }: {
   sidecarContent: string;
   identity: { songAssetId: string; activityKey: string; authorId: string; revision: string };
   legacyToTickAfterSeconds?: (tick: number, seconds: number) => number;
+  runtimeClock?: { toSeconds(tick: number): number };
 }): AuthoredLessonPublication {
   let raw: unknown;
   try {
@@ -42,6 +45,9 @@ export function prepareAuthoredLessonForPublication({
     });
   } else {
     draft = parseAuthoredLessonDraft(repairLegacyMigratedAuthoredLesson(raw));
+  }
+  if (runtimeClock) {
+    validateAuthoredRuntimePresentationConcurrency(draft.encounters, runtimeClock);
   }
   const published = stampAuthoredLessonIdentity(draft, identity);
   const targets = published.encounters.reduce((total, encounter) => {

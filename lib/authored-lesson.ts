@@ -66,6 +66,23 @@ export type AuthoredLessonDraft = Omit<AuthoredLessonPayload, "authorId" | "revi
   revision?: string;
 };
 
+/**
+ * These values mirror the authored runtime's shared-presenter lifetime in
+ * Unity. A cue is acquired before its judgement point so it can be shown to
+ * the learner, and an unanswered HIT remains active through its miss window.
+ *
+ * Keep this policy here rather than treating integer chart ticks as the whole
+ * lifecycle: a chart can contain disjoint ticks that still overlap once Unity
+ * begins presentation. The save route supplies the chart tempo clock.
+ */
+export const AUTHORED_PRESENTATION_LEAD_SECONDS = 0.75;
+export const AUTHORED_HIT_MISS_WINDOW_SECONDS = 0.675;
+const AUTHORED_PRESENTATION_EPSILON_SECONDS = 0.0005;
+
+export type AuthoredLessonClock = {
+  toSeconds(tick: number): number;
+};
+
 function requireString(value: unknown, label: string) {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error(`Authored lesson ${label} is required`);
@@ -232,6 +249,70 @@ function validateRuntimeConcurrency(encounters: readonly AuthoredLessonEncounter
       throw new Error(
         `Authored lesson encounters '${left.id}' and '${right.id}' overlap in a combination Unity does not support; ` +
         "only disjoint same-event, same-equation Hits may share a tick",
+      );
+    }
+  }
+}
+
+function isSameRuntimeHitGroup(
+  left: AuthoredLessonEncounter,
+  right: AuthoredLessonEncounter,
+  leftStartSeconds: number,
+  rightStartSeconds: number,
+) {
+  return left.type === "hit" && right.type === "hit" &&
+    left.eventId === right.eventId &&
+    left.equationId === right.equationId &&
+    Math.abs(leftStartSeconds - rightStartSeconds) <= 0.001;
+}
+
+/**
+ * Reject a sequence that is tick-disjoint but still overlaps Unity's single
+ * authored presenter. This is deliberately a worst-case check: the first
+ * encounter may be missed, so its presenter cannot be assumed to finish
+ * early just because the next authored row exists.
+ */
+export function validateAuthoredRuntimePresentationConcurrency(
+  encounters: readonly AuthoredLessonEncounter[],
+  clock: AuthoredLessonClock,
+) {
+  if (!clock || typeof clock.toSeconds !== "function") {
+    throw new Error("Authored lesson presentation validation requires a chart tempo clock");
+  }
+
+  const windows = encounters.map((encounter) => {
+    const startSeconds = clock.toSeconds(encounter.startTick);
+    const endSeconds = encounter.type === "hit"
+      ? startSeconds + AUTHORED_HIT_MISS_WINDOW_SECONDS
+      : clock.toSeconds(encounter.endTick);
+    if (!Number.isFinite(startSeconds) || !Number.isFinite(endSeconds)) {
+      throw new Error(`Authored lesson encounter '${encounter.id}' has an invalid chart time`);
+    }
+    return {
+      encounter,
+      startSeconds,
+      presentationSeconds: Math.max(0, startSeconds - AUTHORED_PRESENTATION_LEAD_SECONDS),
+      releaseSeconds: endSeconds,
+    };
+  }).sort((left, right) =>
+    left.presentationSeconds - right.presentationSeconds ||
+    left.startSeconds - right.startSeconds ||
+    left.encounter.id.localeCompare(right.encounter.id),
+  );
+
+  for (let index = 0; index < windows.length; index += 1) {
+    const left = windows[index];
+    for (let candidateIndex = index + 1; candidateIndex < windows.length; candidateIndex += 1) {
+      const right = windows[candidateIndex];
+      if (right.presentationSeconds > left.releaseSeconds + AUTHORED_PRESENTATION_EPSILON_SECONDS) {
+        break;
+      }
+      if (isSameRuntimeHitGroup(left.encounter, right.encounter, left.startSeconds, right.startSeconds)) {
+        continue;
+      }
+      throw new Error(
+        `Authored lesson encounters '${left.encounter.id}' and '${right.encounter.id}' overlap Unity's presentation window; ` +
+        "move the later encounter later in the song or use one disjoint same-event HIT group",
       );
     }
   }

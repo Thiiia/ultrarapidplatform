@@ -128,6 +128,18 @@ test("publish readiness blocks overlapping mechanics but permits disjoint multi-
   assert.ok(legacyPadCollision.blockers.some((blocker) => blocker.code === "unsupported_concurrency"));
 });
 
+test("publish readiness blocks sequential cues whose Unity presentation windows overlap", () => {
+  const firstHit = encounter("hit", { id: "hit-1", tick: 8 });
+  const tooSoon = encounter("hit", { id: "hit-2", tick: 9, endTick: 9 });
+  const overlap = evaluateLessonPublishReadiness([eventWith(firstHit), eventWith(tooSoon)]);
+  assert.equal(overlap.ready, false);
+  assert.ok(overlap.blockers.some((blocker) => blocker.code === "unsupported_concurrency"));
+
+  const enoughTime = encounter("hit", { id: "hit-2", tick: 10, endTick: 10 });
+  const ready = evaluateLessonPublishReadiness([eventWith(firstHit), eventWith(enoughTime)]);
+  assert.equal(ready.ready, true);
+});
+
 test("RCTM without saved equation remains a visible non-publishable draft", () => {
   const result = normalizeStagedMechanic({ id: "r-1", mechanic: "spin", tick: 12 }, null);
   assert.equal(result.publishable, false);

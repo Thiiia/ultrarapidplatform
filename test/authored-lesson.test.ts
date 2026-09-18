@@ -4,7 +4,9 @@ import {
   isAuthoredEquationOperator,
   parseAuthoredLessonDraft,
   stampAuthoredLessonIdentity,
+  validateAuthoredRuntimePresentationConcurrency,
 } from '../lib/authored-lesson';
+import { createLessonClock } from '../lib/editor/lesson-timing';
 import { validateLessonContent } from '../lib/lesson-content';
 
 const authored = {
@@ -194,6 +196,32 @@ test('authored v3 permits disjoint concurrent hits in one event and equation', (
       multiHit.encounters[1],
     ],
   }), /both assign pad 'right'/i);
+});
+
+test('authored v3 rejects sequential rows whose presentation windows still overlap in Unity', () => {
+  const chart = '[Song]\n{\n Resolution = 480\n}\n[SyncTrack]\n{\n 0 = B 120000\n}\n[ExpertSingle]\n{\n}';
+  const clock = createLessonClock(chart);
+  const tooClose = parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [
+      { id: 'first-hit', eventId: 'first', type: 'hit', equationId: 'eq-a', startTick: 960, endTick: 960, hitBubbles: [{ tokenIndex: 0, pads: ['left'] }] },
+      { id: 'second-hit', eventId: 'second', type: 'hit', equationId: 'eq-a', startTick: 1920, endTick: 1920, hitBubbles: [{ tokenIndex: 2, pads: ['right'] }] },
+    ],
+  });
+  assert.throws(
+    () => validateAuthoredRuntimePresentationConcurrency(tooClose.encounters, clock),
+    /presentation window/i,
+  );
+
+  const spaced = parseAuthoredLessonDraft({
+    ...tooClose,
+    encounters: [
+      tooClose.encounters[0],
+      { ...tooClose.encounters[1], startTick: 2401, endTick: 2401 },
+    ],
+  });
+  assert.doesNotThrow(() => validateAuthoredRuntimePresentationConcurrency(spaced.encounters, clock));
+  assert.throws(() => validateLessonContent(chart, JSON.stringify(tooClose), { forSave: true }), /presentation window/i);
 });
 
 test('authored v3 requires a hit pad and rejects a drag that starts with its source hit', () => {

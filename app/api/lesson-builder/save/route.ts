@@ -391,6 +391,7 @@ export async function POST(request: Request) {
         legacyToTickAfterSeconds: (tick, seconds) => {
           return authoredClock.toTick(authoredClock.toSeconds(tick) + seconds);
         },
+        runtimeClock: authoredClock,
       });
     } catch (error) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid authored lesson payload" }, { status: 400 });

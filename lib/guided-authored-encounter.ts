@@ -1,4 +1,8 @@
-import { isAuthoredEquationOperator } from "./authored-lesson";
+import {
+  AUTHORED_HIT_MISS_WINDOW_SECONDS,
+  AUTHORED_PRESENTATION_LEAD_SECONDS,
+  isAuthoredEquationOperator,
+} from "./authored-lesson";
 import type {
   AuthoredMechanicInstance,
   AuthoredSavedEquation,
@@ -82,7 +86,7 @@ const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   operator_target: "Pick a number or variable, not a + or = sign.",
   drag_source_not_ready: "Choose a Hit that comes before this Drag.",
   drag_source_not_earlier: "Move this Drag after its source Hit.",
-  unsupported_concurrency: "Move this action so it does not overlap another mechanic.",
+  unsupported_concurrency: "Move this action so its approach window does not overlap another mechanic.",
 };
 
 function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): EncounterIssue {
@@ -243,18 +247,24 @@ export function evaluateLessonPublishReadiness(
     if (mechanic === "hit" && readiness.ready) readyHitIds.add(instance.id);
   }
 
+  // Timeline events are already in song seconds here. Unity begins presenting every
+  // cue before its hit time, and a Hit remains active through its miss window. The
+  // old raw-time overlap check allowed two tick-disjoint cues to fight over the
+  // single presenter during that visual window.
   for (let index = 0; index < ordered.length; index += 1) {
     const left = ordered[index];
     const leftInput = inputFromEvent(left.event, left.mechanic, left.instance);
     const leftStart = leftInput.tick ?? left.event.tick;
     const leftEnd = leftInput.endTick ?? leftStart;
+    const leftRelease = left.mechanic === "hit"
+      ? leftStart + AUTHORED_HIT_MISS_WINDOW_SECONDS
+      : leftEnd;
     for (let candidateIndex = index + 1; candidateIndex < ordered.length; candidateIndex += 1) {
       const right = ordered[candidateIndex];
       const rightInput = inputFromEvent(right.event, right.mechanic, right.instance);
       const rightStart = rightInput.tick ?? right.event.tick;
-      if (rightStart > leftEnd) break;
-      const rightEnd = rightInput.endTick ?? rightStart;
-      if (leftStart > rightEnd) continue;
+      const rightPresentationStart = Math.max(0, rightStart - AUTHORED_PRESENTATION_LEAD_SECONDS);
+      if (rightPresentationStart > leftRelease) break;
 
       const sameHitGroup = left.mechanic === "hit" && right.mechanic === "hit" &&
         leftStart === rightStart && left.event.id === right.event.id &&
