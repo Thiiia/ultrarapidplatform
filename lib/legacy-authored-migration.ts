@@ -45,6 +45,98 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+type LegacyEquationRuntimeTokens = {
+  state: string;
+  tokens: Array<{ id: string; label: string }>;
+  /** Maps a target index from the old whitespace-tokenized state to its runtime-safe token. */
+  runtimeIndexByLegacyIndex: number[];
+};
+
+/**
+ * The first v3 legacy bridge wrote some multi-digit values as separate
+ * whitespace-delimited digits (for example, `X - 9 = 1 0`). Unity removes
+ * that whitespace before rendering, so it creates one `10` bubble while the
+ * sidecar can still target the non-existent final `0` token. Preserve normal
+ * editor token boundaries, but fold only adjacent digit fragments and attach
+ * stable token identities for the Unity token mapper.
+ */
+function createLegacyRuntimeTokens(equationId: string, state: string): LegacyEquationRuntimeTokens {
+  const legacyTokens = tokenizeAuthoredEquationState(state);
+  const labels: string[] = [];
+  const runtimeIndexByLegacyIndex: number[] = [];
+
+  for (let index = 0; index < legacyTokens.length;) {
+    const token = legacyTokens[index];
+    if (!/^\d+$/.test(token)) {
+      runtimeIndexByLegacyIndex[index] = labels.length;
+      labels.push(token);
+      index += 1;
+      continue;
+    }
+
+    const runtimeIndex = labels.length;
+    let combined = token;
+    runtimeIndexByLegacyIndex[index] = runtimeIndex;
+    index += 1;
+    while (index < legacyTokens.length && /^\d+$/.test(legacyTokens[index])) {
+      combined += legacyTokens[index];
+      runtimeIndexByLegacyIndex[index] = runtimeIndex;
+      index += 1;
+    }
+    labels.push(combined);
+  }
+
+  return {
+    state: labels.join(" "),
+    tokens: labels.map((label, index) => ({ id: `${equationId}-legacy-token-${index}`, label })),
+    runtimeIndexByLegacyIndex,
+  };
+}
+
+function rebindLegacyTargetCollection(
+  value: unknown,
+  runtimeTokens: LegacyEquationRuntimeTokens | undefined,
+): unknown {
+  if (!Array.isArray(value) || !runtimeTokens) return value;
+
+  let changed = false;
+  const rebound = value.map((target) => {
+    if (!isRecord(target) || typeof target.tokenIndex !== "number" || !Number.isSafeInteger(target.tokenIndex)) {
+      return target;
+    }
+
+    const runtimeIndex = runtimeTokens.runtimeIndexByLegacyIndex[target.tokenIndex];
+    const token = runtimeTokens.tokens[runtimeIndex];
+    if (runtimeIndex == null || !token) return target;
+
+    if (runtimeIndex === target.tokenIndex && target.targetId === token.id) return target;
+    changed = true;
+    return { ...target, tokenIndex: runtimeIndex, targetId: token.id };
+  });
+
+  return changed ? rebound : value;
+}
+
+function bindLegacyTargetIds(
+  value: unknown,
+  runtimeTokens: LegacyEquationRuntimeTokens | undefined,
+): unknown {
+  if (!Array.isArray(value) || !runtimeTokens) return value;
+
+  let changed = false;
+  const rebound = value.map((target) => {
+    if (!isRecord(target) || typeof target.tokenIndex !== "number" || !Number.isSafeInteger(target.tokenIndex)) {
+      return target;
+    }
+    const token = runtimeTokens.tokens[target.tokenIndex];
+    if (!token || target.targetId === token.id) return target;
+    changed = true;
+    return { ...target, targetId: token.id };
+  });
+
+  return changed ? rebound : value;
+}
+
 function repairLegacyTargetCollection(value: unknown, state: string): unknown {
   if (!Array.isArray(value)) return value;
   const tokens = tokenizeAuthoredEquationState(state);
@@ -92,19 +184,38 @@ export function repairLegacyMigratedAuthoredLesson<T>(value: T): T {
     return value;
   }
 
-  const stateByEquationId = new Map(value.equations.flatMap((equation) =>
+  const sourceEquations = value.equations as unknown[];
+  const sourceEncounters = value.encounters as unknown[];
+  const legacyEquationIds = new Set(sourceEncounters.flatMap((encounter) =>
+    isRecord(encounter) && typeof encounter.id === "string" &&
+      LEGACY_MIGRATED_ENCOUNTER_ID.test(encounter.id) && typeof encounter.equationId === "string"
+      ? [encounter.equationId]
+      : [],
+  ));
+  const runtimeTokensByEquationId = new Map<string, LegacyEquationRuntimeTokens>();
+  const equations = sourceEquations.map((equation) => {
+    if (!isRecord(equation) || typeof equation.id !== "string" || typeof equation.state !== "string" ||
+      !legacyEquationIds.has(equation.id) || Array.isArray(equation.tokens)) {
+      return equation;
+    }
+
+    const runtimeTokens = createLegacyRuntimeTokens(equation.id, equation.state);
+    runtimeTokensByEquationId.set(equation.id, runtimeTokens);
+    return { ...equation, state: runtimeTokens.state, tokens: runtimeTokens.tokens };
+  });
+  const stateByEquationId = new Map(equations.flatMap((equation) =>
     isRecord(equation) && typeof equation.id === "string" && typeof equation.state === "string"
       ? [[equation.id, equation.state] as const]
       : [],
   ));
-  const hitTickById = new Map(value.encounters.flatMap((encounter) =>
+  const hitTickById = new Map(sourceEncounters.flatMap((encounter) =>
     isRecord(encounter) && typeof encounter.id === "string" && encounter.type === "hit" &&
     typeof encounter.startTick === "number" && Number.isSafeInteger(encounter.startTick)
       ? [[encounter.id, encounter.startTick] as const]
       : [],
   ));
-  let changed = false;
-  const encounters = value.encounters.map((encounter) => {
+  let changed = equations.some((equation, index) => equation !== sourceEquations[index]);
+  const encounters = sourceEncounters.map((encounter) => {
     if (!isRecord(encounter) || typeof encounter.id !== "string" || !LEGACY_MIGRATED_ENCOUNTER_ID.test(encounter.id) || typeof encounter.equationId !== "string") {
       return encounter;
     }
@@ -112,13 +223,21 @@ export function repairLegacyMigratedAuthoredLesson<T>(value: T): T {
     if (!state) return encounter;
     const targetKey = encounter.type === "hit" ? "hitBubbles" : encounter.type === "spin" ? "spinTargets" : encounter.type === "drag" ? "dragTargets" : null;
     if (!targetKey) return encounter;
-    const operatorRepairedTargets = repairLegacyTargetCollection(encounter[targetKey], state);
+    const reboundTargets = rebindLegacyTargetCollection(
+      encounter[targetKey],
+      runtimeTokensByEquationId.get(encounter.equationId),
+    );
+    const operatorRepairedTargets = repairLegacyTargetCollection(reboundTargets, state);
     const targets = encounter.type === "hit"
       ? repairLegacyHitPads(operatorRepairedTargets)
       : operatorRepairedTargets;
-    let repaired: Record<string, unknown> = targets === encounter[targetKey]
+    const boundTargets = bindLegacyTargetIds(
+      targets,
+      runtimeTokensByEquationId.get(encounter.equationId),
+    );
+    let repaired: Record<string, unknown> = boundTargets === encounter[targetKey]
       ? encounter
-      : { ...encounter, [targetKey]: targets };
+      : { ...encounter, [targetKey]: boundTargets };
     if (repaired !== encounter) changed = true;
 
     if (encounter.type === "drag" && Array.isArray(encounter.dragTargets) &&
@@ -139,7 +258,7 @@ export function repairLegacyMigratedAuthoredLesson<T>(value: T): T {
     return repaired;
   });
 
-  return changed ? { ...value, encounters } as T : value;
+  return changed ? { ...value, equations, encounters } as T : value;
 }
 
 function durationEndTick(

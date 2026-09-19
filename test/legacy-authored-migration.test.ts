@@ -66,9 +66,49 @@ test("repairs historical legacy-migrated targets that point at operators", () =>
   assert.equal((repaired.encounters[0].hitBubbles?.[0] as { tokenIndex: number }).tokenIndex, 2);
   assert.deepEqual(repaired.encounters[0].hitBubbles?.[0], {
     tokenIndex: 2,
+    targetId: "Year7_011_mixedmultistep-legacy-token-2",
     positions: ["topLeft"],
     pads: ["topLeft"],
   });
+});
+
+test("repairs legacy digit-fragment targets to Unity's rendered number token", () => {
+  const historical = {
+    version: 3,
+    mode: "authored",
+    songAssetId: "waves",
+    activityKey: "early-algebra",
+    equations: [{ id: "waves-equation", state: "X - 9 = 1 0" }],
+    encounters: [{
+      id: "legacy-0-hit",
+      eventId: "legacy-0",
+      type: "hit",
+      equationId: "waves-equation",
+      startTick: 960,
+      endTick: 960,
+      hitBubbles: [{ tokenIndex: 5, positions: ["right"], pads: ["right"] }],
+    }],
+  };
+
+  const repaired = repairLegacyMigratedAuthoredLesson(historical);
+  assert.deepEqual(repaired.equations[0], {
+    id: "waves-equation",
+    state: "X - 9 = 10",
+    tokens: [
+      { id: "waves-equation-legacy-token-0", label: "X" },
+      { id: "waves-equation-legacy-token-1", label: "-" },
+      { id: "waves-equation-legacy-token-2", label: "9" },
+      { id: "waves-equation-legacy-token-3", label: "=" },
+      { id: "waves-equation-legacy-token-4", label: "10" },
+    ],
+  });
+  assert.deepEqual(repaired.encounters[0].hitBubbles, [{
+    tokenIndex: 4,
+    targetId: "waves-equation-legacy-token-4",
+    positions: ["right"],
+    pads: ["right"],
+  }]);
+  assert.doesNotThrow(() => parseAuthoredLessonDraft(repaired));
 });
 
 test("repairs a historical same-tick legacy hit and dependent drag", () => {

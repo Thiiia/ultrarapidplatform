@@ -69,11 +69,15 @@ async function retimeSong(songAssetId: string) {
   const chart = await chartResponse.text();
   const sourceSidecar = await sidecarResponse.text();
   const clock = createLessonClock(chart);
+  const rawLesson = JSON.parse(sourceSidecar);
   // Catalogue revisions created by the original legacy bridge can contain an
-  // operator target or an empty HIT pad. Repair only that known legacy shape
-  // before strict parsing; authored v3 input remains strict elsewhere.
+  // operator target, an empty HIT pad, or a target for one digit of a
+  // whitespace-split multi-digit number. Repair only those known legacy
+  // shapes before strict parsing; authored v3 input remains strict elsewhere.
+  const repairedLesson = repairLegacyMigratedAuthoredLesson(rawLesson);
+  const legacyRepairChanged = JSON.stringify(repairedLesson) !== JSON.stringify(rawLesson);
   const sourceLesson = parseAuthoredLessonDraft(
-    repairLegacyMigratedAuthoredLesson(JSON.parse(sourceSidecar)),
+    repairedLesson,
   );
   const retimed = retimeAuthoredLessonToMusic({ chart, lesson: sourceLesson, clock, preferredDifficulty: "MediumSingle" });
   validateAuthoredRuntimePresentationConcurrency(retimed.lesson.encounters, clock);
@@ -83,6 +87,7 @@ async function retimeSong(songAssetId: string) {
     previousRevision,
     anchorDifficulty: retimed.anchorDifficulty,
     encounters: retimed.lesson.encounters.length,
+    legacyRepairChanged,
     changed: retimed.changes.length,
     changes: retimed.changes.map(({ encounterId, fromSeconds, toSeconds }) => ({
       encounterId,
@@ -91,7 +96,9 @@ async function retimeSong(songAssetId: string) {
     })),
   };
 
-  if (!apply) return { ...summary, applied: false };
+  if (!apply || (!legacyRepairChanged && retimed.changes.length === 0)) {
+    return { ...summary, applied: false };
+  }
 
   const publicationRequestId = randomUUID();
   const saveResponse = await fetch(`${platformOrigin}/api/lesson-builder/save`, {
