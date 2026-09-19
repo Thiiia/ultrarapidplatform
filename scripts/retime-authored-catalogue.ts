@@ -6,7 +6,7 @@ import {
   validateAuthoredLessonFirstCue,
   validateAuthoredRuntimePresentationConcurrency,
 } from "../lib/authored-lesson";
-import { retimeAuthoredLessonToMusic } from "../lib/authored-lesson-retiming";
+import { musicalAnchorTicks, retimeAuthoredLessonToMusic } from "../lib/authored-lesson-retiming";
 import { createLessonClock } from "../lib/editor/lesson-timing";
 import { repairLegacyMigratedAuthoredLesson } from "../lib/legacy-authored-migration";
 
@@ -24,6 +24,7 @@ const songAssetIds = [
 ] as const;
 const apply = process.argv.includes("--apply");
 const enforceFirstCueFloor = process.argv.includes("--enforce-first-cue-floor");
+const alignRhythmNotes = process.argv.includes("--align-rhythm-notes");
 
 type LaunchPackage = {
   source?: string;
@@ -38,6 +39,45 @@ type LaunchPackage = {
   };
   error?: string;
 };
+
+function timingAlignmentSummary(
+  chart: string,
+  lesson: ReturnType<typeof parseAuthoredLessonDraft>,
+  clock: ReturnType<typeof createLessonClock>,
+) {
+  const anchors = musicalAnchorTicks(chart, "MediumSingle");
+  const anchorTicks = new Set(anchors.ticks);
+  const grouped = new Map<string, number>();
+  for (const encounter of lesson.encounters) {
+    const groupKey = encounter.type === "hit"
+      ? `${encounter.eventId}:${encounter.equationId}:${encounter.startTick}`
+      : encounter.id;
+    grouped.set(groupKey, encounter.startTick);
+  }
+
+  const groups = [...grouped.values()];
+  const offAnchor = groups.map((tick) => {
+    const seconds = clock.toSeconds(tick);
+    const nearestTick = anchors.ticks.reduce((nearest, candidate) =>
+      Math.abs(clock.toSeconds(candidate) - seconds) < Math.abs(clock.toSeconds(nearest) - seconds)
+        ? candidate
+        : nearest,
+    anchors.ticks[0]);
+    return {
+      tick,
+      seconds: Number(seconds.toFixed(3)),
+      nearestAnchorSeconds: Number(clock.toSeconds(nearestTick).toFixed(3)),
+      offsetMs: Math.round((seconds - clock.toSeconds(nearestTick)) * 1000),
+    };
+  }).filter(({ tick }) => !anchorTicks.has(tick));
+
+  return {
+    anchorDifficulty: anchors.difficulty,
+    cueGroups: groups.length,
+    groupsOnRhythmNotes: groups.length - offAnchor.length,
+    offRhythmNoteGroups: offAnchor,
+  };
+}
 
 function required(value: string | undefined, label: string) {
   if (!value) throw new Error(`Launch package is missing ${label}`);
@@ -82,13 +122,16 @@ async function retimeSong(songAssetId: string) {
   const sourceLesson = parseAuthoredLessonDraft(
     repairedLesson,
   );
+  const timingAlignment = timingAlignmentSummary(chart, sourceLesson, clock);
   const retimed = retimeAuthoredLessonToMusic({
     chart,
     lesson: sourceLesson,
     clock,
     preferredDifficulty: "MediumSingle",
     minimumFirstCueSeconds: enforceFirstCueFloor ? AUTHORED_MIN_FIRST_CUE_SECONDS : undefined,
+    alignToRhythmNotes: alignRhythmNotes,
   });
+  const timingAlignmentAfter = timingAlignmentSummary(chart, retimed.lesson, clock);
   validateAuthoredRuntimePresentationConcurrency(retimed.lesson.encounters, clock);
   if (enforceFirstCueFloor) {
     validateAuthoredLessonFirstCue(retimed.lesson.encounters, clock);
@@ -100,6 +143,8 @@ async function retimeSong(songAssetId: string) {
     anchorDifficulty: retimed.anchorDifficulty,
     encounters: retimed.lesson.encounters.length,
     legacyRepairChanged,
+    timingAlignment,
+    timingAlignmentAfter,
     changed: retimed.changes.length,
     changes: retimed.changes.map(({ encounterId, fromSeconds, toSeconds }) => ({
       encounterId,
@@ -149,6 +194,7 @@ async function main() {
   console.log(JSON.stringify({
     mode: apply ? "apply" : "dry-run",
     enforceFirstCueFloor,
+    alignRhythmNotes,
     results,
   }, null, 2));
   if ((results as Array<{ error?: string }>).some((result) => result.error)) process.exitCode = 1;

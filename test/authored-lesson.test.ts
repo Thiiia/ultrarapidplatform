@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   isAuthoredEquationOperator,
+  authoredLegacyHitInteractionSignature,
   parseAuthoredLessonDraft,
   stampAuthoredLessonIdentity,
   validateAuthoredLessonPlayability,
@@ -261,6 +262,15 @@ test('publication playability policy rejects an early first cue and impractical 
     }],
   });
   assert.doesNotThrow(() => validateAuthoredLessonPlayability(playable.encounters, clock));
+
+  const legacySignature = new Map([
+    [oversizedMask.encounters[0]!.id, authoredLegacyHitInteractionSignature(oversizedMask.encounters[0]!)],
+  ]);
+  assert.doesNotThrow(() => validateAuthoredLessonPlayability(
+    oversizedMask.encounters,
+    clock,
+    { legacyHitInteractionSignatures: legacySignature },
+  ));
 });
 
 test('authored v3 requires a hit pad and rejects a drag that starts with its source hit', () => {

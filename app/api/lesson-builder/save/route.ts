@@ -381,6 +381,14 @@ export async function POST(request: Request) {
     try { validateLessonContent(chartContent, sidecarContent, { forSave: true }); }
     catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid lesson content" }, { status: 400 }); }
 
+    const previousSidecarContent =
+      targets.current?.sidecarBucket && targets.current.sidecarPath
+        ? await readStoredUtf8Text(
+          targets.current.sidecarBucket,
+          targets.current.sidecarPath,
+          "current sidecar",
+        )
+        : undefined;
     const revisionId = randomUUID();
     let authoredPublication;
     try {
@@ -392,6 +400,7 @@ export async function POST(request: Request) {
           return authoredClock.toTick(authoredClock.toSeconds(tick) + seconds);
         },
         runtimeClock: authoredClock,
+        previousSidecarContent,
       });
     } catch (error) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid authored lesson payload" }, { status: 400 });

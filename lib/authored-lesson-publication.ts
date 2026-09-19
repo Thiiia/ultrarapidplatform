@@ -1,4 +1,6 @@
 import {
+  AUTHORED_MAX_REQUIRED_HIT_PADS,
+  authoredLegacyHitInteractionSignature,
   parseAuthoredLessonDraft,
   validateAuthoredLessonPlayability,
   stampAuthoredLessonIdentity,
@@ -13,6 +15,29 @@ export type AuthoredLessonPublication = {
   migratedFromLegacy: boolean;
 };
 
+function legacyHitInteractionSignatures(sidecarContent: string) {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(sidecarContent);
+  } catch {
+    throw new Error('Existing authored lesson sidecar must contain valid JSON');
+  }
+
+  const existing = parseAuthoredLessonDraft(repairLegacyMigratedAuthoredLesson(raw));
+  const signatures = new Map<string, string>();
+  for (const encounter of existing.encounters) {
+    if (encounter.type !== 'hit') continue;
+    const requiredPads = new Set((encounter.hitBubbles ?? []).flatMap((bubble) => [
+      ...(bubble.pads ?? []),
+      ...(bubble.positions ?? []),
+    ]));
+    if (requiredPads.size > AUTHORED_MAX_REQUIRED_HIT_PADS) {
+      signatures.set(encounter.id, authoredLegacyHitInteractionSignature(encounter));
+    }
+  }
+  return signatures;
+}
+
 /**
  * The sole producer boundary for playable authored content. It rejects legacy
  * companions and stamps server-owned identity immediately before persistence.
@@ -22,11 +47,14 @@ export function prepareAuthoredLessonForPublication({
   identity,
   legacyToTickAfterSeconds,
   runtimeClock,
+  previousSidecarContent,
 }: {
   sidecarContent: string;
   identity: { songAssetId: string; activityKey: string; authorId: string; revision: string };
   legacyToTickAfterSeconds?: (tick: number, seconds: number) => number;
   runtimeClock?: { toSeconds(tick: number): number };
+  /** Previous immutable revision, used only to preserve existing legacy HIT shapes. */
+  previousSidecarContent?: string;
 }): AuthoredLessonPublication {
   let raw: unknown;
   try {
@@ -49,7 +77,11 @@ export function prepareAuthoredLessonForPublication({
   }
   if (runtimeClock) {
     validateAuthoredRuntimePresentationConcurrency(draft.encounters, runtimeClock);
-    validateAuthoredLessonPlayability(draft.encounters, runtimeClock);
+    validateAuthoredLessonPlayability(draft.encounters, runtimeClock, {
+      legacyHitInteractionSignatures: previousSidecarContent
+        ? legacyHitInteractionSignatures(previousSidecarContent)
+        : undefined,
+    });
   }
   const published = stampAuthoredLessonIdentity(draft, identity);
   const targets = published.encounters.reduce((total, encounter) => {

@@ -86,8 +86,9 @@ export const AUTHORED_MIN_FIRST_CUE_SECONDS = 6;
 
 /**
  * The current WebGL pad UI is pointer-first. Two pads can be handled as a
- * deliberate lightweight chord; larger masks are not viable on mouse/touch
- * within the judgement window and must wait for a dedicated chord mechanic.
+ * deliberate lightweight chord. Existing catalog rows with larger masks use
+ * the runtime's bounded sequential-continuation bridge, but new content must
+ * stay within this simpler authoring contract.
  */
 export const AUTHORED_MAX_REQUIRED_HIT_PADS = 2;
 const AUTHORED_PRESENTATION_EPSILON_SECONDS = 0.0005;
@@ -208,6 +209,20 @@ function resolvedHitPads(bubble: AuthoredLessonHitBubble): AuthoredHitPad[] {
   // Unity reads both spellings then folds them into one bit mask. A duplicate
   // inside one Hit is harmless, but a duplicate across concurrent Hits is not.
   return [...new Set([...(bubble.pads ?? []), ...(bubble.positions ?? [])])];
+}
+
+/**
+ * A legacy exception is tied to the complete interaction shape, not merely an
+ * encounter id or pad count. This lets maintenance revisions retime a shipped
+ * row while preventing an editor save from introducing or expanding a chord.
+ */
+export function authoredLegacyHitInteractionSignature(encounter: AuthoredLessonEncounter) {
+  if (encounter.type !== "hit") return "";
+  return JSON.stringify({
+    eventId: encounter.eventId,
+    equationId: encounter.equationId ?? null,
+    hitBubbles: encounter.hitBubbles ?? [],
+  });
 }
 
 function encountersOverlap(left: AuthoredLessonEncounter, right: AuthoredLessonEncounter) {
@@ -374,6 +389,9 @@ export function validateAuthoredLessonFirstCue(
 export function validateAuthoredLessonPlayability(
   encounters: readonly AuthoredLessonEncounter[],
   clock: AuthoredLessonClock,
+  options: {
+    legacyHitInteractionSignatures?: ReadonlyMap<string, string>;
+  } = {},
 ) {
   validateAuthoredLessonFirstCue(encounters, clock);
 
@@ -382,6 +400,10 @@ export function validateAuthoredLessonPlayability(
 
     const requiredPads = new Set((encounter.hitBubbles ?? []).flatMap(resolvedHitPads));
     if (requiredPads.size > AUTHORED_MAX_REQUIRED_HIT_PADS) {
+      const legacySignature = options.legacyHitInteractionSignatures?.get(encounter.id);
+      if (legacySignature === authoredLegacyHitInteractionSignature(encounter)) {
+        continue;
+      }
       throw new Error(
         `Authored hit '${encounter.id}' requires ${requiredPads.size} pads; ` +
         `new authored content supports at most ${AUTHORED_MAX_REQUIRED_HIT_PADS} required pads per hit.`,

@@ -91,11 +91,41 @@ function nextAnchorAtOrAfter(
   return tick;
 }
 
+function nearestAnchorAtOrAfter(
+  anchors: readonly number[],
+  minimumSeconds: number,
+  desiredSeconds: number,
+  clock: AuthoredLessonClock,
+) {
+  let nearest: number | undefined;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  for (const candidate of anchors) {
+    const candidateSeconds = clock.toSeconds(candidate);
+    if (candidateSeconds + RETIMING_EPSILON_SECONDS < minimumSeconds) continue;
+
+    const distance = Math.abs(candidateSeconds - desiredSeconds);
+    if (distance < nearestDistance) {
+      nearest = candidate;
+      nearestDistance = distance;
+    }
+  }
+
+  if (nearest == null) {
+    throw new Error(
+      `No remaining rhythm-note anchor is available at or after ${minimumSeconds.toFixed(3)}s for an authored encounter`,
+    );
+  }
+
+  return nearest;
+}
+
 /**
- * Retimes only later cues that would contest Unity's single authored
- * presenter. Moved cues snap to the next playable chart note, while non-HIT
- * durations are preserved in song seconds. Caller must validate and publish
- * the returned immutable revision.
+ * Retimes cues against the playable rhythm chart while keeping Unity's single
+ * authored presenter and HIT-to-DRAG dependencies valid. In beat-alignment
+ * mode each cue group snaps to its closest viable rhythm note; otherwise only
+ * conflicting later cues are moved. Non-HIT durations are preserved in song
+ * seconds. Caller must validate and publish the returned immutable revision.
  */
 export function retimeAuthoredLessonToMusic({
   chart,
@@ -103,6 +133,7 @@ export function retimeAuthoredLessonToMusic({
   clock,
   preferredDifficulty,
   minimumFirstCueSeconds,
+  alignToRhythmNotes = false,
 }: {
   chart: string;
   lesson: AuthoredLessonDraft;
@@ -110,6 +141,8 @@ export function retimeAuthoredLessonToMusic({
   preferredDifficulty?: SupportedRhythmDifficulty;
   /** Optional learner-facing floor for the first authored action. */
   minimumFirstCueSeconds?: number;
+  /** Snap every cue group to its closest valid authored rhythm note. */
+  alignToRhythmNotes?: boolean;
 }): AuthoredLessonRetimingResult {
   const anchors = musicalAnchorTicks(chart, preferredDifficulty);
   const ordered = [...lesson.encounters].sort((left, right) =>
@@ -139,15 +172,21 @@ export function retimeAuthoredLessonToMusic({
         ?.map((target) => target.sourceHitId ? releaseById.get(target.sourceHitId) : undefined)
         .find((release): release is number => typeof release === "number")
       : undefined;
-    const requiredStartSeconds = Math.max(
-      originalStartSeconds,
+    const minimumStartSeconds = Math.max(
       isFirstGroup ? firstCueFloorSeconds : -Infinity,
       previousReleaseSeconds + AUTHORED_PRESENTATION_LEAD_SECONDS + RETIMING_EPSILON_SECONDS,
       (dependencyReleaseSeconds ?? -Infinity) + AUTHORED_PRESENTATION_LEAD_SECONDS + RETIMING_EPSILON_SECONDS,
     );
-    const startTick = requiredStartSeconds > originalStartSeconds + RETIMING_EPSILON_SECONDS
-      ? nextAnchorAtOrAfter(anchors.ticks, requiredStartSeconds, clock)
-      : group[0].startTick;
+    const startTick = alignToRhythmNotes
+      ? nearestAnchorAtOrAfter(
+        anchors.ticks,
+        minimumStartSeconds,
+        originalStartSeconds,
+        clock,
+      )
+      : minimumStartSeconds > originalStartSeconds + RETIMING_EPSILON_SECONDS
+        ? nextAnchorAtOrAfter(anchors.ticks, minimumStartSeconds, clock)
+        : group[0].startTick;
     const startSeconds = clock.toSeconds(startTick);
 
     const nextGroup = group.map((encounter) => {

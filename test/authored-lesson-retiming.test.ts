@@ -83,3 +83,21 @@ test("retimes the opening authored cue to the requested learner-safe floor", () 
   ]);
   assert.equal(result.lesson.encounters[0]?.startTick, 2304);
 });
+
+test("aligns an authored cue to its closest viable rhythm note", () => {
+  const source = lesson([
+    { id: "hit-1", eventId: "event-1", type: "hit", equationId: "eq", startTick: 500, endTick: 500, hitBubbles: [{ tokenIndex: 0, pads: ["left"] }] },
+  ]);
+  const clock = createLessonClock(chart);
+  const result = retimeAuthoredLessonToMusic({
+    chart,
+    lesson: source,
+    clock,
+    alignToRhythmNotes: true,
+  });
+
+  assert.deepEqual(result.changes.map(({ encounterId, fromTick, toTick }) => ({ encounterId, fromTick, toTick })), [
+    { encounterId: "hit-1", fromTick: 500, toTick: 576 },
+  ]);
+  assert.equal(result.lesson.encounters[0]?.startTick, 576);
+});
