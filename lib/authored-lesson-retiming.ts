@@ -102,11 +102,14 @@ export function retimeAuthoredLessonToMusic({
   lesson,
   clock,
   preferredDifficulty,
+  minimumFirstCueSeconds,
 }: {
   chart: string;
   lesson: AuthoredLessonDraft;
   clock: AuthoredLessonRetimingClock;
   preferredDifficulty?: SupportedRhythmDifficulty;
+  /** Optional learner-facing floor for the first authored action. */
+  minimumFirstCueSeconds?: number;
 }): AuthoredLessonRetimingResult {
   const anchors = musicalAnchorTicks(chart, preferredDifficulty);
   const ordered = [...lesson.encounters].sort((left, right) =>
@@ -118,8 +121,12 @@ export function retimeAuthoredLessonToMusic({
   const releaseById = new Map<string, number>();
   const changes: AuthoredRetimingChange[] = [];
   let previousReleaseSeconds = -Infinity;
+  const firstCueFloorSeconds = Number.isFinite(minimumFirstCueSeconds)
+    ? Math.max(0, Number(minimumFirstCueSeconds))
+    : 0;
 
   for (let index = 0; index < ordered.length;) {
+    const isFirstGroup = index === 0;
     const group = [ordered[index]];
     while (index + group.length < ordered.length && isSameHitGroup(group[0], ordered[index + group.length])) {
       group.push(ordered[index + group.length]);
@@ -134,6 +141,7 @@ export function retimeAuthoredLessonToMusic({
       : undefined;
     const requiredStartSeconds = Math.max(
       originalStartSeconds,
+      isFirstGroup ? firstCueFloorSeconds : -Infinity,
       previousReleaseSeconds + AUTHORED_PRESENTATION_LEAD_SECONDS + RETIMING_EPSILON_SECONDS,
       (dependencyReleaseSeconds ?? -Infinity) + AUTHORED_PRESENTATION_LEAD_SECONDS + RETIMING_EPSILON_SECONDS,
     );

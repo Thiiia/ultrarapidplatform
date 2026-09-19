@@ -77,6 +77,19 @@ export type AuthoredLessonDraft = Omit<AuthoredLessonPayload, "authorId" | "revi
  */
 export const AUTHORED_PRESENTATION_LEAD_SECONDS = 0.75;
 export const AUTHORED_HIT_MISS_WINDOW_SECONDS = 0.675;
+/**
+ * A learner starts the song from the tutorial gate. Keep the first authored
+ * action far enough into the track that the player can orient themselves
+ * before its presentation lead begins.
+ */
+export const AUTHORED_MIN_FIRST_CUE_SECONDS = 6;
+
+/**
+ * The current WebGL pad UI is pointer-first. Two pads can be handled as a
+ * deliberate lightweight chord; larger masks are not viable on mouse/touch
+ * within the judgement window and must wait for a dedicated chord mechanic.
+ */
+export const AUTHORED_MAX_REQUIRED_HIT_PADS = 2;
 const AUTHORED_PRESENTATION_EPSILON_SECONDS = 0.0005;
 
 export type AuthoredLessonClock = {
@@ -313,6 +326,65 @@ export function validateAuthoredRuntimePresentationConcurrency(
       throw new Error(
         `Authored lesson encounters '${left.encounter.id}' and '${right.encounter.id}' overlap Unity's presentation window; ` +
         "move the later encounter later in the song or use one disjoint same-event HIT group",
+      );
+    }
+  }
+}
+
+/**
+ * A student needs a short moment to orient after the Unity shell and music
+ * begin. It is separate from the new-content interaction policy so safe
+ * timing repairs can migrate already-published lessons.
+ */
+export function validateAuthoredLessonFirstCue(
+  encounters: readonly AuthoredLessonEncounter[],
+  clock: AuthoredLessonClock,
+) {
+  if (!clock || typeof clock.toSeconds !== "function") {
+    throw new Error("Authored lesson playability validation requires a chart tempo clock");
+  }
+
+  let firstStartSeconds = Number.POSITIVE_INFINITY;
+
+  for (const encounter of encounters) {
+    const startSeconds = clock.toSeconds(encounter.startTick);
+    if (!Number.isFinite(startSeconds)) {
+      throw new Error(`Authored lesson encounter '${encounter.id}' has an invalid chart time`);
+    }
+    firstStartSeconds = Math.min(firstStartSeconds, startSeconds);
+
+  }
+
+  // Empty drafts remain saveable in the editor; they simply are not playable
+  // until the author adds at least one encounter.
+  if (Number.isFinite(firstStartSeconds) &&
+      firstStartSeconds + AUTHORED_PRESENTATION_EPSILON_SECONDS < AUTHORED_MIN_FIRST_CUE_SECONDS) {
+    throw new Error(
+      `The first authored cue starts at ${firstStartSeconds.toFixed(3)}s; ` +
+      `it must start at or after ${AUTHORED_MIN_FIRST_CUE_SECONDS.toFixed(1)}s so the tutorial gate is playable.`,
+    );
+  }
+}
+
+/**
+ * New authored content must remain immediately playable on a mouse or touch
+ * device. Existing catalog rows use Unity's legacy multi-pad continuation
+ * bridge and are not silently rewritten by this policy.
+ */
+export function validateAuthoredLessonPlayability(
+  encounters: readonly AuthoredLessonEncounter[],
+  clock: AuthoredLessonClock,
+) {
+  validateAuthoredLessonFirstCue(encounters, clock);
+
+  for (const encounter of encounters) {
+    if (encounter.type !== "hit") continue;
+
+    const requiredPads = new Set((encounter.hitBubbles ?? []).flatMap(resolvedHitPads));
+    if (requiredPads.size > AUTHORED_MAX_REQUIRED_HIT_PADS) {
+      throw new Error(
+        `Authored hit '${encounter.id}' requires ${requiredPads.size} pads; ` +
+        `new authored content supports at most ${AUTHORED_MAX_REQUIRED_HIT_PADS} required pads per hit.`,
       );
     }
   }

@@ -504,13 +504,10 @@ async function buildSongChoiceForAsset({
 }
 
 /**
- * Song choice listing for the song-choice pages: every active SongAsset shows
- * up, sourced purely from the SongAsset table. Only the song audio gets a
- * signed URL here; chart/sidecar URLs are resolved at selection time (see
- * findDevAuthoredChart + /api/song-package/launch, which falls back to blank
- * content when nothing is authored yet). The chart/sidecar fields carry the
- * prospective dev-authored storage paths so downstream payloads have a stable
- * shape before the selection fetch completes.
+ * Student song choice lists only active assets with a complete ready revision
+ * for the shared authored catalogue. Editors keep their separate blank-draft
+ * workflow in getEditorSongChoices; a learner should never be offered a song
+ * which will fail at the Play action.
  */
 export async function getSongChoices(
   requestedActivityKey?: string | null,
@@ -522,8 +519,34 @@ export async function getSongChoices(
     return [];
   }
 
+  const devAuthor = await findDevAuthor();
+  if (!devAuthor) {
+    return [];
+  }
+
+  const readyRevisions = await prisma.gameContentRevision.findMany({
+    where: {
+      activityKey: preferredActivityKey,
+      authorId: devAuthor.id,
+      status: "ready",
+      chartSha256: { not: null },
+      sidecarSha256: { not: null },
+      audioSha256: { not: null },
+      equationCount: { not: null },
+      encounterCount: { not: null },
+      targetCount: { not: null },
+    },
+    distinct: ["songAssetId"],
+    select: { songAssetId: true },
+  });
+
+  const playableSongAssetIds = readyRevisions.map((revision) => revision.songAssetId);
+  if (playableSongAssetIds.length === 0) {
+    return [];
+  }
+
   const songAssets = await prisma.songAsset.findMany({
-    where: { isActive: true },
+    where: { isActive: true, id: { in: playableSongAssetIds } },
     orderBy: { title: "asc" },
   });
 

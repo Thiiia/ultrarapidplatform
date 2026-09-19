@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  AUTHORED_MIN_FIRST_CUE_SECONDS,
   parseAuthoredLessonDraft,
+  validateAuthoredLessonFirstCue,
   validateAuthoredRuntimePresentationConcurrency,
 } from "../lib/authored-lesson";
 import { retimeAuthoredLessonToMusic } from "../lib/authored-lesson-retiming";
@@ -21,6 +23,7 @@ const songAssetIds = [
   "waves",
 ] as const;
 const apply = process.argv.includes("--apply");
+const enforceFirstCueFloor = process.argv.includes("--enforce-first-cue-floor");
 
 type LaunchPackage = {
   source?: string;
@@ -79,8 +82,17 @@ async function retimeSong(songAssetId: string) {
   const sourceLesson = parseAuthoredLessonDraft(
     repairedLesson,
   );
-  const retimed = retimeAuthoredLessonToMusic({ chart, lesson: sourceLesson, clock, preferredDifficulty: "MediumSingle" });
+  const retimed = retimeAuthoredLessonToMusic({
+    chart,
+    lesson: sourceLesson,
+    clock,
+    preferredDifficulty: "MediumSingle",
+    minimumFirstCueSeconds: enforceFirstCueFloor ? AUTHORED_MIN_FIRST_CUE_SECONDS : undefined,
+  });
   validateAuthoredRuntimePresentationConcurrency(retimed.lesson.encounters, clock);
+  if (enforceFirstCueFloor) {
+    validateAuthoredLessonFirstCue(retimed.lesson.encounters, clock);
+  }
 
   const summary = {
     songAssetId,
@@ -134,7 +146,11 @@ async function main() {
       results.push({ songAssetId, error: error instanceof Error ? error.message : String(error) });
     }
   }
-  console.log(JSON.stringify({ mode: apply ? "apply" : "dry-run", results }, null, 2));
+  console.log(JSON.stringify({
+    mode: apply ? "apply" : "dry-run",
+    enforceFirstCueFloor,
+    results,
+  }, null, 2));
   if ((results as Array<{ error?: string }>).some((result) => result.error)) process.exitCode = 1;
 }
 

@@ -4,6 +4,7 @@ import {
   isAuthoredEquationOperator,
   parseAuthoredLessonDraft,
   stampAuthoredLessonIdentity,
+  validateAuthoredLessonPlayability,
   validateAuthoredRuntimePresentationConcurrency,
 } from '../lib/authored-lesson';
 import { createLessonClock } from '../lib/editor/lesson-timing';
@@ -222,6 +223,44 @@ test('authored v3 rejects sequential rows whose presentation windows still overl
   });
   assert.doesNotThrow(() => validateAuthoredRuntimePresentationConcurrency(spaced.encounters, clock));
   assert.throws(() => validateLessonContent(chart, JSON.stringify(tooClose), { forSave: true }), /presentation window/i);
+});
+
+test('publication playability policy rejects an early first cue and impractical hit masks', () => {
+  const chart = '[Song]\n{\n Resolution = 480\n}\n[SyncTrack]\n{\n 0 = B 120000\n}\n[ExpertSingle]\n{\n}';
+  const clock = createLessonClock(chart);
+  const early = parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [{ ...authored.encounters[0], startTick: 4800, endTick: 4800 }],
+  });
+  assert.throws(
+    () => validateAuthoredLessonPlayability(early.encounters, clock),
+    /first authored cue/i,
+  );
+
+  const oversizedMask = parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [{
+      ...authored.encounters[0],
+      startTick: 5760,
+      endTick: 5760,
+      hitBubbles: [{ tokenIndex: 0, pads: ['left', 'right', 'topLeft'] }],
+    }],
+  });
+  assert.throws(
+    () => validateAuthoredLessonPlayability(oversizedMask.encounters, clock),
+    /at most 2 required pads/i,
+  );
+
+  const playable = parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [{
+      ...authored.encounters[0],
+      startTick: 5760,
+      endTick: 5760,
+      hitBubbles: [{ tokenIndex: 0, pads: ['left', 'right'] }],
+    }],
+  });
+  assert.doesNotThrow(() => validateAuthoredLessonPlayability(playable.encounters, clock));
 });
 
 test('authored v3 requires a hit pad and rejects a drag that starts with its source hit', () => {

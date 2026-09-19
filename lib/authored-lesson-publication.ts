@@ -1,5 +1,6 @@
 import {
   parseAuthoredLessonDraft,
+  validateAuthoredLessonPlayability,
   stampAuthoredLessonIdentity,
   validateAuthoredRuntimePresentationConcurrency,
 } from '@/lib/authored-lesson';
@@ -48,6 +49,7 @@ export function prepareAuthoredLessonForPublication({
   }
   if (runtimeClock) {
     validateAuthoredRuntimePresentationConcurrency(draft.encounters, runtimeClock);
+    validateAuthoredLessonPlayability(draft.encounters, runtimeClock);
   }
   const published = stampAuthoredLessonIdentity(draft, identity);
   const targets = published.encounters.reduce((total, encounter) => {

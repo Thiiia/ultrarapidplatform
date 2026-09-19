@@ -61,3 +61,25 @@ test("keeps a valid disjoint same-event hit group together", () => {
   assert.equal(result.lesson.encounters.find((encounter) => encounter.id === "hit-later")?.startTick, 768);
   assert.doesNotThrow(() => validateAuthoredRuntimePresentationConcurrency(result.lesson.encounters, clock));
 });
+
+test("retimes the opening authored cue to the requested learner-safe floor", () => {
+  const chartWithSixSecondAnchor = chart.replace(
+    "  1152 = N 3 0\n}",
+    "  1152 = N 3 0\n  2304 = N 0 0\n}",
+  );
+  const source = lesson([
+    { id: "hit-1", eventId: "event-1", type: "hit", equationId: "eq", startTick: 192, endTick: 192, hitBubbles: [{ tokenIndex: 0, pads: ["left"] }] },
+  ]);
+  const clock = createLessonClock(chartWithSixSecondAnchor);
+  const result = retimeAuthoredLessonToMusic({
+    chart: chartWithSixSecondAnchor,
+    lesson: source,
+    clock,
+    minimumFirstCueSeconds: 6,
+  });
+
+  assert.deepEqual(result.changes.map(({ encounterId, fromTick, toTick }) => ({ encounterId, fromTick, toTick })), [
+    { encounterId: "hit-1", fromTick: 192, toTick: 2304 },
+  ]);
+  assert.equal(result.lesson.encounters[0]?.startTick, 2304);
+});
