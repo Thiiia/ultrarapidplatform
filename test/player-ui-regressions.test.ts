@@ -56,6 +56,12 @@ test("song choice does not present a package that is still loading as ready", ()
   assert.match(songChoice, /Try again/);
 });
 
+test("demo song choice defaults to the published Early Algebra catalogue", () => {
+  const demoSongChoice = source("app/demo/student/song-choice/page.tsx");
+
+  assert.match(demoSongChoice, /getSongChoices\(activityParam \?\? "early-algebra"\)/);
+});
+
 test("builder readiness reflects song, publish, and play prerequisites", () => {
   const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
   const panel = source("app/student/lesson-builder/EncounterReadinessPanel.tsx");

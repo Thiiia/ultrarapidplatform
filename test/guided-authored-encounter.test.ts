@@ -74,6 +74,21 @@ test("hit requires playable targets and at least one pad", () => {
   assert.deepEqual(result.issueCodes, ["hit_pad_required", "operator_target"]);
 });
 
+test("an instantaneous Hit does not inherit its event's longer mechanic window", () => {
+  const hit = encounter("hit", { id: "hit-1", tick: 8, endTick: undefined });
+  const event: AuthoredTimelineEvent = {
+    ...eventWith(hit),
+    // Hydrated authored events aggregate their longest child interval here.
+    // A hit has no separate endTick, so this must not make it non-instant.
+    endTick: 12,
+  };
+
+  const result = evaluateLessonPublishReadiness([event]);
+
+  assert.equal(result.ready, true);
+  assert.equal(result.blockers.some((blocker) => blocker.code === "hit_timing_invalid"), false);
+});
+
 test("a stale target identity asks the author to choose the token again", () => {
   const result = evaluateEncounterReadiness(encounter("hit", {
     hitBubbles: [{ tokenIndex: 0, targetId: "removed-token", pads: ["left"] }],

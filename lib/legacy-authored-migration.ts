@@ -1,4 +1,6 @@
 import {
+  AUTHORED_HIT_MISS_WINDOW_SECONDS,
+  AUTHORED_PRESENTATION_LEAD_SECONDS,
   isAuthoredEquationOperator,
   parseAuthoredLessonDraft,
   tokenizeAuthoredEquationState,
@@ -40,6 +42,11 @@ const LEGACY_EQUATION_STATES: Record<string, string> = {
 
 const HIT_PADS = ["topLeft", "topRight", "left", "right", "bottomLeft", "bottomRight"] as const;
 const LEGACY_MIGRATED_ENCOUNTER_ID = /^legacy-\d+-(?:hit|spin|drag)$/;
+// Unity owns one shared presenter. A dependent drag can only be shown after
+// its source hit has reached its miss release and the next cue's lead-in can
+// begin. Keep a small clock-rounding margin as migration works in chart ticks.
+const DEPENDENT_DRAG_SAFE_GAP_SECONDS =
+  AUTHORED_HIT_MISS_WINDOW_SECONDS + AUTHORED_PRESENTATION_LEAD_SECONDS + 0.1;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -343,10 +350,14 @@ export function migrateLegacyEncounterSidecar({
       case "SingleHitUnlockThenTimedDrag":
       case "DoubleHitDrag":
         encounters.push(hitEncounter({ id: hitId, eventId, equationId: legacy.equationId, tick: legacy.tick, state, hits }));
-        // The v3 Unity runtime requires the source Hit to complete before a
-        // dependent Drag begins. Preserve the legacy duration, but offset the
-        // drag one chart tick so the pair no longer races the same frame.
-        const dragStartTick = legacy.tick + 1;
+        // The v3 Unity runtime requires the source Hit to release before a
+        // dependent Drag's presentation lead-in begins. A one-tick offset can
+        // still collide visually, so convert the full safe window through the
+        // song's tempo map before preserving the legacy drag duration.
+        const dragStartTick = Math.max(
+          legacy.tick + 1,
+          toTickAfterSeconds(legacy.tick, DEPENDENT_DRAG_SAFE_GAP_SECONDS),
+        );
         encounters.push({ id: `${eventId}-drag`, eventId, type: "drag", equationId: legacy.equationId, startTick: dragStartTick,
           endTick: durationEndTick(dragStartTick, legacy, toTickAfterSeconds),
           dragTargets: [{ tokenIndex: tokenIndexFor(state, hits), sourceHitId: hitId }] });

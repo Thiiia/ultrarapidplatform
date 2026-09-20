@@ -6,6 +6,7 @@ import {
   parseAuthoredLessonDraft,
   stampAuthoredLessonIdentity,
   validateAuthoredLessonPlayability,
+  validateAuthoredLessonStopBoundary,
   validateAuthoredRuntimePresentationConcurrency,
 } from '../lib/authored-lesson';
 import { createLessonClock } from '../lib/editor/lesson-timing';
@@ -224,6 +225,26 @@ test('authored v3 rejects sequential rows whose presentation windows still overl
   });
   assert.doesNotThrow(() => validateAuthoredRuntimePresentationConcurrency(spaced.encounters, clock));
   assert.throws(() => validateLessonContent(chart, JSON.stringify(tooClose), { forSave: true }), /presentation window/i);
+});
+
+test('authored stopAtSeconds must cover every mechanic release, with equality allowed', () => {
+  const chart = '[Song]\n{\n Resolution = 480\n}\n[SyncTrack]\n{\n 0 = B 120000\n}\n[ExpertSingle]\n{\n}';
+  const clock = createLessonClock(chart);
+  const lesson = parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [
+      { id: 'hit', eventId: 'hit', type: 'hit', equationId: 'eq-a', startTick: 5760, endTick: 5760, hitBubbles: [{ tokenIndex: 0, pads: ['left'] }] },
+      { id: 'spin', eventId: 'spin', type: 'spin', equationId: 'eq-a', startTick: 6720, endTick: 7680, spinTargets: [{ tokenIndex: 0 }] },
+      { id: 'drag', eventId: 'drag', type: 'drag', equationId: 'eq-a', startTick: 8640, endTick: 10560, dragTargets: [{ tokenIndex: 0 }] },
+    ],
+  });
+
+  assert.doesNotThrow(() => validateAuthoredLessonStopBoundary(lesson.encounters, clock, 11));
+  assert.doesNotThrow(() => validateAuthoredLessonStopBoundary(lesson.encounters, clock, 11.25));
+  assert.throws(
+    () => validateAuthoredLessonStopBoundary(lesson.encounters, clock, 10.999),
+    /stopAtSeconds.*drag.*11\.000/i,
+  );
 });
 
 test('publication playability policy rejects an early first cue and impractical hit masks', () => {

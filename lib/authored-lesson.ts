@@ -346,6 +346,51 @@ export function validateAuthoredRuntimePresentationConcurrency(
   }
 }
 
+export function latestAuthoredRequiredRelease(
+  encounters: readonly AuthoredLessonEncounter[],
+  clock: AuthoredLessonClock,
+) {
+  if (!clock || typeof clock.toSeconds !== "function") {
+    throw new Error("Authored lesson stop-boundary validation requires a chart tempo clock");
+  }
+
+  let latest: { encounterId: string; seconds: number } | null = null;
+  for (const encounter of encounters) {
+    const startSeconds = clock.toSeconds(encounter.startTick);
+    const releaseSeconds = encounter.type === "hit"
+      ? startSeconds + AUTHORED_HIT_MISS_WINDOW_SECONDS
+      : clock.toSeconds(encounter.endTick);
+    if (!Number.isFinite(startSeconds) || !Number.isFinite(releaseSeconds)) {
+      throw new Error(`Authored lesson encounter '${encounter.id}' has an invalid chart time`);
+    }
+    if (latest == null || releaseSeconds > latest.seconds) {
+      latest = { encounterId: encounter.id, seconds: releaseSeconds };
+    }
+  }
+  return latest;
+}
+
+export function validateAuthoredLessonStopBoundary(
+  encounters: readonly AuthoredLessonEncounter[],
+  clock: AuthoredLessonClock,
+  stopAtSeconds?: number,
+) {
+  if (stopAtSeconds == null) return;
+  if (!Number.isFinite(stopAtSeconds) || stopAtSeconds < 0) {
+    throw new Error("Authored lesson stopAtSeconds must be a finite non-negative number");
+  }
+
+  const latest = latestAuthoredRequiredRelease(encounters, clock);
+  if (latest == null) return;
+  if (stopAtSeconds + AUTHORED_PRESENTATION_EPSILON_SECONDS < latest.seconds) {
+    throw new Error(
+      `Authored lesson stopAtSeconds ${stopAtSeconds.toFixed(3)}s ends before encounter ` +
+      `'${latest.encounterId}' releases at ${latest.seconds.toFixed(3)}s; extend stopAtSeconds ` +
+      "to include the final HIT miss window or mechanic/dependency release.",
+    );
+  }
+}
+
 /**
  * A student needs a short moment to orient after the Unity shell and music
  * begin. It is separate from the new-content interaction policy so safe
@@ -391,9 +436,11 @@ export function validateAuthoredLessonPlayability(
   clock: AuthoredLessonClock,
   options: {
     legacyHitInteractionSignatures?: ReadonlyMap<string, string>;
+    stopAtSeconds?: number;
   } = {},
 ) {
   validateAuthoredLessonFirstCue(encounters, clock);
+  validateAuthoredLessonStopBoundary(encounters, clock, options.stopAtSeconds);
 
   for (const encounter of encounters) {
     if (encounter.type !== "hit") continue;

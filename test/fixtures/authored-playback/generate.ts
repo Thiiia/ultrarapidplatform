@@ -114,7 +114,7 @@ function writeFixture(name: string, payload: unknown) {
   writeFileSync(join(here, name), text);
 }
 
-// 1. Simultaneous + overlapping mechanics; three ordered equations; explicit stop.
+// 1. Simultaneous disjoint Hits followed by serialized mechanics; three ordered equations; explicit stop.
 const overlapping = serializeAuthoredLesson(
   [
     event("event-1", 4, { hit: 2 }, {
@@ -126,15 +126,21 @@ const overlapping = serializeAuthoredLesson(
         ],
       },
     }),
-    event("event-2", 6.5, { spin: 1, drag: 1 }, {
+    event("event-2", 6.5, { spin: 1 }, {
       endTick: 9,
       equation: equation("eq-2", ["X", "+", "2", "=", "9"]),
       instances: {
         spin: [instance("inst-spin-1", { tick: 6.5, endTick: 9, spinTargets: [{ tokenIndex: 0 }] })],
-        drag: [instance("inst-drag-1", { tick: 6.5, endTick: 9, dragTargets: [{ tokenIndex: 1, sourceHitId: "inst-hit-1" }] })],
       },
     }),
-    event("event-3", 12, {}, { equation: equation("eq-3", ["5", "=", "Y"]) }),
+    event("event-3", 10, { drag: 1 }, {
+      endTick: 12.5,
+      equation: equation("eq-2", ["X", "+", "2", "=", "9"]),
+      instances: {
+        drag: [instance("inst-drag-1", { tick: 10, endTick: 12.5, dragTargets: [{ tokenIndex: 2, sourceHitId: "inst-hit-1" }] })],
+      },
+    }),
+    event("event-4", 12, {}, { equation: equation("eq-3", ["5", "=", "Y"]) }),
   ],
   IDENTITY,
   clock,

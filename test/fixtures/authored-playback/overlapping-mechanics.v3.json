@@ -9,15 +9,73 @@
   "equations": [
     {
       "id": "eq-1",
-      "state": "4x + 3 = 7"
+      "state": "3 + 4 = 7",
+      "tokens": [
+        {
+          "id": "eq-1-token-0",
+          "label": "3"
+        },
+        {
+          "id": "eq-1-token-1",
+          "label": "+"
+        },
+        {
+          "id": "eq-1-token-2",
+          "label": "4"
+        },
+        {
+          "id": "eq-1-token-3",
+          "label": "="
+        },
+        {
+          "id": "eq-1-token-4",
+          "label": "7"
+        }
+      ]
     },
     {
       "id": "eq-2",
-      "state": "X + 2 = 9"
+      "state": "X + 2 = 9",
+      "tokens": [
+        {
+          "id": "eq-2-token-0",
+          "label": "X"
+        },
+        {
+          "id": "eq-2-token-1",
+          "label": "+"
+        },
+        {
+          "id": "eq-2-token-2",
+          "label": "2"
+        },
+        {
+          "id": "eq-2-token-3",
+          "label": "="
+        },
+        {
+          "id": "eq-2-token-4",
+          "label": "9"
+        }
+      ]
     },
     {
       "id": "eq-3",
-      "state": "5 = Y"
+      "state": "5 = Y",
+      "tokens": [
+        {
+          "id": "eq-3-token-0",
+          "label": "5"
+        },
+        {
+          "id": "eq-3-token-1",
+          "label": "="
+        },
+        {
+          "id": "eq-3-token-2",
+          "label": "Y"
+        }
+      ]
     }
   ],
   "encounters": [
@@ -36,7 +94,8 @@
           ],
           "pads": [
             "topLeft"
-          ]
+          ],
+          "targetId": "eq-1-token-0"
         }
       ]
     },
@@ -55,7 +114,8 @@
           ],
           "pads": [
             "bottomRight"
-          ]
+          ],
+          "targetId": "eq-1-token-2"
         }
       ]
     },
@@ -65,10 +125,11 @@
       "type": "spin",
       "equationId": "eq-2",
       "startTick": 9048,
-      "endTick": 11000,
+      "endTick": 12528,
       "spinTargets": [
         {
-          "tokenIndex": 0
+          "tokenIndex": 0,
+          "targetId": "eq-2-token-0"
         }
       ]
     },
@@ -77,12 +138,13 @@
       "eventId": "event-3",
       "type": "drag",
       "equationId": "eq-2",
-      "startTick": 12000,
-      "endTick": 15000,
+      "startTick": 13920,
+      "endTick": 17400,
       "dragTargets": [
         {
           "tokenIndex": 2,
-          "sourceHitId": "inst-hit-1"
+          "sourceHitId": "inst-hit-1",
+          "targetId": "eq-2-token-2"
         }
       ]
     }

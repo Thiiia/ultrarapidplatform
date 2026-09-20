@@ -27,7 +27,7 @@ test("producer fixture: note-free chart with runtime-compatible authored content
   assert.equal(parsed.encounters.length, 4);
   assert.equal(parsed.equations.length, 3);
   assert.equal(parsed.stopAtSeconds, 17);
-  assert.equal(parsed.equations[0]?.state, "4x + 3 = 7");
+  assert.equal(parsed.equations[0]?.state, "3 + 4 = 7");
   assert.deepEqual(
     parsed.encounters.map((encounter) => encounter.type),
     ["hit", "hit", "spin", "drag"],

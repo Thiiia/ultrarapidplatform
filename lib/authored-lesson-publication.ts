@@ -4,6 +4,7 @@ import {
   parseAuthoredLessonDraft,
   validateAuthoredLessonPlayability,
   stampAuthoredLessonIdentity,
+  validateAuthoredLessonStopBoundary,
   validateAuthoredRuntimePresentationConcurrency,
 } from '@/lib/authored-lesson';
 import { isLegacyEncounterSidecar } from '@/lib/legacy-encounters';
@@ -78,10 +79,12 @@ export function prepareAuthoredLessonForPublication({
   if (runtimeClock) {
     validateAuthoredRuntimePresentationConcurrency(draft.encounters, runtimeClock);
     validateAuthoredLessonPlayability(draft.encounters, runtimeClock, {
+      stopAtSeconds: draft.stopAtSeconds,
       legacyHitInteractionSignatures: previousSidecarContent
         ? legacyHitInteractionSignatures(previousSidecarContent)
         : undefined,
     });
+    validateAuthoredLessonStopBoundary(draft.encounters, runtimeClock, draft.stopAtSeconds);
   }
   const published = stampAuthoredLessonIdentity(draft, identity);
   const targets = published.encounters.reduce((total, encounter) => {

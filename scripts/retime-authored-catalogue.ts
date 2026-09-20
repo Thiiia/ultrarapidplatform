@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   AUTHORED_MIN_FIRST_CUE_SECONDS,
+  latestAuthoredRequiredRelease,
   parseAuthoredLessonDraft,
   validateAuthoredLessonFirstCue,
   validateAuthoredRuntimePresentationConcurrency,
@@ -131,21 +132,34 @@ async function retimeSong(songAssetId: string) {
     minimumFirstCueSeconds: enforceFirstCueFloor ? AUTHORED_MIN_FIRST_CUE_SECONDS : undefined,
     alignToRhythmNotes: alignRhythmNotes,
   });
-  const timingAlignmentAfter = timingAlignmentSummary(chart, retimed.lesson, clock);
-  validateAuthoredRuntimePresentationConcurrency(retimed.lesson.encounters, clock);
+  let retimedLesson = retimed.lesson;
+  let stopAtSecondsChanged = false;
+  const latestRelease = latestAuthoredRequiredRelease(retimedLesson.encounters, clock);
+  if (retimedLesson.stopAtSeconds != null && latestRelease != null &&
+      retimedLesson.stopAtSeconds + 0.0005 < latestRelease.seconds) {
+    retimedLesson = {
+      ...retimedLesson,
+      stopAtSeconds: Number(latestRelease.seconds.toFixed(3)),
+    };
+    stopAtSecondsChanged = true;
+  }
+  const timingAlignmentAfter = timingAlignmentSummary(chart, retimedLesson, clock);
+  validateAuthoredRuntimePresentationConcurrency(retimedLesson.encounters, clock);
   if (enforceFirstCueFloor) {
-    validateAuthoredLessonFirstCue(retimed.lesson.encounters, clock);
+    validateAuthoredLessonFirstCue(retimedLesson.encounters, clock);
   }
 
   const summary = {
     songAssetId,
     previousRevision,
     anchorDifficulty: retimed.anchorDifficulty,
-    encounters: retimed.lesson.encounters.length,
+    encounters: retimedLesson.encounters.length,
     legacyRepairChanged,
+    stopAtSeconds: retimedLesson.stopAtSeconds,
+    stopAtSecondsChanged,
     timingAlignment,
     timingAlignmentAfter,
-    changed: retimed.changes.length,
+    changed: retimed.changes.length + (stopAtSecondsChanged ? 1 : 0),
     changes: retimed.changes.map(({ encounterId, fromSeconds, toSeconds }) => ({
       encounterId,
       fromSeconds: Number(fromSeconds.toFixed(3)),
@@ -153,7 +167,7 @@ async function retimeSong(songAssetId: string) {
     })),
   };
 
-  if (!apply || (!legacyRepairChanged && retimed.changes.length === 0)) {
+  if (!apply || (!legacyRepairChanged && !stopAtSecondsChanged && retimed.changes.length === 0)) {
     return { ...summary, applied: false };
   }
 
@@ -171,7 +185,7 @@ async function retimeSong(songAssetId: string) {
       revision: previousRevision,
       publicationRequestId,
       chart: { content: chart },
-      sidecar: { content: JSON.stringify(retimed.lesson, null, 2) },
+      sidecar: { content: JSON.stringify(retimedLesson, null, 2) },
     }),
   });
   const saveResult = await saveResponse.json() as { error?: string; revision?: string };

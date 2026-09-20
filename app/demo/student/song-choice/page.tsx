@@ -14,7 +14,7 @@ export default async function DemoStudentSongChoicePage({ searchParams }: PagePr
   const activityParam = Array.isArray(params.activity)
     ? params.activity[0]
     : params.activity;
-  const songs = await getSongChoices(activityParam);
+  const songs = await getSongChoices(activityParam ?? "early-algebra");
 
   return (
     <SongChoiceClient

@@ -196,16 +196,35 @@ function inputFromEvent(
   mechanic: GuidedMechanic,
   instance: AuthoredMechanicInstance,
 ): GuidedEncounterInput {
+  const tick = instance.tick ?? event.tick;
+  // `event.endTick` is the aggregate end of every mechanic in an event after
+  // hydration. A Hit is intrinsically instantaneous, so inheriting that
+  // aggregate duration turns a valid hit into an impossible-to-fix draft.
+  // Preserve an explicitly authored hit end so malformed input still receives
+  // the normal same-tick validation error.
+  const endTick = mechanic === "hit"
+    ? instance.endTick ?? tick
+    : instance.endTick ?? event.endTick;
+
   return {
     id: instance.id,
     mechanic,
-    tick: instance.tick ?? event.tick,
-    endTick: instance.endTick ?? event.endTick,
+    tick,
+    endTick,
     equation: instance.equation ?? event.assignments[mechanic],
     hitBubbles: instance.hitBubbles ?? [],
     spinTargets: instance.spinTargets ?? [],
     dragTargets: instance.dragTargets ?? [],
   };
+}
+
+function effectiveEndTick(
+  event: AuthoredTimelineEvent,
+  mechanic: GuidedMechanic,
+  instance: AuthoredMechanicInstance,
+) {
+  const input = inputFromEvent(event, mechanic, instance);
+  return input.endTick ?? input.tick ?? event.tick;
 }
 
 export function evaluateLessonPublishReadiness(
@@ -219,8 +238,8 @@ export function evaluateLessonPublishReadiness(
     ),
   ).sort((left, right) =>
     (left.instance.tick ?? left.event.tick) - (right.instance.tick ?? right.event.tick) ||
-    (left.instance.endTick ?? left.event.endTick ?? left.instance.tick ?? left.event.tick) -
-      (right.instance.endTick ?? right.event.endTick ?? right.instance.tick ?? right.event.tick) ||
+    effectiveEndTick(left.event, left.mechanic, left.instance) -
+      effectiveEndTick(right.event, right.mechanic, right.instance) ||
     left.event.id.localeCompare(right.event.id) ||
     left.instance.id.localeCompare(right.instance.id),
   );

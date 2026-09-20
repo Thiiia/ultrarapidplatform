@@ -32,6 +32,10 @@ test("migrates known legacy catalogue encounters into a playable v3 authored les
   assert.equal(parsed.encounters[3].type, "drag");
   assert.equal(parsed.encounters[3].dragTargets?.[0].sourceHitId, parsed.encounters[2].id);
   assert.ok(parsed.encounters[2].endTick < parsed.encounters[3].startTick);
+  // A one-tick offset is still inside Unity's hit-release + cue-lead window.
+  // At this fixture's 192 ticks/second clock, the dependent drag needs a
+  // 1.525-second spacing before it can safely be presented.
+  assert.equal(parsed.encounters[3].startTick, 2880 + Math.round(1.525 * 192));
 });
 
 test("rejects a legacy equation that is absent from the canonical migration catalogue", () => {
