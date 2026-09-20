@@ -1,5 +1,23 @@
 import { z } from "zod";
 
+export const RequiredCalibrationProtocolVersion = 1;
+const CalibrationStateSchema = z.object({
+  offsetMs: z.number().int().min(-350).max(350),
+  protocolVersion: z.number().int().positive().max(32),
+}).strict();
+export type CalibrationState = z.infer<typeof CalibrationStateSchema>;
+
+export function parseCalibrationState(value: unknown, requiredProtocolVersion = RequiredCalibrationProtocolVersion): CalibrationState | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as { offsetMs?: unknown; protocolVersion?: unknown };
+  const parsed = CalibrationStateSchema.safeParse({
+    offsetMs: candidate.offsetMs,
+    protocolVersion: candidate.protocolVersion,
+  });
+  if (!parsed.success || parsed.data.protocolVersion !== requiredProtocolVersion) return null;
+  return parsed.data;
+}
+
 const BridgeTemplateProvenanceSchema = z.object({
   templateId: z.string().min(1).max(160),
   label: z.string().min(1).max(200),
@@ -48,6 +66,9 @@ export function validateBridgeMessage(value: unknown, active: BridgeContext) {
   if (!parsed.success || parsed.data.nonce !== active.nonce || canonicalJson(parsed.data.receipt) !== canonicalJson(active.receipt)) {
     return { ok: false as const };
   }
+  if (parsed.data.type === "calibration-complete" && parsed.data.protocolVersion !== active.protocolVersion) {
+    return { ok: false as const };
+  }
   return { ok: true as const, message: parsed.data };
 }
 
@@ -70,6 +91,6 @@ export function getOrCreateInstallationId(storage: Pick<Storage, "getItem" | "se
   return id;
 }
 
-export function needsCalibration(value: { protocolVersion?: number } | null | undefined, requiredProtocolVersion = 1) {
-  return !value || value.protocolVersion !== requiredProtocolVersion;
+export function needsCalibration(value: unknown, requiredProtocolVersion = RequiredCalibrationProtocolVersion) {
+  return parseCalibrationState(value, requiredProtocolVersion) === null;
 }

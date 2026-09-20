@@ -171,3 +171,23 @@ test("editor PlayNow chain preserves the complete identity through the embedded 
     globalThis.fetch = originalFetch;
   }
 });
+
+test("ready calibration forwards requiresCalibration false and the exact calibration offset to Unity", () => {
+  const input = new URLSearchParams({
+    launch: "PlayNow",
+    songAssetId: "song-123",
+    activityKey: "early-algebra",
+    chartUrl: "https://storage.example/song.chart",
+    audioUrl: "https://storage.example/song.mp3",
+    installationId: "00000000-0000-4000-8000-000000000044",
+    requiresCalibration: "false",
+    calibrationProtocolVersion: "1",
+    calibrationOffsetMs: "-37",
+  });
+
+  const output = new URL(buildEmbeddedGameUrl("https://game.example/player?embed=1", input));
+
+  assert.equal(output.searchParams.get("requiresCalibration"), "false");
+  assert.equal(output.searchParams.get("calibrationProtocolVersion"), "1");
+  assert.equal(output.searchParams.get("calibrationOffsetMs"), "-37");
+});

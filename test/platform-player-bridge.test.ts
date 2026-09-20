@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createBridgeContext, needsCalibration, validateBridgeMessage } from "../lib/platform-player-bridge";
+import { createBridgeContext, needsCalibration, parseCalibrationState, validateBridgeMessage } from "../lib/platform-player-bridge";
 
 const receipt = {
   receiptVersion: 1 as const, contractVersion: 1 as const, songAssetId: "song", activityKey: "early-algebra", authorId: "author", revision: "rev",
@@ -58,5 +58,23 @@ test("bridge preserves non-completion outcomes without inventing successful coun
 
 test("calibration is required when protocol is absent or stale", () => {
   assert.equal(needsCalibration({ protocolVersion: 0 }), true);
-  assert.equal(needsCalibration({ protocolVersion: 1 }), false);
+  assert.equal(needsCalibration({ protocolVersion: 1 }), true);
+  assert.equal(needsCalibration({ protocolVersion: 1, offsetMs: 12 }), false);
+});
+
+test("calibration is required for missing, malformed, stale, or out-of-range measurements", () => {
+  assert.equal(needsCalibration(null), true);
+  assert.equal(needsCalibration({ protocolVersion: 1, offsetMs: undefined }), true);
+  assert.equal(needsCalibration({ protocolVersion: 1, offsetMs: 12.5 }), true);
+  assert.equal(needsCalibration({ protocolVersion: 2, offsetMs: 12 }), true);
+  assert.equal(needsCalibration({ protocolVersion: 1, offsetMs: 351 }), true);
+  assert.equal(needsCalibration({ protocolVersion: 1, offsetMs: -351 }), true);
+});
+
+test("calibration state preserves the exact integer offset for the required protocol", () => {
+  assert.deepEqual(parseCalibrationState({ protocolVersion: 1, offsetMs: -37 }, 1), {
+    protocolVersion: 1,
+    offsetMs: -37,
+  });
+  assert.equal(parseCalibrationState({ protocolVersion: 2, offsetMs: -37 }, 1), null);
 });

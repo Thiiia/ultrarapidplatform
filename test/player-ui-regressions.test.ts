@@ -46,6 +46,13 @@ test("the demo game keeps calibration and completion state local instead of call
   assert.match(gameEmbed, /if \(isDemoMode \|\| !pendingOutcome\) return;/);
 });
 
+test("demo calibration stores a structured offset and protocol record", () => {
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+  assert.match(gameEmbed, /JSON\.stringify\([\s\S]{0,240}offsetMs/);
+  assert.match(gameEmbed, /parseCalibrationState/);
+  assert.match(gameEmbed, /calibrationOffsetMs/);
+});
+
 test("song choice does not present a package that is still loading as ready", () => {
   const songChoice = source("app/student/song-choice/SongChoiceClient.tsx");
 

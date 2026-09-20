@@ -46,3 +46,21 @@ test('handoff retains the receipt aliases and authored identity needed by Unity 
   assert.equal(output.get('receipt'), receipt);
   assert.equal(output.get('receiptJson'), receipt);
 });
+
+test('handoff retains the platform calibration offset alongside its authority fields', () => {
+  const input = new URLSearchParams({
+    launch: 'PlayNow',
+    songAssetId: 'waves',
+    activityKey: 'early-algebra',
+    installationId: '00000000-0000-4000-8000-000000000008',
+    requiresCalibration: 'false',
+    calibrationProtocolVersion: '1',
+    calibrationOffsetMs: '-37',
+  });
+
+  const output = resolveLaunchParams(input);
+  assert.equal(output.get('installationId'), '00000000-0000-4000-8000-000000000008');
+  assert.equal(output.get('requiresCalibration'), 'false');
+  assert.equal(output.get('calibrationProtocolVersion'), '1');
+  assert.equal(output.get('calibrationOffsetMs'), '-37');
+});

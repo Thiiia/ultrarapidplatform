@@ -36,6 +36,7 @@ const platformLaunchParamKeys = [
   "installationId",
   "requiresCalibration",
   "calibrationProtocolVersion",
+  "calibrationOffsetMs",
   "platformOrigin",
   "assignmentToken",
   "assignment",

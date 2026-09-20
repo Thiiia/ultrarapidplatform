@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireCurrentAppUser } from "@/lib/current-user";
+import { parseCalibrationState, RequiredCalibrationProtocolVersion } from "@/lib/platform-player-bridge";
 
 const CalibrationKey = z.string().uuid();
 const CalibrationMutation = z.object({
   installationId: CalibrationKey,
   offsetMs: z.number().int().min(-350).max(350),
-  protocolVersion: z.number().int().positive().max(32),
+  protocolVersion: z.literal(RequiredCalibrationProtocolVersion),
 }).strict();
 
 export async function GET(request: Request) {
@@ -15,7 +16,9 @@ export async function GET(request: Request) {
     const user = await requireCurrentAppUser();
     const installationId = CalibrationKey.parse(new URL(request.url).searchParams.get("installationId"));
     const record = await prisma.playerDeviceCalibration.findUnique({ where: { userId_installationId: { userId: user.id, installationId } } });
-    return NextResponse.json(record ? { installationId: record.installationId, offsetMs: record.offsetMs, protocolVersion: record.protocolVersion, calibratedAt: record.calibratedAt.toISOString() } : null);
+    if (!record) return NextResponse.json(null);
+    const response = { installationId: record.installationId, offsetMs: record.offsetMs, protocolVersion: record.protocolVersion, calibratedAt: record.calibratedAt.toISOString() };
+    return NextResponse.json(parseCalibrationState(response, RequiredCalibrationProtocolVersion) ? response : null);
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Bad request" }, { status: 400 });
   }

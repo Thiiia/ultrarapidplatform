@@ -7,7 +7,7 @@ import type { FC, SVGProps } from "react";
 // import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { resolveLaunchParams } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
-import { createBridgeContext, getOrCreateInstallationId, needsCalibration, validateBridgeMessage, type BridgeContext } from "@/lib/platform-player-bridge";
+import { createBridgeContext, getOrCreateInstallationId, parseCalibrationState, validateBridgeMessage, type BridgeContext, type CalibrationState } from "@/lib/platform-player-bridge";
 import { getSongLaunchErrorMessage } from "@/lib/song-choice-flow";
 import { requestFreshSongLaunchParams } from "@/lib/song-launch-client";
 import { studentCopy } from "@/lib/student-copy";
@@ -28,7 +28,7 @@ import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
 
 const GAME_URL =
   process.env.NEXT_PUBLIC_GAME_URL ?? "https://ultrarapidtest.netlify.app/";
-const DemoCalibrationStoragePrefix = "ultrarapid-demo-calibration-v1:";
+const DemoCalibrationStoragePrefix = "ultrarapid-demo-calibration-v2:";
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
 
@@ -330,6 +330,7 @@ function GameEmbedSession({
   const [launchParams, setLaunchParams] = useState<URLSearchParams | null>(null);
   const [launchPreparationError, setLaunchPreparationError] = useState("");
   const [calibrationStatus, setCalibrationStatus] = useState<"loading" | "required" | "ready">("loading");
+  const [calibration, setCalibration] = useState<CalibrationState | null>(null);
   const [completedRun, setCompletedRun] = useState<{ completedEvents: number; hitAttempts: number } | null>(null);
   const [bridgeStatusMessage, setBridgeStatusMessage] = useState("");
   const [pendingOutcome, setPendingOutcome] = useState<PendingOutcome | null>(null);
@@ -406,15 +407,21 @@ function GameEmbedSession({
     }
 
     if (isDemoMode) {
-      const storedProtocolVersion = window.localStorage.getItem(
+      const storedCalibration = window.localStorage.getItem(
         demoCalibrationStorageKey(bridgeContext.installationId),
       );
-      if (!cancelled) {
-        setCalibrationStatus(
-          storedProtocolVersion === String(bridgeContext.protocolVersion)
-            ? "ready"
-            : "required",
+      let parsedCalibration: CalibrationState | null = null;
+      try {
+        parsedCalibration = parseCalibrationState(
+          storedCalibration ? JSON.parse(storedCalibration) : null,
+          bridgeContext.protocolVersion,
         );
+      } catch {
+        parsedCalibration = null;
+      }
+      if (!cancelled) {
+        setCalibration(parsedCalibration);
+        setCalibrationStatus(parsedCalibration ? "ready" : "required");
       }
       return () => { cancelled = true; };
     }
@@ -422,10 +429,17 @@ function GameEmbedSession({
     fetch(`/api/player-calibration?installationId=${encodeURIComponent(bridgeContext.installationId)}`)
       .then((response) => response.ok ? response.json() : null)
       .then((calibration) => {
-        if (!cancelled) setCalibrationStatus(needsCalibration(calibration) ? "required" : "ready");
+        const parsedCalibration = parseCalibrationState(calibration, bridgeContext.protocolVersion);
+        if (!cancelled) {
+          setCalibration(parsedCalibration);
+          setCalibrationStatus(parsedCalibration ? "ready" : "required");
+        }
       })
       .catch(() => {
-        if (!cancelled) setCalibrationStatus("required");
+        if (!cancelled) {
+          setCalibration(null);
+          setCalibrationStatus("required");
+        }
       });
     return () => { cancelled = true; };
   }, [bridgeContext, isDemoMode]);
@@ -458,8 +472,15 @@ function GameEmbedSession({
         if (isDemoMode) {
           window.localStorage.setItem(
             demoCalibrationStorageKey(bridgeContext.installationId),
-            String(bridgeContext.protocolVersion),
+            JSON.stringify({
+              protocolVersion: result.message.protocolVersion,
+              offsetMs: result.message.offsetMs,
+            }),
           );
+          setCalibration({
+            protocolVersion: result.message.protocolVersion,
+            offsetMs: result.message.offsetMs,
+          });
           setCalibrationStatus("ready");
           setBridgeStatusMessage("");
           return;
@@ -468,9 +489,13 @@ function GameEmbedSession({
           method: "PUT",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ installationId: bridgeContext.installationId, offsetMs: result.message.offsetMs, protocolVersion: result.message.protocolVersion }),
-        }).then((response) => {
+        }).then(async (response) => {
           if (cancelled) return;
-          if (response.ok) {
+          const storedCalibration = response.ok
+            ? parseCalibrationState(await response.json(), bridgeContext.protocolVersion)
+            : null;
+          if (storedCalibration) {
+            setCalibration(storedCalibration);
             setCalibrationStatus("ready");
             setBridgeStatusMessage("");
           } else {
@@ -544,12 +569,17 @@ function GameEmbedSession({
     if (bridgeContext) {
       params.set("bridgeNonce", bridgeContext.nonce);
       params.set("installationId", bridgeContext.installationId);
-      params.set("requiresCalibration", String(calibrationStatus === "required"));
       params.set("calibrationProtocolVersion", String(bridgeContext.protocolVersion));
+      params.delete("calibrationOffsetMs");
+      const usableCalibration = calibrationStatus === "ready" ? calibration : null;
+      params.set("requiresCalibration", String(!usableCalibration));
+      if (usableCalibration) {
+        params.set("calibrationOffsetMs", String(usableCalibration.offsetMs));
+      }
       params.set("platformOrigin", window.location.origin);
     }
     return getEmbeddedGameUrl(params);
-  }, [activeLaunchParams, bridgeContext, calibrationStatus]);
+  }, [activeLaunchParams, bridgeContext, calibration, calibrationStatus]);
 
   const canRenderEmbeddedGame = Boolean(
     activeLaunchParams &&
