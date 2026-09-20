@@ -1,5 +1,8 @@
 import { notFound } from "next/navigation";
-import { getTeacherClassStudents } from "@/lib/teacher-classes";
+import {
+  getTeacherAssignableMissions,
+  getTeacherClassStudents,
+} from "@/lib/teacher-classes";
 import TeacherSubpageShell from "@/app/teacher/TeacherSubpageShell";
 import TeacherClassStudentsClient from "@/app/teacher/classes/[classId]/TeacherClassStudentsClient";
 
@@ -23,10 +26,13 @@ export default async function DemoTeacherClassStudentsPage({
 
   const { classId } = await params;
 
-  const classData = await getTeacherClassStudents({
-    teacherId: demoTeacherUserId,
-    classId,
-  });
+  const [classData, missions] = await Promise.all([
+    getTeacherClassStudents({
+      teacherId: demoTeacherUserId,
+      classId,
+    }),
+    getTeacherAssignableMissions(demoTeacherUserId),
+  ]);
 
   if (!classData) {
     console.error("No class data found for demo teacher/class combination.");
@@ -40,6 +46,10 @@ export default async function DemoTeacherClassStudentsPage({
       navBasePath="/demo/teacher"
     >
       <TeacherClassStudentsClient
+        classId={classData.id}
+        teacherId={demoTeacherUserId}
+        missions={missions}
+        isDemo
         className={classData.name}
         students={classData.students}
       />

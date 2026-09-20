@@ -1,11 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { TeacherClassStudentListItem } from "@/lib/teacher-classes";
+import type {
+  TeacherAssignableMission,
+  TeacherClassStudentListItem,
+} from "@/lib/teacher-classes";
 
 type TeacherClassStudentsClientProps = {
+  classId: string;
+  teacherId: string;
+  missions: TeacherAssignableMission[];
   className: string;
   students: TeacherClassStudentListItem[];
+  isDemo?: boolean;
 };
 
 const textStyle = {
@@ -38,26 +45,108 @@ function SearchIcon() {
 }
 
 export default function TeacherClassStudentsClient({
+  classId,
+  teacherId,
+  missions,
   className,
   students,
+  isDemo = false,
 }: TeacherClassStudentsClientProps) {
   const [query, setQuery] = useState("");
+  const [studentsState, setStudentsState] = useState(students);
+  const [selectedMissionByStudent, setSelectedMissionByStudent] = useState<
+    Record<string, string>
+  >({});
+  const [assigningStudentId, setAssigningStudentId] = useState<string | null>(
+    null,
+  );
+  const [errorByStudent, setErrorByStudent] = useState<Record<string, string>>(
+    {},
+  );
 
   const filteredStudents = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
     if (!normalizedQuery) {
-      return students;
+      return studentsState;
     }
 
-    return students.filter((student) => {
+    return studentsState.filter((student) => {
       return (
         student.name.toLowerCase().includes(normalizedQuery) ||
         student.email.toLowerCase().includes(normalizedQuery) ||
         student.schoolName?.toLowerCase().includes(normalizedQuery)
       );
     });
-  }, [students, query]);
+  }, [studentsState, query]);
+
+  const handleAssign = async (studentId: string) => {
+    const missionId = selectedMissionByStudent[studentId];
+
+    if (!missionId) {
+      setErrorByStudent((previous) => ({
+        ...previous,
+        [studentId]: "Choose a lesson to assign.",
+      }));
+      return;
+    }
+
+    setAssigningStudentId(studentId);
+    setErrorByStudent((previous) => ({ ...previous, [studentId]: "" }));
+
+    try {
+      const response = await fetch("/api/assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          classId,
+          studentId,
+          missionId,
+          ...(isDemo ? { demoTeacherId: teacherId } : {}),
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as {
+        assignment?: { id: string; missionId: string };
+        error?: string;
+      } | null;
+
+      if (!response.ok || !payload?.assignment) {
+        throw new Error(payload?.error ?? "Failed to assign lesson.");
+      }
+
+      const mission = missions.find((item) => item.id === missionId);
+
+      setStudentsState((previous) =>
+        previous.map((student) => {
+          if (student.id !== studentId) {
+            return student;
+          }
+
+          return {
+            ...student,
+            assignments: [
+              ...student.assignments,
+              {
+                id: payload.assignment!.id,
+                missionId,
+                missionTitle: mission?.title ?? "Lesson",
+                status: "assigned",
+              },
+            ],
+          };
+        }),
+      );
+    } catch (error) {
+      setErrorByStudent((previous) => ({
+        ...previous,
+        [studentId]:
+          error instanceof Error ? error.message : "Failed to assign lesson.",
+      }));
+    } finally {
+      setAssigningStudentId(null);
+    }
+  };
 
   return (
     <div style={{ width: "100%", ...textStyle }}>
@@ -133,81 +222,203 @@ export default function TeacherClassStudentsClient({
       <div
         style={{
           width: "100%",
-          maxHeight: "52vh",
-          overflowY: "auto",
           borderRadius: 14,
           border: filteredStudents.length > 0 ? "1px solid #FFFFFF14" : "none",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         {filteredStudents.length > 0 ? (
           filteredStudents.map((student, index) => {
             const isFirst = index === 0;
             const isLast = index === filteredStudents.length - 1;
+            const assignedMissionIds = new Set(
+              student.assignments.map((assignment) => assignment.missionId),
+            );
+            const assignableMissions = missions.filter(
+              (mission) => !assignedMissionIds.has(mission.id),
+            );
 
             return (
               <div
                 key={student.id}
                 style={{
-                  minHeight: 72,
                   background: "#2B2B2B",
                   color: "#FFFFFF",
-                  display: "grid",
-                  gridTemplateColumns: "1fr auto",
-                  alignItems: "center",
-                  gap: 18,
-                  padding: "0 18px",
+                  padding: "16px 18px",
                   boxSizing: "border-box",
                   borderBottom: isLast ? "none" : "1px solid #FFFFFF14",
                   borderTopLeftRadius: isFirst ? 14 : 0,
                   borderTopRightRadius: isFirst ? 14 : 0,
                   borderBottomLeftRadius: isLast ? 14 : 0,
                   borderBottomRightRadius: isLast ? 14 : 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
                 }}
               >
-                <div style={{ minWidth: 0 }}>
-                  <h2
-                    style={{
-                      margin: "0 0 4px 0",
-                      color: "#FFFFFF",
-                      fontSize: 15,
-                      fontWeight: 700,
-                      lineHeight: "21px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {student.name}
-                  </h2>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto",
+                    alignItems: "center",
+                    gap: 18,
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <h2
+                      style={{
+                        margin: "0 0 4px 0",
+                        color: "#FFFFFF",
+                        fontSize: 15,
+                        fontWeight: 700,
+                        lineHeight: "21px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {student.name}
+                    </h2>
 
-                  <p
+                    <p
+                      style={{
+                        margin: 0,
+                        color: "#FFFFFF99",
+                        fontSize: 12,
+                        fontWeight: 500,
+                        lineHeight: "18px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {student.email}
+                    </p>
+                  </div>
+
+                  <div
                     style={{
-                      margin: 0,
-                      color: "#FFFFFF99",
+                      color: "#FFFFFFB3",
                       fontSize: 12,
-                      fontWeight: 500,
+                      fontWeight: 700,
                       lineHeight: "18px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
+                      textAlign: "right",
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {student.email}
-                  </p>
+                    {student.schoolName ?? "No school"}
+                  </div>
                 </div>
+
+                {student.assignments.length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 6,
+                    }}
+                  >
+                    {student.assignments.map((assignment) => (
+                      <span
+                        key={assignment.id}
+                        style={{
+                          background: "#CFFF041A",
+                          color: "#CFFF04",
+                          border: "1px solid #CFFF0440",
+                          borderRadius: 999,
+                          padding: "4px 10px",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          lineHeight: "16px",
+                        }}
+                      >
+                        {assignment.missionTitle}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 <div
                   style={{
-                    color: "#FFFFFFB3",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    lineHeight: "18px",
-                    textAlign: "right",
-                    whiteSpace: "nowrap",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    flexWrap: "wrap",
                   }}
                 >
-                  {student.schoolName ?? "No school"}
+                  <select
+                    value={selectedMissionByStudent[student.id] ?? ""}
+                    onChange={(event) =>
+                      setSelectedMissionByStudent((previous) => ({
+                        ...previous,
+                        [student.id]: event.target.value,
+                      }))
+                    }
+                    disabled={assignableMissions.length === 0}
+                    style={{
+                      flex: "1 1 200px",
+                      minWidth: 160,
+                      height: 38,
+                      background: "#1F1F1F",
+                      color: "#FFFFFF",
+                      border: "1px solid #FFFFFF1F",
+                      borderRadius: 10,
+                      padding: "0 10px",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      ...textStyle,
+                    }}
+                  >
+                    <option value="" disabled>
+                      {assignableMissions.length > 0
+                        ? "Choose a lesson to assign"
+                        : "No lessons available"}
+                    </option>
+                    {assignableMissions.map((mission) => (
+                      <option key={mission.id} value={mission.id}>
+                        {mission.title}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAssign(student.id)}
+                    disabled={
+                      assigningStudentId === student.id ||
+                      assignableMissions.length === 0
+                    }
+                    style={{
+                      height: 38,
+                      background: "#CFFF04",
+                      color: "#000000",
+                      border: "none",
+                      borderRadius: 10,
+                      padding: "0 16px",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      opacity: assigningStudentId === student.id ? 0.6 : 1,
+                      ...textStyle,
+                    }}
+                  >
+                    {assigningStudentId === student.id ? "Assigning…" : "Assign"}
+                  </button>
                 </div>
+
+                {errorByStudent[student.id] && (
+                  <p
+                    style={{
+                      margin: 0,
+                      color: "#FF6B6B",
+                      fontSize: 12,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {errorByStudent[student.id]}
+                  </p>
+                )}
               </div>
             );
           })

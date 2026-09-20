@@ -1,6 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentAppUser } from "@/lib/current-user";
-import { getTeacherClassStudents } from "@/lib/teacher-classes";
+import {
+  getTeacherAssignableMissions,
+  getTeacherClassStudents,
+} from "@/lib/teacher-classes";
 import TeacherSubpageShell from "@/app/teacher/TeacherSubpageShell";
 import TeacherClassStudentsClient from "./TeacherClassStudentsClient";
 
@@ -31,10 +34,13 @@ export default async function TeacherClassStudentsPage({
 
   const { classId } = await params;
 
-  const classData = await getTeacherClassStudents({
-    teacherId: user.id,
-    classId,
-  });
+  const [classData, missions] = await Promise.all([
+    getTeacherClassStudents({
+      teacherId: user.id,
+      classId,
+    }),
+    getTeacherAssignableMissions(user.id),
+  ]);
 
   if (!classData) {
     notFound();
@@ -47,6 +53,9 @@ export default async function TeacherClassStudentsPage({
       navBasePath="/teacher"
     >
       <TeacherClassStudentsClient
+        classId={classData.id}
+        teacherId={user.id}
+        missions={missions}
         className={classData.name}
         students={classData.students}
       />

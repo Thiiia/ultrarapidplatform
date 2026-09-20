@@ -13,7 +13,37 @@ export type TeacherClassStudentListItem = {
   name: string;
   email: string;
   schoolName: string | null;
+  assignments: {
+    id: string;
+    missionId: string;
+    missionTitle: string;
+    status: string;
+  }[];
 };
+
+export type TeacherAssignableMission = {
+  id: string;
+  title: string;
+};
+
+export async function getTeacherAssignableMissions(
+  teacherId: string,
+): Promise<TeacherAssignableMission[]> {
+  const missions = await prisma.mission.findMany({
+    where: {
+      authorId: teacherId,
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+    select: {
+      id: true,
+      title: true,
+    },
+  });
+
+  return missions;
+}
 
 export async function getTeacherClasses(
   teacherId: string,
@@ -64,11 +94,41 @@ export async function getTeacherClassStudents({
           },
         },
       },
+      assignments: {
+        where: {
+          status: {
+            in: ["assigned", "in_progress"],
+          },
+        },
+        include: {
+          mission: true,
+        },
+      },
     },
   });
 
   if (!classItem) {
     return null;
+  }
+
+  const assignmentsByStudentId = new Map<
+    string,
+    { id: string; missionId: string; missionTitle: string; status: string }[]
+  >();
+
+  for (const assignment of classItem.assignments) {
+    if (!assignment.studentId) {
+      continue;
+    }
+
+    const existing = assignmentsByStudentId.get(assignment.studentId) ?? [];
+    existing.push({
+      id: assignment.id,
+      missionId: assignment.mission.id,
+      missionTitle: assignment.mission.title,
+      status: assignment.status,
+    });
+    assignmentsByStudentId.set(assignment.studentId, existing);
   }
 
   const students = classItem.students
@@ -77,6 +137,7 @@ export async function getTeacherClassStudents({
       name: membership.student.name ?? membership.student.email,
       email: membership.student.email,
       schoolName: membership.student.school?.name ?? null,
+      assignments: assignmentsByStudentId.get(membership.student.id) ?? [],
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
