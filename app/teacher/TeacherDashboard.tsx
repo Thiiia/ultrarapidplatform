@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -8,8 +9,6 @@ import { studentCopy } from "@/lib/student-copy";
 import styles from "../student/student.module.css";
 
 import URIcon from "@/public/header_icons/URIcon.svg";
-import ControllerIcon from "@/public/controller.svg";
-import PlayIcon from "@/public/Next_Button.svg";
 import numberBondsImage from "@/public/numeracy_icons/number_bonds.png";
 import missingNumbersImage from "@/public/numeracy_icons/missing_numbers.png";
 import equationsImage from "@/public/numeracy_icons/equations.png";
@@ -232,66 +231,206 @@ export default function TeacherDashboard({
   const displayName =
     viewedUserName ?? dashboardData.name ?? viewedUserEmail ?? dashboardData.email;
   const profileLabel = getDisplayFirstName(displayName);
+  const isDemo = navBasePath.startsWith("/demo");
 
   const gameCards = [
     {
       title: "Number Bonds",
+      key: "number-bonds",
       icon: numberBondsImage,
       alt: "Number bonds",
       description: studentCopy.dashboard.gameDescriptions.numberBonds,
-      action: "play",
       disabled: false,
     },
     {
       title: "Equations",
+      key: "equations",
       icon: equationsImage,
       alt: "Equations",
       description: studentCopy.dashboard.gameDescriptions.equations,
-      action: "coming-soon",
       disabled: true,
     },
     {
       title: "Missing Numbers",
+      key: "missing-numbers",
       icon: missingNumbersImage,
       alt: "Missing numbers",
       description: studentCopy.dashboard.gameDescriptions.missingNumbers,
-      action: "coming-soon",
       disabled: true,
     },
     {
       title: "Early Algebra",
+      key: "early-algebra",
       icon: earlyAlgebraImage,
       alt: "Early algebra",
       description: studentCopy.dashboard.gameDescriptions.earlyAlgebra,
-      action: "play",
       disabled: false,
     },
   ];
 
-  const activityKeyByTitle: Record<string, string> = {
-    "Number Bonds": "number-bonds",
-    Equations: "equations",
-    "Missing Numbers": "missing-numbers",
-    "Early Algebra": "early-algebra",
-  };
+  type WizardTarget =
+    | { type: "class"; classId: string; label: string }
+    | { type: "student"; classId: string; studentId: string; label: string };
 
-  function handlePlayClick(activityLabel: string) {
-    const activityKey = activityKeyByTitle[activityLabel] ?? "number-bonds";
-    const selectedActivity = {
-      key: activityKey,
-      label: activityLabel,
-    };
+  const [selectedActivity, setSelectedActivity] = useState<
+    (typeof gameCards)[number] | null
+  >(null);
+  const [target, setTarget] = useState<WizardTarget | null>(null);
+  const [availableMissions, setAvailableMissions] = useState<
+    { id: string; title: string; description: string | null }[]
+  >([]);
+  const [missionsLoading, setMissionsLoading] = useState(false);
+  const [missionsError, setMissionsError] = useState("");
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [newMissionTitle, setNewMissionTitle] = useState("");
+  const [assigningMissionId, setAssigningMissionId] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState("");
+  const [assignedSummary, setAssignedSummary] = useState("");
 
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(
-        "selectedDashboardActivity",
-        JSON.stringify(selectedActivity),
-      );
+  const step = !selectedActivity ? 1 : !target ? 2 : 3;
+
+  function resetWizard() {
+    setSelectedActivity(null);
+    setTarget(null);
+    setAvailableMissions([]);
+    setMissionsError("");
+    setIsCreatingNew(false);
+    setNewMissionTitle("");
+    setAssignError("");
+    setAssignedSummary("");
+  }
+
+  async function handleChooseActivity(game: (typeof gameCards)[number]) {
+    if (game.disabled) {
+      return;
     }
 
-    router.push(
-      `${navBasePath}/song-choice?activity=${encodeURIComponent(activityKey)}`,
-    );
+    setSelectedActivity(game);
+    setTarget(null);
+    setAssignedSummary("");
+    setAssignError("");
+  }
+
+  async function handleChooseTarget(nextTarget: WizardTarget) {
+    if (!selectedActivity) {
+      return;
+    }
+
+    setTarget(nextTarget);
+    setAssignedSummary("");
+    setAssignError("");
+    setMissionsLoading(true);
+    setMissionsError("");
+
+    try {
+      const params = new URLSearchParams({ activityKey: selectedActivity.key });
+      if (isDemo) {
+        params.set("demoTeacherId", dashboardData.id);
+      }
+
+      const response = await fetch(`/api/teacher/missions?${params.toString()}`);
+      const payload = (await response.json().catch(() => null)) as {
+        missions?: { id: string; title: string; description: string | null }[];
+        error?: string;
+      } | null;
+
+      if (!response.ok || !payload?.missions) {
+        throw new Error(payload?.error ?? "Failed to load assignments.");
+      }
+
+      setAvailableMissions(payload.missions);
+    } catch (error) {
+      setMissionsError(
+        error instanceof Error ? error.message : "Failed to load assignments.",
+      );
+    } finally {
+      setMissionsLoading(false);
+    }
+  }
+
+  async function handleAssignMission(missionId: string, missionTitle: string) {
+    if (!target) {
+      return;
+    }
+
+    setAssigningMissionId(missionId);
+    setAssignError("");
+
+    try {
+      const response = await fetch("/api/assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          classId: target.classId,
+          missionId,
+          studentId: target.type === "student" ? target.studentId : undefined,
+          ...(isDemo ? { demoTeacherId: dashboardData.id } : {}),
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as {
+        assignment?: { id: string };
+        error?: string;
+      } | null;
+
+      if (!response.ok || !payload?.assignment) {
+        throw new Error(payload?.error ?? "Failed to assign lesson.");
+      }
+
+      setAssignedSummary(`"${missionTitle}" assigned to ${target.label}.`);
+    } catch (error) {
+      setAssignError(
+        error instanceof Error ? error.message : "Failed to assign lesson.",
+      );
+    } finally {
+      setAssigningMissionId(null);
+    }
+  }
+
+  async function handleCreateAndAssign() {
+    if (!selectedActivity || !target) {
+      return;
+    }
+
+    const title = newMissionTitle.trim();
+    if (!title) {
+      setAssignError("Enter a title for the new assignment.");
+      return;
+    }
+
+    setAssigningMissionId("new");
+    setAssignError("");
+
+    try {
+      const response = await fetch("/api/teacher/missions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          activityKey: selectedActivity.key,
+          ...(isDemo ? { demoTeacherId: dashboardData.id } : {}),
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as {
+        mission?: { id: string; title: string; description: string | null };
+        error?: string;
+      } | null;
+
+      if (!response.ok || !payload?.mission) {
+        throw new Error(payload?.error ?? "Failed to create assignment.");
+      }
+
+      setAvailableMissions((previous) => [payload.mission!, ...previous]);
+      await handleAssignMission(payload.mission.id, payload.mission.title);
+      setIsCreatingNew(false);
+      setNewMissionTitle("");
+    } catch (error) {
+      setAssignError(
+        error instanceof Error ? error.message : "Failed to create assignment.",
+      );
+      setAssigningMissionId(null);
+    }
   }
 
 
@@ -334,7 +473,7 @@ export default function TeacherDashboard({
           }}
         >
           <section
-            aria-label="Play a game"
+            aria-label="Assign an activity"
             style={{
               width: "100%",
               display: "flex",
@@ -362,15 +501,84 @@ export default function TeacherDashboard({
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
-                  color: "#FFFFFF",
-                  fontSize: 24,
-                  fontWeight: 700,
-                  margin: "0 0 18px 0",
+                  gap: 16,
+                  margin: "0 0 20px 0",
                 }}
               >
-                <ControllerIcon style={{ width: 22, height: 22, flexShrink: 0 }} />
-                <span>{studentCopy.dashboard.gamesTitle}</span>
+                {[
+                  { step: 1, label: "Choose an activity" },
+                  { step: 2, label: "Choose a class or student" },
+                  { step: 3, label: "Assign the activity" },
+                ].map((item, index) => {
+                  const isActive = step === item.step;
+                  const isComplete = step > item.step;
+
+                  return (
+                    <div
+                      key={item.step}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          color: isActive || isComplete ? "#FFFFFF" : "rgba(255,255,255,0.4)",
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 26,
+                            height: 26,
+                            borderRadius: "50%",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 13,
+                            fontWeight: 700,
+                            background: isActive
+                              ? "#CFFF04"
+                              : isComplete
+                                ? "#2B2B2B"
+                                : "transparent",
+                            color: isActive ? "#0B1A1F" : "#FFFFFF",
+                            border: isComplete || isActive ? "none" : "1px solid rgba(255,255,255,0.4)",
+                          }}
+                        >
+                          {item.step}
+                        </span>
+                        <span style={{ fontSize: 15, fontWeight: 700 }}>{item.label}</span>
+                      </div>
+                      {index < 2 && (
+                        <span style={{ width: 24, height: 1, background: "#FFFFFF1F" }} />
+                      )}
+                    </div>
+                  );
+                })}
+
+                {(selectedActivity || target) && (
+                  <button
+                    type="button"
+                    onClick={resetWizard}
+                    style={{
+                      marginLeft: "auto",
+                      background: "transparent",
+                      border: "1px solid #7A8FA8",
+                      color: "#7A8FA8",
+                      borderRadius: 999,
+                      padding: "6px 14px",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Start over
+                  </button>
+                )}
               </div>
 
               <div
@@ -380,30 +588,28 @@ export default function TeacherDashboard({
                   gap: 18,
                   alignItems: "stretch",
                   width: "100%",
-                  height: "34.5vh",
-                  minHeight: 250,
                 }}
               >
                 {gameCards.map((game) => {
                   const isDisabled = game.disabled;
+                  const isSelected = selectedActivity?.key === game.key;
 
                   return (
                     <div
                       key={game.title}
                       style={{
                         width: "100%",
-                        height: "34.5vh",
-                        minHeight: 250,
                         display: "flex",
                         flexDirection: "column",
                         overflow: "hidden",
                         borderRadius: 12,
                         boxSizing: "border-box",
+                        border: isSelected ? "2px solid #CFFF04" : "2px solid transparent",
                       }}
                     >
                       <div
                         style={{
-                          height: "55.5%",
+                          height: 150,
                           width: "100%",
                           background: "#222222",
                           border: "1px solid #222222",
@@ -468,7 +674,7 @@ export default function TeacherDashboard({
 
                         <button
                           type="button"
-                          onClick={() => handlePlayClick(game.title)}
+                          onClick={() => handleChooseActivity(game)}
                           disabled={isDisabled}
                           style={{
                             width: "90%",
@@ -476,34 +682,412 @@ export default function TeacherDashboard({
                             minHeight: 38,
                             borderRadius: 999,
                             border: "none",
-                            background: game.action === "play" ? "#CFFF04" : "#7A7F86",
-                            color: game.action === "play" ? "#0B1A1F" : "#D9D9D9",
+                            background: isDisabled
+                              ? "#7A7F86"
+                              : isSelected
+                                ? "#2B2B2B"
+                                : "#CFFF04",
+                            color: isDisabled
+                              ? "#D9D9D9"
+                              : isSelected
+                                ? "#CFFF04"
+                                : "#0B1A1F",
                             fontWeight: 700,
                             fontSize: 13,
                             display: "inline-flex",
                             alignItems: "center",
                             justifyContent: "center",
                             gap: 8,
-                            cursor: "pointer",
+                            cursor: isDisabled ? "not-allowed" : "pointer",
                             opacity: isDisabled ? 0.75 : 1,
                           }}
                         >
-                          {game.action === "play" ? (
-                            <>
-                              <PlayIcon style={{ width: 16, height: 16, display: "block" }} />
-                              <span>{studentCopy.dashboard.play}</span>
-                            </>
-                          ) : (
-                            studentCopy.dashboard.comingSoon
-                          )}
+                          {isDisabled
+                            ? studentCopy.dashboard.comingSoon
+                            : isSelected
+                              ? "Selected"
+                              : "Choose"}
                         </button>
                       </div>
                     </div>
                   );
                 })}
               </div>
+
+              {step >= 2 && selectedActivity && (
+                <div style={{ marginTop: 24 }}>
+                  <h2
+                    style={{
+                      margin: "0 0 12px 0",
+                      color: "#FFFFFF",
+                      fontSize: 18,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Choose a class or an individual student
+                  </h2>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                      gap: 18,
+                    }}
+                  >
+                    <div
+                      style={{
+                        background: "#2B2B2B",
+                        border: "1px solid #FFFFFF14",
+                        borderRadius: 14,
+                        padding: 16,
+                      }}
+                    >
+                      <h3 style={{ margin: "0 0 10px 0", color: "#FFFFFF", fontSize: 14, fontWeight: 700 }}>
+                        Whole class
+                      </h3>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {dashboardData.classes.length > 0 ? (
+                          dashboardData.classes.map((classItem) => {
+                            const isSelectedTarget =
+                              target?.type === "class" && target.classId === classItem.id;
+
+                            return (
+                              <button
+                                key={classItem.id}
+                                type="button"
+                                onClick={() =>
+                                  handleChooseTarget({
+                                    type: "class",
+                                    classId: classItem.id,
+                                    label: classItem.name,
+                                  })
+                                }
+                                style={{
+                                  textAlign: "left",
+                                  background: isSelectedTarget ? "#CFFF041A" : "#191919",
+                                  border: isSelectedTarget
+                                    ? "1px solid #CFFF0440"
+                                    : "1px solid #FFFFFF14",
+                                  borderRadius: 10,
+                                  padding: "10px 12px",
+                                  color: "#FFFFFF",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  gap: 8,
+                                }}
+                              >
+                                <span style={{ fontSize: 13, fontWeight: 600 }}>{classItem.name}</span>
+                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+                                  {classItem.studentCount} student{classItem.studentCount === 1 ? "" : "s"}
+                                </span>
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <p style={{ margin: 0, color: "rgba(255,255,255,0.55)", fontSize: 13 }}>
+                            No classes yet.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        background: "#2B2B2B",
+                        border: "1px solid #FFFFFF14",
+                        borderRadius: 14,
+                        padding: 16,
+                      }}
+                    >
+                      <h3 style={{ margin: "0 0 10px 0", color: "#FFFFFF", fontSize: 14, fontWeight: 700 }}>
+                        Individual student
+                      </h3>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8,
+                          maxHeight: 220,
+                          overflowY: "auto",
+                        }}
+                      >
+                        {dashboardData.students.length > 0 ? (
+                          dashboardData.students.map((student) => {
+                            const isSelectedTarget =
+                              target?.type === "student" && target.studentId === student.id;
+
+                            return (
+                              <button
+                                key={student.id}
+                                type="button"
+                                onClick={() =>
+                                  handleChooseTarget({
+                                    type: "student",
+                                    classId: student.classIds[0],
+                                    studentId: student.id,
+                                    label: student.name ?? student.email,
+                                  })
+                                }
+                                disabled={student.classIds.length === 0}
+                                style={{
+                                  textAlign: "left",
+                                  background: isSelectedTarget ? "#CFFF041A" : "#191919",
+                                  border: isSelectedTarget
+                                    ? "1px solid #CFFF0440"
+                                    : "1px solid #FFFFFF14",
+                                  borderRadius: 10,
+                                  padding: "10px 12px",
+                                  color: "#FFFFFF",
+                                  cursor: student.classIds.length === 0 ? "not-allowed" : "pointer",
+                                  opacity: student.classIds.length === 0 ? 0.5 : 1,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: 2,
+                                }}
+                              >
+                                <span style={{ fontSize: 13, fontWeight: 600 }}>
+                                  {student.name ?? student.email}
+                                </span>
+                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+                                  {student.classNames.join(", ") || "No class"}
+                                </span>
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <p style={{ margin: 0, color: "rgba(255,255,255,0.55)", fontSize: 13 }}>
+                            No students yet.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && selectedActivity && target && (
+                <div style={{ marginTop: 24 }}>
+                  <h2
+                    style={{
+                      margin: "0 0 12px 0",
+                      color: "#FFFFFF",
+                      fontSize: 18,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Assign {selectedActivity.title} to {target.label}
+                  </h2>
+
+                  {assignedSummary && (
+                    <div
+                      style={{
+                        background: "#CFFF041A",
+                        border: "1px solid #CFFF0440",
+                        color: "#CFFF04",
+                        borderRadius: 10,
+                        padding: "10px 14px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        marginBottom: 14,
+                      }}
+                    >
+                      {assignedSummary}
+                    </div>
+                  )}
+
+                  {assignError && (
+                    <div
+                      style={{
+                        background: "#FF6B6B1A",
+                        border: "1px solid #FF6B6B40",
+                        color: "#FF6B6B",
+                        borderRadius: 10,
+                        padding: "10px 14px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        marginBottom: 14,
+                      }}
+                    >
+                      {assignError}
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      background: "#2B2B2B",
+                      border: "1px solid #FFFFFF14",
+                      borderRadius: 14,
+                      padding: 16,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                    }}
+                  >
+                    {missionsLoading ? (
+                      <p style={{ margin: 0, color: "rgba(255,255,255,0.55)", fontSize: 13 }}>
+                        Loading existing assignments…
+                      </p>
+                    ) : missionsError ? (
+                      <p style={{ margin: 0, color: "#FF6B6B", fontSize: 13 }}>{missionsError}</p>
+                    ) : availableMissions.length > 0 ? (
+                      availableMissions.map((mission) => (
+                        <div
+                          key={mission.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 12,
+                            background: "#191919",
+                            border: "1px solid #FFFFFF14",
+                            borderRadius: 10,
+                            padding: "10px 14px",
+                          }}
+                        >
+                          <div>
+                            <div style={{ color: "#FFFFFF", fontSize: 14, fontWeight: 600 }}>
+                              {mission.title}
+                            </div>
+                            {mission.description && (
+                              <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 2 }}>
+                                {mission.description}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleAssignMission(mission.id, mission.title)}
+                            disabled={assigningMissionId === mission.id}
+                            style={{
+                              minWidth: 90,
+                              height: 34,
+                              borderRadius: 999,
+                              border: "none",
+                              background: "#CFFF04",
+                              color: "#0B1A1F",
+                              fontWeight: 700,
+                              fontSize: 12,
+                              cursor: "pointer",
+                              opacity: assigningMissionId === mission.id ? 0.6 : 1,
+                            }}
+                          >
+                            {assigningMissionId === mission.id ? "Assigning…" : "Assign"}
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <p style={{ margin: 0, color: "rgba(255,255,255,0.55)", fontSize: 13 }}>
+                        No existing {selectedActivity.title} assignments yet.
+                      </p>
+                    )}
+
+                    <div style={{ borderTop: "1px solid #FFFFFF14", marginTop: 6, paddingTop: 14 }}>
+                      {isCreatingNew ? (
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                          <input
+                            value={newMissionTitle}
+                            onChange={(event) => setNewMissionTitle(event.target.value)}
+                            placeholder="New assignment title"
+                            style={{
+                              flex: "1 1 220px",
+                              height: 38,
+                              background: "#191919",
+                              color: "#FFFFFF",
+                              border: "1px solid #FFFFFF1F",
+                              borderRadius: 10,
+                              padding: "0 12px",
+                              fontSize: 13,
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleCreateAndAssign}
+                            disabled={assigningMissionId === "new"}
+                            style={{
+                              minWidth: 130,
+                              height: 38,
+                              borderRadius: 999,
+                              border: "none",
+                              background: "#CFFF04",
+                              color: "#0B1A1F",
+                              fontWeight: 700,
+                              fontSize: 13,
+                              cursor: "pointer",
+                              opacity: assigningMissionId === "new" ? 0.6 : 1,
+                            }}
+                          >
+                            {assigningMissionId === "new" ? "Creating…" : "Create & assign"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCreatingNew(false);
+                              setNewMissionTitle("");
+                            }}
+                            style={{
+                              height: 38,
+                              borderRadius: 999,
+                              border: "1px solid #7A8FA8",
+                              background: "transparent",
+                              color: "#7A8FA8",
+                              fontWeight: 600,
+                              fontSize: 13,
+                              cursor: "pointer",
+                              padding: "0 14px",
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setIsCreatingNew(true)}
+                          style={{
+                            height: 38,
+                            borderRadius: 999,
+                            border: "1px dashed #CFFF04",
+                            background: "transparent",
+                            color: "#CFFF04",
+                            fontWeight: 700,
+                            fontSize: 13,
+                            cursor: "pointer",
+                            padding: "0 16px",
+                          }}
+                        >
+                          + Create a new assignment
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {assignedSummary && (
+                    <button
+                      type="button"
+                      onClick={() => router.push(`${navBasePath}/assignments`)}
+                      style={{
+                        marginTop: 14,
+                        background: "transparent",
+                        border: "none",
+                        color: "#CFFF04",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      View all assignments →
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </section>
+
         </div>
       </main>
     </div>

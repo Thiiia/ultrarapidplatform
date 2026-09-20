@@ -1,19 +1,20 @@
 import { NextResponse } from "next/server";
-import { getCurrentAppUser } from "@/lib/current-user";
-import { assignMissionToStudent } from "@/lib/school-class-admin";
+import { resolveActingTeacherId } from "@/lib/teacher-auth";
+import { assignMissionToClass, assignMissionToStudent } from "@/lib/school-class-admin";
 
 export const runtime = "nodejs";
 
 /**
  * POST /api/assignments
  *
- * Creates an individual (student-scoped) assignment on behalf of a teacher.
- * Auth: an authenticated teacher session, OR (for the public demo) a
- * `demoTeacherId` matching the fixed DEMO_TEACHER_USER_ID env var — this
- * mirrors the rest of the /demo route tree, which is intentionally scoped
- * to that single seeded teacher/class/student.
+ * Creates an Assignment on behalf of a teacher, either for one student or
+ * (when studentId is omitted) for the whole class. Auth: an authenticated
+ * teacher session, OR (for the public demo) a `demoTeacherId` matching the
+ * fixed DEMO_TEACHER_USER_ID env var — this mirrors the rest of the /demo
+ * route tree, which is intentionally scoped to that single seeded
+ * teacher/class/student.
  *
- * Body: { classId, studentId, missionId, demoTeacherId? }
+ * Body: { classId, missionId, studentId?, demoTeacherId? }
  */
 export async function POST(request: Request) {
   let body: Record<string, unknown> = {};
@@ -32,36 +33,22 @@ export async function POST(request: Request) {
   const demoTeacherId =
     typeof body.demoTeacherId === "string" ? body.demoTeacherId : null;
 
-  if (!classId || !studentId || !missionId) {
+  if (!classId || !missionId) {
     return NextResponse.json(
-      { error: "classId, studentId, and missionId are required." },
+      { error: "classId and missionId are required." },
       { status: 400 },
     );
   }
 
-  let teacherId: string | null = null;
-
-  const sessionUser = await getCurrentAppUser();
-  if (sessionUser && sessionUser.role === "teacher") {
-    teacherId = sessionUser.id;
-  } else if (
-    demoTeacherId &&
-    process.env.DEMO_TEACHER_USER_ID &&
-    demoTeacherId === process.env.DEMO_TEACHER_USER_ID
-  ) {
-    teacherId = demoTeacherId;
-  }
+  const teacherId = await resolveActingTeacherId(demoTeacherId);
 
   if (!teacherId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const result = await assignMissionToStudent({
-    teacherId,
-    classId,
-    studentId,
-    missionId,
-  });
+  const result = studentId
+    ? await assignMissionToStudent({ teacherId, classId, studentId, missionId })
+    : await assignMissionToClass({ teacherId, classId, missionId });
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });

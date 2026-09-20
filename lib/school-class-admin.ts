@@ -204,3 +204,47 @@ export async function assignMissionToStudent({
 
   return { ok: true, assignment };
 }
+
+/**
+ * Creates a class-wide Assignment (no specific student), enforcing that the
+ * acting teacher owns the class and authored the mission being assigned.
+ */
+export async function assignMissionToClass({
+  teacherId,
+  classId,
+  missionId,
+}: {
+  teacherId: string;
+  classId: string;
+  missionId: string;
+}): Promise<AssignMissionToStudentResult> {
+  const classItem = await prisma.class.findFirst({
+    where: { id: classId, teacherId, isArchived: false },
+    select: { id: true },
+  });
+
+  if (!classItem) {
+    return { ok: false, error: "Class not found for this teacher." };
+  }
+
+  const mission = await prisma.mission.findFirst({
+    where: { id: missionId, authorId: teacherId },
+    select: { id: true, title: true },
+  });
+
+  if (!mission) {
+    return { ok: false, error: "Mission not found for this teacher." };
+  }
+
+  const assignment = await prisma.assignment.create({
+    data: {
+      title: mission.title,
+      missionId: mission.id,
+      classId,
+      createdByUserId: teacherId,
+      status: "assigned",
+    },
+  });
+
+  return { ok: true, assignment };
+}
