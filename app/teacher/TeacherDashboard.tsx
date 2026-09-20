@@ -2,21 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { TeacherDashboardData } from "@/lib/teacher-dashboard";
+import { studentCopy } from "@/lib/student-copy";
 import styles from "../student/student.module.css";
 
 import URIcon from "@/public/header_icons/URIcon.svg";
+import ControllerIcon from "@/public/controller.svg";
+import PlayIcon from "@/public/Next_Button.svg";
 import numberBondsImage from "@/public/numeracy_icons/number_bonds.png";
 import missingNumbersImage from "@/public/numeracy_icons/missing_numbers.png";
 import equationsImage from "@/public/numeracy_icons/equations.png";
 import earlyAlgebraImage from "@/public/numeracy_icons/early_algebra.png";
-
-type HeaderTab = {
-  label: string;
-  href: string;
-  width: number;
-};
 
 type TeacherDashboardProps = {
   dashboardData: TeacherDashboardData;
@@ -231,40 +228,72 @@ export default function TeacherDashboard({
   viewedUserEmail,
 }: TeacherDashboardProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const displayName =
     viewedUserName ?? dashboardData.name ?? viewedUserEmail ?? dashboardData.email;
   const profileLabel = getDisplayFirstName(displayName);
 
-  const numeracyPanels = [
+  const gameCards = [
     {
       title: "Number Bonds",
-      src: numberBondsImage,
+      icon: numberBondsImage,
       alt: "Number bonds",
-      selection: "number-bonds",
+      description: studentCopy.dashboard.gameDescriptions.numberBonds,
+      action: "play",
       disabled: false,
     },
     {
       title: "Equations",
-      src: equationsImage,
+      icon: equationsImage,
       alt: "Equations",
-      selection: "equations",
+      description: studentCopy.dashboard.gameDescriptions.equations,
+      action: "coming-soon",
       disabled: true,
     },
     {
       title: "Missing Numbers",
-      src: missingNumbersImage,
+      icon: missingNumbersImage,
       alt: "Missing numbers",
-      selection: "missing-numbers",
+      description: studentCopy.dashboard.gameDescriptions.missingNumbers,
+      action: "coming-soon",
       disabled: true,
     },
     {
       title: "Early Algebra",
-      src: earlyAlgebraImage,
+      icon: earlyAlgebraImage,
       alt: "Early algebra",
-      selection: "early-algebra",
+      description: studentCopy.dashboard.gameDescriptions.earlyAlgebra,
+      action: "play",
       disabled: false,
     },
   ];
+
+  const activityKeyByTitle: Record<string, string> = {
+    "Number Bonds": "number-bonds",
+    Equations: "equations",
+    "Missing Numbers": "missing-numbers",
+    "Early Algebra": "early-algebra",
+  };
+
+  function handlePlayClick(activityLabel: string) {
+    const activityKey = activityKeyByTitle[activityLabel] ?? "number-bonds";
+    const selectedActivity = {
+      key: activityKey,
+      label: activityLabel,
+    };
+
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(
+        "selectedDashboardActivity",
+        JSON.stringify(selectedActivity),
+      );
+    }
+
+    router.push(
+      `${navBasePath}/song-choice?activity=${encodeURIComponent(activityKey)}`,
+    );
+  }
+
 
   return (
     <div
@@ -289,133 +318,192 @@ export default function TeacherDashboard({
         style={{
           width: "100%",
           display: "flex",
-          justifyContent: "center",
-          padding: "28px 0 40px",
+          justifyContent: "stretch",
+          padding: 0,
         }}
       >
         <div
           style={{
-            width: pagePanelWidth,
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
             gap: 0,
             padding: 0,
-            borderRadius: 28,
-            background: "linear-gradient(0deg, #F9FAFB, #F9FAFB), linear-gradient(180deg, #082733 0%, #030E14 100%)",
-            boxShadow: "0 18px 40px rgba(0, 0, 0, 0.14)",
+            borderRadius: 0,
+            background: "transparent",
           }}
         >
-          {numeracyPanels.map((panel) => {
-            const panelBody = (
-              <>
-                <div
-                  style={{
-                    width: "100%",
-                    aspectRatio: "4 / 3",
-                    position: "relative",
-                    borderRadius: 0,
-                    overflow: "hidden",
-                    background: "#CFFF04",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    opacity: panel.disabled ? 0.55 : 1,
-                  }}
-                >
-                  <Image
-                    src={panel.src}
-                    alt={panel.alt}
-                    fill
-                    style={{ objectFit: "contain", objectPosition: "center", padding: 0 }}
-                    priority={panel.title === "Number Bonds"}
-                  />
-                </div>
-
-                {panel.disabled ? (
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      display: "grid",
-                      placeItems: "center",
-                      color: "#FFFFFF",
-                      fontSize: 18,
-                      fontWeight: 800,
-                      letterSpacing: "0.02em",
-                      textTransform: "uppercase",
-                      textShadow: "0 4px 16px rgba(0,0,0,0.55)",
-                      pointerEvents: "none",
-                      background: "linear-gradient(180deg, rgba(8,12,16,0.22) 0%, rgba(8,12,16,0.46) 100%)",
-                    }}
-                  >
-                    Coming Soon
-                  </div>
-                ) : null}
-              </>
-            );
-
-            if (panel.disabled) {
-              return (
-                <button
-                  key={panel.title}
-                  type="button"
-                  aria-label={`${panel.alt} coming soon`}
-                  disabled
-                  style={{
-                    background: "#CFFF04",
-                    border: "none",
-                    borderRadius: 0,
-                    padding: 0,
-                    minHeight: 280,
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    boxShadow: "0 16px 35px rgba(0, 0, 0, 0.16)",
-                    cursor: "not-allowed",
-                    overflow: "hidden",
-                    position: "relative",
-                  }}
-                >
-                  {panelBody}
-                </button>
-              );
-            }
-
-            return (
-              <Link
-                key={panel.title}
-                href={{ pathname: `${navBasePath}/song-choice`, query: { activity: panel.selection } }}
-                aria-label={`Open ${panel.alt}`}
-                onClick={() => {
-                  if (typeof window !== "undefined") {
-                    window.sessionStorage.setItem(
-                      "selectedDashboardActivity",
-                      JSON.stringify({ key: panel.selection, label: panel.title }),
-                    );
-                  }
-                }}
+          <section
+            aria-label="Play a game"
+            style={{
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              gap: 18,
+              background: pageBackgroundStyle,
+              border: "1px solid #FFFFFF1F",
+              borderTop: "none",
+              boxSizing: "border-box",
+              minHeight: "calc(100vh - 70px - 11vh)",
+              padding: "18px 20px",
+            }}
+          >
+            <div
+              style={{
+                flex: "1 1 0",
+                display: "flex",
+                flexDirection: "column",
+                minWidth: 0,
+                width: "88%",
+                margin: "0 auto",
+              }}
+            >
+              <div
                 style={{
-                  background: "#CFFF04",
-                  border: "none",
-                  borderRadius: 0,
-                  padding: 0,
-                  minHeight: 280,
                   display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
                   alignItems: "center",
-                  boxShadow: "0 16px 35px rgba(0, 0, 0, 0.16)",
-                  textDecoration: "none",
-                  cursor: "pointer",
-                  overflow: "hidden",
-                  position: "relative",
+                  gap: 10,
+                  color: "#FFFFFF",
+                  fontSize: 24,
+                  fontWeight: 700,
+                  margin: "0 0 18px 0",
                 }}
               >
-                {panelBody}
-              </Link>
-            );
-          })}
+                <ControllerIcon style={{ width: 22, height: 22, flexShrink: 0 }} />
+                <span>{studentCopy.dashboard.gamesTitle}</span>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                  gap: 18,
+                  alignItems: "stretch",
+                  width: "100%",
+                  height: "34.5vh",
+                  minHeight: 250,
+                }}
+              >
+                {gameCards.map((game) => {
+                  const isDisabled = game.disabled;
+
+                  return (
+                    <div
+                      key={game.title}
+                      style={{
+                        width: "100%",
+                        height: "34.5vh",
+                        minHeight: 250,
+                        display: "flex",
+                        flexDirection: "column",
+                        overflow: "hidden",
+                        borderRadius: 12,
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: "55.5%",
+                          width: "100%",
+                          background: "#222222",
+                          border: "1px solid #222222",
+                          borderBottom: "none",
+                          opacity: isDisabled ? 0.5 : 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: 10,
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        <Image
+                          src={game.icon}
+                          alt={game.alt}
+                          width={320}
+                          height={220}
+                          unoptimized
+                          style={{
+                            objectFit: "contain",
+                            objectPosition: "center",
+                            width: "100%",
+                            height: "100%",
+                            padding: 10,
+                          }}
+                          priority={game.title === "Number Bonds"}
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          flex: 1,
+                          background: "#2B2B2B",
+                          border: "1px solid #FFFFFF14",
+                          borderRadius: 0,
+                          display: "flex",
+                          flexDirection: "column",
+                          padding: "12px 12px 14px",
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        <div
+                          style={{
+                            color: "#FFFFFF",
+                            fontSize: 16,
+                            fontWeight: 600,
+                            marginBottom: 8,
+                          }}
+                        >
+                          {game.title}
+                        </div>
+                        <div
+                          style={{
+                            color: "rgba(255,255,255,0.55)",
+                            fontSize: 13,
+                            lineHeight: 1.45,
+                            marginBottom: "auto",
+                          }}
+                        >
+                          {game.description}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handlePlayClick(game.title)}
+                          disabled={isDisabled}
+                          style={{
+                            width: "90%",
+                            margin: "10px auto 0",
+                            minHeight: 38,
+                            borderRadius: 999,
+                            border: "none",
+                            background: game.action === "play" ? "#CFFF04" : "#7A7F86",
+                            color: game.action === "play" ? "#0B1A1F" : "#D9D9D9",
+                            fontWeight: 700,
+                            fontSize: 13,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8,
+                            cursor: "pointer",
+                            opacity: isDisabled ? 0.75 : 1,
+                          }}
+                        >
+                          {game.action === "play" ? (
+                            <>
+                              <PlayIcon style={{ width: 16, height: 16, display: "block" }} />
+                              <span>{studentCopy.dashboard.play}</span>
+                            </>
+                          ) : (
+                            studentCopy.dashboard.comingSoon
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
         </div>
       </main>
     </div>
