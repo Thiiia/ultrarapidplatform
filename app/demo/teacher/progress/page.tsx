@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getTeacherDashboardData } from "@/lib/teacher-dashboard";
+import { getTeacherClasses } from "@/lib/teacher-classes";
+import { getClassStudentActivity } from "@/lib/teacher-progress";
 import TeacherSubpageShell from "@/app/teacher/TeacherSubpageShell";
+import TeacherProgressClient from "@/app/teacher/progress/TeacherProgressClient";
 
 export const dynamic = "force-dynamic";
 
@@ -22,68 +24,34 @@ async function getDemoTeacherUserId() {
   return user.id;
 }
 
-export default async function DemoTeacherProgressPage() {
+type DemoTeacherProgressPageProps = {
+  searchParams: Promise<{ classId?: string }>;
+};
+
+export default async function DemoTeacherProgressPage({
+  searchParams,
+}: DemoTeacherProgressPageProps) {
   const demoTeacherUserId = await getDemoTeacherUserId();
 
   if (!demoTeacherUserId) {
     notFound();
   }
 
-  const dashboardData = await getTeacherDashboardData(demoTeacherUserId);
+  const classes = await getTeacherClasses(demoTeacherUserId);
+  const { classId } = await searchParams;
+  const effectiveClassId = classes.length === 1 ? classes[0].id : classId;
 
-  if (!dashboardData) {
-    notFound();
-  }
-
-  const assignedCount = dashboardData.classes.reduce((total, classItem) => {
-    return (
-      total +
-      classItem.assignments.filter((assignment) => assignment.status === "assigned")
-        .length
-    );
-  }, 0);
-
-  const inProgressCount = dashboardData.classes.reduce((total, classItem) => {
-    return (
-      total +
-      classItem.assignments.filter(
-        (assignment) => assignment.status === "in_progress",
-      ).length
-    );
-  }, 0);
-
-  const completedCount = dashboardData.classes.reduce((total, classItem) => {
-    return (
-      total +
-      classItem.assignments.filter((assignment) => assignment.status === "completed")
-        .length
-    );
-  }, 0);
+  const selectedClass = effectiveClassId
+    ? await getClassStudentActivity({ teacherId: demoTeacherUserId, classId: effectiveClassId })
+    : null;
 
   return (
-    <TeacherSubpageShell
-      title="Progress"
-      navBasePath="/demo/teacher"
-      cards={[
-        {
-          title: "Assigned",
-          description: `${assignedCount} assignment${
-            assignedCount === 1 ? "" : "s"
-          } waiting to be started.`,
-        },
-        {
-          title: "In Progress",
-          description: `${inProgressCount} assignment${
-            inProgressCount === 1 ? "" : "s"
-          } currently in progress.`,
-        },
-        {
-          title: "Completed",
-          description: `${completedCount} assignment${
-            completedCount === 1 ? "" : "s"
-          } completed.`,
-        },
-      ]}
-    />
+    <TeacherSubpageShell title="Progress" cards={[]} navBasePath="/demo/teacher">
+      <TeacherProgressClient
+        classes={classes}
+        selectedClass={selectedClass}
+        navBasePath="/demo/teacher"
+      />
+    </TeacherSubpageShell>
   );
 }
