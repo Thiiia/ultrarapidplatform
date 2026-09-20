@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { TeacherDashboardData } from "@/lib/teacher-dashboard";
 import styles from "../student/student.module.css";
 
@@ -44,7 +45,22 @@ const pagePanelWidth = "85vw";
 const pageBackgroundStyle =
   "linear-gradient(180deg, #082733 0%, #030E14 100%)";
 
-function HeaderBar({ profileLabel }: { profileLabel: string }) {
+function HeaderBar({
+  profileLabel,
+  navBasePath,
+  pathname,
+}: {
+  profileLabel: string;
+  navBasePath: string;
+  pathname: string;
+}) {
+  const topTabs = [
+    { label: "Home", href: navBasePath, width: 99 },
+    { label: "Assignments", href: `${navBasePath}/assignments`, width: 130 },
+    { label: "Classes", href: `${navBasePath}/classes`, width: 120 },
+    { label: "Progress", href: `${navBasePath}/progress`, width: 120 },
+  ];
+
   return (
     <header
       style={{
@@ -104,6 +120,55 @@ function HeaderBar({ profileLabel }: { profileLabel: string }) {
               }}
             />
           </div>
+
+          <nav
+            aria-label="Teacher dashboard navigation"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "nowrap",
+              minWidth: 0,
+              overflow: "visible",
+            }}
+          >
+            {topTabs.map((tab) => {
+              const isHomeTab = tab.label === "Home";
+              const isActive =
+                pathname === tab.href ||
+                (isHomeTab && pathname === navBasePath) ||
+                (!isHomeTab && pathname.startsWith(`${tab.href}/`));
+
+              return (
+                <Link
+                  key={tab.label}
+                  href={tab.href}
+                  aria-label={tab.label}
+                  className={`${styles.headerTabButton} ${
+                    isActive ? styles.headerTabButtonActive : ""
+                  }`}
+                  style={{
+                    width: tab.width,
+                    height: 45.5,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textDecoration: "none",
+                    background: "#060B15FC",
+                    borderBottom: isActive
+                      ? "3px solid #CFFF04"
+                      : "3px solid transparent",
+                    color: "#FFFFFF",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    lineHeight: "19.5px",
+                  }}
+                >
+                  {tab.label}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
 
         <div
@@ -118,7 +183,7 @@ function HeaderBar({ profileLabel }: { profileLabel: string }) {
           }}
         >
           <Link
-            href="/teacher/profile"
+            href={`${navBasePath}/profile`}
             aria-label="Profile"
             className={styles.utilityButton}
             style={{
@@ -161,9 +226,11 @@ function HeaderBar({ profileLabel }: { profileLabel: string }) {
 
 export default function TeacherDashboard({
   dashboardData,
+  navBasePath = "/teacher",
   viewedUserName,
   viewedUserEmail,
 }: TeacherDashboardProps) {
+  const pathname = usePathname();
   const displayName =
     viewedUserName ?? dashboardData.name ?? viewedUserEmail ?? dashboardData.email;
   const profileLabel = getDisplayFirstName(displayName);
@@ -177,17 +244,17 @@ export default function TeacherDashboard({
       disabled: false,
     },
     {
-      title: "Missing Numbers",
-      src: missingNumbersImage,
-      alt: "Missing numbers",
-      selection: "missing-numbers",
-      disabled: true,
-    },
-    {
       title: "Equations",
       src: equationsImage,
       alt: "Equations",
       selection: "equations",
+      disabled: true,
+    },
+    {
+      title: "Missing Numbers",
+      src: missingNumbersImage,
+      alt: "Missing numbers",
+      selection: "missing-numbers",
       disabled: true,
     },
     {
@@ -212,7 +279,11 @@ export default function TeacherDashboard({
         overflowX: "hidden",
       }}
     >
-      <HeaderBar profileLabel={profileLabel} />
+      <HeaderBar
+        profileLabel={profileLabel}
+        navBasePath={navBasePath}
+        pathname={pathname}
+      />
 
       <main
         style={{
@@ -314,7 +385,7 @@ export default function TeacherDashboard({
             return (
               <Link
                 key={panel.title}
-                href={{ pathname: "/demo/student/song-choice", query: { activity: panel.selection } }}
+                href={{ pathname: `${navBasePath}/song-choice`, query: { activity: panel.selection } }}
                 aria-label={`Open ${panel.alt}`}
                 onClick={() => {
                   if (typeof window !== "undefined") {

@@ -21,6 +21,7 @@ export async function getTeacherDashboardData(userId: string) {
           assignments: {
             include: {
               mission: true,
+              student: true,
             },
             orderBy: [
               {
@@ -115,6 +116,8 @@ export async function getTeacherDashboardData(userId: string) {
         dueAt: assignment.dueAt,
         missionId: assignment.mission.id,
         missionTitle: assignment.mission.title,
+        studentId: assignment.studentId,
+        studentName: assignment.student?.name ?? assignment.student?.email ?? null,
       })),
     })),
     students,
