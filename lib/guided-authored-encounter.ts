@@ -174,9 +174,9 @@ export function evaluateEncounterReadiness(
 
   if (encounter.mechanic === "drag") {
     const sourceHitId = encounter.dragTargets[0]?.sourceHitId;
-    if (!sourceHitId) {
-      issues.push(issue(encounter, "drag_source_required"));
-    } else if (!readyHitIds.has(sourceHitId)) {
+    // The v3 transport and Unity support standalone timed Drags. Only an
+    // explicitly linked Drag depends on an earlier successful Hit.
+    if (sourceHitId && !readyHitIds.has(sourceHitId)) {
       issues.push(issue(encounter, "drag_source_not_ready"));
     }
   }
@@ -191,7 +191,7 @@ export function evaluateEncounterReadiness(
   };
 }
 
-function inputFromEvent(
+export function inputFromEvent(
   event: AuthoredTimelineEvent,
   mechanic: GuidedMechanic,
   instance: AuthoredMechanicInstance,

@@ -7,7 +7,7 @@ import EastRoundedIcon from "@mui/icons-material/EastRounded";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
 import WestRoundedIcon from "@mui/icons-material/WestRounded";
 
-import { isAuthoredEquationOperator } from "@/lib/authored-lesson";
+import { AUTHORED_MAX_REQUIRED_HIT_PADS, isAuthoredEquationOperator } from "@/lib/authored-lesson";
 import { studentCopy } from "@/lib/student-copy";
 import type { AuthoredEquationToken } from "@/lib/authored-lesson-serialization";
 import type {
@@ -66,11 +66,12 @@ function TimeControls({
           min="0"
           step="0.01"
           value={timeValue(instance.tick)}
-          onChange={(event) => updateTime(event, (tick) => onPatchInstance(instance.id, { tick }))}
+          onChange={(event) => updateTime(event, (tick) => onPatchInstance(instance.id,
+            instance.mechanic === "hit" ? { tick, endTick: tick } : { tick }))}
           style={{ width: 96, borderRadius: 8, border: "1px solid #7A8FA8", background: "#0C1422", color: "#FFFFFF", padding: "7px 8px" }}
         />
       </label>
-      <label style={{ display: "grid", gap: 4, color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>
+      {instance.mechanic !== "hit" && <label style={{ display: "grid", gap: 4, color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>
         {studentCopy.mechanics.endTime}
         <input
           aria-label={studentCopy.mechanics.endTime}
@@ -81,7 +82,7 @@ function TimeControls({
           onChange={(event) => updateTime(event, (endTick) => onPatchInstance(instance.id, { endTick }))}
           style={{ width: 96, borderRadius: 8, border: "1px solid #7A8FA8", background: "#0C1422", color: "#FFFFFF", padding: "7px 8px" }}
         />
-      </label>
+      </label>}
     </div>
   );
 }
@@ -204,7 +205,7 @@ function HitControls({
             <button
               key={pad}
               type="button"
-              disabled={selectedTokenIndex === undefined}
+              disabled={selectedTokenIndex === undefined || (!selectedPads.includes(pad) && selectedPads.length >= AUTHORED_MAX_REQUIRED_HIT_PADS)}
               aria-label={`Pad ${label}`}
               aria-pressed={selectedPads.includes(pad)}
               title={label}
@@ -223,6 +224,7 @@ function HitControls({
           <div aria-hidden="true" style={{ gridColumn: 2, gridRow: 2, borderRadius: 999, border: "1px solid #2EA7FF", background: "rgba(46,167,255,.12)", boxShadow: "0 0 16px rgba(46,167,255,.16)" }} />
         </div>
       </div>
+      <TimingDetails instance={instance} onPatchInstance={onPatchInstance} />
     </div>
   );
 }

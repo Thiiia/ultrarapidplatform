@@ -78,3 +78,32 @@ test("operators are disabled as gameplay targets", () => {
   visit(tree);
   assert.ok(disabled.includes(true));
 });
+
+test("Hit timing has one editable instant and cannot author a third simultaneous pad", () => {
+  const patches: Partial<GuidedEncounterInput>[] = [];
+  const tree = GuidedEncounterComposer({
+    instance: { ...emptySpin, mechanic: "hit", id: "hit-1", tick: 4, endTick: 8,
+      hitBubbles: [{ tokenIndex: 0, pads: ["left", "right"] }] },
+    tokens,
+    readiness: { encounterId: "hit-1", ready: false, issueCodes: ["hit_timing_invalid"], issues: [], nextAction: "Fix timing" },
+    onPatchInstance: (_, patch) => patches.push(patch),
+  });
+  const inputs: Array<Record<string, any>> = [];
+  const buttons: Array<Record<string, any>> = [];
+  function visit(value: unknown) {
+    if (!isValidElement<{ children?: ReactNode }>(value)) return;
+    if (typeof value.type === "function") {
+      visit((value.type as (props: unknown) => ReactNode)(value.props));
+      return;
+    }
+    if (value.type === "input") inputs.push(value.props);
+    if (value.type === "button") buttons.push(value.props);
+    Children.forEach(value.props.children, visit);
+  }
+  visit(tree);
+  assert.equal(inputs.length, 1, "a Hit has a start time, not a separately editable duration");
+  inputs[0].onChange({ currentTarget: { value: "6.25" } });
+  assert.deepEqual(patches[0], { tick: 6.25, endTick: 6.25 });
+  assert.equal(buttons.find(button => button["aria-label"] === "Pad Top left")?.disabled, true);
+  assert.equal(buttons.find(button => button["aria-label"] === "Pad Left")?.disabled, false);
+});

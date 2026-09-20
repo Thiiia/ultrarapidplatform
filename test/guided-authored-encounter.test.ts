@@ -56,6 +56,14 @@ function eventWith(...instances: GuidedEncounterInput[]): AuthoredTimelineEvent 
   };
 }
 
+test("standalone Drag matches the optional dependency in the published runtime contract", () => {
+  const standalone = encounter("drag", { dragTargets: [{ tokenIndex: 2 }] });
+  assert.equal(evaluateEncounterReadiness(standalone, new Set()).ready, true);
+  assert.equal(evaluateLessonPublishReadiness([eventWith(standalone)]).ready, true);
+  const brokenDependency = encounter("drag", { dragTargets: [{ tokenIndex: 2, sourceHitId: "missing" }] });
+  assert.equal(evaluateEncounterReadiness(brokenDependency, new Set()).ready, false);
+});
+
 test("spin is a draft until it has equation, target, and duration", () => {
   const result = evaluateEncounterReadiness({
     id: "spin-1", mechanic: "spin", tick: 8, endTick: 8,

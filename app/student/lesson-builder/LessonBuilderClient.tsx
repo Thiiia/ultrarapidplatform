@@ -49,6 +49,7 @@ import { GuidedEncounterComposer } from "./GuidedEncounterComposer";
 import { EncounterReadinessPanel } from "./EncounterReadinessPanel";
 import {
   evaluateEncounterReadiness,
+  inputFromEvent,
   normalizeStagedMechanic,
   type GuidedEncounterInput,
   evaluateLessonPublishReadiness,
@@ -4201,6 +4202,7 @@ function MechanicInstanceRow({
   }) as GuidedEncounterInput;
   const guidedInstance: GuidedEncounterInput = {
     ...composerInstance,
+    mechanic,
     equation: activeInstance?.equation ?? equation,
   };
   const readiness = evaluateEncounterReadiness(guidedInstance, new Set());
@@ -10023,7 +10025,7 @@ export default function LessonBuilderClient({
       id: instance.id,
       mechanic: selectedCenterContextMechanic.mechanic,
       tick: instance.tick ?? centerContextEvent.tick,
-      endTick: instance.endTick ?? centerContextEvent.endTick,
+      endTick: inputFromEvent(centerContextEvent, selectedCenterContextMechanic.mechanic, instance).endTick,
       equation:
         instance.equation ??
         centerContextEvent.assignments[selectedCenterContextMechanic.mechanic] ??
@@ -11240,7 +11242,7 @@ export default function LessonBuilderClient({
         ...instance,
         // Clicking the same token again clears it.
         // Clicking a different token replaces the old one.
-        dragTargets: isSameTokenAlreadySelected ? [] : [{ tokenIndex }],
+        dragTargets: isSameTokenAlreadySelected ? [] : [{ tokenIndex, sourceHitId: instance.dragTargets[0]?.sourceHitId }],
       };
     });
   }
