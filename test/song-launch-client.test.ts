@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { requestFreshSongLaunchParams } from "../lib/song-launch-client";
+import {
+  requestFreshSongLaunchPackage,
+  requestFreshSongLaunchParams,
+} from "../lib/song-launch-client";
 
 test("refreshes a game package without replacing its launch attempt", async () => {
   const originalFetch = globalThis.fetch;
@@ -38,6 +41,34 @@ test("refreshes a game package without replacing its launch attempt", async () =
     assert.equal(capturedRequest?.refreshOnly, true);
     assert.equal(params.get("chartUrl"), "chart-fresh");
     assert.equal(params.get("launchAttemptId"), "7c2ebf76-91b4-49e6-b3ba-3132d490fb39");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("fails closed when the package activity does not match the requested activity", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    contractVersion: 1,
+    songAssetId: "song-123",
+    activityKey: "early-algebra",
+    source: "authored",
+    runtimeCapabilities: [],
+    readiness: { canLaunch: true, message: "Ready" },
+    chart: { bucket: "Charts", path: "chart", signedUrl: "chart" },
+    sidecar: { bucket: "SidecarJsons", path: "sidecar", signedUrl: "sidecar" },
+    audio: { bucket: "Songs", path: "song", signedUrl: "audio" },
+  }), { status: 200 })) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      requestFreshSongLaunchPackage({
+        songAssetId: "song-123",
+        activityKey: "number-bonds",
+        allowBlankPackage: true,
+      }),
+      /Activity identity mismatch at song-package/,
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

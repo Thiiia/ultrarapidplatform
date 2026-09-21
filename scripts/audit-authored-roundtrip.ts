@@ -4,53 +4,202 @@ import { serializeAuthoredLesson, timelineEventsFromAuthoredLesson } from "../li
 import { evaluateLessonPublishReadiness } from "../lib/guided-authored-encounter";
 import { createLessonClock } from "../lib/editor/lesson-timing";
 
-// Read-only: never calls save/publish or logs signed asset URLs.
-const songs = ["garden", "geminiqueen", "grudge", "jazzmaybach", "justbecause", "oneone", "seven", "waves"];
-async function audit(songAssetId: string) {
-  const response = await fetch("https://ultrarapidplatform.vercel.app/api/song-package/launch", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ songAssetId, activityKey: "early-algebra", rhythmDifficultyKey: "MediumSingle", learningDifficultyKey: "early-algebra" }),
+// Read-only: never calls save/publish or logs signed asset URLs. The default
+// catalogue sweep remains available, while --song/--activity make this useful
+// for a specific published revision (including a Number Bonds pilot package).
+const defaultSongs = ["garden", "geminiqueen", "grudge", "jazzmaybach", "justbecause", "oneone", "seven", "waves"];
+type AuditOptions = {
+  songAssetId: string;
+  activityKey: string;
+  authorId?: string;
+  revision?: string;
+  baseUrl: string;
+  rhythmDifficultyKey: string;
+  learningDifficultyKey: string;
+};
+
+type LaunchPackage = {
+  source?: string;
+  activityKey?: string;
+  authorId?: string;
+  revision?: string;
+  chart?: { signedUrl?: string };
+  sidecar?: { signedUrl?: string };
+  receipt?: {
+    authorId?: string;
+    revision?: string;
+    hashes?: { chartSha256?: string; sidecarSha256?: string; audioSha256?: string };
+    counts?: { encounters?: number; equations?: number; targets?: number };
+  };
+};
+
+function parseArgs(argv: string[]): { options: Omit<AuditOptions, "songAssetId">; songs: string[] } {
+  const values = new Map<string, string>();
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (!arg.startsWith("--")) throw new Error(`Unexpected argument: ${arg}`);
+    const key = arg.slice(2);
+    const value = argv[index + 1];
+    if (!value || value.startsWith("--")) throw new Error(`Missing value for --${key}`);
+    values.set(key, value);
+    index += 1;
+  }
+
+  const activityKey = values.get("activity") ?? "early-algebra";
+  const baseUrl = (values.get("baseUrl") ?? process.env.ULTRARAPID_AUDIT_BASE_URL ?? "https://ultrarapidplatform.vercel.app")
+    .replace(/\/$/, "");
+  const selectedSong = values.get("song") ?? values.get("songAssetId");
+  return {
+    songs: selectedSong ? [selectedSong] : defaultSongs,
+    options: {
+      activityKey,
+      authorId: values.get("authorId"),
+      revision: values.get("revision"),
+      baseUrl,
+      rhythmDifficultyKey: values.get("rhythmDifficultyKey") ?? "MediumSingle",
+      learningDifficultyKey: values.get("learningDifficultyKey") ?? activityKey,
+    },
+  };
+}
+
+function safeError(error: unknown) {
+  return String(error)
+    .replace(/https?:\/\/\S+/g, "[redacted URL]")
+    .replace(/(?:token|signature|sig|access_token)=[^&\s]+/gi, "$1=[redacted]");
+}
+
+function semanticSnapshot(encounter: any) {
+  const targetSnapshot = (targets: any[] = []) => targets.map(({ targetId, ...target }) => target);
+  const targets = encounter.type === "hit" ? encounter.hitBubbles : encounter.type === "spin" ? encounter.spinTargets : encounter.dragTargets;
+  return {
+    id: encounter.id,
+    type: encounter.type,
+    equationId: encounter.equationId,
+    startTick: encounter.startTick,
+    endTick: encounter.endTick,
+    targets: targetSnapshot(targets),
+  };
+}
+
+function blockers(readiness: ReturnType<typeof evaluateLessonPublishReadiness>) {
+  return readiness.blockers.map(item => ({
+    encounterId: item.encounterId,
+    code: item.code,
+    reason: item.nextAction,
+  }));
+}
+
+function mechanicCount(events: Array<{ counts: Record<"hit" | "spin" | "drag", number> }>) {
+  return events.reduce((total, event) => total + event.counts.hit + event.counts.spin + event.counts.drag, 0);
+}
+
+async function audit(options: AuditOptions) {
+  const response = await fetch(`${options.baseUrl}/api/song-package/launch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      songAssetId: options.songAssetId,
+      activityKey: options.activityKey,
+      ...(options.authorId ? { authorId: options.authorId } : {}),
+      ...(options.revision ? { revision: options.revision } : {}),
+      rhythmDifficultyKey: options.rhythmDifficultyKey,
+      learningDifficultyKey: options.learningDifficultyKey,
+    }),
   });
   assert.ok(response.ok, `Launch HTTP ${response.status}`);
-  const launch = await response.json();
-  assert.equal(launch.source, "authored");
-  const [chart, sidecar] = await Promise.all([fetch(launch.chart.signedUrl), fetch(launch.sidecar.signedUrl)]);
+  const launch = await response.json() as LaunchPackage;
+  assert.equal(launch.source, "authored", `Expected an authored package, received ${launch.source ?? "unknown"}`);
+  assert.equal(launch.activityKey, options.activityKey, "Launch package activity changed from the requested activity");
+  const chartUrl = launch.chart?.signedUrl;
+  const sidecarUrl = launch.sidecar?.signedUrl;
+  assert.ok(chartUrl && sidecarUrl, "Launch package is missing chart or sidecar URL");
+  const [chart, sidecar] = await Promise.all([fetch(chartUrl), fetch(sidecarUrl)]);
   assert.ok(chart.ok && sidecar.ok, "Asset fetch failed");
   const clock = createLessonClock(await chart.text());
   const lesson = parseAuthoredLessonDraft(await sidecar.json());
+  assert.equal(lesson.activityKey, options.activityKey, "Sidecar activity changed from the requested activity");
   const hydrated = timelineEventsFromAuthoredLesson(lesson, clock);
-  const readiness = evaluateLessonPublishReadiness(hydrated.events);
-  const saved = serializeAuthoredLesson(hydrated.events, lesson, clock, lesson.stopAtSeconds, hydrated.equations);
-  const reparsed = parseAuthoredLessonDraft(saved);
-  const byId = new Map(reparsed.encounters.map(item => [item.id, item]));
-  const changes: string[] = [];
-  for (const original of lesson.encounters) {
-    const after = byId.get(original.id);
-    if (!after || ["eventId", "type", "equationId", "startTick", "endTick"].some(key =>
-      original[key as keyof typeof original] !== after[key as keyof typeof after])) changes.push(original.id);
-    const field = original.type === "hit" ? "hitBubbles" : original.type === "spin" ? "spinTargets" : "dragTargets";
-    // targetId can be added on first hydration; token indexes and dependencies cannot change.
-    const semanticTargets = (targets: any[] = []) => targets.map(({ targetId, ...target }) => target);
-    assert.deepEqual(semanticTargets(after?.[field]), semanticTargets(original[field]), `${original.id}: targets changed`);
-  }
-  assert.equal(reparsed.encounters.length, lesson.encounters.length);
-  const playableTargets = lesson.encounters.filter(item => item.type !== "hit").map(item => {
-    const equation = lesson.equations.find(eq => eq.id === item.equationId)!;
-    const targets = item.type === "spin" ? item.spinTargets : item.dragTargets;
-    return { id: item.id, type: item.type, equation: equation.state, tokens: targets?.map(target => equation.tokens?.[target.tokenIndex]?.label ?? target.tokenIndex) };
+  const readinessBefore = evaluateLessonPublishReadiness(hydrated.events, {
+    activityKey: options.activityKey,
+    equationQueue: hydrated.equations,
   });
-  return { songAssetId, encounters: lesson.encounters.length, ready: readiness.ready,
-    blockers: readiness.blockers.map(item => ({ id: item.encounterId, reason: item.nextAction })),
-    timingOrIdentityChanges: changes, playableTargets };
+
+  let serialization: {
+    ok: boolean;
+    error?: string;
+    serializedEncounterCount?: number;
+    serializedActivityKey?: string;
+  };
+  let semanticEquivalent = false;
+  let semanticChanges: string[] = [];
+  let readinessAfterNoOp: ReturnType<typeof evaluateLessonPublishReadiness> | null = null;
+  try {
+    const saved = serializeAuthoredLesson(
+      hydrated.events,
+      lesson,
+      clock,
+      lesson.stopAtSeconds,
+      hydrated.equations,
+      { activityKey: options.activityKey },
+    );
+    const reparsed = parseAuthoredLessonDraft(saved);
+    const rehydrated = timelineEventsFromAuthoredLesson(reparsed, clock);
+    readinessAfterNoOp = evaluateLessonPublishReadiness(rehydrated.events, {
+      activityKey: options.activityKey,
+      equationQueue: rehydrated.equations,
+    });
+    const before = lesson.encounters.map(semanticSnapshot);
+    const after = reparsed.encounters.map(semanticSnapshot);
+    semanticChanges = before.length === after.length && before.every((item, index) => JSON.stringify(item) === JSON.stringify(after[index]))
+      ? []
+      : reparsed.encounters.map((item, index) => JSON.stringify(semanticSnapshot(lesson.encounters[index])) === JSON.stringify(semanticSnapshot(item)) ? "" : item.id).filter(Boolean);
+    semanticEquivalent = semanticChanges.length === 0 && JSON.stringify(lesson.equations) === JSON.stringify(reparsed.equations);
+    serialization = {
+      ok: true,
+      serializedEncounterCount: reparsed.encounters.length,
+      serializedActivityKey: reparsed.activityKey,
+    };
+  } catch (error) {
+    serialization = { ok: false, error: safeError(error) };
+  }
+
+  const receipt = launch.receipt;
+  return {
+    songAssetId: options.songAssetId,
+    requestedActivityKey: options.activityKey,
+    packageActivityKey: launch.activityKey,
+    sidecarActivityKey: lesson.activityKey,
+    source: launch.source,
+    authorId: launch.authorId ?? receipt?.authorId ?? options.authorId ?? null,
+    inputRevision: launch.revision ?? receipt?.revision ?? options.revision ?? null,
+    chartSha256: receipt?.hashes?.chartSha256 ?? null,
+    sidecarSha256: receipt?.hashes?.sidecarSha256 ?? null,
+    audioSha256: receipt?.hashes?.audioSha256 ?? null,
+    receiptCounts: receipt?.counts ?? null,
+    sourceEncounterCount: lesson.encounters.length,
+    hydratedEventCount: hydrated.events.length,
+    hydratedMechanicCount: mechanicCount(hydrated.events),
+    readinessBefore: { ready: readinessBefore.ready, blockers: blockers(readinessBefore) },
+    serialization,
+    semanticEquivalence: semanticEquivalent,
+    semanticChanges,
+    readinessAfterNoOp: readinessAfterNoOp
+      ? { ready: readinessAfterNoOp.ready, blockers: blockers(readinessAfterNoOp) }
+      : null,
+  };
 }
+
 async function main() {
-  for (const song of songs) {
-    try { console.log(JSON.stringify(await audit(song))); }
-    catch (error) {
-      // Error messages may include fetch URLs. Never expose launch credentials.
-      console.log(JSON.stringify({ songAssetId: song, error: String(error).replace(/https?:\/\/\S+/g, "[redacted URL]") }));
+  const { songs, options } = parseArgs(process.argv.slice(2));
+  for (const songAssetId of songs) {
+    try {
+      console.log(JSON.stringify(await audit({ ...options, songAssetId })));
+    } catch (error) {
+      // Errors may include fetch URLs. Never expose launch credentials.
+      console.log(JSON.stringify({ songAssetId, requestedActivityKey: options.activityKey, error: safeError(error) }));
       process.exitCode = 1;
     }
   }
 }
+
 void main();

@@ -16,10 +16,8 @@ import {
 } from "@/lib/editor/project-to-chart";
 import { persistLaunchParams } from "@/lib/launch-handoff";
 import { loadSongPackageAssets } from "@/lib/editor/song-package";
-import {
-  inferSongActivityKeyFromChartPath,
-  type SongActivityKey,
-} from "@/lib/song-activity-storage";
+import type { SongActivityKey } from "@/lib/song-activity-storage";
+import { resolveSongActivityIdentity } from "@/lib/song-activity-authority";
 import { isCurrentUnityRuntimeActivity } from "@/lib/unity-runtime-activity";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../../student/student.module.css";
@@ -4877,6 +4875,14 @@ export default function LessonBuilderClient({
     setSaveStatus(`Loading ${song.name}...`);
 
     try {
+      const resolvedActivityKey = resolveSongActivityIdentity({
+        selectedPayloadActivityKey: song.activityKey,
+        chartPath: song.chart.path,
+      }).activityKey;
+      if (!resolvedActivityKey) {
+        throw new Error("Selected song is missing an activity identity.");
+      }
+
       setSelectedSongStorage({
         id: song.id,
         authorName: song.authorName ?? null,
@@ -4896,10 +4902,7 @@ export default function LessonBuilderClient({
 
       setSelectedSongLaunch({
         songAssetId: song.id,
-        activityKey:
-          song.activityKey ??
-          inferSongActivityKeyFromChartPath(song.chart.path) ??
-          "number-bonds",
+        activityKey: resolvedActivityKey,
         authorName: song.authorName ?? null,
         rhythmDifficultyKey: song.rhythmDifficultyKey ?? song.rhythm_difficulty_key,
         chartUrl: song.chart.signedUrl,
@@ -5235,6 +5238,10 @@ export default function LessonBuilderClient({
       setSaveStatus("No selected song asset is loaded.");
       return;
     }
+    if (!selectedSongLaunch) {
+      setSaveStatus("Selected song activity identity is unavailable.");
+      return;
+    }
 
     setIsSaving(true);
     setSaveStatus("Saving...");
@@ -5261,9 +5268,7 @@ export default function LessonBuilderClient({
 
       const sidecarJson = projectToSidecarJson(sidecar);
 
-      const activityKey = inferSongActivityKeyFromChartPath(
-        selectedSongStorage.chart.path,
-      );
+      const activityKey = selectedSongLaunch.activityKey;
 
       const response = await fetch("/api/lesson-builder/save", {
         method: "POST",
@@ -5332,6 +5337,13 @@ export default function LessonBuilderClient({
 
     try {
       const selectedSong: SelectedSongPayload = JSON.parse(raw);
+      const resolvedActivityKey = resolveSongActivityIdentity({
+        selectedPayloadActivityKey: selectedSong.activityKey,
+        chartPath: selectedSong.chart.path,
+      }).activityKey;
+      if (!resolvedActivityKey) {
+        throw new Error("Stored song is missing an activity identity.");
+      }
 
       setSelectedSongStorage({
         id: selectedSong.id,
@@ -5352,10 +5364,7 @@ export default function LessonBuilderClient({
 
       setSelectedSongLaunch({
         songAssetId: selectedSong.id,
-        activityKey:
-          selectedSong.activityKey ??
-          inferSongActivityKeyFromChartPath(selectedSong.chart.path) ??
-          "number-bonds",
+        activityKey: resolvedActivityKey,
         authorName: selectedSong.authorName ?? null,
         chartUrl: selectedSong.chart.signedUrl,
         sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,

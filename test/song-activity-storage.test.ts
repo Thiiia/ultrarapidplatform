@@ -4,6 +4,8 @@ import {
   buildAuthoredChartStoragePaths,
   inferSongActivityKeyFromChartPath,
   normalizeAuthoredSidecarPath,
+  resolveRequestedSongActivityPackage,
+  validateWritableActivityStorageTarget,
 } from "../lib/song-activity-storage";
 
 test("builds deterministic per-author storage paths under the author folder", () => {
@@ -95,17 +97,18 @@ test("accepts author-folder-prefixed packages for the matching activity", async 
   });
 });
 
-test("rejects an author-folder-prefixed chart path from a different activity", async () => {
-  const songActivityStorage = await loadSongActivityStorageModule();
-
-  assert.throws(
-    () =>
-      songActivityStorage!.resolveRequestedSongActivityPackage!({
-        requestedActivityKey: "early-algebra",
-        chartPath: "dev/Missing_Numbers/waves.chart",
-        sidecarPath: "dev/Early_Algebra/waves.json",
-      }),
-    /chart path does not belong to early-algebra/,
+test("allows an immutable shared rhythm chart reference across activity folders", () => {
+  assert.deepEqual(
+    resolveRequestedSongActivityPackage({
+      requestedActivityKey: "number-bonds",
+      chartPath: "dev/Early_Algebra/jazzmaybach.chart",
+      sidecarPath: "dev/Number_Bonds/jazzmaybach.json",
+    }),
+    {
+      activityKey: "number-bonds",
+      chartPath: "dev/Early_Algebra/jazzmaybach.chart",
+      sidecarPath: "dev/Number_Bonds/jazzmaybach.json",
+    },
   );
 });
 
@@ -162,31 +165,29 @@ test("uses the intentional default only when the activity is absent", async () =
   });
 });
 
-test("rejects a chart path from a different activity folder", async () => {
-  const songActivityStorage = await loadSongActivityStorageModule();
-
+test("keeps write ownership strict even when read references are shared", () => {
   assert.throws(
-    () =>
-      songActivityStorage!.resolveRequestedSongActivityPackage!({
-        requestedActivityKey: "early-algebra",
-        chartPath: "Missing_Numbers/waves.chart",
-        sidecarPath: "Early_Algebra/waves.json",
-      }),
+    () => validateWritableActivityStorageTarget({
+      activityKey: "early-algebra",
+      path: "dev/Number_Bonds/jazzmaybach.chart",
+      pathKind: "chart",
+    }),
     /chart path does not belong to early-algebra/,
   );
 });
 
-test("rejects an Early Algebra package that points at a Missing Numbers sidecar", async () => {
-  const songActivityStorage = await loadSongActivityStorageModule();
-
-  assert.throws(
-    () =>
-      songActivityStorage!.resolveRequestedSongActivityPackage!({
-        requestedActivityKey: "early-algebra",
-        chartPath: "Early_Algebra/waves.chart",
-        sidecarPath: "Missing_Numbers/waves.json",
-      }),
-    /sidecar path does not belong to early-algebra/,
+test("allows a shared chart with an activity-owned sidecar reference", () => {
+  assert.deepEqual(
+    resolveRequestedSongActivityPackage({
+      requestedActivityKey: "early-algebra",
+      chartPath: "dev/Number_Bonds/jazzmaybach.chart",
+      sidecarPath: "dev/Early_Algebra/jazzmaybach.json",
+    }),
+    {
+      activityKey: "early-algebra",
+      chartPath: "dev/Number_Bonds/jazzmaybach.chart",
+      sidecarPath: "dev/Early_Algebra/jazzmaybach.json",
+    },
   );
 });
 

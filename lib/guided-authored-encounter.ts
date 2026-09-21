@@ -8,6 +8,10 @@ import type {
   AuthoredSavedEquation,
   AuthoredTimelineEvent,
 } from "./authored-lesson-serialization";
+import {
+  getActivityAuthoringCapabilities,
+  getNumberBondsWhole,
+} from "./activity-authoring-capabilities";
 
 export type GuidedMechanic = "hit" | "spin" | "drag";
 
@@ -34,7 +38,12 @@ export type EncounterIssueCode =
   | "operator_target"
   | "drag_source_not_ready"
   | "drag_source_not_earlier"
-  | "unsupported_concurrency";
+  | "unsupported_concurrency"
+  | "activity_mechanic_unsupported"
+  | "activity_equation_invalid"
+  | "activity_target_shape"
+  | "activity_equation_count"
+  | "activity_hit_count";
 
 export type EncounterIssue = {
   encounterId: string;
@@ -87,6 +96,11 @@ const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   drag_source_not_ready: "Choose a Hit that comes before this Drag.",
   drag_source_not_earlier: "Move this Drag after its source Hit.",
   unsupported_concurrency: "Move this action so its approach window does not overlap another mechanic.",
+  activity_mechanic_unsupported: "Use a Hit for this activity; its later interaction phases are generated at runtime.",
+  activity_equation_invalid: "Use one valid Number Bonds equation, such as 5 = 2 + 3.",
+  activity_target_shape: "Give this Number Bonds Hit exactly one bubble target.",
+  activity_equation_count: "Use exactly one equation for Number Bonds.",
+  activity_hit_count: "Add enough Hit cues for the selected Number Bonds equation.",
 };
 
 function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): EncounterIssue {
@@ -104,6 +118,11 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
     drag_source_not_ready: "needs a Hit that comes first",
     drag_source_not_earlier: "must start after its source Hit",
     unsupported_concurrency: "overlaps an unsupported mechanic",
+    activity_mechanic_unsupported: "uses a mechanic that this activity does not author",
+    activity_equation_invalid: "uses an equation outside this activity's contract",
+    activity_target_shape: "has the wrong target shape for this activity",
+    activity_equation_count: "has the wrong number of equations for this activity",
+    activity_hit_count: "does not contain enough Hits for this activity",
   };
   const mechanicLabel = encounter.mechanic[0].toUpperCase() + encounter.mechanic.slice(1);
   const numberMatch = encounter.id.match(/(?:hit|spin|drag)[-_ ]?(\d+)/i);
@@ -131,8 +150,13 @@ function targetIds(encounter: GuidedEncounterInput) {
 export function evaluateEncounterReadiness(
   encounter: GuidedEncounterInput,
   readyHitIds: ReadonlySet<string>,
+  options: { activityKey?: string | null } = {},
 ): EncounterReadiness {
   const issues: EncounterIssue[] = [];
+  const capabilities = getActivityAuthoringCapabilities(options.activityKey);
+  if (!capabilities.supportedAuthoredMechanics.includes(encounter.mechanic)) {
+    issues.push(issue(encounter, "activity_mechanic_unsupported"));
+  }
   if (!encounter.equation || encounter.equation.tokens.length === 0) {
     issues.push(issue(encounter, "equation_required"));
   }
@@ -158,6 +182,12 @@ export function evaluateEncounterReadiness(
   }
 
   if (encounter.equation) {
+    if (
+      capabilities.activityKey === "number-bonds" &&
+      getNumberBondsWhole(encounter.equation) == null
+    ) {
+      issues.push(issue(encounter, "activity_equation_invalid"));
+    }
     const stableTokenIds = new Set(encounter.equation.tokens.map((token) => token.id));
     if (targetIds(encounter).some((targetId) => targetId && !stableTokenIds.has(targetId))) {
       issues.push(issue(encounter, "target_identity_invalid"));
@@ -170,6 +200,14 @@ export function evaluateEncounterReadiness(
         break;
       }
     }
+  }
+
+  if (
+    capabilities.activityKey === "number-bonds" &&
+    encounter.mechanic === "hit" &&
+    encounter.hitBubbles.length > 1
+  ) {
+    issues.push(issue(encounter, "activity_target_shape"));
   }
 
   if (encounter.mechanic === "drag") {
@@ -229,6 +267,10 @@ function effectiveEndTick(
 
 export function evaluateLessonPublishReadiness(
   events: readonly AuthoredTimelineEvent[],
+  options: {
+    activityKey?: string | null;
+    equationQueue?: readonly AuthoredSavedEquation[];
+  } = {},
 ): LessonPublishReadiness {
   const blockers: EncounterIssue[] = [];
   const readyHitIds = new Set<string>();
@@ -253,7 +295,7 @@ export function evaluateLessonPublishReadiness(
 
   for (const { event, mechanic, instance } of ordered) {
     const input = inputFromEvent(event, mechanic, instance);
-    const readiness = evaluateEncounterReadiness(input, readyHitIds);
+    const readiness = evaluateEncounterReadiness(input, readyHitIds, options);
     blockers.push(...readiness.issues);
 
     const sourceHitId = mechanic === "drag" ? input.dragTargets[0]?.sourceHitId : undefined;
@@ -264,6 +306,34 @@ export function evaluateLessonPublishReadiness(
     }
 
     if (mechanic === "hit" && readiness.ready) readyHitIds.add(instance.id);
+  }
+
+  const capabilities = getActivityAuthoringCapabilities(options.activityKey);
+  if (capabilities.activityKey === "number-bonds") {
+    const equations = [
+      ...(options.equationQueue ?? []),
+      ...ordered
+        .map(({ event, mechanic, instance }) => inputFromEvent(event, mechanic, instance).equation)
+        .filter((equation): equation is AuthoredSavedEquation => Boolean(equation)),
+    ];
+    const equationIds = new Set(equations.map((equation) => equation.id));
+    const firstInput = ordered.length > 0
+      ? inputFromEvent(ordered[0].event, ordered[0].mechanic, ordered[0].instance)
+      : null;
+    if (equationIds.size !== 1 && firstInput) {
+      blockers.push(issue(firstInput, "activity_equation_count"));
+    }
+    const firstEquation = equations[0];
+    const whole = firstEquation ? getNumberBondsWhole(firstEquation) : null;
+    if (firstEquation && whole == null && firstInput) {
+      blockers.push(issue(firstInput, "activity_equation_invalid"));
+    }
+    if (whole != null) {
+      const hitCount = ordered.filter(({ mechanic }) => mechanic === "hit").length;
+      if (hitCount < whole && firstInput) {
+        blockers.push(issue(firstInput, "activity_hit_count"));
+      }
+    }
   }
 
   // Timeline events are already in song seconds here. Unity begins presenting every
@@ -316,6 +386,7 @@ export function evaluateLessonPublishReadiness(
 export function normalizeStagedMechanic(
   staged: StagedMechanicInput,
   selectedEquation: AuthoredSavedEquation | null | undefined,
+  options: { activityKey?: string | null } = {},
 ): NormalizedStagedMechanic {
   const encounter: GuidedEncounterInput = {
     id: staged.id,
@@ -327,6 +398,6 @@ export function normalizeStagedMechanic(
     spinTargets: staged.spinTargets ?? [],
     dragTargets: staged.dragTargets ?? [],
   };
-  const readiness = evaluateEncounterReadiness(encounter, new Set());
+  const readiness = evaluateEncounterReadiness(encounter, new Set(), options);
   return { encounter, readiness, publishable: readiness.ready };
 }

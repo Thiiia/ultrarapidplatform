@@ -33,16 +33,18 @@ import {
 import { applyEquationToEvent as applyEquationToEventInstances } from "@/lib/authored-lesson-event-assignment";
 // import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { persistLaunchParams } from "@/lib/launch-handoff";
-import {
-  buildEmbeddedGameUrl,
-  createSongLaunchSearchParams,
-} from "@/lib/platform-launch";
+import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import {
   requestFreshSongLaunchPackage,
   type FreshSongLaunchPackage,
 } from "@/lib/song-launch-client";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import { getPlayerLaunchRoute } from "@/lib/song-choice-flow";
+import {
+  assertSongActivityMatches,
+  resolveSongActivityIdentity,
+} from "@/lib/song-activity-authority";
+import { getActivityAuthoringCapabilities } from "@/lib/activity-authoring-capabilities";
 import { getLearnerFacingError, studentCopy } from "@/lib/student-copy";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import { GuidedEncounterComposer } from "./GuidedEncounterComposer";
@@ -114,8 +116,9 @@ type SelectedSongPayload = {
   artist?: string | null;
   authorId?: string | null;
   authorName?: string | null;
-  rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
-  rhythm_difficulty_key?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
+  revision?: string | null;
+  rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle" | null;
+  rhythm_difficulty_key?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle" | null;
   activity?: {
     key?: string;
     label?: string;
@@ -1482,7 +1485,7 @@ function authoredSidecarFromTimelineEvents(
   clock: ReturnType<typeof createLessonClock>,
   stopAtSeconds?: number,
   equationQueue: SavedEquation[] = [],
-  options: { forPublish?: boolean } = {},
+  options: { forPublish?: boolean; activityKey?: string | null } = {},
 ): AuthoredLessonDraft {
   return serializeAuthoredLesson(
     events as unknown as AuthoredTimelineEvent[],
@@ -1646,7 +1649,7 @@ async function fileFromSignedUrl({
   appendSongFlowDebug(
     `lesson-builder:${debugLabel ?? "file"}:fetch:start`,
     "Fetching binary asset from signed URL.",
-    { path, signedUrl, contentType },
+    { path, hasSignedUrl: Boolean(signedUrl), contentType },
   );
 
   const response = await fetch(signedUrl, { signal });
@@ -1679,7 +1682,7 @@ async function fileFromSignedUrl({
 
 async function textFromSignedUrl(signedUrl: string, signal?: AbortSignal) {
   appendSongFlowDebug("lesson-builder:chart:fetch:start", "Fetching chart text from signed URL.", {
-    signedUrl,
+    hasSignedUrl: Boolean(signedUrl),
   });
 
   const response = await fetch(signedUrl, {
@@ -1707,7 +1710,6 @@ async function textFromSignedUrl(signedUrl: string, signal?: AbortSignal) {
 
   appendSongFlowDebug("lesson-builder:chart:fetch:complete", "Chart text was read from the signed URL response.", {
     length: text.length,
-    preview: text.slice(0, 240),
   });
 
   return text;
@@ -1715,7 +1717,7 @@ async function textFromSignedUrl(signedUrl: string, signal?: AbortSignal) {
 
 async function jsonFromSignedUrl(signedUrl: string, signal?: AbortSignal) {
   appendSongFlowDebug("lesson-builder:sidecar:fetch:start", "Fetching sidecar JSON from signed URL.", {
-    signedUrl,
+    hasSignedUrl: Boolean(signedUrl),
   });
 
   const response = await fetch(signedUrl, {
@@ -1746,7 +1748,9 @@ async function jsonFromSignedUrl(signedUrl: string, signal?: AbortSignal) {
       payload && typeof payload === "object" && Array.isArray((payload as { events?: unknown[] }).events)
         ? (payload as { events: unknown[] }).events.length
         : null,
-    payload,
+    version: payload && typeof payload === "object" ? (payload as { version?: unknown }).version ?? null : null,
+    mode: payload && typeof payload === "object" ? (payload as { mode?: unknown }).mode ?? null : null,
+    activityKey: payload && typeof payload === "object" ? (payload as { activityKey?: unknown }).activityKey ?? null : null,
   });
 
   return payload;
@@ -4121,6 +4125,7 @@ function MechanicEquationEditor({
 
 function MechanicInstanceRow({
   mechanic,
+  activityKey,
   count,
   equation,
   instances,
@@ -4132,6 +4137,7 @@ function MechanicInstanceRow({
   dragSources = [],
 }: {
   mechanic: GameplayMechanic;
+  activityKey?: SongActivityKey | null;
   count: number;
   equation: SavedEquation | null;
   instances: MechanicInstanceState[];
@@ -4205,7 +4211,7 @@ function MechanicInstanceRow({
     mechanic,
     equation: activeInstance?.equation ?? equation,
   };
-  const readiness = evaluateEncounterReadiness(guidedInstance, new Set());
+  const readiness = evaluateEncounterReadiness(guidedInstance, new Set(), { activityKey });
 
   return (
     <div
@@ -4336,6 +4342,7 @@ function MechanicInstanceRow({
 
 function EventBuilderArea({
   eventSlot,
+  activityKey,
   onDropEquation,
   onAddHitPad,
   onToggleSpinTarget,
@@ -4344,6 +4351,7 @@ function EventBuilderArea({
   dragSources = [],
 }: {
   eventSlot: TimelineEventSlot | null;
+  activityKey?: SongActivityKey | null;
   onDropEquation: (equation: SavedEquation) => void;
   onAddHitPad: (
     mechanic: GameplayMechanic,
@@ -4480,6 +4488,7 @@ function EventBuilderArea({
             <MechanicInstanceRow
               key={mechanic}
               mechanic={mechanic}
+              activityKey={activityKey}
               count={eventSlot.counts[mechanic]}
               equation={assignedEquation}
               instances={eventSlot.mechanicInstances[mechanic] ?? []}
@@ -9998,8 +10007,11 @@ export default function LessonBuilderClient({
   }, [selectedCenterContextMechanic]);
 
   const lessonPublishReadiness = useMemo(
-    () => evaluateLessonPublishReadiness(timelineEvents as unknown as AuthoredTimelineEvent[]),
-    [timelineEvents],
+    () => evaluateLessonPublishReadiness(timelineEvents as unknown as AuthoredTimelineEvent[], {
+      activityKey: selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null,
+      equationQueue: authoredEquationQueue,
+    }),
+    [authoredEquationQueue, selectedSongActivity, selectedSongLaunch, timelineEvents],
   );
 
   const needsReadinessCheck = !lessonPublishReadiness.ready
@@ -10487,6 +10499,15 @@ export default function LessonBuilderClient({
     seconds: number,
     options: { endSeconds?: number; hitPad?: HitBubblePad } = {},
   ) {
+    const capabilities = getActivityAuthoringCapabilities(
+      selectedSongActivity?.key ?? selectedSongLaunch?.activityKey,
+    );
+    if (!capabilities.supportedAuthoredMechanics.includes(mechanic)) {
+      setSaveStatus(
+        `${studentCopy.mechanics[mechanic]} is generated by the Number Bonds runtime; add a Hit cue instead.`,
+      );
+      return "";
+    }
     const tick = Number(seconds.toFixed(3));
     const endTick =
       typeof options.endSeconds === "number"
@@ -10510,6 +10531,7 @@ export default function LessonBuilderClient({
         dragTargets: [],
       },
       selectedEquation,
+      { activityKey: selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null },
     );
 
     setRtcmDraftMechanics((current) => [
@@ -11348,27 +11370,25 @@ export default function LessonBuilderClient({
       source: freshSongLaunch.source === "editor-scaffold" ? undefined : freshSongLaunch.source,
       templateProvenance: freshSongLaunch.templateProvenance,
       launchAttemptId: freshSongLaunch.launchAttemptId,
-    });
+      });
       const launchRoute = getPlayerLaunchRoute(navBasePath);
-      const launchQuery = launchParams.toString();
-      const launchUrl = `${launchRoute}?${launchQuery}`;
-      const fullGameUrl = buildEmbeddedGameUrl(
-        process.env.NEXT_PUBLIC_GAME_URL ?? "https://ultrarapidtest.netlify.app/",
-        launchParams,
-      );
 
       appendSongFlowDebug(
         "lesson-builder:launch:play",
         "Play pressed. Launch URL and params prepared.",
         {
           launchRoute,
-          launchQuery,
-          launchUrl,
-          fullGameUrl,
           strategy,
+          requestedActivityKey: selectedSongLaunch.activityKey,
+          launchActivityKey: freshSongLaunch.activityKey,
           launchAuthorId,
           launchRevision,
-          selectedSongLaunch,
+          source: freshSongLaunch.source,
+          hasLaunchAttemptId: Boolean(freshSongLaunch.launchAttemptId),
+          hasReceipt: Boolean(freshSongLaunch.receipt),
+          hasChart: Boolean(freshSongLaunch.chart.signedUrl),
+          hasSidecar: Boolean(freshSongLaunch.sidecar.signedUrl),
+          hasAudio: Boolean(freshSongLaunch.audio.signedUrl),
         },
       );
 
@@ -11405,6 +11425,11 @@ export default function LessonBuilderClient({
         const message = studentCopy.editor.noChanges;
         setSaveStatus(message);
         return false;
+      }
+
+      const activityKey = selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null;
+      if (!activityKey) {
+        throw new Error("The selected song activity identity is missing; reload the lesson before saving.");
       }
 
       const saveEditGeneration = editGenerationRef.current;
@@ -11453,17 +11478,14 @@ export default function LessonBuilderClient({
             [...timelineEvents, ...rtcmEvents],
             {
               songAssetId: selectedSongStorage.id,
-              activityKey:
-                selectedSongLaunch?.activityKey ??
-                inferSongActivityKeyFromChartPath(selectedSongStorage.chart.path) ??
-                defaultSongActivityKey,
+              activityKey,
               authorId: lastSavedAuthorId,
               revision: lastSavedRevision,
             },
             authoredClock,
             timelineSidecar.stopAtSeconds,
             authoredEquationQueue,
-            { forPublish: true },
+            { forPublish: true, activityKey },
           )
         : null;
 
@@ -11490,11 +11512,7 @@ export default function LessonBuilderClient({
         : authoredSidecar ?? legacyTimeline;
       const sidecarJson = JSON.stringify(sidecarToPersist, null, 2);
       validateLessonContent(chartText, sidecarJson, { forSave: true });
-      const activityKey =
-        selectedSongLaunch?.activityKey ??
-        inferSongActivityKeyFromChartPath(selectedSongStorage.chart.path);
-
-      if (!activityKey || !selectedSongStorage.sidecar) {
+      if (!selectedSongStorage.sidecar) {
         throw new Error("The selected song activity does not have a complete save package.");
       }
 
@@ -11597,7 +11615,11 @@ export default function LessonBuilderClient({
 
       appendSongFlowDebug("lesson-builder:save:complete", "Supabase save completed successfully.", {
         songAssetId: selectedSongStorage.id,
-        result,
+        activityKey,
+        authorId: result.authorId,
+        revision: result.revision,
+        hasChartPath: Boolean(savedChartPath),
+        hasSidecarPath: Boolean(savedSidecarPath),
       });
 
       if (publishedCurrentSnapshot) {
@@ -11618,10 +11640,6 @@ export default function LessonBuilderClient({
       });
 
       if (showNotice) {
-        const activityKey =
-          normalizeSongActivityKey(selectedSongActivity?.key ?? null) ??
-          inferSongActivityKeyFromChartPath(selectedSongStorage.chart.path) ??
-          defaultSongActivityKey;
         const activityLabel = getActivityLabel(activityKey);
         const songLabel =
           metadata?.songTitle?.trim() || uploadedSongName || "Selected song";
@@ -11793,7 +11811,13 @@ export default function LessonBuilderClient({
     appendSongFlowDebug(
       "lesson-builder:session:selected-song",
       "Hydrated selected song payload from session storage.",
-      selectedSong,
+      {
+        selectedSongId: selectedSong.id,
+        requestedActivityKey: selectedSong.activity?.key ?? null,
+        revision: selectedSong.revision ?? null,
+        hasChart: Boolean(selectedSong.chart.signedUrl),
+        hasSidecar: Boolean(selectedSong.sidecar?.signedUrl),
+      },
     );
 
     const storedActivityRaw = sessionStorage.getItem("selectedDashboardActivity");
@@ -11810,13 +11834,30 @@ export default function LessonBuilderClient({
       }
     }
 
-    const requestedActivityKey =
-      selectedSong.activity?.key ?? storedActivity?.key ?? null;
+    let requestedActivityKey: SongActivityKey | null = null;
+    let activityIdentitySource = "none";
     let resolvedPackage: ReturnType<
       typeof resolveRequestedSongActivityPackage
     >;
 
     try {
+      const storedActivityKey = normalizeSongActivityKey(storedActivity?.key);
+      const payloadActivityKey = normalizeSongActivityKey(selectedSong.activity?.key);
+      if (storedActivityKey && payloadActivityKey && storedActivityKey !== payloadActivityKey) {
+        throw new Error(
+          `Current activity ${storedActivityKey} does not match the selected song payload activity ${payloadActivityKey}. Reload the lesson from Song Choice.`,
+        );
+      }
+      const identity = resolveSongActivityIdentity({
+        sessionActivityKey: storedActivityKey,
+        selectedPayloadActivityKey: payloadActivityKey,
+        chartPath: selectedSong.chart.path,
+      });
+      requestedActivityKey = identity.activityKey;
+      activityIdentitySource = identity.source;
+      if (!requestedActivityKey) {
+        throw new Error("Selected song package is missing an explicit activity identity.");
+      }
       resolvedPackage = resolveRequestedSongActivityPackage({
         requestedActivityKey,
         chartPath: selectedSong.chart.path,
@@ -11829,13 +11870,12 @@ export default function LessonBuilderClient({
           : "Selected song package is invalid";
 
       appendSongFlowDebug(
-        "lesson-builder:activity:path-rejected",
-        "Rejected a selected song package that does not match its activity.",
+        "lesson-builder:activity:contract-rejected",
+        "Rejected a selected song package whose activity contract could not be resolved.",
         {
           selectedSongId: selectedSong.id,
           requestedActivityKey,
-          chartPath: selectedSong.chart.path,
-          sidecarPath: selectedSong.sidecar?.path ?? null,
+          identitySource: activityIdentitySource,
           message,
         },
       );
@@ -11867,25 +11907,25 @@ export default function LessonBuilderClient({
     setFilePickerActivityKey(resolvedActivityKey);
     setSelectedSongAuthorId(selectedSong.authorId ?? null);
     setLastSavedAuthorId(selectedSong.authorId ?? null);
-    setLastSavedRevision(extractRevisionFromStoragePath(selectedSong.chart.path));
+    setLastSavedRevision(selectedSong.revision ?? extractRevisionFromStoragePath(selectedSong.chart.path));
     setSelectedSongAuthorName(selectedSong.authorName ?? null);
     if (selectedSong.authorName) {
       setFilePickerAuthorName(selectedSong.authorName);
     }
 
     appendSongFlowDebug(
-      "lesson-builder:activity:path-check",
-      "Validated the selected activity against the chart/sidecar payload paths before fetch.",
+      "lesson-builder:activity:contract-check",
+      "Validated the selected activity identity before fetching the immutable lesson references.",
       {
         selectedSongId: selectedSong.id,
         selectedSongName: selectedSong.name,
-        payloadActivity: selectedSong.activity ?? null,
-        storedActivity,
+        requestedActivityKey,
+        payloadActivityKey: normalizeSongActivityKey(selectedSong.activity?.key),
+        storedActivityKey: normalizeSongActivityKey(storedActivity?.key),
+        identitySource: activityIdentitySource,
         resolvedActivityKey,
-        payloadChartPath: selectedSong.chart.path,
-        payloadSidecarPath: selectedSong.sidecar?.path ?? null,
-        chartMatchesExpected: true,
-        sidecarMatchesExpected: true,
+        revision: selectedSong.revision ?? extractRevisionFromStoragePath(selectedSong.chart.path),
+        source: "selected-song-session",
       },
     );
 
@@ -11909,7 +11949,7 @@ export default function LessonBuilderClient({
       songAssetId: selectedSong.id,
       activityKey: resolvedActivityKey,
       authorName: selectedSong.authorName ?? null,
-      rhythmDifficultyKey: selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key,
+      rhythmDifficultyKey: selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key ?? undefined,
       chartUrl: selectedSong.chart.signedUrl,
       sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
       audioUrl: selectedSong.song.signedUrl,
@@ -11950,7 +11990,7 @@ export default function LessonBuilderClient({
         ? jsonFromSignedUrl(url, signal)
         : Promise.resolve(emptySidecar),
       refresh: async () => {
-        const revision = extractRevisionFromStoragePath(selectedSong.chart.path);
+        const revision = selectedSong.revision ?? extractRevisionFromStoragePath(selectedSong.chart.path);
         if (!revision) return null;
         const fresh = await requestFreshSongLaunchPackage({
           songAssetId: selectedSong.id,
@@ -11959,10 +11999,13 @@ export default function LessonBuilderClient({
           authorName: selectedSong.authorName ?? null,
           revision,
           allowBlankPackage: false,
-          rhythmDifficultyKey: selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key,
+          rhythmDifficultyKey: selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key ?? undefined,
         });
         if (fresh.revision !== revision) {
           throw new Error("Lesson refresh returned a different revision; reload the lesson before editing.");
+        }
+        if (selectedSong.authorId && fresh.authorId !== selectedSong.authorId) {
+          throw new Error("Lesson refresh returned a different author package; reload the lesson before editing.");
         }
         return {
           audioUrl: fresh.audio.signedUrl,
@@ -11995,6 +12038,16 @@ export default function LessonBuilderClient({
           chart,
           selectedSongMetadata,
         );
+        const sidecarActivityKey = normalizeSongActivityKey(
+          normalizedSidecar.authoredSource?.activityKey ?? null,
+        );
+        if (sidecarActivityKey) {
+          assertSongActivityMatches({
+            expectedActivityKey: resolvedActivityKey,
+            actualActivityKey: sidecarActivityKey,
+            boundary: "lesson-sidecar",
+          });
+        }
 
         originalChartFileRef.current = chart;
         setChartFile(chart);
@@ -12156,7 +12209,7 @@ export default function LessonBuilderClient({
       console.error("Failed to parse selected song package", error);
       appendSongFlowDebug("lesson-builder:session:parse-error", "Failed to parse the selected song payload from session storage.", {
         message: error instanceof Error ? error.message : String(error),
-        raw,
+        hasStoredPayload: Boolean(raw),
       });
       setLoadError(
         error instanceof Error
@@ -12755,6 +12808,15 @@ export default function LessonBuilderClient({
       hitPad?: HitBubblePad;
     } = {},
   ) {
+    const capabilities = getActivityAuthoringCapabilities(
+      selectedSongActivity?.key ?? selectedSongLaunch?.activityKey,
+    );
+    if (!capabilities.supportedAuthoredMechanics.includes(mechanic)) {
+      setSaveStatus(
+        `${studentCopy.mechanics[mechanic]} is generated by the Number Bonds runtime; add a Hit cue instead.`,
+      );
+      return;
+    }
     const allowActiveEvent = options.allowActiveEvent ?? true;
     const allowPlayheadEvent = options.allowPlayheadEvent ?? true;
     const draftIfNoEvent = options.draftIfNoEvent ?? false;

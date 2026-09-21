@@ -6,6 +6,10 @@ import {
   getSongLaunchErrorMessage,
   isPlayableSongLaunchPackage,
 } from "../lib/song-choice-flow";
+import {
+  assertSongActivityMatches,
+  resolveSongActivityIdentity,
+} from "../lib/song-activity-authority";
 import type { FreshSongLaunchPackage } from "../lib/song-launch-client";
 
 const packageBase: FreshSongLaunchPackage = {
@@ -48,4 +52,69 @@ test("song package cache keys include activity identity", () => {
 test("all player entry points use the route-local game flow", () => {
   assert.equal(getPlayerLaunchRoute("/demo/student"), "/demo/student/game");
   assert.equal(getPlayerLaunchRoute("/student"), "/student/game");
+});
+
+test("explicit route activity wins over stale session and selected-song payload", () => {
+  assert.deepEqual(
+    resolveSongActivityIdentity({
+      routeActivityKey: "number-bonds",
+      sessionActivityKey: "early-algebra",
+      selectedPayloadActivityKey: "early-algebra",
+      chartPath: "dev/Early_Algebra/jazzmaybach.chart",
+    }),
+    { activityKey: "number-bonds", source: "route" },
+  );
+  assert.deepEqual(
+    resolveSongActivityIdentity({
+      routeActivityKey: "early-algebra",
+      sessionActivityKey: "number-bonds",
+      selectedPayloadActivityKey: "number-bonds",
+      chartPath: "dev/Number_Bonds/jazzmaybach.chart",
+    }),
+    { activityKey: "early-algebra", source: "route" },
+  );
+});
+
+test("legacy chart inference is used only when no explicit identity exists", () => {
+  assert.deepEqual(
+    resolveSongActivityIdentity({
+      selectedPayloadActivityKey: null,
+      chartPath: "dev/Early_Algebra/jazzmaybach.chart",
+    }),
+    { activityKey: "early-algebra", source: "legacy-chart-path" },
+  );
+});
+
+test("an invalid explicit route cannot fall through to stale session or chart identity", () => {
+  assert.throws(
+    () => resolveSongActivityIdentity({
+      routeActivityKey: "not-an-activity",
+      sessionActivityKey: "early-algebra",
+      chartPath: "dev/Early_Algebra/jazzmaybach.chart",
+    }),
+    /Unsupported route activity/,
+  );
+  assert.deepEqual(
+    resolveSongActivityIdentity({ chartPath: "shared/jazzmaybach.chart" }),
+    { activityKey: null, source: "none" },
+  );
+});
+
+test("a package activity mismatch fails closed instead of changing the current activity", () => {
+  assert.throws(
+    () => assertSongActivityMatches({
+      expectedActivityKey: "number-bonds",
+      actualActivityKey: "early-algebra",
+      boundary: "song-package",
+    }),
+    /Activity identity mismatch at song-package/,
+  );
+  assert.equal(
+    assertSongActivityMatches({
+      expectedActivityKey: "early-algebra",
+      actualActivityKey: "early-algebra",
+      boundary: "sidecar",
+    }),
+    "early-algebra",
+  );
 });

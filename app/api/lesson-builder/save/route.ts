@@ -7,9 +7,9 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAppUser } from "@/lib/current-user";
 import {
   buildAuthoredChartStoragePaths,
-  defaultSongActivityKey,
   normalizeSongActivityKey,
   normalizeAuthoredSidecarPath,
+  validateWritableActivityStorageTarget,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import { DEV_AUTHOR_FOLDER, findAuthorByName, getOrCreateDevAuthor } from "@/lib/song-storage";
@@ -176,20 +176,27 @@ async function resolveAuthoredChartTargets({
   });
 
   if (existing) {
+    const writableChartPath = validateWritableActivityStorageTarget({
+      activityKey,
+      path: existing.chartPath,
+      pathKind: "chart",
+    });
+    const writableSidecarPath = validateWritableActivityStorageTarget({
+      activityKey,
+      path: existing.sidecarPath ?? "",
+      pathKind: "sidecar",
+    });
     return {
-      chart: { bucket: existing.chartBucket, path: existing.chartPath },
+      chart: { bucket: existing.chartBucket, path: writableChartPath },
       sidecar: {
         bucket: existing.sidecarBucket ?? "SidecarJsons",
-        path: normalizeAuthoredSidecarPath(
-          existing.chartPath,
-          existing.sidecarPath,
-        ),
+        path: normalizeAuthoredSidecarPath(writableChartPath, writableSidecarPath),
       },
       current: {
         chartBucket: existing.chartBucket,
-        chartPath: existing.chartPath,
+        chartPath: writableChartPath,
         sidecarBucket: existing.sidecarBucket,
-        sidecarPath: existing.sidecarPath,
+        sidecarPath: writableSidecarPath,
       },
       songChartId: existing.id,
     };
@@ -241,13 +248,16 @@ export async function POST(request: Request) {
       );
     }
 
-    if (payload.activityKey != null && (typeof payload.activityKey !== "string" || !normalizeSongActivityKey(payload.activityKey))) {
-      return NextResponse.json({ error: "Unsupported song activity" }, { status: 400 });
-    }
     const activityKey =
-      normalizeSongActivityKey(
-        typeof payload.activityKey === "string" ? payload.activityKey : null,
-      ) ?? defaultSongActivityKey;
+      typeof payload.activityKey === "string"
+        ? normalizeSongActivityKey(payload.activityKey)
+        : null;
+    if (!activityKey) {
+      return NextResponse.json(
+        { error: "activityKey is required and must be a supported song activity" },
+        { status: 400 },
+      );
+    }
 
     const existingSongAsset = await prisma.songAsset.findUnique({
       where: { id: songAssetId },
@@ -284,12 +294,20 @@ export async function POST(request: Request) {
     //
     // A sidecar-only edit should preserve the existing authoritative .chart.
     // The browser does not need to round-trip/reconstruct the rhythm chart.
-    const targets = await resolveAuthoredChartTargets({
-      songAssetId,
-      authorId: targetAuthor.id,
-      activityKey,
-      authorFolder,
-    });
+    let targets: Awaited<ReturnType<typeof resolveAuthoredChartTargets>>;
+    try {
+      targets = await resolveAuthoredChartTargets({
+        songAssetId,
+        authorId: targetAuthor.id,
+        activityKey,
+        authorFolder,
+      });
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "The lesson storage target is not writable for this activity" },
+        { status: 400 },
+      );
+    }
 
     const submittedChartContent =
       typeof payload.chart?.content === "string" &&

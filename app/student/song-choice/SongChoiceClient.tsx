@@ -12,6 +12,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { persistLaunchParams } from "@/lib/launch-handoff";
 import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
+import { assertSongActivityMatches } from "@/lib/song-activity-authority";
+import { normalizeSongActivityKey } from "@/lib/song-activity-storage";
 import {
   buildSongSelectionCacheKey,
   getPlayerLaunchRoute,
@@ -491,6 +493,27 @@ export default function SongChoiceClient({
   // Monotonic token: only the newest selection's async resolution is applied.
   const selectionTokenRef = useRef(0);
 
+  const routeActivityValue = searchParams.get("activity")?.trim() ?? "";
+  const routeActivityKey = normalizeSongActivityKey(routeActivityValue);
+  const hasInvalidExplicitRouteActivity = Boolean(
+    routeActivityValue && !routeActivityKey,
+  );
+  // An explicit route is authoritative. The session value is only the
+  // recovery fallback used when the route carries no activity.
+  const currentActivityKey =
+    hasInvalidExplicitRouteActivity
+      ? null
+      : routeActivityKey ?? normalizeSongActivityKey(selectedActivity?.key);
+
+  function requireActivityKey(fallback?: string | null) {
+    if (hasInvalidExplicitRouteActivity) {
+      throw new Error("This activity is not supported by the current lesson flow.");
+    }
+    const activityKey = currentActivityKey ?? normalizeSongActivityKey(fallback);
+    if (!activityKey) throw new Error("Selected song activity identity is missing");
+    return activityKey;
+  }
+
   const filteredSongs = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -514,18 +537,18 @@ export default function SongChoiceClient({
       return null;
     }
 
-    const freshPackage = selectionPackages[
-      buildSongSelectionCacheKey(baseSong.id, baseSong.activityKey)
-    ];
+    const activityKey = currentActivityKey ?? baseSong.activityKey;
+    const freshPackage = selectionPackages[buildSongSelectionCacheKey(baseSong.id, activityKey)];
 
     if (!freshPackage) {
-      return baseSong;
+      return { ...baseSong, activityKey };
     }
 
     // Overlay the freshly-resolved dev-authored chart/sidecar (and audio)
     // signed URLs resolved at selection time.
     return {
       ...baseSong,
+      activityKey,
       signedUrl: freshPackage.audio.signedUrl,
       song: {
         ...baseSong.song,
@@ -546,10 +569,12 @@ export default function SongChoiceClient({
         contentType: baseSong.sidecar?.contentType ?? "application/json",
       },
     };
-  }, [selectedSongId, songs, selectionPackages]);
+  }, [currentActivityKey, selectedSongId, songs, selectionPackages]);
 
   const selectedSongCacheKey = selectedSong
-    ? buildSongSelectionCacheKey(selectedSong.id, selectedSong.activityKey)
+    ? selectedSong.activityKey
+      ? buildSongSelectionCacheKey(selectedSong.id, selectedSong.activityKey)
+      : null
     : null;
   const selectedSongPackage = selectedSongCacheKey
     ? selectionPackages[selectedSongCacheKey]
@@ -561,7 +586,14 @@ export default function SongChoiceClient({
     : "idle";
 
   function handleSelectSong(song: SongChoiceWithEquationSlots) {
-    const selectionKey = buildSongSelectionCacheKey(song.id, song.activityKey);
+    let requestedActivityKey: NonNullable<ReturnType<typeof normalizeSongActivityKey>>;
+    try {
+      requestedActivityKey = requireActivityKey(song.activityKey);
+    } catch (error) {
+      setLaunchError(getSongLaunchErrorMessage(error));
+      return;
+    }
+    const selectionKey = buildSongSelectionCacheKey(song.id, requestedActivityKey);
     setSelectedSongId(song.id);
     setLaunchError("");
     selectionTokenRef.current += 1;
@@ -586,10 +618,15 @@ export default function SongChoiceClient({
     // entry is created on save instead).
     requestFreshSongLaunchPackage({
       songAssetId: song.id,
-      activityKey: song.activityKey,
+      activityKey: requestedActivityKey,
       allowBlankPackage: true,
     })
       .then((freshPackage) => {
+        assertSongActivityMatches({
+          expectedActivityKey: requestedActivityKey,
+          actualActivityKey: freshPackage.activityKey,
+          boundary: "song-choice-package",
+        });
         setSelectionPackages((current) => ({
           ...current,
           [selectionKey]: freshPackage,
@@ -637,18 +674,23 @@ export default function SongChoiceClient({
       id: selectedSong.id,
       name: selectedSong.name,
       artist: selectedSong.artist,
-      song: selectedSong.song,
-      chart: selectedSong.chart,
-      sidecar: selectedSong.sidecar,
+      requestedActivityKey: currentActivityKey,
+      songChoiceActivityKey: selectedSong.activityKey,
+      packageActivityKey: selectedSongPackage?.activityKey ?? null,
+      revision: selectedSongPackage?.revision ?? null,
+      source: selectedSongPackage?.source ?? null,
+      hasLaunchAttemptId: Boolean(selectedSongPackage?.launchAttemptId),
     });
-  }, [selectedSong]);
+  }, [currentActivityKey, selectedSong, selectedSongPackage]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
 
-    const activityFromUrl = searchParams.get("activity")?.trim().toLowerCase();
+    const activityFromUrl = normalizeSongActivityKey(
+      searchParams.get("activity"),
+    );
 
     if (activityFromUrl) {
       const label = activityLabelMap[activityFromUrl] ?? activityFromUrl;
@@ -658,6 +700,11 @@ export default function SongChoiceClient({
         "selectedDashboardActivity",
         JSON.stringify(value),
       );
+      return;
+    }
+
+    if (searchParams.get("activity")?.trim()) {
+      setLaunchError("This activity is not supported by the current lesson flow.");
       return;
     }
 
@@ -671,9 +718,10 @@ export default function SongChoiceClient({
 
     try {
       const parsed = JSON.parse(storedActivity) as { key?: string; label?: string };
-      if (parsed?.key) {
-        const label = parsed.label ?? activityLabelMap[parsed.key] ?? parsed.key;
-        setSelectedActivity({ key: parsed.key, label });
+      const normalizedKey = normalizeSongActivityKey(parsed?.key);
+      if (normalizedKey) {
+        const label = parsed.label ?? activityLabelMap[normalizedKey] ?? normalizedKey;
+        setSelectedActivity({ key: normalizedKey, label });
       }
     } catch {
       window.sessionStorage.removeItem("selectedDashboardActivity");
@@ -713,9 +761,10 @@ export default function SongChoiceClient({
   }, [songs, durationsById]);
 
   function buildSelectedSongPayload(song: SongChoiceWithEquationSlots) {
+    const activityKey = requireActivityKey(song.activityKey);
     const activityContext = {
-      key: song.activityKey,
-      label: selectedActivity?.label ?? song.activityKey,
+      key: activityKey,
+      label: selectedActivity?.label ?? activityLabelMap[activityKey] ?? activityKey,
     };
 
     return {
@@ -723,6 +772,10 @@ export default function SongChoiceClient({
       name: song.name,
       title: song.title,
       artist: song.artist,
+      authorId: selectedSongPackage?.authorId ?? null,
+      authorName: song.authorName ?? null,
+      revision: selectedSongPackage?.revision ?? null,
+      rhythmDifficultyKey: selectedSongPackage?.rhythmDifficultyKey ?? null,
       activity: activityContext,
 
       song: {
@@ -780,8 +833,10 @@ export default function SongChoiceClient({
     appendSongFlowDebug("song-choice:continue", "Persisting selected song payload into session storage and routing to lesson builder.", {
       navBasePath,
       lessonBuilderRoute: `${navBasePath}/lesson-builder`,
-      selectedActivity,
-      payload: selectedSongPayload,
+      requestedActivityKey: currentActivityKey,
+      selectedPayloadActivityKey: selectedSongPayload.activity.key,
+      hasChart: Boolean(selectedSongPayload.chart.signedUrl),
+      hasSidecar: Boolean(selectedSongPayload.sidecar?.signedUrl),
     });
 
     window.sessionStorage.setItem(
@@ -802,9 +857,10 @@ export default function SongChoiceClient({
     setLaunchError("");
     try {
     const selectedSongPayload = buildSelectedSongPayload(selectedSong);
+    const activityKey = requireActivityKey(selectedSong.activityKey);
     const freshPackage = await requestFreshSongLaunchPackage({
       songAssetId: selectedSong.id,
-      activityKey: selectedSong.activityKey,
+      activityKey,
     });
     if (!isPlayableSongLaunchPackage(freshPackage)) {
       throw new Error(freshPackage.readiness.message);
@@ -833,9 +889,11 @@ export default function SongChoiceClient({
       {
         navBasePath,
         launchRoute,
-        launchUrl,
-        selectedActivity,
-        selectedSongPayload,
+        requestedActivityKey: activityKey,
+        packageActivityKey: freshPackage.activityKey,
+        revision: freshPackage.revision ?? null,
+        source: freshPackage.source,
+        hasLaunchAttemptId: Boolean(freshPackage.launchAttemptId),
       },
     );
 

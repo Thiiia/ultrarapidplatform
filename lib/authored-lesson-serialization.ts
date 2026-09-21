@@ -1,5 +1,6 @@
 import { tokenizeAuthoredEquationState } from "./authored-lesson";
 import { evaluateLessonPublishReadiness } from "./guided-authored-encounter";
+import { getAuthoredActivityContractIssues } from "./activity-authoring-capabilities";
 
 /**
  * v3 authored-lesson serialization boundary for the lesson builder.
@@ -157,10 +158,13 @@ export function serializeAuthoredLesson(
   clock: AuthoredLessonClock,
   stopAtSeconds?: number,
   equationQueue: AuthoredSavedEquation[] = [],
-  options: { forPublish?: boolean } = {},
+  options: { forPublish?: boolean; activityKey?: string | null } = {},
 ): AuthoredLessonDraft {
   if (options.forPublish) {
-    const readiness = evaluateLessonPublishReadiness(events);
+    const readiness = evaluateLessonPublishReadiness(events, {
+      activityKey: options.activityKey ?? identity.activityKey,
+      equationQueue,
+    });
     if (!readiness.ready) {
       const firstBlocker = readiness.blockers[0];
       throw new Error(
@@ -256,7 +260,7 @@ export function serializeAuthoredLesson(
     });
   });
 
-  return {
+  const draft: AuthoredLessonDraft = {
     version: 3,
     mode: "authored",
     songAssetId: identity.songAssetId,
@@ -267,6 +271,15 @@ export function serializeAuthoredLesson(
     equations: equations.map((equation) => ({ ...equation, tokens: equation.tokens.map((token) => ({ ...token })) })),
     encounters,
   };
+
+  if (options.forPublish) {
+    const contractIssue = getAuthoredActivityContractIssues(draft)[0];
+    if (contractIssue) {
+      throw new Error(`Authored lesson is not ready to publish: ${contractIssue.message}`);
+    }
+  }
+
+  return draft;
 }
 
 type HydrationEquation = AuthoredSavedEquation;

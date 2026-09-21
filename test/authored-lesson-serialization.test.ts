@@ -596,6 +596,85 @@ test("does not silently drop an empty queued equation", () => {
   );
 });
 
+test("Number Bonds published content hydrates and serializes without changing its contract", () => {
+  const clock = createLessonClock(
+    `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+  );
+  const numberBondsIdentity = {
+    ...IDENTITY,
+    activityKey: "number-bonds",
+  };
+  const numberBondsEquation = equation("bond-5", ["5", "=", "2", "+", "3"]);
+  const events = Array.from({ length: 5 }, (_, index) => makeEvent(
+    `event-${index}`,
+    10 + index * 10,
+    { hit: 1 },
+    {
+      equation: numberBondsEquation,
+      instances: {
+        hit: [instance(`hit-${index}`, {
+          tick: 10 + index * 10,
+          equation: numberBondsEquation,
+          hitBubbles: [{ tokenIndex: 0, targetId: "bond-5-token-0", positions: ["left"], pads: ["left"] }],
+        })],
+      },
+    },
+  ));
+
+  const first = serializeAuthoredLesson(
+    events,
+    numberBondsIdentity,
+    clock,
+    undefined,
+    [numberBondsEquation],
+    { forPublish: true, activityKey: "number-bonds" },
+  );
+  const parsed = parseAuthoredLessonDraft(first);
+  const hydrated = timelineEventsFromAuthoredLesson(parsed, clock);
+  const second = serializeAuthoredLesson(
+    hydrated.events,
+    numberBondsIdentity,
+    clock,
+    undefined,
+    hydrated.equations,
+    { forPublish: true, activityKey: "number-bonds" },
+  );
+
+  assert.deepEqual(second, first);
+  assert.equal(second.activityKey, "number-bonds");
+  assert.equal(second.encounters.length, 5);
+
+  const editedEvents = hydrated.events.map((event, index) => {
+    if (index !== 1) return event;
+    return {
+      ...event,
+      mechanicInstances: {
+        ...event.mechanicInstances,
+        hit: event.mechanicInstances.hit.map((hitInstance) => ({
+          ...hitInstance,
+          tick: (hitInstance.tick ?? event.tick) + 1,
+        })),
+      },
+    };
+  });
+  const edited = serializeAuthoredLesson(
+    editedEvents,
+    numberBondsIdentity,
+    clock,
+    undefined,
+    hydrated.equations,
+    { forPublish: true, activityKey: "number-bonds" },
+  );
+  assert.equal(
+    edited.encounters.find((encounter) => encounter.id === "hit-1")?.startTick,
+    clock.toTick(21),
+  );
+  assert.deepEqual(
+    edited.encounters.filter((encounter) => encounter.id !== "hit-1"),
+    first.encounters.filter((encounter) => encounter.id !== "hit-1"),
+  );
+});
+
 test("never serializes a foreign target identity after an equation edit", () => {
   const clock = { toTick: (seconds: number) => Math.round(seconds * 1000), toSeconds: (tick: number) => tick / 1000 };
   const draft = serializeAuthoredLesson(

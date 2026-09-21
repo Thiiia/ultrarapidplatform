@@ -1,5 +1,6 @@
 import { createSongLaunchSearchParams } from "./platform-launch";
 import type { LessonReadiness, PlayableLessonSource, RhythmDifficultyKey, SongLaunchReceipt } from "./song-launch-package";
+import { assertSongActivityMatches } from "./song-activity-authority";
 
 export async function requestFreshSongLaunchParams(input: { songAssetId: string; activityKey: string; authorId?: string | null; authorName?: string | null; revision?: string | null; allowBlankPackage?: boolean; rhythmDifficultyKey?: RhythmDifficultyKey; learningDifficultyKey?: string | null; refreshLaunchAttemptId?: string | null }) {
   const fresh = await requestFreshSongLaunchPackage(input);
@@ -81,6 +82,12 @@ export async function requestFreshSongLaunchPackage({
   if (!response.ok || !result || !("chart" in result) || !("sidecar" in result) || !("audio" in result)) {
     throw new Error(result?.error ?? "Unable to prepare the current song package");
   }
+
+  assertSongActivityMatches({
+    expectedActivityKey: activityKey,
+    actualActivityKey: result.activityKey,
+    boundary: "song-package",
+  });
 
   return result;
 }

@@ -105,6 +105,62 @@ function assertStoragePathBelongsToActivity({
   }
 }
 
+/**
+ * Validate a storage target that a save is allowed to write. This deliberately
+ * remains folder-owned even though immutable read references may be shared by
+ * multiple activity revisions.
+ */
+export function validateWritableActivityStorageTarget({
+  activityKey,
+  path,
+  pathKind,
+}: {
+  activityKey: SongActivityKey;
+  path: string;
+  pathKind: "chart" | "sidecar";
+}) {
+  if (!path.trim()) {
+    throw new Error(`Missing ${pathKind} storage path for ${activityKey}`);
+  }
+
+  assertStoragePathBelongsToActivity({ activityKey, path, pathKind });
+
+  if (pathKind === "chart" && !path.trim().toLowerCase().endsWith(".chart")) {
+    throw new Error("Writable chart path must reference a .chart file");
+  }
+  if (pathKind === "sidecar" && !path.trim().toLowerCase().endsWith(".json")) {
+    throw new Error("Writable sidecar path must reference a JSON file");
+  }
+
+  return path;
+}
+
+/**
+ * Validate an immutable rhythm reference. The physical folder is not an
+ * activity authority: the same hash-pinned chart bytes may be referenced by
+ * more than one activity revision.
+ */
+export function validateRhythmChartReference(chartPath: string) {
+  const normalized = chartPath.trim();
+  if (!normalized.toLowerCase().endsWith(".chart")) {
+    throw new Error("Stored chart path must reference a .chart file; repair the lesson record");
+  }
+  return normalized;
+}
+
+/**
+ * Validate the file shape of an immutable activity sidecar reference. Its
+ * activity identity is validated from the sidecar/revision contract, not from
+ * the storage folder name.
+ */
+export function validateActivitySidecarReference(sidecarPath: string) {
+  const normalized = sidecarPath.trim();
+  if (!normalized.toLowerCase().endsWith(".json")) {
+    throw new Error("Stored sidecar path must reference its actual JSON file; repair the lesson record");
+  }
+  return normalized;
+}
+
 export function resolveRequestedSongActivityPackage({
   requestedActivityKey,
   chartPath,
@@ -124,37 +180,25 @@ export function resolveRequestedSongActivityPackage({
     throw new Error(`Missing chart path for ${activityKey}`);
   }
 
-  assertStoragePathBelongsToActivity({
-    activityKey,
-    path: chartPath,
-    pathKind: "chart",
-  });
+  const resolvedChartPath = validateRhythmChartReference(chartPath);
 
-  const resolvedSidecarPath = sidecarPath?.trim() ? sidecarPath : null;
+  const resolvedSidecarPath = sidecarPath?.trim()
+    ? validateActivitySidecarReference(sidecarPath)
+    : null;
 
   if (!resolvedSidecarPath && activityKey === "early-algebra") {
     throw new Error(`Missing sidecar path for ${activityKey}`);
   }
 
   if (resolvedSidecarPath) {
-    assertStoragePathBelongsToActivity({
-      activityKey,
-      path: resolvedSidecarPath,
-      pathKind: "sidecar",
-    });
-
-    // Folder ownership alone is not enough: historical database rows have
-    // accidentally stored a JSON sidecar in chartPath (and vice versa). Reject
-    // that record before a signed URL is fetched so the editor can show a
-    // repairable package state rather than an empty timeline.
-    normalizeAuthoredSidecarPath(chartPath, resolvedSidecarPath);
-  } else if (!chartPath.trim().toLowerCase().endsWith(".chart")) {
-    throw new Error("Stored chart path must reference a .chart file; repair the lesson record");
+    // File shape is checked before fetching. Activity identity is checked by
+    // the revision metadata and parsed sidecar contract, not by this folder.
+    normalizeAuthoredSidecarPath(resolvedChartPath, resolvedSidecarPath);
   }
 
   return {
     activityKey,
-    chartPath,
+    chartPath: resolvedChartPath,
     sidecarPath: resolvedSidecarPath,
   };
 }
@@ -215,13 +259,7 @@ export function normalizeAuthoredSidecarPath(
   chartPath: string,
   sidecarPath?: string | null,
 ) {
-  const sidecar = sidecarPath?.trim() ?? "";
-  if (!chartPath.trim().toLowerCase().endsWith(".chart")) {
-    throw new Error("Stored chart path must reference a .chart file; repair the lesson record");
-  }
-  if (!sidecar.toLowerCase().endsWith(".json")) {
-    throw new Error("Stored sidecar path must reference its actual JSON file; repair the lesson record");
-  }
-  return sidecar;
+  validateRhythmChartReference(chartPath);
+  return validateActivitySidecarReference(sidecarPath?.trim() ?? "");
 }
 

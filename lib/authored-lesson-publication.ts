@@ -9,6 +9,7 @@ import {
 } from '@/lib/authored-lesson';
 import { isLegacyEncounterSidecar } from '@/lib/legacy-encounters';
 import { migrateLegacyEncounterSidecar, repairLegacyMigratedAuthoredLesson } from '@/lib/legacy-authored-migration';
+import { getAuthoredActivityContractIssues } from '@/lib/activity-authoring-capabilities';
 
 export type AuthoredLessonPublication = {
   content: string;
@@ -75,6 +76,10 @@ export function prepareAuthoredLessonForPublication({
     });
   } else {
     draft = parseAuthoredLessonDraft(repairLegacyMigratedAuthoredLesson(raw));
+  }
+  const activityContractIssue = getAuthoredActivityContractIssues(draft)[0];
+  if (activityContractIssue) {
+    throw new Error(activityContractIssue.message);
   }
   if (runtimeClock) {
     validateAuthoredRuntimePresentationConcurrency(draft.encounters, runtimeClock);

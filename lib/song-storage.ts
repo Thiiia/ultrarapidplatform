@@ -536,11 +536,26 @@ export async function getSongChoices(
       encounterCount: { not: null },
       targetCount: { not: null },
     },
-    distinct: ["songAssetId"],
-    select: { songAssetId: true },
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    select: {
+      songAssetId: true,
+      chartBucket: true,
+      chartPath: true,
+      sidecarBucket: true,
+      sidecarPath: true,
+    },
   });
 
-  const playableSongAssetIds = readyRevisions.map((revision) => revision.songAssetId);
+  // The revision is the immutable read authority. Do not reconstruct paths
+  // from the requested activity folder: a Number Bonds revision may safely
+  // reference shared rhythm bytes stored under an older activity folder.
+  const latestRevisionBySongAsset = new Map<string, (typeof readyRevisions)[number]>();
+  for (const revision of readyRevisions) {
+    if (!latestRevisionBySongAsset.has(revision.songAssetId)) {
+      latestRevisionBySongAsset.set(revision.songAssetId, revision);
+    }
+  }
+  const playableSongAssetIds = [...latestRevisionBySongAsset.keys()];
   if (playableSongAssetIds.length === 0) {
     return [];
   }
@@ -560,21 +575,18 @@ export async function getSongChoices(
         updatedAt: songAsset.updatedAt.toISOString(),
       };
 
-      const prospectivePaths = buildAuthoredChartStoragePaths({
-        activityKey: preferredActivityKey,
-        songAssetId: songAsset.id,
-        authorFolder: DEV_AUTHOR_FOLDER,
-      });
+      const revision = latestRevisionBySongAsset.get(songAsset.id);
+      if (!revision) return null;
 
       return buildSongChoiceForAsset({
         songAsset,
         storageSong,
         activityKey: preferredActivityKey,
         chartRecord: {
-          chartBucket: "Charts",
-          chartPath: prospectivePaths.chartPath,
-          sidecarBucket: "SidecarJsons",
-          sidecarPath: prospectivePaths.sidecarPath,
+          chartBucket: revision.chartBucket,
+          chartPath: revision.chartPath,
+          sidecarBucket: revision.sidecarBucket,
+          sidecarPath: revision.sidecarPath,
         },
         signChartAssets: false,
       });

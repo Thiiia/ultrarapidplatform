@@ -191,3 +191,46 @@ test("ready calibration forwards requiresCalibration false and the exact calibra
   assert.equal(output.searchParams.get("calibrationProtocolVersion"), "1");
   assert.equal(output.searchParams.get("calibrationOffsetMs"), "-37");
 });
+
+test("iframe launch preserves the Phase 5 identity and provenance field set", () => {
+  const input = new URLSearchParams({
+    launch: "PlayNow",
+    sceneName: "AlgebraEquations SK Tag",
+    songAssetId: "jazzmaybach",
+    activityKey: "number-bonds",
+    authorId: "author-7",
+    revision: "rev-7",
+    source: "starter-template",
+    templateId: "template-7",
+    templateLabel: "Verified Number Bonds",
+    templateOrigin: "verified-starter-template",
+    templateSourceRevision: "template-rev-7",
+    launchAttemptId: "00000000-0000-4000-8000-000000000007",
+    bridgeNonce: "00000000-0000-4000-8000-000000000008",
+    installationId: "00000000-0000-4000-8000-000000000009",
+    platformOrigin: "https://platform.example",
+    rhythmDifficultyKey: "HardSingle",
+    learningDifficultyKey: "number-bonds",
+    requiresCalibration: "true",
+    calibrationProtocolVersion: "1",
+    calibrationOffsetMs: "12",
+    chartUrl: "https://storage.example/jazz.chart?sig=chart",
+    sidecarUrl: "https://storage.example/jazz.json?sig=sidecar",
+    audioUrl: "https://storage.example/jazz.mp3?sig=audio",
+    assignmentToken: "assignment-7",
+    sessionToken: "session-7",
+    callbackTarget: "https://platform.example/callback",
+    returnTarget: "https://platform.example/return",
+  });
+  const output = new URL(buildEmbeddedGameUrl("https://game.example/player?embed=1", input));
+  for (const key of [
+    "sceneName", "songAssetId", "activityKey", "authorId", "revision", "source",
+    "templateId", "templateLabel", "templateOrigin", "templateSourceRevision",
+    "launchAttemptId", "bridgeNonce", "installationId", "platformOrigin",
+    "rhythmDifficultyKey", "learningDifficultyKey", "requiresCalibration",
+    "calibrationProtocolVersion", "calibrationOffsetMs", "chartUrl", "sidecarUrl",
+    "audioUrl", "assignmentToken", "sessionToken", "callbackTarget", "returnTarget",
+  ]) {
+    assert.equal(output.searchParams.get(key), input.get(key), `${key} was lost from the iframe URL`);
+  }
+});
