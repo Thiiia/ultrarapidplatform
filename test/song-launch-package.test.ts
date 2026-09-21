@@ -43,6 +43,30 @@ test("marks a complete immutable package ready for the editor and Unity", async 
   });
 });
 
+test("keeps a known Equations package blocked when the current Unity runtime does not implement it", async () => {
+  const resolved = await resolveFreshSongLaunchPackage({
+    songAssetId: "song-equations",
+    activityKey: "equations",
+    authorId: "author-equations",
+    revision: "rev-equations",
+    loadSongAsset: async () => ({
+      id: "song-equations", isActive: true, songBucket: "Songs", songPath: "songs/equations.mp3",
+    }),
+    loadSongChart: async () => ({
+      chartBucket: "Charts", chartPath: "Equations/revisions/rev-equations/equations.chart",
+      sidecarBucket: "SidecarJsons", sidecarPath: "Equations/revisions/rev-equations/equations.json",
+      authorId: "author-equations", revision: "rev-equations",
+      counts: { encounters: 2, equations: 2, targets: 2 }, hashes: HASHES,
+    }),
+    createSignedUrl: async (_bucket, path) => `https://storage.example/${path}`,
+  });
+
+  assert.equal(resolved.source, "authored");
+  assert.equal(resolved.readiness.state, "blocked");
+  assert.equal(resolved.readiness.canLaunch, false);
+  assert.match(resolved.readiness.message, /Unity runtime does not implement/i);
+});
+
 test("keeps a blank editor scaffold blocked from gameplay when no verified template exists", async () => {
   const resolved = await resolveFreshSongLaunchPackage({
     songAssetId: "song-template",
@@ -148,6 +172,44 @@ test("launches only a complete verified starter template with its own receipt an
     "templates/Number_Bonds/revisions/template-rev-1/template.json",
     "songs/template.mp3",
   ]);
+});
+
+test("keeps a verified Missing Numbers starter template blocked by runtime compatibility", async () => {
+  const resolved = await resolveFreshSongLaunchPackage({
+    songAssetId: "song-missing-numbers",
+    activityKey: "missing-numbers",
+    authorId: null,
+    loadSongAsset: async () => ({
+      id: "song-missing-numbers", isActive: true, songBucket: "Songs", songPath: "songs/source.mp3",
+    }),
+    loadSongChart: async () => null,
+    loadVerifiedStarterTemplate: async () => ({
+      songAssetId: "song-missing-numbers",
+      activityKey: "missing-numbers",
+      authorId: "template-author",
+      revision: "template-rev-1",
+      chartBucket: "Charts",
+      chartPath: "templates/Missing_Numbers/revisions/template-rev-1/template.chart",
+      sidecarBucket: "SidecarJsons",
+      sidecarPath: "templates/Missing_Numbers/revisions/template-rev-1/template.json",
+      audioBucket: "Songs",
+      audioPath: "songs/template.mp3",
+      counts: { encounters: 1, equations: 0, targets: 1 },
+      hashes: HASHES,
+      templateProvenance: {
+        templateId: "missing-numbers:template-1",
+        label: "Missing Numbers starter",
+        origin: "verified-starter-template" as const,
+        sourceRevision: "template-source-rev-1",
+      },
+    }),
+    createSignedUrl: async (_bucket, path) => `https://storage.example/${path}`,
+  });
+
+  assert.equal(resolved.source, "starter-template");
+  assert.equal(resolved.readiness.state, "blocked");
+  assert.equal(resolved.readiness.canLaunch, false);
+  assert.match(resolved.readiness.message, /Unity runtime does not implement/i);
 });
 
 test("legacy packages cannot bypass the immutable receipt boundary", async () => {

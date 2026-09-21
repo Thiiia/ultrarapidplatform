@@ -20,6 +20,7 @@ import {
   inferSongActivityKeyFromChartPath,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
+import { isCurrentUnityRuntimeActivity } from "@/lib/unity-runtime-activity";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../../student/student.module.css";
 
@@ -5213,6 +5214,13 @@ export default function LessonBuilderClient({
       return;
     }
 
+    if (!isCurrentUnityRuntimeActivity(selectedSongLaunch.activityKey)) {
+      setSaveStatus(
+        `The current Unity runtime does not implement activity "${selectedSongLaunch.activityKey}".`,
+      );
+      return;
+    }
+
     if (!(await handleSaveToSupabase())) return;
     try {
     const launchParams = await requestFreshSongLaunchParams({ ...selectedSongLaunch, rhythmDifficultyKey: selectedSongLaunch.rhythmDifficultyKey });
@@ -5522,7 +5530,9 @@ export default function LessonBuilderClient({
         onUploadSidecar={handleUploadSidecarJsonFile}
         songs={songs}
         onSelectSupabaseSong={handleSelectSupabaseSong}
-        canLaunch={Boolean(selectedSongLaunch)}
+        canLaunch={Boolean(
+          selectedSongLaunch && isCurrentUnityRuntimeActivity(selectedSongLaunch.activityKey),
+        )}
         onLaunch={handleLaunchGame}
       />
 

@@ -1,5 +1,6 @@
 import { resolveRequestedSongActivityKey, resolveRequestedSongActivityPackage } from "@/lib/song-activity-storage";
 import { extractRevisionFromStoragePath, requireMatchingRevision } from "@/lib/song-launch-identity";
+import { getUnityRuntimeActivityIssue, isCurrentUnityRuntimeActivity } from "@/lib/unity-runtime-activity";
 
 type SignedStorageRef = {
   bucket: string;
@@ -223,6 +224,28 @@ export async function resolveFreshSongLaunchPackage({
     throw new Error(`Unsupported song activity: ${activityKey}`);
   }
 
+  const unityRuntimeActivityIssue = isCurrentUnityRuntimeActivity(requestedActivityKey)
+    ? null
+    : getUnityRuntimeActivityIssue(requestedActivityKey);
+  const resolvePlayableReadiness = (
+    source: PlayableLessonSource,
+    message: string,
+  ): LessonReadiness => {
+    if (unityRuntimeActivityIssue) {
+      return {
+        state: "blocked",
+        source,
+        canLaunch: false,
+        message: unityRuntimeActivityIssue.message,
+        issues: [unityRuntimeActivityIssue],
+      };
+    }
+
+    return source === "authored"
+      ? { state: "ready", source, canLaunch: true, message }
+      : { state: "template-fallback", source, canLaunch: true, message };
+  };
+
   const audioBucket = readRequiredString(songAsset.songBucket, "songBucket");
   const audioPath = readRequiredString(songAsset.songPath, "songPath");
 
@@ -283,12 +306,7 @@ export async function resolveFreshSongLaunchPackage({
       ...(learningDifficultyKey ? { learningDifficultyKey } : {}),
       ...(launchAttemptId ? { launchAttemptId } : {}),
       receipt,
-      readiness: {
-        state: "template-fallback",
-        source: "starter-template",
-        canLaunch: true,
-        message,
-      },
+      readiness: resolvePlayableReadiness("starter-template", message),
       chart: { bucket: template.chartBucket, path: template.chartPath, signedUrl: chartUrl },
       sidecar: { bucket: template.sidecarBucket, path: template.sidecarPath, signedUrl: sidecarUrl },
       audio: { bucket: template.audioBucket, path: template.audioPath, signedUrl: audioUrl },
@@ -433,12 +451,7 @@ export async function resolveFreshSongLaunchPackage({
     ...(learningDifficultyKey ? { learningDifficultyKey } : {}),
     ...(launchAttemptId ? { launchAttemptId } : {}),
     receipt,
-    readiness: {
-      state: "ready",
-      source: "authored",
-      canLaunch: true,
-      message: "Your authored lesson is ready for Unity.",
-    },
+    readiness: resolvePlayableReadiness("authored", "Your authored lesson is ready for Unity."),
     chart: {
       bucket: chartTargets.chartBucket,
       path: chartTargets.chartPath,

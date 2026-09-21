@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { resolveFreshSongLaunchPackage } from "@/lib/song-launch-package";
+import { shouldCreatePlayerLaunchAttempt } from "@/lib/player-launch-attempt-policy";
 import { getCurrentAppUser } from "@/lib/current-user";
 import {
   DEV_AUTHOR_FOLDER,
@@ -211,7 +212,18 @@ export async function POST(request: Request) {
       createSignedUrl,
     });
 
-    if (!refreshLaunchAttemptId && player && songPackage.receipt && songPackage.launchAttemptId && songPackage.source !== "editor-scaffold") {
+    if (shouldCreatePlayerLaunchAttempt({
+      hasAuthenticatedPlayer: Boolean(player),
+      refreshLaunchAttemptId,
+      source: songPackage.source,
+      canLaunch: songPackage.readiness.canLaunch,
+      hasReceipt: Boolean(songPackage.receipt),
+      hasLaunchAttemptId: Boolean(songPackage.launchAttemptId),
+    })) {
+      if (!songPackage.receipt || !songPackage.launchAttemptId || !player) {
+        throw new Error("Playable launch package is missing its receipt, attempt id, or authenticated player");
+      }
+
       await prisma.playerLaunchAttempt.create({
         data: {
           launchAttemptId: songPackage.launchAttemptId,
