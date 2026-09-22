@@ -1,0 +1,3 @@
+ALTER TABLE "School"
+ADD COLUMN "city" TEXT,
+ADD COLUMN "country" TEXT DEFAULT 'England';
