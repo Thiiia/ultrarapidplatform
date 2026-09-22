@@ -63,6 +63,18 @@ test("song choice does not present a package that is still loading as ready", ()
   assert.match(songChoice, /Try again/);
 });
 
+test("song choice keeps direct entry activity-bound and makes previews interactive", () => {
+  const songChoice = source("app/student/song-choice/SongChoiceClient.tsx");
+
+  assert.match(songChoice, /const catalogueActivityKey =/);
+  assert.match(songChoice, /routeActivityKey \?\? catalogueActivityKey/);
+  assert.match(songChoice, /activeSelectionKeyRef/);
+  assert.doesNotMatch(songChoice, /selectionTokenRef/);
+  assert.match(songChoice, /handlePreview/);
+  assert.match(songChoice, /aria-label=\{[\s\S]{0,220}studentCopy\.songChoice\.(pausePreview|preview)/);
+  assert.match(songChoice, /previewUnavailable/);
+});
+
 test("demo song choice defaults to the published Early Algebra catalogue", () => {
   const demoSongChoice = source("app/demo/student/song-choice/page.tsx");
 

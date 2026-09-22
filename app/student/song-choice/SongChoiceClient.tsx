@@ -490,8 +490,13 @@ export default function SongChoiceClient({
     Record<string, SongPackageLoadStatus>
   >({});
   const pendingSelectionsRef = useRef<Set<string>>(new Set());
-  // Monotonic token: only the newest selection's async resolution is applied.
-  const selectionTokenRef = useRef(0);
+  // Packages are keyed by activity + song, so a completed request is safe to
+  // cache even when the learner has already selected another row. Keep the
+  // current key only for deciding which request may surface an error.
+  const activeSelectionKeyRef = useRef<string | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [previewingSongId, setPreviewingSongId] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState("");
 
   const routeActivityValue = searchParams.get("activity")?.trim() ?? "";
   const routeActivityKey = normalizeSongActivityKey(routeActivityValue);
@@ -500,10 +505,14 @@ export default function SongChoiceClient({
   );
   // An explicit route is authoritative. The session value is only the
   // recovery fallback used when the route carries no activity.
+  // The server catalogue is the authoritative fallback when this page is
+  // opened directly without ?activity= or a dashboard session value. This
+  // prevents a valid song list from becoming unselectable on a cold entry.
+  const catalogueActivityKey = normalizeSongActivityKey(songs[0]?.activityKey);
   const currentActivityKey =
     hasInvalidExplicitRouteActivity
       ? null
-      : routeActivityKey ?? normalizeSongActivityKey(selectedActivity?.key);
+      : routeActivityKey ?? catalogueActivityKey ?? normalizeSongActivityKey(selectedActivity?.key);
 
   function requireActivityKey(fallback?: string | null) {
     if (hasInvalidExplicitRouteActivity) {
@@ -595,9 +604,10 @@ export default function SongChoiceClient({
     }
     const selectionKey = buildSongSelectionCacheKey(song.id, requestedActivityKey);
     setSelectedSongId(song.id);
+    activeSelectionKeyRef.current = selectionKey;
+    setPreviewError("");
+    stopSongPreview();
     setLaunchError("");
-    selectionTokenRef.current += 1;
-    const selectionToken = selectionTokenRef.current;
 
     if (selectionPackages[selectionKey]) {
       setSelectionStatusById((current) => ({ ...current, [selectionKey]: "ready" }));
@@ -632,17 +642,13 @@ export default function SongChoiceClient({
           [selectionKey]: freshPackage,
         }));
 
-        // Drop stale responses: a slower earlier selection must not overwrite
-        // the package for the song the user selected most recently.
-        if (selectionToken !== selectionTokenRef.current) {
-          return;
-        }
         setSelectionStatusById((current) => ({ ...current, [selectionKey]: "ready" }));
       })
       .catch((error) => {
-        if (selectionToken !== selectionTokenRef.current) return;
         setSelectionStatusById((current) => ({ ...current, [selectionKey]: "error" }));
-        setLaunchError(getSongLaunchErrorMessage(error));
+        if (activeSelectionKeyRef.current === selectionKey) {
+          setLaunchError(getSongLaunchErrorMessage(error));
+        }
       })
       .finally(() => {
         pendingSelectionsRef.current.delete(selectionKey);
@@ -708,6 +714,19 @@ export default function SongChoiceClient({
       return;
     }
 
+    if (catalogueActivityKey) {
+      const value = {
+        key: catalogueActivityKey,
+        label: activityLabelMap[catalogueActivityKey] ?? catalogueActivityKey,
+      };
+      setSelectedActivity(value);
+      window.sessionStorage.setItem(
+        "selectedDashboardActivity",
+        JSON.stringify(value),
+      );
+      return;
+    }
+
     const storedActivity = window.sessionStorage.getItem(
       "selectedDashboardActivity",
     );
@@ -726,7 +745,7 @@ export default function SongChoiceClient({
     } catch {
       window.sessionStorage.removeItem("selectedDashboardActivity");
     }
-  }, [searchParams]);
+  }, [catalogueActivityKey, searchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -759,6 +778,68 @@ export default function SongChoiceClient({
       cancelled = true;
     };
   }, [songs, durationsById]);
+
+  function stopSongPreview() {
+    const audio = previewAudioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.src = "";
+    }
+    previewAudioRef.current = null;
+    setPreviewingSongId(null);
+  }
+
+  async function handlePreview(song: SongChoiceWithEquationSlots) {
+    setPreviewError("");
+
+    if (previewingSongId === song.id) {
+      stopSongPreview();
+      return;
+    }
+
+    stopSongPreview();
+    if (!song.signedUrl.trim()) {
+      setPreviewError(studentCopy.songChoice.previewUnavailable);
+      return;
+    }
+
+    const audio = new Audio(song.signedUrl);
+    audio.preload = "metadata";
+    audio.onended = () => {
+      if (previewAudioRef.current !== audio) return;
+      previewAudioRef.current = null;
+      setPreviewingSongId(null);
+    };
+    audio.onerror = () => {
+      if (previewAudioRef.current !== audio) return;
+      previewAudioRef.current = null;
+      setPreviewingSongId(null);
+      setPreviewError(studentCopy.songChoice.previewUnavailable);
+    };
+    previewAudioRef.current = audio;
+    setPreviewingSongId(song.id);
+
+    try {
+      await audio.play();
+    } catch {
+      if (previewAudioRef.current !== audio) return;
+      previewAudioRef.current = null;
+      setPreviewingSongId(null);
+      setPreviewError(studentCopy.songChoice.previewUnavailable);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      const audio = previewAudioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.src = "";
+      }
+      previewAudioRef.current = null;
+    };
+  }, []);
 
   function buildSelectedSongPayload(song: SongChoiceWithEquationSlots) {
     const activityKey = requireActivityKey(song.activityKey);
@@ -1098,6 +1179,20 @@ export default function SongChoiceClient({
               />
             </div>
 
+            {previewError ? (
+              <p
+                role="alert"
+                style={{
+                  margin: "8px 0 0",
+                  color: "#FFCB6B",
+                  fontSize: 12,
+                  lineHeight: 1.4,
+                }}
+              >
+                {previewError}
+              </p>
+            ) : null}
+
             <div
               style={{
                 display: "flex",
@@ -1115,14 +1210,13 @@ export default function SongChoiceClient({
                 const duration =
                   song.durationSeconds ?? durationsById[song.id] ?? null;
 
+                const isPreviewing = previewingSongId === song.id;
+
                 return (
-                  <button
+                  <div
                     key={song.id}
-                    type="button"
-                  onClick={() => handleSelectSong(song)}
                   className="songChoiceRow"
                   data-selected={isSelected ? "true" : "false"}
-                  aria-pressed={isSelected}
                     style={{
                       width: "100%",
                       minHeight: 58,
@@ -1146,16 +1240,36 @@ export default function SongChoiceClient({
                               ? "0 0 12px 12px"
                               : 0,
                       color: "#FFFFFF",
-                      padding: "0 24px 0 18px",
-                      cursor: "pointer",
+                      padding: "0 12px 0 0",
                       display: "grid",
-                      gridTemplateColumns: "44px minmax(0, 1fr) 58px 28px",
+                      gridTemplateColumns: "minmax(0, 1fr) 42px",
                       alignItems: "center",
-                      columnGap: 18,
+                      columnGap: 8,
                       rowGap: 0,
                       textAlign: "left",
                     }}
                   >
+                    <button
+                      type="button"
+                      onClick={() => handleSelectSong(song)}
+                      aria-pressed={isSelected}
+                      style={{
+                        width: "100%",
+                        minWidth: 0,
+                        minHeight: 58,
+                        background: "transparent",
+                        border: 0,
+                        color: "#FFFFFF",
+                        padding: "0 0 0 18px",
+                        cursor: "pointer",
+                        display: "grid",
+                        gridTemplateColumns: "44px minmax(0, 1fr) 58px",
+                        alignItems: "center",
+                        columnGap: 18,
+                        rowGap: 0,
+                        textAlign: "left",
+                      }}
+                    >
                     <span
                       style={{
                         width: 32,
@@ -1236,7 +1350,22 @@ export default function SongChoiceClient({
                       {formatDuration(duration)}
                     </span>
 
-                    <span
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void handlePreview(song)}
+                      aria-pressed={isPreviewing}
+                      aria-label={
+                        isPreviewing
+                          ? studentCopy.songChoice.pausePreview(song.name)
+                          : studentCopy.songChoice.preview(song.name)
+                      }
+                      title={
+                        isPreviewing
+                          ? studentCopy.songChoice.pausePreview(song.name)
+                          : studentCopy.songChoice.preview(song.name)
+                      }
                       style={{
                         width: 28,
                         height: 28,
@@ -1245,18 +1374,36 @@ export default function SongChoiceClient({
                         justifyContent: "center",
                         justifySelf: "end",
                         transform: "translateY(2px)",
+                        border: 0,
+                        borderRadius: 999,
+                        background: isPreviewing
+                          ? "rgba(207,255,4,0.18)"
+                          : "transparent",
+                        color: "#FFFFFF",
+                        cursor: "pointer",
+                        padding: 0,
                       }}
                     >
-                      <PlayIcon
-                        aria-hidden="true"
-                        style={{
-                          width: 22,
-                          height: 22,
-                          display: "block",
-                        }}
-                      />
-                    </span>
-                  </button>
+                      {isPreviewing ? (
+                        <span
+                          aria-hidden="true"
+                          style={{ display: "inline-flex", gap: 3 }}
+                        >
+                          <span style={{ width: 3, height: 13, background: "#CFFF04" }} />
+                          <span style={{ width: 3, height: 13, background: "#CFFF04" }} />
+                        </span>
+                      ) : (
+                        <PlayIcon
+                          aria-hidden="true"
+                          style={{
+                            width: 22,
+                            height: 22,
+                            display: "block",
+                          }}
+                        />
+                      )}
+                    </button>
+                  </div>
                 );
               })
             ) : (

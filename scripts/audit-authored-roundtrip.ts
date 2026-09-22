@@ -19,12 +19,14 @@ type AuditOptions = {
 };
 
 type LaunchPackage = {
+  error?: string;
   source?: string;
   activityKey?: string;
   authorId?: string;
   revision?: string;
   chart?: { signedUrl?: string };
   sidecar?: { signedUrl?: string };
+  audio?: { signedUrl?: string };
   receipt?: {
     authorId?: string;
     revision?: string;
@@ -68,8 +70,24 @@ function safeError(error: unknown) {
     .replace(/(?:token|signature|sig|access_token)=[^&\s]+/gi, "$1=[redacted]");
 }
 
-function semanticSnapshot(encounter: any) {
-  const targetSnapshot = (targets: any[] = []) => targets.map(({ targetId, ...target }) => target);
+type SemanticEncounter = {
+  id: string;
+  type: "hit" | "spin" | "drag";
+  equationId?: string;
+  startTick: number;
+  endTick: number;
+  hitBubbles?: unknown[];
+  spinTargets?: unknown[];
+  dragTargets?: unknown[];
+};
+
+function semanticSnapshot(encounter: SemanticEncounter) {
+  const targetSnapshot = (targets: unknown[] = []) => targets.map((target) => {
+    if (!target || typeof target !== "object") return target;
+    const snapshot = { ...(target as Record<string, unknown>) };
+    delete snapshot.targetId;
+    return snapshot;
+  });
   const targets = encounter.type === "hit" ? encounter.hitBubbles : encounter.type === "spin" ? encounter.spinTargets : encounter.dragTargets;
   return {
     id: encounter.id,
@@ -93,6 +111,13 @@ function mechanicCount(events: Array<{ counts: Record<"hit" | "spin" | "drag", n
   return events.reduce((total, event) => total + event.counts.hit + event.counts.spin + event.counts.drag, 0);
 }
 
+function semanticEquationSnapshot(equation: { id: string; state: string }) {
+  // Parsed legacy equations may omit token metadata. Hydration derives those
+  // tokens from state, and the serializer emits them for the editor. Token
+  // IDs are transport metadata; id + state is the equation semantic contract.
+  return { id: equation.id, state: equation.state };
+}
+
 async function audit(options: AuditOptions) {
   const response = await fetch(`${options.baseUrl}/api/song-package/launch`, {
     method: "POST",
@@ -106,15 +131,23 @@ async function audit(options: AuditOptions) {
       learningDifficultyKey: options.learningDifficultyKey,
     }),
   });
-  assert.ok(response.ok, `Launch HTTP ${response.status}`);
   const launch = await response.json() as LaunchPackage;
+  assert.ok(response.ok, `Launch HTTP ${response.status}: ${safeError(launch.error ?? "unknown launch failure")}`);
   assert.equal(launch.source, "authored", `Expected an authored package, received ${launch.source ?? "unknown"}`);
   assert.equal(launch.activityKey, options.activityKey, "Launch package activity changed from the requested activity");
   const chartUrl = launch.chart?.signedUrl;
   const sidecarUrl = launch.sidecar?.signedUrl;
-  assert.ok(chartUrl && sidecarUrl, "Launch package is missing chart or sidecar URL");
+  const audioUrl = launch.audio?.signedUrl;
+  assert.ok(chartUrl && sidecarUrl && audioUrl, "Launch package is missing a chart, sidecar, or audio URL");
   const [chart, sidecar] = await Promise.all([fetch(chartUrl), fetch(sidecarUrl)]);
-  assert.ok(chart.ok && sidecar.ok, "Asset fetch failed");
+  let audio = await fetch(audioUrl, { method: "HEAD" });
+  if (!audio.ok) {
+    // Some object-store proxies do not expose HEAD. A one-byte range keeps
+    // the fallback bounded while still proving the signed audio object works.
+    audio = await fetch(audioUrl, { headers: { Range: "bytes=0-0" } });
+    await audio.body?.cancel();
+  }
+  assert.ok(chart.ok && sidecar.ok && audio.ok, "Asset fetch failed");
   const clock = createLessonClock(await chart.text());
   const lesson = parseAuthoredLessonDraft(await sidecar.json());
   assert.equal(lesson.activityKey, options.activityKey, "Sidecar activity changed from the requested activity");
@@ -153,7 +186,13 @@ async function audit(options: AuditOptions) {
     semanticChanges = before.length === after.length && before.every((item, index) => JSON.stringify(item) === JSON.stringify(after[index]))
       ? []
       : reparsed.encounters.map((item, index) => JSON.stringify(semanticSnapshot(lesson.encounters[index])) === JSON.stringify(semanticSnapshot(item)) ? "" : item.id).filter(Boolean);
-    semanticEquivalent = semanticChanges.length === 0 && JSON.stringify(lesson.equations) === JSON.stringify(reparsed.equations);
+    const equationsSemanticallyEquivalent =
+      lesson.equations.length === reparsed.equations.length &&
+      lesson.equations.every((equation, index) =>
+        JSON.stringify(semanticEquationSnapshot(equation)) ===
+        JSON.stringify(semanticEquationSnapshot(reparsed.equations[index])),
+      );
+    semanticEquivalent = semanticChanges.length === 0 && equationsSemanticallyEquivalent;
     serialization = {
       ok: true,
       serializedEncounterCount: reparsed.encounters.length,
@@ -176,6 +215,7 @@ async function audit(options: AuditOptions) {
     sidecarSha256: receipt?.hashes?.sidecarSha256 ?? null,
     audioSha256: receipt?.hashes?.audioSha256 ?? null,
     receiptCounts: receipt?.counts ?? null,
+    audioHttpStatus: audio.status,
     sourceEncounterCount: lesson.encounters.length,
     hydratedEventCount: hydrated.events.length,
     hydratedMechanicCount: mechanicCount(hydrated.events),
