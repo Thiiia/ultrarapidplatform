@@ -26,8 +26,17 @@ test("editor status messages use one animated, dismissible toast lifecycle", () 
 });
 
 test("editor side panels progressively disclose without removing access", () => {
-  assert.match(lessonBuilderSource, /const \[isBuilderPanelOpen, setIsBuilderPanelOpen\] = useState\(true\)/);
+  assert.match(lessonBuilderSource, /const \[advancedMode, setAdvancedMode\] = useState\(false\)/);
+  assert.match(lessonBuilderSource, /const \[isBuilderPanelOpen, setIsBuilderPanelOpen\] = useState\(false\)/);
   assert.match(lessonBuilderSource, /const \[isLibraryPanelOpen, setIsLibraryPanelOpen\] = useState\(false\)/);
+  assert.match(
+    lessonBuilderSource,
+    /function handleNewEquation\(\)[\s\S]*?setIsBuilderPanelOpen\(true\)[\s\S]*?setMode\("equation"\)/,
+  );
+  assert.match(
+    lessonBuilderSource,
+    /function beginGuidedEditing\(\)[\s\S]*?setAdvancedMode\(false\)[\s\S]*?setIsBuilderPanelOpen\(false\)/,
+  );
   assert.match(lessonBuilderSource, /<EditorPanelRail label="Build"/);
   assert.match(lessonBuilderSource, /<EditorPanelRail label="Library"/);
   assert.match(lessonBuilderSource, /Collapse equation builder/);
