@@ -154,9 +154,10 @@ export async function findDevAuthor() {
 export async function getOrCreateDevAuthor() {
   return prisma.user.upsert({
     where: { email: DEV_AUTHOR_EMAIL },
-    update: {},
+    update: { normalizedEmail: DEV_AUTHOR_EMAIL },
     create: {
       email: DEV_AUTHOR_EMAIL,
+      normalizedEmail: DEV_AUTHOR_EMAIL,
       auth0Sub: DEV_AUTHOR_EMAIL,
       name: DEV_AUTHOR_FOLDER,
       role: "teacher",

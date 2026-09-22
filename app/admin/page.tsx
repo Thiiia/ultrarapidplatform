@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 type AdminUserRow = {
   id: string;
-  auth0Sub: string;
+  auth0Sub: string | null;
   email: string;
   name: string | null;
   role: Role;
@@ -55,9 +55,10 @@ export default async function AdminPage() {
     redirect("/student");
   }
 
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  const [users, schools] = await Promise.all([
+    prisma.user.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.school.findMany({ orderBy: { name: "asc" } }),
+  ]);
 
   return (
     <main
@@ -69,6 +70,29 @@ export default async function AdminPage() {
       }}
     >
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ margin: "0 0 12px", fontSize: 22 }}>School rosters</h2>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {schools.map((school) => (
+              <Link
+                key={school.id}
+                href={`/admin/schools/${school.id}/roster-import`}
+                style={{
+                  color: "#FFFFFF",
+                  background: "#2563EB",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  textDecoration: "none",
+                  fontWeight: 600,
+                }}
+              >
+                Import {school.name}
+              </Link>
+            ))}
+            {schools.length === 0 && <span style={{ color: "#9CA3AF" }}>No schools found.</span>}
+          </div>
+        </div>
+
         <div
           style={{
             display: "flex",

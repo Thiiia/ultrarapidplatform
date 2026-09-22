@@ -18,6 +18,7 @@ model School {
 
   users   User[]
   classes Class[]
+  rosterImports RosterImport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -27,8 +28,10 @@ model School {
 
 model User {
   id       String     @id @default(cuid())
-  auth0Sub String     @unique
+  auth0Sub String?    @unique
   email    String     @unique
+  normalizedEmail String  @unique
+  externalId String?
   name     String?
   role     Role       @default(student)
   status   UserStatus @default(active)
@@ -71,7 +74,9 @@ model User {
 
   studentAssignments Assignment[] @relation("AssignmentStudent")
   createdAssignments Assignment[] @relation("AssignmentCreator")
+  rosterImports      RosterImport[] @relation("RosterImportUploader")
 
+  @@unique([schoolId, externalId])
   @@index([schoolId])
   @@index([role])
   @@index([status])
@@ -80,6 +85,7 @@ model User {
 model Class {
   id          String  @id @default(cuid())
   name        String
+  externalId  String?
   description String?
   term        String?
   isArchived  Boolean @default(false)
@@ -110,6 +116,7 @@ model Class {
   updatedAt DateTime @updatedAt
 
   @@unique([schoolId, name])
+  @@unique([schoolId, externalId])
   @@index([schoolId])
   @@index([teacherId])
   @@index([isArchived])
@@ -140,6 +147,25 @@ model ClassStudent {
 
   @@id([classId, studentId])
   @@index([studentId])
+}
+
+model RosterImport {
+  id           String             @id @default(cuid())
+  schoolId     String
+  uploadedById String
+  filename     String
+  mode         RosterImportMode   @default(additive)
+  status       RosterImportStatus @default(pending)
+  summaryJson  Json?
+  errorJson    Json?
+  createdAt    DateTime           @default(now())
+  completedAt  DateTime?
+
+  school     School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  uploadedBy User   @relation("RosterImportUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([schoolId, createdAt])
+  @@index([uploadedById])
 }
 
 model Mission {
@@ -396,6 +422,17 @@ enum UserStatus {
   inactive
   invited
   suspended
+}
+
+enum RosterImportMode {
+  additive
+  reconcile
+}
+
+enum RosterImportStatus {
+  pending
+  completed
+  failed
 }
 
 enum AssignmentStatus {

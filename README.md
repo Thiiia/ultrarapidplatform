@@ -20,6 +20,27 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## School roster imports
+
+Administrators can open **Admin → School rosters → Import** to upload a CSV, preview its database changes, and apply it. A template is available from the import page.
+
+The required columns are:
+
+```text
+student_external_id,student_email,student_name,class_external_id,class_name,teacher_external_id,teacher_email,teacher_name,term
+```
+
+- **Additive** imports create and update records without removing existing enrollments.
+- **Full reconciliation** also removes memberships missing from represented classes and deactivates school students absent from the uploaded roster.
+- Applying the same roster repeatedly is safe because students and classes use school-scoped external IDs.
+- Imported users remain `invited` until they sign in with a verified matching Auth0 email.
+
+Apply the Prisma migrations before enabling roster imports in an environment:
+
+```bash
+npx prisma migrate deploy
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

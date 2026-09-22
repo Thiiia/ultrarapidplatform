@@ -21,6 +21,7 @@ async function main() {
       email: "student@example.com",
     },
     update: {
+      normalizedEmail: "student@example.com",
       role: "student",
       status: "active",
       auth0Sub: "auth0|student-placeholder",
@@ -28,6 +29,7 @@ async function main() {
     },
     create: {
       email: "student@example.com",
+      normalizedEmail: "student@example.com",
       name: "Student User",
       role: "student",
       status: "active",
@@ -41,6 +43,7 @@ async function main() {
       email: "teacher@example.com",
     },
     update: {
+      normalizedEmail: "teacher@example.com",
       role: "teacher",
       status: "active",
       auth0Sub: "auth0|teacher-placeholder",
@@ -48,6 +51,7 @@ async function main() {
     },
     create: {
       email: "teacher@example.com",
+      normalizedEmail: "teacher@example.com",
       name: "Teacher User",
       role: "teacher",
       status: "active",
