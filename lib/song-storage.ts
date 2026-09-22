@@ -19,6 +19,19 @@ export type SongChoice = {
   updatedAt: string | null;
   durationSeconds: number | null;
   authorName?: string | null;
+  requiresRhythmSource?: boolean;
+  rhythmSources?: Array<{
+    activityKey: SongActivityKey;
+    revision: string;
+    chartSha256: string;
+    audioSha256: string;
+    chart: {
+      bucket: string;
+      path: string;
+      signedUrl: string;
+      contentType: string | null;
+    };
+  }>;
 
   song: {
     bucket: string;
@@ -774,6 +787,72 @@ export async function getEditorSongChoices(
     orderBy: { title: "asc" },
   });
 
+  const rhythmSourcesBySong = new Map<string, NonNullable<SongChoice["rhythmSources"]>>();
+  if (preferredActivityKey === "number-bonds" && authorId) {
+    const sharedRhythmRevisions = await prisma.gameContentRevision.findMany({
+      where: {
+        authorId,
+        activityKey: { not: preferredActivityKey },
+        status: "ready",
+        chartSha256: { not: null },
+        audioSha256: { not: null },
+      },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      select: {
+        songAssetId: true,
+        activityKey: true,
+        revision: true,
+        chartBucket: true,
+        chartPath: true,
+        chartSha256: true,
+        audioSha256: true,
+      },
+    });
+
+    for (const revision of sharedRhythmRevisions) {
+      if (!revision.chartSha256 || !revision.audioSha256) continue;
+
+      const existingSources = rhythmSourcesBySong.get(revision.songAssetId) ?? [];
+      // A song can have many historical publications with identical timing.
+      // Offer only the newest immutable revision for each activity + chart hash.
+      if (
+        existingSources.some(
+          (source) =>
+            source.activityKey === revision.activityKey &&
+            source.chartSha256 === revision.chartSha256,
+        )
+      ) {
+        continue;
+      }
+
+      const sourceActivityKey = resolveRequestedSongActivityKey(revision.activityKey);
+      if (!sourceActivityKey) continue;
+
+      try {
+        existingSources.push({
+          activityKey: sourceActivityKey,
+          revision: revision.revision,
+          chartSha256: revision.chartSha256,
+          audioSha256: revision.audioSha256,
+          chart: {
+            bucket: revision.chartBucket,
+            path: revision.chartPath,
+            signedUrl: await createSignedUrl(revision.chartBucket, revision.chartPath),
+            contentType: getContentTypeFromPath(revision.chartPath),
+          },
+        });
+        rhythmSourcesBySong.set(revision.songAssetId, existingSources);
+      } catch (error) {
+        console.warn("Skipping unavailable shared rhythm source", {
+          songAssetId: revision.songAssetId,
+          sourceActivityKey,
+          sourceRevision: revision.revision,
+          error: getErrorMessage(error),
+        });
+      }
+    }
+  }
+
   const blankSongs: Array<SongChoice | null> = await Promise.all(
     songAssets.map(async (songAsset) => {
       const existingChart = chartsByAsset.get(`${songAsset.id}:${authorId ?? ""}`) ?? null;
@@ -829,6 +908,8 @@ export async function getEditorSongChoices(
 
         return {
           ...baseSongChoice,
+          requiresRhythmSource: preferredActivityKey === "number-bonds",
+          rhythmSources: rhythmSourcesBySong.get(songAsset.id) ?? [],
           chart: {
             bucket: "Charts",
             path: blankPaths.chartPath,

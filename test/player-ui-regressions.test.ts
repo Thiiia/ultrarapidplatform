@@ -150,3 +150,36 @@ test("publish failures distinguish browser recovery from the Unity version", () 
   assert.match(builder, /A backup stays in this browser\./);
   assert.match(builder, /if \(!response\.ok\) \{[\s\S]*setWorkspaceStatus\("offline"\)/);
 });
+
+test("Number Bonds presents one authored mechanic and explains its runtime expansion", () => {
+  const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+  const composer = source("app/student/lesson-builder/GuidedEncounterComposer.tsx");
+
+  assert.match(builder, /supportedAuthoredMechanics/);
+  assert.match(builder, /isNumberBondsTimeline \? "Catch cues" : "Hits"/);
+  assert.doesNotMatch(builder, /selectedActivityKey === "number-bonds"[\s\S]{0,160}onToggleRctm2Mode/);
+  assert.match(composer, /Place a catch cue/);
+  assert.match(composer, /catch → spinout → drag/);
+});
+
+test("advanced recorder exposes one tool at a time and makes draft commit explicit", () => {
+  const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+
+  assert.match(builder, /const \[selectedTool, setSelectedTool\] = useState<GameplayMechanic>\("hit"\)/);
+  assert.match(builder, /Start encounter/);
+  assert.match(builder, /Save encounter/);
+  assert.match(builder, /recorded in this encounter draft/);
+  assert.match(builder, /rtcmPendingHoldRef\.current = pendingHold/);
+});
+
+test("first Number Bonds publication requires an explicit verified rhythm source", () => {
+  const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+  const storage = source("lib/song-storage.ts");
+
+  assert.match(builder, /Choose a verified rhythm/);
+  assert.match(builder, /Your Number Bonds equation and catches start fresh/);
+  assert.match(builder, /rhythmSource: selectedRhythmSource/);
+  assert.match(storage, /preferredActivityKey === "number-bonds"/);
+  assert.match(storage, /status: "ready"/);
+  assert.match(storage, /source\.chartSha256 === revision\.chartSha256/);
+});

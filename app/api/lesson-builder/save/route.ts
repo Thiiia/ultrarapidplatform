@@ -17,6 +17,10 @@ import { resolveRequestedAuthor } from "@/lib/song-author";
 import { checkSaveRevisionPrecondition } from "@/lib/song-launch-identity";
 import { prepareAuthoredLessonForPublication } from "@/lib/authored-lesson-publication";
 import { createLessonClock } from "@/lib/editor/lesson-timing";
+import {
+  resolveRhythmSourceRevision,
+  type ResolvedRhythmSource,
+} from "@/lib/song-rhythm-bootstrap";
 
 function resolveAuthorFolder(user: { name: string | null; email: string | null }) {
   const name = user.name?.trim();
@@ -39,6 +43,10 @@ type SavePayload = {
   publicationRequestId?: unknown;
   chart?: SaveFilePayload;
   sidecar?: SaveFilePayload;
+  rhythmSource?: {
+    activityKey?: unknown;
+    revision?: unknown;
+  };
 };
 
 type UploadedFileRef = {
@@ -315,12 +323,77 @@ export async function POST(request: Request) {
         ? payload.chart.content
         : null;
 
+    const sourceActivityKey =
+      typeof payload.rhythmSource?.activityKey === "string"
+        ? normalizeSongActivityKey(payload.rhythmSource.activityKey)
+        : null;
+    const sourceRevision =
+      typeof payload.rhythmSource?.revision === "string" &&
+      payload.rhythmSource.revision.trim()
+        ? payload.rhythmSource.revision.trim()
+        : null;
+    const hasRhythmSourceRequest = payload.rhythmSource != null;
+
+    if (hasRhythmSourceRequest && (!sourceActivityKey || !sourceRevision)) {
+      return NextResponse.json(
+        { error: "rhythmSource requires a supported activityKey and an exact revision" },
+        { status: 400 },
+      );
+    }
+    if (submittedChartContent != null && hasRhythmSourceRequest) {
+      return NextResponse.json(
+        { error: "Submit either chart.content or rhythmSource, not both" },
+        { status: 400 },
+      );
+    }
+    if (targets.current && hasRhythmSourceRequest) {
+      return NextResponse.json(
+        { error: "rhythmSource is only allowed for the first publication of an activity lesson" },
+        { status: 409 },
+      );
+    }
+
     let chartContent: string;
-    let chartSource: "submitted" | "preserved";
+    let chartSource: "submitted" | "preserved" | "shared-rhythm";
+    let resolvedRhythmSource: ResolvedRhythmSource | null = null;
 
     if (submittedChartContent != null) {
       chartContent = submittedChartContent;
       chartSource = "submitted";
+    } else if (sourceActivityKey && sourceRevision) {
+      try {
+        resolvedRhythmSource = await resolveRhythmSourceRevision({
+          songAssetId,
+          targetActivityKey: activityKey,
+          sourceActivityKey,
+          sourceRevision,
+          findRevision: async (revision) => prisma.gameContentRevision.findUnique({
+            where: { revision },
+            select: {
+              revision: true,
+              songAssetId: true,
+              activityKey: true,
+              status: true,
+              chartBucket: true,
+              chartPath: true,
+              chartSha256: true,
+              audioSha256: true,
+            },
+          }),
+          readChart: (bucket, path) => readStoredUtf8Text(
+            bucket,
+            path,
+            "shared rhythm source chart",
+          ),
+        });
+      } catch (error) {
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "Unable to resolve the shared rhythm source" },
+          { status: 400 },
+        );
+      }
+      chartContent = resolvedRhythmSource.chartContent;
+      chartSource = "shared-rhythm";
     } else {
       if (!targets.current) {
         return NextResponse.json(
@@ -356,6 +429,8 @@ export async function POST(request: Request) {
         chartSource === "preserved"
           ? targets.current?.chartPath ?? null
           : null,
+      rhythmSourceActivityKey: resolvedRhythmSource?.sourceActivityKey ?? null,
+      rhythmSourceRevision: resolvedRhythmSource?.sourceRevision ?? null,
     });
 
     const replayedPublication = await prisma.gameContentRevision.findUnique({
@@ -440,6 +515,16 @@ export async function POST(request: Request) {
       Promise.resolve(sha256(chartContent)),
       sha256ForStoredFile(existingSongAsset.songBucket, existingSongAsset.songPath),
     ]);
+    if (
+      resolvedRhythmSource &&
+      (chartSha256 !== resolvedRhythmSource.chartSha256 ||
+        audioSha256 !== resolvedRhythmSource.audioSha256)
+    ) {
+      return NextResponse.json(
+        { error: "Shared rhythm publication no longer matches the source chart/audio hashes" },
+        { status: 409 },
+      );
+    }
     const revisionTargets = await publishLessonSaveRevision({
       targets,
       revisionId,
@@ -550,6 +635,14 @@ export async function POST(request: Request) {
       revision: revisionId,
       publicationRequestId,
       migratedFromLegacy: authoredPublication.migratedFromLegacy,
+      rhythmSource: resolvedRhythmSource
+        ? {
+            activityKey: resolvedRhythmSource.sourceActivityKey,
+            revision: resolvedRhythmSource.sourceRevision,
+            chartSha256: resolvedRhythmSource.chartSha256,
+            audioSha256: resolvedRhythmSource.audioSha256,
+          }
+        : null,
       songAsset: {
         id: songAssetId,
         chartBucket: chartRef.bucket,

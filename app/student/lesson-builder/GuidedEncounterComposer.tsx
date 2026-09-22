@@ -10,6 +10,7 @@ import WestRoundedIcon from "@mui/icons-material/WestRounded";
 import { AUTHORED_MAX_REQUIRED_HIT_PADS, isAuthoredEquationOperator } from "@/lib/authored-lesson";
 import { studentCopy } from "@/lib/student-copy";
 import type { AuthoredEquationToken } from "@/lib/authored-lesson-serialization";
+import type { SongActivityKey } from "@/lib/song-activity-storage";
 import type {
   EncounterReadiness,
   GuidedEncounterInput,
@@ -23,6 +24,7 @@ export type GuidedEncounterComposerProps = {
   readiness: EncounterReadiness;
   step?: number;
   stepCount?: number;
+  activityKey?: SongActivityKey | null;
   dragSources?: DragSource[];
   onRemove?: () => void;
   onPatchInstance: (
@@ -266,11 +268,17 @@ export function GuidedEncounterComposer({
   readiness,
   step = 1,
   stepCount = 3,
+  activityKey = null,
   dragSources = [],
   onPatchInstance,
   onRemove,
 }: GuidedEncounterComposerProps) {
-  const heading = instance.mechanic === "hit" ? studentCopy.mechanics.makeHit : instance.mechanic === "spin" ? studentCopy.mechanics.makeSpin : studentCopy.mechanics.makeDrag;
+  const isNumberBonds = activityKey === "number-bonds";
+  const heading = instance.mechanic === "hit"
+    ? (isNumberBonds ? "Place a catch cue" : studentCopy.mechanics.makeHit)
+    : instance.mechanic === "spin"
+      ? studentCopy.mechanics.makeSpin
+      : studentCopy.mechanics.makeDrag;
   let controls: ReactNode;
   if (!instance.equation || tokens.length === 0) {
     controls = <div style={{ color: "#FFFFFFB3", fontSize: 12 }}>{studentCopy.mechanics.chooseEquation}</div>;
@@ -298,6 +306,11 @@ export function GuidedEncounterComposer({
         </div>
       </div>
       {readiness.ready ? <div style={{ color: "#CFFF04", fontSize: 11, fontWeight: 800 }}>{studentCopy.editor.readyToPlay}</div> : <div role="status" style={{ color: "#FFCB6B", fontSize: 11, fontWeight: 800 }}>{readiness.nextAction}</div>}
+      {isNumberBonds ? (
+        <div style={{ borderRadius: 12, border: "1px solid rgba(207,255,4,.28)", background: "rgba(207,255,4,.07)", color: "#DFFF70", padding: "9px 11px", fontSize: 11, fontWeight: 750, lineHeight: 1.45 }}>
+          You place the catch cue. In the game it automatically continues through catch → spinout → drag.
+        </div>
+      ) : null}
       {controls}
     </section>
   );

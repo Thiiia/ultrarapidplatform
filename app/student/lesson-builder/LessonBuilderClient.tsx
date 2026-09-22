@@ -109,6 +109,14 @@ type StorageFileRef = {
   contentType: string | null;
 };
 
+type RhythmSourceOption = {
+  activityKey: SongActivityKey;
+  revision: string;
+  chartSha256: string;
+  audioSha256: string;
+  chart: StorageFileRef & { signedUrl: string };
+};
+
 type SelectedSongPayload = {
   id: string;
   name: string;
@@ -117,6 +125,7 @@ type SelectedSongPayload = {
   authorId?: string | null;
   authorName?: string | null;
   revision?: string | null;
+  rhythmSource?: RhythmSourceOption | null;
   rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle" | null;
   rhythm_difficulty_key?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle" | null;
   activity?: {
@@ -178,6 +187,8 @@ type SongChoiceOption = {
   title?: string;
   artist?: string | null;
   authorName?: string | null;
+  requiresRhythmSource?: boolean;
+  rhythmSources?: RhythmSourceOption[];
   song: StorageFileRef & { signedUrl: string };
   chart: StorageFileRef & { signedUrl: string };
   sidecar: (StorageFileRef & { signedUrl: string }) | null;
@@ -1943,8 +1954,6 @@ function HeaderBar({
             const chartmakerInfo = (() => {
               if (selectedActivityKey === "early-algebra") {
                 return { label: studentCopy.editor.advancedTools, onClick: onToggleRctm1Mode, isActive: isRctm1Mode };
-              } else if (selectedActivityKey === "number-bonds") {
-                return { label: studentCopy.editor.advancedTools, onClick: onToggleRctm2Mode, isActive: isRctm2Mode };
               } else if (selectedActivityKey === "equations") {
                 return { label: studentCopy.editor.advancedTools, onClick: onToggleRctm1Mode, isActive: isRctm1Mode };
               } else if (selectedActivityKey === "missing-numbers") {
@@ -2378,9 +2387,11 @@ function SongFilePickerModal({
   activityKey,
   songs,
   selectedSongId,
+  selectedRhythmSourceRevision,
   onAuthorChange,
   onActivityChange,
   onSelectSong,
+  onSelectRhythmSource,
   onClose,
   onLoad,
 }: {
@@ -2393,15 +2404,25 @@ function SongFilePickerModal({
   activityKey: SongActivityKey;
   songs: SongChoiceOption[];
   selectedSongId: string | null;
+  selectedRhythmSourceRevision: string | null;
   onAuthorChange: (value: string) => void;
   onActivityChange: (value: SongActivityKey) => void;
   onSelectSong: (songId: string) => void;
+  onSelectRhythmSource: (revision: string) => void;
   onClose: () => void;
   onLoad: () => void;
 }) {
   if (!isOpen) {
     return null;
   }
+
+  const selectedSong = songs.find((song) => song.id === selectedSongId) ?? null;
+  const requiresRhythmSource = selectedSong?.requiresRhythmSource === true;
+  const rhythmSources = selectedSong?.rhythmSources ?? [];
+  const canLoad = Boolean(
+    selectedSongId &&
+    (!requiresRhythmSource || rhythmSources.some((source) => source.revision === selectedRhythmSourceRevision)),
+  );
 
   return (
     <div
@@ -2549,6 +2570,42 @@ function SongFilePickerModal({
           </select>
         </div>
 
+        {requiresRhythmSource ? (
+          <div style={{ display: "grid", gap: 6 }}>
+            <label htmlFor="lesson-builder-rhythm-source-select" style={{ fontSize: 12, fontWeight: 700, color: "#D1D5DB" }}>
+              Use this song&apos;s rhythm from
+            </label>
+            <select
+              id="lesson-builder-rhythm-source-select"
+              value={selectedRhythmSourceRevision ?? ""}
+              onChange={(event) => onSelectRhythmSource(event.target.value)}
+              disabled={rhythmSources.length === 0}
+              style={{
+                height: 38,
+                borderRadius: 10,
+                border: "1px solid #CFFF0466",
+                background: "#151E2B",
+                color: "#FFFFFF",
+                padding: "0 10px",
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              <option value="">Choose a verified rhythm…</option>
+              {rhythmSources.map((source) => (
+                <option key={source.revision} value={source.revision}>
+                  {`${getActivityLabel(source.activityKey)} · revision ${source.revision.slice(0, 8)}`}
+                </option>
+              ))}
+            </select>
+            <div style={{ color: rhythmSources.length ? "#AFC2D8" : "#FF9B9B", fontSize: 11, lineHeight: 1.45 }}>
+              {rhythmSources.length
+                ? "This brings across verified beat timing only. Your Number Bonds equation and catches start fresh; the song audio remains shared."
+                : "This song has no verified rhythm revision available to start from."}
+            </div>
+          </div>
+        ) : null}
+
         {isLoading ? (
           <div style={{ color: "#D1D5DB", fontSize: 12, fontWeight: 600 }}>
             Loading songs…
@@ -2565,7 +2622,7 @@ function SongFilePickerModal({
           <button
             type="button"
             onClick={onLoad}
-            disabled={isLoading || !selectedSongId}
+            disabled={isLoading || !canLoad}
             style={{
               minWidth: 132,
               height: 34,
@@ -2575,8 +2632,8 @@ function SongFilePickerModal({
               color: "#071222",
               fontSize: 12,
               fontWeight: 800,
-              cursor: isLoading || !selectedSongId ? "not-allowed" : "pointer",
-              opacity: isLoading || !selectedSongId ? 0.6 : 1,
+              cursor: isLoading || !canLoad ? "not-allowed" : "pointer",
+              opacity: isLoading || !canLoad ? 0.6 : 1,
             }}
           >
             Choose this song
@@ -4740,6 +4797,7 @@ function getTimelineMarkerShapeStyles(mechanic: GameplayMechanic) {
 function EquationTimeline({
   events,
   hideSpinouts = false,
+  activityKey,
   activeEventId,
   onSelectEvent,
   currentSongSeconds,
@@ -4755,6 +4813,7 @@ function EquationTimeline({
 }: {
   events: TimelineEventSlot[];
   hideSpinouts?: boolean;
+  activityKey: SongActivityKey | null;
   activeEventId: string | null;
   onSelectEvent: (eventId: string) => void;
   currentSongSeconds: number;
@@ -4860,19 +4919,20 @@ function EquationTimeline({
     playheadMaxLeft,
     Math.max(0, currentSongSeconds * pixelsPerSecond),
   );
-  const mechanicsForTimeline = hideSpinouts
-    ? (["hit", "drag"] as GameplayMechanic[])
-    : (["hit", "spin", "drag"] as GameplayMechanic[]);
+  const authoringCapabilities = getActivityAuthoringCapabilities(activityKey);
+  const mechanicsForTimeline = authoringCapabilities.supportedAuthoredMechanics
+    .filter((mechanic) => !(hideSpinouts && mechanic === "spin"));
+  const isNumberBondsTimeline = authoringCapabilities.activityKey === "number-bonds";
   const rowCountAfterHeader = 2 + mechanicsForTimeline.length;
   const rowHeightPercent = (100 - 15) / rowCountAfterHeader;
   const timelineGridRows = `15% repeat(${rowCountAfterHeader}, ${rowHeightPercent}%)`;
 
   const labelRows = [
     { key: "merged", label: "", color: "#FFFFFF" },
-    { key: "equations", label: hideSpinouts ? "Bonds" : "Equations", color: "#CFFF04" },
+    { key: "equations", label: isNumberBondsTimeline ? "Bond" : "Equations", color: "#CFFF04" },
     ...mechanicsForTimeline.map((mechanic) => ({
       key: mechanic,
-      label: mechanic === "hit" ? "Hits" : mechanic === "spin" ? "Spinouts" : "Drags",
+      label: mechanic === "hit" ? (isNumberBondsTimeline ? "Catch cues" : "Hits") : mechanic === "spin" ? "Spinouts" : "Drags",
       color: mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF",
     })),
   ];
@@ -7628,6 +7688,7 @@ function RtcmModePanel({
   pendingRangeMechanic,
   eventRangeStartTick,
   canDeleteEvent,
+  draftedActionCount,
 }: {
   onAddHit: (pad: HitBubblePad) => void;
   onStartHold: (tool: Exclude<GameplayMechanic, "hit">) => void;
@@ -7639,7 +7700,12 @@ function RtcmModePanel({
   pendingRangeMechanic: "spin" | "drag" | null;
   eventRangeStartTick: number | null;
   canDeleteEvent: boolean;
+  draftedActionCount: number;
 }) {
+  const [selectedTool, setSelectedTool] = useState<GameplayMechanic>("hit");
+  const isEncounterOpen = eventRangeStartTick !== null;
+  const canRecord = isSongPlaying && isEncounterOpen;
+
   return (
     <section
       aria-label="Real-time chart maker"
@@ -7653,7 +7719,7 @@ function RtcmModePanel({
         boxSizing: "border-box",
         overflow: "visible",
         display: "grid",
-        gridTemplateRows: "auto 1fr",
+        gridTemplateRows: "auto auto 1fr",
         justifyItems: "center",
         alignItems: "start",
         padding: "16px 0 0",
@@ -7687,7 +7753,7 @@ function RtcmModePanel({
               padding: "0 12px",
             }}
           >
-            {eventRangeStartTick === null ? "Create Event" : "Finalize Event"}
+            {eventRangeStartTick === null ? "Start encounter" : "Save encounter"}
           </button>
           <button
             type="button"
@@ -7724,30 +7790,60 @@ function RtcmModePanel({
               padding: "0 12px",
             }}
           >
-            Clear
+            Clear draft
           </button>
+        </div>
+      </div>
+
+      <div style={{ width: "min(720px, 90vw)", display: "grid", gap: 10, paddingBottom: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }} aria-label="Choose recorder tool">
+          {gameplayMechanics.map((mechanic) => (
+            <button
+              key={mechanic}
+              type="button"
+              onClick={() => setSelectedTool(mechanic)}
+              aria-pressed={selectedTool === mechanic}
+              style={{
+                minHeight: 36,
+                borderRadius: 999,
+                border: `1px solid ${selectedTool === mechanic ? "#CFFF04" : subtleBorderColor}`,
+                background: selectedTool === mechanic ? "rgba(207,255,4,0.14)" : "#151E2B",
+                color: selectedTool === mechanic ? "#CFFF04" : "#FFFFFFB3",
+                fontWeight: 900,
+                cursor: "pointer",
+                textTransform: "capitalize",
+              }}
+            >
+              {mechanic}
+            </button>
+          ))}
+        </div>
+        <div role="status" style={{ color: isEncounterOpen ? "#DFFF70" : "#AFC2D8", fontSize: 12, fontWeight: 700, textAlign: "center" }}>
+          {isEncounterOpen
+            ? `${draftedActionCount} action${draftedActionCount === 1 ? "" : "s"} recorded in this encounter draft. Play the song, record one action at a time, then save the encounter.`
+            : "Start an encounter first. Then play the song and record one action at a time."}
         </div>
       </div>
 
       <div
         style={{
-          width: "90vw",
+          width: "min(720px, 90vw)",
           height: "75%",
           minHeight: 0,
           display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gridTemplateColumns: "minmax(0, 1fr)",
           gap: 14,
         }}
       >
         <div
           style={{
+            display: selectedTool === "hit" ? "grid" : "none",
             height: "100%",
             borderRadius: 14,
             border: `1px solid ${subtleBorderColor}`,
             background: "#141414",
             padding: "12px 8px 14px",
             boxSizing: "border-box",
-            display: "grid",
             gridTemplateRows: "auto 1fr auto",
             justifyItems: "center",
             gap: 10,
@@ -7757,21 +7853,21 @@ function RtcmModePanel({
           <div style={{ color: "#2EA7FF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
             Hit
           </div>
-          <RtcmHitPadToken onAddHit={onAddHit} isSongPlaying={isSongPlaying} />
+          <RtcmHitPadToken onAddHit={onAddHit} isSongPlaying={canRecord} />
           <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
-            Click any bubble while playing.
+            While the song plays, click the pad the learner should hit.
           </div>
         </div>
 
         <div
           style={{
+            display: selectedTool === "spin" ? "grid" : "none",
             height: "100%",
             borderRadius: 14,
             border: `1px solid ${pendingRangeMechanic === "spin" ? "#FF3535AA" : subtleBorderColor}`,
             background: "#141414",
             padding: "12px 8px 14px",
             boxSizing: "border-box",
-            display: "grid",
             gridTemplateRows: "auto 1fr auto",
             justifyItems: "center",
             gap: 10,
@@ -7783,25 +7879,25 @@ function RtcmModePanel({
           </div>
           <RtcmHoldToken
             mechanic="spin"
-            isSongPlaying={isSongPlaying}
+            isSongPlaying={canRecord}
             isArmed={pendingRangeMechanic === "spin"}
             onStartHold={onStartHold}
             onEndHold={onEndHold}
           />
           <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
-            Press to start timing, release to end.
+            Hold for the full spin duration. Release to record it in this encounter draft.
           </div>
         </div>
 
         <div
           style={{
+            display: selectedTool === "drag" ? "grid" : "none",
             height: "100%",
             borderRadius: 14,
             border: `1px solid ${pendingRangeMechanic === "drag" ? "#B45CFFAA" : subtleBorderColor}`,
             background: "#141414",
             padding: "12px 8px 14px",
             boxSizing: "border-box",
-            display: "grid",
             gridTemplateRows: "auto 1fr auto",
             justifyItems: "center",
             gap: 10,
@@ -7813,13 +7909,13 @@ function RtcmModePanel({
           </div>
           <RtcmHoldToken
             mechanic="drag"
-            isSongPlaying={isSongPlaying}
+            isSongPlaying={canRecord}
             isArmed={pendingRangeMechanic === "drag"}
             onStartHold={onStartHold}
             onEndHold={onEndHold}
           />
           <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
-            Press to start timing, release to end.
+            Hold for the full drag duration. Release to record it in this encounter draft.
           </div>
         </div>
       </div>
@@ -9512,6 +9608,11 @@ export default function LessonBuilderClient({
     mechanic: "spin" | "drag";
     startTick: number;
   } | null>(null);
+  const rtcmPendingHoldRef = useRef<{
+    draftId: string;
+    mechanic: "spin" | "drag";
+    startTick: number;
+  } | null>(null);
   const [currentSongSeconds, setCurrentSongSeconds] = useState(0);
   const [isSongPlaying, setIsSongPlaying] = useState(false);
   const [audioObjectUrl, setAudioObjectUrl] = useState("");
@@ -9531,11 +9632,11 @@ export default function LessonBuilderClient({
   const [isSaving, setIsSaving] = useState(false);
   const [entryIntent, setEntryIntent] = useState<PlayerLessonEntryIntent>("play");
   const [guidedStarted, setGuidedStarted] = useState(false);
-  const [advancedMode, setAdvancedMode] = useState(true);
+  const [advancedMode, setAdvancedMode] = useState(false);
   const [isLessonLoaded, setIsLessonLoaded] = useState(false);
   const [advancedConfirmOpen, setAdvancedConfirmOpen] = useState(false);
   const [isReadinessOpen, setIsReadinessOpen] = useState(false);
-  const [isBuilderPanelOpen, setIsBuilderPanelOpen] = useState(true);
+  const [isBuilderPanelOpen, setIsBuilderPanelOpen] = useState(false);
   const [isLibraryPanelOpen, setIsLibraryPanelOpen] = useState(false);
   const [selectedSongStorage, setSelectedSongStorage] = useState<{
     id: string;
@@ -9563,6 +9664,7 @@ export default function LessonBuilderClient({
   const [selectedSongAuthorId, setSelectedSongAuthorId] = useState<string | null>(null);
   const [lastSavedAuthorId, setLastSavedAuthorId] = useState<string | null>(null);
   const [lastSavedRevision, setLastSavedRevision] = useState<string | null>(null);
+  const [selectedRhythmSource, setSelectedRhythmSource] = useState<RhythmSourceOption | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const editGenerationRef = useRef(0);
   const publicationRequestIdRef = useRef<string | null>(null);
@@ -9588,6 +9690,7 @@ export default function LessonBuilderClient({
   const [filePickerError, setFilePickerError] = useState("");
   const [filePickerSongs, setFilePickerSongs] = useState<SongChoiceOption[]>([]);
   const [filePickerSongId, setFilePickerSongId] = useState<string | null>(null);
+  const [filePickerRhythmSourceRevision, setFilePickerRhythmSourceRevision] = useState<string | null>(null);
   const [filePickerAuthors, setFilePickerAuthors] = useState<SongChartAuthorOption[]>([]);
   const [isFilePickerAuthorsLoading, setIsFilePickerAuthorsLoading] = useState(false);
   const [filePickerAuthorName, setFilePickerAuthorName] = useState<string | null>(null);
@@ -10385,6 +10488,7 @@ export default function LessonBuilderClient({
     setRtcmDraftMechanics([]);
     setRtcmEventRangeStartTick(null);
     setRtcmPendingHold(null);
+    rtcmPendingHoldRef.current = null;
     setRctm2PendingEventNumber(null);
     setRctm2HitPlacements({});
     setRctm2DragStartPoints({});
@@ -10447,6 +10551,7 @@ export default function LessonBuilderClient({
     setRtcmDraftMechanics([]);
     setRtcmEventRangeStartTick(null);
     setRtcmPendingHold(null);
+    rtcmPendingHoldRef.current = null;
     setRctm2PendingEventNumber(null);
     setRctm2HitPlacements({});
     setRctm2DragStartPoints({});
@@ -10462,6 +10567,7 @@ export default function LessonBuilderClient({
     setRtcmDraftMechanics([]);
     setRtcmEventRangeStartTick(null);
     setRtcmPendingHold(null);
+    rtcmPendingHoldRef.current = null;
     setRctm2PendingEventNumber(null);
     setRctm2HitPlacements({});
     setRctm2DragStartPoints({});
@@ -10585,15 +10691,18 @@ export default function LessonBuilderClient({
       endSeconds: currentSongSeconds,
     });
 
-    setRtcmPendingHold({
+    const pendingHold = {
       draftId,
       mechanic,
       startTick: tick,
-    });
+    };
+    rtcmPendingHoldRef.current = pendingHold;
+    setRtcmPendingHold(pendingHold);
   }
 
   function handleFinalizeRtcmHold() {
-    if (!rtcmPendingHold) {
+    const pendingHold = rtcmPendingHoldRef.current ?? rtcmPendingHold;
+    if (!pendingHold) {
       return;
     }
 
@@ -10601,19 +10710,20 @@ export default function LessonBuilderClient({
 
     setRtcmDraftMechanics((current) =>
       current.map((draft) => {
-        if (draft.id !== rtcmPendingHold.draftId) {
+        if (draft.id !== pendingHold.draftId) {
           return draft;
         }
 
         return {
           ...draft,
-          endTick: Math.max(rtcmPendingHold.startTick, endTick),
+          endTick: Math.max(pendingHold.startTick, endTick),
         };
       }),
     );
 
+    rtcmPendingHoldRef.current = null;
     setRtcmPendingHold(null);
-    setSaveStatus(`${studentCopy.mechanics[rtcmPendingHold.mechanic]} set to ${formatSongTime(currentSongSeconds, isAdvancedMode)}.`);
+    setSaveStatus(`${studentCopy.mechanics[pendingHold.mechanic]} recorded in the current encounter draft. Save the encounter when it is complete.`);
   }
 
   function handleFinalizeRtcmEventCreation(options: { rctm2Number?: number } = {}) {
@@ -11539,14 +11649,22 @@ export default function LessonBuilderClient({
           authorName: selectedSongAuthorName ?? undefined,
           revision: lastSavedRevision ?? undefined,
           publicationRequestId,
-          chart: {
-            ...selectedSongStorage.chart,
-            path: selectedSongStorage.chart.path,
-            content: chartText,
-            contentType:
-              selectedSongStorage.chart.contentType ??
-              "text/plain;charset=utf-8",
-          },
+          chart: selectedRhythmSource
+            ? undefined
+            : {
+                ...selectedSongStorage.chart,
+                path: selectedSongStorage.chart.path,
+                content: chartText,
+                contentType:
+                  selectedSongStorage.chart.contentType ??
+                  "text/plain;charset=utf-8",
+              },
+          rhythmSource: selectedRhythmSource
+            ? {
+                activityKey: selectedRhythmSource.activityKey,
+                revision: selectedRhythmSource.revision,
+              }
+            : undefined,
           sidecar: {
             ...selectedSongStorage.sidecar,
             path: selectedSongStorage.sidecar.path,
@@ -11583,6 +11701,7 @@ export default function LessonBuilderClient({
       if (publishedCurrentSnapshot && workspaceSource) deletePlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
       setLastSavedAuthorId(result.authorId);
       setLastSavedRevision(result.revision);
+      setSelectedRhythmSource(null);
 
       if (
         !savedChartPath ||
@@ -11663,12 +11782,17 @@ export default function LessonBuilderClient({
   function buildSelectedSongPayloadFromChoice(
     song: SongChoiceOption,
   ): SelectedSongPayload {
+    const rhythmSource = song.rhythmSources?.find(
+      (source) => source.revision === filePickerRhythmSourceRevision,
+    ) ?? null;
+    const chart = rhythmSource?.chart ?? song.chart;
     return {
       id: song.id,
       name: song.name,
       title: song.title,
       artist: song.artist,
       authorName: song.authorName ?? filePickerAuthorName ?? null,
+      rhythmSource,
       activity: {
         key: song.activityKey,
         label: getActivityLabel(song.activityKey),
@@ -11680,10 +11804,10 @@ export default function LessonBuilderClient({
         contentType: song.song.contentType,
       },
       chart: {
-        bucket: song.chart.bucket,
-        path: song.chart.path,
-        signedUrl: song.chart.signedUrl,
-        contentType: song.chart.contentType,
+        bucket: chart.bucket,
+        path: chart.path,
+        signedUrl: chart.signedUrl,
+        contentType: chart.contentType,
       },
       sidecar: song.sidecar
         ? {
@@ -11702,6 +11826,7 @@ export default function LessonBuilderClient({
   ) {
     setIsFilePickerLoading(true);
     setFilePickerError("");
+    setFilePickerRhythmSourceRevision(null);
 
     try {
       const response = await fetch(
@@ -11907,7 +12032,12 @@ export default function LessonBuilderClient({
     setFilePickerActivityKey(resolvedActivityKey);
     setSelectedSongAuthorId(selectedSong.authorId ?? null);
     setLastSavedAuthorId(selectedSong.authorId ?? null);
-    setLastSavedRevision(selectedSong.revision ?? extractRevisionFromStoragePath(selectedSong.chart.path));
+    setLastSavedRevision(
+      selectedSong.rhythmSource
+        ? null
+        : selectedSong.revision ?? extractRevisionFromStoragePath(selectedSong.chart.path),
+    );
+    setSelectedRhythmSource(selectedSong.rhythmSource ?? null);
     setSelectedSongAuthorName(selectedSong.authorName ?? null);
     if (selectedSong.authorName) {
       setFilePickerAuthorName(selectedSong.authorName);
@@ -12150,6 +12280,14 @@ export default function LessonBuilderClient({
 
     if (!selectedSong) {
       setFilePickerError("Select a song to continue.");
+      return;
+    }
+
+    if (
+      selectedSong.requiresRhythmSource &&
+      !selectedSong.rhythmSources?.some((source) => source.revision === filePickerRhythmSourceRevision)
+    ) {
+      setFilePickerError("Choose a verified rhythm source before creating this Number Bonds lesson.");
       return;
     }
 
@@ -13357,6 +13495,7 @@ export default function LessonBuilderClient({
                 pendingRangeMechanic={rtcmPendingHold?.mechanic ?? null}
                 eventRangeStartTick={rtcmEventRangeStartTick}
                 canDeleteEvent={Boolean(rtcmDeleteTargetEventId)}
+                draftedActionCount={rtcmDraftMechanics.length}
               />
             </div>
           ) : isRctm2Mode ? (
@@ -13606,6 +13745,7 @@ export default function LessonBuilderClient({
                             instance={selectedGuidedEncounter}
                             tokens={selectedGuidedEncounter.equation?.tokens ?? []}
                             readiness={selectedGuidedReadiness}
+                            activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
                             step={selectedGuidedReadiness.issueCodes.includes("equation_required") ? 1 : 2}
                             stepCount={3}
                             dragSources={dragSources}
@@ -13848,6 +13988,7 @@ export default function LessonBuilderClient({
           <EquationTimeline
             events={timelineEvents}
             hideSpinouts={isRctm2Mode}
+            activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
             activeEventId={activeEventId}
             onSelectEvent={handleSelectEvent}
             currentSongSeconds={currentSongSeconds}
@@ -13908,9 +14049,14 @@ export default function LessonBuilderClient({
         activityKey={filePickerActivityKey}
         songs={filePickerSongs}
         selectedSongId={filePickerSongId}
+        selectedRhythmSourceRevision={filePickerRhythmSourceRevision}
         onAuthorChange={setFilePickerAuthorName}
         onActivityChange={setFilePickerActivityKey}
-        onSelectSong={setFilePickerSongId}
+        onSelectSong={(songId) => {
+          setFilePickerSongId(songId);
+          setFilePickerRhythmSourceRevision(null);
+        }}
+        onSelectRhythmSource={(revision) => setFilePickerRhythmSourceRevision(revision || null)}
         onClose={() => setIsFilePickerOpen(false)}
         onLoad={handleLoadSongFromFilePicker}
       />
