@@ -13,10 +13,23 @@ type UnityPlayerProps = {
 export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const unityRef = useRef<UnityInstance | null>(null);
+  const launchPayloadRef = useRef(launchPayload);
   const hasStartedRef = useRef(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    launchPayloadRef.current = launchPayload;
+
+    if (unityRef.current && launchPayload) {
+      unityRef.current.SendMessage?.(
+        "GameManager",
+        "ReceiveLaunchPayload",
+        JSON.stringify(launchPayload),
+      );
+    }
+  }, [launchPayload]);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,11 +94,11 @@ export default function UnityPlayer({ launchPayload }: UnityPlayerProps) {
         window.unityInstance = instance;
         setStatus("ready");
 
-        if (launchPayload) {
+        if (launchPayloadRef.current) {
           unityRef.current?.SendMessage?.(
             "GameManager",
             "ReceiveLaunchPayload",
-            JSON.stringify(launchPayload)
+            JSON.stringify(launchPayloadRef.current),
           );
         }
       } catch (err: unknown) {

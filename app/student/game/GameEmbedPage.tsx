@@ -407,22 +407,26 @@ function GameEmbedSession({
     }
 
     if (isDemoMode) {
-      const storedCalibration = window.localStorage.getItem(
-        demoCalibrationStorageKey(bridgeContext.installationId),
-      );
-      let parsedCalibration: CalibrationState | null = null;
-      try {
-        parsedCalibration = parseCalibrationState(
-          storedCalibration ? JSON.parse(storedCalibration) : null,
-          bridgeContext.protocolVersion,
+      queueMicrotask(() => {
+        if (cancelled) return;
+
+        const storedCalibration = window.localStorage.getItem(
+          demoCalibrationStorageKey(bridgeContext.installationId),
         );
-      } catch {
-        parsedCalibration = null;
-      }
-      if (!cancelled) {
-        setCalibration(parsedCalibration);
-        setCalibrationStatus(parsedCalibration ? "ready" : "required");
-      }
+        let parsedCalibration: CalibrationState | null = null;
+        try {
+          parsedCalibration = parseCalibrationState(
+            storedCalibration ? JSON.parse(storedCalibration) : null,
+            bridgeContext.protocolVersion,
+          );
+        } catch {
+          parsedCalibration = null;
+        }
+        if (!cancelled) {
+          setCalibration(parsedCalibration);
+          setCalibrationStatus(parsedCalibration ? "ready" : "required");
+        }
+      });
       return () => { cancelled = true; };
     }
 

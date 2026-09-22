@@ -9,6 +9,7 @@ type LandingSoundButtonProps = {
 export default function LandingSoundButton({ src }: LandingSoundButtonProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   async function handleToggleSound() {
     const audio = audioRef.current;
@@ -18,6 +19,8 @@ export default function LandingSoundButton({ src }: LandingSoundButtonProps) {
     }
 
     try {
+      setPlaybackError(null);
+
       if (isPlaying) {
         audio.pause();
         setIsPlaying(false);
@@ -27,8 +30,8 @@ export default function LandingSoundButton({ src }: LandingSoundButtonProps) {
       audio.volume = 0.65;
       await audio.play();
       setIsPlaying(true);
-    } catch (error) {
-      console.error("Landing music failed to play:", error);
+    } catch {
+      setPlaybackError("Music could not start. Try again.");
       setIsPlaying(false);
     }
   }
@@ -44,6 +47,10 @@ export default function LandingSoundButton({ src }: LandingSoundButtonProps) {
           onEnded={() => setIsPlaying(false)}
           onPause={() => setIsPlaying(false)}
           onPlay={() => setIsPlaying(true)}
+          onError={() => {
+            setPlaybackError("Music is unavailable right now.");
+            setIsPlaying(false);
+          }}
         />
       ) : null}
 
@@ -51,7 +58,9 @@ export default function LandingSoundButton({ src }: LandingSoundButtonProps) {
         type="button"
         onClick={handleToggleSound}
         aria-label={isPlaying ? "Pause music" : "Play music"}
+        aria-describedby={playbackError ? "landing-music-status" : undefined}
         disabled={!src}
+        title={playbackError ?? undefined}
         style={{
           position: "absolute",
           top: 18,
@@ -124,6 +133,25 @@ export default function LandingSoundButton({ src }: LandingSoundButtonProps) {
           </svg>
         )}
       </button>
+      {playbackError ? (
+        <span
+          id="landing-music-status"
+          role="status"
+          style={{
+            position: "absolute",
+            width: 1,
+            height: 1,
+            padding: 0,
+            margin: -1,
+            overflow: "hidden",
+            clip: "rect(0, 0, 0, 0)",
+            whiteSpace: "nowrap",
+            border: 0,
+          }}
+        >
+          {playbackError}
+        </span>
+      ) : null}
     </>
   );
 }

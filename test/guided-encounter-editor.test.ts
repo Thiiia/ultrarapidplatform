@@ -80,6 +80,8 @@ test("operators are disabled as gameplay targets", () => {
 });
 
 test("Hit timing has one editable instant and cannot author a third simultaneous pad", () => {
+  type RenderedProps = Record<string, unknown>;
+  type InputChange = (event: { currentTarget: { value: string } }) => void;
   const patches: Partial<GuidedEncounterInput>[] = [];
   const tree = GuidedEncounterComposer({
     instance: { ...emptySpin, mechanic: "hit", id: "hit-1", tick: 4, endTick: 8,
@@ -88,21 +90,23 @@ test("Hit timing has one editable instant and cannot author a third simultaneous
     readiness: { encounterId: "hit-1", ready: false, issueCodes: ["hit_timing_invalid"], issues: [], nextAction: "Fix timing" },
     onPatchInstance: (_, patch) => patches.push(patch),
   });
-  const inputs: Array<Record<string, any>> = [];
-  const buttons: Array<Record<string, any>> = [];
+  const inputs: RenderedProps[] = [];
+  const buttons: RenderedProps[] = [];
   function visit(value: unknown) {
     if (!isValidElement<{ children?: ReactNode }>(value)) return;
     if (typeof value.type === "function") {
       visit((value.type as (props: unknown) => ReactNode)(value.props));
       return;
     }
-    if (value.type === "input") inputs.push(value.props);
-    if (value.type === "button") buttons.push(value.props);
+    if (value.type === "input") inputs.push(value.props as RenderedProps);
+    if (value.type === "button") buttons.push(value.props as RenderedProps);
     Children.forEach(value.props.children, visit);
   }
   visit(tree);
   assert.equal(inputs.length, 1, "a Hit has a start time, not a separately editable duration");
-  inputs[0].onChange({ currentTarget: { value: "6.25" } });
+  const onChange = inputs[0].onChange as InputChange | undefined;
+  if (!onChange) throw new Error("Expected the Hit start-time input to expose onChange");
+  onChange({ currentTarget: { value: "6.25" } });
   assert.deepEqual(patches[0], { tick: 6.25, endTick: 6.25 });
   assert.equal(buttons.find(button => button["aria-label"] === "Pad Top left")?.disabled, true);
   assert.equal(buttons.find(button => button["aria-label"] === "Pad Left")?.disabled, false);

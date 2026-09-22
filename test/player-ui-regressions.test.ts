@@ -75,6 +75,25 @@ test("song choice keeps direct entry activity-bound and makes previews interacti
   assert.match(songChoice, /previewUnavailable/);
 });
 
+test("optional landing media stays quiet without storage credentials and reports playback failures accessibly", () => {
+  const storage = source("lib/storage-media.ts");
+  const landingSound = source("app/LandingSoundButton.tsx");
+
+  assert.match(storage, /export function isStorageConfigured/);
+  assert.match(storage, /if \(!isStorageConfigured\(\)\) \{[\s\S]{0,120}return null;/);
+  assert.doesNotMatch(landingSound, /console\.error/);
+  assert.match(landingSound, /playbackError/);
+  assert.match(landingSound, /aria-describedby=\{playbackError/);
+});
+
+test("the Unity web wrapper forwards launch payload updates after the runtime is ready", () => {
+  const unityPlayer = source("app/components/UnityPlayer.tsx");
+
+  assert.match(unityPlayer, /const launchPayloadRef = useRef\(launchPayload\)/);
+  assert.match(unityPlayer, /\}, \[launchPayload\]\);/);
+  assert.match(unityPlayer, /JSON\.stringify\(launchPayloadRef\.current\)/);
+});
+
 test("demo song choice defaults to the published Early Algebra catalogue", () => {
   const demoSongChoice = source("app/demo/student/song-choice/page.tsx");
 
