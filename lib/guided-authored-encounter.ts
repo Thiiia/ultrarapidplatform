@@ -47,6 +47,7 @@ export type EncounterIssueCode =
 
 export type EncounterIssue = {
   encounterId: string;
+  relatedEncounterId?: string;
   code: EncounterIssueCode;
   message: string;
   nextAction: string;
@@ -95,7 +96,7 @@ const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   operator_target: "Pick a number or variable, not a + or = sign.",
   drag_source_not_ready: "Choose a Hit that comes before this Drag.",
   drag_source_not_earlier: "Move this Drag after its source Hit.",
-  unsupported_concurrency: "Move this action so its approach window does not overlap another mechanic.",
+  unsupported_concurrency: "Move either action so their approach windows do not overlap.",
   activity_mechanic_unsupported: "Use a Hit for this activity; its later interaction phases are generated at runtime.",
   activity_equation_invalid: "Use one valid Number Bonds equation, such as 5 = 2 + 3.",
   activity_target_shape: "Give this Number Bonds Hit exactly one bubble target.",
@@ -117,7 +118,7 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
     operator_target: "uses a + or = sign as its target",
     drag_source_not_ready: "needs a Hit that comes first",
     drag_source_not_earlier: "must start after its source Hit",
-    unsupported_concurrency: "overlaps an unsupported mechanic",
+    unsupported_concurrency: "overlaps another move",
     activity_mechanic_unsupported: "uses a mechanic that this activity does not author",
     activity_equation_invalid: "uses an equation outside this activity's contract",
     activity_target_shape: "has the wrong target shape for this activity",
@@ -256,6 +257,35 @@ export function inputFromEvent(
   };
 }
 
+export type GuidedEncounterSelection = {
+  eventId: string;
+  mechanic: GuidedMechanic;
+  instanceIndex: number;
+  tick: number;
+};
+
+/** Resolve a readiness blocker back to the exact mechanic tab and timeline cue. */
+export function findGuidedEncounterSelection(
+  events: readonly AuthoredTimelineEvent[],
+  encounterId: string,
+): GuidedEncounterSelection | null {
+  for (const event of events) {
+    for (const mechanic of ["hit", "spin", "drag"] as const) {
+      const instances = event.mechanicInstances?.[mechanic] ?? [];
+      const instanceIndex = instances.findIndex((instance) => instance.id === encounterId);
+      if (instanceIndex < 0) continue;
+      const instance = instances[instanceIndex];
+      return {
+        eventId: event.id,
+        mechanic,
+        instanceIndex,
+        tick: instance.tick ?? event.tick,
+      };
+    }
+  }
+  return null;
+}
+
 function effectiveEndTick(
   event: AuthoredTimelineEvent,
   mechanic: GuidedMechanic,
@@ -372,7 +402,20 @@ export function evaluateLessonPublishReadiness(
         if (!sharedPad) continue;
       }
 
-      blockers.push(issue(rightInput, "unsupported_concurrency"));
+      const conflict = issue(rightInput, "unsupported_concurrency");
+      const moveLabel = (id: string, mechanicName: GuidedMechanic) => {
+        const numberMatch = id.match(/(?:hit|spin|drag)[-_ ]?(\d+)/i);
+        const label = mechanicName[0].toUpperCase() + mechanicName.slice(1);
+        return `${label}${numberMatch ? ` ${numberMatch[1]}` : ""}`;
+      };
+      const rightLabel = moveLabel(right.instance.id, right.mechanic);
+      const leftLabel = moveLabel(left.instance.id, left.mechanic);
+      blockers.push({
+        ...conflict,
+        relatedEncounterId: left.instance.id,
+        message: `${rightLabel} overlaps ${leftLabel}.`,
+        nextAction: `Move either ${rightLabel} or ${leftLabel} on the timeline.`,
+      });
     }
   }
 

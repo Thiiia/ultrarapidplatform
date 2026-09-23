@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   evaluateEncounterReadiness,
   evaluateLessonPublishReadiness,
+  findGuidedEncounterSelection,
   normalizeStagedMechanic,
   type GuidedEncounterInput,
 } from "../lib/guided-authored-encounter";
@@ -133,7 +134,11 @@ test("publish readiness blocks overlapping mechanics but permits disjoint multi-
   const drag = encounter("drag", { id: "drag-1", tick: 9, endTick: 13 });
   const overlap = evaluateLessonPublishReadiness([eventWith(spin), eventWith(drag)]);
   assert.equal(overlap.ready, false);
-  assert.ok(overlap.blockers.some((blocker) => blocker.code === "unsupported_concurrency"));
+  const overlapBlocker = overlap.blockers.find((blocker) => blocker.code === "unsupported_concurrency");
+  assert.ok(overlapBlocker);
+  assert.match(overlapBlocker.message, /Drag 1 overlaps Spin 1/);
+  assert.match(overlapBlocker.nextAction, /Move either Drag 1 or Spin 1/);
+  assert.equal(overlapBlocker.relatedEncounterId, spin.id);
 
   const firstHit = encounter("hit", { id: "hit-1", tick: 8, hitBubbles: [{ tokenIndex: 0, pads: ["left"] }] });
   const secondHit = encounter("hit", { id: "hit-2", tick: 8, hitBubbles: [{ tokenIndex: 2, pads: ["right"] }] });
@@ -151,6 +156,21 @@ test("publish readiness blocks overlapping mechanics but permits disjoint multi-
   assert.ok(legacyPadCollision.blockers.some((blocker) => blocker.code === "unsupported_concurrency"));
 });
 
+test("readiness navigation resolves the exact mechanic instance and its timeline tick", () => {
+  const first = encounter("hit", { id: "hit-1", tick: 4 });
+  const second = encounter("hit", { id: "hit-2", tick: 7 });
+  const spin = encounter("spin", { id: "spin-1", tick: 10, endTick: 13 });
+  const events = [eventWith(first, second, spin)];
+
+  assert.deepEqual(findGuidedEncounterSelection(events, "hit-2"), {
+    eventId: "event-1",
+    mechanic: "hit",
+    instanceIndex: 1,
+    tick: 7,
+  });
+  assert.equal(findGuidedEncounterSelection(events, "missing-hit"), null);
+});
+
 test("publish readiness blocks sequential cues whose Unity presentation windows overlap", () => {
   const firstHit = encounter("hit", { id: "hit-1", tick: 8 });
   const tooSoon = encounter("hit", { id: "hit-2", tick: 9, endTick: 9 });
@@ -161,6 +181,22 @@ test("publish readiness blocks sequential cues whose Unity presentation windows 
   const enoughTime = encounter("hit", { id: "hit-2", tick: 10, endTick: 10 });
   const ready = evaluateLessonPublishReadiness([eventWith(firstHit), eventWith(enoughTime)]);
   assert.equal(ready.ready, true);
+});
+
+test("stress fixture identifies each overlapping Hit pair without blaming the later Spin", () => {
+  const hits = [3.5, 4.8, 5.9, 6.6].map((tick, index) =>
+    encounter("hit", { id: `hit-${index + 1}`, tick, endTick: tick }),
+  );
+  const spin = encounter("spin", { id: "spin-1", tick: 9.42, endTick: 13.94 });
+  const result = evaluateLessonPublishReadiness([eventWith(...hits), eventWith(spin)]);
+  const timingBlockers = result.blockers.filter((blocker) => blocker.code === "unsupported_concurrency");
+
+  assert.deepEqual(timingBlockers.map((blocker) => blocker.message), [
+    "Hit 2 overlaps Hit 1.",
+    "Hit 3 overlaps Hit 2.",
+    "Hit 4 overlaps Hit 3.",
+  ]);
+  assert.ok(timingBlockers.every((blocker) => blocker.relatedEncounterId?.startsWith("hit-")));
 });
 
 test("RCTM without saved equation remains a visible non-publishable draft", () => {

@@ -15,6 +15,10 @@ const studentStyles = readFileSync(
   join(process.cwd(), "app/student/student.module.css"),
   "utf8",
 );
+const studentCopySource = readFileSync(
+  join(process.cwd(), "lib/student-copy.ts"),
+  "utf8",
+);
 
 test("editor status messages use one animated, dismissible toast lifecycle", () => {
   assert.match(lessonBuilderSource, /function EditorToast\(/);
@@ -53,6 +57,21 @@ test("lesson readiness is an expandable status control", () => {
   assert.match(readinessSource, /aria-expanded=\{isOpen\}/);
   assert.match(readinessSource, /hidden=\{!isOpen\}/);
   assert.match(lessonBuilderSource, /isOpen=\{isReadinessOpen\}/);
+});
+
+test("readiness blockers select the exact cue and seek to its authored time", () => {
+  const handler = lessonBuilderSource.match(
+    /function handleSelectReadinessEncounter\(encounterId: string\)[\s\S]*?\n  }/,
+  )?.[0];
+  assert.ok(handler);
+  assert.match(handler, /findGuidedEncounterSelection\([\s\S]*timelineEvents[\s\S]*encounterId/);
+  assert.match(handler, /setSelectedContextMechanicKey\(`\$\{selection\.mechanic\}:\$\{selection\.instanceIndex\}`\)/);
+  assert.match(handler, /seekSong\(timelineTickToSeconds\(selection\.tick\)\)/);
+  assert.match(readinessSource, /blocker\.relatedEncounterId/);
+});
+
+test("starter copy does not promise Play while the lesson still has blockers", () => {
+  assert.match(studentCopySource, /Starter lesson\. Check the Ready panel for any fixes before playing/);
 });
 
 test("editor motion respects reduced-motion preferences", () => {

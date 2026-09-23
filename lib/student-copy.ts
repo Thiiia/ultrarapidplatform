@@ -98,7 +98,7 @@ export const studentCopy = {
     moveGroup: (number: number) => `Encounter ${number}`,
     editingMoveGroup: (number: number) => `Editing encounter ${number} · choose a move or change its equation`,
     starterLabel: "Starting lesson",
-    starterBody: "This lesson is ready to play. Keep it, change one encounter, or add an equation.",
+    starterBody: "Starter lesson. Check the Ready panel for any fixes before playing. Keep it, change one encounter, or add an equation.",
     changeFirstMove: "Change first encounter",
     addEquation: "Add an equation",
     keepIt: "Keep it",

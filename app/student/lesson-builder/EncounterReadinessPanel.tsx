@@ -70,7 +70,7 @@ export function EncounterReadinessPanel({
           <div className={styles.editorReadinessBlockers}>
             {readiness.blockers.map((blocker) => (
               <button
-                key={`${blocker.encounterId}-${blocker.code}`}
+                key={`${blocker.encounterId}-${blocker.relatedEncounterId ?? ""}-${blocker.code}`}
                 type="button"
                 onClick={() => onSelectEncounter(blocker.encounterId)}
                 className={styles.editorReadinessBlocker}

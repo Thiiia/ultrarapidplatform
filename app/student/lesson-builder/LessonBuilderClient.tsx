@@ -51,6 +51,7 @@ import { GuidedEncounterComposer } from "./GuidedEncounterComposer";
 import { EncounterReadinessPanel } from "./EncounterReadinessPanel";
 import {
   evaluateEncounterReadiness,
+  findGuidedEncounterSelection,
   inputFromEvent,
   normalizeStagedMechanic,
   type GuidedEncounterInput,
@@ -13345,15 +13346,22 @@ export default function LessonBuilderClient({
     [isAdvancedMode, timelineEvents],
   );
   function handleSelectReadinessEncounter(encounterId: string) {
-    const event = timelineEvents.find((eventSlot) =>
-      gameplayMechanics.some((mechanic) => eventSlot.mechanicInstances[mechanic]?.some((instance) => instance.id === encounterId)),
+    const selection = findGuidedEncounterSelection(
+      timelineEvents as unknown as AuthoredTimelineEvent[],
+      encounterId,
     );
-    if (event) {
-      setActiveEventId(event.id);
-      setCenterChoice(null);
-      setIsReadinessOpen(false);
-      setSaveStatus(`Editing this move. ${lessonPublishReadiness.nextAction}`);
-    }
+    if (!selection) return;
+
+    setActiveEventId(selection.eventId);
+    setSelectedContextMechanicKey(`${selection.mechanic}:${selection.instanceIndex}`);
+    setCenterChoice(null);
+    seekSong(timelineTickToSeconds(selection.tick));
+    setIsReadinessOpen(false);
+    const blocker = lessonPublishReadiness.blockers.find((item) => item.encounterId === encounterId);
+    const mechanicLabel = selection.mechanic[0].toUpperCase() + selection.mechanic.slice(1);
+    setSaveStatus(
+      `Editing ${mechanicLabel} ${selection.instanceIndex + 1} on the timeline. ${blocker?.nextAction ?? "Adjust its timing, then check readiness again."}`,
+    );
   }
   return (
     <div
