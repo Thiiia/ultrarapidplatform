@@ -9,6 +9,11 @@ const receipt = {
   counts: { encounters: 1, equations: 1, targets: 1 }, hashes: { chartSha256: "a".repeat(64), sidecarSha256: "b".repeat(64), audioSha256: "c".repeat(64) },
 };
 
+test("bridge rejects a receipt without the revision Unity requires", () => {
+  const unrevisionedReceipt = { ...receipt, revision: undefined };
+  assert.throws(() => createBridgeContext(unrevisionedReceipt, "https://game.example/", crypto.randomUUID()), /revision/);
+});
+
 test("bridge validates nonce and receipt, and rejects arbitrary navigation", () => {
   const context = createBridgeContext(receipt, "https://game.example/", crypto.randomUUID());
   const valid = { type: "calibration-complete" as const, nonce: context.nonce, receipt, offsetMs: 12, protocolVersion: 1 };

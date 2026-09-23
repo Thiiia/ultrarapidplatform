@@ -219,7 +219,33 @@ test("legacy packages cannot bypass the immutable receipt boundary", async () =>
     loadSongChart: async () => ({chartBucket: "Charts", chartPath: "dev/Early_Algebra/Melika.chart", sidecarBucket: "SidecarJsons", sidecarPath: "dev/Early_Algebra/Melika.encounters.json", legacy: true, counts: {encounters: 11, equations: 11, targets: 0}}),
     createSignedUrl: async (_bucket: string, path: string) => `https://example.test/${path}`,
   };
-  await assert.rejects(resolveFreshSongLaunchPackage(input), /immutable artifact hashes/);
+  await assert.rejects(resolveFreshSongLaunchPackage(input), /immutable revision/);
+});
+
+test("hash-complete legacy packages still require an immutable revision", async () => {
+  await assert.rejects(resolveFreshSongLaunchPackage({
+    songAssetId: "jazzmaybach", activityKey: "early-algebra", authorId: "dev-id",
+    loadSongAsset: async () => ({ id: "jazzmaybach", isActive: true, songBucket: "Songs", songPath: "jazz.mp3" }),
+    loadSongChart: async () => ({
+      chartBucket: "Charts", chartPath: "dev/Early_Algebra/Melika.chart",
+      sidecarBucket: "SidecarJsons", sidecarPath: "dev/Early_Algebra/Melika.encounters.json",
+      legacy: true, counts: { encounters: 11, equations: 11, targets: 0 }, hashes: HASHES,
+    }),
+    createSignedUrl: async (_bucket, path) => `https://example.test/${path}`,
+  }), /immutable revision/);
+});
+
+test("revisioned authored packages still require immutable artifact hashes", async () => {
+  await assert.rejects(resolveFreshSongLaunchPackage({
+    songAssetId: "song-revisioned", activityKey: "early-algebra", authorId: "author-ready", revision: "rev-ready",
+    loadSongAsset: async () => ({ id: "song-revisioned", isActive: true, songBucket: "Songs", songPath: "song.mp3" }),
+    loadSongChart: async () => ({
+      chartBucket: "Charts", chartPath: "Early_Algebra/revisions/rev-ready/song.chart",
+      sidecarBucket: "SidecarJsons", sidecarPath: "Early_Algebra/revisions/rev-ready/song.json",
+      revision: "rev-ready", counts: { encounters: 1, equations: 1, targets: 1 },
+    }),
+    createSignedUrl: async (_bucket, path) => `https://example.test/${path}`,
+  }), /immutable artifact hashes/);
 });
 
 type SongLaunchPackageModule = {
