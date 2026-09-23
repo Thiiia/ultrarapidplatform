@@ -33,7 +33,7 @@ function hit(id: string, tick: number): GuidedEncounterInput {
     tick,
     endTick: tick,
     equation,
-    hitBubbles: [{ tokenIndex: 0, targetId: "whole", pads: ["pad-1"] }],
+    hitBubbles: [{ tokenIndex: 0, targetId: "whole", pads: ["topLeft"] }],
     spinTargets: [],
     dragTargets: [],
   };
@@ -84,8 +84,8 @@ test("Number Bonds blocks authored Spin and multi-bubble Hits", () => {
     evaluateEncounterReadiness({
       ...hit("hit-1", 10),
       hitBubbles: [
-        { tokenIndex: 0, targetId: "whole", pads: ["pad-1"] },
-        { tokenIndex: 2, targetId: "known", pads: ["pad-2"] },
+        { tokenIndex: 0, targetId: "whole", pads: ["topLeft"] },
+        { tokenIndex: 2, targetId: "known", pads: ["topRight"] },
       ],
     }, new Set(), { activityKey: "number-bonds" }).issueCodes.includes("activity_target_shape"),
     true,
@@ -98,6 +98,7 @@ test("Number Bonds publish readiness enforces one equation and enough authored H
     evaluateLessonPublishReadiness(events, {
       activityKey: "number-bonds",
       equationQueue: [equation],
+      stopAtSeconds: 62,
     }).ready,
     true,
   );

@@ -1,6 +1,7 @@
 import { tokenizeAuthoredEquationState } from "./authored-lesson";
 import { evaluateLessonPublishReadiness } from "./guided-authored-encounter";
 import { getAuthoredActivityContractIssues } from "./activity-authoring-capabilities";
+import type { AuthoredHitPadLayoutVersion } from "./authored-hit-pad-layout";
 
 /**
  * v3 authored-lesson serialization boundary for the lesson builder.
@@ -33,6 +34,7 @@ export type AuthoredSavedEquation = {
 export type AuthoredHitBubble = {
   tokenIndex: number;
   targetId?: string;
+  padLayoutVersion?: AuthoredHitPadLayoutVersion;
   positions?: string[];
   pads?: string[];
 };
@@ -400,12 +402,14 @@ export function timelineEventsFromAuthoredLesson(
         const record = bubble as {
           tokenIndex: number;
           targetId?: string;
+          padLayoutVersion?: AuthoredHitPadLayoutVersion;
           positions?: string[];
           pads?: string[];
         };
         return {
           tokenIndex: record.tokenIndex,
           ...(typeof record.targetId === "string" ? { targetId: record.targetId } : {}),
+          ...(record.padLayoutVersion == null ? {} : { padLayoutVersion: record.padLayoutVersion }),
           ...(record.positions ? { positions: record.positions } : {}),
           ...(record.pads ? { pads: record.pads } : {}),
         };

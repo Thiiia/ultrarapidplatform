@@ -919,10 +919,36 @@
   color: #ffffff;
 }
 
-.editorReadinessBlocker span:last-child {
+.editorReadinessBlockerAction,
+.editorReadinessBlockerCount {
   color: #ffffff99;
   font-size: 10px;
   font-weight: 600;
+}
+
+.editorReadinessBlockerPagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 5px;
+  color: #ffffff99;
+  font-size: 10px;
+}
+
+.editorReadinessBlockerPagination button {
+  border: 0;
+  padding: 3px 5px;
+  background: transparent;
+  color: #cfff04;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.editorReadinessBlockerPagination button:disabled {
+  color: #ffffff55;
+  cursor: default;
 }
 
 .editorReadinessBlocker:hover {

@@ -10,6 +10,11 @@ import {
   type NumberBondsTimingIssue,
 } from "../lib/activity-authoring-capabilities";
 import { parseAuthoredLessonDraft } from "../lib/authored-lesson";
+import {
+  PLAYER_HEX_AUTHORED_HIT_PADS,
+  resolveAuthoredHitPadSlot,
+  resolvePlayerHexHitPadPixelOffset,
+} from "../lib/authored-hit-pad-layout";
 import { prepareAuthoredLessonForPublication } from "../lib/authored-lesson-publication";
 import { createLessonClock } from "../lib/editor/lesson-timing";
 import { serializeAuthoredLesson } from "../lib/authored-lesson-serialization";
@@ -31,6 +36,14 @@ type RuntimeContractFixture = {
   timingPolicy: typeof NUMBER_BONDS_TIMING_POLICY;
   targetPolicy: string;
   hitCountPolicy: string;
+  hitPadLayouts: Array<{
+    layoutVersion: number;
+    pad: string;
+    expectedSlot: number;
+    label?: string;
+    xUnit?: number;
+    yUnit?: number;
+  }>;
   cases: Array<{
     id: string;
     activityKey?: string;
@@ -81,6 +94,35 @@ test("the shared fixture pins the initial Number Bonds runtime policy", () => {
   assert.equal(fixture.targetPolicy, "whole-token");
   assert.equal(fixture.hitCountPolicy, "exactly-one-per-generated-gem");
   assert.deepEqual(NUMBER_BONDS_TIMING_POLICY, fixture.timingPolicy);
+});
+
+test("the shared fixture keeps authored hit-pad labels and Unity's measured physical offsets aligned", () => {
+  for (const entry of fixture.hitPadLayouts) {
+    assert.equal(
+      resolveAuthoredHitPadSlot(entry.pad, entry.layoutVersion),
+      entry.expectedSlot,
+      `${entry.layoutVersion}:${entry.pad}`,
+    );
+  }
+
+  assert.deepEqual(
+    PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad, label, xUnit, yUnit }) => ({ pad, label, xUnit, yUnit })),
+    fixture.hitPadLayouts
+      .filter(({ layoutVersion }) => layoutVersion === 2)
+      .map(({ pad, label, xUnit, yUnit }) => ({ pad, label, xUnit, yUnit })),
+  );
+});
+
+test("all authoring and playback previews resolve Unity pad geometry in screen space", () => {
+  const playerLayout = fixture.hitPadLayouts.filter(({ layoutVersion }) => layoutVersion === 2);
+  for (const entry of playerLayout) {
+    const offset = resolvePlayerHexHitPadPixelOffset(entry.expectedSlot, 100);
+    assert.ok(offset, `${entry.layoutVersion}:${entry.pad}`);
+    assert.ok(Math.abs(offset.dx - (entry.xUnit ?? 0) * 100) < 1e-9, entry.pad);
+    assert.ok(Math.abs(offset.dy + (entry.yUnit ?? 0) * 100) < 1e-9, entry.pad);
+  }
+  assert.equal(resolvePlayerHexHitPadPixelOffset(-1, 100), null);
+  assert.equal(resolvePlayerHexHitPadPixelOffset(0, Number.POSITIVE_INFINITY), null);
 });
 
 test("editor and publication timing consumers match every versioned fixture case", () => {

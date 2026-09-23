@@ -50,6 +50,20 @@ test('authored payload is stamped with the selected identity and revision', () =
   assert.equal(stamped.encounters[0].eventId, 'event-a');
 });
 
+test('authored Hit preserves the versioned physical player pad layout', () => {
+  const parsed = parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [{
+      ...authored.encounters[0],
+      hitBubbles: [{ tokenIndex: 0, pads: ['top'], padLayoutVersion: 2 }],
+    }],
+  });
+
+  assert.deepEqual(parsed.encounters[0].hitBubbles, [
+    { tokenIndex: 0, pads: ['top'], padLayoutVersion: 2 },
+  ]);
+});
+
 test('authored payload rejects mismatched identity instead of falling back', () => {
   const draft = parseAuthoredLessonDraft(authored);
   assert.throws(() => stampAuthoredLessonIdentity(draft, {
@@ -198,7 +212,29 @@ test('authored v3 permits disjoint concurrent hits in one event and equation', (
       },
       multiHit.encounters[1],
     ],
-  }), /both assign pad 'right'/i);
+  }), /both assign player pad 'Bottom'/i);
+});
+
+test('concurrent Hits collide when legacy and physical layouts resolve to the same player pad', () => {
+  assert.throws(() => parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [
+      {
+        ...authored.encounters[0],
+        id: 'e1:hit:0',
+        eventId: 'e1',
+        hitBubbles: [{ tokenIndex: 0, pads: ['topLeft'] }],
+      },
+      {
+        ...authored.encounters[0],
+        id: 'e1:hit:1',
+        eventId: 'e1',
+        startTick: 192,
+        endTick: 192,
+        hitBubbles: [{ tokenIndex: 2, pads: ['top'], padLayoutVersion: 2 }],
+      },
+    ],
+  }), /both assign player pad 'Top'/i);
 });
 
 test('authored v3 rejects sequential rows whose presentation windows still overlap in Unity', () => {
@@ -292,6 +328,33 @@ test('publication playability policy rejects an early first cue and impractical 
     clock,
     { legacyHitInteractionSignatures: legacySignature },
   ));
+});
+
+test('legacy mask preservation compares physical slots across pad-layout versions', () => {
+  const legacy = parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [{
+      ...authored.encounters[0],
+      hitBubbles: [{ tokenIndex: 0, pads: ['topLeft', 'left', 'right'] }],
+    }],
+  }).encounters[0]!;
+  const reassigned = parseAuthoredLessonDraft({
+    ...authored,
+    encounters: [{
+      ...authored.encounters[0],
+      hitBubbles: [{
+        tokenIndex: 0,
+        positions: ['top', 'lowerRight', 'bottom'],
+        pads: ['top', 'lowerRight', 'bottom'],
+        padLayoutVersion: 2,
+      }],
+    }],
+  }).encounters[0]!;
+
+  assert.equal(
+    authoredLegacyHitInteractionSignature(reassigned),
+    authoredLegacyHitInteractionSignature(legacy),
+  );
 });
 
 test('authored v3 requires a hit pad and rejects a drag that starts with its source hit', () => {

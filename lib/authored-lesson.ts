@@ -1,17 +1,22 @@
 import { normalizeSongActivityKey } from "./song-activity-storage";
+import {
+  authoredHitPadLabelForSlot,
+  AuthoredHitPad,
+  AuthoredHitPadLayoutVersion,
+  LEGACY_AUTHORED_HIT_PAD_LAYOUT_VERSION,
+  LEGACY_AUTHORED_HIT_PADS,
+  PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
+  PLAYER_HEX_AUTHORED_HIT_PADS,
+  resolveAuthoredHitPadSlot,
+  resolveAuthoredHitPadTarget,
+} from "./authored-hit-pad-layout";
 
 export const AUTHORED_LESSON_VERSION = 3 as const;
 
 export const AUTHORED_HIT_PADS = [
-  "topLeft",
-  "topRight",
-  "left",
-  "right",
-  "bottomLeft",
-  "bottomRight",
+  ...LEGACY_AUTHORED_HIT_PADS,
+  ...PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad }) => pad),
 ] as const;
-
-type AuthoredHitPad = (typeof AUTHORED_HIT_PADS)[number];
 
 export type AuthoredLessonTarget = {
   tokenIndex: number;
@@ -24,6 +29,7 @@ export type AuthoredLessonTarget = {
 export type AuthoredLessonHitBubble = {
   tokenIndex: number;
   targetId?: string;
+  padLayoutVersion?: AuthoredHitPadLayoutVersion;
   positions?: AuthoredHitPad[];
   pads?: AuthoredHitPad[];
 };
@@ -113,21 +119,28 @@ function requireTick(value: unknown, label: string) {
   return Number(value);
 }
 
-function requireHitPad(value: unknown, label: string): AuthoredHitPad {
-  if (typeof value !== "string" || !AUTHORED_HIT_PADS.includes(value as AuthoredHitPad)) {
-    throw new Error(`Authored lesson ${label} must be one of ${AUTHORED_HIT_PADS.join(", ")}`);
+function requireHitPad(value: unknown, label: string, layoutVersion: number): AuthoredHitPad {
+  if (typeof value !== "string" || resolveAuthoredHitPadSlot(value, layoutVersion) < 0) {
+    const validPads = layoutVersion === PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION
+      ? PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad }) => pad)
+      : LEGACY_AUTHORED_HIT_PADS;
+    throw new Error(`Authored lesson ${label} must be one of ${validPads.join(", ")}`);
   }
   return value as AuthoredHitPad;
 }
 
-function normalizePadList(value: unknown, label: string): AuthoredHitPad[] | undefined {
+function normalizePadList(
+  value: unknown,
+  label: string,
+  layoutVersion: number = LEGACY_AUTHORED_HIT_PAD_LAYOUT_VERSION,
+): AuthoredHitPad[] | undefined {
   if (value == null) {
     return undefined;
   }
   if (!Array.isArray(value)) {
     throw new Error(`Authored lesson ${label} must be an array`);
   }
-  return value.map((pad, index) => requireHitPad(pad, `${label}[${index}]`));
+  return value.map((pad, index) => requireHitPad(pad, `${label}[${index}]`, layoutVersion));
 }
 
 function normalizeHitBubble(value: unknown, label: string): AuthoredLessonHitBubble {
@@ -137,9 +150,26 @@ function normalizeHitBubble(value: unknown, label: string): AuthoredLessonHitBub
   const bubble = value as Record<string, unknown>;
   const tokenIndex = requireTick(bubble.tokenIndex, `${label}.tokenIndex`);
   const targetId = bubble.targetId == null ? undefined : requireString(bubble.targetId, `${label}.targetId`);
-  const positions = normalizePadList(bubble.positions, `${label}.positions`);
-  const pads = normalizePadList(bubble.pads, `${label}.pads`);
-  return { tokenIndex, ...(targetId ? { targetId } : {}), ...(positions ? { positions } : {}), ...(pads ? { pads } : {}) };
+  const padLayoutVersion = bubble.padLayoutVersion == null
+    ? undefined
+    : requirePadLayoutVersion(bubble.padLayoutVersion, `${label}.padLayoutVersion`);
+  const layoutVersion = padLayoutVersion ?? LEGACY_AUTHORED_HIT_PAD_LAYOUT_VERSION;
+  const positions = normalizePadList(bubble.positions, `${label}.positions`, layoutVersion);
+  const pads = normalizePadList(bubble.pads, `${label}.pads`, layoutVersion);
+  return {
+    tokenIndex,
+    ...(targetId ? { targetId } : {}),
+    ...(padLayoutVersion == null ? {} : { padLayoutVersion }),
+    ...(positions ? { positions } : {}),
+    ...(pads ? { pads } : {}),
+  };
+}
+
+function requirePadLayoutVersion(value: unknown, label: string): AuthoredHitPadLayoutVersion {
+  if (value === LEGACY_AUTHORED_HIT_PAD_LAYOUT_VERSION || value === PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION) {
+    return value;
+  }
+  throw new Error(`Authored lesson ${label} must be 1 or 2`);
 }
 
 function normalizeTarget(value: unknown, label: string): AuthoredLessonTarget {
@@ -207,10 +237,10 @@ function isPlayableAuthoredToken(token: string) {
   return !isAuthoredEquationOperator(token);
 }
 
-function resolvedHitPads(bubble: AuthoredLessonHitBubble): AuthoredHitPad[] {
+function resolvedHitPads(bubble: AuthoredLessonHitBubble): number[] {
   // Unity reads both spellings then folds them into one bit mask. A duplicate
   // inside one Hit is harmless, but a duplicate across concurrent Hits is not.
-  return [...new Set([...(bubble.pads ?? []), ...(bubble.positions ?? [])])];
+  return resolveAuthoredHitPadTarget(bubble);
 }
 
 /**
@@ -223,7 +253,11 @@ export function authoredLegacyHitInteractionSignature(encounter: AuthoredLessonE
   return JSON.stringify({
     eventId: encounter.eventId,
     equationId: encounter.equationId ?? null,
-    hitBubbles: encounter.hitBubbles ?? [],
+    hitBubbles: (encounter.hitBubbles ?? []).map((bubble) => ({
+      tokenIndex: bubble.tokenIndex,
+      targetId: bubble.targetId ?? null,
+      pads: resolveAuthoredHitPadTarget(bubble),
+    })),
   });
 }
 
@@ -279,9 +313,10 @@ function validateRuntimeConcurrency(
         const leftPads = new Set(leftAssignedPads);
         const sharedPad = rightAssignedPads
           .find((pad) => leftPads.has(pad));
-        if (!sharedPad) continue;
+        if (sharedPad === undefined) continue;
+        const padLabel = authoredHitPadLabelForSlot(sharedPad) ?? `slot ${sharedPad}`;
         throw new Error(
-          `Authored lesson concurrent hits '${left.id}' and '${right.id}' both assign pad '${sharedPad}'`,
+          `Authored lesson concurrent hits '${left.id}' and '${right.id}' both assign player pad '${padLabel}'`,
         );
       }
 

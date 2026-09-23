@@ -9,6 +9,20 @@
   },
   "targetPolicy": "whole-token",
   "hitCountPolicy": "exactly-one-per-generated-gem",
+  "hitPadLayouts": [
+    { "layoutVersion": 1, "pad": "topLeft", "expectedSlot": 0 },
+    { "layoutVersion": 1, "pad": "topRight", "expectedSlot": 1 },
+    { "layoutVersion": 1, "pad": "left", "expectedSlot": 2 },
+    { "layoutVersion": 1, "pad": "right", "expectedSlot": 3 },
+    { "layoutVersion": 1, "pad": "bottomLeft", "expectedSlot": 4 },
+    { "layoutVersion": 1, "pad": "bottomRight", "expectedSlot": 5 },
+    { "layoutVersion": 2, "pad": "top", "expectedSlot": 0, "label": "Top", "xUnit": 0, "yUnit": 1 },
+    { "layoutVersion": 2, "pad": "upperRight", "expectedSlot": 1, "label": "Upper right", "xUnit": 0.7769516728624535, "yUnit": 0.6133828996282528 },
+    { "layoutVersion": 2, "pad": "lowerRight", "expectedSlot": 2, "label": "Lower right", "xUnit": 0.7769516728624535, "yUnit": -0.620817843866171 },
+    { "layoutVersion": 2, "pad": "bottom", "expectedSlot": 3, "label": "Bottom", "xUnit": 0, "yUnit": -1 },
+    { "layoutVersion": 2, "pad": "lowerLeft", "expectedSlot": 4, "label": "Lower left", "xUnit": -0.7769516728624535, "yUnit": -0.620817843866171 },
+    { "layoutVersion": 2, "pad": "upperLeft", "expectedSlot": 5, "label": "Upper left", "xUnit": -0.7769516728624535, "yUnit": 0.6133828996282528 }
+  ],
   "cases": [
     {
       "id": "at-policy-boundary",

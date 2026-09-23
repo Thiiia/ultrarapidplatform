@@ -625,7 +625,7 @@ test("Number Bonds published content hydrates and serializes without changing it
     events,
     numberBondsIdentity,
     clock,
-    undefined,
+    62,
     [numberBondsEquation],
     { forPublish: true, activityKey: "number-bonds" },
   );
@@ -635,7 +635,7 @@ test("Number Bonds published content hydrates and serializes without changing it
     hydrated.events,
     numberBondsIdentity,
     clock,
-    undefined,
+    62,
     hydrated.equations,
     { forPublish: true, activityKey: "number-bonds" },
   );
@@ -661,7 +661,7 @@ test("Number Bonds published content hydrates and serializes without changing it
     editedEvents,
     numberBondsIdentity,
     clock,
-    undefined,
+    62,
     hydrated.equations,
     { forPublish: true, activityKey: "number-bonds" },
   );
@@ -692,4 +692,39 @@ test("never serializes a foreign target identity after an equation edit", () => 
   );
 
   assert.equal(draft.encounters[0].hitBubbles?.[0]?.targetId, undefined);
+});
+
+test("player pad layout version survives authored save, parse, reload and save", () => {
+  const clock = createLessonClock(
+    `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+  );
+  const target = {
+    tokenIndex: 0,
+    targetId: "eq-pad-token-0",
+    positions: ["top"],
+    pads: ["top"],
+    padLayoutVersion: 2 as const,
+  };
+  const assignedEquation = equation("eq-pad", ["5", "=", "5"]);
+  const draft = serializeAuthoredLesson(
+    [makeEvent("event-pad-layout", 10, { hit: 1 }, {
+      equation: assignedEquation,
+      instances: {
+        hit: [instance("hit-pad-layout", {
+          tick: 10,
+          equation: assignedEquation,
+          hitBubbles: [target],
+        })],
+      },
+    })],
+    IDENTITY,
+    clock,
+  );
+
+  assert.deepEqual(draft.encounters[0]?.hitBubbles?.[0], target);
+  const parsed = parseAuthoredLessonDraft(draft);
+  const reloaded = timelineEventsFromAuthoredLesson(parsed, clock);
+  assert.deepEqual(reloaded.events[0]?.mechanicInstances.hit[0]?.hitBubbles[0], target);
+  const savedAgain = serializeAuthoredLesson(reloaded.events, IDENTITY, clock, undefined, reloaded.equations);
+  assert.deepEqual(savedAgain.encounters[0]?.hitBubbles?.[0], target);
 });

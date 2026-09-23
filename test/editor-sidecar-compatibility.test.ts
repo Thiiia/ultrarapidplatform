@@ -4,6 +4,10 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 import { parseAuthoredLessonDraft } from "../lib/authored-lesson";
+import {
+  LEGACY_AUTHORED_HIT_PAD_LAYOUT_VERSION,
+  resolveAuthoredHitPadSlot,
+} from "../lib/authored-hit-pad-layout";
 import { repairLegacyMigratedAuthoredLesson } from "../lib/legacy-authored-migration";
 import { isLegacyEncounterSidecar, validateLegacyEncounters } from "../lib/legacy-encounters";
 
@@ -13,7 +17,7 @@ const ast = ts.createSourceFile("editor.tsx", source, ts.ScriptTarget.Latest, tr
 const names = new Set(["isObject", "normalizeTick", "normalizeMechanic", "normalizeTokenIndex", "normalizeHitBubblePad", "normalizeHitBubblePlacements", "normalizeTokenTargets", "normalizeSidecar", "sortEvents", "mergeTimelineSidecarSources"]);
 const functions = ast.statements.filter(node => ts.isFunctionDeclaration(node) && node.name && names.has(node.name.text));
 const code = ts.transpileModule(functions.map(node => node.getText(ast)).join("\n"), {compilerOptions: {target: ts.ScriptTarget.ES2022}}).outputText;
-const context = vm.createContext({emptySidecar: {version: 1, events: []}, parseAuthoredLessonDraft, repairLegacyMigratedAuthoredLesson, isLegacyEncounterSidecar, validateLegacyEncounters,
+const context = vm.createContext({emptySidecar: {version: 1, events: []}, parseAuthoredLessonDraft, repairLegacyMigratedAuthoredLesson, isLegacyEncounterSidecar, validateLegacyEncounters, LEGACY_AUTHORED_HIT_PAD_LAYOUT_VERSION, resolveAuthoredHitPadSlot,
   sidecarFromChartFile: () => { throw new Error("Authoritative sidecars must not be replaced with chart-derived events"); },
 });
 vm.runInContext(code, context);

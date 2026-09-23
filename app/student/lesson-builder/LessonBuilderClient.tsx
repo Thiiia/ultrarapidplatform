@@ -19,7 +19,23 @@ import {
   type AuthoredLessonDraft,
   type AuthoredTimelineEvent,
 } from "@/lib/authored-lesson-serialization";
-import { isAuthoredEquationOperator, parseAuthoredLessonDraft } from "@/lib/authored-lesson";
+import {
+  AUTHORED_MAX_REQUIRED_HIT_PADS,
+  isAuthoredEquationOperator,
+  parseAuthoredLessonDraft,
+} from "@/lib/authored-lesson";
+import {
+  LEGACY_AUTHORED_HIT_PAD_LAYOUT_VERSION,
+  PLAYER_HEX_AUTHORED_HIT_PAD_CHOOSER_RADIUS_PX,
+  PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
+  PLAYER_HEX_AUTHORED_HIT_PADS,
+  authoredHitPadForSlot,
+  resolvePlayerHexHitPadPixelOffset,
+  resolveAuthoredHitPadSlot,
+  resolveAuthoredHitPadTarget,
+  type AuthoredHitPad,
+  type AuthoredHitPadLayoutVersion,
+} from "@/lib/authored-hit-pad-layout";
 import { repairLegacyMigratedAuthoredLesson } from "@/lib/legacy-authored-migration";
 import { isLegacyEncounterSidecar, validateLegacyEncounters, persistLegacyEncounters, type LegacyEncounter, type LegacyEncounterSidecar } from "@/lib/legacy-encounters";
 import { validateLessonContent } from "@/lib/lesson-content";
@@ -217,18 +233,14 @@ type SavedEquation = {
 
 type GameplayMechanic = "hit" | "spin" | "drag";
 
-type HitBubblePad =
-  | "topLeft"
-  | "topRight"
-  | "left"
-  | "right"
-  | "bottomLeft"
-  | "bottomRight";
+type HitBubblePad = AuthoredHitPad;
 
 type HitBubblePlacement = {
   tokenIndex: number;
-  positions: HitBubblePad[];
-  pads: HitBubblePad[];
+  targetId?: string;
+  positions?: HitBubblePad[];
+  pads?: HitBubblePad[];
+  padLayoutVersion?: AuthoredHitPadLayoutVersion;
 };
 
 type SpinTarget = {
@@ -239,8 +251,6 @@ type DragTarget = {
   tokenIndex: number;
   sourceHitId?: string;
 };
-
-type HitBubblePair = "topLeftBottomRight" | "topRightBottomLeft" | "leftRight";
 
 type MechanicInstanceState = {
   equation?: SavedEquation | null;
@@ -463,19 +473,13 @@ function normalizeTokenIndex(value: unknown) {
   return Math.floor(tokenIndex);
 }
 
-function normalizeHitBubblePad(value: unknown): HitBubblePad | null {
-  if (
-    value === "topLeft" ||
-    value === "topRight" ||
-    value === "left" ||
-    value === "right" ||
-    value === "bottomLeft" ||
-    value === "bottomRight"
-  ) {
-    return value;
-  }
-
-  return null;
+function normalizeHitBubblePad(
+  value: unknown,
+  layoutVersion: number,
+): HitBubblePad | null {
+  return typeof value === "string" && resolveAuthoredHitPadSlot(value, layoutVersion) >= 0
+    ? value as HitBubblePad
+    : null;
 }
 
 function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
@@ -489,25 +493,35 @@ function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
     }
 
     const tokenIndex = normalizeTokenIndex(placement.tokenIndex);
-    const rawPads = Array.isArray(placement.pads)
-      ? placement.pads
-      : Array.isArray(placement.positions)
-        ? placement.positions
-        : [];
-    const pads = Array.from(
-      new Set(
-        rawPads.flatMap((pad) => {
-          const normalizedPad = normalizeHitBubblePad(pad);
-          return normalizedPad ? [normalizedPad] : [];
-        }),
-      ),
-    );
-
-    if (tokenIndex === null || pads.length === 0) {
+    if (tokenIndex === null) {
       return [];
     }
 
-    return [{ tokenIndex, positions: pads, pads }];
+    const rawLayoutVersion = placement.padLayoutVersion;
+    const layoutVersion = typeof rawLayoutVersion === "number"
+      ? rawLayoutVersion
+      : LEGACY_AUTHORED_HIT_PAD_LAYOUT_VERSION;
+    if (layoutVersion !== 1 && layoutVersion !== 2) return [];
+    const normalizePads = (rawPads: unknown[]) => Array.from(new Set(
+      rawPads.flatMap((pad) => {
+        const normalizedPad = normalizeHitBubblePad(pad, layoutVersion);
+        return normalizedPad ? [normalizedPad] : [];
+      }),
+    ));
+    const positions = Array.isArray(placement.positions)
+      ? normalizePads(placement.positions)
+      : undefined;
+    const pads = Array.isArray(placement.pads)
+      ? normalizePads(placement.pads)
+      : undefined;
+
+    return [{
+      tokenIndex,
+      ...(typeof placement.targetId === "string" ? { targetId: placement.targetId } : {}),
+      ...(positions ? { positions } : {}),
+      ...(pads ? { pads } : {}),
+      ...(typeof rawLayoutVersion === "number" ? { padLayoutVersion: layoutVersion as AuthoredHitPadLayoutVersion } : {}),
+    }];
   });
 }
 
@@ -3288,84 +3302,35 @@ function isEquationOperator(label: string) {
   return isAuthoredEquationOperator(label);
 }
 
-function getHitBubblePairPads(pair: HitBubblePair): HitBubblePad[] {
-  if (pair === "topLeftBottomRight") return ["topLeft", "bottomRight"];
-  if (pair === "topRightBottomLeft") return ["topRight", "bottomLeft"];
-  return ["left", "right"];
+function getHitBubblePads(placement: HitBubblePlacement | undefined): HitBubblePad[] {
+  return [...new Set([...(placement?.pads ?? []), ...(placement?.positions ?? [])])];
 }
 
-function getHitBubblePairFromPads(pads: HitBubblePad[]): HitBubblePair | null {
-  const uniquePads = Array.from(new Set(pads));
-  const padSet = new Set(uniquePads);
-
-  if (padSet.has("topLeft") && padSet.has("bottomRight")) {
-    return "topLeftBottomRight";
-  }
-
-  if (padSet.has("topRight") && padSet.has("bottomLeft")) {
-    return "topRightBottomLeft";
-  }
-
-  if (padSet.has("left") && padSet.has("right")) {
-    return "leftRight";
-  }
-
-  if (uniquePads.length > 0) {
-    return getHitBubblePairFromPad(uniquePads[0]);
-  }
-
-  return null;
+function getHitBubblePadStyle(
+  pad: HitBubblePad,
+  bubbleSize: number,
+  layoutVersion: number = LEGACY_AUTHORED_HIT_PAD_LAYOUT_VERSION,
+) {
+  const slot = resolveAuthoredHitPadSlot(pad, layoutVersion);
+  const offset = resolvePlayerHexHitPadPixelOffset(slot, bubbleSize * 0.78);
+  if (!offset) return {};
+  return {
+    left: `calc(50% ${offset.dx < 0 ? "-" : "+"} ${Math.abs(offset.dx).toFixed(2)}px)`,
+    top: `calc(50% ${offset.dy < 0 ? "-" : "+"} ${Math.abs(offset.dy).toFixed(2)}px)`,
+    transform: "translate(-50%, -50%)",
+  };
 }
 
-function getHitBubblePairFromPlacement(
-  placement: HitBubblePlacement | undefined,
-): HitBubblePair | null {
-  const pads = placement?.pads ?? placement?.positions ?? [];
-  return getHitBubblePairFromPads(pads);
-}
-
-function getHitBubblePairFromPad(pad: HitBubblePad): HitBubblePair {
-  if (pad === "topLeft" || pad === "bottomRight") return "topLeftBottomRight";
-  if (pad === "topRight" || pad === "bottomLeft") return "topRightBottomLeft";
-  return "leftRight";
-}
-
-function getHitBubblePadStyle(pad: HitBubblePad, bubbleSize: number) {
-  const offset = bubbleSize * 0.72;
-  const cornerOffset = bubbleSize * 0.58;
-
-  switch (pad) {
-    case "topLeft":
-      return { left: -cornerOffset, top: -cornerOffset };
-    case "topRight":
-      return { right: -cornerOffset, top: -cornerOffset };
-    case "left":
-      return { left: -offset, top: "50%", transform: "translateY(-50%)" };
-    case "right":
-      return { right: -offset, top: "50%", transform: "translateY(-50%)" };
-    case "bottomLeft":
-      return { left: -cornerOffset, bottom: -cornerOffset };
-    case "bottomRight":
-      return { right: -cornerOffset, bottom: -cornerOffset };
-  }
-}
-
-function getHitPadNumber(pad: HitBubblePad): 1 | 2 | 3 | 4 | 5 | 6 {
-  if (pad === "topLeft") return 1;
-  if (pad === "topRight") return 2;
-  if (pad === "left") return 3;
-  if (pad === "right") return 4;
-  if (pad === "bottomLeft") return 5;
-  return 6;
+function getHitPadNumber(pad: HitBubblePad, layoutVersion: number = 2): number | null {
+  const slot = resolveAuthoredHitPadSlot(pad, layoutVersion);
+  return slot >= 0 ? slot + 1 : null;
 }
 
 function getHitPadNumberFromPlacement(
   placement: HitBubblePlacement | undefined,
 ): number | null {
-  const pair = getHitBubblePairFromPlacement(placement);
-  const pad = pair ? getHitBubblePairPads(pair)[0] : null;
-
-  return pad ? getHitPadNumber(pad) : null;
+  const [slot] = placement ? resolveAuthoredHitPadTarget(placement) : [];
+  return slot === undefined ? null : slot + 1;
 }
 
 function EmptyEquationBubble({
@@ -3398,34 +3363,30 @@ function HitBubbleChoice({
 }: {
   onSelect: (pad: HitBubblePad) => void;
 }) {
-  const choices: Array<{ pad: HitBubblePad; label: string; position: string }> = [
-    { pad: "topLeft", label: "↖", position: "top-left" },
-    { pad: "topRight", label: "↗", position: "top-right" },
-    { pad: "left", label: "←", position: "left" },
-    { pad: "right", label: "→", position: "right" },
-    { pad: "bottomLeft", label: "↙", position: "bottom-left" },
-    { pad: "bottomRight", label: "↘", position: "bottom-right" },
-  ];
+  const choices = PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad, label }, slot) => ({
+    pad,
+    label: String(slot + 1),
+    position: label,
+    offset: resolvePlayerHexHitPadPixelOffset(slot, PLAYER_HEX_AUTHORED_HIT_PAD_CHOOSER_RADIUS_PX),
+  }));
 
   return (
     <span
       style={{
         position: "absolute",
         left: "50%",
-        top: -48,
+        top: -116,
         transform: "translateX(-50%)",
         zIndex: 20,
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 6,
-        padding: 6,
-        borderRadius: 999,
+        width: 150,
+        height: 108,
+        borderRadius: 16,
         background: "#111111",
         border: `1px solid ${subtleBorderColor}`,
         boxShadow: "0 12px 28px rgba(0,0,0,0.32)",
       }}
     >
-      {choices.map((choice) => (
+      {choices.map((choice) => choice.offset && (
         <button
           key={choice.pad}
           type="button"
@@ -3436,6 +3397,10 @@ function HitBubbleChoice({
           style={{
             width: 30,
             height: 30,
+            position: "absolute",
+            left: `calc(50% ${choice.offset.dx < 0 ? "-" : "+"} ${Math.abs(choice.offset.dx).toFixed(2)}px)`,
+            top: `calc(50% ${choice.offset.dy < 0 ? "-" : "+"} ${Math.abs(choice.offset.dy).toFixed(2)}px)`,
+            transform: "translate(-50%, -50%)",
             borderRadius: 999,
             border: "1px solid rgba(255,255,255,0.24)",
             background: "#252525",
@@ -3510,13 +3475,13 @@ function HitEquationEditor({
               flexShrink: 0,
             }}
           >
-            {!isOperator && placement?.pads.length
-              ? placement.pads.map((pad) => (
+            {!isOperator && getHitBubblePads(placement).length > 0
+              ? getHitBubblePads(placement).map((pad) => (
                 <span
                   key={pad}
                   style={{
                     position: "absolute",
-                    ...getHitBubblePadStyle(pad, bubbleSize),
+                    ...getHitBubblePadStyle(pad, bubbleSize, placement?.padLayoutVersion),
                     zIndex: 1,
                   }}
                 >
@@ -5957,7 +5922,7 @@ function EquationTileStrip({
   mechanicStartSeconds?: number | null;
   mechanicEndSeconds?: number | null;
   isSongPlaying?: boolean;
-  onQuickAddHit?: () => void;
+  onQuickAddHit?: (pad: HitBubblePad) => void;
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const selectedTokenRef = useRef<HTMLSpanElement | null>(null);
@@ -6288,34 +6253,14 @@ function EquationTileStrip({
     return label;
   }
 
-  const hitPadOffsets: Record<HitBubblePad, { dx: number; dy: number }> = {
-    topLeft: {
-      dx: -(baseTokenWidth * 0.5 + hitCircleOffset),
-      dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
-    },
-    topRight: {
-      dx: baseTokenWidth * 0.5 + hitCircleOffset,
-      dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
-    },
-    left: {
-      dx: 0,
-      dy: -(baseTokenHeight * 0.5 + hitCircleOffset),
-    },
-    right: {
-      dx: 0,
-      dy: baseTokenHeight * 0.5 + hitCircleOffset,
-    },
-    bottomLeft: {
-      dx: -(baseTokenWidth * 0.5 + hitCircleOffset),
-      dy: baseTokenHeight * 0.5 + hitCircleOffset,
-    },
-    bottomRight: {
-      dx: baseTokenWidth * 0.5 + hitCircleOffset,
-      dy: baseTokenHeight * 0.5 + hitCircleOffset,
-    },
-  };
-
-  const hitPads: HitBubblePad[] = ["topLeft", "topRight", "left", "right", "bottomLeft", "bottomRight"];
+  const touchOffset = Math.max(0, Math.min(baseTokenWidth, baseTokenHeight) * 0.5 + hitCircleOffset);
+  const hitPadOffsets = Object.fromEntries(
+    PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad }, slot) => [
+      pad,
+      resolvePlayerHexHitPadPixelOffset(slot, touchOffset),
+    ]),
+  ) as Partial<Record<HitBubblePad, { dx: number; dy: number } | null>>;
+  const hitPads: HitBubblePad[] = PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad }) => pad);
 
   function renderDragDestination(key: string) {
     return (
@@ -6494,6 +6439,7 @@ function EquationTileStrip({
             {hitPads.map((pad) => {
               const isPadSelected = selectedHitPad === pad;
               const position = hitPadOffsets[pad];
+              if (!position) return null;
 
               return (
                 <button
@@ -6503,9 +6449,10 @@ function EquationTileStrip({
                     event.preventDefault();
                     event.stopPropagation();
                     if (mechanicMode === "hit" && isSongPlaying) {
-                      onQuickAddHit?.();
+                      onQuickAddHit?.(pad);
+                    } else {
+                      onSelectHitPad?.(pad);
                     }
-                    onSelectHitPad?.(pad);
                   }}
                   style={{
                     position: "absolute",
@@ -6532,6 +6479,7 @@ function EquationTileStrip({
             {hitAnimationProgress !== null && selectedHitPad
               ? (() => {
                 const target = hitPadOffsets[selectedHitPad];
+                if (!target) return null;
                 const dx = target.dx * hitAnimationProgress;
                 const dy = target.dy * hitAnimationProgress;
                 const size = Math.max(2, hitCircleSize * hitAnimationProgress);
@@ -7210,14 +7158,7 @@ function RtcmHitPadToken({
   const emptyTokenSize = Math.round(74 * 0.75);
   const hitPadDiameter = Math.max(34, Math.round(emptyTokenSize * 0.82 * 2));
   const hitPadAnchorSize = 84;
-  const pads: HitBubblePad[] = [
-    "topLeft",
-    "topRight",
-    "left",
-    "right",
-    "bottomLeft",
-    "bottomRight",
-  ];
+  const pads: HitBubblePad[] = PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad }) => pad);
 
   return (
     <div
@@ -7243,8 +7184,8 @@ function RtcmHitPadToken({
       </div>
 
       {pads.map((pad) => {
-        const padStyle = getHitBubblePadStyle(pad, hitPadAnchorSize);
-        const padNumber = getHitPadNumber(pad);
+        const padStyle = getHitBubblePadStyle(pad, hitPadAnchorSize, 2);
+        const padNumber = getHitPadNumber(pad, 2);
 
         return (
           <button
@@ -10096,7 +10037,9 @@ export default function LessonBuilderClient({
       selectedCenterContextMechanic.mechanic
       ]?.[selectedCenterContextMechanic.instanceIndex];
 
-    return instance?.hitBubbles[0]?.pads[0] ?? null;
+    const bubble = instance?.hitBubbles[0];
+    const [slot] = bubble ? resolveAuthoredHitPadTarget(bubble) : [];
+    return slot === undefined ? null : authoredHitPadForSlot(slot);
   }, [centerContextEvent, selectedCenterContextMechanic]);
 
   const selectedContextMechanicTimeWindow = useMemo(() => {
@@ -10646,7 +10589,7 @@ export default function LessonBuilderClient({
           : tick;
     const draftId = makeId("rtcm");
     const hitBubbles: HitBubblePlacement[] = mechanic === "hit" && options.hitPad
-      ? [{ tokenIndex: 0, positions: [options.hitPad], pads: [options.hitPad] }]
+      ? [{ tokenIndex: 0, positions: [options.hitPad], pads: [options.hitPad], padLayoutVersion: PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION }]
       : [];
     const normalized = normalizeStagedMechanic(
       {
@@ -11076,9 +11019,12 @@ export default function LessonBuilderClient({
             }
 
             if (mechanic === "hit") {
+              const bubble = instance.hitBubbles[0];
               return {
                 ...instance,
-                hitBubbles: [{ tokenIndex, positions: selectedContextHitPad ? [selectedContextHitPad] : ["left"], pads: selectedContextHitPad ? [selectedContextHitPad] : ["left"] }],
+                hitBubbles: [bubble
+                  ? { ...bubble, tokenIndex }
+                  : { tokenIndex, positions: [], pads: [], padLayoutVersion: PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION }],
               };
             }
 
@@ -11143,7 +11089,13 @@ export default function LessonBuilderClient({
 
             return {
               ...instance,
-              hitBubbles: [{ tokenIndex, positions: [pad], pads: [pad] }],
+              hitBubbles: [{
+                ...(instance.hitBubbles[0] ?? {}),
+                tokenIndex,
+                positions: [pad],
+                pads: [pad],
+                padLayoutVersion: PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
+              }],
             };
           },
         );
@@ -11356,10 +11308,32 @@ export default function LessonBuilderClient({
     pad: HitBubblePad,
   ) {
     updateActiveMechanicInstance(mechanic, instanceIndex, (instance) => {
+      const bubble = instance.hitBubbles.find((target) => target.tokenIndex === tokenIndex)
+        ?? instance.hitBubbles[0];
+      const existingSlots = bubble ? resolveAuthoredHitPadTarget(bubble) : [];
+      const slot = resolveAuthoredHitPadSlot(pad, 2);
+      if (slot < 0) return instance;
+      const isLegacy = bubble?.padLayoutVersion !== 2;
+      const nextSlots = isLegacy
+        ? [slot]
+        : existingSlots.includes(slot)
+          ? existingSlots.filter((value) => value !== slot)
+          : existingSlots.length < AUTHORED_MAX_REQUIRED_HIT_PADS
+            ? [...existingSlots, slot]
+            : existingSlots;
+      const pads = nextSlots
+        .map(authoredHitPadForSlot)
+        .filter((value): value is AuthoredHitPad => value !== null);
       return {
         ...instance,
-        // Only keep the newly selected hit token.
-        hitBubbles: [{ tokenIndex, positions: [pad], pads: [pad] }],
+        // A pad click uses the current player layout and toggles its physical slot.
+        hitBubbles: [{
+          ...(bubble ?? {}),
+          tokenIndex,
+          positions: pads,
+          pads,
+          padLayoutVersion: PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
+        }],
       };
     });
   }
@@ -13033,6 +13007,7 @@ export default function LessonBuilderClient({
                   tokenIndex: 0,
                   positions: [options.hitPad],
                   pads: [options.hitPad],
+                  padLayoutVersion: PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
                 },
               ],
             }
@@ -13074,8 +13049,8 @@ export default function LessonBuilderClient({
     });
   }
 
-  function handleAddHitAtPlayhead() {
-    handleAddMechanicAtPlayhead("hit");
+  function handleAddHitAtPlayhead(hitPad?: HitBubblePad) {
+    handleAddMechanicAtPlayhead("hit", hitPad ? { hitPad } : {});
   }
 
   function handleRtcmAddHitAtPlayhead(hitPad: HitBubblePad) {

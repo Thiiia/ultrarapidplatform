@@ -85,7 +85,7 @@ test("Hit timing has one editable instant and cannot author a third simultaneous
   const patches: Partial<GuidedEncounterInput>[] = [];
   const tree = GuidedEncounterComposer({
     instance: { ...emptySpin, mechanic: "hit", id: "hit-1", tick: 4, endTick: 8,
-      hitBubbles: [{ tokenIndex: 0, pads: ["left", "right"] }] },
+      hitBubbles: [{ tokenIndex: 0, positions: ["lowerRight", "bottom"], pads: ["lowerRight", "bottom"], padLayoutVersion: 2 }] },
     tokens,
     readiness: { encounterId: "hit-1", ready: false, issueCodes: ["hit_timing_invalid"], issues: [], nextAction: "Fix timing" },
     onPatchInstance: (_, patch) => patches.push(patch),
@@ -108,6 +108,18 @@ test("Hit timing has one editable instant and cannot author a third simultaneous
   if (!onChange) throw new Error("Expected the Hit start-time input to expose onChange");
   onChange({ currentTarget: { value: "6.25" } });
   assert.deepEqual(patches[0], { tick: 6.25, endTick: 6.25 });
-  assert.equal(buttons.find(button => button["aria-label"] === "Pad Top left")?.disabled, true);
-  assert.equal(buttons.find(button => button["aria-label"] === "Pad Left")?.disabled, false);
+  assert.equal(buttons.find(button => button["aria-label"] === "Player pad 1: Top")?.disabled, true);
+  assert.equal(buttons.find(button => button["aria-label"] === "Player pad 3: Lower right")?.disabled, false);
+});
+
+test("legacy Hit pads show their preserved slot mapping and an explicit reassignment action", () => {
+  const tree = GuidedEncounterComposer({
+    instance: { ...emptySpin, mechanic: "hit", id: "legacy-hit", tick: 4,
+      hitBubbles: [{ tokenIndex: 0, pads: ["left"] }] },
+    tokens,
+    readiness: { encounterId: "legacy-hit", ready: false, issueCodes: [], issues: [], nextAction: "Reassign the pad" },
+    onPatchInstance: () => undefined,
+  });
+  assert.match(text(tree), /left → Player pad 3 · Lower right/);
+  assert.match(text(tree), /Reassign using the player pad layout/);
 });

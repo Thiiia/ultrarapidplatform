@@ -34,6 +34,35 @@ test("workspace timeline edits permit gameplay token indexes but reject credenti
   }).success, false);
 });
 
+test("workspace keeps the authored player hit-pad layout version", () => {
+  const result = PlayerWorkspacePayloadSchema.safeParse({
+    ...payload,
+    timelineEdits: [{
+      id: "event-pad-layout",
+      mechanicInstances: {
+        hit: [{
+          id: "hit-pad-layout",
+          hitBubbles: [{
+            tokenIndex: 0,
+            positions: ["top"],
+            pads: ["top"],
+            padLayoutVersion: 2,
+          }],
+        }],
+      },
+    }],
+  });
+
+  assert.equal(result.success, true);
+  if (!result.success) return;
+  const firstEdit = result.data.timelineEdits[0] as {
+    mechanicInstances?: {
+      hit?: Array<{ hitBubbles?: Array<{ padLayoutVersion?: number }> }>;
+    };
+  };
+  assert.equal(firstEdit.mechanicInstances?.hit?.[0]?.hitBubbles?.[0]?.padLayoutVersion, 2);
+});
+
 test("merge reports concurrent edits instead of silently overwriting", () => {
   const remote = { ...payload, updatedAt: 2 };
   const local = { ...payload, updatedAt: 3 };

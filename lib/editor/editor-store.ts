@@ -1,19 +1,18 @@
 import { create } from "zustand";
+import { resolveAuthoredHitPadSlot } from "../authored-hit-pad-layout";
+import type { AuthoredHitPad } from "../authored-hit-pad-layout";
 import type { ChartProject, GameplayBlock } from "./types";
 
 export type GameplayMechanic = "spin" | "drag" | "hit";
 
-export type HitBubblePosition =
-  | "topLeft"
-  | "topRight"
-  | "left"
-  | "right"
-  | "bottomLeft"
-  | "bottomRight";
+export type HitBubblePosition = AuthoredHitPad;
 
 export type HitBubblePlacement = {
   tokenIndex: number;
+  targetId?: string;
   positions: HitBubblePosition[];
+  pads?: HitBubblePosition[];
+  padLayoutVersion?: 1 | 2;
 };
 
 export type SpinTarget = {
@@ -55,15 +54,6 @@ export const emptySidecar: SidecarPayload = {
   events: [],
 };
 
-const hitBubblePositions: HitBubblePosition[] = [
-  "topLeft",
-  "topRight",
-  "left",
-  "right",
-  "bottomLeft",
-  "bottomRight",
-];
-
 function cloneProject(project: ChartProject): ChartProject {
   return JSON.parse(JSON.stringify(project));
 }
@@ -100,9 +90,9 @@ function normalizeMechanic(value: unknown): GameplayMechanic | null {
   return null;
 }
 
-function normalizeHitBubblePosition(value: unknown): HitBubblePosition | null {
-  return hitBubblePositions.includes(value as HitBubblePosition)
-    ? (value as HitBubblePosition)
+function normalizeHitBubblePosition(value: unknown, layoutVersion: number): HitBubblePosition | null {
+  return typeof value === "string" && resolveAuthoredHitPadSlot(value, layoutVersion) >= 0
+    ? value as HitBubblePosition
     : null;
 }
 
@@ -112,7 +102,7 @@ function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
   }
 
   return value.flatMap((placement): HitBubblePlacement[] => {
-    if (!isObject(placement) || !Array.isArray(placement.positions)) {
+    if (!isObject(placement)) {
       return [];
     }
 
@@ -122,21 +112,27 @@ function normalizeHitBubblePlacements(value: unknown): HitBubblePlacement[] {
       return [];
     }
 
-    const positions = Array.from(
-      new Set(
-        placement.positions
-          .map((position) => normalizeHitBubblePosition(position))
-          .filter((position): position is HitBubblePosition =>
-            Boolean(position),
-          ),
-      ),
-    );
+    const padLayoutVersion = placement.padLayoutVersion == null
+      ? undefined
+      : placement.padLayoutVersion;
+    const layoutVersion = padLayoutVersion ?? 1;
+    if (layoutVersion !== 1 && layoutVersion !== 2) return [];
 
-    if (positions.length === 0) {
-      return [];
-    }
+    const normalizePads = (rawPads: unknown[]) => Array.from(new Set(
+      rawPads
+        .map((position) => normalizeHitBubblePosition(position, layoutVersion))
+        .filter((position): position is HitBubblePosition => Boolean(position)),
+    ));
+    const positions = normalizePads(Array.isArray(placement.positions) ? placement.positions : []);
+    const pads = normalizePads(Array.isArray(placement.pads) ? placement.pads : []);
 
-    return [{ tokenIndex, positions }];
+    return [{
+      tokenIndex,
+      positions,
+      ...(typeof placement.targetId === "string" ? { targetId: placement.targetId } : {}),
+      ...(Array.isArray(placement.pads) ? { pads } : {}),
+      ...(padLayoutVersion == null ? {} : { padLayoutVersion: layoutVersion }),
+    }];
   });
 }
 

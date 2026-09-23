@@ -7,6 +7,7 @@ import {
   validateAuthoredLessonStopBoundary,
   validateAuthoredRuntimePresentationConcurrency,
 } from '@/lib/authored-lesson';
+import { resolveAuthoredHitPadTarget } from '@/lib/authored-hit-pad-layout';
 import { isLegacyEncounterSidecar } from '@/lib/legacy-encounters';
 import { migrateLegacyEncounterSidecar, repairLegacyMigratedAuthoredLesson } from '@/lib/legacy-authored-migration';
 import {
@@ -33,10 +34,7 @@ function legacyHitInteractionSignatures(sidecarContent: string) {
   const signatures = new Map<string, string>();
   for (const encounter of existing.encounters) {
     if (encounter.type !== 'hit') continue;
-    const requiredPads = new Set((encounter.hitBubbles ?? []).flatMap((bubble) => [
-      ...(bubble.pads ?? []),
-      ...(bubble.positions ?? []),
-    ]));
+    const requiredPads = new Set((encounter.hitBubbles ?? []).flatMap(resolveAuthoredHitPadTarget));
     if (requiredPads.size > AUTHORED_MAX_REQUIRED_HIT_PADS) {
       signatures.set(encounter.id, authoredLegacyHitInteractionSignature(encounter));
     }

@@ -15,6 +15,7 @@ import {
   validateAuthoredActivityTiming,
   type NumberBondsTimingIssue,
 } from "./activity-authoring-capabilities";
+import { resolveAuthoredHitPadTarget } from "./authored-hit-pad-layout";
 
 export type GuidedMechanic = "hit" | "spin" | "drag";
 
@@ -304,10 +305,7 @@ export function evaluateEncounterReadiness(
     capabilities.activityKey === "number-bonds" &&
     encounter.mechanic === "hit" &&
     (encounter.hitBubbles.length !== 1 ||
-      new Set(encounter.hitBubbles.flatMap((target) => [
-        ...(target.pads ?? []),
-        ...(target.positions ?? []),
-      ]).filter((pad) => typeof pad === "string" && pad.trim().length > 0)).size !== 1)
+      new Set(encounter.hitBubbles.flatMap(resolveAuthoredHitPadTarget)).size !== 1)
   ) {
     issues.push(issue(encounter, "activity_target_shape"));
   }
@@ -532,14 +530,11 @@ export function evaluateLessonPublishReadiness(
         // Unity's presenter unions `pads` with the legacy-compatible
         // `positions` field before testing ownership. Match it here so an
         // imported payload cannot pass the editor then collide at launch.
-        const leftPads = new Set(leftInput.hitBubbles.flatMap((target) => [
-          ...(target.pads ?? []),
-          ...(target.positions ?? []),
-        ]));
+        const leftPads = new Set(leftInput.hitBubbles.flatMap(resolveAuthoredHitPadTarget));
         const sharedPad = rightInput.hitBubbles
-          .flatMap((target) => [...(target.pads ?? []), ...(target.positions ?? [])])
+          .flatMap(resolveAuthoredHitPadTarget)
           .find((pad) => leftPads.has(pad));
-        if (!sharedPad) continue;
+        if (sharedPad === undefined) continue;
       }
 
       if (concurrencyBlockedEncounterIds.has(right.instance.id)) continue;

@@ -1,13 +1,17 @@
 import type { ChangeEvent, ReactNode } from "react";
-import NorthEastRoundedIcon from "@mui/icons-material/NorthEastRounded";
-import NorthWestRoundedIcon from "@mui/icons-material/NorthWestRounded";
-import SouthEastRoundedIcon from "@mui/icons-material/SouthEastRounded";
-import SouthWestRoundedIcon from "@mui/icons-material/SouthWestRounded";
-import EastRoundedIcon from "@mui/icons-material/EastRounded";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
-import WestRoundedIcon from "@mui/icons-material/WestRounded";
 
 import { AUTHORED_MAX_REQUIRED_HIT_PADS, isAuthoredEquationOperator } from "@/lib/authored-lesson";
+import {
+  PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
+  PLAYER_HEX_AUTHORED_HIT_PAD_PREVIEW_RADIUS_PX,
+  PLAYER_HEX_AUTHORED_HIT_PADS,
+  authoredHitPadForSlot,
+  authoredHitPadLabelForSlot,
+  resolvePlayerHexHitPadPixelOffset,
+  resolveAuthoredHitPadSlot,
+  resolveAuthoredHitPadTarget,
+} from "@/lib/authored-hit-pad-layout";
 import { studentCopy } from "@/lib/student-copy";
 import type { AuthoredEquationToken } from "@/lib/authored-lesson-serialization";
 import type { SongActivityKey } from "@/lib/song-activity-storage";
@@ -32,15 +36,6 @@ export type GuidedEncounterComposerProps = {
     patch: Partial<GuidedEncounterInput>,
   ) => void;
 };
-
-const hitPads = [
-  { pad: "topLeft", label: "Top left", column: 1, row: 1, Icon: NorthWestRoundedIcon },
-  { pad: "topRight", label: "Top right", column: 3, row: 1, Icon: NorthEastRoundedIcon },
-  { pad: "left", label: "Left", column: 1, row: 2, Icon: WestRoundedIcon },
-  { pad: "right", label: "Right", column: 3, row: 2, Icon: EastRoundedIcon },
-  { pad: "bottomLeft", label: "Bottom left", column: 1, row: 3, Icon: SouthWestRoundedIcon },
-  { pad: "bottomRight", label: "Bottom right", column: 3, row: 3, Icon: SouthEastRoundedIcon },
-] as const;
 
 function timeValue(value: number | undefined) {
   return typeof value === "number" && Number.isFinite(value) ? String(value) : "";
@@ -159,8 +154,12 @@ function TargetPicker({
 
   function select(tokenIndex: number) {
     if (kind === "Target token") {
-      const pads = instance.hitBubbles[0]?.pads ?? [];
-      onPatchInstance(instance.id, { hitBubbles: [{ tokenIndex, pads }] });
+      const bubble = instance.hitBubbles[0];
+      onPatchInstance(instance.id, {
+        hitBubbles: [bubble
+          ? { ...bubble, tokenIndex }
+          : { tokenIndex, positions: [], pads: [], padLayoutVersion: PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION }],
+      });
     } else if (kind === "Spin target") {
       onPatchInstance(instance.id, { spinTargets: selected === tokenIndex ? [] : [{ tokenIndex }] });
     } else {
@@ -195,36 +194,81 @@ function HitControls({
   tokens,
   onPatchInstance,
 }: Pick<GuidedEncounterComposerProps, "instance" | "tokens" | "onPatchInstance">) {
-  const selectedTokenIndex = instance.hitBubbles[0]?.tokenIndex;
-  const selectedPads = instance.hitBubbles[0]?.pads ?? [];
+  const bubble = instance.hitBubbles[0];
+  const selectedTokenIndex = bubble?.tokenIndex;
+  const selectedSlots = new Set(bubble ? resolveAuthoredHitPadTarget(bubble) : []);
+  const legacyPads = bubble && bubble.padLayoutVersion !== 2
+    ? [...new Set([...(bubble.pads ?? []), ...(bubble.positions ?? [])])]
+    : [];
+  const legacyMapping = legacyPads.flatMap((pad) => {
+    const slot = resolveAuthoredHitPadSlot(pad, bubble?.padLayoutVersion);
+    const label = authoredHitPadLabelForSlot(slot);
+    return slot >= 0 && label ? [`${pad} → Player pad ${slot + 1} · ${label}`] : [];
+  });
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, alignItems: "center" }}>
       <TargetPicker instance={instance} tokens={tokens} kind="Target token" displayLabel={studentCopy.mechanics.pickHitTarget} onPatchInstance={onPatchInstance} />
       <div style={{ display: "grid", gap: 7, justifyItems: "center" }}>
         <div style={{ color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>{studentCopy.mechanics.chooseButtons}</div>
-        <div role="group" aria-label="Choose where the hit appears" style={{ display: "grid", gridTemplateColumns: "repeat(3, 42px)", gridTemplateRows: "repeat(3, 42px)", gap: 6, padding: 8, border: "1px solid #FFFFFF14", borderRadius: 14, background: "#0C1422" }}>
-          {hitPads.map(({ pad, label, column, row, Icon }) => (
+        {legacyMapping.length > 0 ? (
+          <div role="status" style={{ maxWidth: 260, display: "grid", gap: 8, color: "#FFD77A", fontSize: 11, textAlign: "center" }}>
+            <span>This saved Hit uses the legacy pad layout. Its slot mapping differs from the player&apos;s named pads.</span>
+            <span>{legacyMapping.join(" · ")}</span>
             <button
-              key={pad}
               type="button"
-              disabled={selectedTokenIndex === undefined || (!selectedPads.includes(pad) && selectedPads.length >= AUTHORED_MAX_REQUIRED_HIT_PADS)}
-              aria-label={`Pad ${label}`}
-              aria-pressed={selectedPads.includes(pad)}
-              title={label}
               onClick={() => {
-                if (selectedTokenIndex === undefined) return;
-                const pads = selectedPads.includes(pad)
-                  ? selectedPads.filter((value) => value !== pad)
-                  : [...selectedPads, pad];
-                onPatchInstance(instance.id, { hitBubbles: [{ tokenIndex: selectedTokenIndex, pads }] });
+                if (!bubble) return;
+                onPatchInstance(instance.id, {
+                  hitBubbles: [{ ...bubble, positions: [], pads: [], padLayoutVersion: PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION }],
+                });
               }}
-              style={{ gridColumn: column, gridRow: row, display: "grid", placeItems: "center", minWidth: 42, minHeight: 42, borderRadius: 12, border: `1px solid ${selectedPads.includes(pad) ? "#CFFF04" : "#7A8FA8"}`, background: selectedPads.includes(pad) ? "#CFFF04" : "#111B2A", color: selectedPads.includes(pad) ? "#071222" : "#FFFFFF", cursor: selectedTokenIndex === undefined ? "not-allowed" : "pointer", boxShadow: selectedPads.includes(pad) ? "0 0 18px rgba(207,255,4,.3)" : "none" }}
+              style={{ justifySelf: "center", borderRadius: 8, border: "1px solid #FFD77A", background: "transparent", color: "#FFD77A", padding: "7px 10px", fontWeight: 800, cursor: "pointer" }}
             >
-              <Icon aria-hidden="true" fontSize="small" />
+              Reassign using the player pad layout
             </button>
-          ))}
-          <div aria-hidden="true" style={{ gridColumn: 2, gridRow: 2, borderRadius: 999, border: "1px solid #2EA7FF", background: "rgba(46,167,255,.12)", boxShadow: "0 0 16px rgba(46,167,255,.16)" }} />
-        </div>
+          </div>
+        ) : (
+          <div role="group" aria-label="Choose the player pad for this hit" style={{ position: "relative", width: 184, height: 152, border: "1px solid #FFFFFF14", borderRadius: 14, background: "#0C1422" }}>
+            {PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad, label }, slot) => {
+              const selected = selectedSlots.has(slot);
+              const offset = resolvePlayerHexHitPadPixelOffset(slot, PLAYER_HEX_AUTHORED_HIT_PAD_PREVIEW_RADIUS_PX);
+              if (!offset) return null;
+              return (
+                <button
+                  key={pad}
+                  type="button"
+                  disabled={selectedTokenIndex === undefined || (!selected && selectedSlots.size >= AUTHORED_MAX_REQUIRED_HIT_PADS)}
+                  aria-label={`Player pad ${slot + 1}: ${label}`}
+                  aria-pressed={selected}
+                  title={label}
+                  onClick={() => {
+                    if (selectedTokenIndex === undefined) return;
+                    const nextSlots = selected
+                      ? [...selectedSlots].filter((value) => value !== slot)
+                      : [...selectedSlots, slot];
+                    const pads = nextSlots
+                      .map(authoredHitPadForSlot)
+                      .filter((value): value is NonNullable<typeof value> => value !== null);
+                    onPatchInstance(instance.id, {
+                      hitBubbles: [{
+                        ...(bubble ?? {}),
+                        tokenIndex: selectedTokenIndex,
+                        positions: pads,
+                        pads,
+                        padLayoutVersion: PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
+                      }],
+                    });
+                  }}
+                  style={{ position: "absolute", left: `calc(50% ${offset.dx < 0 ? "-" : "+"} ${Math.abs(offset.dx).toFixed(2)}px)`, top: `calc(50% ${offset.dy < 0 ? "-" : "+"} ${Math.abs(offset.dy).toFixed(2)}px)`, transform: "translate(-50%, -50%)", display: "grid", placeItems: "center", width: 38, height: 38, borderRadius: 12, border: `1px solid ${selected ? "#CFFF04" : "#7A8FA8"}`, background: selected ? "#CFFF04" : "#111B2A", color: selected ? "#071222" : "#FFFFFF", cursor: selectedTokenIndex === undefined ? "not-allowed" : "pointer", boxShadow: selected ? "0 0 18px rgba(207,255,4,.3)" : "none", fontSize: 11, fontWeight: 900 }}
+                >
+                  {slot + 1}
+                </button>
+              );
+            })}
+            <div aria-hidden="true" style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: 16, height: 16, borderRadius: 999, border: "1px solid #2EA7FF", background: "rgba(46,167,255,.12)", boxShadow: "0 0 16px rgba(46,167,255,.16)" }} />
+          </div>
+        )}
       </div>
       <TimingDetails instance={instance} onPatchInstance={onPatchInstance} />
     </div>

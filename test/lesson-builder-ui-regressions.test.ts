@@ -60,6 +60,7 @@ test("lesson readiness is an expandable status control", () => {
 });
 
 test("dense readiness blockers remain available in a bounded scroll area", () => {
+  assert.match(readinessSource, /aria-live="polite"/);
   assert.match(
     studentStyles,
     /\.editorReadinessDetails\s*\{[\s\S]*?max-height:\s*260px;[\s\S]*?overflow-y:\s*auto;[\s\S]*?overscroll-behavior:\s*contain;/,
@@ -80,7 +81,9 @@ test("readiness blockers select the exact cue and seek to its authored time", ()
   assert.match(handler, /findGuidedEncounterSelection\([\s\S]*timelineEvents[\s\S]*encounterId/);
   assert.match(handler, /setSelectedContextMechanicKey\(`\$\{selection\.mechanic\}:\$\{selection\.instanceIndex\}`\)/);
   assert.match(handler, /seekSong\(timelineTickToSeconds\(selection\.tick\)\)/);
-  assert.match(readinessSource, /blocker\.relatedEncounterId/);
+  assert.match(readinessSource, /onClick=\{\(\) => onSelectEncounter\(blocker\.encounterId!\)\}/);
+  assert.match(readinessSource, /groupReadinessBlockers\(readiness\.blockers\)/);
+  assert.match(readinessSource, /paginateReadinessBlockers\(blockerGroups, requestedBlockerPage\)/);
 });
 
 test("starter copy does not promise Play while the lesson still has blockers", () => {
