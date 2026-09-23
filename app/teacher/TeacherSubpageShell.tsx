@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigation";
 import styles from "../student/student.module.css";
 
 import URIcon from "@/public/header_icons/URIcon.svg";
@@ -63,10 +64,10 @@ function getTopTabs(navBasePath = "/teacher"): HeaderTab[] {
 }
 
 const pagePanelWidth = "85vw";
-const pageBackgroundColor = "#191919";
+const pageBackgroundColor = "var(--ur-canvas-deep)";
 
 const headerStyles = {
-  backgroundColor: "#2B2B2B",
+  backgroundColor: "var(--ur-canvas-top)",
   borderBottomColor: "#FFFFFF14",
 };
 
@@ -87,6 +88,8 @@ function HeaderTabButton({
     <Link
       href={tab.href}
       aria-label={tab.label}
+      aria-current={isActive ? "page" : undefined}
+      data-experience-component="navigation-link"
       className={`${styles.headerTabButton} ${
         isActive ? styles.headerTabButtonActive : ""
       }`}
@@ -98,9 +101,9 @@ function HeaderTabButton({
         alignItems: "center",
         justifyContent: "center",
         textDecoration: "none",
-        background: "#2B2B2B",
-        borderBottom: isActive ? "3px solid #CFFF04" : "3px solid transparent",
-        color: "#FFFFFF",
+        background: "var(--ur-canvas-top)",
+        borderBottom: isActive ? "3px solid var(--ur-accent-lime)" : "3px solid transparent",
+        color: "var(--ur-text-marketing)",
         fontSize: 13,
         fontWeight: 500,
         lineHeight: "19.5px",
@@ -119,9 +122,18 @@ function HeaderBar({
   topTabs: HeaderTab[];
 }) {
   const profileHref = `${topTabs[0].href}/profile`;
+  const mobileItems = [
+    ...topTabs.map((tab) => ({
+      label: tab.label,
+      href: tab.href,
+      current: pathname === tab.href || (tab.href !== topTabs[0].href && pathname.startsWith(`${tab.href}/`)),
+    })),
+    { label: "Log out", href: "/auth/logout", current: false },
+  ];
 
   return (
     <header
+      className="experience-role-header"
       style={{
         background: headerStyles.backgroundColor,
         width: "100%",
@@ -136,6 +148,7 @@ function HeaderBar({
       }}
     >
       <div
+        className="experience-role-header-inner"
         style={{
           width: pagePanelWidth,
           height: "100%",
@@ -149,6 +162,7 @@ function HeaderBar({
         }}
       >
         <div
+          className="experience-role-brand-group"
           style={{
             display: "flex",
             alignItems: "center",
@@ -182,6 +196,8 @@ function HeaderBar({
 
           <nav
             aria-label="Teacher navigation"
+            className="experience-navigation experience-desktop-navigation"
+            data-experience-component="navigation"
             style={{
               display: "flex",
               alignItems: "center",
@@ -198,6 +214,7 @@ function HeaderBar({
         </div>
 
         <div
+          className="experience-role-utilities"
           style={{
             display: "flex",
             gap: 6,
@@ -212,9 +229,7 @@ function HeaderBar({
   type="button"
   aria-label="Profile"
   className={styles.utilityButton}
-  onClick={() => {
-    console.info("Profile page is not enabled yet.");
-  }}
+  disabled
   style={{
     width: 134.45,
     height: 38,
@@ -241,6 +256,7 @@ function HeaderBar({
             Log out
           </a>
         </div>
+        <ExperienceMobileNavigation items={mobileItems} label="Teacher" />
       </div>
     </header>
   );
@@ -256,14 +272,14 @@ function DashboardSection({
   return (
     <div
       style={{
-        background: "#2B2B2B",
+        background: headerStyles.backgroundColor,
         width: "100%",
         borderBottom: `1px solid ${headerStyles.borderBottomColor}`,
       }}
     >
       <section
         style={{
-          background: "#2B2B2B",
+          background: headerStyles.backgroundColor,
           color: "#FFFFFF",
           width: pagePanelWidth,
           boxSizing: "border-box",
@@ -300,9 +316,10 @@ function TeacherCard({
 }) {
   const card = (
     <div
+      className="experience-card"
       style={{
-        background: "#191919",
-        border: "1px solid #FFFFFF14",
+        background: "var(--ur-canvas-deep)",
+        border: "1px solid rgba(255, 255, 255, 0.14)",
         borderRadius: 12,
         padding: 16,
       }}
@@ -358,7 +375,8 @@ export default function TeacherSubpageShell({
 
   return (
     <div
-      className={styles.studentTypography}
+      className={`${styles.studentTypography} experience-role-shell`}
+      data-experience-role="teacher"
       style={{
         display: "flex",
         flexDirection: "column",

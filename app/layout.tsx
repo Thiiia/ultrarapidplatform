@@ -1,12 +1,25 @@
+import "./globals.css";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Grandstander } from "next/font/google";
+import {
+  Dela_Gothic_One,
+  Geist_Mono,
+  Grandstander,
+  Space_Grotesk,
+} from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import GlobalSiteMusic from "@/app/GlobalSiteMusic";
 import { getStorageSignedUrl } from "@/lib/storage-media";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const delaGothicOne = Dela_Gothic_One({
+  variable: "--font-dela-gothic",
+  subsets: ["latin"],
+  weight: "400",
 });
 
 const geistMono = Geist_Mono({
@@ -45,9 +58,7 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="https://i.vimeocdn.com" />
         <link rel="dns-prefetch" href="https://f.vimeocdn.com" />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} ${grandstander.variable} antialiased`}
-      >
+      <body className={`${spaceGrotesk.variable} ${delaGothicOne.variable} ${geistMono.variable} ${grandstander.variable} antialiased`}>
         {children}
         <GlobalSiteMusic src={siteMusicUrl} />
         <Analytics />

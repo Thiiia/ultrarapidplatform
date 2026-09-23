@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { FC, ReactNode, SVGProps } from "react";
 import { studentCopy } from "@/lib/student-copy";
+import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigation";
 import styles from "./student.module.css";
 
 /* Header Icon imports */
@@ -107,12 +108,12 @@ function getUtilityTabs(navBasePath = "/student"): UtilityTab[] {
 }
 
 const headerStyles = {
-  backgroundColor: "#2B2B2B",
+  backgroundColor: "var(--ur-canvas-top)",
   borderBottomColor: "#FFFFFF14",
 };
 
 const pagePanelWidth = "85vw";
-const pageBackgroundColor = "#191919";
+const pageBackgroundColor = "var(--ur-canvas-deep)";
 const firstPanelBackgroundColor = headerStyles.backgroundColor;
 
 type SectionProps = {
@@ -167,8 +168,22 @@ function HeaderBar({
   navBasePath: string;
 }) {
   const utilityTabs = getUtilityTabs(navBasePath);
+  const mobileItems = [
+    ...topTabs.map((tab) => ({
+      label: tab.label,
+      href: tab.href,
+      current: pathname === tab.href,
+    })),
+    ...utilityTabs.map((tab) => ({
+      label: tab.label,
+      href: tab.href,
+      current: pathname === tab.href,
+    })),
+    { label: studentCopy.navigation.logout, href: "/auth/logout", current: false },
+  ];
   return (
     <header
+      className="experience-role-header"
       style={{
         background: headerStyles.backgroundColor,
         width: "100%",
@@ -183,6 +198,7 @@ function HeaderBar({
       }}
     >
       <div
+        className="experience-role-header-inner"
         style={{
           width: pagePanelWidth,
           height: "100%",
@@ -196,6 +212,7 @@ function HeaderBar({
         }}
       >
         <div
+          className="experience-role-brand-group"
           style={{
             display: "flex",
             alignItems: "center",
@@ -229,6 +246,8 @@ function HeaderBar({
 
           <nav
             aria-label="Student navigation"
+            className="experience-navigation experience-desktop-navigation"
+            data-experience-component="navigation"
             style={{
               display: "flex",
               alignItems: "center",
@@ -267,6 +286,7 @@ const isActive =
                   key={tab.label}
                   href={tab.href}
                   aria-label={tab.label}
+                  aria-current={isActive ? "page" : undefined}
                   className={`${styles.headerTabButton} ${
                     isActive ? styles.headerTabButtonActive : ""
                   }`}
@@ -293,6 +313,7 @@ const isActive =
         </div>
 
         <div
+          className="experience-role-utilities"
           style={{
             display: "flex",
             gap: 6,
@@ -337,6 +358,7 @@ const isActive =
             {studentCopy.navigation.logout}
           </a>
         </div>
+        <ExperienceMobileNavigation items={mobileItems} label="Student" />
       </div>
     </header>
   );
@@ -353,9 +375,10 @@ function PlaceholderCard({
 }) {
   const card = (
     <div
+      className="experience-card"
       style={{
-        background: "#2B2B2B",
-        border: "1px solid #FFFFFF14",
+        background: "var(--ur-canvas-top)",
+        border: "1px solid rgba(255, 255, 255, 0.14)",
         borderRadius: 12,
         padding: 16,
       }}
@@ -410,7 +433,8 @@ export default function StudentSubpageShell({
 
   return (
     <div
-      className={styles.studentTypography}
+      className={`${styles.studentTypography} experience-role-shell`}
+      data-experience-role="student"
       style={{
         display: "flex",
         flexDirection: "column",

@@ -1,26 +1,80 @@
 @import "tailwindcss";
+@import "./experience/experience-tokens.css";
+@import "./experience/experience-primitives.css";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--color-background);
+  --foreground: var(--color-ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--ur-font-interface);
+  --font-display: var(--ur-type-family-display);
+  --font-mono: var(--ur-font-technical);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
 }
 
 body {
+  min-height: 100vh;
+  margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--ur-type-family-body), var(--font-space-grotesk), sans-serif;
+  font-size: var(--ur-type-size-body);
+  line-height: var(--ur-type-line-height-body);
+  letter-spacing: var(--ur-type-letter-spacing-body);
+  font-weight: var(--ur-type-weight-body);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--ur-type-family-heading), var(--ur-font-interface), sans-serif;
+  font-weight: var(--ur-type-weight-heading);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+[role="button"],
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select,
+textarea {
+  min-height: var(--ur-target-minimum-web);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--ur-accent-lime);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
