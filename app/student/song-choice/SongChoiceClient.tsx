@@ -177,7 +177,6 @@ function getTeacherTopTabs(navBasePath = "/teacher"): HeaderTab[] {
 }
 
 const pagePanelWidth = "85vw";
-const pageBackgroundColor = "#191919";
 
 const activityLabelMap: Record<string, string> = {
   "number-bonds": "Number Bonds",
@@ -187,7 +186,7 @@ const activityLabelMap: Record<string, string> = {
 };
 
 const headerStyles = {
-  backgroundColor: "#2B2B2B",
+  backgroundColor: "var(--ur-canvas-top)",
   borderBottomColor: "#FFFFFF14",
 };
 
@@ -278,6 +277,8 @@ function HeaderBar({
 
           <nav
             aria-label="Dashboard navigation"
+            className="experience-navigation"
+            data-experience-component="navigation"
             style={{
               display: "flex",
               alignItems: "center",
@@ -316,6 +317,8 @@ function HeaderBar({
                   key={tab.label}
                   href={tab.href}
                   aria-label={tab.label}
+                  aria-current={isActive ? "page" : undefined}
+                  data-experience-component="navigation-link"
                   className={`${styles.headerTabButton} ${
                     isActive ? styles.headerTabButtonActive : ""
                   }`}
@@ -327,14 +330,14 @@ function HeaderBar({
                     alignItems: "center",
                     justifyContent: "center",
                     textDecoration: "none",
-                    background: "#2B2B2B",
+                    background: "var(--ur-canvas-top)",
                     borderBottom:
                       dashboardType === "teacher"
                         ? isActive
                           ? "3px solid #CFFF04"
                           : "3px solid transparent"
                         : undefined,
-                    color: "#FFFFFF",
+                    color: "var(--ur-text-marketing)",
                     fontSize: dashboardType === "teacher" ? 13 : undefined,
                     fontWeight: dashboardType === "teacher" ? 500 : undefined,
                     lineHeight:
@@ -405,14 +408,14 @@ function LessonBuilderPanel() {
   return (
     <div
       style={{
-        background: "#2B2B2B",
+        background: "var(--ur-canvas-top)",
         width: "100%",
         borderBottom: "1px solid #FFFFFF14",
       }}
     >
       <section
         style={{
-          background: "#2B2B2B",
+          background: "var(--ur-canvas-top)",
           color: "#FFFFFF",
           width: pagePanelWidth,
           boxSizing: "border-box",
@@ -1002,10 +1005,11 @@ export default function SongChoiceClient({
   return (
     <>
       <div
-        className={styles.studentTypography}
+        className={`${styles.studentTypography} experience-role-shell`}
+        data-experience-role={dashboardType}
         style={{
           minHeight: "100vh",
-          background: "#082733",
+          background: "var(--ur-canvas-top)",
           color: "#FFFFFF",
           display: "flex",
           flexDirection: "column",
@@ -1024,7 +1028,7 @@ export default function SongChoiceClient({
             height: "15vh",
             minHeight: 110,
             width: "100%",
-            background: "#2B2B2B",
+            background: "var(--ur-canvas-top)",
             borderBottom: "1px solid #FFFFFF14",
             display: "flex",
             alignItems: "center",
@@ -1159,6 +1163,7 @@ export default function SongChoiceClient({
 
               <input
                 type="search"
+                className="experience-field"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={studentCopy.songChoice.searchPlaceholder}
@@ -1182,9 +1187,11 @@ export default function SongChoiceClient({
             {previewError ? (
               <p
                 role="alert"
+                className="experience-status"
+                data-status="error"
                 style={{
                   margin: "8px 0 0",
-                  color: "#FFCB6B",
+                  color: "var(--ur-feedback-error)",
                   fontSize: 12,
                   lineHeight: 1.4,
                 }}
@@ -1445,7 +1452,7 @@ export default function SongChoiceClient({
       <div
         style={{
           height: "8.5vh",
-          background: "#082733",
+          background: "var(--ur-canvas-top)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -1456,6 +1463,7 @@ export default function SongChoiceClient({
       >
         <button
           type="button"
+          className="experience-button experience-button--secondary"
           onClick={() => router.push(`${navBasePath}`)}
           style={{
             border: "1px solid #7A8FA8",
@@ -1473,7 +1481,9 @@ export default function SongChoiceClient({
 
         <button
           type="button"
+          className="experience-button"
           disabled={!selectedSong || selectedSongStatus === "idle" || selectedSongStatus === "loading"}
+          aria-busy={selectedSongStatus === "loading"}
           onClick={handleContinue}
           aria-label={selectedSongStatus === "error" ? "Try loading this song again" : `Continue to ${studentCopy.navigation.builder}`}
           title={
@@ -1511,7 +1521,7 @@ export default function SongChoiceClient({
       </div>
 
       {launchError && !isCustomizePromptOpen ? (
-        <p role="alert" style={{ position: "fixed", left: "50%", bottom: "calc(8.5vh + 12px)", transform: "translateX(-50%)", zIndex: 1201, margin: 0, padding: "8px 12px", border: "1px solid #FFCB6B", borderRadius: 10, background: "#241D0E", color: "#FFCB6B", textAlign: "center", maxWidth: "min(680px, calc(100vw - 48px))", boxSizing: "border-box" }}>
+        <p className="experience-status" data-status="error" role="alert" aria-live="assertive" style={{ position: "fixed", left: "50%", bottom: "calc(8.5vh + 12px)", transform: "translateX(-50%)", zIndex: 1201, margin: 0, padding: "8px 12px", border: "1px solid var(--ur-feedback-error)", borderRadius: 10, background: "var(--ur-canvas-top)", color: "var(--ur-feedback-error)", textAlign: "center", maxWidth: "min(680px, calc(100vw - 48px))", boxSizing: "border-box" }}>
           {launchError}
         </p>
       ) : null}
@@ -1533,9 +1543,10 @@ export default function SongChoiceClient({
           }}
         >
           <div
+            className="experience-dialog"
             style={{
               width: "min(420px, 92vw)",
-              background: "#2B2B2B",
+              background: "var(--ur-canvas-top)",
               border: "1px solid rgba(255, 255, 255, 0.2)",
               borderRadius: 16,
               boxShadow: "0 24px 80px rgba(0, 0, 0, 0.46)",

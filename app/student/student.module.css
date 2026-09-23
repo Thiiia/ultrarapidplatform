@@ -1,21 +1,21 @@
 :root {
-  --bg: #191919;
-  --surface: #ffffff;
-  --surface-soft: #f0f2f6;
-  --border: #cfd6e2;
-  --border-strong: #9eabba;
-  --text: #ffffff;
-  --muted: #95a0af;
-  --muted-2: #6f7a8c;
-  --nav: #687487;
-  --accent: #4a5b77;
-  --shadow: 0 1px 0 rgba(26, 38, 54, 0.02);
+  --bg: var(--ur-canvas-deep);
+  --surface: var(--ur-canvas-top);
+  --surface-soft: #103336;
+  --border: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.3);
+  --text: var(--ur-text-marketing);
+  --muted: #A9B2AC;
+  --muted-2: #73817B;
+  --nav: var(--ur-canvas-top);
+  --accent: var(--ur-accent-lime);
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .page {
   min-height: 100vh;
-  background: #191919;
-  color: #ffffff;
+  background: var(--ur-canvas-deep);
+  color: var(--ur-text-marketing);
   font-family: "Space Grotesk", sans-serif;
   font-weight: 500;
   font-style: normal;
@@ -674,6 +674,7 @@
 
 .headerTabButton {
   display: inline-flex;
+  min-height: var(--ur-target-minimum-web);
   align-items: center;
   justify-content: center;
   border-radius: 0;
@@ -715,18 +716,19 @@
 
 .utilityButton {
   display: inline-flex;
+  min-height: var(--ur-target-minimum-web);
   align-items: center;
   justify-content: center;
   border-radius: 0;
   border: none;
-  background: #ffffff;
+  background: var(--ur-canvas-top);
   cursor: pointer;
   flex-shrink: 0;
   box-sizing: border-box;
   padding: 0;
   line-height: 0;
   text-decoration: none;
-  color: #334155;
+  color: var(--ur-text-marketing);
   transition:
     background-color 0.18s ease,
     opacity 0.18s ease,
@@ -734,9 +736,15 @@
 }
 
 .utilityButton:hover {
-  background: #d1d5db;
+  background: #103336;
   opacity: 1;
   transform: translateY(-1px);
+}
+
+.utilityButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
 }
 
 .utilityButton svg {
@@ -749,8 +757,8 @@
 
 .logoutButton {
   width: 82px;
-  height: 38px;
-  color: #334155;
+  min-height: var(--ur-target-minimum-web);
+  color: var(--ur-text-marketing);
   font-family: "Space Grotesk", sans-serif;
   font-size: 13px;
   font-weight: 500;
@@ -760,12 +768,12 @@
   letter-spacing: 0;
   text-align: center;
   text-decoration: none;
-  background: #ffffff;
+  background: var(--ur-canvas-top);
 }
 
 .logoutButton:hover {
-  background: #d1d5db;
-  color: #334155;
+  background: #103336;
+  color: var(--ur-accent-lime);
 }
 
 

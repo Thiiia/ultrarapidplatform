@@ -297,7 +297,7 @@ export function GuidedEncounterComposer({
   }
 
   return (
-    <section aria-label={`${heading} composer`} style={{ display: "grid", gap: 12, width: "min(100%, 760px)", margin: "0 auto", padding: "clamp(12px, 2vw, 18px)", borderRadius: 16, border: "1px solid #7A8FA8", background: "linear-gradient(145deg, #101827, #0C1422)" }}>
+    <section aria-label={`${heading} composer`} className="experience-card" data-state={readiness.ready ? "ready" : "incomplete"} style={{ display: "grid", gap: 12, width: "min(100%, 760px)", margin: "0 auto", padding: "clamp(12px, 2vw, 18px)", borderRadius: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
         <h3 style={{ margin: 0, color: "#FFFFFF", fontSize: 15 }}>{heading}</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -305,7 +305,7 @@ export function GuidedEncounterComposer({
           {onRemove ? <button type="button" onClick={onRemove} style={{ border: "1px solid #7A3A3A", borderRadius: 999, background: "transparent", color: "#FFB4B4", cursor: "pointer", fontSize: 11, fontWeight: 800, padding: "4px 8px" }}>Remove action</button> : null}
         </div>
       </div>
-      {readiness.ready ? <div style={{ color: "#CFFF04", fontSize: 11, fontWeight: 800 }}>{studentCopy.editor.readyToPlay}</div> : <div role="status" style={{ color: "#FFCB6B", fontSize: 11, fontWeight: 800 }}>{readiness.nextAction}</div>}
+      {readiness.ready ? <div className="experience-status" data-status="success" role="status" aria-live="polite">{studentCopy.editor.readyToPlay}</div> : <div className="experience-status" data-status="warning" role="status" aria-live="polite">{readiness.nextAction}</div>}
       {isNumberBonds ? (
         <div style={{ borderRadius: 12, border: "1px solid rgba(207,255,4,.28)", background: "rgba(207,255,4,.07)", color: "#DFFF70", padding: "9px 11px", fontSize: 11, fontWeight: 750, lineHeight: 1.45 }}>
           You place the catch cue. In the game it automatically continues through catch → spinout → drag.

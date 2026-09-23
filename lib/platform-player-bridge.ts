@@ -31,7 +31,7 @@ export const BridgeReceiptSchema = z.object({
   songAssetId: z.string().min(1).max(160),
   activityKey: z.string().min(1).max(80),
   authorId: z.string().min(1).max(160),
-  revision: z.string().min(1).max(160).optional(),
+  revision: z.string().min(1).max(160),
   source: z.enum(["authored", "starter-template"]),
   templateProvenance: BridgeTemplateProvenanceSchema.optional(),
   runtimeCapabilities: z.array(z.string().min(1).max(80)).min(1).max(16),

@@ -11,6 +11,7 @@ import { createBridgeContext, getOrCreateInstallationId, parseCalibrationState, 
 import { getSongLaunchErrorMessage } from "@/lib/song-choice-flow";
 import { requestFreshSongLaunchParams } from "@/lib/song-launch-client";
 import { studentCopy } from "@/lib/student-copy";
+import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigation";
 import { webglFlexFrameStyle, webglViewportHostStyle } from "@/lib/webgl-embed-layout";
 import styles from "../student.module.css";
 
@@ -117,10 +118,10 @@ function getUtilityTabs(navBasePath = "/student"): UtilityTab[] {
 }
 
 const pagePanelWidth = "92vw";
-const headerBackgroundColor = "#2B2B2B";
-const pageBackgroundColor = "#191919";
+const headerBackgroundColor = "var(--ur-canvas-top)";
+const pageBackgroundColor = "var(--ur-canvas-deep)";
 const subtleBorderColor = "#FFFFFF14";
-const textColor = "#FFFFFF";
+const textColor = "var(--ur-text-marketing)";
 
 function HeaderBar({
   pathname,
@@ -131,8 +132,22 @@ function HeaderBar({
   topTabs: HeaderTab[];
   utilityTabs: UtilityTab[];
 }) {
+  const mobileItems = [
+    ...topTabs.map((tab) => ({
+      label: tab.label,
+      href: tab.href,
+      current: pathname === tab.href,
+    })),
+    ...utilityTabs.map((tab) => ({
+      label: tab.label,
+      href: tab.href,
+      current: pathname === tab.href,
+    })),
+    { label: studentCopy.navigation.logout, href: "/auth/logout", current: false },
+  ];
   return (
     <header
+      className="experience-role-header"
       style={{
         background: headerBackgroundColor,
         width: "100%",
@@ -147,6 +162,7 @@ function HeaderBar({
       }}
     >
       <div
+        className="experience-role-header-inner"
         style={{
           width: pagePanelWidth,
           height: "100%",
@@ -160,6 +176,7 @@ function HeaderBar({
         }}
       >
         <div
+          className="experience-role-brand-group"
           style={{
             display: "flex",
             alignItems: "center",
@@ -193,6 +210,8 @@ function HeaderBar({
 
           <nav
             aria-label="Student navigation"
+            className="experience-navigation experience-desktop-navigation"
+            data-experience-component="navigation"
             style={{
               display: "flex",
               alignItems: "center",
@@ -231,6 +250,7 @@ const isActive =
                   key={tab.label}
                   href={tab.href}
                   aria-label={tab.label}
+                  aria-current={isActive ? "page" : undefined}
                   className={`${styles.headerTabButton} ${
                     isActive ? styles.headerTabButtonActive : ""
                   }`}
@@ -257,6 +277,7 @@ const isActive =
         </div>
 
         <div
+          className="experience-role-utilities"
           style={{
             display: "flex",
             gap: 6,
@@ -296,6 +317,7 @@ const isActive =
             Log out
           </a>
         </div>
+        <ExperienceMobileNavigation items={mobileItems} label="Student" />
       </div>
     </header>
   );
@@ -335,7 +357,7 @@ function GameEmbedSession({
   const [bridgeStatusMessage, setBridgeStatusMessage] = useState("");
   const [pendingOutcome, setPendingOutcome] = useState<PendingOutcome | null>(null);
   const [outcomeSyncState, setOutcomeSyncState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
-  const outcomeKeyRef = useRef("");
+  const acceptedOutcomeAttemptIdRef = useRef("");
   const isDemoMode = navBasePath.startsWith("/demo/");
 
   const topTabs = getTopTabs(navBasePath);
@@ -510,9 +532,10 @@ function GameEmbedSession({
         });
       } else if (result.message.type === "run-complete") {
         const completion = result.message.completion;
-        const outcomeKey = `${result.message.receipt.launchAttemptId}:${completion.outcome}:${completion.completedEvents}:${completion.hitAttempts}`;
-        if (outcomeKeyRef.current === outcomeKey) return;
-        outcomeKeyRef.current = outcomeKey;
+        const launchAttemptId = result.message.receipt.launchAttemptId;
+        // The outcome API accepts one completion per launch attempt.
+        if (acceptedOutcomeAttemptIdRef.current === launchAttemptId) return;
+        acceptedOutcomeAttemptIdRef.current = launchAttemptId;
         if (isDemoMode) {
           setOutcomeSyncState("idle");
           setPendingOutcome(null);
@@ -593,7 +616,8 @@ function GameEmbedSession({
 
   return (
     <div
-      className={styles.studentTypography}
+      className={`${styles.studentTypography} experience-role-shell`}
+      data-experience-role="student"
       style={{
         ...webglViewportHostStyle,
         background: pageBackgroundColor,
@@ -642,7 +666,7 @@ function GameEmbedSession({
               }}
             />
           ) : (
-            <div role={launchErrorMessage ? "alert" : "status"} style={{ ...webglFlexFrameStyle, display: "grid", placeItems: "center", border: `1px solid ${subtleBorderColor}`, borderRadius: 12, padding: 24, boxSizing: "border-box", textAlign: "center" }}>
+            <div className="experience-card" data-state={launchErrorMessage ? "error" : needsSongChoice ? "empty" : "loading"} role={launchErrorMessage ? "alert" : "status"} aria-live={launchErrorMessage ? "assertive" : "polite"} style={{ ...webglFlexFrameStyle, display: "grid", placeItems: "center", borderRadius: 12, padding: 24, boxSizing: "border-box", textAlign: "center" }}>
               <div style={{ display: "grid", gap: 14, justifyItems: "center", maxWidth: 460 }}>
                 <strong>{launchErrorMessage ? studentCopy.game.prepareErrorTitle : needsSongChoice ? studentCopy.game.chooseSongTitle : studentCopy.game.preparingTitle}</strong>
                 <span style={{ color: "#FFFFFFB3", lineHeight: 1.45 }}>
@@ -651,16 +675,16 @@ function GameEmbedSession({
                 {launchErrorMessage ? (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
                     {launchPreparationError && (
-                      <button type="button" onClick={onRetry} style={{ border: "none", borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}>
+                      <button type="button" className="experience-button" onClick={onRetry} style={{ border: "none", borderRadius: 999, background: "var(--ur-accent-lime)", color: "var(--ur-canvas-deep)", padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}>
                         Try again
                       </button>
                     )}
-                    <Link href={`${navBasePath}/song-choice`} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 999, color: "#FFFFFF", padding: "9px 16px", textDecoration: "none", fontWeight: 700 }}>
+                    <Link className="experience-button experience-button--secondary" href={`${navBasePath}/song-choice`} style={{ borderRadius: 999, color: "var(--ur-text-marketing)", padding: "9px 16px", textDecoration: "none", fontWeight: 700 }}>
                       {studentCopy.game.chooseAnotherSong}
                     </Link>
                   </div>
                 ) : needsSongChoice ? (
-                  <Link href={`${navBasePath}/song-choice`} style={{ border: "none", borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "10px 18px", textDecoration: "none", fontWeight: 800 }}>
+                  <Link className="experience-button" href={`${navBasePath}/song-choice`} style={{ border: "none", borderRadius: 999, background: "var(--ur-accent-lime)", color: "var(--ur-canvas-deep)", padding: "10px 18px", textDecoration: "none", fontWeight: 800 }}>
                     {studentCopy.game.chooseSong}
                   </Link>
                 ) : null}
@@ -671,20 +695,21 @@ function GameEmbedSession({
             <p className="mt-2 text-sm text-white/70">{studentCopy.game.calibrationRequired}</p>
           )}
           {bridgeStatusMessage && (
-            <p className="mt-2 text-sm text-amber-200" role="alert">{bridgeStatusMessage}</p>
+            <p className="experience-status mt-2 text-sm" data-status="error" role="alert" aria-live="assertive">{bridgeStatusMessage}</p>
           )}
           {pendingOutcome && outcomeSyncState === "saving" && (
-            <p className="mt-2 text-sm text-white/70" role="status">{studentCopy.game.savingResult}</p>
+            <p className="experience-status mt-2 text-sm" data-status="pending" role="status" aria-live="polite" aria-busy="true">{studentCopy.game.savingResult}</p>
           )}
           {pendingOutcome && outcomeSyncState === "failed" && (
-            <p className="mt-2 text-sm text-amber-200" role="alert">
+            <p className="experience-status mt-2 text-sm" data-status="error" role="alert" aria-live="assertive">
               <button
                 type="button"
+                className="experience-button"
                 onClick={() => {
                   setOutcomeSyncState("saving");
                   setPendingOutcome((current) => current ? { ...current } : current);
                 }}
-                style={{ marginRight: 6, border: 0, borderRadius: 999, background: "#CFFF04", color: "#071222", padding: "5px 10px", fontWeight: 800, cursor: "pointer" }}
+                style={{ marginRight: 6, border: 0, borderRadius: 999, background: "var(--ur-accent-lime)", color: "var(--ur-canvas-deep)", padding: "5px 10px", fontWeight: 800, cursor: "pointer" }}
               >
                 {studentCopy.game.syncAgain}
               </button>
@@ -692,7 +717,7 @@ function GameEmbedSession({
             </p>
           )}
           {completedRun && (
-            <p className="mt-2 text-sm text-emerald-200" role="status">
+            <p className="experience-status mt-2 text-sm" data-status="success" role="status" aria-live="polite">
               {studentCopy.game.lessonComplete(completedRun.completedEvents, completedRun.hitAttempts)} {studentCopy.game.returnToSongs}
             </p>
           )}

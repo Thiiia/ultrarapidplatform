@@ -1,5 +1,5 @@
 import { resolveRequestedSongActivityKey, resolveRequestedSongActivityPackage } from "@/lib/song-activity-storage";
-import { extractRevisionFromStoragePath, requireMatchingRevision } from "@/lib/song-launch-identity";
+import { requireMatchingRevision } from "@/lib/song-launch-identity";
 import { getUnityRuntimeActivityIssue, isCurrentUnityRuntimeActivity } from "@/lib/unity-runtime-activity";
 
 type SignedStorageRef = {
@@ -126,7 +126,7 @@ export type SongLaunchReceipt = {
   songAssetId: string;
   activityKey: string;
   authorId: string;
-  revision?: string;
+  revision: string;
   source: PlayableLessonSource;
   templateProvenance?: TemplateProvenance;
   runtimeCapabilities: string[];
@@ -393,10 +393,8 @@ export async function resolveFreshSongLaunchPackage({
     }
     throw error;
   }
-  const unrevisionedLegacy = chartTargets.legacy === true && !revision &&
-    !extractRevisionFromStoragePath(chartTargets.chartPath) &&
-    !extractRevisionFromStoragePath(chartTargets.sidecarPath);
-  const resolvedRevision = unrevisionedLegacy ? undefined : requireMatchingRevision(
+  // Unity requires an immutable revision in every playable receipt, including legacy rows.
+  const resolvedRevision = requireMatchingRevision(
     chartTargets.chartPath,
     chartTargets.sidecarPath,
     revision,

@@ -1,7 +1,7 @@
 .page {
   min-height: 100vh;
-  background: #111827;
-  color: #fff;
+  background: var(--ur-canvas-deep);
+  color: var(--ur-text-marketing);
   padding: 32px;
 }
 
@@ -22,7 +22,7 @@
 
 .header p,
 .backLink {
-  color: #cbd5e1;
+  color: #A9B2AC;
 }
 
 .backLink {
@@ -30,8 +30,8 @@
 }
 
 .panel {
-  border: 1px solid #374151;
-  background: #1f2937;
+  border: 1px solid var(--color-border-strong);
+  background: var(--ur-canvas-top);
   padding: 24px;
   border-radius: 8px;
 }
@@ -47,12 +47,12 @@
 .fileButton,
 .primaryButton,
 .secondaryButton {
-  min-height: 42px;
+  min-height: var(--ur-target-minimum-web);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border-radius: 6px;
+  border-radius: var(--ur-radius-small);
   padding: 10px 14px;
   font: inherit;
   font-weight: 700;
@@ -61,9 +61,10 @@
 
 .fileButton,
 .primaryButton {
-  color: #fff;
-  background: #2563eb;
-  border: 1px solid #3b82f6;
+  color: var(--ur-canvas-deep);
+  background: var(--ur-accent-lime);
+  border: 1px solid var(--ur-accent-lime);
+  font-weight: 700;
 }
 
 .fileButton input {
@@ -74,10 +75,15 @@
   opacity: 0;
 }
 
+.fileButton:focus-within {
+  outline: 3px solid var(--ur-accent-lime);
+  outline-offset: 3px;
+}
+
 .secondaryButton {
-  color: #f8fafc;
-  background: #111827;
-  border: 1px solid #4b5563;
+  color: var(--ur-text-marketing);
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
 }
 
 .primaryButton:disabled,
@@ -99,7 +105,8 @@
 
 .modeGroup label {
   display: flex;
-  align-items: flex-start;
+  min-height: var(--ur-target-minimum-web);
+  align-items: center;
   gap: 10px;
   margin: 12px 0;
 }
@@ -110,24 +117,31 @@
 }
 
 .modeGroup small {
-  color: #cbd5e1;
+  color: #A9B2AC;
 }
 
 .message,
 .errorMessage {
   margin: 20px 0 0;
   padding: 12px;
-  border-left: 3px solid #22c55e;
-  background: #111827;
+  border-left: 3px solid var(--ur-feedback-success);
+  background: rgba(0, 255, 87, 0.08);
+}
+
+.message[data-status="success"] {
+  border-color: var(--ur-feedback-success);
+  color: var(--ur-feedback-success);
 }
 
 .errorMessage {
-  border-color: #ef4444;
+  border-color: var(--ur-feedback-error);
+  color: var(--ur-feedback-error);
+  background: rgba(255, 71, 71, 0.08);
 }
 
 .issueList {
   margin-top: 12px;
-  color: #fecaca;
+  color: var(--ur-feedback-error);
 }
 
 .issueList p {
@@ -139,8 +153,8 @@
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 1px;
   margin-top: 24px;
-  background: #374151;
-  border: 1px solid #374151;
+  background: var(--color-border-strong);
+  border: 1px solid var(--color-border-strong);
 }
 
 .summary div {
@@ -149,11 +163,11 @@
   align-content: center;
   gap: 8px;
   padding: 16px;
-  background: #111827;
+  background: var(--ur-canvas-deep);
 }
 
 .summary span {
-  color: #cbd5e1;
+  color: #A9B2AC;
   font-size: 14px;
 }
 
@@ -165,4 +179,13 @@
   .page { padding: 20px 14px; }
   .panel { padding: 18px; }
   .toolbar > *, .actions > * { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fileButton,
+  .primaryButton,
+  .secondaryButton {
+    transition: none;
+    transform: none;
+  }
 }

@@ -1,0 +1,11 @@
+{
+  "name": "ultrarapid.experience",
+  "version": "1.1.0",
+  "sourceHash": "194da24dd574f11897c9343ee0895bee6a37a5e507ea18308f7054fbf1abfa2c",
+  "generatedFiles": {
+    "dist/web/experience-tokens.css": "b2fa4a8f7977cdb1f62cff7797c19cea88d58de63a861f0c25299a7e529012cc",
+    "dist/web/experience-tokens.ts": "1c10cf03333c92b488229ceed7c744ba5d59b542df2bed405556df6cac11e339",
+    "dist/unity/UltraRapidExperienceColors.g.cs": "a9db4321fcdde623c0443d3e2b06fc96bbda1cb422bc78c4213ce23086e43df3",
+    "dist/unity/UltraRapidExperienceMotion.g.cs": "24f36a818470e70c96067f99596065a2c5814616ae731aad86e361ad6461a63f"
+  }
+}

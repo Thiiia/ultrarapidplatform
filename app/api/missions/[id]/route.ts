@@ -1,19 +1,10 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getCurrentAppUser } from "@/lib/current-user";
 import { validateMissionContent } from "@/lib/contracts/missionContent";
 
 export const runtime = "nodejs";
-
-function getCookieValue(cookieHeader: string | null, name: string) {
-  if (!cookieHeader) return undefined;
-  const parts = cookieHeader.split(";").map((p) => p.trim());
-  for (const p of parts) {
-    const [k, ...rest] = p.split("=");
-    if (k === name) return decodeURIComponent(rest.join("="));
-  }
-  return undefined;
-}
 
 function getMissionIdFromUrl(request: Request) {
   const url = new URL(request.url);
@@ -27,9 +18,9 @@ function getMissionIdFromUrl(request: Request) {
  * - teacher: any
  */
 export async function GET(request: Request) {
-  const role = getCookieValue(request.headers.get("cookie"), "role");
+  const user = await getCurrentAppUser().catch(() => null);
 
-  if (role !== "student" && role !== "teacher") {
+  if (!user || (user.role !== "student" && user.role !== "teacher")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -54,7 +45,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Mission not found" }, { status: 404 });
   }
 
-  if (role === "student" && !mission.published) {
+  if (user.role === "student" && !mission.published) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -81,9 +72,9 @@ export async function GET(request: Request) {
  * }
  */
 export async function PATCH(request: Request) {
-  const role = getCookieValue(request.headers.get("cookie"), "role");
+  const user = await getCurrentAppUser().catch(() => null);
 
-  if (role !== "teacher") {
+  if (!user || user.role !== "teacher") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
