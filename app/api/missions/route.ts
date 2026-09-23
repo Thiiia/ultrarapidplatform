@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getCurrentAppUser } from "@/lib/current-user";
 import {
   DEFAULT_MISSION_CONTENT,
   validateMissionContent,
@@ -8,24 +9,14 @@ import {
 
 export const runtime = "nodejs";
 
-function getCookieValue(cookieHeader: string | null, name: string) {
-  if (!cookieHeader) return undefined;
-  const parts = cookieHeader.split(";").map((p) => p.trim());
-  for (const p of parts) {
-    const [k, ...rest] = p.split("=");
-    if (k === name) return decodeURIComponent(rest.join("="));
-  }
-  return undefined;
-}
-
 /**
  * GET /api/missions
  * - student/teacher: list published missions (metadata)
  */
-export async function GET(request: Request) {
-  const role = getCookieValue(request.headers.get("cookie"), "role");
+export async function GET() {
+  const user = await getCurrentAppUser().catch(() => null);
 
-  if (role !== "student" && role !== "teacher") {
+  if (!user || (user.role !== "student" && user.role !== "teacher")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -57,9 +48,9 @@ export async function GET(request: Request) {
  * }
  */
 export async function POST(request: Request) {
-  const role = getCookieValue(request.headers.get("cookie"), "role");
+  const user = await getCurrentAppUser().catch(() => null);
 
-  if (role !== "teacher") {
+  if (!user || user.role !== "teacher") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -94,26 +85,13 @@ export async function POST(request: Request) {
     );
   }
 
-  // Mock auth has no user identity yet: pick any teacher as the author.
-  const teacher = await prisma.user.findFirst({
-    where: { role: "teacher" },
-    select: { id: true },
-  });
-
-  if (!teacher) {
-    return NextResponse.json(
-      { error: "No teacher user found to assign as author" },
-      { status: 500 }
-    );
-  }
-
   const mission = await prisma.mission.create({
     data: {
       title,
       description,
       published,
       contentJson: validation.data as Prisma.InputJsonValue,
-      authorId: teacher.id,
+      authorId: user.id,
     },
     select: {
       id: true,
