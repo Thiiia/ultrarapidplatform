@@ -164,6 +164,8 @@ export function serializeAuthoredLesson(
     const readiness = evaluateLessonPublishReadiness(events, {
       activityKey: options.activityKey ?? identity.activityKey,
       equationQueue,
+      clock,
+      stopAtSeconds,
     });
     if (!readiness.ready) {
       const firstBlocker = readiness.blockers[0];

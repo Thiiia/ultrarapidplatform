@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "activityKey": "number-bonds",
+  "timingPolicy": {
+    "version": 1,
+    "minimumHitSpacingSeconds": 7.5,
+    "finalInteractionTailSeconds": 12,
+    "allowSimultaneousHits": false
+  },
+  "targetPolicy": "whole-token",
+  "cases": [
+    {
+      "id": "at-policy-boundary",
+      "encounters": [
+        { "id": "hit-1", "type": "hit", "startSeconds": 8 },
+        { "id": "hit-2", "type": "hit", "startSeconds": 15.5 }
+      ],
+      "stopAtSeconds": 27.5,
+      "hasStopAtSeconds": true,
+      "expectedIssues": []
+    },
+    {
+      "id": "one-hundredth-short-spacing",
+      "encounters": [
+        { "id": "hit-1", "type": "hit", "startSeconds": 8 },
+        { "id": "hit-2", "type": "hit", "startSeconds": 15.49 }
+      ],
+      "stopAtSeconds": 27.49,
+      "hasStopAtSeconds": true,
+      "expectedIssues": [
+        {
+          "code": "gem_spacing",
+          "encounterId": "hit-2",
+          "relatedEncounterId": "hit-1",
+          "earliestStartSeconds": 15.5
+        }
+      ]
+    },
+    {
+      "id": "simultaneous-disjoint-hits",
+      "encounters": [
+        { "id": "hit-1", "type": "hit", "startSeconds": 8 },
+        { "id": "hit-2", "type": "hit", "startSeconds": 8 }
+      ],
+      "stopAtSeconds": 20,
+      "hasStopAtSeconds": true,
+      "expectedIssues": [
+        {
+          "code": "simultaneous_hits",
+          "encounterId": "hit-2",
+          "relatedEncounterId": "hit-1"
+        }
+      ]
+    },
+    {
+      "id": "one-tick-short-final-tail",
+      "encounters": [
+        { "id": "hit-1", "type": "hit", "startSeconds": 8 }
+      ],
+      "stopAtSeconds": 19.99,
+      "hasStopAtSeconds": true,
+      "expectedIssues": [
+        {
+          "code": "gem_tail",
+          "encounterId": "hit-1",
+          "minimumStopSeconds": 20
+        }
+      ]
+    },
+    {
+      "id": "missing-stop-boundary",
+      "encounters": [
+        { "id": "hit-1", "type": "hit", "startSeconds": 8 }
+      ],
+      "hasStopAtSeconds": false,
+      "expectedIssues": [
+        {
+          "code": "stop_required",
+          "encounterId": "hit-1",
+          "minimumStopSeconds": 20
+        }
+      ]
+    },
+    {
+      "id": "final-cue-after-stop",
+      "encounters": [
+        { "id": "hit-1", "type": "hit", "startSeconds": 21 }
+      ],
+      "stopAtSeconds": 20,
+      "hasStopAtSeconds": true,
+      "expectedIssues": [
+        {
+          "code": "gem_tail",
+          "encounterId": "hit-1",
+          "minimumStopSeconds": 33
+        }
+      ]
+    },
+    {
+      "id": "algebra-same-event-disjoint-hits",
+      "activityKey": "early-algebra",
+      "encounters": [
+        { "id": "hit-1", "type": "hit", "startSeconds": 8 },
+        { "id": "hit-2", "type": "hit", "startSeconds": 8 }
+      ],
+      "hasStopAtSeconds": false,
+      "expectedIssues": []
+    }
+  ]
+}

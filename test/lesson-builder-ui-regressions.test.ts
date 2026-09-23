@@ -59,6 +59,13 @@ test("lesson readiness is an expandable status control", () => {
   assert.match(lessonBuilderSource, /isOpen=\{isReadinessOpen\}/);
 });
 
+test("dense readiness blockers remain available in a bounded scroll area", () => {
+  assert.match(
+    studentStyles,
+    /\.editorReadinessDetails\s*\{[^}]*max-height:\s*260px;[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/s,
+  );
+});
+
 test("readiness blockers select the exact cue and seek to its authored time", () => {
   const handler = lessonBuilderSource.match(
     /function handleSelectReadinessEncounter\(encounterId: string\)[\s\S]*?\n  }/,

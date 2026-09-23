@@ -873,6 +873,8 @@
   display: grid;
   gap: 8px;
   max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0 11px 11px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   animation: editorDetailsIn 180ms ease both;

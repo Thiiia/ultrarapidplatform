@@ -9,7 +9,11 @@ import {
 } from '@/lib/authored-lesson';
 import { isLegacyEncounterSidecar } from '@/lib/legacy-encounters';
 import { migrateLegacyEncounterSidecar, repairLegacyMigratedAuthoredLesson } from '@/lib/legacy-authored-migration';
-import { getAuthoredActivityContractIssues } from '@/lib/activity-authoring-capabilities';
+import {
+  getActivityAuthoringCapabilities,
+  getAuthoredActivityContractIssues,
+  validateAuthoredActivityTiming,
+} from '@/lib/activity-authoring-capabilities';
 
 export type AuthoredLessonPublication = {
   content: string;
@@ -75,13 +79,36 @@ export function prepareAuthoredLessonForPublication({
       toTickAfterSeconds: legacyToTickAfterSeconds,
     });
   } else {
-    draft = parseAuthoredLessonDraft(repairLegacyMigratedAuthoredLesson(raw));
+    draft = parseAuthoredLessonDraft(repairLegacyMigratedAuthoredLesson(raw), {
+      activityKey: identity.activityKey,
+    });
   }
   const activityContractIssue = getAuthoredActivityContractIssues(draft)[0];
   if (activityContractIssue) {
-    throw new Error(activityContractIssue.message);
+    throw new Error(`${activityContractIssue.code}: ${activityContractIssue.message}`);
+  }
+  const capabilities = getActivityAuthoringCapabilities(identity.activityKey);
+  if (capabilities.activityKey === 'number-bonds' && !runtimeClock) {
+    throw new Error('Number Bonds publication requires its chart tempo map for runtime timing validation.');
   }
   if (runtimeClock) {
+    if (capabilities.activityKey === 'number-bonds') {
+      const timingIssue = validateAuthoredActivityTiming(
+        capabilities.activityKey,
+        draft.encounters.map((encounter) => ({
+          id: encounter.id,
+          type: encounter.type,
+          startSeconds: runtimeClock.toSeconds(encounter.startTick),
+        })),
+        draft.stopAtSeconds,
+      )[0];
+      if (timingIssue) {
+        const related = timingIssue.relatedEncounterId ? ` (${timingIssue.relatedEncounterId})` : '';
+        throw new Error(
+          `Number Bonds timing ${timingIssue.code} for encounter '${timingIssue.encounterId}'${related}.`,
+        );
+      }
+    }
     validateAuthoredRuntimePresentationConcurrency(draft.encounters, runtimeClock);
     validateAuthoredLessonPlayability(draft.encounters, runtimeClock, {
       stopAtSeconds: draft.stopAtSeconds,

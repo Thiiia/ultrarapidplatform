@@ -44,7 +44,10 @@ import {
   assertSongActivityMatches,
   resolveSongActivityIdentity,
 } from "@/lib/song-activity-authority";
-import { getActivityAuthoringCapabilities } from "@/lib/activity-authoring-capabilities";
+import {
+  getActivityAuthoringCapabilities,
+  NUMBER_BONDS_TIMING_POLICY,
+} from "@/lib/activity-authoring-capabilities";
 import { getLearnerFacingError, studentCopy } from "@/lib/student-copy";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import { GuidedEncounterComposer } from "./GuidedEncounterComposer";
@@ -9721,7 +9724,7 @@ export default function LessonBuilderClient({
 
   const sidecar = useMemo(
     () => sidecarFromTimelineEvents(timelineEvents),
-    [timelineEvents, chartFile],
+    [timelineEvents, chartFile, selectedSongActivity, selectedSongLaunch],
   );
 
   const equationViewerBlockSize = useMemo(
@@ -10114,8 +10117,10 @@ export default function LessonBuilderClient({
     () => evaluateLessonPublishReadiness(timelineEvents as unknown as AuthoredTimelineEvent[], {
       activityKey: selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null,
       equationQueue: authoredEquationQueue,
+      clock: createLessonClock(chartFile || originalChartFileRef.current),
+      stopAtSeconds: sidecar.stopAtSeconds,
     }),
-    [authoredEquationQueue, selectedSongActivity, selectedSongLaunch, timelineEvents],
+    [authoredEquationQueue, chartFile, selectedSongActivity, selectedSongLaunch, sidecar, timelineEvents],
   );
 
   const needsReadinessCheck = !lessonPublishReadiness.ready
@@ -10253,9 +10258,26 @@ export default function LessonBuilderClient({
         }, 0)
       : 0;
     const hasAnyEvents = events.length > 0 || (includeRecorded && rtcmDraftMechanics.length > 0);
-    const stopAtSeconds = hasAnyEvents
+    const baseStopAtSeconds = hasAnyEvents
       ? Math.max(eventEndSeconds, draftEndSeconds) + endOfChartStopBufferSeconds
       : undefined;
+    const activityKey = selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null;
+    const finalNumberBondsHitSeconds = activityKey === "number-bonds"
+      ? [
+          ...events.flatMap((event) => event.mechanicInstances.hit.map((instance) =>
+            typeof instance.tick === "number" ? timelineTickToSeconds(instance.tick) : timelineTickToSeconds(event.tick),
+          )),
+          ...(includeRecorded ? rtcmDraftMechanics
+            .filter((draft) => draft.mechanic === "hit")
+            .map((draft) => timelineTickToSeconds(draft.tick)) : []),
+        ].reduce((latest, secondsAt) => Math.max(latest, secondsAt), Number.NEGATIVE_INFINITY)
+      : Number.NEGATIVE_INFINITY;
+    const stopAtSeconds = Number.isFinite(finalNumberBondsHitSeconds)
+      ? Math.max(
+          baseStopAtSeconds ?? 0,
+          finalNumberBondsHitSeconds + NUMBER_BONDS_TIMING_POLICY.finalInteractionTailSeconds,
+        )
+      : baseStopAtSeconds;
 
     const clock = createLessonClock(chartFile || originalChartFileRef.current);
     return {

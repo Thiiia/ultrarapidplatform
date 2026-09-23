@@ -1,3 +1,5 @@
+import { normalizeSongActivityKey } from "./song-activity-storage";
+
 export const AUTHORED_LESSON_VERSION = 3 as const;
 
 export const AUTHORED_HIT_PADS = [
@@ -238,7 +240,10 @@ function encountersOverlap(left: AuthoredLessonEncounter, right: AuthoredLessonE
  * HIT mixed with either) would otherwise reach a runtime rejection after an
  * author has already published the revision.
  */
-function validateRuntimeConcurrency(encounters: readonly AuthoredLessonEncounter[]) {
+function validateRuntimeConcurrency(
+  encounters: readonly AuthoredLessonEncounter[],
+  activityKey?: string | null,
+) {
   const ordered = [...encounters].sort((left, right) =>
     left.startTick - right.startTick ||
     left.endTick - right.endTick ||
@@ -251,6 +256,12 @@ function validateRuntimeConcurrency(encounters: readonly AuthoredLessonEncounter
       const right = ordered[candidateIndex];
       if (right.startTick > left.endTick) break;
       if (!encountersOverlap(left, right)) continue;
+
+      // Number Bonds cue timing is checked in seconds by the shared activity
+      // validator, which has the chart tempo map needed to report gem_spacing
+      // and simultaneous_hits consistently with editor readiness.
+      if (normalizeSongActivityKey(activityKey) === "number-bonds" &&
+          left.type === "hit" && right.type === "hit") continue;
 
       const sameHitGroup = left.type === "hit" && right.type === "hit" &&
         left.startTick === right.startTick &&
@@ -461,7 +472,7 @@ export function validateAuthoredLessonPlayability(
 
 export function parseAuthoredLessonDraft(
   value: unknown,
-  options: { requirePublishedIdentity?: boolean } = {},
+  options: { requirePublishedIdentity?: boolean; activityKey?: string | null } = {},
 ): AuthoredLessonDraft {
   if (!value || typeof value !== "object") {
     throw new Error("Authored lesson payload must be an object");
@@ -606,7 +617,7 @@ export function parseAuthoredLessonDraft(
       throw new Error(`Authored lesson hit '${encounter.id}' must be instantaneous (startTick === endTick)`);
     }
   }
-  validateRuntimeConcurrency(result.encounters);
+  validateRuntimeConcurrency(result.encounters, options.activityKey ?? result.activityKey);
   if (result.equations.length === 0 && result.encounters.length === 0) {
     throw new Error("Authored lesson contains no equations or encounters");
   }

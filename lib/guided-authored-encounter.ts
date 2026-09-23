@@ -11,6 +11,9 @@ import type {
 import {
   getActivityAuthoringCapabilities,
   getNumberBondsWhole,
+  getNumberBondsWholeTokenIndex,
+  validateAuthoredActivityTiming,
+  type NumberBondsTimingIssue,
 } from "./activity-authoring-capabilities";
 
 export type GuidedMechanic = "hit" | "spin" | "drag";
@@ -43,7 +46,12 @@ export type EncounterIssueCode =
   | "activity_equation_invalid"
   | "activity_target_shape"
   | "activity_equation_count"
-  | "activity_hit_count";
+  | "activity_hit_count"
+  | "gem_spacing"
+  | "gem_tail"
+  | "simultaneous_hits"
+  | "stop_required"
+  | "timing_invalid";
 
 export type EncounterIssue = {
   encounterId: string;
@@ -102,6 +110,11 @@ const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   activity_target_shape: "Give this Number Bonds Hit exactly one bubble target.",
   activity_equation_count: "Use exactly one equation for Number Bonds.",
   activity_hit_count: "Add enough Hit cues for the selected Number Bonds equation.",
+  gem_spacing: "Move this Hit farther from the previous Hit.",
+  gem_tail: "Extend the lesson stop time after the final Hit.",
+  simultaneous_hits: "Move this Hit so Number Bonds Hits do not happen together.",
+  stop_required: "Set a lesson stop time after the final Hit.",
+  timing_invalid: "Set a valid chart time for this Hit.",
 };
 
 function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): EncounterIssue {
@@ -124,6 +137,11 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
     activity_target_shape: "has the wrong target shape for this activity",
     activity_equation_count: "has the wrong number of equations for this activity",
     activity_hit_count: "does not contain enough Hits for this activity",
+    gem_spacing: "starts before the next Number Bonds Hit is available",
+    gem_tail: "does not leave enough time after the final Number Bonds Hit",
+    simultaneous_hits: "happens at the same time as another Number Bonds Hit",
+    stop_required: "needs a lesson stop time after the final Number Bonds Hit",
+    timing_invalid: "has an invalid chart time",
   };
   const mechanicLabel = encounter.mechanic[0].toUpperCase() + encounter.mechanic.slice(1);
   const numberMatch = encounter.id.match(/(?:hit|spin|drag)[-_ ]?(\d+)/i);
@@ -134,6 +152,61 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
     message: `${moveLabel} ${labels[code]}.`,
     nextAction,
   };
+}
+
+function moveLabel(id: string, mechanic: GuidedMechanic) {
+  const numberMatch = id.match(/(?:hit|spin|drag)[-_ ]?(\d+)/i);
+  const label = mechanic[0].toUpperCase() + mechanic.slice(1);
+  return `${label}${numberMatch ? ` ${numberMatch[1]}` : ""}`;
+}
+
+function timingIssueToEncounterIssue(timingIssue: NumberBondsTimingIssue): EncounterIssue {
+  const label = moveLabel(timingIssue.encounterId, "hit");
+  const previousLabel = timingIssue.relatedEncounterId
+    ? moveLabel(timingIssue.relatedEncounterId, "hit")
+    : "the previous Hit";
+  const earliestStart = timingIssue.earliestStartSeconds?.toFixed(1);
+  const minimumStop = timingIssue.minimumStopSeconds?.toFixed(1);
+
+  switch (timingIssue.code) {
+    case "gem_spacing":
+      return {
+        encounterId: timingIssue.encounterId,
+        relatedEncounterId: timingIssue.relatedEncounterId,
+        code: timingIssue.code,
+        message: `${label} starts too soon after ${previousLabel}.`,
+        nextAction: `Move ${label} to ${earliestStart}s or later.`,
+      };
+    case "simultaneous_hits":
+      return {
+        encounterId: timingIssue.encounterId,
+        relatedEncounterId: timingIssue.relatedEncounterId,
+        code: timingIssue.code,
+        message: `${label} happens at the same time as ${previousLabel}.`,
+        nextAction: `Move ${label} so each Number Bonds Hit has its own time.`,
+      };
+    case "gem_tail":
+      return {
+        encounterId: timingIssue.encounterId,
+        code: timingIssue.code,
+        message: `The lesson stops too soon after ${label}.`,
+        nextAction: `Set the lesson stop time to at least ${minimumStop}s.`,
+      };
+    case "stop_required":
+      return {
+        encounterId: timingIssue.encounterId,
+        code: timingIssue.code,
+        message: `The lesson needs a stop time after ${label}.`,
+        nextAction: `Set the lesson stop time to at least ${minimumStop}s.`,
+      };
+    case "timing_invalid":
+      return {
+        encounterId: timingIssue.encounterId,
+        code: timingIssue.code,
+        message: label + " has an invalid chart time.",
+        nextAction: "Set a valid time for " + label + ".",
+      };
+  }
 }
 
 function targetIndexes(encounter: GuidedEncounterInput) {
@@ -206,9 +279,19 @@ export function evaluateEncounterReadiness(
   if (
     capabilities.activityKey === "number-bonds" &&
     encounter.mechanic === "hit" &&
-    encounter.hitBubbles.length > 1
+    (encounter.hitBubbles.length !== 1 ||
+      new Set(encounter.hitBubbles.flatMap((target) => [
+        ...(target.pads ?? []),
+        ...(target.positions ?? []),
+      ]).filter((pad) => typeof pad === "string" && pad.trim().length > 0)).size !== 1)
   ) {
     issues.push(issue(encounter, "activity_target_shape"));
+  }
+  if (capabilities.activityKey === "number-bonds" && encounter.mechanic === "hit" && encounter.equation) {
+    const wholeTokenIndex = getNumberBondsWholeTokenIndex(encounter.equation);
+    if (wholeTokenIndex != null && encounter.hitBubbles.some((target) => target.tokenIndex !== wholeTokenIndex)) {
+      issues.push(issue(encounter, "activity_target_shape"));
+    }
   }
 
   if (encounter.mechanic === "drag") {
@@ -300,6 +383,8 @@ export function evaluateLessonPublishReadiness(
   options: {
     activityKey?: string | null;
     equationQueue?: readonly AuthoredSavedEquation[];
+    clock?: { toTick(seconds: number): number; toSeconds(tick: number): number };
+    stopAtSeconds?: number;
   } = {},
 ): LessonPublishReadiness {
   const blockers: EncounterIssue[] = [];
@@ -364,12 +449,33 @@ export function evaluateLessonPublishReadiness(
         blockers.push(issue(firstInput, "activity_hit_count"));
       }
     }
+
+    const toRuntimeSeconds = (seconds: number) => {
+      if (!options.clock) return seconds;
+      return options.clock.toSeconds(options.clock.toTick(seconds));
+    };
+    const timingIssues = validateAuthoredActivityTiming(
+      capabilities.activityKey,
+      ordered.map(({ event, mechanic, instance }) => {
+        const input = inputFromEvent(event, mechanic, instance);
+        return {
+          id: instance.id,
+          type: mechanic,
+          startSeconds: toRuntimeSeconds(input.tick ?? event.tick),
+        };
+      }),
+      options.stopAtSeconds,
+    );
+    for (const timingIssue of timingIssues) {
+      blockers.push(timingIssueToEncounterIssue(timingIssue));
+    }
   }
 
   // Timeline events are already in song seconds here. Unity begins presenting every
   // cue before its hit time, and a Hit remains active through its miss window. The
   // old raw-time overlap check allowed two tick-disjoint cues to fight over the
   // single presenter during that visual window.
+  const concurrencyBlockedEncounterIds = new Set<string>();
   for (let index = 0; index < ordered.length; index += 1) {
     const left = ordered[index];
     const leftInput = inputFromEvent(left.event, left.mechanic, left.instance);
@@ -384,6 +490,11 @@ export function evaluateLessonPublishReadiness(
       const rightStart = rightInput.tick ?? right.event.tick;
       const rightPresentationStart = Math.max(0, rightStart - AUTHORED_PRESENTATION_LEAD_SECONDS);
       if (rightPresentationStart > leftRelease) break;
+
+      // Number Bonds has a stricter one-at-a-time authored contract. Its shared
+      // timing validator reports the pair with stable gem_* codes below.
+      if (capabilities.activityKey === "number-bonds" &&
+          left.mechanic === "hit" && right.mechanic === "hit") continue;
 
       const sameHitGroup = left.mechanic === "hit" && right.mechanic === "hit" &&
         leftStart === rightStart && left.event.id === right.event.id &&
@@ -402,12 +513,8 @@ export function evaluateLessonPublishReadiness(
         if (!sharedPad) continue;
       }
 
+      if (concurrencyBlockedEncounterIds.has(right.instance.id)) continue;
       const conflict = issue(rightInput, "unsupported_concurrency");
-      const moveLabel = (id: string, mechanicName: GuidedMechanic) => {
-        const numberMatch = id.match(/(?:hit|spin|drag)[-_ ]?(\d+)/i);
-        const label = mechanicName[0].toUpperCase() + mechanicName.slice(1);
-        return `${label}${numberMatch ? ` ${numberMatch[1]}` : ""}`;
-      };
       const rightLabel = moveLabel(right.instance.id, right.mechanic);
       const leftLabel = moveLabel(left.instance.id, left.mechanic);
       blockers.push({
@@ -416,6 +523,7 @@ export function evaluateLessonPublishReadiness(
         message: `${rightLabel} overlaps ${leftLabel}.`,
         nextAction: `Move either ${rightLabel} or ${leftLabel} on the timeline.`,
       });
+      concurrencyBlockedEncounterIds.add(right.instance.id);
     }
   }
 
