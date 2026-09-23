@@ -54,7 +54,7 @@ export type EncounterIssueCode =
   | "timing_invalid";
 
 export type EncounterIssue = {
-  encounterId: string;
+  encounterId: string | null;
   relatedEncounterId?: string;
   code: EncounterIssueCode;
   message: string;
@@ -109,7 +109,7 @@ const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   activity_equation_invalid: "Use one valid Number Bonds equation, such as 5 = 2 + 3.",
   activity_target_shape: "Give this Number Bonds Hit exactly one bubble target.",
   activity_equation_count: "Use exactly one equation for Number Bonds.",
-  activity_hit_count: "Add enough Hit cues for the selected Number Bonds equation.",
+  activity_hit_count: "Use exactly one authored Hit for each generated Number Bonds gem.",
   gem_spacing: "Move this Hit farther from the previous Hit.",
   gem_tail: "Extend the lesson stop time after the final Hit.",
   simultaneous_hits: "Move this Hit so Number Bonds Hits do not happen together.",
@@ -136,7 +136,7 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
     activity_equation_invalid: "uses an equation outside this activity's contract",
     activity_target_shape: "has the wrong target shape for this activity",
     activity_equation_count: "has the wrong number of equations for this activity",
-    activity_hit_count: "does not contain enough Hits for this activity",
+    activity_hit_count: "does not match the generated gem count",
     gem_spacing: "starts before the next Number Bonds Hit is available",
     gem_tail: "does not leave enough time after the final Number Bonds Hit",
     simultaneous_hits: "happens at the same time as another Number Bonds Hit",
@@ -158,6 +158,30 @@ function moveLabel(id: string, mechanic: GuidedMechanic) {
   const numberMatch = id.match(/(?:hit|spin|drag)[-_ ]?(\d+)/i);
   const label = mechanic[0].toUpperCase() + mechanic.slice(1);
   return `${label}${numberMatch ? ` ${numberMatch[1]}` : ""}`;
+}
+
+function activityHitCountIssue(
+  hitCount: number,
+  requiredCount: number,
+  encounterId: string | null,
+): EncounterIssue {
+  if (hitCount > requiredCount) {
+    const label = encounterId ? moveLabel(encounterId, "hit") : "This Hit";
+    return {
+      encounterId,
+      code: "activity_hit_count",
+      message: `${label} is extra for a ${requiredCount}-gem Number Bonds equation.`,
+      nextAction: `Keep exactly ${requiredCount} authored Hits; remove the extra Hit.`,
+    };
+  }
+
+  const missingCount = requiredCount - hitCount;
+  return {
+    encounterId,
+    code: "activity_hit_count",
+    message: `This Number Bonds equation has ${hitCount} of ${requiredCount} required Hits.`,
+    nextAction: `Add ${missingCount} Hit${missingCount === 1 ? "" : "s"} so each generated gem has one cue.`,
+  };
 }
 
 function timingIssueToEncounterIssue(timingIssue: NumberBondsTimingIssue): EncounterIssue {
@@ -444,9 +468,14 @@ export function evaluateLessonPublishReadiness(
       blockers.push(issue(firstInput, "activity_equation_invalid"));
     }
     if (whole != null) {
-      const hitCount = ordered.filter(({ mechanic }) => mechanic === "hit").length;
-      if (hitCount < whole && firstInput) {
-        blockers.push(issue(firstInput, "activity_hit_count"));
+      const hits = ordered.filter(({ mechanic }) => mechanic === "hit");
+      if (hits.length !== whole) {
+        const affected = hits.length > whole ? hits[whole] : hits[0];
+        blockers.push(activityHitCountIssue(
+          hits.length,
+          whole,
+          affected?.instance.id ?? null,
+        ));
       }
     }
 

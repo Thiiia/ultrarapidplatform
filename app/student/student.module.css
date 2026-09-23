@@ -911,6 +911,14 @@
   text-align: left;
 }
 
+.editorReadinessBlockerStatic {
+  cursor: default;
+}
+
+.editorReadinessBlockerStatic:hover {
+  color: #ffffff;
+}
+
 .editorReadinessBlocker span:last-child {
   color: #ffffff99;
   font-size: 10px;

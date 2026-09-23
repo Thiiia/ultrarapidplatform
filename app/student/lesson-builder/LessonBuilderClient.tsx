@@ -11447,7 +11447,7 @@ export default function LessonBuilderClient({
     if (!playTemplateOnly && !lessonPublishReadiness.ready) {
       const blocker = lessonPublishReadiness.blockers[0];
       savePrivateDraft();
-      handleSelectReadinessEncounter(blocker.encounterId);
+      if (blocker.encounterId) handleSelectReadinessEncounter(blocker.encounterId);
       setSaveStatus(`${studentCopy.editor.draftSaved} ${blocker.message} ${blocker.nextAction}`);
       return;
     }
@@ -12272,7 +12272,7 @@ export default function LessonBuilderClient({
     if (!lessonPublishReadiness.ready) {
       const blocker = lessonPublishReadiness.blockers[0];
       savePrivateDraft();
-      handleSelectReadinessEncounter(blocker.encounterId);
+      if (blocker.encounterId) handleSelectReadinessEncounter(blocker.encounterId);
       setSaveStatus(`${studentCopy.editor.draftSaved} ${blocker.message} ${blocker.nextAction}`);
       return false;
     }

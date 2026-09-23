@@ -196,6 +196,7 @@ export type ActivityContractIssue = {
     | "activity_target_shape"
     | "activity_hit_count"
     | "activity_unknown";
+  encounterId?: string;
   message: string;
 };
 
@@ -270,11 +271,13 @@ export function getAuthoredActivityContractIssues(
   }
 
   if (whole != null) {
-    const hitCount = draft.encounters.filter((encounter) => encounter.type === "hit").length;
-    if (hitCount < whole) {
+    const hits = draft.encounters.filter((encounter) => encounter.type === "hit");
+    const hitCount = hits.length;
+    if (hitCount !== whole) {
       issues.push({
         code: "activity_hit_count",
-        message: `This Number Bonds equation requires at least ${whole} authored Hits.`,
+        encounterId: hitCount > whole ? hits[whole]?.id : hits[0]?.id,
+        message: `This Number Bonds equation requires exactly ${whole} authored Hits, one for each generated gem.`,
       });
     }
   }

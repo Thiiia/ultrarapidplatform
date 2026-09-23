@@ -30,6 +30,7 @@ type RuntimeContractFixture = {
   activityKey: string;
   timingPolicy: typeof NUMBER_BONDS_TIMING_POLICY;
   targetPolicy: string;
+  hitCountPolicy: string;
   cases: Array<{
     id: string;
     activityKey?: string;
@@ -78,6 +79,7 @@ test("the shared fixture pins the initial Number Bonds runtime policy", () => {
   assert.equal(fixture.version, 1);
   assert.equal(fixture.activityKey, "number-bonds");
   assert.equal(fixture.targetPolicy, "whole-token");
+  assert.equal(fixture.hitCountPolicy, "exactly-one-per-generated-gem");
   assert.deepEqual(NUMBER_BONDS_TIMING_POLICY, fixture.timingPolicy);
 });
 
@@ -128,6 +130,70 @@ test("Number Bonds publication rejects simultaneous disjoint Hits and part-token
   const multiplePads = buildNumberBondsJazzPilotDraft();
   multiplePads.encounters[0].hitBubbles![0].pads = ["left", "right"];
   assert.throws(() => publishNumberBondsDraft(multiplePads), /activity_target_shape/);
+});
+
+test("Number Bonds requires exactly one authored Hit per generated gem", () => {
+  const extraHit = buildNumberBondsJazzPilotDraft();
+  const draftEquation = extraHit.equations[0];
+  const equation: AuthoredSavedEquation = {
+    id: draftEquation.id,
+    tokens: (draftEquation.tokens ?? []).map((token) => ({ id: token.id ?? "", label: token.label })),
+  };
+  const clock = createLessonClock(JAZZ_CLOCK);
+  const finalHit = extraHit.encounters[extraHit.encounters.length - 1];
+  const unusedHitTick = finalHit.startTick + 10_000;
+  extraHit.encounters.push({
+    ...finalHit,
+    id: `${finalHit.id}-extra`,
+    eventId: `${finalHit.eventId}-extra`,
+    startTick: unusedHitTick,
+    endTick: unusedHitTick,
+  });
+  extraHit.stopAtSeconds = clock.toSeconds(unusedHitTick) + 12;
+
+  const contractCountIssue = getAuthoredActivityContractIssues(extraHit)
+    .find((issue) => issue.code === "activity_hit_count");
+  assert.equal(contractCountIssue?.encounterId, `${finalHit.id}-extra`);
+  assert.throws(() => publishNumberBondsDraft(extraHit), /activity_hit_count.*jazz-nb-hit-5-extra/);
+
+  const timelineEvents: AuthoredTimelineEvent[] = extraHit.encounters.map((encounter) => ({
+    id: encounter.eventId,
+    tick: encounter.startTick,
+    counts: { hit: 1, spin: 0, drag: 0 },
+    assignments: { hit: equation, spin: null, drag: null },
+    mechanicInstances: {
+      hit: [{
+        id: encounter.id,
+        tick: encounter.startTick,
+        endTick: encounter.endTick,
+        equation,
+        hitBubbles: encounter.hitBubbles ?? [],
+        spinTargets: [],
+        dragTargets: [],
+      }],
+      spin: [],
+      drag: [],
+    },
+  }));
+  const readiness = evaluateLessonPublishReadiness(timelineEvents, {
+    activityKey: "number-bonds",
+    equationQueue: [equation],
+    clock,
+    stopAtSeconds: extraHit.stopAtSeconds,
+  });
+  const extraHitIssue = readiness.blockers.find((issue) => issue.code === "activity_hit_count");
+  assert.equal(readiness.ready, false);
+  assert.equal(extraHitIssue?.encounterId, `${finalHit.id}-extra`);
+  assert.match(extraHitIssue?.nextAction ?? "", /remove the extra Hit/);
+
+  const noHits = evaluateLessonPublishReadiness([], {
+    activityKey: "number-bonds",
+    equationQueue: [equation],
+  });
+  const missingHitIssue = noHits.blockers.find((issue) => issue.code === "activity_hit_count");
+  assert.equal(noHits.ready, false);
+  assert.equal(missingHitIssue?.encounterId, null);
+  assert.match(missingHitIssue?.nextAction ?? "", /Add 5 Hits/);
 });
 
 test("Number Bonds publication requires a finite stop boundary after the final gem", () => {

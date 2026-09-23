@@ -277,7 +277,10 @@ export function serializeAuthoredLesson(
   if (options.forPublish) {
     const contractIssue = getAuthoredActivityContractIssues(draft)[0];
     if (contractIssue) {
-      throw new Error(`Authored lesson is not ready to publish: ${contractIssue.message}`);
+      const encounter = contractIssue.encounterId
+        ? ` (encounter '${contractIssue.encounterId}')`
+        : "";
+      throw new Error(`Authored lesson is not ready to publish${encounter}: ${contractIssue.message}`);
     }
   }
 

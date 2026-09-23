@@ -69,17 +69,27 @@ export function EncounterReadinessPanel({
           </div>
         ) : !contentReady ? (
           <div className={styles.editorReadinessBlockers}>
-            {readiness.blockers.map((blocker) => (
-              <button
-                key={`${blocker.encounterId}-${blocker.relatedEncounterId ?? ""}-${blocker.code}`}
-                type="button"
-                onClick={() => onSelectEncounter(blocker.encounterId)}
-                className={styles.editorReadinessBlocker}
-              >
+            {readiness.blockers.map((blocker) => {
+              const key = `${blocker.encounterId ?? "lesson"}-${blocker.relatedEncounterId ?? ""}-${blocker.code}`;
+              const content = <>
                 <span>{blocker.message}</span>
                 <span>{blocker.nextAction}</span>
-              </button>
-            ))}
+              </>;
+              return blocker.encounterId ? (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onSelectEncounter(blocker.encounterId!)}
+                  className={styles.editorReadinessBlocker}
+                >
+                  {content}
+                </button>
+              ) : (
+                <div key={key} className={`${styles.editorReadinessBlocker} ${styles.editorReadinessBlockerStatic}`}>
+                  {content}
+                </div>
+              );
+            })}
           </div>
         ) : fullyReady ? (
           <div className={styles.editorReadinessCopy}>{studentCopy.editor.readyToPlay}</div>

@@ -85,7 +85,10 @@ export function prepareAuthoredLessonForPublication({
   }
   const activityContractIssue = getAuthoredActivityContractIssues(draft)[0];
   if (activityContractIssue) {
-    throw new Error(`${activityContractIssue.code}: ${activityContractIssue.message}`);
+    const encounter = activityContractIssue.encounterId
+      ? ` for encounter '${activityContractIssue.encounterId}'`
+      : "";
+    throw new Error(`${activityContractIssue.code}${encounter}: ${activityContractIssue.message}`);
   }
   const capabilities = getActivityAuthoringCapabilities(identity.activityKey);
   if (capabilities.activityKey === 'number-bonds' && !runtimeClock) {

@@ -62,8 +62,14 @@ test("lesson readiness is an expandable status control", () => {
 test("dense readiness blockers remain available in a bounded scroll area", () => {
   assert.match(
     studentStyles,
-    /\.editorReadinessDetails\s*\{[^}]*max-height:\s*260px;[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/s,
+    /\.editorReadinessDetails\s*\{[\s\S]*?max-height:\s*260px;[\s\S]*?overflow-y:\s*auto;[\s\S]*?overscroll-behavior:\s*contain;/,
   );
+});
+
+test("lesson-level blockers explain the repair without acting like a cue link", () => {
+  assert.match(readinessSource, /blocker\.encounterId\s*\?/);
+  assert.match(readinessSource, /editorReadinessBlockerStatic/);
+  assert.match(lessonBuilderSource, /if \(blocker\.encounterId\) handleSelectReadinessEncounter\(blocker\.encounterId\)/);
 });
 
 test("readiness blockers select the exact cue and seek to its authored time", () => {

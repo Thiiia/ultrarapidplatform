@@ -8,6 +8,7 @@
     "allowSimultaneousHits": false
   },
   "targetPolicy": "whole-token",
+  "hitCountPolicy": "exactly-one-per-generated-gem",
   "cases": [
     {
       "id": "at-policy-boundary",
