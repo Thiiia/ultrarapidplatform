@@ -35,6 +35,9 @@ test("builds a production-shaped Number Bonds Jazz pilot with five HIT-only cues
   assert.deepEqual(persisted.encounters.map((encounter) => encounter.startTick), [
     ...NUMBER_BONDS_JAZZ_PILOT_HIT_TICKS,
   ]);
+  const hitSeconds = persisted.encounters.map((encounter) => clock.toSeconds(encounter.startTick));
+  assert.ok(hitSeconds.slice(1).every((seconds, index) => seconds - hitSeconds[index] >= 7.5));
+  assert.ok((persisted.stopAtSeconds ?? 0) - hitSeconds[hitSeconds.length - 1] >= 12);
   assert.ok(persisted.encounters.every((encounter) => encounter.type === "hit"));
   assert.ok(persisted.encounters.every((encounter) => encounter.hitBubbles?.length === 1));
   assert.ok(persisted.encounters.every((encounter) => encounter.hitBubbles?.[0]?.targetId === "jazz-nb-bond-5-token-0"));

@@ -9,9 +9,9 @@ export const NUMBER_BONDS_JAZZ_RHYTHM_SOURCE = {
 } as const;
 
 // These are real ExpertSingle note ticks from the pinned Jazz rhythm source.
-// They leave at least 1.8 seconds between cues at 123 BPM, which is wider than
-// Unity's presentation lead + HIT miss window.
-export const NUMBER_BONDS_JAZZ_PILOT_HIT_TICKS = [7800, 9600, 11520, 13440, 15360] as const;
+// Each gem also needs its spin and drag after the HIT, so reserve roughly eight
+// seconds before the next cue rather than only the HIT judgement window.
+export const NUMBER_BONDS_JAZZ_PILOT_HIT_TICKS = [7800, 15360, 23040, 30720, 38400] as const;
 
 const HIT_PADS = ["topLeft", "topRight", "bottomRight", "bottomLeft", "left"] as const;
 
@@ -25,7 +25,7 @@ export function buildNumberBondsJazzPilotDraft(): AuthoredLessonDraft {
     mode: "authored",
     songAssetId: NUMBER_BONDS_JAZZ_RHYTHM_SOURCE.songAssetId,
     activityKey: "number-bonds",
-    stopAtSeconds: 34,
+    stopAtSeconds: 56,
     equations: [{
       id: equationId,
       state: "5 = 2 + 3",
