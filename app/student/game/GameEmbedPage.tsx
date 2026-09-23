@@ -357,7 +357,7 @@ function GameEmbedSession({
   const [bridgeStatusMessage, setBridgeStatusMessage] = useState("");
   const [pendingOutcome, setPendingOutcome] = useState<PendingOutcome | null>(null);
   const [outcomeSyncState, setOutcomeSyncState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
-  const outcomeKeyRef = useRef("");
+  const acceptedOutcomeAttemptIdRef = useRef("");
   const isDemoMode = navBasePath.startsWith("/demo/");
 
   const topTabs = getTopTabs(navBasePath);
@@ -532,9 +532,10 @@ function GameEmbedSession({
         });
       } else if (result.message.type === "run-complete") {
         const completion = result.message.completion;
-        const outcomeKey = `${result.message.receipt.launchAttemptId}:${completion.outcome}:${completion.completedEvents}:${completion.hitAttempts}`;
-        if (outcomeKeyRef.current === outcomeKey) return;
-        outcomeKeyRef.current = outcomeKey;
+        const launchAttemptId = result.message.receipt.launchAttemptId;
+        // The outcome API accepts one completion per launch attempt.
+        if (acceptedOutcomeAttemptIdRef.current === launchAttemptId) return;
+        acceptedOutcomeAttemptIdRef.current = launchAttemptId;
         if (isDemoMode) {
           setOutcomeSyncState("idle");
           setPendingOutcome(null);
