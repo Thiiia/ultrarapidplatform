@@ -48,8 +48,9 @@ export function EncounterReadinessPanel({
       >
         <span className={styles.editorReadinessTitle}>{studentCopy.editor.readyCheck}</span>
         <span
-          className={styles.editorReadinessStatus}
+          className={`${styles.editorReadinessStatus} experience-status`}
           data-ready={fullyReady ? "true" : "false"}
+          data-status={fullyReady ? "success" : "warning"}
         >
           {statusLabel}
         </span>

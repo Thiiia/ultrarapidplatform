@@ -34,6 +34,7 @@ export default function RosterImportClient({ schoolId }: { schoolId: string }) {
   const [summary, setSummary] = useState<RosterImportSummary | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [message, setMessage] = useState("");
+  const [messageKind, setMessageKind] = useState<"success" | "error" | "">("");
   const [busy, setBusy] = useState(false);
 
   function downloadTemplate() {
@@ -49,6 +50,7 @@ export default function RosterImportClient({ schoolId }: { schoolId: string }) {
     setSummary(null);
     setIssues([]);
     setMessage("");
+    setMessageKind("");
     if (!file) {
       setFilename("");
       setCsvText("");
@@ -71,6 +73,7 @@ export default function RosterImportClient({ schoolId }: { schoolId: string }) {
     setBusy(true);
     setIssues([]);
     setMessage("");
+    setMessageKind("");
     try {
       const response = await fetch(
         `/api/admin/schools/${schoolId}/roster-import/${action}`,
@@ -89,12 +92,15 @@ export default function RosterImportClient({ schoolId }: { schoolId: string }) {
       if (!response.ok) {
         setIssues(Array.isArray(result.issues) ? result.issues : []);
         setMessage(typeof result.error === "string" ? result.error : "Request failed.");
+        setMessageKind("error");
         return;
       }
       setSummary(result.summary);
       setMessage(action === "apply" ? `Import ${result.importId} completed.` : "Preview ready. No data has been changed.");
+      setMessageKind("success");
     } catch {
       setMessage("The roster request could not be completed.");
+      setMessageKind("error");
     } finally {
       setBusy(false);
     }
@@ -105,14 +111,14 @@ export default function RosterImportClient({ schoolId }: { schoolId: string }) {
       <div className={styles.toolbar}>
         <label className={styles.fileButton}>
           <UploadFileOutlined fontSize="small" />
-          <span>{filename || "Choose CSV"}</span>
+          <span aria-live="polite">{filename || "Choose CSV"}</span>
           <input
             type="file"
             accept=".csv,text/csv"
             onChange={(event) => void handleFile(event.target.files?.[0])}
           />
         </label>
-        <button type="button" className={styles.secondaryButton} onClick={downloadTemplate}>
+        <button type="button" className={`${styles.secondaryButton} experience-button experience-button--secondary`} onClick={downloadTemplate}>
           <DownloadOutlined fontSize="small" />
           Download template
         </button>
@@ -143,32 +149,44 @@ export default function RosterImportClient({ schoolId }: { schoolId: string }) {
       <div className={styles.actions}>
         <button
           type="button"
-          className={styles.secondaryButton}
+          className={`${styles.secondaryButton} experience-button experience-button--secondary`}
           disabled={!csvText || busy}
+          aria-busy={busy}
           onClick={() => void submit("preview")}
         >
           Preview changes
         </button>
         <button
           type="button"
-          className={styles.primaryButton}
+          className={`${styles.primaryButton} experience-button`}
           disabled={!summary || busy}
+          aria-busy={busy}
           onClick={() => void submit("apply")}
         >
           {busy ? "Working…" : "Apply import"}
         </button>
       </div>
 
-      {message && <p className={issues.length ? styles.errorMessage : styles.message}>{message}</p>}
+      {message && (
+        <p
+          className={`${messageKind === "error" ? styles.errorMessage : styles.message} experience-status`}
+          data-status={messageKind}
+          role={messageKind === "error" ? "alert" : "status"}
+          aria-live={messageKind === "error" ? "assertive" : "polite"}
+          aria-atomic="true"
+        >
+          {message}
+        </p>
+      )}
       {issues.length > 0 && (
-        <div className={styles.issueList}>
+        <div className={styles.issueList} role="alert" aria-live="assertive">
           {issues.map((issue, index) => (
             <p key={`${issue.row}-${index}`}><strong>Row {issue.row}:</strong> {issue.message}</p>
           ))}
         </div>
       )}
       {summary && (
-        <div className={styles.summary}>
+        <div className={styles.summary} role="region" aria-label="Roster import preview summary">
           {Object.entries(summary).map(([key, value]) => (
             <div key={key}>
               <span>{summaryLabels[key as keyof RosterImportSummary]}</span>
