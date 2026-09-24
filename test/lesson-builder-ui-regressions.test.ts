@@ -23,6 +23,10 @@ const studentCopySource = readFileSync(
   join(process.cwd(), "lib/student-copy.ts"),
   "utf8",
 );
+const songChoiceRequestSource = readFileSync(
+  join(process.cwd(), "lib/editor/song-choice-request.ts"),
+  "utf8",
+);
 
 test("editor status messages use one animated, dismissible toast lifecycle", () => {
   assert.match(lessonBuilderSource, /function EditorToast\(/);
@@ -159,4 +163,12 @@ test("editor motion respects reduced-motion preferences", () => {
   assert.match(studentStyles, /\.editorToastVisible \{/);
   assert.match(studentStyles, /\.editorReadinessDetails \{/);
   assert.match(studentStyles, /\.editorReadinessDetails\[hidden\] \{[\s\S]*display: none/);
+});
+
+test("song picker catalogue requests time out and expose a retry action", () => {
+  assert.ok(/fetchJsonWithTimeout/.test(lessonBuilderSource), "song requests use the timeout wrapper");
+  assert.ok(/SONG_CHOICE_REQUEST_TIMEOUT_MS/.test(lessonBuilderSource), "song requests use the bounded deadline");
+  assert.ok(/onRetry/.test(lessonBuilderSource), "the picker wires a retry action");
+  assert.ok(/Retry loading/.test(lessonBuilderSource), "the retry action is visible to the author");
+  assert.ok(/response\.json\(\)/.test(songChoiceRequestSource), "the request deadline covers body parsing");
 });

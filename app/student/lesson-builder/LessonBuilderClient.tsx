@@ -14,6 +14,10 @@ import {
 import { chartToProject } from "@/lib/editor/chart-to-project";
 import { loadLessonAssets } from "@/lib/editor/lesson-hydration";
 import {
+  fetchJsonWithTimeout,
+  SONG_CHOICE_REQUEST_TIMEOUT_MS,
+} from "@/lib/editor/song-choice-request";
+import {
   serializeAuthoredLesson,
   timelineEventsFromAuthoredLesson,
   type AuthoredLessonDraft,
@@ -2470,6 +2474,7 @@ function SongFilePickerModal({
   onSelectSong,
   onSelectRhythmSource,
   onClose,
+  onRetry,
   onLoad,
 }: {
   isOpen: boolean;
@@ -2487,6 +2492,7 @@ function SongFilePickerModal({
   onSelectSong: (songId: string) => void;
   onSelectRhythmSource: (revision: string) => void;
   onClose: () => void;
+  onRetry?: () => void;
   onLoad: () => void;
 }) {
   if (!isOpen) {
@@ -2690,8 +2696,41 @@ function SongFilePickerModal({
         ) : null}
 
         {error ? (
-          <div style={{ color: "#FF9B9B", fontSize: 12, fontWeight: 600 }}>
-            {error}
+          <div
+            role="alert"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              color: "#FF9B9B",
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            <span>{error}</span>
+            {onRetry ? (
+              <button
+                type="button"
+                onClick={onRetry}
+                disabled={isLoading || isLoadingAuthors}
+                aria-label="Retry loading song choices"
+                style={{
+                  minWidth: 92,
+                  height: 32,
+                  borderRadius: 999,
+                  border: "1px solid #CFFF0466",
+                  background: "#151E2B",
+                  color: "#CFFF04",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  cursor: isLoading || isLoadingAuthors ? "not-allowed" : "pointer",
+                  opacity: isLoading || isLoadingAuthors ? 0.6 : 1,
+                }}
+              >
+                Retry loading
+              </button>
+            ) : null}
           </div>
         ) : null}
 
@@ -9699,9 +9738,15 @@ export default function LessonBuilderClient({
   const [filePickerRhythmSourceRevision, setFilePickerRhythmSourceRevision] = useState<string | null>(null);
   const [filePickerAuthors, setFilePickerAuthors] = useState<SongChartAuthorOption[]>([]);
   const [isFilePickerAuthorsLoading, setIsFilePickerAuthorsLoading] = useState(false);
+  const [filePickerRetryAction, setFilePickerRetryAction] =
+    useState<"authors" | "songs" | null>(null);
   const [filePickerAuthorName, setFilePickerAuthorName] = useState<string | null>(null);
   const [filePickerActivityKey, setFilePickerActivityKey] =
     useState<SongActivityKey>(defaultSongActivityKey);
+  const filePickerSongRequestGenerationRef = useRef(0);
+  const filePickerAuthorsRequestGenerationRef = useRef(0);
+  const filePickerSongRequestControllerRef = useRef<AbortController | null>(null);
+  const filePickerAuthorsRequestControllerRef = useRef<AbortController | null>(null);
   const isAdvancedMode = advancedMode;
   const isGuidedStart = entryIntent === "personalize" && !guidedStarted && isLessonLoaded;
   const [selectedContextMechanicKey, setSelectedContextMechanicKey] =
@@ -11943,18 +11988,27 @@ export default function LessonBuilderClient({
     authorName: string,
     activityKey: SongActivityKey,
   ) {
+    const requestGeneration = ++filePickerSongRequestGenerationRef.current;
+    filePickerSongRequestControllerRef.current?.abort();
+    const controller = new AbortController();
+    filePickerSongRequestControllerRef.current = controller;
     setIsFilePickerLoading(true);
     setFilePickerError("");
+    setFilePickerRetryAction(null);
+    setFilePickerSongs([]);
+    setFilePickerSongId(null);
     setFilePickerRhythmSourceRevision(null);
 
     try {
-      const response = await fetch(
-        `/api/song-choice?activity=${encodeURIComponent(activityKey)}&context=editor&author=${encodeURIComponent(authorName)}`,
-      );
-      const payload = (await response.json().catch(() => null)) as {
+      const { response, payload } = await fetchJsonWithTimeout<{
         songs?: SongChoiceOption[];
         error?: string;
-      } | null;
+      }>(
+        `/api/song-choice?activity=${encodeURIComponent(activityKey)}&context=editor&author=${encodeURIComponent(authorName)}`,
+        { signal: controller.signal, timeoutMs: SONG_CHOICE_REQUEST_TIMEOUT_MS },
+      );
+
+      if (requestGeneration !== filePickerSongRequestGenerationRef.current) return;
 
       if (!response.ok || !payload?.songs) {
         throw new Error(payload?.error ?? "Unable to load songs for activity");
@@ -11978,25 +12032,42 @@ export default function LessonBuilderClient({
         return availableSongs[0]?.id ?? null;
       });
     } catch (error) {
+      if (requestGeneration !== filePickerSongRequestGenerationRef.current) return;
       setFilePickerSongs([]);
       setFilePickerSongId(null);
+      setFilePickerRetryAction("songs");
       setFilePickerError(
         error instanceof Error ? error.message : "Unable to load songs",
       );
     } finally {
-      setIsFilePickerLoading(false);
+      if (requestGeneration === filePickerSongRequestGenerationRef.current) {
+        setIsFilePickerLoading(false);
+        if (filePickerSongRequestControllerRef.current === controller) {
+          filePickerSongRequestControllerRef.current = null;
+        }
+      }
     }
   }
 
   async function fetchSongChartAuthors() {
+    const requestGeneration = ++filePickerAuthorsRequestGenerationRef.current;
+    filePickerAuthorsRequestControllerRef.current?.abort();
+    const controller = new AbortController();
+    filePickerAuthorsRequestControllerRef.current = controller;
     setIsFilePickerAuthorsLoading(true);
+    setFilePickerError("");
+    setFilePickerRetryAction(null);
 
     try {
-      const response = await fetch("/api/song-choice?context=authors");
-      const payload = (await response.json().catch(() => null)) as {
+      const { response, payload } = await fetchJsonWithTimeout<{
         authors?: SongChartAuthorOption[];
         error?: string;
-      } | null;
+      }>("/api/song-choice?context=authors", {
+        signal: controller.signal,
+        timeoutMs: SONG_CHOICE_REQUEST_TIMEOUT_MS,
+      });
+
+      if (requestGeneration !== filePickerAuthorsRequestGenerationRef.current) return;
 
       if (!response.ok || !payload?.authors) {
         throw new Error(payload?.error ?? "Unable to load chart authors");
@@ -12013,19 +12084,50 @@ export default function LessonBuilderClient({
           : authors[0]?.name ?? null,
       );
     } catch (error) {
+      if (requestGeneration !== filePickerAuthorsRequestGenerationRef.current) return;
       setFilePickerAuthors([]);
       setFilePickerAuthorName(null);
+      setFilePickerRetryAction("authors");
       setFilePickerError(
         error instanceof Error ? error.message : "Unable to load chart authors",
       );
     } finally {
-      setIsFilePickerAuthorsLoading(false);
+      if (requestGeneration === filePickerAuthorsRequestGenerationRef.current) {
+        setIsFilePickerAuthorsLoading(false);
+        if (filePickerAuthorsRequestControllerRef.current === controller) {
+          filePickerAuthorsRequestControllerRef.current = null;
+        }
+      }
     }
+  }
+
+  function handleRetryFilePickerLoad() {
+    if (filePickerRetryAction === "authors") {
+      void fetchSongChartAuthors();
+      return;
+    }
+
+    if (filePickerRetryAction === "songs" && filePickerAuthorName) {
+      void fetchSongChoicesForActivity(filePickerAuthorName, filePickerActivityKey);
+    }
+  }
+
+  function handleCloseFilePicker() {
+    filePickerSongRequestGenerationRef.current += 1;
+    filePickerAuthorsRequestGenerationRef.current += 1;
+    filePickerSongRequestControllerRef.current?.abort();
+    filePickerAuthorsRequestControllerRef.current?.abort();
+    filePickerSongRequestControllerRef.current = null;
+    filePickerAuthorsRequestControllerRef.current = null;
+    setIsFilePickerLoading(false);
+    setIsFilePickerAuthorsLoading(false);
+    setIsFilePickerOpen(false);
   }
 
   function handleOpenFilePicker() {
     setIsFilePickerOpen(true);
     setFilePickerError("");
+    setFilePickerRetryAction(null);
     void fetchSongChartAuthors();
 
     if (selectedSongActivity?.key) {
@@ -14373,7 +14475,8 @@ export default function LessonBuilderClient({
           setFilePickerRhythmSourceRevision(null);
         }}
         onSelectRhythmSource={(revision) => setFilePickerRhythmSourceRevision(revision || null)}
-        onClose={() => setIsFilePickerOpen(false)}
+        onClose={handleCloseFilePicker}
+        onRetry={filePickerRetryAction ? handleRetryFilePickerLoad : undefined}
         onLoad={handleLoadSongFromFilePicker}
       />
 
