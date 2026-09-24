@@ -401,7 +401,7 @@ test("receipt carries stable identity + refs without signed-URL credentials", as
       sidecarBucket: "SidecarJsons",
       sidecarPath: "Missing_Numbers/revisions/rev-1/song.json",
       authorId: "author-2",
-      counts: { encounters: 0, equations: 0, targets: 0 },
+      counts: { encounters: 1, equations: 1, targets: 1 },
       hashes: HASHES,
     }),
     createSignedUrl: async (bucket, path) => `https://storage.example/${bucket}/${path}?token=secret`,
@@ -412,6 +412,28 @@ test("receipt carries stable identity + refs without signed-URL credentials", as
   assert.equal(resolved.receipt?.revision, "rev-1");
   // Receipt must not leak signed-URL credentials.
   assert.equal(JSON.stringify(resolved.receipt).includes("token=secret"), false);
+});
+
+test("rejects a ready authored revision with no dispatchable encounters", async () => {
+  await assert.rejects(
+    resolveFreshSongLaunchPackage({
+      songAssetId: "song-9",
+      activityKey: "early-algebra",
+      authorId: "author-2",
+      loadSongAsset: async () => ({ id: "song-9", isActive: true, songBucket: "Songs", songPath: "garden.mp3" }),
+      loadSongChart: async () => ({
+        chartBucket: "Charts",
+        chartPath: "Early_Algebra/revisions/rev-empty/song.chart",
+        sidecarBucket: "SidecarJsons",
+        sidecarPath: "Early_Algebra/revisions/rev-empty/song.json",
+        authorId: "author-2",
+        counts: { encounters: 0, equations: 1, targets: 0 },
+        hashes: HASHES,
+      }),
+      createSignedUrl: async (_bucket, path) => `https://storage.example/${path}`,
+    }),
+    /playable encounter|valid receipt counts/i,
+  );
 });
 
 test("rejects an authored package when receipt counts are omitted", async () => {

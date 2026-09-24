@@ -596,6 +596,31 @@ test("does not silently drop an empty queued equation", () => {
   );
 });
 
+test("publish rejects a stale mechanic count instead of dropping a declared encounter", () => {
+  const clock = createLessonClock(
+    `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+  );
+  const event = makeEvent("event-stale", 4, { hit: 0 }, {
+    instances: { hit: [instance("hit-visible", { tick: 4 })] },
+  });
+
+  assert.throws(
+    () => serializeAuthoredLesson([event], IDENTITY, clock, undefined, [], { forPublish: true }),
+    /mechanic count.*hit.*event-stale/i,
+  );
+});
+
+test("publish rejects an equation-only lesson with no playable encounter", () => {
+  const clock = createLessonClock(
+    `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+  );
+
+  assert.throws(
+    () => serializeAuthoredLesson([], IDENTITY, clock, undefined, [equation("eq-only", ["x", "+", "1", "=", "2"])], { forPublish: true }),
+    /at least one encounter/i,
+  );
+});
+
 test("Number Bonds published content hydrates and serializes without changing its contract", () => {
   const clock = createLessonClock(
     `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,

@@ -413,6 +413,9 @@ export async function resolveFreshSongLaunchPackage({
   if (!chartTargets.hashes) {
     throw new Error("Authored launch package is missing immutable artifact hashes");
   }
+  if (counts.encounters === 0 || counts.equations === 0 || counts.targets === 0) {
+    throw new Error("Authored launch package has no playable encounters, equations, or targets");
+  }
 
   const receipt: SongLaunchReceipt = {
     receiptVersion: 1,

@@ -44,6 +44,7 @@ export const PlayerWorkspacePayloadSchema = z.object({
   equations: z.array(SavedEquationSchema).max(100),
   hiddenSourceEquationIds: z.array(SafeId).max(200),
   timelineEdits: z.array(PlayerTimelineEditSchema).max(400),
+  recordedDrafts: z.array(PlayerTimelineEditSchema).max(200).optional(),
   tutorial: z.object({ step: z.enum(["welcome", "equation", "encounter", "done"]) }).strict(),
   updatedAt: z.number().int().nonnegative(),
 }).strict().superRefine((payload, ctx) => {

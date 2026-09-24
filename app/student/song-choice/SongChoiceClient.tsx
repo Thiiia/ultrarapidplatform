@@ -480,6 +480,8 @@ export default function SongChoiceClient({
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [isCustomizePromptOpen, setIsCustomizePromptOpen] = useState(false);
   const [launchError, setLaunchError] = useState("");
+  const [isLaunching, setIsLaunching] = useState(false);
+  const launchInFlightRef = useRef(false);
   const [durationsById, setDurationsById] = useState<Record<string, number>>(
     {},
   );
@@ -595,6 +597,7 @@ export default function SongChoiceClient({
     : "idle";
 
   function handleSelectSong(song: SongChoiceWithEquationSlots) {
+    if (launchInFlightRef.current) return;
     let requestedActivityKey: NonNullable<ReturnType<typeof normalizeSongActivityKey>>;
     try {
       requestedActivityKey = requireActivityKey(song.activityKey);
@@ -843,6 +846,10 @@ export default function SongChoiceClient({
 
   function buildSelectedSongPayload(song: SongChoiceWithEquationSlots) {
     const activityKey = requireActivityKey(song.activityKey);
+    const rhythmSource = song.requiresRhythmSource
+      ? song.rhythmSources?.[0] ?? null
+      : null;
+    const chart = rhythmSource?.chart ?? song.chart;
     const activityContext = {
       key: activityKey,
       label: selectedActivity?.label ?? activityLabelMap[activityKey] ?? activityKey,
@@ -856,6 +863,7 @@ export default function SongChoiceClient({
       authorId: selectedSongPackage?.authorId ?? null,
       authorName: song.authorName ?? null,
       revision: selectedSongPackage?.revision ?? null,
+      rhythmSource,
       rhythmDifficultyKey: selectedSongPackage?.rhythmDifficultyKey ?? null,
       activity: activityContext,
 
@@ -867,10 +875,10 @@ export default function SongChoiceClient({
       },
 
       chart: {
-        bucket: song.chart.bucket,
-        path: song.chart.path,
-        signedUrl: song.chart.signedUrl,
-        contentType: song.chart.contentType,
+        bucket: chart.bucket,
+        path: chart.path,
+        signedUrl: chart.signedUrl,
+        contentType: chart.contentType,
       },
 
       sidecar: song.sidecar
@@ -885,6 +893,7 @@ export default function SongChoiceClient({
   }
 
   function handleContinue() {
+    if (launchInFlightRef.current) return;
     if (!selectedSong) {
       return;
     }
@@ -897,10 +906,15 @@ export default function SongChoiceClient({
       return;
     }
 
+    if (!selectedSongCanPlay) {
+      handleCustomizeYes();
+      return;
+    }
     setIsCustomizePromptOpen(true);
   }
 
   function handleCustomizeYes() {
+    if (launchInFlightRef.current) return;
     if (!selectedSong) {
       return;
     }
@@ -931,17 +945,28 @@ export default function SongChoiceClient({
   }
 
   async function handleCustomizeNo() {
-    if (!selectedSong) {
+    if (!selectedSong || launchInFlightRef.current || !selectedSongCanPlay) {
       return;
     }
 
+    launchInFlightRef.current = true;
+    setIsLaunching(true);
     setLaunchError("");
+    stopSongPreview();
     try {
     const selectedSongPayload = buildSelectedSongPayload(selectedSong);
     const activityKey = requireActivityKey(selectedSong.activityKey);
     const freshPackage = await requestFreshSongLaunchPackage({
       songAssetId: selectedSong.id,
       activityKey,
+    });
+    if (freshPackage.songAssetId !== selectedSong.id) {
+      throw new Error("The selected song changed while preparing the game.");
+    }
+    assertSongActivityMatches({
+      expectedActivityKey: activityKey,
+      actualActivityKey: freshPackage.activityKey,
+      boundary: "song-choice-play",
     });
     if (!isPlayableSongLaunchPackage(freshPackage)) {
       throw new Error(freshPackage.readiness.message);
@@ -987,7 +1012,11 @@ export default function SongChoiceClient({
 
     setIsCustomizePromptOpen(false);
     router.push(launchUrl);
-    } catch (error) { setLaunchError(getSongLaunchErrorMessage(error)); }
+    } catch (error) {
+      launchInFlightRef.current = false;
+      setIsLaunching(false);
+      setLaunchError(getSongLaunchErrorMessage(error));
+    }
   }
 
   useEffect(() => {
@@ -1217,6 +1246,7 @@ export default function SongChoiceClient({
                     key={song.id}
                   className="songChoiceRow"
                   data-selected={isSelected ? "true" : "false"}
+                  aria-busy={isSelected && selectedSongStatus === "loading"}
                     style={{
                       width: "100%",
                       minHeight: 58,
@@ -1252,6 +1282,7 @@ export default function SongChoiceClient({
                     <button
                       type="button"
                       onClick={() => handleSelectSong(song)}
+                      disabled={isLaunching}
                       aria-pressed={isSelected}
                       style={{
                         width: "100%",
@@ -1355,6 +1386,7 @@ export default function SongChoiceClient({
                     <button
                       type="button"
                       onClick={() => void handlePreview(song)}
+                      disabled={isLaunching}
                       aria-pressed={isPreviewing}
                       aria-label={
                         isPreviewing
@@ -1422,7 +1454,11 @@ export default function SongChoiceClient({
                     fontWeight: 600,
                   }}
                 >
-                  {studentCopy.songChoice.noSongsTitle}
+                  {songs.length === 0
+                    ? currentActivityKey === "number-bonds"
+                      ? "No Number Bonds songs are ready yet"
+                      : "No songs are ready yet"
+                    : studentCopy.songChoice.noSongsTitle}
                 </h2>
                 <p
                   style={{
@@ -1433,8 +1469,25 @@ export default function SongChoiceClient({
                     lineHeight: "19.5px",
                   }}
                 >
-                  {studentCopy.songChoice.noSongsBody}
+                  {songs.length === 0
+                    ? currentActivityKey === "number-bonds"
+                      ? "Number Bonds needs a song with a verified rhythm. Create and publish an Early Algebra lesson for a song first, then come back to build its Number Bonds lesson."
+                      : "There are no available songs for this activity right now. Try another activity or ask your teacher to add one."
+                    : studentCopy.songChoice.noSongsBody}
                 </p>
+                {songs.length > 0 ? (
+                  <button type="button" onClick={() => setSearchQuery("")} className={styles.songChoiceEmptyAction}>
+                    Clear search
+                  </button>
+                ) : currentActivityKey === "number-bonds" ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`${navBasePath}/song-choice?activity=early-algebra`)}
+                    className={styles.songChoiceEmptyAction}
+                  >
+                    Browse Early Algebra songs
+                  </button>
+                ) : null}
               </div>
             )}
             </div>
@@ -1444,12 +1497,14 @@ export default function SongChoiceClient({
 
       <div
         style={{
-          height: "8.5vh",
+          minHeight: 72,
           background: "#082733",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 24px",
+          flexWrap: "wrap",
+          gap: 12,
+          padding: "10px 24px",
           boxSizing: "border-box",
           borderTop: "1px solid rgba(255,255,255,0.08)",
         }}
@@ -1471,9 +1526,27 @@ export default function SongChoiceClient({
           {studentCopy.songChoice.back}
         </button>
 
+        <div className={styles.songChoiceSelectionSummary} role="status" aria-live="polite">
+          <strong>{selectedSong?.name ?? "Choose a song"}</strong>
+          <span>{isLaunching ? "Opening your game…"
+            : selectedSongStatus === "loading" ? "Checking lesson files…"
+              : selectedSongStatus === "error" ? "Could not load. Try again."
+                : selectedSongStatus === "ready" && selectedSongCanPlay ? "Ready to play or edit"
+                  : selectedSongStatus === "ready" ? "Make a lesson before playing"
+                    : "Pick a song to begin"}</span>
+        </div>
+
+        <div className={styles.songChoiceActions}>
+        {selectedSongCanPlay ? <button
+          type="button"
+          className={styles.songChoicePlayButton}
+          disabled={isLaunching}
+          onClick={() => void handleCustomizeNo()}
+          aria-label={`Play ${selectedSong?.name ?? "selected song"} now`}
+        >{isLaunching ? "Opening game…" : "Play now"}</button> : null}
         <button
           type="button"
-          disabled={!selectedSong || selectedSongStatus === "idle" || selectedSongStatus === "loading"}
+          disabled={isLaunching || !selectedSong || selectedSongStatus === "idle" || selectedSongStatus === "loading"}
           onClick={handleContinue}
           aria-label={selectedSongStatus === "error" ? "Try loading this song again" : `Continue to ${studentCopy.navigation.builder}`}
           title={
@@ -1486,28 +1559,29 @@ export default function SongChoiceClient({
                   : `Continue to ${studentCopy.navigation.builder}`
           }
           style={{
-            border: "none",
             borderRadius: 999,
             background:
               selectedSongStatus === "ready"
-                ? "#CFFF04"
+                ? selectedSongCanPlay ? "transparent" : "#CFFF04"
                 : selectedSongStatus === "error"
                   ? "#FFCB6B"
                   : "rgba(207,255,4,0.35)",
-            color: selectedSongStatus === "ready" ? "#082733" : "#082733",
+            color: selectedSongStatus === "ready" && selectedSongCanPlay ? "#FFFFFF" : "#082733",
+            border: selectedSongStatus === "ready" && selectedSongCanPlay ? "1px solid #7A8FA8" : "1px solid transparent",
             padding: "10px 24px",
             fontSize: 14,
             fontWeight: 700,
-            cursor: selectedSongStatus === "error" || selectedSongStatus === "ready" ? "pointer" : "not-allowed",
-            opacity: selectedSongStatus === "ready" || selectedSongStatus === "error" ? 1 : 0.7,
+            cursor: !isLaunching && (selectedSongStatus === "error" || selectedSongStatus === "ready") ? "pointer" : "not-allowed",
+            opacity: !isLaunching && (selectedSongStatus === "ready" || selectedSongStatus === "error") ? 1 : 0.7,
           }}
         >
           {selectedSongStatus === "loading"
             ? studentCopy.songChoice.preparing
             : selectedSongStatus === "error"
               ? "Try again"
-              : studentCopy.songChoice.continue}
+              : selectedSongCanPlay ? "Choose how to start" : "Make a lesson"}
         </button>
+        </div>
       </div>
 
       {launchError && !isCustomizePromptOpen ? (
@@ -1559,7 +1633,9 @@ export default function SongChoiceClient({
             <p style={{ margin: 0, color: "#D1D5DB", textAlign: "center", lineHeight: 1.45 }}>
               {selectedSongCanPlay
                 ? studentCopy.songChoice.readyToPlayBody
-                : studentCopy.songChoice.needsWorkBody}
+                : selectedSong?.requiresRhythmSource
+                  ? "This song has beat timing ready to reuse. Create its Number Bonds game, then save before playing."
+                  : studentCopy.songChoice.needsWorkBody}
             </p>
 
             {launchError ? (
@@ -1597,7 +1673,7 @@ export default function SongChoiceClient({
               <button
                 type="button"
                 onClick={handleCustomizeNo}
-                disabled={!selectedSongCanPlay}
+                disabled={!selectedSongCanPlay || isLaunching}
                   aria-label={studentCopy.songChoice.playLesson}
                 title={selectedSongCanPlay ? studentCopy.songChoice.playLessonBody : "Finish the lesson before playing"}
                 style={{
@@ -1612,7 +1688,7 @@ export default function SongChoiceClient({
                   opacity: selectedSongCanPlay ? 1 : 0.65,
                 }}
               >
-                <span>{studentCopy.songChoice.playLesson}</span>
+                <span>{isLaunching ? "Opening game…" : studentCopy.songChoice.playLesson}</span>
                 <small style={{ display: "block", fontWeight: 600 }}>{studentCopy.songChoice.playLessonBody}</small>
               </button>
 
@@ -1625,6 +1701,10 @@ export default function SongChoiceClient({
       ) : null}
 
         <style jsx global>{`
+          .songChoiceRow {
+            transition: background-color 200ms ease-out, border-color 200ms ease-out, box-shadow 200ms ease-out;
+          }
+
           .songChoiceRow:hover {
             background: rgba(207, 255, 4, 0.12) !important;
             border-bottom-color: #cfff04 !important;
@@ -1635,6 +1715,25 @@ export default function SongChoiceClient({
             background: rgba(207, 255, 4, 0.12) !important;
             border-bottom-color: #cfff04 !important;
             border-left-color: #cfff04 !important;
+            box-shadow: inset 3px 0 #cfff04;
+          }
+
+          .songChoiceRow:focus-within {
+            outline: 2px solid #cfff04;
+            outline-offset: -2px;
+          }
+
+          .songChoiceRow[aria-busy="true"] {
+            background: rgba(207, 255, 4, 0.09) !important;
+            animation: songChoicePreparing 1.4s ease-in-out infinite;
+          }
+
+          @keyframes songChoicePreparing {
+            50% { box-shadow: inset 3px 0 #cfff04, 0 0 20px rgba(207, 255, 4, 0.12); }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .songChoiceRow { transition: none; animation: none !important; }
           }
 
           .songChoiceRow[data-selected="false"] {

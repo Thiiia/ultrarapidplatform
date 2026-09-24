@@ -964,3 +964,20 @@ export async function getEditorSongChoices(
     .filter((song, index, allSongs) => allSongs.findIndex((candidate) => candidate.id === song.id) === index);
 }
 
+/** Song-choice may offer Number Bonds starters for authoring, but not as playable lessons. */
+export function filterAuthorableNumberBondsSongs(choices: readonly SongChoice[]): SongChoice[] {
+  return choices.filter((song) =>
+    !song.requiresRhythmSource || (song.rhythmSources?.length ?? 0) > 0,
+  );
+}
+
+export async function getSongChoicesForCreation(
+  requestedActivityKey: string | null | undefined,
+): Promise<SongChoice[]> {
+  const activityKey = resolveRequestedSongActivityKey(requestedActivityKey);
+  if (activityKey !== "number-bonds") return getSongChoices(requestedActivityKey);
+
+  const choices = await getEditorSongChoices(activityKey, { authorName: DEV_AUTHOR_FOLDER });
+  return filterAuthorableNumberBondsSongs(choices);
+}
+

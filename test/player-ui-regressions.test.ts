@@ -27,6 +27,12 @@ test("game embed refreshes its signed song package before loading Unity", () => 
   assert.match(gameEmbed, /Try again/);
 });
 
+test("embedded Unity grants fullscreen without a duplicate iframe permission", () => {
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+  assert.match(gameEmbed, /allow="gamepad; autoplay"/);
+  assert.match(gameEmbed, /allowFullScreen/);
+});
+
 test("game embed waits for the verified bridge and reports result-sync failures", () => {
   const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
 
@@ -63,6 +69,26 @@ test("song choice does not present a package that is still loading as ready", ()
   assert.match(songChoice, /Try again/);
 });
 
+test("song choice offers Play only for a ready lesson and guards the fresh launch handoff", () => {
+  const songChoice = source("app/student/song-choice/SongChoiceClient.tsx");
+
+  assert.match(songChoice, /selectedSongCanPlay \? <button[\s\S]{0,240}songChoicePlayButton/);
+  assert.match(songChoice, /if \(!selectedSong \|\| launchInFlightRef\.current \|\| !selectedSongCanPlay\)/);
+  assert.match(songChoice, /freshPackage\.songAssetId !== selectedSong\.id/);
+  assert.match(songChoice, /boundary: "song-choice-play"/);
+  assert.match(songChoice, /aria-live="polite"/);
+  assert.match(songChoice, /prefers-reduced-motion: reduce/);
+});
+
+test("an empty Number Bonds catalogue explains the rhythm prerequisite and offers recovery", () => {
+  const songChoice = source("app/student/song-choice/SongChoiceClient.tsx");
+
+  assert.match(songChoice, /songs\.length === 0[\s\S]{0,180}No Number Bonds songs are ready yet/);
+  assert.match(songChoice, /Number Bonds needs a song with a verified rhythm/);
+  assert.match(songChoice, /Browse Early Algebra songs/);
+  assert.match(songChoice, /setSearchQuery\(""\)/);
+});
+
 test("song choice keeps direct entry activity-bound and makes previews interactive", () => {
   const songChoice = source("app/student/song-choice/SongChoiceClient.tsx");
 
@@ -94,10 +120,21 @@ test("the Unity web wrapper forwards launch payload updates after the runtime is
   assert.match(unityPlayer, /JSON\.stringify\(launchPayloadRef\.current\)/);
 });
 
-test("demo song choice defaults to the published Early Algebra catalogue", () => {
+test("demo song choice defaults to Early Algebra while allowing Number Bonds starters", () => {
   const demoSongChoice = source("app/demo/student/song-choice/page.tsx");
 
-  assert.match(demoSongChoice, /getSongChoices\(activityParam \?\? "early-algebra"\)/);
+  assert.match(demoSongChoice, /getSongChoicesForCreation\(activityParam \?\? "early-algebra"\)/);
+});
+
+test("a Number Bonds starter carries its verified rhythm into the builder", () => {
+  const studentPage = source("app/student/song-choice/page.tsx");
+  const songChoice = source("app/student/song-choice/SongChoiceClient.tsx");
+  const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+
+  assert.match(studentPage, /getSongChoicesForCreation\(activityParam\)/);
+  assert.match(songChoice, /const rhythmSource = song\.requiresRhythmSource[\s\S]{0,110}song\.rhythmSources\?\.\[0\]/);
+  assert.match(songChoice, /const chart = rhythmSource\?\.chart \?\? song\.chart/);
+  assert.match(builder, /setSelectedRhythmSource\(selectedSong\.rhythmSource \?\? null\)/);
 });
 
 test("builder readiness reflects song, publish, and play prerequisites", () => {

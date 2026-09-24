@@ -34,6 +34,14 @@ test("workspace timeline edits permit gameplay token indexes but reject credenti
   }).success, false);
 });
 
+test("workspace sync keeps recorded encounter drafts without accepting credential fields", () => {
+  const recordedDrafts = [{ id: "recorded-hit-1", mechanic: "hit", tick: 8, hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"] }] }];
+  const parsed = PlayerWorkspacePayloadSchema.safeParse({ ...payload, recordedDrafts });
+  assert.equal(parsed.success, true);
+  if (parsed.success) assert.deepEqual(parsed.data.recordedDrafts, recordedDrafts);
+  assert.equal(PlayerWorkspacePayloadSchema.safeParse({ ...payload, recordedDrafts: [{ ...recordedDrafts[0], signedUrl: "https://secret" }] }).success, false);
+});
+
 test("merge reports concurrent edits instead of silently overwriting", () => {
   const remote = { ...payload, updatedAt: 2 };
   const local = { ...payload, updatedAt: 3 };

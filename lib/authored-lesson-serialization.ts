@@ -161,6 +161,17 @@ export function serializeAuthoredLesson(
   options: { forPublish?: boolean; activityKey?: string | null } = {},
 ): AuthoredLessonDraft {
   if (options.forPublish) {
+    for (const event of events) {
+      for (const mechanic of GAMEPLAY_MECHANICS) {
+        const count = event.counts?.[mechanic] ?? 0;
+        const instances = event.mechanicInstances?.[mechanic]?.length ?? 0;
+        if (!Number.isSafeInteger(count) || count !== instances) {
+          throw new Error(
+            `Authored lesson mechanic count for ${mechanic} in event '${event.id}' does not match its ${instances} declared instance(s). Reopen the move before publishing.`,
+          );
+        }
+      }
+    }
     const readiness = evaluateLessonPublishReadiness(events, {
       activityKey: options.activityKey ?? identity.activityKey,
       equationQueue,
@@ -273,6 +284,9 @@ export function serializeAuthoredLesson(
   };
 
   if (options.forPublish) {
+    if (draft.encounters.length === 0) {
+      throw new Error("Authored lesson needs at least one encounter before it can be published.");
+    }
     const contractIssue = getAuthoredActivityContractIssues(draft)[0];
     if (contractIssue) {
       throw new Error(`Authored lesson is not ready to publish: ${contractIssue.message}`);

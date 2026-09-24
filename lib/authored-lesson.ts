@@ -504,6 +504,9 @@ export function parseAuthoredLessonDraft(
     if (targetKey && targets.length === 0) {
       throw new Error(`Authored lesson encounter ${index}.${targetKey} requires at least one target`);
     }
+    if (targetKey && targets.length !== 1) {
+      throw new Error(`Authored lesson ${type} '${encounter.id}' requires exactly one ${targetKey} target for the Unity presenter`);
+    }
     const hitBubbles = type !== "hit"
       ? []
       : encounter.hitBubbles == null

@@ -10,6 +10,7 @@ import {
 import { isLegacyEncounterSidecar } from '@/lib/legacy-encounters';
 import { migrateLegacyEncounterSidecar, repairLegacyMigratedAuthoredLesson } from '@/lib/legacy-authored-migration';
 import { getAuthoredActivityContractIssues } from '@/lib/activity-authoring-capabilities';
+import { validateNumberBondsTiming } from '@/lib/number-bonds-timing';
 
 export type AuthoredLessonPublication = {
   content: string;
@@ -77,11 +78,24 @@ export function prepareAuthoredLessonForPublication({
   } else {
     draft = parseAuthoredLessonDraft(repairLegacyMigratedAuthoredLesson(raw));
   }
+  if (draft.encounters.length === 0) {
+    throw new Error('Authored lesson needs at least one encounter before it can be published');
+  }
   const activityContractIssue = getAuthoredActivityContractIssues(draft)[0];
   if (activityContractIssue) {
     throw new Error(activityContractIssue.message);
   }
   if (runtimeClock) {
+    if (draft.activityKey === 'number-bonds') {
+      const timingIssue = validateNumberBondsTiming(
+        draft.encounters.filter((encounter) => encounter.type === 'hit').map((encounter) => ({
+          id: encounter.id,
+          startSeconds: runtimeClock.toSeconds(encounter.startTick),
+        })),
+        draft.stopAtSeconds,
+      )[0];
+      if (timingIssue) throw new Error(timingIssue.message);
+    }
     validateAuthoredRuntimePresentationConcurrency(draft.encounters, runtimeClock);
     validateAuthoredLessonPlayability(draft.encounters, runtimeClock, {
       stopAtSeconds: draft.stopAtSeconds,
