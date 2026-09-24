@@ -14155,6 +14155,17 @@ export default function LessonBuilderClient({
                                   </button>
                                 );
                               })}
+                              {(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddHitAtPlayhead()}
+                                  aria-label="Add catch cue at playhead"
+                                  style={{ minHeight: 66, display: "grid", gap: 2, alignContent: "center", borderRadius: 14, border: "1px dashed #CFFF04", background: "rgba(207,255,4,0.08)", color: "#CFFF04", cursor: "pointer", padding: "9px 12px", textAlign: "left", fontFamily: "Space Grotesk, sans-serif" }}
+                                >
+                                  <strong style={{ fontSize: 13 }}>+ Add catch cue</strong>
+                                  <span style={{ color: "#DFFF70", fontSize: 11 }}>At {formatTimelineTime(currentSongSeconds, isAdvancedMode)}</span>
+                                </button>
+                              ) : null}
                             </div>
                           ) : null}
                           <GuidedEncounterComposer
