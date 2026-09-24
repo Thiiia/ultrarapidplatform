@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentAppUser } from "@/lib/current-user";
-import { getSongChoices } from "@/lib/song-storage";
+import { getSongChoicesForCreation } from "@/lib/song-storage";
 import SongChoiceClient from "./SongChoiceClient";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export default async function StudentSongChoicePage({ searchParams }: PageProps)
   const activityParam = Array.isArray(params.activity)
     ? params.activity[0]
     : params.activity;
-  const songs = await getSongChoices(activityParam);
+  const songs = await getSongChoicesForCreation(activityParam);
 
   return (
     <SongChoiceClient

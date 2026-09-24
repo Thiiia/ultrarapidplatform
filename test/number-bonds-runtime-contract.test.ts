@@ -429,5 +429,5 @@ test("editor and publication agree after an offset, tempo change, and one-tick s
     equationQueue: [equation],
     clock,
     stopAtSeconds: clock.toSeconds(13199) + 12,
-  }).blockers.some((blocker) => blocker.code === "gem_spacing"));
+  }).blockers.some((blocker) => blocker.code === "activity_hit_spacing"));
 });

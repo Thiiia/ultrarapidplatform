@@ -32,6 +32,7 @@ export type PlayerLessonWorkspaceDraft = {
   version: typeof PLAYER_LESSON_WORKSPACE_VERSION;
   source: LessonSourceIdentity;
   timelineEvents: unknown[];
+  recordedDrafts?: unknown[];
   equationEdits: unknown[];
   hiddenSourceEquationIds?: string[];
   updatedAt: number;
@@ -87,7 +88,7 @@ export function readPlayerLessonWorkspaceDraft(
       storage.removeItem(key);
       return null;
     }
-    if (JSON.stringify(parsed.source) !== JSON.stringify(source) || !Array.isArray(parsed.timelineEvents) || !Array.isArray(parsed.equationEdits) || containsCredentialLikeValue(parsed)) {
+    if (JSON.stringify(parsed.source) !== JSON.stringify(source) || !Array.isArray(parsed.timelineEvents) || !Array.isArray(parsed.equationEdits) || (parsed.recordedDrafts !== undefined && !Array.isArray(parsed.recordedDrafts)) || containsCredentialLikeValue(parsed)) {
       storage.removeItem(key);
       return null;
     }

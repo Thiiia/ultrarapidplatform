@@ -656,7 +656,7 @@ function GameEmbedSession({
               ref={iframeRef}
               src={embeddedGameUrl}
               title="UltraRapid Game"
-              allow="fullscreen; gamepad; autoplay"
+              allow="gamepad; autoplay"
               allowFullScreen
               style={{
                 ...webglFlexFrameStyle,
@@ -668,6 +668,7 @@ function GameEmbedSession({
           ) : (
             <div className="experience-card" data-state={launchErrorMessage ? "error" : needsSongChoice ? "empty" : "loading"} role={launchErrorMessage ? "alert" : "status"} aria-live={launchErrorMessage ? "assertive" : "polite"} style={{ ...webglFlexFrameStyle, display: "grid", placeItems: "center", borderRadius: 12, padding: 24, boxSizing: "border-box", textAlign: "center" }}>
               <div style={{ display: "grid", gap: 14, justifyItems: "center", maxWidth: 460 }}>
+                {!launchErrorMessage && !needsSongChoice ? <span className={styles.gamePreparingPulse} aria-hidden="true" /> : null}
                 <strong>{launchErrorMessage ? studentCopy.game.prepareErrorTitle : needsSongChoice ? studentCopy.game.chooseSongTitle : studentCopy.game.preparingTitle}</strong>
                 <span style={{ color: "#FFFFFFB3", lineHeight: 1.45 }}>
                   {launchErrorMessage || (needsSongChoice ? studentCopy.game.chooseSongBody : studentCopy.game.preparingBody)}

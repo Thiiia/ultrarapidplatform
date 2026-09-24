@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentAppUser } from "@/lib/current-user";
-import { getSongChoices } from "@/lib/song-storage";
+import { getSongChoicesForCreation } from "@/lib/song-storage";
 import { prisma } from "@/lib/prisma";
 import SongChoiceClient from "@/app/student/song-choice/SongChoiceClient";
 
@@ -43,7 +43,7 @@ export default async function AdminSongChoicePreviewPage({
   const activityParam = Array.isArray(query.activity)
     ? query.activity[0]
     : query.activity;
-  const songs = await getSongChoices(activityParam);
+  const songs = await getSongChoicesForCreation(activityParam);
 
   return (
     <SongChoiceClient

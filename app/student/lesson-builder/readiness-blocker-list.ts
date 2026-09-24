@@ -22,11 +22,12 @@ export function groupReadinessBlockers(blockers: readonly EncounterIssue[]): Rea
 
   for (const blocker of blockers) {
     const key = JSON.stringify([blocker.encounterId ?? "lesson", blocker.code]);
+    const issueCount = blocker.relatedEncounterIds?.length ?? 1;
     const group = groups.get(key);
     if (group) {
-      group.occurrences += 1;
+      group.occurrences += issueCount;
     } else {
-      groups.set(key, { blocker, occurrences: 1 });
+      groups.set(key, { blocker, occurrences: issueCount });
     }
   }
 

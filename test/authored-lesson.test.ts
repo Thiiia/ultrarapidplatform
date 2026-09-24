@@ -237,6 +237,20 @@ test('concurrent Hits collide when legacy and physical layouts resolve to the sa
   }), /both assign player pad 'Top'/i);
 });
 
+test('authored Spin and Drag each require one target bubble, as their Unity presenters do', () => {
+  for (const [type, targetKey] of [['spin', 'spinTargets'], ['drag', 'dragTargets']] as const) {
+    const draft = {
+      ...authored,
+      encounters: [{
+        id: `event-a:${type}:0`, eventId: 'event-a', type, equationId: 'eq-a',
+        startTick: 192, endTick: 384,
+        [targetKey]: [{ tokenIndex: 0 }, { tokenIndex: 2 }],
+      }],
+    };
+    assert.throws(() => parseAuthoredLessonDraft(draft), /exactly one .*target/i);
+  }
+});
+
 test('authored v3 rejects sequential rows whose presentation windows still overlap in Unity', () => {
   const chart = '[Song]\n{\n Resolution = 480\n}\n[SyncTrack]\n{\n 0 = B 120000\n}\n[ExpertSingle]\n{\n}';
   const clock = createLessonClock(chart);

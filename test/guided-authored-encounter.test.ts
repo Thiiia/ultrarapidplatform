@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   evaluateEncounterReadiness,
   evaluateLessonPublishReadiness,
+  findNewTimingConflict,
+  retimeGuidedEncounter,
   findGuidedEncounterSelection,
   normalizeStagedMechanic,
   type GuidedEncounterInput,
@@ -57,6 +59,31 @@ function eventWith(...instances: GuidedEncounterInput[]): AuthoredTimelineEvent 
   };
 }
 
+test("a lesson without a playable move is not ready to publish", () => {
+  for (const events of [[], [eventWith()]]) {
+    const result = evaluateLessonPublishReadiness(events);
+    assert.equal(result.ready, false);
+    assert.deepEqual(result.blockers.map((blocker) => blocker.code), ["lesson_encounter_required"]);
+    assert.match(result.nextAction, /Add at least one encounter/);
+  }
+});
+
+test("editing cannot introduce a new Unity presenter collision, but can repair an old one", () => {
+  const first = encounter("hit", { id: "hit-1", tick: 8, endTick: 8 });
+  const second = encounter("hit", { id: "hit-2", tick: 10, endTick: 10 });
+  const before = [eventWith(first), eventWith(second)];
+  const collided = [eventWith(first), eventWith({ ...second, tick: 8.5, endTick: 8.5 })];
+  assert.equal(findNewTimingConflict(before, collided)?.code, "unsupported_concurrency");
+  assert.equal(findNewTimingConflict(collided, before), null);
+  assert.equal(findNewTimingConflict(collided, collided), null);
+});
+
+test("timeline drags keep Hit instantaneous and Spin or Drag ranges playable", () => {
+  assert.deepEqual(retimeGuidedEncounter({ mechanic: "hit", tick: 8, endTick: 8 }, "start", 10), { tick: 10, endTick: 10 });
+  assert.deepEqual(retimeGuidedEncounter({ mechanic: "spin", tick: 8, endTick: 12 }, "start", 15), { tick: 11.99, endTick: 12 });
+  assert.deepEqual(retimeGuidedEncounter({ mechanic: "drag", tick: 8, endTick: 12 }, "end", 4), { tick: 8, endTick: 8.01 });
+});
+
 test("standalone Drag matches the optional dependency in the published runtime contract", () => {
   const standalone = encounter("drag", { dragTargets: [{ tokenIndex: 2 }] });
   assert.equal(evaluateEncounterReadiness(standalone, new Set()).ready, true);
@@ -81,6 +108,17 @@ test("hit requires playable targets and at least one pad", () => {
     hitBubbles: [{ tokenIndex: 1, pads: [] }],
   }), new Set());
   assert.deepEqual(result.issueCodes, ["hit_pad_required", "operator_target"]);
+});
+
+test("Spin and Drag cannot be marked ready with multiple target bubbles", () => {
+  for (const mechanic of ["spin", "drag"] as const) {
+    const input = encounter(mechanic, mechanic === "spin"
+      ? { spinTargets: [{ tokenIndex: 0 }, { tokenIndex: 2 }] }
+      : { dragTargets: [{ tokenIndex: 0 }, { tokenIndex: 2 }] });
+    const readiness = evaluateEncounterReadiness(input, new Set());
+    assert.equal(readiness.ready, false);
+    assert.ok(readiness.issueCodes.includes("single_target_required"));
+  }
 });
 
 test("an instantaneous Hit does not inherit its event's longer mechanic window", () => {
@@ -137,7 +175,7 @@ test("publish readiness blocks overlapping mechanics but permits disjoint multi-
   const overlapBlocker = overlap.blockers.find((blocker) => blocker.code === "unsupported_concurrency");
   assert.ok(overlapBlocker);
   assert.match(overlapBlocker.message, /Drag 1 overlaps Spin 1/);
-  assert.match(overlapBlocker.nextAction, /Move either Drag 1 or Spin 1/);
+  assert.match(overlapBlocker.nextAction, /Move Drag 1 later/);
   assert.equal(overlapBlocker.relatedEncounterId, spin.id);
 
   const firstHit = encounter("hit", { id: "hit-1", tick: 8, hitBubbles: [{ tokenIndex: 0, pads: ["left"] }] });
@@ -197,6 +235,21 @@ test("stress fixture identifies each overlapping Hit pair without blaming the la
     "Hit 4 overlaps Hit 3.",
   ]);
   assert.ok(timingBlockers.every((blocker) => blocker.relatedEncounterId?.startsWith("hit-")));
+});
+
+test("250 simultaneous Hits retain every pairwise conflict behind one repair target per cue", () => {
+  const hits = Array.from({ length: 250 }, (_, index) =>
+    encounter("hit", { id: `stress-hit-${index + 1}`, tick: 8, endTick: 8 }),
+  );
+  const result = evaluateLessonPublishReadiness([eventWith(...hits)]);
+  const timingBlockers = result.blockers.filter((blocker) => blocker.code === "unsupported_concurrency");
+
+  assert.equal(timingBlockers.length, 249);
+  const pairs = timingBlockers.flatMap((blocker) =>
+    (blocker.relatedEncounterIds ?? []).map((relatedId) => `${relatedId}:${blocker.encounterId}`),
+  );
+  assert.equal(pairs.length, (250 * 249) / 2);
+  assert.equal(new Set(pairs).size, pairs.length);
 });
 
 test("RCTM without saved equation remains a visible non-publishable draft", () => {

@@ -482,6 +482,7 @@ export default function SongChoiceClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [isCustomizePromptOpen, setIsCustomizePromptOpen] = useState(false);
+  const [isLaunching, setIsLaunching] = useState(false);
   const [launchError, setLaunchError] = useState("");
   const [durationsById, setDurationsById] = useState<Record<string, number>>(
     {},
@@ -493,6 +494,7 @@ export default function SongChoiceClient({
     Record<string, SongPackageLoadStatus>
   >({});
   const pendingSelectionsRef = useRef<Set<string>>(new Set());
+  const launchInFlightRef = useRef(false);
   // Packages are keyed by activity + song, so a completed request is safe to
   // cache even when the learner has already selected another row. Keep the
   // current key only for deciding which request may surface an error.
@@ -598,6 +600,7 @@ export default function SongChoiceClient({
     : "idle";
 
   function handleSelectSong(song: SongChoiceWithEquationSlots) {
+    if (launchInFlightRef.current) return;
     let requestedActivityKey: NonNullable<ReturnType<typeof normalizeSongActivityKey>>;
     try {
       requestedActivityKey = requireActivityKey(song.activityKey);
@@ -846,6 +849,10 @@ export default function SongChoiceClient({
 
   function buildSelectedSongPayload(song: SongChoiceWithEquationSlots) {
     const activityKey = requireActivityKey(song.activityKey);
+    const rhythmSource = song.requiresRhythmSource
+      ? song.rhythmSources?.[0] ?? null
+      : null;
+    const chart = rhythmSource?.chart ?? song.chart;
     const activityContext = {
       key: activityKey,
       label: selectedActivity?.label ?? activityLabelMap[activityKey] ?? activityKey,
@@ -859,6 +866,7 @@ export default function SongChoiceClient({
       authorId: selectedSongPackage?.authorId ?? null,
       authorName: song.authorName ?? null,
       revision: selectedSongPackage?.revision ?? null,
+      rhythmSource,
       rhythmDifficultyKey: selectedSongPackage?.rhythmDifficultyKey ?? null,
       activity: activityContext,
 
@@ -870,10 +878,10 @@ export default function SongChoiceClient({
       },
 
       chart: {
-        bucket: song.chart.bucket,
-        path: song.chart.path,
-        signedUrl: song.chart.signedUrl,
-        contentType: song.chart.contentType,
+        bucket: chart.bucket,
+        path: chart.path,
+        signedUrl: chart.signedUrl,
+        contentType: chart.contentType,
       },
 
       sidecar: song.sidecar
@@ -888,6 +896,7 @@ export default function SongChoiceClient({
   }
 
   function handleContinue() {
+    if (launchInFlightRef.current) return;
     if (!selectedSong) {
       return;
     }
@@ -904,6 +913,7 @@ export default function SongChoiceClient({
   }
 
   function handleCustomizeYes() {
+    if (launchInFlightRef.current) return;
     if (!selectedSong) {
       return;
     }
@@ -934,63 +944,75 @@ export default function SongChoiceClient({
   }
 
   async function handleCustomizeNo() {
-    if (!selectedSong) {
-      return;
-    }
-
+    if (!selectedSong || launchInFlightRef.current || !selectedSongCanPlay) return;
+    launchInFlightRef.current = true;
+    setIsLaunching(true);
     setLaunchError("");
+    stopSongPreview();
     try {
-    const selectedSongPayload = buildSelectedSongPayload(selectedSong);
-    const activityKey = requireActivityKey(selectedSong.activityKey);
-    const freshPackage = await requestFreshSongLaunchPackage({
-      songAssetId: selectedSong.id,
-      activityKey,
-    });
-    if (!isPlayableSongLaunchPackage(freshPackage)) {
-      throw new Error(freshPackage.readiness.message);
-    }
-    const launchParams = createSongLaunchSearchParams({
-      songAssetId: freshPackage.songAssetId,
-      activityKey: freshPackage.activityKey,
-      chartUrl: freshPackage.chart.signedUrl,
-      sidecarUrl: freshPackage.sidecar.signedUrl,
-      audioUrl: freshPackage.audio.signedUrl,
-      authorId: freshPackage.authorId,
-      revision: freshPackage.revision,
-      receipt: freshPackage.receipt,
-      source: freshPackage.source,
-      templateProvenance: freshPackage.templateProvenance,
-      launchAttemptId: freshPackage.launchAttemptId,
-      rhythmDifficultyKey: freshPackage.rhythmDifficultyKey,
-      learningDifficultyKey: freshPackage.learningDifficultyKey,
-    });
-    const launchRoute = getPlayerLaunchRoute(navBasePath);
-    const launchUrl = `${launchRoute}?${launchParams.toString()}`;
-
-    appendSongFlowDebug(
-      "song-choice:continue:no-customize",
-      "Skipping gameplay customization and launching with play-formatted URL.",
-      {
-        navBasePath,
-        launchRoute,
-        requestedActivityKey: activityKey,
-        packageActivityKey: freshPackage.activityKey,
-        revision: freshPackage.revision ?? null,
+      const selectedSongPayload = buildSelectedSongPayload(selectedSong);
+      const activityKey = requireActivityKey(selectedSong.activityKey);
+      const freshPackage = await requestFreshSongLaunchPackage({
+        songAssetId: selectedSong.id,
+        activityKey,
+      });
+      if (freshPackage.songAssetId !== selectedSong.id) {
+        throw new Error("The selected song changed while preparing the game.");
+      }
+      assertSongActivityMatches({
+        expectedActivityKey: activityKey,
+        actualActivityKey: freshPackage.activityKey,
+        boundary: "song-choice-play",
+      });
+      if (!isPlayableSongLaunchPackage(freshPackage)) {
+        throw new Error(freshPackage.readiness.message);
+      }
+      const launchParams = createSongLaunchSearchParams({
+        songAssetId: freshPackage.songAssetId,
+        activityKey: freshPackage.activityKey,
+        chartUrl: freshPackage.chart.signedUrl,
+        sidecarUrl: freshPackage.sidecar.signedUrl,
+        audioUrl: freshPackage.audio.signedUrl,
+        authorId: freshPackage.authorId,
+        revision: freshPackage.revision,
+        receipt: freshPackage.receipt,
         source: freshPackage.source,
-        hasLaunchAttemptId: Boolean(freshPackage.launchAttemptId),
-      },
-    );
+        templateProvenance: freshPackage.templateProvenance,
+        launchAttemptId: freshPackage.launchAttemptId,
+        rhythmDifficultyKey: freshPackage.rhythmDifficultyKey,
+        learningDifficultyKey: freshPackage.learningDifficultyKey,
+      });
+      const launchRoute = getPlayerLaunchRoute(navBasePath);
+      const launchUrl = `${launchRoute}?${launchParams.toString()}`;
 
-    window.sessionStorage.setItem(
-      "ultrarapid_selected_song",
-      JSON.stringify(selectedSongPayload),
-    );
-    window.sessionStorage.setItem("ultrarapid_player_entry_intent", "play");
-    persistLaunchParams(launchParams);
+      appendSongFlowDebug(
+        "song-choice:continue:no-customize",
+        "Skipping gameplay customization and launching with play-formatted URL.",
+        {
+          navBasePath,
+          launchRoute,
+          requestedActivityKey: activityKey,
+          packageActivityKey: freshPackage.activityKey,
+          revision: freshPackage.revision ?? null,
+          source: freshPackage.source,
+          hasLaunchAttemptId: Boolean(freshPackage.launchAttemptId),
+        },
+      );
 
-    setIsCustomizePromptOpen(false);
-    router.push(launchUrl);
-    } catch (error) { setLaunchError(getSongLaunchErrorMessage(error)); }
+      window.sessionStorage.setItem(
+        "ultrarapid_selected_song",
+        JSON.stringify(selectedSongPayload),
+      );
+      window.sessionStorage.setItem("ultrarapid_player_entry_intent", "play");
+      persistLaunchParams(launchParams);
+
+      setIsCustomizePromptOpen(false);
+      router.push(launchUrl);
+    } catch (error) {
+      launchInFlightRef.current = false;
+      setIsLaunching(false);
+      setLaunchError(getSongLaunchErrorMessage(error));
+    }
   }
 
   useEffect(() => {
@@ -1429,7 +1451,11 @@ export default function SongChoiceClient({
                     fontWeight: 600,
                   }}
                 >
-                  {studentCopy.songChoice.noSongsTitle}
+                  {songs.length === 0
+                    ? currentActivityKey === "number-bonds"
+                      ? "No Number Bonds songs are ready yet"
+                      : "No songs are ready yet"
+                    : studentCopy.songChoice.noSongsTitle}
                 </h2>
                 <p
                   style={{
@@ -1440,8 +1466,25 @@ export default function SongChoiceClient({
                     lineHeight: "19.5px",
                   }}
                 >
-                  {studentCopy.songChoice.noSongsBody}
+                  {songs.length === 0
+                    ? currentActivityKey === "number-bonds"
+                      ? "Number Bonds needs a song with a verified rhythm. Create and publish an Early Algebra lesson for a song first, then come back to build its Number Bonds lesson."
+                      : "There are no available songs for this activity right now. Try another activity or ask your teacher to add one."
+                    : studentCopy.songChoice.noSongsBody}
                 </p>
+                {songs.length > 0 ? (
+                  <button type="button" onClick={() => setSearchQuery("")} className={styles.songChoiceEmptyAction}>
+                    Clear search
+                  </button>
+                ) : currentActivityKey === "number-bonds" ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`${navBasePath}/song-choice?activity=early-algebra`)}
+                    className={styles.songChoiceEmptyAction}
+                  >
+                    Browse Early Algebra songs
+                  </button>
+                ) : null}
               </div>
             )}
             </div>
@@ -1461,6 +1504,23 @@ export default function SongChoiceClient({
           borderTop: "1px solid rgba(255,255,255,0.08)",
         }}
       >
+        {selectedSongCanPlay ? <button
+            type="button"
+            className={styles.songChoicePlayButton}
+            disabled={isLaunching}
+            aria-busy={isLaunching}
+            onClick={() => void handleCustomizeNo()}
+            aria-label={`Play ${selectedSong?.name ?? "selected song"} now`}
+          >
+            {isLaunching ? "Opening game…" : "Play now"}
+          </button> : null}
+        <span
+          role="status"
+          aria-live="polite"
+          style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }}
+        >
+          {isLaunching ? "Opening game" : ""}
+        </span>
         <button
           type="button"
           className="experience-button experience-button--secondary"
@@ -1482,8 +1542,8 @@ export default function SongChoiceClient({
         <button
           type="button"
           className="experience-button"
-          disabled={!selectedSong || selectedSongStatus === "idle" || selectedSongStatus === "loading"}
-          aria-busy={selectedSongStatus === "loading"}
+          disabled={isLaunching || !selectedSong || selectedSongStatus === "idle" || selectedSongStatus === "loading"}
+          aria-busy={isLaunching || selectedSongStatus === "loading"}
           onClick={handleContinue}
           aria-label={selectedSongStatus === "error" ? "Try loading this song again" : `Continue to ${studentCopy.navigation.builder}`}
           title={
@@ -1636,6 +1696,10 @@ export default function SongChoiceClient({
       ) : null}
 
         <style jsx global>{`
+          @media (prefers-reduced-motion: reduce) {
+            .${styles.songChoicePlayButton} { transition-duration: 0ms !important; }
+          }
+
           .songChoiceRow:hover {
             background: rgba(207, 255, 4, 0.12) !important;
             border-bottom-color: #cfff04 !important;

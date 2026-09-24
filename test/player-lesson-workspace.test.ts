@@ -63,6 +63,28 @@ test("keeps gameplay token indexes in an offline recovery draft", () => {
   assert.deepEqual(readPlayerLessonWorkspaceDraft(s, source)?.timelineEvents, draft.timelineEvents);
 });
 
+test("recovers a recorded move that has not yet become a timeline encounter", () => {
+  const s = storage();
+  const recordedDrafts = [{
+    id: "recorded-hit-1",
+    mechanic: "hit",
+    tick: 8,
+    equationId: "eq-1",
+    hitBubbles: [{ tokenIndex: 0, positions: ["topLeft"], pads: ["topLeft"] }],
+    spinTargets: [],
+    dragTargets: [],
+  }];
+  writePlayerLessonWorkspaceDraft(s, {
+    version: 1,
+    source,
+    timelineEvents: [],
+    recordedDrafts,
+    equationEdits: [],
+    updatedAt: Date.now(),
+  });
+  assert.deepEqual(readPlayerLessonWorkspaceDraft(s, source)?.recordedDrafts, recordedDrafts);
+});
+
 test("keeps an incomplete local event when remote workspace conversion fails", () => {
   const s = storage();
   const incompleteEvent = {

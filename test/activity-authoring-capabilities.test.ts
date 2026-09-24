@@ -111,6 +111,19 @@ test("Number Bonds publish readiness enforces one equation and enough authored H
   );
 });
 
+test("Number Bonds gives a timing action before a too-close second gem is published", () => {
+  const events = Array.from({ length: 5 }, (_, index) =>
+    timelineEvent(`event-${index}`, hit(`hit-${index}`, 10 + index * 7)),
+  );
+  const readiness = evaluateLessonPublishReadiness(events, {
+    activityKey: "number-bonds",
+    equationQueue: [equation],
+  });
+  assert.equal(readiness.ready, false);
+  assert.equal(readiness.blockers.some((blocker) =>
+    blocker.code === "activity_hit_spacing" && blocker.encounterId === "hit-1"), true);
+});
+
 test("serialized Number Bonds contract reports unsupported historical mechanics without rewriting them", () => {
   const issues = getAuthoredActivityContractIssues({
     activityKey: "number-bonds",

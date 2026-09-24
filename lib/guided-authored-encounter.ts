@@ -31,12 +31,14 @@ export type GuidedEncounterInput = {
 };
 
 export type EncounterIssueCode =
+  | "lesson_encounter_required"
   | "equation_required"
   | "target_required"
   | "target_identity_invalid"
   | "hit_pad_required"
   | "hit_timing_invalid"
   | "spin_target_required"
+  | "single_target_required"
   | "drag_source_required"
   | "duration_required"
   | "operator_target"
@@ -48,6 +50,7 @@ export type EncounterIssueCode =
   | "activity_target_shape"
   | "activity_equation_count"
   | "activity_hit_count"
+  | "activity_hit_spacing"
   | "gem_spacing"
   | "gem_tail"
   | "simultaneous_hits"
@@ -57,6 +60,7 @@ export type EncounterIssueCode =
 export type EncounterIssue = {
   encounterId: string | null;
   relatedEncounterId?: string;
+  relatedEncounterIds?: string[];
   code: EncounterIssueCode;
   message: string;
   nextAction: string;
@@ -94,12 +98,14 @@ export type NormalizedStagedMechanic = {
 };
 
 const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
+  lesson_encounter_required: "Add at least one encounter with a playable move.",
   equation_required: "Choose an equation to get started.",
   target_required: "Pick a token for this move.",
   target_identity_invalid: "Choose the token again.",
   hit_pad_required: "Choose at least one button for the token.",
   hit_timing_invalid: "A Hit must begin and end on the same tick.",
   spin_target_required: "Pick the token to spin.",
+  single_target_required: "Choose exactly one target token for this move.",
   drag_source_required: "Choose an earlier Hit to start this Drag.",
   duration_required: "Set when this move ends.",
   operator_target: "Pick a number or variable, not a + or = sign.",
@@ -111,6 +117,7 @@ const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   activity_target_shape: "Give this Number Bonds Hit exactly one bubble target.",
   activity_equation_count: "Use exactly one equation for Number Bonds.",
   activity_hit_count: "Use exactly one authored Hit for each generated Number Bonds gem.",
+  activity_hit_spacing: "Leave time for the previous gem's catch, spin and drag before the next Hit.",
   gem_spacing: "Move this Hit farther from the previous Hit.",
   gem_tail: "Extend the lesson stop time after the final Hit.",
   simultaneous_hits: "Move this Hit so Number Bonds Hits do not happen together.",
@@ -121,12 +128,14 @@ const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
 function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): EncounterIssue {
   const nextAction = ISSUE_ACTIONS[code];
   const labels: Record<EncounterIssueCode, string> = {
+    lesson_encounter_required: "needs a playable move",
     equation_required: "needs an equation",
     target_required: "needs a token",
     target_identity_invalid: "needs its token chosen again",
     hit_pad_required: "needs a button",
     hit_timing_invalid: "must begin and end on the same tick",
     spin_target_required: "needs a token to spin",
+    single_target_required: "has more than one target token",
     drag_source_required: "needs an earlier Hit",
     duration_required: "needs an end time",
     operator_target: "uses a + or = sign as its target",
@@ -138,6 +147,7 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
     activity_target_shape: "has the wrong target shape for this activity",
     activity_equation_count: "has the wrong number of equations for this activity",
     activity_hit_count: "does not match the generated gem count",
+    activity_hit_spacing: "starts before the previous Number Bonds Hit is ready",
     gem_spacing: "starts before the next Number Bonds Hit is available",
     gem_tail: "does not leave enough time after the final Number Bonds Hit",
     simultaneous_hits: "happens at the same time as another Number Bonds Hit",
@@ -198,7 +208,7 @@ function timingIssueToEncounterIssue(timingIssue: NumberBondsTimingIssue): Encou
       return {
         encounterId: timingIssue.encounterId,
         relatedEncounterId: timingIssue.relatedEncounterId,
-        code: timingIssue.code,
+        code: "activity_hit_spacing",
         message: `${label} starts too soon after ${previousLabel}.`,
         nextAction: `Move ${label} to ${earliestStart}s or later.`,
       };
@@ -263,6 +273,12 @@ export function evaluateEncounterReadiness(
   const targets = targetIndexes(encounter);
   if (targets.length === 0) {
     issues.push(issue(encounter, encounter.mechanic === "spin" ? "spin_target_required" : "target_required"));
+  }
+  if (
+    (encounter.mechanic === "spin" && encounter.spinTargets.length > 1) ||
+    (encounter.mechanic === "drag" && encounter.dragTargets.length > 1)
+  ) {
+    issues.push(issue(encounter, "single_target_required"));
   }
 
   if (encounter.mechanic === "hit" && !encounter.hitBubbles.some((target) =>
@@ -423,6 +439,15 @@ export function evaluateLessonPublishReadiness(
     left.instance.id.localeCompare(right.instance.id),
   );
 
+  if (ordered.length === 0) {
+    blockers.push({
+      encounterId: null,
+      code: "lesson_encounter_required",
+      message: "This lesson has no playable encounters yet.",
+      nextAction: ISSUE_ACTIONS.lesson_encounter_required,
+    });
+  }
+
   const inputById = new Map(
     ordered.map(({ event, mechanic, instance }) => [
       instance.id,
@@ -502,7 +527,7 @@ export function evaluateLessonPublishReadiness(
   // cue before its hit time, and a Hit remains active through its miss window. The
   // old raw-time overlap check allowed two tick-disjoint cues to fight over the
   // single presenter during that visual window.
-  const concurrencyBlockedEncounterIds = new Set<string>();
+  const concurrencyIssuesByEncounterId = new Map<string, EncounterIssue>();
   for (let index = 0; index < ordered.length; index += 1) {
     const left = ordered[index];
     const leftInput = inputFromEvent(left.event, left.mechanic, left.instance);
@@ -537,17 +562,31 @@ export function evaluateLessonPublishReadiness(
         if (sharedPad === undefined) continue;
       }
 
-      if (concurrencyBlockedEncounterIds.has(right.instance.id)) continue;
-      const conflict = issue(rightInput, "unsupported_concurrency");
       const rightLabel = moveLabel(right.instance.id, right.mechanic);
       const leftLabel = moveLabel(left.instance.id, left.mechanic);
-      blockers.push({
+      const priorConflict = concurrencyIssuesByEncounterId.get(right.instance.id);
+      if (priorConflict) {
+        const relatedEncounterIds = priorConflict.relatedEncounterIds ?? [left.instance.id];
+        relatedEncounterIds.push(left.instance.id);
+        priorConflict.relatedEncounterIds = relatedEncounterIds;
+        const firstRelated = inputById.get(relatedEncounterIds[0]);
+        const firstRelatedLabel = firstRelated
+          ? moveLabel(relatedEncounterIds[0], firstRelated.mechanic)
+          : leftLabel;
+        priorConflict.message = `${rightLabel} overlaps ${relatedEncounterIds.length} other moves, including ${firstRelatedLabel}.`;
+        priorConflict.nextAction = `Move ${rightLabel} later until its approach window clears all ${relatedEncounterIds.length} overlapping moves.`;
+        continue;
+      }
+      const conflict = issue(rightInput, "unsupported_concurrency");
+      const blocker: EncounterIssue = {
         ...conflict,
         relatedEncounterId: left.instance.id,
+        relatedEncounterIds: [left.instance.id],
         message: `${rightLabel} overlaps ${leftLabel}.`,
-        nextAction: `Move either ${rightLabel} or ${leftLabel} on the timeline.`,
-      });
-      concurrencyBlockedEncounterIds.add(right.instance.id);
+        nextAction: `Move ${rightLabel} later so its approach window does not overlap ${leftLabel}.`,
+      };
+      blockers.push(blocker);
+      concurrencyIssuesByEncounterId.set(right.instance.id, blocker);
     }
   }
 
@@ -556,6 +595,45 @@ export function evaluateLessonPublishReadiness(
     blockers,
     nextAction: blockers[0]?.nextAction ?? "Ready to play!",
   };
+}
+
+/** Reject a newly-created Unity presenter collision without trapping old drafts in place. */
+export function findNewTimingConflict(
+  before: readonly AuthoredTimelineEvent[],
+  after: readonly AuthoredTimelineEvent[],
+  options: { activityKey?: string | null; equationQueue?: readonly AuthoredSavedEquation[] } = {},
+): EncounterIssue | null {
+  const isTimingConflict = (blocker: EncounterIssue) =>
+    blocker.code === "unsupported_concurrency" || blocker.code === "activity_hit_spacing";
+  const key = (blocker: EncounterIssue, relatedEncounterId?: string) =>
+    `${blocker.code}\u0000${blocker.encounterId}\u0000${relatedEncounterId ?? ""}`;
+  const relatedIds = (blocker: EncounterIssue) =>
+    blocker.code === "unsupported_concurrency"
+      ? blocker.relatedEncounterIds ?? [blocker.relatedEncounterId]
+      : [blocker.relatedEncounterId];
+  const existing = new Set(evaluateLessonPublishReadiness(before, options).blockers
+    .filter(isTimingConflict)
+    .flatMap((blocker) => relatedIds(blocker).map((relatedId) => key(blocker, relatedId))));
+  return evaluateLessonPublishReadiness(after, options).blockers.find((blocker) =>
+    isTimingConflict(blocker) && relatedIds(blocker).some((relatedId) => !existing.has(key(blocker, relatedId))),
+  ) ?? null;
+}
+
+/** Keep every timeline drag inside the timing shape accepted by Unity. */
+export function retimeGuidedEncounter(
+  encounter: Pick<GuidedEncounterInput, "mechanic" | "tick" | "endTick">,
+  edge: "start" | "end",
+  seconds: number,
+): { tick: number; endTick: number } {
+  const next = Math.max(0, Number(seconds.toFixed(3)));
+  if (encounter.mechanic === "hit") return { tick: next, endTick: next };
+  const start = Math.max(0, encounter.tick ?? 0);
+  const end = Math.max(start + 0.01, encounter.endTick ?? start + 0.01);
+  if (edge === "start") {
+    const tick = Math.min(next, end - 0.01);
+    return { tick, endTick: end };
+  }
+  return { tick: start, endTick: Math.max(next, start + 0.01) };
 }
 
 export function normalizeStagedMechanic(

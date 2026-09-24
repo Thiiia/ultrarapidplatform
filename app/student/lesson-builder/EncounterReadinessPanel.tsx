@@ -9,7 +9,9 @@ export type EncounterReadinessPanelProps = {
   hasSong: boolean;
   canPublish: boolean;
   canPlay: boolean;
-  onSelectEncounter: (encounterId: string) => void;
+  onSelectEncounter: (encounterId: string, issueCode: string) => void;
+  onCreateEncounter?: () => void;
+  onFixFirstTimingIssue?: () => void;
   isOpen: boolean;
   onToggle: () => void;
 };
@@ -20,6 +22,8 @@ export function EncounterReadinessPanel({
   canPublish,
   canPlay,
   onSelectEncounter,
+  onCreateEncounter,
+  onFixFirstTimingIssue,
   isOpen,
   onToggle,
 }: EncounterReadinessPanelProps) {
@@ -28,6 +32,7 @@ export function EncounterReadinessPanel({
   const [blockerPageState, setBlockerPageState] = useState<{ key: string; page: number } | null>(null);
   const requestedBlockerPage = blockerPageState?.key === blockerSetKey ? blockerPageState.page : 0;
   const blockerPage = paginateReadinessBlockers(blockerGroups, requestedBlockerPage);
+  const firstBlocker = blockerPage.page === 0 ? blockerPage.blockers[0]?.blocker : undefined;
 
   const contentReady = readiness.ready;
   const fullyReady = contentReady && hasSong && canPublish && canPlay;
@@ -77,6 +82,7 @@ export function EncounterReadinessPanel({
           </div>
         ) : !contentReady ? (
           <div className={styles.editorReadinessBlockers}>
+            <div className={styles.editorReadinessCopy}>Fix one thing at a time. Start with the first issue below.</div>
             {blockerPage.blockers.map(({ key, blocker, occurrences }) => {
               const content = <>
                 <span>{blocker.message}</span>
@@ -89,17 +95,27 @@ export function EncounterReadinessPanel({
                 <button
                   key={key}
                   type="button"
-                  onClick={() => onSelectEncounter(blocker.encounterId!)}
+                  onClick={() => onSelectEncounter(blocker.encounterId!, blocker.code)}
                   className={styles.editorReadinessBlocker}
                 >
                   {content}
                 </button>
               ) : (
-                <div key={key} className={`${styles.editorReadinessBlocker} ${styles.editorReadinessBlockerStatic}`}>
-                  {content}
-                </div>
+                blocker.code === "lesson_encounter_required" && onCreateEncounter ? (
+                  <button key={key} type="button" onClick={onCreateEncounter} className={styles.editorReadinessBlocker}>
+                    <span>{blocker.message}</span>
+                    <span className={styles.editorReadinessBlockerAction}>Add a Hit at the playhead</span>
+                  </button>
+                ) : <div key={key} className={`${styles.editorReadinessBlocker} ${styles.editorReadinessBlockerStatic}`}>
+                    {content}
+                  </div>
               );
             })}
+            {firstBlocker?.code === "activity_hit_spacing" && onFixFirstTimingIssue ? (
+              <button type="button" onClick={onFixFirstTimingIssue} className={styles.editorReadinessBlocker}>
+                Move this catch cue for me
+              </button>
+            ) : null}
             {blockerPage.total > 0 ? (
               <nav className={styles.editorReadinessBlockerPagination} aria-label="Readiness issues">
                 <button

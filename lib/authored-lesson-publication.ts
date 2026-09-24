@@ -81,6 +81,9 @@ export function prepareAuthoredLessonForPublication({
       activityKey: identity.activityKey,
     });
   }
+  if (draft.encounters.length === 0) {
+    throw new Error('Authored lesson must contain at least one encounter with a playable move before publication.');
+  }
   const activityContractIssue = getAuthoredActivityContractIssues(draft)[0];
   if (activityContractIssue) {
     const encounter = activityContractIssue.encounterId
@@ -105,8 +108,13 @@ export function prepareAuthoredLessonForPublication({
       )[0];
       if (timingIssue) {
         const related = timingIssue.relatedEncounterId ? ` (${timingIssue.relatedEncounterId})` : '';
+        const completionGuidance = timingIssue.code === 'gem_spacing'
+          ? ` Move Hit '${timingIssue.encounterId}' to ${timingIssue.earliestStartSeconds?.toFixed(2)}s or later so the previous gem can finish its catch, spin and drag.`
+          : timingIssue.code === 'gem_tail'
+            ? ` Keep the song playing until at least ${timingIssue.minimumStopSeconds?.toFixed(2)}s so the final gem can finish its interaction.`
+            : '';
         throw new Error(
-          `Number Bonds timing ${timingIssue.code} for encounter '${timingIssue.encounterId}'${related}.`,
+          `Number Bonds timing ${timingIssue.code} for encounter '${timingIssue.encounterId}'${related}.${completionGuidance}`,
         );
       }
     }

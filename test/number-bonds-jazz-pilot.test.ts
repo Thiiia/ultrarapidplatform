@@ -52,3 +52,28 @@ test("pins the pilot to the audited immutable rhythm/audio identities", () => {
     audioSha256: "0b4eeff6cafe9b8608f541f378183e95fa75357f2ab29a9b62f103bfbbe2eeb5",
   });
 });
+
+test("publication rejects Number Bonds cues too close for the Unity gem sequence", () => {
+  const draft = buildNumberBondsJazzPilotDraft();
+  const clock = createLessonClock(JAZZ_CLOCK);
+  draft.encounters[1].startTick = draft.encounters[0].startTick + 480;
+  draft.encounters[1].endTick = draft.encounters[1].startTick;
+
+  assert.throws(() => prepareAuthoredLessonForPublication({
+    sidecarContent: JSON.stringify(draft),
+    identity: { songAssetId: "jazzmaybach", activityKey: "number-bonds", authorId: "author-1", revision: "revision-1" },
+    runtimeClock: clock,
+  }), /previous gem can finish/i);
+});
+
+test("publication rejects a Number Bonds stop before the final drag can complete", () => {
+  const draft = buildNumberBondsJazzPilotDraft();
+  const clock = createLessonClock(JAZZ_CLOCK);
+  draft.stopAtSeconds = clock.toSeconds(draft.encounters[draft.encounters.length - 1].startTick) + 11;
+
+  assert.throws(() => prepareAuthoredLessonForPublication({
+    sidecarContent: JSON.stringify(draft),
+    identity: { songAssetId: "jazzmaybach", activityKey: "number-bonds", authorId: "author-1", revision: "revision-1" },
+    runtimeClock: clock,
+  }), /final gem/i);
+});
