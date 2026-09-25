@@ -489,8 +489,17 @@ export async function POST(request: Request) {
       rhythmSourceRevision: resolvedRhythmSource?.sourceRevision ?? null,
     });
 
-    try { validateLessonContent(chartContent, sidecarContent, { forSave: true }); }
-    catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid lesson content" }, { status: 400 }); }
+    try {
+      validateLessonContent(chartContent, sidecarContent, { forSave: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Invalid lesson content";
+      console.warn("[lesson-builder/save] validation rejected", {
+        activityKey,
+        songAssetId,
+        message: message.slice(0, 280),
+      });
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
 
     const previousSidecarContent =
       targets.current?.sidecarBucket && targets.current.sidecarPath
@@ -514,7 +523,13 @@ export async function POST(request: Request) {
         previousSidecarContent,
       });
     } catch (error) {
-      return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid authored lesson payload" }, { status: 400 });
+      const message = error instanceof Error ? error.message : "Invalid authored lesson payload";
+      console.warn("[lesson-builder/save] authored publication rejected", {
+        activityKey,
+        songAssetId,
+        message: message.slice(0, 280),
+      });
+      return NextResponse.json({ error: message }, { status: 400 });
     }
     
     // Concurrency precondition: the draft's previous revision must match the

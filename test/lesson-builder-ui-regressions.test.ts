@@ -31,6 +31,10 @@ const songChoiceRequestSource = readFileSync(
   join(process.cwd(), "lib/editor/song-choice-request.ts"),
   "utf8",
 );
+const lessonSaveRouteSource = readFileSync(
+  join(process.cwd(), "app/api/lesson-builder/save/route.ts"),
+  "utf8",
+);
 
 test("editor status messages use one animated, dismissible toast lifecycle", () => {
   assert.match(lessonBuilderSource, /function EditorToast\(/);
@@ -85,6 +89,31 @@ test("lesson readiness is an expandable status control", () => {
   assert.match(readinessSource, /aria-expanded=\{isOpen\}/);
   assert.match(readinessSource, /hidden=\{!isOpen\}/);
   assert.match(lessonBuilderSource, /isOpen=\{isReadinessOpen\}/);
+});
+
+test("Number Bonds lesson hydration refreshes its exact shared rhythm without changing activity identity", () => {
+  const refreshStart = lessonBuilderSource.indexOf("refresh: async () => {");
+  const refreshSource = refreshStart >= 0 ? lessonBuilderSource.slice(refreshStart) : "";
+  const refreshEnd = refreshSource.search(/\r?\n {6}\},\r?\n {4}\}\)/);
+  const hydrationRefresh = refreshEnd > 0
+    ? refreshSource.slice(0, refreshEnd)
+    : undefined;
+
+  assert.ok(hydrationRefresh, "lesson hydration should expose a refresh callback");
+  assert.match(hydrationRefresh, /if\s*\(\s*selectedSong\.rhythmSource\s*\)/);
+  assert.match(hydrationRefresh, /resolveEditorRhythmSourceRefreshUrls/);
+  assert.match(hydrationRefresh, /buildEditorRhythmSourceRefreshQuery/);
+});
+
+test("authoring save exposes actionable validation feedback but keeps infrastructure errors generic", () => {
+  assert.match(lessonBuilderSource, /getAuthoringLessonSaveFailureMessage/);
+  assert.match(
+    lessonBuilderSource,
+    /status: response\.status[\s\S]*?getAuthoringLessonSaveFailureMessage/,
+  );
+  assert.match(lessonSaveRouteSource, /\[lesson-builder\/save\] validation rejected/);
+  assert.match(lessonSaveRouteSource, /\[lesson-builder\/save\] authored publication rejected/);
+  assert.match(lessonSaveRouteSource, /message\.slice\(0, 280\)/);
 });
 
 test("dense readiness blockers remain available in a bounded scroll area", () => {

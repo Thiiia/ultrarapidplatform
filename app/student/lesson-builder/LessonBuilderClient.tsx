@@ -18,6 +18,11 @@ import {
   SONG_CHOICE_REQUEST_TIMEOUT_MS,
 } from "@/lib/editor/song-choice-request";
 import {
+  buildEditorRhythmSourceRefreshQuery,
+  resolveEditorRhythmSourceRefreshUrls,
+} from "@/lib/editor/rhythm-source-refresh";
+import { getAuthoringLessonSaveFailureMessage } from "@/lib/editor/lesson-save-error";
+import {
   serializeAuthoredLesson,
   timelineEventsFromAuthoredLesson,
   type AuthoredLessonDraft,
@@ -12374,6 +12379,11 @@ export default function LessonBuilderClient({
         appendSongFlowDebug("lesson-builder:save:failed", "The server rejected this save.", {
           status: response.status, error: result?.error, sidecarVersion: sidecarToPersist.version,
         });
+        const validationMessage = getAuthoringLessonSaveFailureMessage(response.status, result?.error);
+        if (validationMessage) {
+          setSaveStatus(`${validationMessage}${workspaceSource && guidedStarted ? " A backup stays in this browser." : ""}`);
+          return false;
+        }
         throw new Error(result?.error ?? "Unable to save lesson files");
       }
 
@@ -12870,6 +12880,29 @@ export default function LessonBuilderClient({
         ? jsonFromSignedUrl(url, signal)
         : Promise.resolve(emptySidecar),
       refresh: async () => {
+        if (selectedSong.rhythmSource) {
+          const source = selectedSong.rhythmSource;
+          const url = buildEditorRhythmSourceRefreshQuery({
+            activityKey: resolvedActivityKey,
+            authorName: selectedSong.authorName,
+          });
+          const { response, payload } = await fetchJsonWithTimeout<{
+            songs?: SongChoiceOption[];
+            error?: string;
+          }>(url, { signal: controller.signal });
+          if (!response.ok) {
+            throw new Error(payload?.error ?? "Could not refresh the selected Number Bonds song.");
+          }
+          return resolveEditorRhythmSourceRefreshUrls(payload?.songs ?? [], {
+            songAssetId: selectedSong.id,
+            targetActivityKey: resolvedActivityKey,
+            sourceActivityKey: source.activityKey,
+            sourceRevision: source.revision,
+            sourceChartSha256: source.chartSha256,
+            sourceAudioSha256: source.audioSha256,
+          });
+        }
+
         const revision = selectedSong.revision ?? extractRevisionFromStoragePath(selectedSong.chart.path);
         if (!revision) return null;
         const fresh = await requestFreshSongLaunchPackage({
