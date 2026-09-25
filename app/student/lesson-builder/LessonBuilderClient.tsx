@@ -10540,10 +10540,6 @@ export default function LessonBuilderClient({
       ? numberBondHitCount
       : getDefaultNumberBondWholeForSong(selectedSongAssetId)
   );
-  const numberBondPreview = numberBondValues ?? createDefaultNumberBondForSong(
-    selectedSongAssetId,
-    numberBondWholeDefault,
-  );
   const numberBondSongNotes = useMemo(() => getNumberBondSongNotes(
     chartFile || originalChartFileRef.current,
     selectedSongLaunch?.rhythmDifficultyKey ?? "ExpertSingle",
@@ -10555,6 +10551,9 @@ export default function LessonBuilderClient({
     : numberBondValues?.whole ?? (numberBondSongCapacity >= 2
       ? 2 + ((getDefaultNumberBondWholeForSong(selectedSongAssetId) - 2) % (Math.min(NUMBER_BONDS_MAX_WHOLE, numberBondSongCapacity) - 1))
       : numberBondWholeDefault);
+  const numberBondPreview = numberBondValues?.whole === numberBondTargetWhole
+    ? numberBondValues
+    : createDefaultNumberBondForSong(selectedSongAssetId, numberBondTargetWhole);
   const numberBondAuthoredNotesMatch = numberBondValues?.whole === numberBondTargetWhole &&
     numberBondHitCount === numberBondTargetWhole;
   const numberBondOrbitNotes = useMemo(() => {
@@ -14291,12 +14290,15 @@ export default function LessonBuilderClient({
                         ×
                       </button>
                       <NumberBondsSetupPanel
-                        key={`${selectedSongAssetId}:${numberBondEquation?.id ?? "default"}`}
+                        key={`${selectedSongAssetId}:${numberBondEquation?.id ?? "default"}:${numberBondTargetWhole}`}
                         songAssetId={selectedSongAssetId}
-                        wholeDefault={numberBondWholeDefault}
-                        bond={numberBondValues}
+                        wholeDefault={numberBondTargetWhole}
+                        bond={numberBondValues?.whole === numberBondTargetWhole ? numberBondValues : null}
                         hitCueCount={numberBondHitCount}
-                        onSaveBond={handleSaveNumberBond}
+                        onSaveBond={(whole) => {
+                          setNumberBondDraftTarget({ songAssetId: selectedSongAssetId, whole });
+                          handleSaveNumberBond(whole);
+                        }}
                       />
                     </div>
                   ) : (
@@ -14340,7 +14342,7 @@ export default function LessonBuilderClient({
             </div>
           ) : (
             <>
-              {isBuilderPanelOpen ? (
+              {isBuilderPanelOpen && !isNumberBondsActivity ? (
                 <div
                   className={styles.editorPanelSurface}
                   style={{
@@ -14357,43 +14359,32 @@ export default function LessonBuilderClient({
                     type="button"
                     className={styles.editorPanelCloseButton}
                     onClick={() => setIsBuilderPanelOpen(false)}
-                    aria-label={isNumberBondsActivity ? "Collapse Number Bond panel" : "Collapse equation builder"}
-                    title={isNumberBondsActivity ? "Collapse Number Bond panel" : "Collapse equation builder"}
+                    aria-label="Collapse equation builder"
+                    title="Collapse equation builder"
                   >
                     ×
                   </button>
-                  {isNumberBondsActivity ? (
-                    <NumberBondsSetupPanel
-                      key={`${selectedSongAssetId}:${numberBondEquation?.id ?? "default"}`}
-                      songAssetId={selectedSongAssetId}
-                      wholeDefault={numberBondWholeDefault}
-                      bond={numberBondValues}
-                      hitCueCount={numberBondHitCount}
-                      onSaveBond={handleSaveNumberBond}
-                    />
-                  ) : (
-                    <LeftEquationBuilderPanel
-                      draftTokens={draftTokens}
-                      activeEventLabel={centerContextEventIndex >= 0 ? studentCopy.editor.moveGroup(centerContextEventIndex + 1) : null}
-                      activeEventEquationText={centerContextEventEquation ? tokensToEquationState(centerContextEventEquation.tokens) : null}
-                      onAddToken={handleAppendEquationToken}
-                      onClearEquation={handleClearEquationDraft}
-                      onSaveEquation={handleSaveEquation}
-                      onUseDraftInEvent={handleUseDraftInActiveEvent}
-                      tutorialPrompt={
-                        showSaveEquationTutorialPrompt
-                          ? "Save this equation so you can use it in your lesson."
-                          : null
-                      }
-                      onSkipTutorial={() => setTutorialStep(null)}
-                    />
-                  )}
+                  <LeftEquationBuilderPanel
+                    draftTokens={draftTokens}
+                    activeEventLabel={centerContextEventIndex >= 0 ? studentCopy.editor.moveGroup(centerContextEventIndex + 1) : null}
+                    activeEventEquationText={centerContextEventEquation ? tokensToEquationState(centerContextEventEquation.tokens) : null}
+                    onAddToken={handleAppendEquationToken}
+                    onClearEquation={handleClearEquationDraft}
+                    onSaveEquation={handleSaveEquation}
+                    onUseDraftInEvent={handleUseDraftInActiveEvent}
+                    tutorialPrompt={
+                      showSaveEquationTutorialPrompt
+                        ? "Save this equation so you can use it in your lesson."
+                        : null
+                    }
+                    onSkipTutorial={() => setTutorialStep(null)}
+                  />
                 </div>
-              ) : (
-                <EditorPanelRail label={isNumberBondsActivity ? "Bond" : "Build"} onOpen={() => setIsBuilderPanelOpen(true)} />
-              )}
+              ) : !isNumberBondsActivity ? (
+                <EditorPanelRail label="Build" onOpen={() => setIsBuilderPanelOpen(true)} />
+              ) : null}
 
-              {isBuilderPanelOpen ? (
+              {isBuilderPanelOpen && !isNumberBondsActivity ? (
                 <div
                   role="separator"
                   aria-orientation="vertical"
