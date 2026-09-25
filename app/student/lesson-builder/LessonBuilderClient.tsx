@@ -50,9 +50,19 @@ import {
   NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS,
   NUMBER_BONDS_MINIMUM_HIT_SPACING_SECONDS,
 } from "@/lib/number-bonds-timing";
+import {
+  createDefaultNumberBondForSong,
+  createNumberBondEquation,
+  getDefaultNumberBondWholeForSong,
+  getNumberBondValues,
+  NUMBER_BONDS_MAX_WHOLE,
+  type NumberBondValues,
+} from "@/lib/number-bonds-authoring";
+import { getNumberBondSongNotes, getSpacedNumberBondNotes, planNumberBondNotes } from "@/lib/number-bonds-note-plan";
 import { getLearnerFacingError, studentCopy } from "@/lib/student-copy";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import { GuidedEncounterComposer } from "./GuidedEncounterComposer";
+import { NumberBondsMissionComposer } from "./NumberBondsMissionComposer";
 import { EncounterReadinessPanel } from "./EncounterReadinessPanel";
 import {
   evaluateEncounterReadiness,
@@ -928,6 +938,10 @@ function makeMechanicInstance(tick?: number): MechanicInstanceState {
     spinTargets: [],
     dragTargets: [],
   };
+}
+
+function createDefaultNumberBondHitBubble(): HitBubblePlacement {
+  return { tokenIndex: 0, pads: ["left"], positions: ["left"] };
 }
 
 function makeMechanicInstances(count: number) {
@@ -2664,7 +2678,7 @@ function SongFilePickerModal({
             </select>
             <div style={{ color: rhythmSources.length ? "#AFC2D8" : "#FF9B9B", fontSize: 11, lineHeight: 1.45 }}>
               {rhythmSources.length
-                ? "This brings across verified beat timing only. Your Number Bonds equation and catches start fresh; the song audio remains shared."
+                ? "This brings across verified beat timing only. Your Number Bonds target and catch cues start fresh; the song audio remains shared."
                 : "This song has no verified rhythm revision available to start from."}
             </div>
           </div>
@@ -4450,6 +4464,7 @@ function MechanicInstanceRow({
             instance={guidedInstance}
             tokens={equation?.tokens ?? []}
             readiness={readiness}
+            activityKey={activityKey}
             step={activeInstanceIndex + 1}
             stepCount={safeCount}
             dragSources={dragSources}
@@ -5771,6 +5786,150 @@ function EquationTimeline({
   );
 }
 
+function NumberBondsSetupPanel({
+  songAssetId,
+  wholeDefault,
+  bond,
+  hitCueCount,
+  onSaveBond,
+}: {
+  songAssetId: string;
+  wholeDefault: number;
+  bond: NumberBondValues | null;
+  hitCueCount: number;
+  onSaveBond: (whole: number) => void;
+}) {
+  const [wholeText, setWholeText] = useState(() => String(bond?.whole ?? wholeDefault));
+  const [variation, setVariation] = useState(0);
+  const whole = Number(wholeText);
+  const validWhole = Number.isInteger(whole) && whole >= 2 && whole <= NUMBER_BONDS_MAX_WHOLE;
+  const completedCueCount = validWhole ? Math.min(hitCueCount, whole) : 0;
+  const remainingCueCount = validWhole ? Math.max(0, whole - hitCueCount) : 0;
+  const extraCueCount = validWhole ? Math.max(0, hitCueCount - whole) : 0;
+
+  function randomizeWhole() {
+    const currentWhole = validWhole ? whole : wholeDefault;
+    for (let attempt = 1; attempt <= NUMBER_BONDS_MAX_WHOLE; attempt += 1) {
+      const nextVariation = variation + attempt;
+      const nextWhole = getDefaultNumberBondWholeForSong(`${songAssetId}:reroll:${nextVariation}`);
+      if (nextWhole === currentWhole) continue;
+      setVariation(nextVariation);
+      setWholeText(String(nextWhole));
+      return;
+    }
+  }
+
+  return (
+    <section
+      aria-label="Number Bonds setup"
+      style={{
+        width: "100%",
+        height: "100%",
+        minHeight: 0,
+        padding: 14,
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        overflowY: "auto",
+        background: panelBackgroundColor,
+        color: textColor,
+        fontFamily: "Space Grotesk, sans-serif",
+      }}
+    >
+      <div style={{ display: "grid", gap: 6 }}>
+        <strong style={{ fontSize: 15, color: "#FFFFFF" }}>Make a number</strong>
+        <span style={{ fontSize: 11, lineHeight: 1.45, color: "#FFFFFF99" }}>
+          Set the whole the player fills. Each catch cue stands for one unit block; the song timeline supplies its timing.
+        </span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "42px minmax(0, 1fr) 42px", gap: 8, alignItems: "stretch" }}>
+        <button
+          type="button"
+          aria-label="Decrease target whole"
+          disabled={!validWhole || whole <= 2}
+          onClick={() => setWholeText(String(Math.max(2, whole - 1)))}
+          style={{ borderRadius: 10, border: "1px solid #53677F", background: "#182436", color: "#FFFFFF", fontSize: 24, fontWeight: 800, cursor: validWhole && whole > 2 ? "pointer" : "not-allowed" }}
+        >−</button>
+        <label style={{ minWidth: 0, display: "grid", justifyItems: "center", gap: 4, borderRadius: 12, border: "1px solid rgba(207,255,4,.38)", background: "rgba(207,255,4,.08)", padding: "10px 12px", color: "#DFFF70" }}>
+          <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: ".12em" }}>MAKE</span>
+          <input
+            aria-label="Number to make"
+            data-repair-control="whole"
+            type="number"
+            min={2}
+            max={NUMBER_BONDS_MAX_WHOLE}
+            step={1}
+            value={wholeText}
+            onChange={(event) => setWholeText(event.currentTarget.value)}
+            style={{ width: "100%", minWidth: 0, border: 0, outline: 0, background: "transparent", color: "#CFFF04", textAlign: "center", font: "900 38px/1 Space Grotesk, sans-serif" }}
+          />
+        </label>
+        <button
+          type="button"
+          aria-label="Increase target whole"
+          disabled={!validWhole || whole >= NUMBER_BONDS_MAX_WHOLE}
+          onClick={() => setWholeText(String(Math.min(NUMBER_BONDS_MAX_WHOLE, whole + 1)))}
+          style={{ borderRadius: 10, border: "1px solid #53677F", background: "#182436", color: "#FFFFFF", fontSize: 24, fontWeight: 800, cursor: validWhole && whole < NUMBER_BONDS_MAX_WHOLE ? "pointer" : "not-allowed" }}
+        >+</button>
+      </div>
+
+      {validWhole ? (
+        <div style={{ display: "grid", gap: 9, padding: 11, borderRadius: 12, background: "#111B2A", border: "1px solid #FFFFFF1A" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
+            <strong style={{ color: "#FFFFFF", fontSize: 12 }}>Number blocks</strong>
+            <span role="status" style={{ color: remainingCueCount === 0 && extraCueCount === 0 ? "#CFFF04" : "#FFFFFF99", fontSize: 10, fontWeight: 800 }}>
+              {extraCueCount > 0
+                ? `${hitCueCount} / ${whole} cues · ${extraCueCount} to remove`
+                : remainingCueCount > 0
+                  ? `${completedCueCount} / ${whole} cues · ${remainingCueCount} to add`
+                  : `${whole} / ${whole} cues ready`}
+            </span>
+          </div>
+          <div role="img" aria-label={`${completedCueCount} of ${whole} unit block cues are placed`} style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 6 }}>
+            {Array.from({ length: whole }, (_, index) => {
+              const isScheduled = index < completedCueCount;
+              return (
+                <span key={index} aria-hidden="true" style={{ aspectRatio: "1", display: "grid", placeItems: "center", borderRadius: 7, border: `1px ${isScheduled ? "solid" : "dashed"} ${isScheduled ? "#CFFF04" : "#FFFFFF55"}`, background: isScheduled ? "rgba(207,255,4,.18)" : "#FFFFFF08", color: isScheduled ? "#DFFF70" : "#FFFFFF55", fontSize: 10, fontWeight: 900 }}>
+                  {index + 1}
+                </span>
+              );
+            })}
+          </div>
+          <span style={{ color: "#FFFFFF80", fontSize: 10, lineHeight: 1.4 }}>
+            One cue fills one block. Timing feedback stays on the performance step below the song timeline.
+          </span>
+        </div>
+      ) : null}
+
+      {!validWhole ? (
+        <div role="alert" style={{ color: "#FFCB6B", fontSize: 11, lineHeight: 1.4 }}>
+          Choose a whole number from 2 to {NUMBER_BONDS_MAX_WHOLE}.
+        </div>
+      ) : null}
+
+      <div style={{ marginTop: "auto", display: "grid", gap: 8 }}>
+        <button
+          type="button"
+          onClick={randomizeWhole}
+          style={{ minHeight: 36, display: "flex", justifyContent: "center", alignItems: "center", gap: 6, borderRadius: 9, border: "1px solid #52647B", background: "#182436", color: "#DCE7F4", fontSize: 11, fontWeight: 800, cursor: "pointer" }}
+        >
+          <ReplayRoundedIcon aria-hidden="true" fontSize="small" /> Shuffle this song’s target
+        </button>
+        <button
+          type="button"
+          disabled={!validWhole}
+          onClick={() => onSaveBond(whole)}
+          style={{ minHeight: 40, borderRadius: 9, border: "1px solid #CFFF04", background: validWhole ? "#CFFF04" : "#657045", color: "#071222", fontSize: 12, fontWeight: 900, cursor: validWhole ? "pointer" : "not-allowed" }}
+        >
+          Save target for this song
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function EquationsPanel({
   savedEquations,
   onNewEquation,
@@ -7016,6 +7175,8 @@ function CenterChoicePanel({
   onCreateEquation,
   onBrowseLibrary,
   showWorkspacePrompt,
+  activityKey,
+  numberBondValues,
   hideHeader = false,
 }: {
   choice: CenterChoice;
@@ -7036,8 +7197,39 @@ function CenterChoicePanel({
   onCreateEquation: () => void;
   onBrowseLibrary: () => void;
   showWorkspacePrompt: boolean;
+  activityKey?: string | null;
+  numberBondValues?: NumberBondValues | null;
   hideHeader?: boolean;
 }) {
+  if (activityKey === "number-bonds") {
+    const bond = numberBondValues ?? null;
+    return (
+      <section aria-label="Number Bonds preview" style={{ width: "100%", height: "100%", minHeight: 0, display: "grid", placeItems: "center", boxSizing: "border-box", padding: 20, overflow: "auto", background: row2Column2BackgroundColor, color: textColor, fontFamily: "Space Grotesk, sans-serif" }}>
+        <div style={{ width: "min(680px, 100%)", display: "grid", justifyItems: "center", gap: 18 }}>
+          <div style={{ textAlign: "center", display: "grid", gap: 5 }}>
+            <strong style={{ color: "#FFFFFF", fontSize: 19 }}>Number Bonds level preview</strong>
+            <span style={{ color: "#FFFFFF99", fontSize: 11 }}>One unit block is scheduled for each catch cue.</span>
+          </div>
+          {bond ? (
+            <div aria-label={`Make ${bond.whole} using ${bond.whole} unit blocks`} style={{ width: "min(430px, 100%)", display: "grid", justifyItems: "center", gap: 14 }}>
+              <div style={{ display: "grid", justifyItems: "center", gap: 6 }}>
+                <span style={{ color: "#FFFFFF80", fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".1em" }}>Make</span>
+                <strong style={{ minWidth: 116, height: 82, display: "grid", placeItems: "center", padding: "0 18px", boxSizing: "border-box", borderRadius: 18, border: "1px solid rgba(207,255,4,.56)", background: "linear-gradient(145deg, rgba(207,255,4,.18), rgba(35,49,17,.86))", color: "#DFFF70", fontSize: 42, boxShadow: "0 0 30px rgba(207,255,4,.16)" }}>{bond.whole}</strong>
+              </div>
+              <div style={{ width: "100%", padding: 14, boxSizing: "border-box", borderRadius: 16, background: "#17242D", border: "1px solid #FFFFFF1A" }}>
+                <div role="img" aria-label={`${bond.whole} empty unit blocks`} style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 9 }}>
+                  {Array.from({ length: bond.whole }, (_, index) => (
+                    <span key={index} aria-hidden="true" style={{ aspectRatio: "1", display: "grid", placeItems: "center", borderRadius: "50%", border: "3px dashed #FFFFFF66", background: "#0C1821", color: "#FFFFFF70", fontSize: 11, fontWeight: 800 }}>{index + 1}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : <span role="status" style={{ color: "#FFFFFF99", fontSize: 12 }}>Choose a target whole in the Number Bonds block panel.</span>}
+        </div>
+      </section>
+    );
+  }
+
   const isCreate = choice === "create";
   const isPremade = choice === "premade";
   const hasDraft = draftTokens.length > 0;
@@ -9655,6 +9847,10 @@ export default function LessonBuilderClient({
   const [pendingSongFile, setPendingSongFile] = useState<File | null>(null);
 
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventSlot[]>([]);
+  const [numberBondDraftTarget, setNumberBondDraftTarget] = useState<{ songAssetId: string; whole: number } | null>(null);
+  const [numberBondLaunchPendingWhole, setNumberBondLaunchPendingWhole] = useState<number | null>(null);
+  const numberBondAutoLaunchRef = useRef<number | null>(null);
+  const numberBondShuffleRef = useRef(0);
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [savedEquations, setSavedEquations] = useState<SavedEquation[]>([]);
   const [templateEquations, setTemplateEquations] = useState<SavedEquation[]>([]);
@@ -9763,7 +9959,8 @@ export default function LessonBuilderClient({
   const [filePickerActivityKey, setFilePickerActivityKey] =
     useState<SongActivityKey>(defaultSongActivityKey);
   const isAdvancedMode = advancedMode;
-  const isGuidedStart = entryIntent === "personalize" && !guidedStarted && isLessonLoaded;
+  const isGuidedStart = entryIntent === "personalize" && !guidedStarted && isLessonLoaded
+    && (selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) !== "number-bonds";
   const [selectedContextMechanicKey, setSelectedContextMechanicKey] =
     useState<string | null>(null);
   const [pendingRangeSelection, setPendingRangeSelection] =
@@ -10304,11 +10501,94 @@ export default function LessonBuilderClient({
 
   const selectedEquation = useMemo(
     () =>
-      [...savedEquations, ...templateEquations].find(
+      [...authoredEquationQueue, ...savedEquations, ...templateEquations].find(
         (equation) => equation.id === selectedEquationId,
       ) ?? null,
-    [savedEquations, selectedEquationId, templateEquations],
+    [authoredEquationQueue, savedEquations, selectedEquationId, templateEquations],
   );
+
+  const isNumberBondsActivity =
+    (selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds";
+  const selectedSongAssetId =
+    selectedSongLaunch?.songAssetId ?? selectedSongStorage?.id ?? "number-bonds";
+  const numberBondEquation = useMemo(() => {
+    const eventEquations = timelineEvents.flatMap((event) => [
+      event.assignments.hit,
+      ...(event.mechanicInstances?.hit ?? []).map((instance) => instance.equation ?? null),
+    ]);
+    const recordedEquations = rtcmDraftMechanics.map((draft) =>
+      [...authoredEquationQueue, ...savedEquations].find((equation) => equation.id === draft.equationId) ?? null,
+    );
+    return [
+      ...authoredEquationQueue,
+      ...savedEquations,
+      ...eventEquations,
+      ...recordedEquations,
+    ].find((equation) => equation && getNumberBondValues(equation)) ?? null;
+  }, [authoredEquationQueue, rtcmDraftMechanics, savedEquations, timelineEvents]);
+  const numberBondValues = numberBondEquation ? getNumberBondValues(numberBondEquation) : null;
+  const numberBondHitCount = useMemo(() => {
+    const byId = new Map<string, AuthoredTimelineEvent>();
+    [...timelineEvents, ...rtcmAuthoredEvents].forEach((event) => byId.set(event.id, event));
+    return [...byId.values()].reduce((total, event) => total + Math.max(
+      event.counts?.hit ?? 0,
+      event.mechanicInstances?.hit?.length ?? 0,
+    ), 0);
+  }, [rtcmAuthoredEvents, timelineEvents]);
+  const numberBondWholeDefault = numberBondValues?.whole ?? (
+    numberBondHitCount >= 2 && numberBondHitCount <= NUMBER_BONDS_MAX_WHOLE
+      ? numberBondHitCount
+      : getDefaultNumberBondWholeForSong(selectedSongAssetId)
+  );
+  const numberBondPreview = numberBondValues ?? createDefaultNumberBondForSong(
+    selectedSongAssetId,
+    numberBondWholeDefault,
+  );
+  const numberBondSongNotes = useMemo(() => getNumberBondSongNotes(
+    chartFile || originalChartFileRef.current,
+    selectedSongLaunch?.rhythmDifficultyKey ?? "ExpertSingle",
+    audioDurationSeconds || metadata?.durationSeconds || 0,
+  ), [audioDurationSeconds, chartFile, metadata?.durationSeconds, selectedSongLaunch?.rhythmDifficultyKey]);
+  const numberBondSongCapacity = getSpacedNumberBondNotes(numberBondSongNotes).length;
+  const numberBondTargetWhole = numberBondDraftTarget?.songAssetId === selectedSongAssetId
+    ? numberBondDraftTarget.whole
+    : numberBondValues?.whole ?? (numberBondSongCapacity >= 2
+      ? 2 + ((getDefaultNumberBondWholeForSong(selectedSongAssetId) - 2) % (Math.min(NUMBER_BONDS_MAX_WHOLE, numberBondSongCapacity) - 1))
+      : numberBondWholeDefault);
+  const numberBondAuthoredNotesMatch = numberBondValues?.whole === numberBondTargetWhole &&
+    numberBondHitCount === numberBondTargetWhole;
+  const numberBondOrbitNotes = useMemo(() => {
+    const authored = numberBondAuthoredNotesMatch ? [...timelineEvents, ...rtcmAuthoredEvents]
+      .flatMap((event) => (event.mechanicInstances?.hit ?? []).map((instance) => ({
+        id: instance.id,
+        seconds: timelineTickToSeconds(instance.tick ?? event.tick),
+      })))
+      .sort((left, right) => left.seconds - right.seconds) : [];
+    if (authored.length) return authored;
+    return (planNumberBondNotes(numberBondSongNotes, numberBondTargetWhole) ?? [])
+      .map((note, index) => ({ id: `planned-${index}`, seconds: note.seconds }));
+  }, [numberBondAuthoredNotesMatch, numberBondSongNotes, numberBondTargetWhole, rtcmAuthoredEvents, timelineEvents]);
+
+  useEffect(() => {
+    if (isNumberBondsActivity && isLessonLoaded && selectedSongLaunch) {
+      router.prefetch(getPlayerLaunchRoute(navBasePath));
+    }
+  }, [isLessonLoaded, isNumberBondsActivity, navBasePath, router, selectedSongLaunch]);
+
+  useEffect(() => {
+    const expectedWhole = numberBondAutoLaunchRef.current;
+    if (expectedWhole == null || !isLessonLoaded || !hasUnsavedChanges ||
+      numberBondValues?.whole !== expectedWhole || numberBondHitCount !== expectedWhole) return;
+    numberBondAutoLaunchRef.current = null;
+    setNumberBondLaunchPendingWhole(null);
+    if (lessonPublishReadiness.ready) {
+      void handleLaunchGame();
+    } else {
+      const blocker = lessonPublishReadiness.blockers[0];
+      setSaveStatus(blocker?.nextAction ?? "These song notes need a timing adjustment before play.");
+      setIsReadinessOpen(true);
+    }
+  });
 
   const payloadForProject: LessonBuilderPayload = useMemo(
     () => ({
@@ -10721,8 +11001,12 @@ export default function LessonBuilderClient({
           ? undefined
           : tick;
     const draftId = makeId("rtcm");
-    const hitBubbles: HitBubblePlacement[] = mechanic === "hit" && options.hitPad
-      ? [{ tokenIndex: 0, positions: [options.hitPad], pads: [options.hitPad] }]
+    const hitBubbles: HitBubblePlacement[] = mechanic === "hit"
+      ? options.hitPad
+        ? [{ tokenIndex: 0, positions: [options.hitPad], pads: [options.hitPad] }]
+        : capabilities.activityKey === "number-bonds"
+          ? [createDefaultNumberBondHitBubble()]
+          : []
       : [];
     const normalized = normalizeStagedMechanic(
       {
@@ -11426,6 +11710,152 @@ export default function LessonBuilderClient({
     );
   }
 
+  function handleSaveNumberBond(whole: number) {
+    // Keep the existing runtime wire shape while asking teachers only for the
+    // whole the block tray must make. The deterministic split is internal to
+    // the Number Bonds activity and is not shown as an equation in this editor.
+    const partA = numberBondValues?.whole === whole
+      ? numberBondValues.partA
+      : createDefaultNumberBondForSong(selectedSongAssetId, whole).partA;
+    const equation = createNumberBondEquation(
+      whole,
+      partA,
+      numberBondEquation?.id ?? makeId("number-bond"),
+    );
+    const defaultBubble = createDefaultNumberBondHitBubble();
+
+    setAuthoredEquationQueue([equation]);
+    setSelectedEquationId(equation.id);
+    setTimelineEvents((current) => {
+      const nextEvents = current.map((eventSlot) => {
+        if ((eventSlot.counts?.hit ?? 0) === 0) return eventSlot;
+        const hitInstances = resizeMechanicInstances(
+          eventSlot.mechanicInstances?.hit,
+          eventSlot.counts.hit,
+        ).map((instance) => {
+          const currentBubble = instance.hitBubbles[0];
+          const pads = currentBubble?.pads.length ? currentBubble.pads : defaultBubble.pads;
+          const positions = currentBubble?.positions.length ? currentBubble.positions : pads;
+          return {
+            ...instance,
+            hitBubbles: [{
+              ...(currentBubble ?? defaultBubble),
+              tokenIndex: 0,
+              pads,
+              positions,
+            }],
+          };
+        });
+        return applyEquationToEvent({
+          ...eventSlot,
+          mechanicInstances: { ...eventSlot.mechanicInstances, hit: hitInstances },
+        }, equation);
+      });
+      syncTimelineFilesFromEvents(nextEvents);
+      return nextEvents;
+    });
+    setRtcmDraftMechanics((current) => current.map((draft) => {
+      if (draft.mechanic !== "hit") return draft;
+      const currentBubble = draft.hitBubbles[0];
+      const pads = currentBubble?.pads.length ? currentBubble.pads : defaultBubble.pads;
+      const positions = currentBubble?.positions.length ? currentBubble.positions : pads;
+      return {
+        ...draft,
+        equationId: equation.id,
+        hitBubbles: [{
+          ...(currentBubble ?? defaultBubble),
+          tokenIndex: 0,
+          pads,
+          positions,
+        }],
+      };
+    }));
+    markDirty();
+    setCenterChoice(null);
+    setIsLibraryPanelOpen(false);
+    setSaveStatus("Target saved for this song. Add or remove one catch cue per unit block.");
+  }
+
+  function handleBuildNumberBondMission(playAfterBuild: boolean) {
+    if (!selectedSongStorage || !selectedSongLaunch || !isLessonLoaded) {
+      setSaveStatus("Choose a song and wait for it to finish loading before playing.");
+      return;
+    }
+    const notes = planNumberBondNotes(numberBondSongNotes, numberBondTargetWhole);
+    if (!notes) {
+      setSaveStatus(numberBondSongCapacity >= 2
+        ? `This song can fit ${Math.min(20, numberBondSongCapacity)} notes. Choose a smaller number or another song.`
+        : "This rhythm chart needs playable notes and a known song length before Number Bonds can start.");
+      return;
+    }
+
+    const partA = numberBondValues?.whole === numberBondTargetWhole
+      ? numberBondValues.partA
+      : createDefaultNumberBondForSong(selectedSongAssetId, numberBondTargetWhole).partA;
+    const equation = createNumberBondEquation(
+      numberBondTargetWhole,
+      partA,
+      numberBondEquation?.id ?? makeId("number-bond"),
+    );
+    const chartLanePads: HitBubblePad[] = ["topLeft", "topRight", "left", "right", "bottomLeft"];
+    const events = notes.map((note, index) => {
+      const eventSlot = makeTimelineEvent(index, Number(note.seconds.toFixed(3)), { hit: 1 });
+      const pad = chartLanePads[note.lane] ?? "bottomRight";
+      eventSlot.mechanicInstances.hit[0] = {
+        ...eventSlot.mechanicInstances.hit[0],
+        tick: eventSlot.tick,
+        hitBubbles: [{ tokenIndex: 0, pads: [pad], positions: [pad] }],
+      };
+      return applyEquationToEvent(eventSlot, equation);
+    });
+
+    // An explicit rebuild replaces only this Number Bonds mission's old notes.
+    legacyEncounterSourceRef.current = null;
+    setAuthoredEquationQueue([equation]);
+    setSelectedEquationId(equation.id);
+    setRtcmDraftMechanics([]);
+    setTimelineEvents(events);
+    setActiveEventId(events[0]?.id ?? null);
+    syncTimelineFilesFromEvents(events);
+    setIsReadinessOpen(false);
+    if (playAfterBuild) {
+      numberBondAutoLaunchRef.current = numberBondTargetWhole;
+      setNumberBondLaunchPendingWhole(numberBondTargetWhole);
+      setSaveStatus(`Placed ${notes.length} notes from the song. Preparing your mission…`);
+    } else {
+      setSaveStatus(`Placed ${notes.length} notes from the song. Press Play to try the mission.`);
+    }
+  }
+
+  function handlePlayNumberBondMission() {
+    if (lessonPublishReadiness.ready && numberBondValues?.whole === numberBondTargetWhole) {
+      void handleLaunchGame();
+      return;
+    }
+    handleBuildNumberBondMission(true);
+  }
+
+  function handleShuffleNumberBondTarget() {
+    const capacity = Math.min(NUMBER_BONDS_MAX_WHOLE, numberBondSongCapacity);
+    if (capacity < 3) return;
+    for (let attempt = 0; attempt < capacity * 2; attempt += 1) {
+      numberBondShuffleRef.current += 1;
+      const randomWhole = getDefaultNumberBondWholeForSong(`${selectedSongAssetId}:reroll:${numberBondShuffleRef.current}`);
+      const nextWhole = 2 + ((randomWhole - 2) % (capacity - 1));
+      if (nextWhole === numberBondTargetWhole) continue;
+      setNumberBondDraftTarget({ songAssetId: selectedSongAssetId, whole: nextWhole });
+      return;
+    }
+  }
+
+  function handleSelectNumberBondNote(index: number) {
+    const note = numberBondOrbitNotes[index];
+    if (!note) return;
+    const eventSlot = timelineEvents.find((event) => event.mechanicInstances.hit.some((instance) => instance.id === note.id));
+    if (eventSlot) setActiveEventId(eventSlot.id);
+    seekSong(note.seconds);
+  }
+
   function updateActiveMechanicInstance(
     mechanic: GameplayMechanic,
     instanceIndex: number,
@@ -11577,6 +12007,11 @@ export default function LessonBuilderClient({
 
   async function handleLaunchGame(playTemplateOnly = false) {
     if (isSaving) return;
+    if (isNumberBondsActivity && !playTemplateOnly &&
+      (!lessonPublishReadiness.ready || numberBondValues?.whole !== numberBondTargetWhole)) {
+      handleBuildNumberBondMission(true);
+      return;
+    }
     if (!playTemplateOnly && !lessonPublishReadiness.ready) {
       const blocker = lessonPublishReadiness.blockers[0];
       savePrivateDraft();
@@ -13091,6 +13526,9 @@ export default function LessonBuilderClient({
       );
       return;
     }
+    const hitPad = options.hitPad ?? (
+      mechanic === "hit" && capabilities.activityKey === "number-bonds" ? "left" : undefined
+    );
     const allowActiveEvent = options.allowActiveEvent ?? true;
     const allowPlayheadEvent = options.allowPlayheadEvent ?? true;
     const draftIfNoEvent = options.draftIfNoEvent ?? false;
@@ -13120,7 +13558,7 @@ export default function LessonBuilderClient({
 
       if (!targetEvent) {
         addRtcmDraftMechanic(mechanic, mechanicSeconds, {
-          hitPad: options.hitPad,
+          hitPad,
         });
         return current;
       }
@@ -13139,13 +13577,13 @@ export default function LessonBuilderClient({
           ...nextInstances[nextCount - 1],
           tick: mechanicTick,
           ...(mechanic === "hit" ? {} : { endTick: mechanicTick }),
-          ...(mechanic === "hit" && options.hitPad
+          ...(mechanic === "hit" && hitPad
             ? {
               hitBubbles: [
                 {
                   tokenIndex: 0,
-                  positions: [options.hitPad],
-                  pads: [options.hitPad],
+                  positions: [hitPad],
+                  pads: [hitPad],
                 },
               ],
             }
@@ -13670,7 +14108,7 @@ export default function LessonBuilderClient({
         onSave={() => {
           void handlePublishChanges({ showNotice: true });
         }}
-        canLaunch={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
+        canLaunch={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && (lessonPublishReadiness.ready || isNumberBondsActivity)}
         canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
         isRctm1Mode={isRctm1Mode}
         isRctm2Mode={isRctm2Mode}
@@ -13678,7 +14116,7 @@ export default function LessonBuilderClient({
         onToggleRctm1Mode={handleToggleRctm1Mode}
         onToggleRctm2Mode={handleToggleRctm2Mode}
       />
-      {needsReadinessCheck && !isGuidedStart && !isRctm1Mode &&
+      {needsReadinessCheck && !isNumberBondsActivity && !isGuidedStart && !isRctm1Mode &&
         (!isRctm2Mode || (selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds") ? (
         <div
           style={{
@@ -13716,7 +14154,7 @@ export default function LessonBuilderClient({
               <button key={`${blocker.code}-${blocker.relatedEncounterId ?? ""}`} type="button" onClick={() => setRepairFocus({ code: blocker.code, nonce: Date.now() })} style={{ textAlign: "left", border: "1px solid #A68042", borderRadius: 8, background: "#302719", color: "#FFDC9B", padding: "7px 9px", cursor: "pointer" }}>{blocker.nextAction}</button>
             ))}
           </div>
-          <label style={{ display: "grid", gap: 6, marginBottom: 12, fontSize: 12, fontWeight: 800 }}>
+          {!isNumberBondsActivity ? <label style={{ display: "grid", gap: 6, marginBottom: 12, fontSize: 12, fontWeight: 800 }}>
             Equation for this move
             <select
               id="recorded-repair-equation"
@@ -13735,7 +14173,7 @@ export default function LessonBuilderClient({
                 <option key={entry.id} value={entry.id}>{entry.tokens.map((token) => token.label).join(" ")}</option>
               ))}
             </select>
-          </label>
+          </label> : null}
           <GuidedEncounterComposer
             instance={{ ...recordedRepairDraft, equation: recordedRepairEquation }}
             tokens={recordedRepairEquation?.tokens ?? []}
@@ -13749,7 +14187,7 @@ export default function LessonBuilderClient({
             activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
             dragSources={[...dragSources, ...rtcmDraftMechanics.filter((draft) => draft.mechanic === "hit").map((draft) => ({ id: draft.id, label: `Recorded Hit · ${draft.tick.toFixed(2)}s` }))]}
             repairFocus={repairFocus}
-            onChooseEquation={() => document.getElementById("recorded-repair-equation")?.focus()}
+            onChooseEquation={isNumberBondsActivity ? undefined : () => document.getElementById("recorded-repair-equation")?.focus()}
             onPatchInstance={handlePatchRecordedRepair}
             onRemove={() => { setRtcmDraftMechanics((current) => current.filter((draft) => draft.id !== recordedRepairDraft.id)); setRecordedRepairId(null); markDirty(); }}
           />
@@ -13796,7 +14234,23 @@ export default function LessonBuilderClient({
             overflow: "hidden",
           }}
         >
-          {isRctm1Mode ? (
+          {isNumberBondsActivity ? (
+            <NumberBondsMissionComposer
+              whole={numberBondTargetWhole}
+              songTitle={metadata?.songTitle || uploadedSongName || "Selected song"}
+              songCapacity={numberBondSongCapacity}
+              notes={numberBondOrbitNotes}
+              authoredNoteCount={numberBondAuthoredNotesMatch ? numberBondHitCount : 0}
+              isReady={lessonPublishReadiness.ready && numberBondAuthoredNotesMatch}
+              isPreparing={numberBondLaunchPendingWhole !== null || isSaving}
+              status={saveStatus}
+              onWholeChange={(whole) => setNumberBondDraftTarget({ songAssetId: selectedSongAssetId, whole })}
+              onShuffle={handleShuffleNumberBondTarget}
+              onBuildNotes={() => handleBuildNumberBondMission(false)}
+              onPlay={handlePlayNumberBondMission}
+              onSelectNote={handleSelectNumberBondNote}
+            />
+          ) : isRctm1Mode ? (
             <div style={{ flex: 1, minWidth: 0, height: "100%" }}>
               <RtcmModePanel
                 onAddHit={handleRtcmAddHitAtPlayhead}
@@ -13819,25 +14273,70 @@ export default function LessonBuilderClient({
               />
             </div>
           ) : isRctm2Mode ? (
-            <div style={{ flex: 1, minWidth: 0, height: "100%" }}>
-              <Rctm2ModePanel
-                onAddHitMarker={(point) => handleAddRctm2TimelineMarker("hit", point)}
-                onBeginDragMarker={handleBeginRctm2DragMarker}
-                onCompleteDragMarker={handleCompleteRctm2DragMarker}
-                onCancelDragMarker={handleCancelRctm2DragMarker}
-                onCreateEvent={handleToggleRtcmEventCreation}
-                onDeleteEvent={handleDeleteActiveEvent}
-                onClear={handleClearRtcmChart}
-                eventRangeStartTick={rtcmEventRangeStartTick}
-                canDeleteEvent={Boolean(rtcmDeleteTargetEventId)}
-                currentSongSeconds={currentSongSeconds}
-                isSongPlaying={isSongPlaying}
-                events={timelineEvents}
-                rtcmDraftMechanics={rtcmDraftMechanics}
-                hitPlacements={rctm2HitPlacements}
-                dragStartPoints={rctm2DragStartPoints}
-                dragSourceHitIds={rctm2DragSourceHitIds}
-              />
+            <div style={{ flex: 1, minWidth: 0, height: "100%", display: "flex", overflow: "hidden" }}>
+              {isNumberBondsActivity ? (
+                <>
+                  {isBuilderPanelOpen ? (
+                    <div
+                      className={styles.editorPanelSurface}
+                      style={{ flex: `0 0 ${row2DisplayWidths.column1}px`, minWidth: 0, height: "100%", position: "relative" }}
+                    >
+                      <button
+                        type="button"
+                        className={styles.editorPanelCloseButton}
+                        onClick={() => setIsBuilderPanelOpen(false)}
+                        aria-label="Collapse Number Bond panel"
+                        title="Collapse Number Bond panel"
+                      >
+                        ×
+                      </button>
+                      <NumberBondsSetupPanel
+                        key={`${selectedSongAssetId}:${numberBondEquation?.id ?? "default"}`}
+                        songAssetId={selectedSongAssetId}
+                        wholeDefault={numberBondWholeDefault}
+                        bond={numberBondValues}
+                        hitCueCount={numberBondHitCount}
+                        onSaveBond={handleSaveNumberBond}
+                      />
+                    </div>
+                  ) : (
+                    <EditorPanelRail label="Bond" onOpen={() => setIsBuilderPanelOpen(true)} />
+                  )}
+                  {isBuilderPanelOpen ? (
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      onPointerDown={(event) => beginColumnResize(0, event)}
+                      style={{
+                        width: 6,
+                        flex: "0 0 6px",
+                        cursor: "col-resize",
+                        background: activeResizeHandle === 0 ? "rgba(207,255,4,0.22)" : "transparent",
+                      }}
+                    />
+                  ) : null}
+                </>
+              ) : null}
+              <div style={{ flex: "1 1 auto", minWidth: 0, height: "100%" }}>
+                <Rctm2ModePanel
+                  onAddHitMarker={(point) => handleAddRctm2TimelineMarker("hit", point)}
+                  onBeginDragMarker={handleBeginRctm2DragMarker}
+                  onCompleteDragMarker={handleCompleteRctm2DragMarker}
+                  onCancelDragMarker={handleCancelRctm2DragMarker}
+                  onCreateEvent={handleToggleRtcmEventCreation}
+                  onDeleteEvent={handleDeleteActiveEvent}
+                  onClear={handleClearRtcmChart}
+                  eventRangeStartTick={rtcmEventRangeStartTick}
+                  canDeleteEvent={Boolean(rtcmDeleteTargetEventId)}
+                  currentSongSeconds={currentSongSeconds}
+                  isSongPlaying={isSongPlaying}
+                  events={timelineEvents}
+                  rtcmDraftMechanics={rtcmDraftMechanics}
+                  hitPlacements={rctm2HitPlacements}
+                  dragStartPoints={rctm2DragStartPoints}
+                  dragSourceHitIds={rctm2DragSourceHitIds}
+                />
+              </div>
             </div>
           ) : (
             <>
@@ -13858,29 +14357,40 @@ export default function LessonBuilderClient({
                     type="button"
                     className={styles.editorPanelCloseButton}
                     onClick={() => setIsBuilderPanelOpen(false)}
-                    aria-label="Collapse equation builder"
-                    title="Collapse equation builder"
+                    aria-label={isNumberBondsActivity ? "Collapse Number Bond panel" : "Collapse equation builder"}
+                    title={isNumberBondsActivity ? "Collapse Number Bond panel" : "Collapse equation builder"}
                   >
                     ×
                   </button>
-                  <LeftEquationBuilderPanel
-                    draftTokens={draftTokens}
-                    activeEventLabel={centerContextEventIndex >= 0 ? studentCopy.editor.moveGroup(centerContextEventIndex + 1) : null}
-                    activeEventEquationText={centerContextEventEquation ? tokensToEquationState(centerContextEventEquation.tokens) : null}
-                    onAddToken={handleAppendEquationToken}
-                    onClearEquation={handleClearEquationDraft}
-                    onSaveEquation={handleSaveEquation}
-                    onUseDraftInEvent={handleUseDraftInActiveEvent}
-                    tutorialPrompt={
-                      showSaveEquationTutorialPrompt
-                        ? "Save this equation so you can use it in your lesson."
-                        : null
-                    }
-                    onSkipTutorial={() => setTutorialStep(null)}
-                  />
+                  {isNumberBondsActivity ? (
+                    <NumberBondsSetupPanel
+                      key={`${selectedSongAssetId}:${numberBondEquation?.id ?? "default"}`}
+                      songAssetId={selectedSongAssetId}
+                      wholeDefault={numberBondWholeDefault}
+                      bond={numberBondValues}
+                      hitCueCount={numberBondHitCount}
+                      onSaveBond={handleSaveNumberBond}
+                    />
+                  ) : (
+                    <LeftEquationBuilderPanel
+                      draftTokens={draftTokens}
+                      activeEventLabel={centerContextEventIndex >= 0 ? studentCopy.editor.moveGroup(centerContextEventIndex + 1) : null}
+                      activeEventEquationText={centerContextEventEquation ? tokensToEquationState(centerContextEventEquation.tokens) : null}
+                      onAddToken={handleAppendEquationToken}
+                      onClearEquation={handleClearEquationDraft}
+                      onSaveEquation={handleSaveEquation}
+                      onUseDraftInEvent={handleUseDraftInActiveEvent}
+                      tutorialPrompt={
+                        showSaveEquationTutorialPrompt
+                          ? "Save this equation so you can use it in your lesson."
+                          : null
+                      }
+                      onSkipTutorial={() => setTutorialStep(null)}
+                    />
+                  )}
                 </div>
               ) : (
-                <EditorPanelRail label="Build" onOpen={() => setIsBuilderPanelOpen(true)} />
+                <EditorPanelRail label={isNumberBondsActivity ? "Bond" : "Build"} onOpen={() => setIsBuilderPanelOpen(true)} />
               )}
 
               {isBuilderPanelOpen ? (
@@ -14071,7 +14581,7 @@ export default function LessonBuilderClient({
                             dragSources={dragSources}
                             onPatchInstance={handlePatchSelectedGuidedEncounter}
                             repairFocus={repairFocus}
-                            onChooseEquation={() => { setLibraryTab("mine"); setIsLibraryPanelOpen(true); }}
+                            onChooseEquation={isNumberBondsActivity ? undefined : () => { setLibraryTab("mine"); setIsLibraryPanelOpen(true); }}
                             onRemove={isFocusedGuidedEditor ? handleRemoveSelectedContextMechanic : undefined}
                           />
                         </div>
@@ -14104,6 +14614,8 @@ export default function LessonBuilderClient({
                           onCreateEquation={handleCreateEquationChoice}
                           onBrowseLibrary={handleBrowsePremadeChoice}
                           showWorkspacePrompt={showCenterWorkspacePrompt}
+                          activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
+                          numberBondValues={numberBondPreview}
                           hideHeader={hideEquationHeader}
                         />
                       </div> : null}

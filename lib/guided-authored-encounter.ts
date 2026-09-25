@@ -107,10 +107,10 @@ const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   drag_source_not_earlier: "Move this Drag after its source Hit.",
   unsupported_concurrency: "Move one action later so the first has time to finish.",
   activity_mechanic_unsupported: "Use a Hit for this activity; its later interaction phases are generated at runtime.",
-  activity_equation_invalid: "Use one valid Number Bonds equation, such as 5 = 2 + 3.",
+  activity_equation_invalid: "Choose one target whole from 2 to 20 in the Number Bonds block panel.",
   activity_target_shape: "Give this Number Bonds Hit exactly one bubble target.",
-  activity_equation_count: "Use exactly one equation for Number Bonds.",
-  activity_hit_count: "Add enough Hit cues for the selected Number Bonds equation.",
+  activity_equation_count: "Save exactly one target whole in the Number Bonds block panel.",
+  activity_hit_count: "Add one catch cue for each unit in the Number Bonds whole.",
   activity_hit_spacing: "Leave time for the previous gem's catch, spin and drag before the next Hit.",
 };
 
@@ -132,10 +132,10 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
     drag_source_not_earlier: "must start after its source Hit",
     unsupported_concurrency: "overlaps another move",
     activity_mechanic_unsupported: "uses a mechanic that this activity does not author",
-    activity_equation_invalid: "uses an equation outside this activity's contract",
+    activity_equation_invalid: "has a Number Bonds target that cannot be read",
     activity_target_shape: "has the wrong target shape for this activity",
-    activity_equation_count: "has the wrong number of equations for this activity",
-    activity_hit_count: "does not contain enough Hits for this activity",
+    activity_equation_count: "needs one target whole in the Number Bonds block panel",
+    activity_hit_count: "needs exactly one Hit cue for each whole unit",
     activity_hit_spacing: "starts before the previous gem finishes",
   };
   const mechanicLabel = encounter.mechanic[0].toUpperCase() + encounter.mechanic.slice(1);
@@ -171,7 +171,10 @@ export function evaluateEncounterReadiness(
   if (!capabilities.supportedAuthoredMechanics.includes(encounter.mechanic)) {
     issues.push(issue(encounter, "activity_mechanic_unsupported"));
   }
-  if (!encounter.equation || encounter.equation.tokens.length === 0) {
+  if (
+    capabilities.activityKey !== "number-bonds" &&
+    (!encounter.equation || encounter.equation.tokens.length === 0)
+  ) {
     issues.push(issue(encounter, "equation_required"));
   }
 
@@ -409,7 +412,7 @@ export function evaluateLessonPublishReadiness(
     }
     if (whole != null) {
       const hitCount = ordered.filter(({ mechanic }) => mechanic === "hit").length;
-      if (hitCount < whole && firstInput) {
+      if (hitCount !== whole && firstInput) {
         blockers.push(issue(firstInput, "activity_hit_count"));
       }
     }

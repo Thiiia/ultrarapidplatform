@@ -3,6 +3,7 @@ import type {
   AuthoredLessonDraft,
   AuthoredSavedEquation,
 } from "./authored-lesson-serialization";
+import { getNumberBondValues } from "./number-bonds-authoring";
 
 export type AuthoredActivityMechanic = "hit" | "spin" | "drag";
 
@@ -53,32 +54,11 @@ export function isAuthoredMechanicSupported(
     .includes(mechanic);
 }
 
-/** Return the Number Bonds whole for the exact equation shape Unity accepts. */
+/** Read the Number Bonds whole from its legacy-compatible saved payload. */
 export function getNumberBondsWhole(
   equation: Pick<AuthoredSavedEquation, "tokens"> | { state: string },
 ): number | null {
-  const state = "tokens" in equation
-    ? equation.tokens.map((token) => token.label).join(" ")
-    : equation.state;
-  const normalized = state.replace(/\s+/g, " ").trim();
-  const leftToRight = normalized.match(/^(\d+)\s*=\s*(\d+)\s*\+\s*(\d+)$/);
-  const rightToLeft = normalized.match(/^(\d+)\s*\+\s*(\d+)\s*=\s*(\d+)$/);
-  const match = leftToRight ?? rightToLeft;
-  if (!match) return null;
-
-  const [first, second, third] = match.slice(1).map(Number);
-  const whole = leftToRight ? first : third;
-  const parts = leftToRight ? [second, third] : [first, second];
-  if (
-    !Number.isInteger(whole) ||
-    whole < 2 ||
-    whole > 5 ||
-    parts.some((part) => !Number.isInteger(part) || part <= 0) ||
-    parts[0] + parts[1] !== whole
-  ) {
-    return null;
-  }
-  return whole;
+  return getNumberBondValues(equation)?.whole ?? null;
 }
 
 export type ActivityContractIssue = {
@@ -114,7 +94,7 @@ export function getAuthoredActivityContractIssues(
   if (draft.equations.length !== 1) {
     issues.push({
       code: "activity_equation_count",
-      message: "Number Bonds requires exactly one equation.",
+      message: "Save one target whole in the Number Bonds block panel.",
     });
   }
 
@@ -123,7 +103,7 @@ export function getAuthoredActivityContractIssues(
   if (equation && whole == null) {
     issues.push({
       code: "activity_equation_invalid",
-      message: "Number Bonds requires an equation such as 5 = 2 + 3.",
+      message: "Choose a Number Bonds target whole from 2 to 20 in the block panel.",
     });
   }
 
@@ -147,10 +127,12 @@ export function getAuthoredActivityContractIssues(
 
   if (whole != null) {
     const hitCount = draft.encounters.filter((encounter) => encounter.type === "hit").length;
-    if (hitCount < whole) {
+    if (hitCount !== whole) {
       issues.push({
         code: "activity_hit_count",
-        message: `This Number Bonds equation requires at least ${whole} authored Hits.`,
+        message: hitCount < whole
+          ? `This bond has ${whole} units and needs exactly ${whole} Hit cues; ${hitCount} are set.`
+          : `This bond has ${whole} units; remove ${hitCount - whole} extra Hit cues.`,
       });
     }
   }

@@ -326,7 +326,12 @@ export function GuidedEncounterComposer({
       ? studentCopy.mechanics.makeSpin
       : studentCopy.mechanics.makeDrag;
   let controls: ReactNode;
-  if (!instance.equation || tokens.length === 0) {
+  if (isNumberBonds) {
+    controls = <div style={{ display: "grid", gap: 6, color: "#FFFFFFB3", fontSize: 12 }}>
+      <strong style={{ color: "#DFFF70" }}>Each catch cue schedules one unit block.</strong>
+      <span>The block panel sets the target whole. This timeline sets when each gem appears; the performance step keeps timing feedback.</span>
+    </div>;
+  } else if (!instance.equation || tokens.length === 0) {
     controls = <div style={{ display: "grid", gap: 8, justifyItems: "start", color: "#FFFFFFB3", fontSize: 12 }}>
       {studentCopy.mechanics.chooseEquation}
       {onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} style={{ border: "1px solid #CFFF04", borderRadius: 10, background: "#CFFF04", color: "#071222", padding: "9px 12px", fontWeight: 800, cursor: "pointer" }}>Choose an equation</button> : null}
@@ -355,7 +360,7 @@ export function GuidedEncounterComposer({
         </div>
       </div>
       {readiness.ready ? <div style={{ color: "#CFFF04", fontSize: 11, fontWeight: 800 }}>This move is ready. Check the lesson above before playing.</div> : <div role="status" style={{ color: "#FFCB6B", fontSize: 11, fontWeight: 800 }}>{readiness.nextAction}</div>}
-      {instance.equation && onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} style={{ justifySelf: "start", border: "1px solid #7A8FA8", borderRadius: 10, background: "#111B2A", color: "#FFFFFF", padding: "7px 10px", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Change equation</button> : null}
+      {!isNumberBonds && instance.equation && onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} style={{ justifySelf: "start", border: "1px solid #7A8FA8", borderRadius: 10, background: "#111B2A", color: "#FFFFFF", padding: "7px 10px", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Change equation</button> : null}
       {isNumberBonds ? (
         <div style={{ borderRadius: 12, border: "1px solid rgba(207,255,4,.28)", background: "rgba(207,255,4,.07)", color: "#DFFF70", padding: "9px 11px", fontSize: 11, fontWeight: 750, lineHeight: 1.45 }}>
           You place the catch cue. In the game it automatically continues through catch → spinout → drag.
