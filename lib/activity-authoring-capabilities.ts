@@ -3,7 +3,13 @@ import type {
   AuthoredLessonDraft,
   AuthoredSavedEquation,
 } from "./authored-lesson-serialization";
-import { getNumberBondValues } from "./number-bonds-authoring";
+import {
+  getNumberBondValues,
+  NUMBER_BONDS_MAX_WHOLE,
+  NUMBER_BONDS_MIN_WHOLE,
+} from "./number-bonds-authoring";
+
+export { NUMBER_BONDS_MAX_WHOLE, NUMBER_BONDS_MIN_WHOLE };
 
 export type AuthoredActivityMechanic = "hit" | "spin" | "drag";
 

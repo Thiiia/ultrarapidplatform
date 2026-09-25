@@ -1,5 +1,6 @@
 import type { AuthoredSavedEquation } from "./authored-lesson-serialization";
 
+export const NUMBER_BONDS_MIN_WHOLE = 2;
 export const NUMBER_BONDS_MAX_WHOLE = 20;
 
 export type NumberBondValues = {
@@ -19,7 +20,7 @@ export function getDefaultNumberBondWholeForSong(songAssetId: string): number {
     hash ^= seed.charCodeAt(index);
     hash = Math.imul(hash, 16777619) >>> 0;
   }
-  return 2 + (hash % (NUMBER_BONDS_MAX_WHOLE - 1));
+  return NUMBER_BONDS_MIN_WHOLE + (hash % (NUMBER_BONDS_MAX_WHOLE - NUMBER_BONDS_MIN_WHOLE + 1));
 }
 
 export function getNumberBondValues(equation: EquationLike): NumberBondValues | null {
@@ -38,7 +39,7 @@ export function getNumberBondValues(equation: EquationLike): NumberBondValues | 
   const partB = leftToRight ? third : second;
   if (
     !Number.isInteger(whole) ||
-    whole < 2 ||
+    whole < NUMBER_BONDS_MIN_WHOLE ||
     whole > NUMBER_BONDS_MAX_WHOLE ||
     !Number.isInteger(partA) ||
     !Number.isInteger(partB) ||

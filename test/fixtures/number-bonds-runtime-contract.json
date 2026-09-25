@@ -9,6 +9,14 @@
   },
   "targetPolicy": "whole-token",
   "hitCountPolicy": "exactly-one-per-generated-gem",
+  "quantityPolicy": {
+    "minimumWhole": 2,
+    "maximumWhole": 20,
+    "unitsPerGem": 1,
+    "hitCountEqualsWhole": true,
+    "maximumGridColumns": 4,
+    "maximumGridRows": 5
+  },
   "hitPadLayouts": [
     { "layoutVersion": 1, "pad": "topLeft", "expectedSlot": 0 },
     { "layoutVersion": 1, "pad": "topRight", "expectedSlot": 1 },

@@ -1,6 +1,8 @@
 import {
   getNumberBondsWhole,
   getNumberBondsWholeTokenIndex,
+  NUMBER_BONDS_MAX_WHOLE,
+  NUMBER_BONDS_MIN_WHOLE,
   NUMBER_BONDS_TIMING_POLICY,
 } from "./activity-authoring-capabilities";
 import { parseSupportedChartSemantics, type SupportedRhythmDifficulty } from "./chart-semantics";
@@ -60,14 +62,34 @@ export type GeneratedNumberBondsLesson = {
   };
 };
 
-export const NUMBER_BONDS_EQUATION_CATALOGUE = [
-  { id: "bond-2-1-1", tokens: ["2", "=", "1", "+", "1"] },
-  { id: "bond-3-1-2", tokens: ["3", "=", "1", "+", "2"] },
-  { id: "bond-4-1-3", tokens: ["4", "=", "1", "+", "3"] },
-  { id: "bond-4-2-2", tokens: ["4", "=", "2", "+", "2"] },
-  { id: "bond-5-1-4", tokens: ["5", "=", "1", "+", "4"] },
-  { id: "bond-5-2-3", tokens: ["5", "=", "2", "+", "3"] },
-] as const;
+export const NUMBER_BONDS_WHOLE_VALUES = Array.from(
+  { length: NUMBER_BONDS_MAX_WHOLE - NUMBER_BONDS_MIN_WHOLE + 1 },
+  (_, index) => NUMBER_BONDS_MIN_WHOLE + index,
+);
+
+export type NumberBondsCatalogueEntry = {
+  id: string;
+  whole: number;
+  knownPart: number;
+  complement: number;
+  tokens: readonly [string, "=", string, "+", string];
+};
+
+/** Every ordered positive-part bond is available through the milestone whole 20. */
+export const NUMBER_BONDS_EQUATION_CATALOGUE: readonly NumberBondsCatalogueEntry[] =
+  NUMBER_BONDS_WHOLE_VALUES.flatMap((whole) =>
+    Array.from({ length: whole - 1 }, (_, index): NumberBondsCatalogueEntry => {
+      const knownPart = index + 1;
+      const complement = whole - knownPart;
+      return {
+        id: `bond-${whole}-${knownPart}-${complement}`,
+        whole,
+        knownPart,
+        complement,
+        tokens: [`${whole}`, "=", `${knownPart}`, "+", `${complement}`] as const,
+      };
+    }),
+  );
 
 export const NUMBER_BONDS_PAD_CHOREOGRAPHIES = {
   "clockwise-hex": ["top", "upperRight", "lowerRight", "bottom", "lowerLeft", "upperLeft"],
@@ -174,11 +196,12 @@ function resolvePadSequence(
     : typeof choreography === "string"
       ? NUMBER_BONDS_PAD_CHOREOGRAPHIES[choreography]
       : choreography;
-  if (!configured || configured.length < cueCount) {
-    throw new Error(`Choose a hit-pad choreography with at least ${cueCount} pads.`);
+  if (!configured || configured.length === 0) {
+    throw new Error("Choose a non-empty hit-pad choreography.");
   }
 
-  const pads = configured.slice(0, cueCount);
+  // Six player pads form a repeating movement pattern; they do not combine unit hits.
+  const pads = Array.from({ length: cueCount }, (_, index) => configured[index % configured.length]);
   if (pads.some((pad) => resolveAuthoredHitPadSlot(pad, PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION) < 0)) {
     throw new Error("The hit-pad choreography contains a pad that is not in the current player layout.");
   }
@@ -217,7 +240,7 @@ export function generateNumberBondsAuthoredLesson(
   const whole = getNumberBondsWhole(definition.equation);
   const wholeTokenIndex = getNumberBondsWholeTokenIndex(definition.equation);
   if (whole == null || wholeTokenIndex == null) {
-    throw new Error("Number Bonds supports whole 2–5 equations with the whole token on either side of the equals sign.");
+    throw new Error(`Number Bonds supports whole ${NUMBER_BONDS_MIN_WHOLE}–${NUMBER_BONDS_MAX_WHOLE} equations with one unit gem per whole and the whole token on either side of the equals sign.`);
   }
   const targetToken = definition.equation.tokens[wholeTokenIndex];
   if (!targetToken?.id.trim() || new Set(definition.equation.tokens.map((token) => token.id)).size !== definition.equation.tokens.length) {

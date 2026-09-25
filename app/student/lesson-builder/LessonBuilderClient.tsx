@@ -78,6 +78,7 @@ import {
   generateNumberBondsAuthoredLesson,
   getNumberBondsCatalogueEquation,
   NUMBER_BONDS_EQUATION_CATALOGUE,
+  NUMBER_BONDS_WHOLE_VALUES,
 } from "@/lib/number-bonds-content-generator";
 import {
   createDefaultNumberBondForSong,
@@ -2713,7 +2714,7 @@ function SongFilePickerModal({
             </select>
             <div style={{ color: rhythmSources.length ? "#AFC2D8" : "#FF9B9B", fontSize: 11, lineHeight: 1.45 }}>
               {rhythmSources.length
-                ? "This brings across verified beat timing only. Choose the number to make, then place notes from the song and play. The song audio remains shared."
+                ? "Only verified beat timing is reused. Your bond equation and note cues start fresh; choose the number to make, place notes from this song, then play. The song audio stays shared."
                 : "This song has no verified rhythm revision available to start from."}
             </div>
           </div>
@@ -11838,8 +11839,8 @@ export default function LessonBuilderClient({
           eventSlot.counts.hit,
         ).map((instance) => {
           const currentBubble = instance.hitBubbles[0];
-          const pads = currentBubble?.pads.length ? currentBubble.pads : defaultBubble.pads;
-          const positions = currentBubble?.positions.length ? currentBubble.positions : pads;
+          const pads = currentBubble?.pads?.length ? currentBubble.pads : defaultBubble.pads;
+          const positions = currentBubble?.positions?.length ? currentBubble.positions : pads;
           return {
             ...instance,
             hitBubbles: [{
@@ -11861,8 +11862,8 @@ export default function LessonBuilderClient({
     setRtcmDraftMechanics((current) => current.map((draft) => {
       if (draft.mechanic !== "hit") return draft;
       const currentBubble = draft.hitBubbles[0];
-      const pads = currentBubble?.pads.length ? currentBubble.pads : defaultBubble.pads;
-      const positions = currentBubble?.positions.length ? currentBubble.positions : pads;
+      const pads = currentBubble?.pads?.length ? currentBubble.pads : defaultBubble.pads;
+      const positions = currentBubble?.positions?.length ? currentBubble.positions : pads;
       return {
         ...draft,
         equationId: equation.id,
@@ -13772,8 +13773,8 @@ export default function LessonBuilderClient({
               hitBubbles: [
                 {
                   tokenIndex: 0,
-                  positions: [options.hitPad],
-                  pads: [options.hitPad],
+                  positions: [hitPad],
+                  pads: [hitPad],
                   padLayoutVersion: PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
                 },
               ],
@@ -14500,8 +14501,14 @@ export default function LessonBuilderClient({
               style={{ height: 34, border: "1px solid #42536A", borderRadius: 8, background: "#0C1422", color: "#FFFFFF", padding: "0 8px" }}
             >
               <option value="">Choose a number bond…</option>
-              {NUMBER_BONDS_EQUATION_CATALOGUE.map((entry) => (
-                <option key={entry.id} value={entry.id}>{entry.tokens.join(" ")}</option>
+              {NUMBER_BONDS_WHOLE_VALUES.map((whole) => (
+                <optgroup key={whole} label={`Make ${whole}`}>
+                  {NUMBER_BONDS_EQUATION_CATALOGUE
+                    .filter((entry) => entry.whole === whole)
+                    .map((entry) => (
+                      <option key={entry.id} value={entry.id}>{entry.tokens.join(" ")}</option>
+                    ))}
+                </optgroup>
               ))}
             </select>
           </label>

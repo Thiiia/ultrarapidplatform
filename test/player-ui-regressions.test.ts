@@ -161,7 +161,7 @@ test("a ready lesson does not reserve a permanent readiness panel", () => {
   const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
 
   assert.match(builder, /const needsReadinessCheck = !lessonPublishReadiness\.ready/);
-  assert.match(builder, /needsReadinessCheck && !isGuidedStart/);
+  assert.match(builder, /needsReadinessCheck && !isNumberBondsActivity && !isGuidedStart/);
 });
 
 test("hit placement mirrors the player pad layout and keeps legacy assignments explicit", () => {
@@ -231,10 +231,10 @@ test("Number Bonds presents one authored mechanic and explains its runtime expan
   const composer = source("app/student/lesson-builder/GuidedEncounterComposer.tsx");
 
   assert.match(builder, /supportedAuthoredMechanics/);
-  assert.match(builder, /isNumberBondsTimeline \? "Catch cues" : "Hits"/);
+  assert.match(builder, /isNumberBondsTimeline \? "Notes" : "Hits"/);
   assert.doesNotMatch(builder, /selectedActivityKey === "number-bonds"[\s\S]{0,160}onToggleRctm2Mode/);
-  assert.match(composer, /Place a catch cue/);
-  assert.match(composer, /catch → spinout → drag/);
+  assert.match(composer, /Each note brings one gem into play/);
+  assert.match(composer, /Catch the gem on the beat, then place it in a slot/);
 });
 
 test("advanced recorder exposes one tool at a time and makes draft commit explicit", () => {
@@ -252,7 +252,7 @@ test("first Number Bonds publication requires an explicit verified rhythm source
   const storage = source("lib/song-storage.ts");
 
   assert.match(builder, /Choose a verified rhythm/);
-  assert.match(builder, /Your Number Bonds equation and catches start fresh/);
+  assert.match(builder, /Your bond equation and note cues start fresh/);
   assert.match(builder, /rhythmSource: selectedRhythmSource/);
   assert.match(storage, /preferredActivityKey === "number-bonds"/);
   assert.match(storage, /status: "ready"/);

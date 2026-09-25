@@ -72,15 +72,10 @@ function definition(overrides: Partial<NumberBondsLessonDefinition> = {}): Numbe
   };
 }
 
-test("the reusable catalogue covers the approved 2–5 bonds and returns fresh token identities", () => {
-  assert.deepEqual(NUMBER_BONDS_EQUATION_CATALOGUE.map(({ id }) => id), [
-    "bond-2-1-1",
-    "bond-3-1-2",
-    "bond-4-1-3",
-    "bond-4-2-2",
-    "bond-5-1-4",
-    "bond-5-2-3",
-  ]);
+test("the reusable catalogue covers every ordered positive-part bond through 20", () => {
+  assert.equal(NUMBER_BONDS_EQUATION_CATALOGUE.length, 190);
+  assert.ok(NUMBER_BONDS_EQUATION_CATALOGUE.some(({ id }) => id === "bond-20-1-19"));
+  assert.ok(NUMBER_BONDS_EQUATION_CATALOGUE.some(({ id }) => id === "bond-13-10-3"));
   const first = getNumberBondsCatalogueEquation("bond-5-2-3");
   first.tokens[0].label = "99";
   const next = getNumberBondsCatalogueEquation("bond-5-2-3");
@@ -189,18 +184,43 @@ test("the generated v3 sidecar publishes and round-trips without rhythm sidecar 
   assert.equal(generated.sidecarContent.includes(input.rhythmSource.chartSha256), false);
 });
 
-test("refuses insufficient cue space, above-five bonds, and unverifiable rhythm provenance", () => {
+test("a 20-bond lesson keeps one unit gem and one authored Hit per number unit", () => {
+  const cueSeconds = Array.from({ length: 20 }, (_, index) => 8 + (index * 7.5));
+  const chart = chartForCueSeconds(cueSeconds);
+  const equation = getNumberBondsCatalogueEquation("bond-20-1-19");
+  const generated = generateNumberBondsAuthoredLesson(definition({
+    equation,
+    chartContent: chart.content,
+    durationSeconds: 165,
+  }));
+
+  assert.equal(generated.draft.equations[0]?.tokens?.[0]?.label, "20");
+  assert.equal(generated.draft.encounters.length, 20);
+  assert.ok(generated.draft.encounters.every((encounter) =>
+    encounter.hitBubbles?.[0]?.targetId === equation.tokens[0]?.id));
+  assert.equal(generated.draft.encounters[0]?.hitBubbles?.[0]?.tokenIndex, 0);
+  assert.deepEqual(
+    generated.draft.encounters.map((encounter) =>
+      resolveAuthoredHitPadTarget(encounter.hitBubbles?.[0] ?? {})),
+    Array.from({ length: 20 }, (_, index) => [index % 6]),
+  );
+  assert.equal(generated.provenance.selectedCueSeconds.length, 20);
+  assert.ok(generated.provenance.selectedCueSeconds.every((seconds, index, values) =>
+    index === 0 || seconds - values[index - 1]! >= 7.5));
+});
+
+test("refuses insufficient cue space, above-20 bonds, and unverifiable rhythm provenance", () => {
   const shortChart = chartForCueSeconds([1, 8, 14, 21]);
   assert.throws(() => generateNumberBondsAuthoredLesson(definition({
     chartContent: shortChart.content,
     durationSeconds: 33,
   })), /does not contain 3/);
 
-  const aboveFive = {
-    id: "bond-6",
-    tokens: ["6", "=", "1", "+", "5"].map((label, index) => ({ id: `bond-6-${index}`, label })),
+  const aboveTwenty = {
+    id: "bond-21",
+    tokens: ["21", "=", "1", "+", "20"].map((label, index) => ({ id: `bond-21-${index}`, label })),
   };
-  assert.throws(() => generateNumberBondsAuthoredLesson(definition({ equation: aboveFive })), /whole 2–5/);
+  assert.throws(() => generateNumberBondsAuthoredLesson(definition({ equation: aboveTwenty })), /whole 2–20/);
   assert.throws(() => generateNumberBondsAuthoredLesson(definition({
     rhythmSource: { ...source("song-jazz", "c9587d12-9a90-4509-9b74-5655caa05ea9"), chartSha256: "missing" },
   })), /verified chart or audio hash/);

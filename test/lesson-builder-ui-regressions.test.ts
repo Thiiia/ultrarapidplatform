@@ -49,7 +49,8 @@ test("editor side panels progressively disclose without removing access", () => 
     lessonBuilderSource,
     /function beginGuidedEditing\(\)[\s\S]*?setAdvancedMode\(false\)[\s\S]*?setIsBuilderPanelOpen\(false\)/,
   );
-  assert.match(lessonBuilderSource, /<EditorPanelRail label=\{isNumberBondsActivity \? "Bond" : "Build"\}/);
+  assert.match(lessonBuilderSource, /isNumberBondsActivity \? \([\s\S]*?<EditorPanelRail label="Bond"/);
+  assert.match(lessonBuilderSource, /: !isNumberBondsActivity \? \([\s\S]*?<EditorPanelRail label="Build"/);
   assert.match(lessonBuilderSource, /<EditorPanelRail label="Library"/);
   assert.match(lessonBuilderSource, /Collapse equation builder/);
   assert.match(lessonBuilderSource, /Collapse equation library/);
