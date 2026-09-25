@@ -106,12 +106,12 @@ const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   drag_source_not_ready: "Choose a Hit that comes before this Drag.",
   drag_source_not_earlier: "Move this Drag after its source Hit.",
   unsupported_concurrency: "Move one action later so the first has time to finish.",
-  activity_mechanic_unsupported: "Use a Hit for this activity; its later interaction phases are generated at runtime.",
-  activity_equation_invalid: "Choose one target whole from 2 to 20 in the Number Bonds block panel.",
-  activity_target_shape: "Give this Number Bonds Hit exactly one bubble target.",
-  activity_equation_count: "Save exactly one target whole in the Number Bonds block panel.",
-  activity_hit_count: "Add one catch cue for each unit in the Number Bonds whole.",
-  activity_hit_spacing: "Leave time for the previous gem's catch, spin and drag before the next Hit.",
+  activity_mechanic_unsupported: "Place song notes; each gem's later moves happen automatically.",
+  activity_equation_invalid: "Choose a big number from 2 to 20 for this mission.",
+  activity_target_shape: "Each note must point to the big number.",
+  activity_equation_count: "Choose one big number for this mission.",
+  activity_hit_count: "Place one song note for each unit in the big number.",
+  activity_hit_spacing: "Leave time to catch and place the previous gem before the next note.",
 };
 
 function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): EncounterIssue {
@@ -135,7 +135,7 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
     activity_equation_invalid: "has a Number Bonds target that cannot be read",
     activity_target_shape: "has the wrong target shape for this activity",
     activity_equation_count: "needs one target whole in the Number Bonds block panel",
-    activity_hit_count: "needs exactly one Hit cue for each whole unit",
+    activity_hit_count: "needs one song note for each unit",
     activity_hit_spacing: "starts before the previous gem finishes",
   };
   const mechanicLabel = encounter.mechanic[0].toUpperCase() + encounter.mechanic.slice(1);
@@ -386,10 +386,10 @@ export function evaluateLessonPublishReadiness(
       blockers.push({
         ...issue(encounter, "activity_hit_spacing"),
         relatedEncounterId: timingIssue.relatedEncounterId,
-        message: "This catch cue starts before the previous gem has finished.",
+        message: "This note starts before the previous gem has finished.",
         nextAction: timingIssue.earliestStartSeconds == null
-          ? "Move this catch cue later than the previous one."
-          : `Set this catch cue to ${timingIssue.earliestStartSeconds.toFixed(2)}s or later.`,
+          ? "Move this note later than the previous one."
+          : `Set this note to ${timingIssue.earliestStartSeconds.toFixed(2)}s or later.`,
       });
     }
     const equations = [

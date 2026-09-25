@@ -99,7 +99,7 @@ export function NumberBondsMissionComposer({
             {authoredNoteCount ? "Rebuild notes from song" : "Place notes from song"}
           </button>
           <button className={styles.primary} type="button" disabled={!canPlay || isPreparing} onClick={onPlay}>
-            {isPreparing ? "Preparing mission…" : isReady ? "Play mission" : "Place notes & play"}
+            {isPreparing ? "Preparing mission…" : songCapacity < 2 && !isReady ? "Loading song notes…" : isReady ? "Play mission" : "Place notes & play"}
           </button>
         </div>
         {status ? <p className={styles.notice} role="status">{status}</p> : null}
