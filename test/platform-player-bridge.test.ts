@@ -29,7 +29,7 @@ test("bridge accepts the same receipt when Unity serializes keys in a different 
     type: "run-complete" as const,
     nonce: context.nonce,
     receipt: reorderedReceipt,
-    completion: { outcome: "completed" as const, completedEvents: 1, hitAttempts: 1 },
+    completion: { completionVersion: 2 as const, outcome: "completed" as const, completedEvents: 1, requiredEvents: 1, solvedSets: 1, hitAttempts: 1 },
   };
 
   assert.equal(validateBridgeMessage(valid, context).ok, true);
@@ -41,7 +41,7 @@ test("bridge accepts a bounded, receipt-bound completion summary only", () => {
     type: "run-complete" as const,
     nonce: context.nonce,
     receipt,
-    completion: { outcome: "completed" as const, completedEvents: 4, hitAttempts: 6 },
+    completion: { completionVersion: 2 as const, outcome: "completed" as const, completedEvents: 4, requiredEvents: 4, solvedSets: 2, hitAttempts: 6 },
   };
 
   assert.equal(validateBridgeMessage(completed, context).ok, true);
@@ -55,10 +55,25 @@ test("bridge preserves non-completion outcomes without inventing successful coun
     type: "run-complete" as const,
     nonce: context.nonce,
     receipt,
-    completion: { outcome: "abandoned" as const, completedEvents: 0, hitAttempts: 0 },
+    completion: { completionVersion: 2 as const, outcome: "abandoned" as const, completedEvents: 0, requiredEvents: 0, solvedSets: 0, hitAttempts: 0 },
   };
 
   assert.equal(validateBridgeMessage(abandoned, context).ok, true);
+});
+
+test("version 2 completion rejects a success that does not prove a solved set", () => {
+  const context = createBridgeContext(receipt, "https://game.example/", crypto.randomUUID());
+  const completed = {
+    type: "run-complete" as const,
+    nonce: context.nonce,
+    receipt,
+    completion: { completionVersion: 2 as const, outcome: "completed" as const, completedEvents: 5, requiredEvents: 5, solvedSets: 1, hitAttempts: 7 },
+  };
+
+  assert.equal(validateBridgeMessage(completed, context).ok, true);
+  assert.equal(validateBridgeMessage({ ...completed, completion: { ...completed.completion, solvedSets: 0 } }, context).ok, false);
+  assert.equal(validateBridgeMessage({ ...completed, completion: { ...completed.completion, completedEvents: 4 } }, context).ok, false);
+  assert.equal(validateBridgeMessage({ ...completed, completion: { ...completed.completion, completionVersion: 1 } }, context).ok, false);
 });
 
 test("calibration is required when protocol is absent or stale", () => {

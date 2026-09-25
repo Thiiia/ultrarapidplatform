@@ -47,7 +47,12 @@
           "code": "gem_spacing",
           "encounterId": "hit-2",
           "relatedEncounterId": "hit-1",
-          "earliestStartSeconds": 15.5
+          "relatedStartSeconds": 8,
+          "encounterStartSeconds": 15.49,
+          "earliestStartSeconds": 15.5,
+          "conflictStartSeconds": 8,
+          "conflictEndSeconds": 15.49,
+          "earliestSafeStartSeconds": 15.5
         }
       ]
     },
@@ -63,7 +68,12 @@
         {
           "code": "simultaneous_hits",
           "encounterId": "hit-2",
-          "relatedEncounterId": "hit-1"
+          "relatedEncounterId": "hit-1",
+          "relatedStartSeconds": 8,
+          "encounterStartSeconds": 8,
+          "conflictStartSeconds": 8,
+          "conflictEndSeconds": 8,
+          "earliestSafeStartSeconds": 15.5
         }
       ]
     },

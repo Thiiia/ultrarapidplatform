@@ -45,9 +45,33 @@ export const BridgeReceiptSchema = z.object({
   hashes: z.object({ chartSha256: z.string().regex(/^[a-f0-9]{64}$/i), sidecarSha256: z.string().regex(/^[a-f0-9]{64}$/i), audioSha256: z.string().regex(/^[a-f0-9]{64}$/i) }).strict(),
 }).strict();
 
+export const PlatformPlayerCompletionSchema = z.object({
+  completionVersion: z.literal(2),
+  outcome: z.enum(["completed", "failed", "abandoned", "cancelled"]),
+  completedEvents: z.number().int().min(0).max(10_000),
+  requiredEvents: z.number().int().min(0).max(10_000),
+  solvedSets: z.number().int().min(0).max(10_000),
+  hitAttempts: z.number().int().min(0).max(100_000),
+}).strict().superRefine((completion, context) => {
+  if (completion.completedEvents > completion.requiredEvents) {
+    context.addIssue({ code: "custom", path: ["completedEvents"], message: "Completed events cannot exceed required events." });
+  }
+  if (completion.solvedSets > completion.completedEvents) {
+    context.addIssue({ code: "custom", path: ["solvedSets"], message: "Solved sets cannot exceed completed events." });
+  }
+  if (completion.outcome === "completed" && (
+    completion.requiredEvents === 0 ||
+    completion.completedEvents !== completion.requiredEvents ||
+    completion.solvedSets === 0
+  )) {
+    context.addIssue({ code: "custom", path: ["outcome"], message: "Completed outcomes require all authored events and at least one solved set." });
+  }
+});
+export type PlatformPlayerCompletion = z.infer<typeof PlatformPlayerCompletionSchema>;
+
 export const PlatformPlayerBridgeMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("calibration-complete"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema, offsetMs: z.number().int().min(-350).max(350), protocolVersion: z.number().int().positive().max(32) }).strict(),
-  z.object({ type: z.literal("run-complete"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema, completion: z.object({ outcome: z.enum(["completed", "failed", "abandoned", "cancelled"]), completedEvents: z.number().int().min(0).max(10_000), hitAttempts: z.number().int().min(0).max(100_000) }).strict() }).strict(),
+  z.object({ type: z.literal("run-complete"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema, completion: PlatformPlayerCompletionSchema }).strict(),
   z.object({ type: z.literal("exit-to-song-select"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema }).strict(),
 ]);
 

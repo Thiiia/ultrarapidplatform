@@ -7,7 +7,7 @@ import type { FC, SVGProps } from "react";
 // import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { resolveLaunchParams } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
-import { createBridgeContext, getOrCreateInstallationId, parseCalibrationState, validateBridgeMessage, type BridgeContext, type CalibrationState } from "@/lib/platform-player-bridge";
+import { createBridgeContext, getOrCreateInstallationId, parseCalibrationState, PlatformPlayerCompletionSchema, validateBridgeMessage, type BridgeContext, type CalibrationState, type PlatformPlayerCompletion } from "@/lib/platform-player-bridge";
 import { getSongLaunchErrorMessage } from "@/lib/song-choice-flow";
 import { requestFreshSongLaunchParams } from "@/lib/song-launch-client";
 import { studentCopy } from "@/lib/student-copy";
@@ -51,11 +51,7 @@ type GameEmbedPageProps = {
   navBasePath?: string;
 };
 
-type CompletionSummary = {
-  outcome: "completed" | "failed" | "abandoned" | "cancelled";
-  completedEvents: number;
-  hitAttempts: number;
-};
+type CompletionSummary = PlatformPlayerCompletion;
 
 type PendingOutcome = {
   receipt: BridgeContext["receipt"];
@@ -353,7 +349,7 @@ function GameEmbedSession({
   const [launchPreparationError, setLaunchPreparationError] = useState("");
   const [calibrationStatus, setCalibrationStatus] = useState<"loading" | "required" | "ready">("loading");
   const [calibration, setCalibration] = useState<CalibrationState | null>(null);
-  const [completedRun, setCompletedRun] = useState<{ completedEvents: number; hitAttempts: number } | null>(null);
+  const [completedRun, setCompletedRun] = useState<Pick<CompletionSummary, "completedEvents" | "requiredEvents" | "solvedSets" | "hitAttempts"> | null>(null);
   const [bridgeStatusMessage, setBridgeStatusMessage] = useState("");
   const [pendingOutcome, setPendingOutcome] = useState<PendingOutcome | null>(null);
   const [outcomeSyncState, setOutcomeSyncState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -479,10 +475,21 @@ function GameEmbedSession({
       fetch(`/api/player-outcomes?launchAttemptId=${encodeURIComponent(launchAttemptId)}`)
         .then((response) => response.ok ? response.json() : null)
         .then((stored) => {
-          if (!cancelled && stored?.outcome?.outcome === "completed") {
+          const candidate = stored?.outcome;
+          const completion = candidate ? PlatformPlayerCompletionSchema.safeParse({
+            completionVersion: candidate.completionVersion,
+            outcome: candidate.outcome,
+            completedEvents: candidate.completedEvents,
+            requiredEvents: candidate.requiredEvents,
+            solvedSets: candidate.solvedSets,
+            hitAttempts: candidate.hitAttempts,
+          }) : null;
+          if (!cancelled && completion?.success && completion.data.outcome === "completed") {
             setCompletedRun({
-              completedEvents: stored.outcome.completedEvents,
-              hitAttempts: stored.outcome.hitAttempts,
+              completedEvents: completion.data.completedEvents,
+              requiredEvents: completion.data.requiredEvents,
+              solvedSets: completion.data.solvedSets,
+              hitAttempts: completion.data.hitAttempts,
             });
           }
         })
@@ -542,6 +549,8 @@ function GameEmbedSession({
           if (completion.outcome === "completed") {
             setCompletedRun({
               completedEvents: completion.completedEvents,
+              requiredEvents: completion.requiredEvents,
+              solvedSets: completion.solvedSets,
               hitAttempts: completion.hitAttempts,
             });
           }
@@ -576,6 +585,8 @@ function GameEmbedSession({
         if (pendingOutcome.completion.outcome === "completed") {
           setCompletedRun({
             completedEvents: pendingOutcome.completion.completedEvents,
+            requiredEvents: pendingOutcome.completion.requiredEvents,
+            solvedSets: pendingOutcome.completion.solvedSets,
             hitAttempts: pendingOutcome.completion.hitAttempts,
           });
         }
@@ -719,7 +730,7 @@ function GameEmbedSession({
           )}
           {completedRun && (
             <p className="experience-status mt-2 text-sm" data-status="success" role="status" aria-live="polite">
-              {studentCopy.game.lessonComplete(completedRun.completedEvents, completedRun.hitAttempts)} {studentCopy.game.returnToSongs}
+              {studentCopy.game.lessonComplete(completedRun.solvedSets, completedRun.completedEvents, completedRun.requiredEvents, completedRun.hitAttempts)} {studentCopy.game.returnToSongs}
             </p>
           )}
         </section>

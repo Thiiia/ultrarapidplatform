@@ -305,6 +305,9 @@ model GameContentRevision {
   chartSha256           String?                   @map("chart_sha256")
   sidecarSha256         String?                   @map("sidecar_sha256")
   audioSha256           String?                   @map("audio_sha256")
+  rhythmSourceRevision  String?                   @map("rhythm_source_revision") @db.Uuid
+  rhythmSource          GameContentRevision?      @relation("GameContentRevisionRhythmSource", fields: [rhythmSourceRevision, songAssetId], references: [revision, songAssetId], onDelete: Restrict, onUpdate: Restrict, map: "game_content_revisions_rhythm_source_fk")
+  rhythmDerivedRevisions GameContentRevision[]     @relation("GameContentRevisionRhythmSource")
   authoredLessonVersion Int?                      @map("authored_lesson_version")
   authoredMode          String?                   @map("authored_mode")
   equationCount         Int?                      @map("equation_count")
@@ -318,6 +321,8 @@ model GameContentRevision {
   publishedAt           DateTime?                 @map("published_at")
 
   @@index([songAssetId, activityKey, authorId, status, publishedAt])
+  @@index([rhythmSourceRevision], map: "game_content_revisions_rhythm_source_revision_idx")
+  @@unique([revision, songAssetId], map: "game_content_revisions_revision_song_asset_id_key")
   @@map("game_content_revisions")
 }
 
@@ -398,6 +403,9 @@ model PlayerRunOutcome {
   userId          String
   outcome         String
   completedEvents Int      @default(0)
+  completionVersion Int?
+  requiredEvents    Int?
+  solvedSets        Int?
   hitAttempts     Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

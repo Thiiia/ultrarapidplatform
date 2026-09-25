@@ -11,6 +11,7 @@ export function createLessonClock(chart: string) {
     return {...tempo, seconds};
   });
   return {
+    ticksPerBeat: resolution,
     toTick(value: number) {
       const time = value + offset;
       const segment = segments.findLast(s => s.seconds <= time) ?? segments[0];

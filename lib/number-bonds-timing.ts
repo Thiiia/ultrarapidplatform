@@ -1,72 +1,54 @@
-import { NUMBER_BONDS_TIMING_POLICY } from "./activity-authoring-capabilities";
+import {
+  NUMBER_BONDS_TIMING_POLICY,
+  validateAuthoredActivityTiming,
+  type NumberBondsTimingIssue as AuthoredActivityTimingIssue,
+} from "./activity-authoring-capabilities";
 
 /** Keep the authored Number Bonds gate aligned with Unity's sequential runner. */
 export const NUMBER_BONDS_MINIMUM_HIT_SPACING_SECONDS = NUMBER_BONDS_TIMING_POLICY.minimumHitSpacingSeconds;
 export const NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS = NUMBER_BONDS_TIMING_POLICY.finalInteractionTailSeconds;
-const COMPARISON_EPSILON_SECONDS = 0.00000001;
 
 export type NumberBondsTimingCue = { id: string; startSeconds: number };
-export type NumberBondsTimingIssue = {
-  code: "timing_invalid" | "simultaneous_hits" | "gem_spacing" | "stop_required" | "gem_tail";
-  encounterId: string;
-  relatedEncounterId?: string;
-  earliestStartSeconds?: number;
-  minimumStopSeconds?: number;
-  message: string;
-};
+export type NumberBondsTimingIssue = AuthoredActivityTimingIssue & { message: string };
 
 export function authoredStopBufferSeconds(activityKey: string | null | undefined): number {
   return activityKey === "number-bonds" ? NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS : 5;
 }
 
+/**
+ * Compatibility wrapper for editor callers that need user-facing guidance.
+ * The policy and validation logic live in validateAuthoredActivityTiming so
+ * draft readiness and publication cannot drift apart.
+ */
 export function validateNumberBondsTiming(
   cues: readonly NumberBondsTimingCue[],
   stopAtSeconds: number | null | undefined,
 ): NumberBondsTimingIssue[] {
-  const issues: NumberBondsTimingIssue[] = [];
-  const hits = cues.filter((cue) => {
-    if (Number.isFinite(cue.startSeconds)) return true;
-    issues.push({
-      code: "timing_invalid", encounterId: cue.id,
-      message: `Hit '${cue.id}' has an invalid song time.`,
-    });
-    return false;
-  }).sort((left, right) =>
-    left.startSeconds - right.startSeconds || left.id.localeCompare(right.id),
+  const issues = validateAuthoredActivityTiming(
+    "number-bonds",
+    cues.map((cue) => ({ ...cue, type: "hit" as const })),
+    stopAtSeconds ?? undefined,
   );
 
-  for (let index = 1; index < hits.length; index += 1) {
-    const previous = hits[index - 1];
-    const current = hits[index];
-    const spacing = current.startSeconds - previous.startSeconds;
-    if (spacing <= COMPARISON_EPSILON_SECONDS) {
-      issues.push({
-        code: "simultaneous_hits", encounterId: current.id, relatedEncounterId: previous.id,
-        message: `Number Bonds plays one gem at a time. Move Hit '${current.id}' after Hit '${previous.id}'.`,
-      });
-    } else if (spacing + COMPARISON_EPSILON_SECONDS < NUMBER_BONDS_MINIMUM_HIT_SPACING_SECONDS) {
-      const earliestStartSeconds = previous.startSeconds + NUMBER_BONDS_MINIMUM_HIT_SPACING_SECONDS;
-      issues.push({
-        code: "gem_spacing", encounterId: current.id, relatedEncounterId: previous.id,
-        earliestStartSeconds,
-        message: `Move Hit '${current.id}' to ${earliestStartSeconds.toFixed(2)}s or later so the previous gem can finish its catch, spin and drag.`,
-      });
+  return issues.map((issue) => {
+    let message: string;
+    switch (issue.code) {
+      case "timing_invalid":
+        message = `Hit '${issue.encounterId}' has an invalid song time.`;
+        break;
+      case "simultaneous_hits":
+        message = `Number Bonds plays one gem at a time. Move Hit '${issue.encounterId}' after Hit '${issue.relatedEncounterId}'.`;
+        break;
+      case "gem_spacing":
+        message = `Move Hit '${issue.encounterId}' to ${issue.earliestStartSeconds?.toFixed(2)}s or later so the previous gem can finish its catch, spin and drag.`;
+        break;
+      case "stop_required":
+        message = `Keep the song playing until at least ${issue.minimumStopSeconds?.toFixed(2)}s so the final gem can finish.`;
+        break;
+      case "gem_tail":
+        message = `Extend this lesson's stop time to ${issue.minimumStopSeconds?.toFixed(2)}s or later for the final gem.`;
+        break;
     }
-  }
-
-  if (hits.length === 0) return issues;
-  const finalHit = hits[hits.length - 1];
-  const minimumStopSeconds = finalHit.startSeconds + NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS;
-  if (stopAtSeconds == null || !Number.isFinite(stopAtSeconds) || stopAtSeconds < 0) {
-    issues.push({
-      code: "stop_required", encounterId: finalHit.id, minimumStopSeconds,
-      message: `Keep the song playing until at least ${minimumStopSeconds.toFixed(2)}s so the final gem can finish.`,
-    });
-  } else if (stopAtSeconds + COMPARISON_EPSILON_SECONDS < minimumStopSeconds) {
-    issues.push({
-      code: "gem_tail", encounterId: finalHit.id, minimumStopSeconds,
-      message: `Extend this lesson's stop time to ${minimumStopSeconds.toFixed(2)}s or later for the final gem.`,
-    });
-  }
-  return issues;
+    return { ...issue, message };
+  });
 }

@@ -346,6 +346,71 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    // A retry of the original shared-rhythm publication must replay its
+    // immutable result before the first-publication-only guard runs. Bind the
+    // request ID to the same source revision and activity so a reused ID cannot
+    // silently replay a different lesson bootstrap.
+    const replayedPublication = await prisma.gameContentRevision.findUnique({
+      where: { publicationRequestId },
+      select: {
+        revision: true,
+        songAssetId: true,
+        activityKey: true,
+        authorId: true,
+        chartBucket: true,
+        chartPath: true,
+        sidecarBucket: true,
+        sidecarPath: true,
+        status: true,
+        rhythmSource: {
+          select: {
+            revision: true,
+            activityKey: true,
+            chartSha256: true,
+            audioSha256: true,
+          },
+        },
+      },
+    });
+    if (replayedPublication) {
+      if (
+        replayedPublication.songAssetId !== songAssetId ||
+        replayedPublication.activityKey !== activityKey ||
+        replayedPublication.authorId !== targetAuthor.id
+      ) {
+        return NextResponse.json({ error: "Publication request id belongs to a different lesson" }, { status: 409 });
+      }
+      if (replayedPublication.status !== "ready") {
+        return NextResponse.json({ error: "Publication request is still being finalized" }, { status: 409 });
+      }
+      if (
+        (replayedPublication.rhythmSource?.revision ?? null) !== sourceRevision ||
+        (replayedPublication.rhythmSource?.activityKey ?? null) !== sourceActivityKey
+      ) {
+        return NextResponse.json({ error: "Publication request id belongs to a different rhythm source" }, { status: 409 });
+      }
+      return NextResponse.json({
+        ok: true,
+        authorId: targetAuthor.id,
+        authorName: targetAuthor.name,
+        revision: replayedPublication.revision,
+        publicationRequestId,
+        migratedFromLegacy: false,
+        rhythmSource: replayedPublication.rhythmSource
+          ? {
+              activityKey: replayedPublication.rhythmSource.activityKey,
+              revision: replayedPublication.rhythmSource.revision,
+              chartSha256: replayedPublication.rhythmSource.chartSha256,
+              audioSha256: replayedPublication.rhythmSource.audioSha256,
+            }
+          : null,
+        songAsset: { id: songAssetId, chartBucket: replayedPublication.chartBucket, sidecarBucket: replayedPublication.sidecarBucket },
+        chart: { bucket: replayedPublication.chartBucket, path: replayedPublication.chartPath, contentType: "text/plain;charset=utf-8" },
+        sidecar: { bucket: replayedPublication.sidecarBucket, path: replayedPublication.sidecarPath, contentType: "application/json;charset=utf-8" },
+      });
+    }
+
     if (targets.current && hasRhythmSourceRequest) {
       return NextResponse.json(
         { error: "rhythmSource is only allowed for the first publication of an activity lesson" },
@@ -432,44 +497,6 @@ export async function POST(request: Request) {
       rhythmSourceActivityKey: resolvedRhythmSource?.sourceActivityKey ?? null,
       rhythmSourceRevision: resolvedRhythmSource?.sourceRevision ?? null,
     });
-
-    const replayedPublication = await prisma.gameContentRevision.findUnique({
-      where: { publicationRequestId },
-      select: {
-        revision: true,
-        songAssetId: true,
-        activityKey: true,
-        authorId: true,
-        chartBucket: true,
-        chartPath: true,
-        sidecarBucket: true,
-        sidecarPath: true,
-        status: true,
-      },
-    });
-    if (replayedPublication) {
-      if (
-        replayedPublication.songAssetId !== songAssetId ||
-        replayedPublication.activityKey !== activityKey ||
-        replayedPublication.authorId !== targetAuthor.id
-      ) {
-        return NextResponse.json({ error: "Publication request id belongs to a different lesson" }, { status: 409 });
-      }
-      if (replayedPublication.status !== "ready") {
-        return NextResponse.json({ error: "Publication request is still being finalized" }, { status: 409 });
-      }
-      return NextResponse.json({
-        ok: true,
-        authorId: targetAuthor.id,
-        authorName: targetAuthor.name,
-        revision: replayedPublication.revision,
-        publicationRequestId,
-        migratedFromLegacy: false,
-        songAsset: { id: songAssetId, chartBucket: replayedPublication.chartBucket, sidecarBucket: replayedPublication.sidecarBucket },
-        chart: { bucket: replayedPublication.chartBucket, path: replayedPublication.chartPath, contentType: "text/plain;charset=utf-8" },
-        sidecar: { bucket: replayedPublication.sidecarBucket, path: replayedPublication.sidecarPath, contentType: "application/json;charset=utf-8" },
-      });
-    }
 
     try { validateLessonContent(chartContent, sidecarContent, { forSave: true }); }
     catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid lesson content" }, { status: 400 }); }
@@ -600,6 +627,7 @@ export async function POST(request: Request) {
                 chartSha256,
                 sidecarSha256: sha256(sidecar.content),
                 audioSha256,
+                rhythmSourceRevision: resolvedRhythmSource?.sourceRevision ?? null,
                 authoredLessonVersion: 3,
                 authoredMode: "authored",
                 equationCount: authoredPublication.counts.equations,

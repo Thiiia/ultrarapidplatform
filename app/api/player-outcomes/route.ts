@@ -2,18 +2,13 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireCurrentAppUser } from "@/lib/current-user";
-import { BridgeReceiptSchema } from "@/lib/platform-player-bridge";
+import { BridgeReceiptSchema, PlatformPlayerCompletionSchema } from "@/lib/platform-player-bridge";
 import { prisma } from "@/lib/prisma";
 
 const LaunchAttemptIdSchema = z.string().uuid();
-const CompletionSchema = z.object({
-  outcome: z.enum(["completed", "failed", "abandoned", "cancelled"]),
-  completedEvents: z.number().int().min(0).max(10_000),
-  hitAttempts: z.number().int().min(0).max(100_000),
-}).strict();
 const OutcomeMutationSchema = z.object({
   receipt: BridgeReceiptSchema,
-  completion: CompletionSchema,
+  completion: PlatformPlayerCompletionSchema,
 }).strict();
 
 function canonicalJson(value: unknown): string {
@@ -31,6 +26,9 @@ function responseForOutcome(outcome: {
   launchAttemptId: string;
   outcome: string;
   completedEvents: number;
+  completionVersion: number | null;
+  requiredEvents: number | null;
+  solvedSets: number | null;
   hitAttempts: number;
   createdAt: Date;
 }) {
@@ -39,7 +37,10 @@ function responseForOutcome(outcome: {
     outcome: {
       launchAttemptId: outcome.launchAttemptId,
       outcome: outcome.outcome,
+      completionVersion: outcome.completionVersion,
       completedEvents: outcome.completedEvents,
+      requiredEvents: outcome.requiredEvents,
+      solvedSets: outcome.solvedSets,
       hitAttempts: outcome.hitAttempts,
       createdAt: outcome.createdAt.toISOString(),
     },
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
     );
     const outcome = await prisma.playerRunOutcome.findFirst({
       where: { launchAttemptId, userId: user.id },
-      select: { launchAttemptId: true, outcome: true, completedEvents: true, hitAttempts: true, createdAt: true },
+      select: { launchAttemptId: true, outcome: true, completionVersion: true, completedEvents: true, requiredEvents: true, solvedSets: true, hitAttempts: true, createdAt: true },
     });
     return NextResponse.json(outcome ? responseForOutcome(outcome) : { outcome: null });
   } catch (error) {
@@ -87,12 +88,15 @@ export async function POST(request: Request) {
 
     const existing = await prisma.playerRunOutcome.findUnique({
       where: { launchAttemptId },
-      select: { launchAttemptId: true, userId: true, outcome: true, completedEvents: true, hitAttempts: true, createdAt: true },
+      select: { launchAttemptId: true, userId: true, outcome: true, completionVersion: true, completedEvents: true, requiredEvents: true, solvedSets: true, hitAttempts: true, createdAt: true },
     });
     if (existing) {
       const sameOutcome = existing.userId === user.id &&
         existing.outcome === body.completion.outcome &&
+        existing.completionVersion === body.completion.completionVersion &&
         existing.completedEvents === body.completion.completedEvents &&
+        existing.requiredEvents === body.completion.requiredEvents &&
+        existing.solvedSets === body.completion.solvedSets &&
         existing.hitAttempts === body.completion.hitAttempts;
       if (!sameOutcome) {
         return NextResponse.json({ error: "A different outcome is already recorded for this launch attempt" }, { status: 409 });
@@ -106,10 +110,13 @@ export async function POST(request: Request) {
           launchAttemptId,
           userId: user.id,
           outcome: body.completion.outcome,
+          completionVersion: body.completion.completionVersion,
           completedEvents: body.completion.completedEvents,
+          requiredEvents: body.completion.requiredEvents,
+          solvedSets: body.completion.solvedSets,
           hitAttempts: body.completion.hitAttempts,
         },
-        select: { launchAttemptId: true, outcome: true, completedEvents: true, hitAttempts: true, createdAt: true },
+        select: { launchAttemptId: true, outcome: true, completionVersion: true, completedEvents: true, requiredEvents: true, solvedSets: true, hitAttempts: true, createdAt: true },
       });
       return NextResponse.json(responseForOutcome(created), { status: 201 });
     } catch (error) {
@@ -118,11 +125,14 @@ export async function POST(request: Request) {
       }
       const raced = await prisma.playerRunOutcome.findUniqueOrThrow({
         where: { launchAttemptId },
-        select: { launchAttemptId: true, userId: true, outcome: true, completedEvents: true, hitAttempts: true, createdAt: true },
+        select: { launchAttemptId: true, userId: true, outcome: true, completionVersion: true, completedEvents: true, requiredEvents: true, solvedSets: true, hitAttempts: true, createdAt: true },
       });
       const sameOutcome = raced.userId === user.id &&
         raced.outcome === body.completion.outcome &&
+        raced.completionVersion === body.completion.completionVersion &&
         raced.completedEvents === body.completion.completedEvents &&
+        raced.requiredEvents === body.completion.requiredEvents &&
+        raced.solvedSets === body.completion.solvedSets &&
         raced.hitAttempts === body.completion.hitAttempts;
       if (!sameOutcome) {
         return NextResponse.json({ error: "A different outcome is already recorded for this launch attempt" }, { status: 409 });

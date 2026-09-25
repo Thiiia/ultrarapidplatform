@@ -81,11 +81,16 @@ test("lesson-level blockers explain the repair without acting like a cue link", 
   assert.match(lessonBuilderSource, /if \(blocker\.encounterId\) handleSelectReadinessEncounter\(blocker\.encounterId, blocker\.code\)/);
 });
 
-test("Number Bonds recording shows timing guidance and keeps automatic repairs inside the song", () => {
+test("Number Bonds timing repairs require a beat-snapped preview and can be undone", () => {
   assert.match(lessonBuilderSource, /\(!isRctm2Mode \|\| \(selectedSongActivity\?\.key \?\? selectedSongLaunch\?\.activityKey\) === "number-bonds"\)/);
-  assert.match(readinessSource, /Move this catch cue for me/);
-  assert.match(lessonBuilderSource, /nextSeconds \+ NUMBER_BONDS_TIMING_POLICY\.finalInteractionTailSeconds > songEndSeconds/);
-  assert.match(lessonBuilderSource, /setRtcmDraftMechanics\(\(current\) => current\.map/);
+  assert.match(readinessSource, /Preview move to next clear beat/);
+  assert.match(readinessSource, /Cancel preview/);
+  assert.match(readinessSource, /Undo last timing repair/);
+  assert.match(lessonBuilderSource, /proposeEncounterMove\([\s\S]*stopAtSeconds: sidecar\.stopAtSeconds/);
+  assert.match(lessonBuilderSource, /applyEncounterMovePatches/);
+  assert.match(lessonBuilderSource, /setTimingRepairUndoSnapshot\(undoSnapshot\)/);
+  assert.match(lessonBuilderSource, /Extend the song or remove a move/);
+  assert.doesNotMatch(readinessSource, /Move this catch cue for me/);
 });
 
 test("readiness blockers select the exact cue and seek to its authored time", () => {

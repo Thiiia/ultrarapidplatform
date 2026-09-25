@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import type { LessonPublishReadiness } from "@/lib/guided-authored-encounter";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { EncounterMoveProposal, LessonPublishReadiness } from "@/lib/guided-authored-encounter";
 import { studentCopy } from "@/lib/student-copy";
 import { groupReadinessBlockers, paginateReadinessBlockers } from "./readiness-blocker-list";
 import styles from "../student.module.css";
@@ -11,7 +11,11 @@ export type EncounterReadinessPanelProps = {
   canPlay: boolean;
   onSelectEncounter: (encounterId: string, issueCode: string) => void;
   onCreateEncounter?: () => void;
-  onFixFirstTimingIssue?: () => void;
+  timingRepairPreview?: EncounterMoveProposal | null;
+  onPreviewTimingRepair?: () => void;
+  onApplyTimingRepair?: () => void;
+  onCancelTimingRepair?: () => void;
+  onUndoTimingRepair?: () => void;
   isOpen: boolean;
   onToggle: () => void;
 };
@@ -23,7 +27,11 @@ export function EncounterReadinessPanel({
   canPlay,
   onSelectEncounter,
   onCreateEncounter,
-  onFixFirstTimingIssue,
+  timingRepairPreview,
+  onPreviewTimingRepair,
+  onApplyTimingRepair,
+  onCancelTimingRepair,
+  onUndoTimingRepair,
   isOpen,
   onToggle,
 }: EncounterReadinessPanelProps) {
@@ -33,6 +41,28 @@ export function EncounterReadinessPanel({
   const requestedBlockerPage = blockerPageState?.key === blockerSetKey ? blockerPageState.page : 0;
   const blockerPage = paginateReadinessBlockers(blockerGroups, requestedBlockerPage);
   const firstBlocker = blockerPage.page === 0 ? blockerPage.blockers[0]?.blocker : undefined;
+  const previewButtonRef = useRef<HTMLButtonElement>(null);
+  const undoButtonRef = useRef<HTMLButtonElement>(null);
+  const focusPreviewAfterCancel = useRef(false);
+  const focusUndoAfterApply = useRef(false);
+
+  useEffect(() => {
+    if (timingRepairPreview) return;
+    if (focusPreviewAfterCancel.current) {
+      focusPreviewAfterCancel.current = false;
+      previewButtonRef.current?.focus();
+      return;
+    }
+    if (focusUndoAfterApply.current && onUndoTimingRepair) {
+      focusUndoAfterApply.current = false;
+      undoButtonRef.current?.focus();
+      return;
+    }
+    if (focusUndoAfterApply.current) {
+      focusUndoAfterApply.current = false;
+      previewButtonRef.current?.focus();
+    }
+  }, [timingRepairPreview, onUndoTimingRepair]);
 
   const contentReady = readiness.ready;
   const fullyReady = contentReady && hasSong && canPublish && canPlay;
@@ -87,6 +117,24 @@ export function EncounterReadinessPanel({
               const content = <>
                 <span>{blocker.message}</span>
                 <span className={styles.editorReadinessBlockerAction}>{blocker.nextAction}</span>
+                {blocker.conflictIntervals?.length ? (
+                  <span aria-label="Occupied cue intervals" className={styles.editorReadinessBlockerCount}>
+                    {blocker.conflictIntervals.map((interval) =>
+                      `${interval.label} ${interval.startSeconds.toFixed(2)}–${interval.endSeconds.toFixed(2)}s`,
+                    ).join(" · ")}
+                  </span>
+                ) : null}
+                {blocker.code === "unsupported_concurrency" &&
+                  Number.isFinite(blocker.conflictStartSeconds) && Number.isFinite(blocker.conflictEndSeconds) ? (
+                    <span className={styles.editorReadinessBlockerCount}>
+                      Overlap {blocker.conflictStartSeconds!.toFixed(2)}–{blocker.conflictEndSeconds!.toFixed(2)}s
+                    </span>
+                  ) : null}
+                {Number.isFinite(blocker.earliestSafeStartSeconds) ? (
+                  <span className={styles.editorReadinessBlockerCount}>
+                    Next safe beat starts at or after {blocker.earliestSafeStartSeconds!.toFixed(2)}s
+                  </span>
+                ) : null}
                 {occurrences > 1 ? (
                   <span className={styles.editorReadinessBlockerCount}>{occurrences} related issues for this move</span>
                 ) : null}
@@ -111,10 +159,55 @@ export function EncounterReadinessPanel({
                   </div>
               );
             })}
-            {firstBlocker?.code === "activity_hit_spacing" && onFixFirstTimingIssue ? (
-              <button type="button" onClick={onFixFirstTimingIssue} className={styles.editorReadinessBlocker}>
-                Move this catch cue for me
+            {firstBlocker && [
+              "unsupported_concurrency",
+              "activity_hit_spacing",
+              "gem_spacing",
+              "simultaneous_hits",
+              "drag_source_not_earlier",
+            ].includes(firstBlocker.code) && onPreviewTimingRepair && !timingRepairPreview ? (
+              <button ref={previewButtonRef} type="button" onClick={onPreviewTimingRepair} className={styles.editorReadinessBlocker}>
+                Preview move to next clear beat
               </button>
+            ) : null}
+            {timingRepairPreview ? (
+              <section aria-label="Timing repair preview" className={styles.editorReadinessBlocker}>
+                <strong>Preview: move {timingRepairPreview.patches.length} cue{timingRepairPreview.patches.length === 1 ? "" : "s"}</strong>
+                <ul>
+                  {timingRepairPreview.patches.map((patch) => (
+                    <li key={patch.encounterId}>
+                      {patch.mechanic} cue {patch.fromSeconds.toFixed(2)}s → {patch.toSeconds.toFixed(2)}s
+                      {patch.mechanic === "hit" ? "" : ` (duration ${Math.max(0, patch.fromEndSeconds - patch.fromSeconds).toFixed(2)}s preserved)`}
+                    </li>
+                  ))}
+                </ul>
+                <span aria-live="polite" aria-atomic="true">
+                  {timingRepairPreview.readiness.ready
+                    ? "Readiness checks pass after these moves."
+                    : `${timingRepairPreview.readiness.blockers.length} readiness issue${timingRepairPreview.readiness.blockers.length === 1 ? " remains" : "s remain"} after these moves; review before publishing.`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    focusUndoAfterApply.current = true;
+                    onApplyTimingRepair?.();
+                  }}
+                  className={styles.editorReadinessBlocker}
+                >
+                  Apply previewed moves
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    focusUndoAfterApply.current = false;
+                    focusPreviewAfterCancel.current = true;
+                    onCancelTimingRepair?.();
+                  }}
+                  className={styles.editorReadinessBlocker}
+                >
+                  Cancel preview
+                </button>
+              </section>
             ) : null}
             {blockerPage.total > 0 ? (
               <nav className={styles.editorReadinessBlockerPagination} aria-label="Readiness issues">
@@ -147,6 +240,11 @@ export function EncounterReadinessPanel({
               : studentCopy.editor.finishLoadingBeforeSave}
           </div>
         )}
+        {!timingRepairPreview && onUndoTimingRepair ? (
+          <button ref={undoButtonRef} type="button" onClick={onUndoTimingRepair} className={styles.editorReadinessBlocker}>
+            Undo last timing repair
+          </button>
+        ) : null}
       </div>
     </aside>
   );

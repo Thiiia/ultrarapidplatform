@@ -250,6 +250,9 @@ function StudentActivityRow({
           value={student.accuracyPercent === null ? "—" : `${student.accuracyPercent}%`}
         />
         <StatChip label="Completed" value={String(student.completedCount)} />
+        {student.unverifiedCompletedCount > 0 && (
+          <StatChip label="Older unverified" value={String(student.unverifiedCompletedCount)} />
+        )}
         <StatChip label="Incomplete" value={String(student.failedCount)} />
         {student.attemptsByActivity.map((stat) => (
           <StatChip

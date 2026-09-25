@@ -258,3 +258,19 @@ test("first Number Bonds publication requires an explicit verified rhythm source
   assert.match(storage, /status: "ready"/);
   assert.match(storage, /source\.chartSha256 === revision\.chartSha256/);
 });
+
+test("Number Bonds authoring can generate catch cues from a chosen catalogue bond and rhythm difficulty", () => {
+  const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+  const generator = source("lib/number-bonds-content-generator.ts");
+
+  assert.match(builder, /Generate a Number Bonds lesson/);
+  assert.match(builder, /NumberBondsEquationCatalogue|NUMBER_BONDS_EQUATION_CATALOGUE/);
+  assert.match(builder, /SUPPORTED_RHYTHM_DIFFICULTIES/);
+  assert.match(builder, /generateNumberBondsAuthoredLesson\(/);
+  assert.match(builder, /selectedRhythmSource\.revision/);
+  assert.match(builder, /selectedRhythmSource\.chartSha256/);
+  assert.match(builder, /timelineEvents\.length === 0/);
+  assert.match(generator, /serializeAuthoredLesson\(/);
+  assert.match(generator, /NUMBER_BONDS_TIMING_POLICY\.minimumHitSpacingSeconds/);
+  assert.match(generator, /NUMBER_BONDS_TIMING_POLICY\.finalInteractionTailSeconds/);
+});

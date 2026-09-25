@@ -12,6 +12,7 @@ import {
   getActivityAuthoringCapabilities,
   getNumberBondsWhole,
   getNumberBondsWholeTokenIndex,
+  NUMBER_BONDS_TIMING_POLICY,
   validateAuthoredActivityTiming,
   type NumberBondsTimingIssue,
 } from "./activity-authoring-capabilities";
@@ -61,6 +62,15 @@ export type EncounterIssue = {
   encounterId: string | null;
   relatedEncounterId?: string;
   relatedEncounterIds?: string[];
+  conflictStartSeconds?: number;
+  conflictEndSeconds?: number;
+  earliestSafeStartSeconds?: number;
+  conflictIntervals?: Array<{
+    encounterId: string;
+    label: string;
+    startSeconds: number;
+    endSeconds: number;
+  }>;
   code: EncounterIssueCode;
   message: string;
   nextAction: string;
@@ -208,6 +218,16 @@ function timingIssueToEncounterIssue(timingIssue: NumberBondsTimingIssue): Encou
       return {
         encounterId: timingIssue.encounterId,
         relatedEncounterId: timingIssue.relatedEncounterId,
+        conflictStartSeconds: timingIssue.conflictStartSeconds,
+        conflictEndSeconds: timingIssue.conflictEndSeconds,
+        conflictIntervals: timingIssue.relatedEncounterId &&
+          Number.isFinite(timingIssue.relatedStartSeconds) && Number.isFinite(timingIssue.encounterStartSeconds)
+          ? [
+            { encounterId: timingIssue.relatedEncounterId, label: previousLabel, startSeconds: timingIssue.relatedStartSeconds!, endSeconds: timingIssue.relatedStartSeconds! },
+            { encounterId: timingIssue.encounterId, label, startSeconds: timingIssue.encounterStartSeconds!, endSeconds: timingIssue.encounterStartSeconds! },
+          ]
+          : undefined,
+        earliestSafeStartSeconds: timingIssue.earliestSafeStartSeconds ?? timingIssue.earliestStartSeconds,
         code: "activity_hit_spacing",
         message: `${label} starts too soon after ${previousLabel}.`,
         nextAction: `Move ${label} to ${earliestStart}s or later.`,
@@ -216,6 +236,16 @@ function timingIssueToEncounterIssue(timingIssue: NumberBondsTimingIssue): Encou
       return {
         encounterId: timingIssue.encounterId,
         relatedEncounterId: timingIssue.relatedEncounterId,
+        conflictStartSeconds: timingIssue.conflictStartSeconds,
+        conflictEndSeconds: timingIssue.conflictEndSeconds,
+        conflictIntervals: timingIssue.relatedEncounterId &&
+          Number.isFinite(timingIssue.relatedStartSeconds) && Number.isFinite(timingIssue.encounterStartSeconds)
+          ? [
+            { encounterId: timingIssue.relatedEncounterId, label: previousLabel, startSeconds: timingIssue.relatedStartSeconds!, endSeconds: timingIssue.relatedStartSeconds! },
+            { encounterId: timingIssue.encounterId, label, startSeconds: timingIssue.encounterStartSeconds!, endSeconds: timingIssue.encounterStartSeconds! },
+          ]
+          : undefined,
+        earliestSafeStartSeconds: timingIssue.earliestSafeStartSeconds,
         code: timingIssue.code,
         message: `${label} happens at the same time as ${previousLabel}.`,
         nextAction: `Move ${label} so each Number Bonds Hit has its own time.`,
@@ -462,9 +492,31 @@ export function evaluateLessonPublishReadiness(
 
     const sourceHitId = mechanic === "drag" ? input.dragTargets[0]?.sourceHitId : undefined;
     const source = sourceHitId ? inputById.get(sourceHitId) : undefined;
-    if (source && source.mechanic === "hit" &&
+    if (sourceHitId && source && source.mechanic === "hit" &&
       (source.input.tick ?? source.event.tick) >= (input.tick ?? event.tick)) {
-      blockers.push(issue(input, "drag_source_not_earlier"));
+      const sourceStartSeconds = source.input.tick ?? source.event.tick;
+      const dragStartSeconds = input.tick ?? event.tick;
+      blockers.push({
+        ...issue(input, "drag_source_not_earlier"),
+        relatedEncounterId: sourceHitId,
+        conflictStartSeconds: sourceStartSeconds,
+        conflictEndSeconds: dragStartSeconds,
+        earliestSafeStartSeconds: sourceStartSeconds + 0.001,
+        conflictIntervals: [
+          {
+            encounterId: sourceHitId,
+            label: moveLabel(sourceHitId, "hit"),
+            startSeconds: sourceStartSeconds,
+            endSeconds: sourceStartSeconds,
+          },
+          {
+            encounterId: instance.id,
+            label: moveLabel(instance.id, "drag"),
+            startSeconds: dragStartSeconds,
+            endSeconds: input.endTick ?? dragStartSeconds,
+          },
+        ],
+      });
     }
 
     if (mechanic === "hit" && readiness.ready) readyHitIds.add(instance.id);
@@ -564,6 +616,10 @@ export function evaluateLessonPublishReadiness(
 
       const rightLabel = moveLabel(right.instance.id, right.mechanic);
       const leftLabel = moveLabel(left.instance.id, left.mechanic);
+      const leftPresentationStart = Math.max(0, leftStart - AUTHORED_PRESENTATION_LEAD_SECONDS);
+      const rightRelease = right.mechanic === "hit"
+        ? rightStart + AUTHORED_HIT_MISS_WINDOW_SECONDS
+        : rightInput.endTick ?? rightStart;
       const priorConflict = concurrencyIssuesByEncounterId.get(right.instance.id);
       if (priorConflict) {
         const relatedEncounterIds = priorConflict.relatedEncounterIds ?? [left.instance.id];
@@ -582,6 +638,13 @@ export function evaluateLessonPublishReadiness(
         ...conflict,
         relatedEncounterId: left.instance.id,
         relatedEncounterIds: [left.instance.id],
+        conflictStartSeconds: Math.max(leftPresentationStart, rightPresentationStart),
+        conflictEndSeconds: Math.min(leftRelease, rightRelease),
+        conflictIntervals: [
+          { encounterId: left.instance.id, label: leftLabel, startSeconds: leftPresentationStart, endSeconds: leftRelease },
+          { encounterId: right.instance.id, label: rightLabel, startSeconds: rightPresentationStart, endSeconds: rightRelease },
+        ],
+        earliestSafeStartSeconds: leftRelease + AUTHORED_PRESENTATION_LEAD_SECONDS + 0.001,
         message: `${rightLabel} overlaps ${leftLabel}.`,
         nextAction: `Move ${rightLabel} later so its approach window does not overlap ${leftLabel}.`,
       };
@@ -617,6 +680,275 @@ export function findNewTimingConflict(
   return evaluateLessonPublishReadiness(after, options).blockers.find((blocker) =>
     isTimingConflict(blocker) && relatedIds(blocker).some((relatedId) => !existing.has(key(blocker, relatedId))),
   ) ?? null;
+}
+
+export type EncounterMoveClock = {
+  ticksPerBeat: number;
+  toTick(seconds: number): number;
+  toSeconds(tick: number): number;
+};
+
+export type EncounterMovePatch = {
+  encounterId: string;
+  eventId: string;
+  mechanic: GuidedMechanic;
+  fromSeconds: number;
+  toSeconds: number;
+  fromEndSeconds: number;
+  toEndSeconds: number;
+};
+
+export type EncounterMoveProposal = {
+  patches: EncounterMovePatch[];
+  readiness: LessonPublishReadiness;
+};
+
+const MAX_REPAIR_MOVED_ENCOUNTERS = 16;
+const MAX_REPAIR_BEAT_SEARCH = 4096;
+const MOVE_TIME_EPSILON_SECONDS = 0.000001;
+
+/** Apply a preview only while every cue still matches the position it was based on. */
+export function applyEncounterMovePatches(
+  events: readonly AuthoredTimelineEvent[],
+  patches: readonly EncounterMovePatch[],
+  direction: "apply" | "undo" = "apply",
+): AuthoredTimelineEvent[] | null {
+  if (patches.length === 0) return events.map((event) => event);
+  const patchesById = new Map(patches.map((patch) => [patch.encounterId, patch]));
+  if (patchesById.size !== patches.length) return null;
+
+  let matchedPatches = 0;
+  let stalePatch = false;
+  const updatedEvents = events.map((event) => {
+    let eventChanged = false;
+    const nextMechanics = { ...event.mechanicInstances };
+
+    for (const mechanic of ["hit", "spin", "drag"] as const) {
+      const instances = event.mechanicInstances?.[mechanic] ?? [];
+      const updatedInstances = instances.map((instance) => {
+        const patch = patchesById.get(instance.id);
+        if (!patch || patch.eventId !== event.id || patch.mechanic !== mechanic) return instance;
+
+        const expectedStart = direction === "apply" ? patch.fromSeconds : patch.toSeconds;
+        const expectedEnd = direction === "apply" ? patch.fromEndSeconds : patch.toEndSeconds;
+        const currentStart = instance.tick ?? event.tick;
+        const currentEnd = mechanic === "hit"
+          ? instance.endTick ?? currentStart
+          : instance.endTick ?? event.endTick ?? currentStart;
+        if (Math.abs(currentStart - expectedStart) > MOVE_TIME_EPSILON_SECONDS ||
+            Math.abs(currentEnd - expectedEnd) > MOVE_TIME_EPSILON_SECONDS) {
+          stalePatch = true;
+          return instance;
+        }
+
+        matchedPatches += 1;
+        eventChanged = true;
+        return {
+          ...instance,
+          tick: direction === "apply" ? patch.toSeconds : patch.fromSeconds,
+          endTick: direction === "apply" ? patch.toEndSeconds : patch.fromEndSeconds,
+        };
+      });
+
+      if (updatedInstances.some((instance, index) => instance !== instances[index])) {
+        nextMechanics[mechanic] = updatedInstances;
+      }
+    }
+
+    if (!eventChanged) return event;
+    const onlyCueInSlot = Object.values(event.counts).reduce((total, count) => total + count, 0) === 1;
+    const firstPatch = patches.find((patch) => patch.eventId === event.id);
+    const nextStart = firstPatch
+      ? (direction === "apply" ? firstPatch.toSeconds : firstPatch.fromSeconds)
+      : event.tick;
+    const nextEnd = firstPatch
+      ? (direction === "apply" ? firstPatch.toEndSeconds : firstPatch.fromEndSeconds)
+      : event.endTick;
+    return {
+      ...event,
+      ...(onlyCueInSlot ? { tick: nextStart, endTick: nextEnd } : {}),
+      mechanicInstances: nextMechanics,
+    };
+  });
+
+  if (stalePatch || matchedPatches !== patches.length) return null;
+  return updatedEvents;
+}
+
+/**
+ * Build an immutable, tempo-snapped repair proposal for an existing timing
+ * conflict. Later cues are moved only as needed to preserve the sequence, and
+ * no more than sixteen cues are changed in one proposal.
+ */
+export function proposeEncounterMove(
+  events: readonly AuthoredTimelineEvent[],
+  encounterId: string,
+  clock: EncounterMoveClock,
+  options: {
+    activityKey?: string | null;
+    equationQueue?: readonly AuthoredSavedEquation[];
+    stopAtSeconds?: number;
+    songEndSeconds?: number;
+  } = {},
+): EncounterMoveProposal | null {
+  if (!Number.isFinite(clock.ticksPerBeat) || clock.ticksPerBeat <= 0) return null;
+
+  const baselineOptions = { ...options, clock };
+  let proposedEvents: readonly AuthoredTimelineEvent[] = events.map((event) => event);
+  const originalReadiness = evaluateLessonPublishReadiness(proposedEvents, baselineOptions);
+  const initialIssue = originalReadiness.blockers.find((blocker) =>
+    blocker.encounterId === encounterId &&
+    isRepairTimingIssue(blocker) &&
+    Number.isFinite(blocker.earliestSafeStartSeconds),
+  );
+  if (!initialIssue) return null;
+
+  const patchesById = new Map<string, EncounterMovePatch>();
+  const maxSongEnd = Number.isFinite(options.songEndSeconds)
+    ? Math.max(0, Number(options.songEndSeconds))
+    : Number.POSITIVE_INFINITY;
+
+  for (let step = 0; step < MAX_REPAIR_MOVED_ENCOUNTERS; step += 1) {
+    const currentReadiness = evaluateLessonPublishReadiness(proposedEvents, baselineOptions);
+    const unresolved = currentReadiness.blockers.find((blocker) =>
+      isRepairTimingIssue(blocker) && (
+        blocker.encounterId === encounterId ||
+        (blocker.relatedEncounterIds ?? [blocker.relatedEncounterId]).some((relatedId) =>
+          relatedId != null && patchesById.has(relatedId),
+        )
+      ),
+    );
+    if (!unresolved) {
+      return { patches: Array.from(patchesById.values()), readiness: currentReadiness };
+    }
+
+    const targetId = unresolved.encounterId;
+    if (!targetId) return null;
+    const selection = findGuidedEncounterSelection(proposedEvents, targetId);
+    if (!selection) return null;
+    const targetEvent = proposedEvents.find((event) => event.id === selection.eventId);
+    const targetInstance = targetEvent?.mechanicInstances?.[selection.mechanic]?.[selection.instanceIndex];
+    if (!targetEvent || !targetInstance) return null;
+
+    const relatedIssues = currentReadiness.blockers.filter((blocker) =>
+      blocker.encounterId === targetId && isRepairTimingIssue(blocker),
+    );
+    const minimumSafeSeconds = Math.max(
+      ...relatedIssues.map((blocker) => blocker.earliestSafeStartSeconds ?? Number.NEGATIVE_INFINITY),
+    );
+    if (!Number.isFinite(minimumSafeSeconds)) return null;
+
+    const oldStartSeconds = targetInstance.tick ?? targetEvent.tick;
+    const oldEndSeconds = selection.mechanic === "hit"
+      ? targetInstance.endTick ?? oldStartSeconds
+      : targetInstance.endTick ?? targetEvent.endTick ?? oldStartSeconds;
+    if (!Number.isFinite(oldStartSeconds) || !Number.isFinite(oldEndSeconds)) return null;
+    const durationSeconds = selection.mechanic === "hit"
+      ? 0
+      : oldEndSeconds - oldStartSeconds;
+    if (selection.mechanic !== "hit" && durationSeconds <= 0) return null;
+    const earliestAfterCurrent = Math.max(
+      minimumSafeSeconds,
+      oldStartSeconds + MOVE_TIME_EPSILON_SECONDS,
+    );
+    let candidateTick = clock.toTick(earliestAfterCurrent);
+    if (!Number.isFinite(candidateTick)) return null;
+    const beatTicks = Math.max(1, Math.round(clock.ticksPerBeat));
+    candidateTick = Math.max(
+      Math.ceil((clock.toTick(oldStartSeconds) + 1) / beatTicks) * beatTicks,
+      Math.ceil(candidateTick / beatTicks) * beatTicks,
+    );
+
+    let acceptedEvents: readonly AuthoredTimelineEvent[] | null = null;
+    let acceptedStartSeconds = 0;
+    const capabilities = getActivityAuthoringCapabilities(options.activityKey);
+    const orderedHits = proposedEvents.flatMap((event) =>
+      (event.mechanicInstances?.hit ?? []).map((instance) => ({ event, instance })),
+    ).sort((left, right) =>
+      (left.instance.tick ?? left.event.tick) - (right.instance.tick ?? right.event.tick) ||
+      left.event.id.localeCompare(right.event.id) ||
+      left.instance.id.localeCompare(right.instance.id),
+    );
+    const isFinalNumberBondsHit = capabilities.activityKey === "number-bonds" &&
+      selection.mechanic === "hit" && orderedHits.at(-1)?.instance.id === targetId;
+    let candidateLimitSeconds = maxSongEnd;
+    if (Number.isFinite(options.stopAtSeconds)) {
+      candidateLimitSeconds = Math.min(candidateLimitSeconds, Number(options.stopAtSeconds));
+    }
+    if (isFinalNumberBondsHit) {
+      if (!Number.isFinite(options.stopAtSeconds)) return null;
+      candidateLimitSeconds = Math.min(
+        candidateLimitSeconds,
+        Number(options.stopAtSeconds) - NUMBER_BONDS_TIMING_POLICY.finalInteractionTailSeconds,
+      );
+    }
+    for (let candidateIndex = 0; candidateIndex < MAX_REPAIR_BEAT_SEARCH; candidateIndex += 1) {
+      const candidateSeconds = clock.toSeconds(candidateTick);
+      if (!Number.isFinite(candidateSeconds)) return null;
+      if (candidateSeconds + MOVE_TIME_EPSILON_SECONDS >= earliestAfterCurrent &&
+          candidateSeconds <= candidateLimitSeconds &&
+          candidateSeconds + durationSeconds <= candidateLimitSeconds) {
+        const nextEndSeconds = candidateSeconds + durationSeconds;
+        let targetUpdated = false;
+        const nextEvents = proposedEvents.map((event) => {
+          if (event.id !== selection.eventId) return event;
+          const nextInstances = event.mechanicInstances[selection.mechanic].map((instance) => {
+            if (instance.id !== targetId) return instance;
+            targetUpdated = true;
+            return { ...instance, tick: candidateSeconds, endTick: nextEndSeconds };
+          });
+          const onlyCueInSlot = Object.values(event.counts).reduce((total, count) => total + count, 0) === 1;
+          return {
+            ...event,
+            ...(onlyCueInSlot ? { tick: candidateSeconds, endTick: nextEndSeconds } : {}),
+            mechanicInstances: { ...event.mechanicInstances, [selection.mechanic]: nextInstances },
+          };
+        });
+        if (!targetUpdated) return null;
+        const readiness = evaluateLessonPublishReadiness(nextEvents, baselineOptions);
+        const targetStillConflicts = readiness.blockers.some((blocker) =>
+          blocker.encounterId === targetId && isRepairTimingIssue(blocker),
+        );
+        if (!targetStillConflicts) {
+          acceptedEvents = nextEvents;
+          acceptedStartSeconds = candidateSeconds;
+          break;
+        }
+      }
+      candidateTick += beatTicks;
+    }
+
+    if (!acceptedEvents) return null;
+    patchesById.set(targetId, {
+      encounterId: targetId,
+      eventId: selection.eventId,
+      mechanic: selection.mechanic,
+      fromSeconds: oldStartSeconds,
+      toSeconds: acceptedStartSeconds,
+      fromEndSeconds: oldEndSeconds,
+      toEndSeconds: acceptedStartSeconds + durationSeconds,
+    });
+    proposedEvents = acceptedEvents;
+  }
+
+  const finalReadiness = evaluateLessonPublishReadiness(proposedEvents, baselineOptions);
+  const stillRelated = finalReadiness.blockers.some((blocker) =>
+    isRepairTimingIssue(blocker) && (
+      blocker.encounterId === encounterId ||
+      (blocker.relatedEncounterIds ?? [blocker.relatedEncounterId]).some((relatedId) =>
+        relatedId != null && patchesById.has(relatedId),
+      )
+    ),
+  );
+  return stillRelated ? null : { patches: Array.from(patchesById.values()), readiness: finalReadiness };
+}
+
+function isRepairTimingIssue(blocker: EncounterIssue): boolean {
+  return blocker.code === "unsupported_concurrency" ||
+    blocker.code === "activity_hit_spacing" ||
+    blocker.code === "gem_spacing" ||
+    blocker.code === "simultaneous_hits" ||
+    blocker.code === "drag_source_not_earlier";
 }
 
 /** Keep every timeline drag inside the timing shape accepted by Unity. */

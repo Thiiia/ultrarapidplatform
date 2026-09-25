@@ -69,6 +69,12 @@ import {
   NUMBER_BONDS_TIMING_POLICY,
 } from "@/lib/activity-authoring-capabilities";
 import { authoredStopBufferSeconds } from "@/lib/number-bonds-timing";
+import { SUPPORTED_RHYTHM_DIFFICULTIES, type SupportedRhythmDifficulty } from "@/lib/chart-semantics";
+import {
+  generateNumberBondsAuthoredLesson,
+  getNumberBondsCatalogueEquation,
+  NUMBER_BONDS_EQUATION_CATALOGUE,
+} from "@/lib/number-bonds-content-generator";
 import { getLearnerFacingError, studentCopy } from "@/lib/student-copy";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import { GuidedEncounterComposer } from "./GuidedEncounterComposer";
@@ -76,9 +82,13 @@ import { EncounterReadinessPanel } from "./EncounterReadinessPanel";
 import {
   evaluateEncounterReadiness,
   findGuidedEncounterSelection,
+  applyEncounterMovePatches,
   inputFromEvent,
   normalizeStagedMechanic,
+  proposeEncounterMove,
   type GuidedEncounterInput,
+  type EncounterMovePatch,
+  type EncounterMoveProposal,
   evaluateLessonPublishReadiness,
   findNewTimingConflict,
   retimeGuidedEncounter,
@@ -147,6 +157,7 @@ type RhythmSourceOption = {
 type SelectedSongPayload = {
   id: string;
   name: string;
+  durationSeconds?: number | null;
   title?: string;
   artist?: string | null;
   authorId?: string | null;
@@ -211,6 +222,7 @@ type SongChoiceOption = {
   id: string;
   activityKey: SongActivityKey;
   name: string;
+  durationSeconds?: number | null;
   title?: string;
   artist?: string | null;
   authorName?: string | null;
@@ -9679,6 +9691,14 @@ export default function LessonBuilderClient({
   const [isLessonLoaded, setIsLessonLoaded] = useState(false);
   const [advancedConfirmOpen, setAdvancedConfirmOpen] = useState(false);
   const [isReadinessOpen, setIsReadinessOpen] = useState(false);
+  const [timingRepairPreviewState, setTimingRepairPreviewState] = useState<{
+    proposal: EncounterMoveProposal;
+    generation: number;
+  } | null>(null);
+  const [timingRepairUndoSnapshot, setTimingRepairUndoSnapshot] = useState<{
+    timelineEvents: TimelineEventSlot[];
+    rtcmDraftMechanics: RtcmDraftMechanic[];
+  } | null>(null);
   const [repairFocus, setRepairFocus] = useState<{ code: string; nonce: number } | null>(null);
   const [recordedRepairId, setRecordedRepairId] = useState<string | null>(null);
   const [isBuilderPanelOpen, setIsBuilderPanelOpen] = useState(false);
@@ -9710,12 +9730,17 @@ export default function LessonBuilderClient({
   const [lastSavedAuthorId, setLastSavedAuthorId] = useState<string | null>(null);
   const [lastSavedRevision, setLastSavedRevision] = useState<string | null>(null);
   const [selectedRhythmSource, setSelectedRhythmSource] = useState<RhythmSourceOption | null>(null);
+  const [numberBondsCatalogueId, setNumberBondsCatalogueId] = useState("");
+  const [numberBondsRhythmDifficulty, setNumberBondsRhythmDifficulty] =
+    useState<SupportedRhythmDifficulty>("ExpertSingle");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const editGenerationRef = useRef(0);
   const publicationRequestIdRef = useRef<string | null>(null);
   function markDirty() {
     editGenerationRef.current += 1;
     publicationRequestIdRef.current = null;
+    setTimingRepairPreviewState(null);
+    setTimingRepairUndoSnapshot(null);
     setHasUnsavedChanges(true);
   }
   const workspaceVersionRef = useRef(0);
@@ -10203,6 +10228,64 @@ export default function LessonBuilderClient({
       ?? savedEquations.find((entry) => entry.id === recordedRepairDraft.equationId)
       ?? null
     : null;
+
+  function handleGenerateNumberBondsLesson() {
+    const activityKey = selectedSongActivity?.key ?? selectedSongLaunch?.activityKey;
+    if (activityKey !== "number-bonds" || !selectedSongStorage || !selectedRhythmSource) return;
+    if (timelineEvents.length > 0 || rtcmDraftMechanics.length > 0) {
+      setSaveStatus("Clear the current lesson cues before generating a new Number Bonds lesson.");
+      return;
+    }
+
+    const durationSeconds = audioDurationSeconds || metadata?.durationSeconds || 0;
+    if (!durationSeconds || !chartFile.trim()) {
+      setSaveStatus("The selected song length and verified rhythm chart are required before generation.");
+      return;
+    }
+
+    try {
+      const generated = generateNumberBondsAuthoredLesson({
+        songAssetId: selectedSongStorage.id,
+        equation: getNumberBondsCatalogueEquation(numberBondsCatalogueId),
+        rhythmSource: {
+          songAssetId: selectedSongStorage.id,
+          activityKey: selectedRhythmSource.activityKey,
+          revision: selectedRhythmSource.revision,
+          chartSha256: selectedRhythmSource.chartSha256,
+          audioSha256: selectedRhythmSource.audioSha256,
+        },
+        rhythmDifficulty: numberBondsRhythmDifficulty,
+        chartContent: chartFile,
+        durationSeconds,
+      });
+      const authoredClock = createLessonClock(chartFile);
+      const hydrated = timelineEventsFromAuthoredLesson(generated.draft, authoredClock);
+      const nextEvents = hydrated.events as unknown as TimelineEventSlot[];
+      setTimelineEvents(nextEvents);
+      setAuthoredEquationQueue(hydrated.equations);
+      setTemplateEquations(hydrated.equations);
+      setSelectedEquationId(generated.draft.equations[0]?.id ?? null);
+      setActiveEventId(nextEvents[0]?.id ?? null);
+      setRtcmDraftMechanics([]);
+      setRecordedRepairId(null);
+      setMode("event");
+      setAdvancedMode(false);
+      setGuidedStarted(true);
+      setCenterChoice(null);
+      setIsBuilderPanelOpen(false);
+      setIsReadinessOpen(false);
+      setSelectedSongLaunch((current) => current ? {
+        ...current,
+        rhythmDifficultyKey: numberBondsRhythmDifficulty,
+      } : current);
+      syncTimelineFilesFromEvents(nextEvents);
+      setSaveStatus(
+        `Generated ${generated.draft.encounters.length} Number Bonds catch cues from the selected ${numberBondsRhythmDifficulty} rhythm. Review and save the lesson when ready.`,
+      );
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : "The Number Bonds lesson could not be generated.");
+    }
+  }
 
   const needsReadinessCheck = !lessonPublishReadiness.ready
     || !(selectedSongStorage || selectedSongLaunch)
@@ -11953,6 +12036,7 @@ export default function LessonBuilderClient({
     return {
       id: song.id,
       name: song.name,
+      durationSeconds: song.durationSeconds,
       title: song.title,
       artist: song.artist,
       authorName: song.authorName ?? filePickerAuthorName ?? null,
@@ -12259,6 +12343,10 @@ export default function LessonBuilderClient({
         : selectedSong.revision ?? extractRevisionFromStoragePath(selectedSong.chart.path),
     );
     setSelectedRhythmSource(selectedSong.rhythmSource ?? null);
+    setNumberBondsCatalogueId("");
+    setNumberBondsRhythmDifficulty(
+      selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key ?? "ExpertSingle",
+    );
     setSelectedSongAuthorName(selectedSong.authorName ?? null);
     if (selectedSong.authorName) {
       setFilePickerAuthorName(selectedSong.authorName);
@@ -12312,12 +12400,14 @@ export default function LessonBuilderClient({
       songTitle: selectedSong.title ?? selectedSong.name,
       artist: selectedSong.artist ?? current?.artist,
       uploadedFileName: selectedSong.song.path,
+      durationSeconds: selectedSong.durationSeconds ?? current?.durationSeconds,
     }));
 
     const selectedSongMetadata = {
       songTitle: selectedSong.title ?? selectedSong.name,
       artist: selectedSong.artist ?? undefined,
       uploadedFileName: selectedSong.song.path,
+      durationSeconds: selectedSong.durationSeconds ?? undefined,
     };
     const initialRefs = {
       audioUrl: selectedSong.song.signedUrl,
@@ -13661,59 +13751,135 @@ export default function LessonBuilderClient({
       `Editing ${mechanicLabel} ${selection.instanceIndex + 1} on the timeline. ${blocker?.nextAction ?? "Adjust its timing, then check readiness again."}`,
     );
   }
-  function handleFixFirstNumberBondsTimingIssue() {
+  function handlePreviewFirstTimingRepair() {
+    const activityKey = selectedSongActivity?.key ?? selectedSongLaunch?.activityKey;
     const blocker = lessonPublishReadiness.blockers[0];
-    if (blocker?.code !== "activity_hit_spacing" || !blocker.encounterId || !blocker.relatedEncounterId) return;
-    const allEvents = [...timelineEvents, ...rtcmAuthoredEvents] as AuthoredTimelineEvent[];
-    const previous = findGuidedEncounterSelection(allEvents, blocker.relatedEncounterId);
-    const target = findGuidedEncounterSelection(allEvents, blocker.encounterId);
-    if (!previous || !target || target.mechanic !== "hit") return;
+    if (activityKey !== "number-bonds" || !blocker?.encounterId) return;
 
-    const nextSeconds = Math.ceil(
-      (previous.tick + NUMBER_BONDS_TIMING_POLICY.minimumHitSpacingSeconds) * 1000,
-    ) / 1000;
-    const songEndSeconds = audioDurationSeconds || metadata?.durationSeconds || 0;
-    if (!songEndSeconds || nextSeconds + NUMBER_BONDS_TIMING_POLICY.finalInteractionTailSeconds > songEndSeconds) {
-      setSaveStatus("There is not enough song left for this gem. Move an earlier catch cue or choose a longer song.");
+    const allEvents = [...timelineEvents, ...rtcmAuthoredEvents] as AuthoredTimelineEvent[];
+    const proposal = proposeEncounterMove(
+      allEvents,
+      blocker.encounterId,
+      createLessonClock(chartFile || originalChartFileRef.current),
+      {
+        activityKey,
+        equationQueue: authoredEquationQueue,
+        stopAtSeconds: sidecar.stopAtSeconds,
+        songEndSeconds: audioDurationSeconds || metadata?.durationSeconds,
+      },
+    );
+    if (!proposal) {
+      setTimingRepairPreviewState(null);
+      setSaveStatus("No clear beat fits before the song stop and required final tail. Extend the song or remove a move.");
       return;
     }
 
-    const isRecordedDraft = rtcmDraftMechanics.some((draft) => draft.id === blocker.encounterId);
-    if (isRecordedDraft) {
-      setRtcmDraftMechanics((current) => current.map((draft) =>
-        draft.id === blocker.encounterId
-          ? { ...draft, tick: nextSeconds, endTick: nextSeconds }
-          : draft,
-      ));
-    } else {
-      setTimelineEvents((current) => {
-        const nextEvents = current.map((eventSlot) => {
-          if (!(eventSlot.mechanicInstances?.hit ?? []).some((instance) => instance.id === blocker.encounterId)) {
-            return eventSlot;
-          }
-          const hits = eventSlot.mechanicInstances.hit.map((instance) =>
-            instance.id === blocker.encounterId
-              ? { ...instance, tick: nextSeconds, endTick: nextSeconds }
-              : instance,
-          );
-          const onlyHit = eventSlot.counts.hit === 1 &&
-            eventSlot.counts.spin === 0 && eventSlot.counts.drag === 0;
-          return {
-            ...eventSlot,
-            ...(onlyHit ? {
-              tick: nextSeconds,
-              ...(typeof eventSlot.endTick === "number" ? { endTick: nextSeconds } : {}),
-            } : {}),
-            mechanicInstances: { ...eventSlot.mechanicInstances, hit: hits },
-          };
-        });
-        syncTimelineFilesFromEvents(nextEvents);
-        return nextEvents;
-      });
+    setTimingRepairPreviewState({ proposal, generation: editGenerationRef.current });
+    setIsReadinessOpen(true);
+    setSaveStatus(`Preview ready: ${proposal.patches.length} move${proposal.patches.length === 1 ? "" : "s"} can shift. The lesson has not changed.`);
+  }
+
+  function handleApplyTimingRepairPreview() {
+    const preview = timingRepairPreviewState;
+    if (!preview) return;
+    if (preview.generation !== editGenerationRef.current) {
+      setTimingRepairPreviewState(null);
+      setSaveStatus("The lesson changed after this preview. Preview the repair again.");
+      return;
     }
+
+    const timelineEventIds = new Set(timelineEvents.map((event) => event.id));
+    const recordedEventIds = new Set(rtcmAuthoredEvents.map((event) => event.id));
+    const timelinePatches: EncounterMovePatch[] = [];
+    const recordedPatches: EncounterMovePatch[] = [];
+    for (const patch of preview.proposal.patches) {
+      const inTimeline = timelineEventIds.has(patch.eventId);
+      const inRecordedDrafts = recordedEventIds.has(patch.eventId);
+      if (inTimeline === inRecordedDrafts) {
+        setSaveStatus("This preview no longer matches one lesson cue. Preview the repair again.");
+        setTimingRepairPreviewState(null);
+        return;
+      }
+      (inTimeline ? timelinePatches : recordedPatches).push(patch);
+    }
+
+    const nextTimelineEvents = applyEncounterMovePatches(
+      timelineEvents as unknown as AuthoredTimelineEvent[],
+      timelinePatches,
+    );
+    const nextRecordedEvents = applyEncounterMovePatches(rtcmAuthoredEvents, recordedPatches);
+    if (!nextTimelineEvents || !nextRecordedEvents) {
+      setSaveStatus("A cue changed after this preview. Preview the repair again.");
+      setTimingRepairPreviewState(null);
+      return;
+    }
+
+    const recordedEventById = new Map(nextRecordedEvents.map((event) => [event.id, event]));
+    let updatedRecordedDraftCount = 0;
+    const nextDraftMechanics = rtcmDraftMechanics.map((draft) => {
+      const event = recordedEventById.get(draft.id);
+      if (!event) return draft;
+      const updatedInstance = event.mechanicInstances[draft.mechanic][0];
+      if (!updatedInstance) return draft;
+      updatedRecordedDraftCount += 1;
+      return {
+        ...draft,
+        tick: updatedInstance.tick ?? event.tick,
+        endTick: updatedInstance.endTick ?? event.endTick,
+      };
+    });
+    if (updatedRecordedDraftCount !== recordedPatches.length) {
+      setSaveStatus("A recorded cue changed after this preview. Preview the repair again.");
+      setTimingRepairPreviewState(null);
+      return;
+    }
+
+    const undoSnapshot = { timelineEvents, rtcmDraftMechanics };
+    const nextTimelineSlots = nextTimelineEvents as unknown as TimelineEventSlot[];
+    setTimelineEvents(nextTimelineSlots);
+    setRtcmDraftMechanics(nextDraftMechanics);
+    syncTimelineFilesFromEvents(nextTimelineSlots);
+    setRecordedRepairId(null);
     markDirty();
-    seekSong(nextSeconds);
-    setSaveStatus(`Moved this catch cue to ${nextSeconds.toFixed(2)}s. Check the next step before playing.`);
+    setTimingRepairUndoSnapshot(undoSnapshot);
+    setIsReadinessOpen(true);
+    const firstPatch = preview.proposal.patches[0];
+    const repairedSelection = findGuidedEncounterSelection(
+      [...nextTimelineEvents, ...nextRecordedEvents],
+      firstPatch.encounterId,
+    );
+    if (repairedSelection) {
+      setRepairFocus({ code: "activity_hit_spacing", nonce: Date.now() });
+      if (recordedEventIds.has(repairedSelection.eventId)) {
+        setRecordedRepairId(repairedSelection.eventId);
+        setMode("rctm2");
+      } else {
+        setRecordedRepairId(null);
+        setActiveEventId(repairedSelection.eventId);
+        setSelectedContextMechanicKey(`${repairedSelection.mechanic}:${repairedSelection.instanceIndex}`);
+        setMode("event");
+        setAdvancedMode(false);
+      }
+    }
+    seekSong(firstPatch.toSeconds);
+    setSaveStatus(`Applied ${preview.proposal.patches.length} previewed move${preview.proposal.patches.length === 1 ? "" : "s"}. Readiness was checked again; undo is available until the next edit.`);
+  }
+
+  function handleCancelTimingRepairPreview() {
+    setTimingRepairPreviewState(null);
+    setSaveStatus("Timing repair preview canceled. The lesson did not change.");
+  }
+
+  function handleUndoTimingRepair() {
+    if (!timingRepairUndoSnapshot) return;
+    const snapshot = timingRepairUndoSnapshot;
+    setTimelineEvents(snapshot.timelineEvents);
+    setRtcmDraftMechanics(snapshot.rtcmDraftMechanics);
+    syncTimelineFilesFromEvents(snapshot.timelineEvents);
+    setRecordedRepairId(null);
+    markDirty();
+    setIsReadinessOpen(true);
+    setSaveStatus("Undid the last timing repair.");
   }
   return (
     <div
@@ -13792,9 +13958,13 @@ export default function LessonBuilderClient({
             canPlay={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
             onSelectEncounter={handleSelectReadinessEncounter}
             onCreateEncounter={handleAddHitAtPlayhead}
-            onFixFirstTimingIssue={(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds"
-              ? handleFixFirstNumberBondsTimingIssue
+            timingRepairPreview={timingRepairPreviewState?.proposal ?? null}
+            onPreviewTimingRepair={(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds"
+              ? handlePreviewFirstTimingRepair
               : undefined}
+            onApplyTimingRepair={handleApplyTimingRepairPreview}
+            onCancelTimingRepair={handleCancelTimingRepairPreview}
+            onUndoTimingRepair={timingRepairUndoSnapshot ? handleUndoTimingRepair : undefined}
             isOpen={isReadinessOpen}
             onToggle={() => setIsReadinessOpen((current) => !current)}
           />
@@ -13849,6 +14019,90 @@ export default function LessonBuilderClient({
             onPatchInstance={handlePatchRecordedRepair}
             onRemove={() => { setRtcmDraftMechanics((current) => current.filter((draft) => draft.id !== recordedRepairDraft.id)); setRecordedRepairId(null); markDirty(); }}
           />
+        </aside>
+      ) : null}
+
+      {(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds" &&
+      selectedRhythmSource && isLessonLoaded && timelineEvents.length === 0 && rtcmDraftMechanics.length === 0 ? (
+        <aside
+          aria-label="Number Bonds lesson generator"
+          style={{
+            position: "fixed",
+            left: 16,
+            top: 72,
+            zIndex: 1001,
+            width: "min(320px, calc(100vw - 32px))",
+            maxHeight: "min(70vh, 560px)",
+            overflowY: "auto",
+            display: "grid",
+            gap: 9,
+            padding: 12,
+            borderRadius: 14,
+            border: "1px solid #CFFF0466",
+            background: "#101827",
+            color: "#FFFFFF",
+            boxShadow: "0 12px 34px #0008",
+            fontFamily: "Space Grotesk, sans-serif",
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0, fontSize: 13, fontWeight: 900 }}>Generate a Number Bonds lesson</h2>
+            <p style={{ margin: "5px 0 0", color: "#AFC2D8", fontSize: 11, lineHeight: 1.45 }}>
+              Uses chart note cues from rhythm revision {selectedRhythmSource.revision.slice(0, 8)}. It keeps the 7.5 second spacing and 12 second final interaction tail.
+            </p>
+          </div>
+          <label style={{ display: "grid", gap: 4, color: "#D1D5DB", fontSize: 11, fontWeight: 800 }}>
+            Number bond
+            <select
+              value={numberBondsCatalogueId}
+              onChange={(event) => setNumberBondsCatalogueId(event.currentTarget.value)}
+              style={{ height: 34, border: "1px solid #42536A", borderRadius: 8, background: "#0C1422", color: "#FFFFFF", padding: "0 8px" }}
+            >
+              <option value="">Choose a number bond…</option>
+              {NUMBER_BONDS_EQUATION_CATALOGUE.map((entry) => (
+                <option key={entry.id} value={entry.id}>{entry.tokens.join(" ")}</option>
+              ))}
+            </select>
+          </label>
+          <label style={{ display: "grid", gap: 4, color: "#D1D5DB", fontSize: 11, fontWeight: 800 }}>
+            Rhythm difficulty
+            <select
+              value={numberBondsRhythmDifficulty}
+              onChange={(event) => setNumberBondsRhythmDifficulty(event.currentTarget.value as SupportedRhythmDifficulty)}
+              style={{ height: 34, border: "1px solid #42536A", borderRadius: 8, background: "#0C1422", color: "#FFFFFF", padding: "0 8px" }}
+            >
+              {SUPPORTED_RHYTHM_DIFFICULTIES.map((difficulty) => (
+                <option key={difficulty} value={difficulty}>{difficulty.replace("Single", "")}</option>
+              ))}
+            </select>
+          </label>
+          {!audioDurationSeconds && !metadata?.durationSeconds ? (
+            <p role="status" style={{ margin: 0, color: "#FFDC9B", fontSize: 11 }}>
+              Song length is needed to reserve the final interaction time.
+            </p>
+          ) : null}
+          <button
+            type="button"
+            disabled={!isLessonLoaded || Boolean(loadError) || !numberBondsCatalogueId ||
+              timelineEvents.length > 0 || rtcmDraftMechanics.length > 0 ||
+              !(audioDurationSeconds || metadata?.durationSeconds)}
+            onClick={handleGenerateNumberBondsLesson}
+            style={{
+              minHeight: 36,
+              border: 0,
+              borderRadius: 999,
+              background: "#CFFF04",
+              color: "#071222",
+              fontSize: 11,
+              fontWeight: 900,
+              cursor: "pointer",
+              opacity: !isLessonLoaded || Boolean(loadError) || !numberBondsCatalogueId ||
+                timelineEvents.length > 0 || rtcmDraftMechanics.length > 0 ||
+                !(audioDurationSeconds || metadata?.durationSeconds) ? 0.55 : 1,
+            }}
+          >
+            Generate catch cues
+          </button>
         </aside>
       ) : null}
 

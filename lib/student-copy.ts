@@ -146,7 +146,7 @@ export const studentCopy = {
     savingResult: "Saving your result…",
     syncAgain: "Save result again",
     waitingToSave: "Your result is still waiting to be saved.",
-    lessonComplete: (events: number, attempts: number) => `Lesson complete: ${events} moves finished in ${attempts} tries.`,
+    lessonComplete: (sets: number, events: number, required: number, attempts: number) => `Lesson complete: ${sets} sets solved; ${events} of ${required} moves finished in ${attempts} tries.`,
     returnToSongs: "Choose another song when you are ready.",
   },
 } as const;

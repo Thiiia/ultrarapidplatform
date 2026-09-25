@@ -15,6 +15,7 @@ export type StudentProgressSummary = {
   attemptsByActivity: StudentActivityStat[];
   accuracyPercent: number | null;
   completedCount: number;
+  unverifiedCompletedCount: number;
   failedCount: number;
   lastPlayed: {
     activityKey: string;
@@ -22,6 +23,21 @@ export type StudentProgressSummary = {
     playedAt: Date;
   } | null;
 };
+
+export function summarizePlayerRunOutcomeCounts(
+  outcomes: ReadonlyArray<{ outcome: string; completionVersion: number | null }>,
+) {
+  return outcomes.reduce((counts, outcome) => {
+    if (outcome.outcome === "completed" && outcome.completionVersion !== 2) {
+      counts.unverifiedCompletedCount += 1;
+    } else if (outcome.outcome === "completed") {
+      counts.completedCount += 1;
+    } else if (["failed", "abandoned", "cancelled"].includes(outcome.outcome)) {
+      counts.failedCount += 1;
+    }
+    return counts;
+  }, { completedCount: 0, unverifiedCompletedCount: 0, failedCount: 0 });
+}
 
 /**
  * Aggregates each student's website/game usage (launch attempts, accuracy,
@@ -75,6 +91,7 @@ export async function getClassStudentActivity({
       select: {
         userId: true,
         outcome: true,
+        completionVersion: true,
         completedEvents: true,
         hitAttempts: true,
       },
@@ -111,6 +128,8 @@ export async function getClassStudentActivity({
 
     const mostRecentAttempt = attempts[0] ?? null;
 
+    const outcomeCounts = summarizePlayerRunOutcomeCounts(studentOutcomes);
+
     return {
       id: student.id,
       name: student.name ?? student.email,
@@ -125,11 +144,7 @@ export async function getClassStudentActivity({
         totalHitAttempts > 0
           ? Math.round((totalCompletedEvents / totalHitAttempts) * 100)
           : null,
-      completedCount: studentOutcomes.filter((outcome) => outcome.outcome === "completed")
-        .length,
-      failedCount: studentOutcomes.filter((outcome) =>
-        outcome.outcome === "failed" || outcome.outcome === "abandoned" || outcome.outcome === "cancelled",
-      ).length,
+      ...outcomeCounts,
       lastPlayed: mostRecentAttempt
         ? {
             activityKey: mostRecentAttempt.activityKey,

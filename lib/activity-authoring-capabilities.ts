@@ -51,6 +51,11 @@ export type NumberBondsTimingIssue = {
   encounterId: string;
   relatedEncounterId?: string;
   earliestStartSeconds?: number;
+  conflictStartSeconds?: number;
+  conflictEndSeconds?: number;
+  relatedStartSeconds?: number;
+  encounterStartSeconds?: number;
+  earliestSafeStartSeconds?: number;
   minimumStopSeconds?: number;
 };
 
@@ -118,13 +123,23 @@ export function validateAuthoredActivityTiming(
         code: "simultaneous_hits",
         encounterId: current.id,
         relatedEncounterId: previous.id,
+        relatedStartSeconds: previous.startSeconds,
+        encounterStartSeconds: current.startSeconds,
+        conflictStartSeconds: previous.startSeconds,
+        conflictEndSeconds: current.startSeconds,
+        earliestSafeStartSeconds: previous.startSeconds + NUMBER_BONDS_TIMING_POLICY.minimumHitSpacingSeconds,
       });
     } else if (spacing + TIMING_COMPARISON_EPSILON_SECONDS < NUMBER_BONDS_TIMING_POLICY.minimumHitSpacingSeconds) {
       issues.push({
         code: "gem_spacing",
         encounterId: current.id,
         relatedEncounterId: previous.id,
+        relatedStartSeconds: previous.startSeconds,
+        encounterStartSeconds: current.startSeconds,
         earliestStartSeconds: previous.startSeconds + NUMBER_BONDS_TIMING_POLICY.minimumHitSpacingSeconds,
+        conflictStartSeconds: previous.startSeconds,
+        conflictEndSeconds: current.startSeconds,
+        earliestSafeStartSeconds: previous.startSeconds + NUMBER_BONDS_TIMING_POLICY.minimumHitSpacingSeconds,
       });
     }
   }
