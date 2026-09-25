@@ -41,7 +41,7 @@ export function NumberBondsMissionComposer({
       <div className={styles.intro}>
         <span className={styles.eyebrow}>NUMBER BONDS · {songTitle}</span>
         <h1>Make a number. Play the song.</h1>
-        <p>Each orbiting note becomes one gem to catch. Choose the number, then play. You can adjust note timing on the timeline below.</p>
+        <p>Choose the big number, then press Play. The song places one bouncing gem for each orbiting note. You can adjust the note timing below.</p>
       </div>
 
       <div className={styles.orbit} aria-label={`Make ${whole} with ${whole} notes`}>
