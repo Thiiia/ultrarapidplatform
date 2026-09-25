@@ -45,7 +45,7 @@ test("editor side panels progressively disclose without removing access", () => 
     lessonBuilderSource,
     /function beginGuidedEditing\(\)[\s\S]*?setAdvancedMode\(false\)[\s\S]*?setIsBuilderPanelOpen\(false\)/,
   );
-  assert.match(lessonBuilderSource, /<EditorPanelRail label="Build"/);
+  assert.match(lessonBuilderSource, /<EditorPanelRail label=\{isNumberBondsActivity \? "Bond" : "Build"\}/);
   assert.match(lessonBuilderSource, /<EditorPanelRail label="Library"/);
   assert.match(lessonBuilderSource, /Collapse equation builder/);
   assert.match(lessonBuilderSource, /Collapse equation library/);
@@ -63,9 +63,10 @@ test("lesson readiness is an expandable status control", () => {
   assert.match(lessonBuilderSource, /isOpen=\{isReadinessOpen\}/);
 });
 
-test("Number Bonds recording shows timing guidance and keeps automatic repairs inside the song", () => {
+test("Number Bonds note timing stays inside the song", () => {
   assert.match(lessonBuilderSource, /\(!isRctm2Mode \|\| \(selectedSongActivity\?\.key \?\? selectedSongLaunch\?\.activityKey\) === "number-bonds"\)/);
-  assert.match(readinessSource, /Move this catch cue for me/);
+  assert.match(readinessSource, /Move this note for me/);
+  assert.match(composerSource, /Each note brings one gem into play/);
   assert.match(lessonBuilderSource, /nextSeconds \+ NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS > songEndSeconds/);
   assert.match(lessonBuilderSource, /setRtcmDraftMechanics\(\(current\) => current\.map/);
 });

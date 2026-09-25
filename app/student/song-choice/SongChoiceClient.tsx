@@ -906,7 +906,7 @@ export default function SongChoiceClient({
       return;
     }
 
-    if (!selectedSongCanPlay) {
+    if (currentActivityKey === "number-bonds" || !selectedSongCanPlay) {
       handleCustomizeYes();
       return;
     }
@@ -1548,7 +1548,7 @@ export default function SongChoiceClient({
           type="button"
           disabled={isLaunching || !selectedSong || selectedSongStatus === "idle" || selectedSongStatus === "loading"}
           onClick={handleContinue}
-          aria-label={selectedSongStatus === "error" ? "Try loading this song again" : `Continue to ${studentCopy.navigation.builder}`}
+          aria-label={selectedSongStatus === "error" ? "Try loading this song again" : currentActivityKey === "number-bonds" ? "Make and play a Number Bonds mission" : `Continue to ${studentCopy.navigation.builder}`}
           title={
             selectedSongStatus === "loading"
               ? studentCopy.songChoice.preparingMessage
@@ -1556,7 +1556,7 @@ export default function SongChoiceClient({
                 ? "Try loading this song again"
                 : selectedSongStatus === "idle"
                   ? "Select a song to continue"
-                  : `Continue to ${studentCopy.navigation.builder}`
+                : currentActivityKey === "number-bonds" ? "Set a number, place notes, and play" : `Continue to ${studentCopy.navigation.builder}`
           }
           style={{
             borderRadius: 999,
@@ -1579,7 +1579,7 @@ export default function SongChoiceClient({
             ? studentCopy.songChoice.preparing
             : selectedSongStatus === "error"
               ? "Try again"
-            : selectedSongCanPlay ? "Choose how to start" : currentActivityKey === "number-bonds" ? "Create Number Bonds mission" : "Make a lesson"}
+            : currentActivityKey === "number-bonds" ? "Make and play" : selectedSongCanPlay ? "Choose how to start" : "Make a lesson"}
         </button>
         </div>
       </div>

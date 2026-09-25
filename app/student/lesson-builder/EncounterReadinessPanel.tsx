@@ -116,7 +116,7 @@ export function EncounterReadinessPanel({
                 onClick={onFixFirstTimingIssue}
                 className={styles.editorReadinessBlocker}
               >
-                Move this catch cue for me
+                Move this note for me
               </button>
             ) : null}
             {otherBlockerCount > 0 ? (
