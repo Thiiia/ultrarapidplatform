@@ -167,6 +167,7 @@ test("a ready lesson does not reserve a permanent readiness panel", () => {
 test("hit placement mirrors the player pad layout and keeps legacy assignments explicit", () => {
   const composer = source("app/student/lesson-builder/GuidedEncounterComposer.tsx");
   const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+  const styles = source("app/globals.css");
 
   assert.match(composer, /PLAYER_HEX_AUTHORED_HIT_PADS/);
   assert.match(composer, /Reassign using the player pad layout/);
@@ -178,7 +179,7 @@ test("hit placement mirrors the player pad layout and keeps legacy assignments e
   assert.match(builder, /resolvePlayerHexHitPadPixelOffset/);
   assert.match(builder, /onQuickAddHit\?\.\(pad\);[\s\S]{0,100}else\s*\{\s*onSelectHitPad\?\.\(pad\);/);
   assert.match(builder, /function handleAddHitAtPlayhead\(hitPad\?: HitBubblePad\)[\s\S]{0,120}hitPad \? \{ hitPad \}/);
-  assert.match(composer, /repeat\(auto-fit, minmax\(220px, 1fr\)\)/);
+  assert.match(styles, /grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*13\.75rem\),\s*1fr\)\)/);
 });
 
 test("guided editing waits until the player chooses an editing action", () => {

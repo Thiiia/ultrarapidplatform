@@ -32,7 +32,11 @@ function text(tree: unknown): string {
   return Children.toArray(tree.props.children as ReactNode).map(text).join(" ");
 }
 
-function renderComposer(overrides: Partial<GuidedEncounterInput> = {}) {
+function renderComposer(
+	overrides: Partial<GuidedEncounterInput> = {},
+	readinessOverrides: Partial<EncounterReadiness> = {},
+	showAlgebraSetupProgress = false,
+) {
   return GuidedEncounterComposer({
     instance: { ...emptySpin, ...overrides },
     tokens,
@@ -42,16 +46,43 @@ function renderComposer(overrides: Partial<GuidedEncounterInput> = {}) {
       issueCodes: ["spin_target_required", "duration_required"],
       issues: [],
       nextAction: "Select the token to spin.",
+      ...readinessOverrides,
     },
+    showAlgebraSetupProgress,
     onPatchInstance: () => undefined,
   });
 }
+
+test("composer progress follows equation, action repair, and ready-to-preview stages", () => {
+	assert.match(text(renderComposer({ equation: null }, {
+		issueCodes: ["equation_required"],
+		nextAction: "Choose an equation.",
+	}, true)), /Step\s+1\s+of\s+3/);
+	assert.match(text(renderComposer({}, {}, true)), /Step\s+2\s+of\s+3/);
+	assert.match(text(renderComposer({}, {
+		ready: true,
+		issueCodes: [],
+		nextAction: "Ready to preview.",
+	}, true)), /Step\s+3\s+of\s+3/);
+});
 
 test("spin labels target and duration without hit-pad controls", () => {
   const tree = renderComposer();
   assert.match(text(tree), /Select the token to spin/);
   assert.match(text(tree), /Ends at/);
   assert.doesNotMatch(text(tree), /Hit pad/);
+});
+
+test("player cue preview describes each mechanic and highlights its selected term", () => {
+  const spin = renderComposer({ spinTargets: [{ tokenIndex: 0 }] });
+  assert.match(text(spin), /Spin the hit pads/);
+  assert.match(text(spin), /Target: 4x/);
+
+  const hit = renderComposer({ mechanic: "hit", hitBubbles: [{ tokenIndex: 1 }] });
+  assert.match(text(hit), /Tap the highlighted pad/);
+
+  const drag = renderComposer({ mechanic: "drag", dragTargets: [{ tokenIndex: 2 }] });
+  assert.match(text(drag), /Drag the highlighted term/);
 });
 
 test("publish and play share the same readiness blocker", () => {
@@ -110,6 +141,33 @@ test("Hit timing has one editable instant and cannot author a third simultaneous
   assert.deepEqual(patches[0], { tick: 6.25, endTick: 6.25 });
   assert.equal(buttons.find(button => button["aria-label"] === "Player pad 1: Top")?.disabled, true);
   assert.equal(buttons.find(button => button["aria-label"] === "Player pad 3: Lower right")?.disabled, false);
+});
+
+test("Hit pad selector keeps its six pointer targets square and at least 44px", () => {
+	const tree = GuidedEncounterComposer({
+		instance: { ...emptySpin, mechanic: "hit", id: "hit-target-size", tick: 4,
+			hitBubbles: [{ tokenIndex: 0, positions: [], pads: [], padLayoutVersion: 2 }] },
+		tokens,
+		readiness: { encounterId: "hit-target-size", ready: false, issueCodes: [], issues: [], nextAction: "Choose a pad." },
+		onPatchInstance: () => undefined,
+	});
+	const pads: Array<{ className?: string }> = [];
+	function visit(value: unknown) {
+		if (!isValidElement<{ children?: ReactNode; className?: string; "aria-label"?: string }>(value)) return;
+		if (typeof value.type === "function") {
+			visit((value.type as (props: unknown) => ReactNode)(value.props));
+			return;
+		}
+		if (typeof value.props["aria-label"] === "string" && value.props["aria-label"].startsWith("Player pad ")) {
+			pads.push({ className: value.props.className });
+		}
+		Children.forEach(value.props.children, visit);
+	}
+	visit(tree);
+	assert.equal(pads.length, 6);
+	for (const pad of pads) {
+		assert.equal(pad.className, "algebra-composer__padButton");
+	}
 });
 
 test("legacy Hit pads show their preserved slot mapping and an explicit reassignment action", () => {

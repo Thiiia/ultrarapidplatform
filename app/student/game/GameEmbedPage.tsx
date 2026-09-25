@@ -483,6 +483,7 @@ function GameEmbedSession({
             requiredEvents: candidate.requiredEvents,
             solvedSets: candidate.solvedSets,
             hitAttempts: candidate.hitAttempts,
+            ...(candidate.completionVersion === 3 ? { missionSteps: candidate.missionSteps } : {}),
           }) : null;
           if (!cancelled && completion?.success && completion.data.outcome === "completed") {
             setCompletedRun({

@@ -45,14 +45,48 @@ export const BridgeReceiptSchema = z.object({
   hashes: z.object({ chartSha256: z.string().regex(/^[a-f0-9]{64}$/i), sidecarSha256: z.string().regex(/^[a-f0-9]{64}$/i), audioSha256: z.string().regex(/^[a-f0-9]{64}$/i) }).strict(),
 }).strict();
 
-export const PlatformPlayerCompletionSchema = z.object({
-  completionVersion: z.literal(2),
+const CompletionAggregateShape = {
   outcome: z.enum(["completed", "failed", "abandoned", "cancelled"]),
   completedEvents: z.number().int().min(0).max(10_000),
   requiredEvents: z.number().int().min(0).max(10_000),
   solvedSets: z.number().int().min(0).max(10_000),
   hitAttempts: z.number().int().min(0).max(100_000),
-}).strict().superRefine((completion, context) => {
+};
+
+const AlgebraMissionStepSchema = z.object({
+  recordType: z.enum(["performance", "equation-transition", "authored-judgement", "encounter-result"]),
+  equationId: z.string().min(1).max(120),
+  encounterId: z.string().max(120),
+  mechanic: z.string().max(16),
+  stepIndex: z.number().int().min(1).max(10_000),
+  slotIndex: z.number().int().min(-1).max(31),
+  judgement: z.enum(["none", "perfect", "good", "early", "late", "miss", "solved", "failed", "cancelled", "activated", "completed"]),
+  hasTimingError: z.boolean(),
+  signedErrorMs: z.number().finite().min(-120_000).max(120_000),
+  fromEquation: z.string().max(240),
+  toEquation: z.string().max(240),
+  operation: z.string().max(64),
+  equationProgress: z.number().finite().min(0).max(1),
+  performanceOutcomes: z.array(z.enum(["perfect", "good", "early", "late", "miss"])).max(32),
+  recordedAtUtc: z.string().min(1).max(40),
+}).strict();
+export type AlgebraMissionStep = z.infer<typeof AlgebraMissionStepSchema>;
+
+const PlatformPlayerCompletionV2Schema = z.object({
+  completionVersion: z.literal(2),
+  ...CompletionAggregateShape,
+}).strict();
+
+const PlatformPlayerCompletionV3Schema = z.object({
+  completionVersion: z.literal(3),
+  ...CompletionAggregateShape,
+  missionSteps: z.array(AlgebraMissionStepSchema).min(1).max(512),
+}).strict();
+
+function validateCompletionAggregates(
+  completion: { outcome: string; completedEvents: number; requiredEvents: number; solvedSets: number },
+  context: z.RefinementCtx,
+) {
   if (completion.completedEvents > completion.requiredEvents) {
     context.addIssue({ code: "custom", path: ["completedEvents"], message: "Completed events cannot exceed required events." });
   }
@@ -66,7 +100,12 @@ export const PlatformPlayerCompletionSchema = z.object({
   )) {
     context.addIssue({ code: "custom", path: ["outcome"], message: "Completed outcomes require all authored events and at least one solved set." });
   }
-});
+}
+
+export const PlatformPlayerCompletionSchema = z.discriminatedUnion("completionVersion", [
+  PlatformPlayerCompletionV2Schema,
+  PlatformPlayerCompletionV3Schema,
+]).superRefine(validateCompletionAggregates);
 export type PlatformPlayerCompletion = z.infer<typeof PlatformPlayerCompletionSchema>;
 
 export const PlatformPlayerBridgeMessageSchema = z.discriminatedUnion("type", [

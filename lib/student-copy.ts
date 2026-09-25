@@ -127,7 +127,7 @@ export const studentCopy = {
     chooseEarlierHitOption: "Start independently",
     chooseEarlierHitLabel: "Choose an optional earlier Hit to unlock this Drag",
     connectEarlierHit: "Start independently, or require an earlier Hit to unlock this Drag.",
-    spinCue: "Spin this token while the move is active.",
+    spinCue: "Spin the hit pads while this move is active.",
     startTime: "Starts at",
     endTime: "Ends at",
   },

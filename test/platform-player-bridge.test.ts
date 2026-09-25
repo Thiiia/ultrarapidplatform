@@ -76,6 +76,73 @@ test("version 2 completion rejects a success that does not prove a solved set", 
   assert.equal(validateBridgeMessage({ ...completed, completion: { ...completed.completion, completionVersion: 1 } }, context).ok, false);
 });
 
+test("version 3 completion carries bounded mission steps with stable equation and encounter identity", () => {
+  const context = createBridgeContext(receipt, "https://game.example/", crypto.randomUUID());
+  const completed = {
+    type: "run-complete" as const,
+    nonce: context.nonce,
+    receipt,
+    completion: {
+      completionVersion: 3 as const,
+      outcome: "completed" as const,
+      completedEvents: 1,
+      requiredEvents: 1,
+      solvedSets: 1,
+      hitAttempts: 2,
+      missionSteps: [
+        {
+          recordType: "authored-judgement",
+          equationId: "eq_001",
+          encounterId: "enc_hit_001",
+          mechanic: "hit",
+          stepIndex: 1,
+          slotIndex: 0,
+          judgement: "perfect",
+          hasTimingError: true,
+          signedErrorMs: -12,
+          fromEquation: "3x + 6 = 18",
+          toEquation: "3x + 6 = 18",
+          operation: "",
+          equationProgress: 0,
+          performanceOutcomes: [],
+          recordedAtUtc: "2026-09-25T12:00:00.000Z",
+        },
+        {
+          recordType: "equation-transition",
+          equationId: "eq_001",
+          encounterId: "",
+          mechanic: "equation",
+          stepIndex: 1,
+          slotIndex: -1,
+          judgement: "none",
+          hasTimingError: false,
+          signedErrorMs: 0,
+          fromEquation: "3x + 6 = 18",
+          toEquation: "3x = 12",
+          operation: "SubtractConstant",
+          equationProgress: 0.5,
+          performanceOutcomes: ["perfect", "good"],
+          recordedAtUtc: "2026-09-25T12:00:01.000Z",
+        },
+      ],
+    },
+  };
+
+  assert.equal(validateBridgeMessage(completed, context).ok, true);
+  assert.equal(validateBridgeMessage({
+    ...completed,
+    completion: { ...completed.completion, missionSteps: completed.completion.missionSteps.slice(0, 1).map((step) => ({ ...step, equationId: "" })) },
+  }, context).ok, false);
+  assert.equal(validateBridgeMessage({
+    ...completed,
+    completion: { ...completed.completion, missionSteps: Array.from({ length: 512 }, () => completed.completion.missionSteps[0]) },
+  }, context).ok, true);
+  assert.equal(validateBridgeMessage({
+    ...completed,
+    completion: { ...completed.completion, missionSteps: Array.from({ length: 513 }, () => completed.completion.missionSteps[0]) },
+  }, context).ok, false);
+});
+
 test("calibration is required when protocol is absent or stale", () => {
   assert.equal(needsCalibration({ protocolVersion: 0 }), true);
   assert.equal(needsCalibration({ protocolVersion: 1 }), true);

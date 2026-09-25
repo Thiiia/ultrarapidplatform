@@ -18,6 +18,7 @@ import { checkSaveRevisionPrecondition } from "@/lib/song-launch-identity";
 import { prepareAuthoredLessonForPublication } from "@/lib/authored-lesson-publication";
 import { createLessonClock } from "@/lib/editor/lesson-timing";
 import { isSameOriginLessonSaveRequest } from "@/lib/lesson-save-origin";
+import { mapLessonSaveInfrastructureError } from "@/lib/lesson-save-infrastructure-error";
 import {
   resolveRhythmSourceRevision,
   type ResolvedRhythmSource,
@@ -671,6 +672,11 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Unable to save lesson files:", error);
+
+    const infrastructureFailure = mapLessonSaveInfrastructureError(error);
+    if (infrastructureFailure) {
+      return NextResponse.json(infrastructureFailure.body, { status: infrastructureFailure.status });
+    }
 
     if (
       error instanceof Error &&

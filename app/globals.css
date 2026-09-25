@@ -78,3 +78,581 @@ textarea:focus-visible,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* The guided Algebra action editor follows the gameplay palette while keeping
+   the actual timing and target controls in the existing, validated composer. */
+.algebra-composer {
+  display: grid;
+  width: min(100%, 760px);
+  gap: var(--ur-space-4);
+  margin: 0 auto;
+  padding: clamp(1rem, 2.2vw, 1.5rem);
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--ur-accent-lime) 24%, var(--color-border));
+  border-radius: var(--ur-radius-large);
+  background:
+    radial-gradient(ellipse at 82% 0%, rgb(111 0 246 / 18%), transparent 42%),
+    linear-gradient(145deg, color-mix(in srgb, var(--ur-canvas-top) 94%, #123e45), var(--ur-canvas-deep));
+  box-shadow: var(--ur-elevation-raised);
+  color: var(--ur-text-marketing);
+  font-family: var(--ur-font-interface), sans-serif;
+}
+
+.algebra-composer__header,
+.algebra-composer__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ur-space-3);
+}
+
+.algebra-composer__eyebrow,
+.algebra-composer__previewEyebrow {
+  color: var(--ur-accent-lime);
+  font-family: var(--ur-font-technical), monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.09em;
+  font-weight: 700;
+}
+
+.algebra-composer__title {
+  margin: 0.2rem 0 0;
+  color: var(--ur-text-primary);
+  font-family: var(--ur-font-interface), sans-serif;
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  line-height: 1.25;
+}
+
+.algebra-composer__actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.algebra-composer__stepCount {
+  color: var(--ur-accent-lime);
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.algebra-composer__remove {
+  min-height: var(--ur-target-minimum-web);
+  border: 1px solid rgb(255 71 71 / 55%);
+  border-radius: var(--ur-radius-pill);
+  padding: 0.35rem 0.75rem;
+  background: rgb(255 71 71 / 8%);
+  color: #ffb4b4;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.algebra-composer__steps {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ur-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: algebra-step;
+}
+
+.algebra-composer__steps::before {
+  position: absolute;
+  top: 0.8rem;
+  right: 14%;
+  left: 14%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--ur-accent-lime), var(--color-purple), var(--color-border-strong));
+  content: "";
+}
+
+.algebra-composer__step {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+  color: var(--color-ink-faint);
+  font-size: clamp(0.62rem, 1.7vw, 0.75rem);
+  text-align: center;
+}
+
+.algebra-composer__step::before {
+  counter-increment: algebra-step;
+  display: grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  place-items: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: var(--ur-canvas-deep);
+  color: var(--color-ink-muted);
+  content: counter(algebra-step);
+  font-family: var(--ur-font-technical), monospace;
+  font-size: 0.7rem;
+  transition: background-color var(--ur-motion-duration-respond) var(--ur-motion-easing-cubic-out),
+    border-color var(--ur-motion-duration-respond) var(--ur-motion-easing-cubic-out),
+    color var(--ur-motion-duration-respond) var(--ur-motion-easing-cubic-out);
+}
+
+.algebra-composer__step[data-state="complete"] {
+  color: var(--color-ink-muted);
+}
+
+.algebra-composer__step[data-state="complete"]::before {
+  border-color: color-mix(in srgb, var(--ur-accent-lime) 55%, var(--color-border));
+  background: rgb(var(--ur-accent-lime-rgb) / 12%);
+  color: var(--ur-accent-lime);
+  content: "✓";
+}
+
+.algebra-composer__step[data-state="active"] {
+  color: var(--ur-text-primary);
+  font-weight: 700;
+}
+
+.algebra-composer__step[data-state="active"]::before {
+  border-color: var(--ur-accent-lime);
+  background: var(--ur-accent-lime);
+  box-shadow: 0 0 1rem rgb(var(--ur-accent-lime-rgb) / 24%);
+  color: var(--ur-canvas-deep);
+}
+
+.algebra-composer > .experience-status {
+  margin: 0;
+}
+
+.algebra-composer__preview {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.8fr) minmax(0, 1.4fr);
+  align-items: center;
+  gap: var(--ur-space-4);
+  padding: clamp(0.85rem, 2vw, 1.25rem);
+  border: 1px solid rgb(183 150 255 / 26%);
+  border-radius: var(--ur-radius-medium);
+  background: linear-gradient(115deg, rgb(111 0 246 / 12%), rgb(8 39 51 / 66%) 58%, rgb(var(--ur-accent-lime-rgb) / 5%));
+}
+
+.algebra-composer__previewCopy {
+  display: grid;
+  justify-items: start;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.algebra-composer__previewCopy strong {
+  color: var(--ur-text-primary);
+  font-size: 0.9rem;
+}
+
+.algebra-composer__previewAction {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: var(--ur-space-2);
+  border: 1px solid rgb(var(--ur-accent-lime-rgb) / 24%);
+  border-radius: var(--ur-radius-pill);
+  padding: 0.25rem 0.6rem;
+  background: rgb(var(--ur-accent-lime-rgb) / 7%);
+  color: var(--ur-text-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.algebra-composer__previewActionIcon {
+  flex: 0 0 auto;
+  color: var(--ur-accent-lime);
+}
+
+.algebra-composer__previewAction[data-mechanic="hit"] .algebra-composer__previewActionIcon {
+  animation: algebra-hit-cue 1.6s var(--ur-motion-easing-cubic-out) infinite;
+}
+
+.algebra-composer__previewAction[data-mechanic="spin"] .algebra-composer__previewActionIcon {
+  animation: algebra-spin-cue 1.8s linear infinite;
+}
+
+.algebra-composer__previewAction[data-mechanic="drag"] .algebra-composer__previewActionIcon {
+  animation: algebra-drag-cue 1.6s var(--ur-motion-easing-cubic-out) infinite;
+}
+
+.algebra-composer__previewTarget,
+.algebra-composer__previewTiming {
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.algebra-composer__previewTarget {
+  color: #dfff70;
+}
+
+.algebra-composer__previewTiming {
+  font-family: var(--ur-font-technical), monospace;
+}
+
+.algebra-composer__equation {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.35rem, 1vw, 0.75rem);
+  padding: 0.2rem;
+}
+
+.algebra-composer__equationToken {
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: var(--ur-radius-pill);
+  padding: 0.25rem clamp(0.65rem, 1.6vw, 1rem);
+  background: rgb(3 14 20 / 55%);
+  color: var(--ur-text-primary);
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.algebra-composer__equationToken[data-operator="true"] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-purple);
+}
+
+.algebra-composer__equationToken[data-targeted="true"] {
+  border-color: var(--ur-accent-lime);
+  background: rgb(var(--ur-accent-lime-rgb) / 13%);
+  box-shadow: 0 0 1.25rem rgb(var(--ur-accent-lime-rgb) / 20%);
+  color: var(--ur-accent-lime);
+  animation: algebra-target-arrive var(--ur-motion-duration-respond) var(--ur-motion-easing-out-back) both;
+}
+
+.algebra-composer__changeEquation {
+  justify-self: start;
+  min-height: var(--ur-target-minimum-web);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--ur-radius-medium);
+  padding: 0.4rem 0.75rem;
+  background: rgb(255 255 255 / 4%);
+  color: var(--ur-text-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.algebra-composer__changeEquation:hover,
+.algebra-composer__remove:hover {
+  border-color: var(--ur-accent-lime);
+}
+
+@keyframes algebra-target-arrive {
+  from { transform: scale(0.94); }
+  to { transform: scale(1); }
+}
+
+@keyframes algebra-hit-cue {
+  0%, 55%, 100% { transform: scale(1); }
+  68% { transform: scale(0.78); }
+  82% { transform: scale(1.08); }
+}
+
+@keyframes algebra-spin-cue {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes algebra-drag-cue {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(0.3rem); }
+}
+
+@media (max-width: 520px) {
+  .algebra-composer__header {
+    align-items: flex-start;
+  }
+
+  .algebra-composer__actions {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .algebra-composer__preview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .algebra-composer__equation {
+    justify-content: flex-start;
+  }
+}
+
+.algebra-composer__spinControls,
+.algebra-composer__dragControls,
+.algebra-composer__emptyEquation {
+  display: grid;
+  gap: var(--ur-space-3);
+}
+
+.algebra-composer__emptyEquation {
+  justify-items: start;
+  color: var(--color-ink-muted);
+  font-size: 0.875rem;
+}
+
+.algebra-composer__primaryButton,
+.algebra-composer__secondaryButton,
+.algebra-composer__warningButton {
+  min-height: var(--ur-target-minimum-web);
+  border: 1px solid var(--ur-accent-lime);
+  border-radius: var(--ur-radius-medium);
+  padding: 0.5rem 0.875rem;
+  background: var(--ur-accent-lime);
+  color: var(--ur-canvas-deep);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.algebra-composer__secondaryButton {
+  justify-self: start;
+  border-color: var(--color-border-strong);
+  background: rgb(255 255 255 / 4%);
+  color: var(--ur-text-primary);
+}
+
+.algebra-composer__warningButton {
+  border-color: var(--color-orange);
+  background: transparent;
+  color: var(--color-orange);
+}
+
+.algebra-composer__primaryButton:hover:not(:disabled),
+.algebra-composer__secondaryButton:hover:not(:disabled),
+.algebra-composer__warningButton:hover:not(:disabled),
+.algebra-composer__tokenButton:hover:not(:disabled),
+.algebra-composer__padButton:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.algebra-composer__timeFields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--ur-space-3);
+}
+
+.algebra-composer__fieldLabel {
+  display: grid;
+  gap: var(--ur-space-1);
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.algebra-composer__field {
+  width: min(100%, 12rem);
+  box-sizing: border-box;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--ur-radius-medium);
+  padding: 0.5rem 0.625rem;
+  background: var(--ur-canvas-deep);
+  color: var(--ur-text-primary);
+}
+
+.algebra-composer__sourceField {
+  max-width: 18rem;
+}
+
+.algebra-composer__timing {
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+}
+
+.algebra-composer__timing summary {
+  min-height: var(--ur-target-minimum-web);
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.algebra-composer__timePanel {
+  margin-top: var(--ur-space-2);
+}
+
+.algebra-composer__targetPicker {
+  display: grid;
+  gap: var(--ur-space-2);
+  min-width: 0;
+}
+
+.algebra-composer__targetLabel {
+  color: var(--ur-accent-lime);
+  font-size: 0.8125rem;
+  font-weight: 800;
+}
+
+.algebra-composer__tokenChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ur-space-2);
+}
+
+.algebra-composer__tokenButton {
+  min-height: var(--ur-target-minimum-web);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--ur-radius-pill);
+  padding: 0.5rem 0.75rem;
+  background: color-mix(in srgb, var(--ur-canvas-top) 72%, var(--ur-canvas-deep));
+  color: var(--ur-text-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.algebra-composer__tokenButton[data-selected="true"] {
+  border-color: var(--ur-accent-lime);
+  background: rgb(var(--ur-accent-lime-rgb) / 14%);
+  color: var(--ur-accent-lime);
+}
+
+.algebra-composer__tokenButton[data-operator="true"] {
+  color: var(--color-ink-faint);
+  cursor: not-allowed;
+}
+
+.algebra-composer__hint {
+  color: var(--color-ink-faint);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.algebra-composer__cueHint {
+  display: flex;
+  align-items: center;
+  gap: var(--ur-space-2);
+  color: var(--color-purple);
+  font-size: 0.75rem;
+}
+
+.algebra-composer__hitControls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.75rem), 1fr));
+  align-items: center;
+  gap: var(--ur-space-4);
+}
+
+.algebra-composer__padPicker {
+  display: grid;
+  justify-items: center;
+  gap: var(--ur-space-2);
+}
+
+.algebra-composer__padBoard {
+  position: relative;
+  width: 11.5rem;
+  height: 9.5rem;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: var(--ur-radius-large);
+  background: color-mix(in srgb, var(--ur-canvas-deep) 72%, var(--ur-canvas-top));
+}
+
+.algebra-composer__padButton {
+  position: absolute;
+  display: grid;
+  width: var(--ur-target-minimum-web);
+  height: var(--ur-target-minimum-web);
+  min-height: var(--ur-target-minimum-web);
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--ur-radius-medium);
+  background: color-mix(in srgb, var(--ur-canvas-top) 78%, var(--ur-canvas-deep));
+  color: var(--ur-text-primary);
+  box-shadow: none;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.algebra-composer__padButton[data-selected="true"] {
+  border-color: var(--ur-accent-lime);
+  background: var(--ur-accent-lime);
+  color: var(--ur-canvas-deep);
+  box-shadow: 0 0 1rem rgb(var(--ur-accent-lime-rgb) / 28%);
+}
+
+.algebra-composer__padCenter {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1rem;
+  height: 1rem;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--color-blue);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-blue) 15%, transparent);
+  box-shadow: 0 0 1rem color-mix(in srgb, var(--color-blue) 25%, transparent);
+  pointer-events: none;
+}
+
+.algebra-composer__legacyWarning {
+  display: grid;
+  max-width: 20rem;
+  justify-items: center;
+  gap: var(--ur-space-2);
+  color: var(--color-orange);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.algebra-composer__numberBondsNote {
+  border: 1px solid rgb(var(--ur-accent-lime-rgb) / 28%);
+  border-radius: var(--ur-radius-medium);
+  padding: 0.625rem 0.75rem;
+  background: rgb(var(--ur-accent-lime-rgb) / 7%);
+  color: color-mix(in srgb, var(--ur-accent-lime) 70%, var(--ur-text-primary));
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.algebra-composer__numberBondsGuidance {
+  display: grid;
+  gap: var(--ur-space-2);
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.algebra-composer__numberBondsGuidance strong {
+  color: var(--ur-accent-lime);
+}
+
+.algebra-composer__changeEquation,
+.algebra-composer__remove,
+.algebra-composer__primaryButton,
+.algebra-composer__secondaryButton,
+.algebra-composer__warningButton,
+.algebra-composer__tokenButton,
+.algebra-composer__padButton {
+  transition: filter var(--ur-motion-duration-respond) var(--ur-motion-easing-cubic-out),
+    border-color var(--ur-motion-duration-respond) var(--ur-motion-easing-cubic-out),
+    background-color var(--ur-motion-duration-respond) var(--ur-motion-easing-cubic-out),
+    color var(--ur-motion-duration-respond) var(--ur-motion-easing-cubic-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .algebra-composer__previewActionIcon,
+  .algebra-composer__equationToken[data-targeted="true"] {
+    animation: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .algebra-composer__hitControls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

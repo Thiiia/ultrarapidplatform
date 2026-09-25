@@ -407,6 +407,7 @@ model PlayerRunOutcome {
   requiredEvents    Int?
   solvedSets        Int?
   hitAttempts     Int      @default(0)
+  missionSteps    Json?    @map("mission_steps")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

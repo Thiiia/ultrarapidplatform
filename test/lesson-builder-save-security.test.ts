@@ -1,13 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
 import { isSameOriginLessonSaveRequest } from "../lib/lesson-save-origin";
 
-test("allows the public Team Editor to save from the same origin", async () => {
+test("allows the public Team Editor to save from the same origin", () => {
   assert.equal(
     typeof isSameOriginLessonSaveRequest,
     "function",
-    "save route must allow same-origin public editor requests",
+    "same-origin save guard is available to the save route",
   );
   assert.equal(
     isSameOriginLessonSaveRequest(

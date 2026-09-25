@@ -19,6 +19,10 @@ const studentStyles = readFileSync(
   join(process.cwd(), "app/student/student.module.css"),
   "utf8",
 );
+const globalStyles = readFileSync(
+  join(process.cwd(), "app/globals.css"),
+  "utf8",
+);
 const studentCopySource = readFileSync(
   join(process.cwd(), "lib/student-copy.ts"),
   "utf8",
@@ -59,6 +63,21 @@ test("editor side panels progressively disclose without removing access", () => 
 test("guided editing names actions and avoids exposing internal action codes", () => {
   assert.match(lessonBuilderSource, /Choose an action/);
   assert.doesNotMatch(lessonBuilderSource, /\$\{item\.mechanic\[0\]\.toUpperCase\(\)\}\$\{item\.instanceIndex \+ 1\}/);
+});
+
+test("Algebra setup previews the selected move responsively using experience tokens", () => {
+  assert.match(composerSource, /showAlgebraSetupProgress/);
+  assert.match(composerSource, /Player cue preview/);
+  assert.match(composerSource, /data-targeted=\{selectedTokenIndex === index/);
+  assert.match(composerSource, /className="algebra-composer__padButton"/);
+  assert.match(globalStyles, /\.algebra-composer\s*\{[\s\S]*?--ur-accent-lime[\s\S]*?var\(--ur-radius-large\)/);
+  assert.match(globalStyles, /\.algebra-composer__preview\s*\{[\s\S]*?grid-template-columns/);
+  assert.match(globalStyles, /\.algebra-composer__padButton\s*\{[\s\S]*?width:\s*var\(--ur-target-minimum-web\);[\s\S]*?height:\s*var\(--ur-target-minimum-web\)/);
+  assert.match(globalStyles, /@media \(max-width: 520px\)[\s\S]*?\.algebra-composer__preview\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(composerSource, /window\.matchMedia\?\.\("\(prefers-reduced-motion: reduce\)"\)/);
+  assert.match(composerSource, /scrollIntoView\(\{ behavior: reduceMotion \? "auto" : "smooth"/);
+  assert.match(globalStyles, /prefers-reduced-motion:\s*reduce/);
+  assert.match(globalStyles, /\.algebra-composer__equationToken\[data-targeted="true"\]\s*\{\s*animation:\s*none;/);
 });
 
 test("lesson readiness is an expandable status control", () => {

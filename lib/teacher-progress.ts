@@ -28,7 +28,7 @@ export function summarizePlayerRunOutcomeCounts(
   outcomes: ReadonlyArray<{ outcome: string; completionVersion: number | null }>,
 ) {
   return outcomes.reduce((counts, outcome) => {
-    if (outcome.outcome === "completed" && outcome.completionVersion !== 2) {
+    if (outcome.outcome === "completed" && outcome.completionVersion !== 2 && outcome.completionVersion !== 3) {
       counts.unverifiedCompletedCount += 1;
     } else if (outcome.outcome === "completed") {
       counts.completedCount += 1;

@@ -14939,6 +14939,7 @@ export default function LessonBuilderClient({
                             tokens={selectedGuidedEncounter.equation?.tokens ?? []}
                             readiness={selectedGuidedReadiness}
                             activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
+                            showAlgebraSetupProgress={(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "early-algebra"}
                             step={selectedGuidedReadiness.issueCodes.includes("equation_required") ? 1 : 2}
                             stepCount={3}
                             dragSources={dragSources}

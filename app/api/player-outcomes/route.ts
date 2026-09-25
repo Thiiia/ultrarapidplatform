@@ -30,6 +30,7 @@ function responseForOutcome(outcome: {
   requiredEvents: number | null;
   solvedSets: number | null;
   hitAttempts: number;
+  missionSteps: Prisma.JsonValue | null;
   createdAt: Date;
 }) {
   return {
@@ -42,6 +43,9 @@ function responseForOutcome(outcome: {
       requiredEvents: outcome.requiredEvents,
       solvedSets: outcome.solvedSets,
       hitAttempts: outcome.hitAttempts,
+      ...(outcome.completionVersion === 3 && Array.isArray(outcome.missionSteps)
+        ? { missionSteps: outcome.missionSteps }
+        : {}),
       createdAt: outcome.createdAt.toISOString(),
     },
   };
@@ -55,7 +59,7 @@ export async function GET(request: Request) {
     );
     const outcome = await prisma.playerRunOutcome.findFirst({
       where: { launchAttemptId, userId: user.id },
-      select: { launchAttemptId: true, outcome: true, completionVersion: true, completedEvents: true, requiredEvents: true, solvedSets: true, hitAttempts: true, createdAt: true },
+      select: { launchAttemptId: true, outcome: true, completionVersion: true, completedEvents: true, requiredEvents: true, solvedSets: true, hitAttempts: true, missionSteps: true, createdAt: true },
     });
     return NextResponse.json(outcome ? responseForOutcome(outcome) : { outcome: null });
   } catch (error) {
@@ -88,7 +92,7 @@ export async function POST(request: Request) {
 
     const existing = await prisma.playerRunOutcome.findUnique({
       where: { launchAttemptId },
-      select: { launchAttemptId: true, userId: true, outcome: true, completionVersion: true, completedEvents: true, requiredEvents: true, solvedSets: true, hitAttempts: true, createdAt: true },
+      select: { launchAttemptId: true, userId: true, outcome: true, completionVersion: true, completedEvents: true, requiredEvents: true, solvedSets: true, hitAttempts: true, missionSteps: true, createdAt: true },
     });
     if (existing) {
       const sameOutcome = existing.userId === user.id &&
@@ -97,7 +101,10 @@ export async function POST(request: Request) {
         existing.completedEvents === body.completion.completedEvents &&
         existing.requiredEvents === body.completion.requiredEvents &&
         existing.solvedSets === body.completion.solvedSets &&
-        existing.hitAttempts === body.completion.hitAttempts;
+        existing.hitAttempts === body.completion.hitAttempts &&
+        canonicalJson(existing.missionSteps ?? null) === canonicalJson(
+          body.completion.completionVersion === 3 ? body.completion.missionSteps : null,
+        );
       if (!sameOutcome) {
         return NextResponse.json({ error: "A different outcome is already recorded for this launch attempt" }, { status: 409 });
       }
@@ -115,8 +122,11 @@ export async function POST(request: Request) {
           requiredEvents: body.completion.requiredEvents,
           solvedSets: body.completion.solvedSets,
           hitAttempts: body.completion.hitAttempts,
+          missionSteps: body.completion.completionVersion === 3
+            ? body.completion.missionSteps as Prisma.InputJsonValue
+            : Prisma.DbNull,
         },
-        select: { launchAttemptId: true, outcome: true, completionVersion: true, completedEvents: true, requiredEvents: true, solvedSets: true, hitAttempts: true, createdAt: true },
+        select: { launchAttemptId: true, outcome: true, completionVersion: true, completedEvents: true, requiredEvents: true, solvedSets: true, hitAttempts: true, missionSteps: true, createdAt: true },
       });
       return NextResponse.json(responseForOutcome(created), { status: 201 });
     } catch (error) {
@@ -125,7 +135,7 @@ export async function POST(request: Request) {
       }
       const raced = await prisma.playerRunOutcome.findUniqueOrThrow({
         where: { launchAttemptId },
-        select: { launchAttemptId: true, userId: true, outcome: true, completionVersion: true, completedEvents: true, requiredEvents: true, solvedSets: true, hitAttempts: true, createdAt: true },
+        select: { launchAttemptId: true, userId: true, outcome: true, completionVersion: true, completedEvents: true, requiredEvents: true, solvedSets: true, hitAttempts: true, missionSteps: true, createdAt: true },
       });
       const sameOutcome = raced.userId === user.id &&
         raced.outcome === body.completion.outcome &&
@@ -133,7 +143,10 @@ export async function POST(request: Request) {
         raced.completedEvents === body.completion.completedEvents &&
         raced.requiredEvents === body.completion.requiredEvents &&
         raced.solvedSets === body.completion.solvedSets &&
-        raced.hitAttempts === body.completion.hitAttempts;
+        raced.hitAttempts === body.completion.hitAttempts &&
+        canonicalJson(raced.missionSteps ?? null) === canonicalJson(
+          body.completion.completionVersion === 3 ? body.completion.missionSteps : null,
+        );
       if (!sameOutcome) {
         return NextResponse.json({ error: "A different outcome is already recorded for this launch attempt" }, { status: 409 });
       }
