@@ -17,6 +17,7 @@ import { resolveRequestedAuthor } from "@/lib/song-author";
 import { checkSaveRevisionPrecondition } from "@/lib/song-launch-identity";
 import { prepareAuthoredLessonForPublication } from "@/lib/authored-lesson-publication";
 import { createLessonClock } from "@/lib/editor/lesson-timing";
+import { isSameOriginLessonSaveRequest } from "@/lib/lesson-save-origin";
 import {
   resolveRhythmSourceRevision,
   type ResolvedRhythmSource,
@@ -138,17 +139,6 @@ async function readStoredUtf8Text(
   }
 
   return content;
-}
-
-export function isSameOriginLessonSaveRequest(request: Request) {
-  const origin = request.headers.get("origin");
-  const requestUrl = new URL(request.url);
-
-  if (!origin) {
-    return true;
-  }
-
-  return origin === requestUrl.origin;
 }
 
 /**

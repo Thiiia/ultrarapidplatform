@@ -1,0 +1,35 @@
+.composer { width: 100%; height: 100%; min-height: 0; overflow: auto; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) minmax(270px, 360px); grid-template-rows: auto 1fr; align-items: center; gap: 12px 32px; padding: clamp(18px, 3vw, 40px); background: radial-gradient(circle at 38% 48%, #153440 0, #0b202a 37%, #07151d 75%); color: #f8fafc; font-family: "Space Grotesk", sans-serif; }
+.intro { grid-column: 1 / -1; max-width: 740px; }
+.eyebrow { color: #cbff46; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.intro h1 { margin: 8px 0; font-size: clamp(25px, 3vw, 42px); line-height: 1.06; }
+.intro p { margin: 0; max-width: 670px; color: #d4e1e8; font-size: 13px; line-height: 1.5; }
+.orbit { position: relative; width: min(100%, 420px); aspect-ratio: 1; justify-self: center; min-width: 0; }
+.orbitRing { position: absolute; inset: 11%; border: 1px solid #87d9bd55; border-radius: 50%; box-shadow: 0 0 32px #b5ff2420; }
+.orbitCore { position: absolute; inset: 31%; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid #dcff76; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #245347, #12252a 70%); box-shadow: 0 0 38px #cfff0455, inset 0 0 28px #dcff7625; }
+.orbitCore span { font-size: clamp(10px, 1.5vw, 15px); font-weight: 900; letter-spacing: .14em; }
+.orbitCore strong { color: #d9ff50; font-size: clamp(38px, 6vw, 72px); line-height: 1; }
+.note { position: absolute; z-index: 1; width: clamp(29px, 8%, 42px); aspect-ratio: 1; transform: translate(-50%, -50%); display: grid; place-items: center; border-radius: 50%; color: #ecffd2; font: 800 12px/1 "Space Grotesk", sans-serif; animation: orbit-breathe 3s ease-in-out infinite; }
+.notePlaced { border: 1px solid #d9ff50; background: #285343; box-shadow: 0 0 16px #cfff04bb; cursor: pointer; }
+.noteSuggested { border: 1px dashed #b9db8b; background: #214539; color: #deefc5; cursor: default; }
+.noteEmpty { border: 1px dashed #91a6ae; background: #18313b; color: #d2dfe2; cursor: default; }
+.note:focus-visible, .controls button:focus-visible, .controls input:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.controls { display: grid; align-content: center; gap: 18px; min-width: 0; }
+.targetRow { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.targetRow button { min-width: 38px; min-height: 42px; border: 1px solid #70929b; border-radius: 10px; background: #19323b; color: #fff; font-size: 21px; cursor: pointer; }
+.targetRow button:disabled { opacity: .45; cursor: not-allowed; }
+.targetRow label { display: grid; gap: 5px; min-width: 86px; color: #d4e1e8; font-size: 11px; font-weight: 700; }
+.targetRow input { width: 86px; height: 42px; box-sizing: border-box; border: 1px solid #cfff04; border-radius: 10px; background: #101e25; color: #d9ff50; text-align: center; font: 900 25px/1 "Space Grotesk", sans-serif; }
+.targetRow .shuffle { padding: 0 12px; font-size: 12px; }
+.progress { display: grid; gap: 3px; }
+.progress strong { color: #d9ff50; font-size: 15px; }
+.progress span, .notice { color: #d4e1e8; font-size: 12px; line-height: 1.4; }
+.notice { margin: 0; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.actions button { min-height: 46px; border-radius: 11px; padding: 8px 12px; font: 800 12px/1.2 "Space Grotesk", sans-serif; cursor: pointer; }
+.actions button:disabled { opacity: .5; cursor: not-allowed; }
+.secondary { border: 1px solid #a4bfc6; background: #152d37; color: #f8fafc; }
+.primary { border: 1px solid #d9ff50; background: #d9ff50; color: #061921; }
+@keyframes orbit-breathe { 50% { filter: brightness(1.16); } }
+@media (max-width: 850px) { .composer { grid-template-columns: 1fr; grid-template-rows: auto auto auto; gap: 16px; } .intro { grid-column: 1; } .orbit { width: min(100%, 330px); } .controls { width: min(100%, 480px); justify-self: center; } }
+@media (max-width: 400px) { .composer { padding: 14px; } .actions { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .note { animation: none; } }

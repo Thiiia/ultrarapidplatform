@@ -376,12 +376,17 @@ export function GuidedEncounterComposer({
 }: GuidedEncounterComposerProps) {
   const isNumberBonds = activityKey === "number-bonds";
   const heading = instance.mechanic === "hit"
-    ? (isNumberBonds ? "Place a catch cue" : studentCopy.mechanics.makeHit)
+    ? (isNumberBonds ? "Note timing" : studentCopy.mechanics.makeHit)
     : instance.mechanic === "spin"
       ? studentCopy.mechanics.makeSpin
       : studentCopy.mechanics.makeDrag;
   let controls: ReactNode;
-  if (!instance.equation || tokens.length === 0) {
+  if (isNumberBonds) {
+    controls = <div style={{ display: "grid", gap: 6, color: "#FFFFFFB3", fontSize: 12 }}>
+      <strong style={{ color: "#DFFF70" }}>Each note brings one gem into play.</strong>
+      <span>The song sets the timing. You can move this note on the timeline to change when its gem appears.</span>
+    </div>;
+  } else if (!instance.equation || tokens.length === 0) {
     controls = <div style={{ display: "grid", gap: 8, justifyItems: "start", color: "#FFFFFFB3", fontSize: 12 }}>
       {studentCopy.mechanics.chooseEquation}
       {onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} style={{ border: "1px solid #CFFF04", borderRadius: 10, background: "#CFFF04", color: "#071222", padding: "9px 12px", fontWeight: 800, cursor: "pointer" }}>Choose an equation</button> : null}
@@ -405,15 +410,23 @@ export function GuidedEncounterComposer({
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
         <h3 style={{ margin: 0, color: "#FFFFFF", fontSize: 15 }}>{heading}</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ color: "#CFFF04", fontSize: 11, fontWeight: 900 }}>Step {step} of {stepCount}</span>
-          {onRemove ? <button type="button" data-repair-control="remove" onClick={onRemove} style={{ border: "1px solid #7A3A3A", borderRadius: 999, background: "transparent", color: "#FFB4B4", cursor: "pointer", fontSize: 11, fontWeight: 800, padding: "4px 8px" }}>Remove action</button> : null}
+          {!isNumberBonds ? <span style={{ color: "#CFFF04", fontSize: 11, fontWeight: 900 }}>Step {step} of {stepCount}</span> : null}
+          {onRemove ? <button type="button" data-repair-control="remove" onClick={onRemove} style={{ border: "1px solid #7A3A3A", borderRadius: 999, background: "transparent", color: "#FFB4B4", cursor: "pointer", fontSize: 11, fontWeight: 800, padding: "4px 8px" }}>{isNumberBonds ? "Remove note" : "Remove action"}</button> : null}
         </div>
       </div>
-      {readiness.ready ? <div className="experience-status" data-status="success" role="status" aria-live="polite">{studentCopy.editor.readyToPlay}</div> : <div className="experience-status" data-status="warning" role="status" aria-live="polite">{readiness.nextAction}</div>}
-      {instance.equation && onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} style={{ justifySelf: "start", border: "1px solid #7A8FA8", borderRadius: 10, background: "#111B2A", color: "#FFFFFF", padding: "7px 10px", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Change equation</button> : null}
+      {readiness.ready ? (
+        <div className="experience-status" data-status="success" role="status" aria-live="polite">
+          {isNumberBonds ? "This note is ready. Press Play mission when you are ready." : studentCopy.editor.readyToPlay}
+        </div>
+      ) : (
+        <div className="experience-status" data-status="warning" role="status" aria-live="polite">
+          {readiness.nextAction}
+        </div>
+      )}
+      {!isNumberBonds && instance.equation && onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} style={{ justifySelf: "start", border: "1px solid #7A8FA8", borderRadius: 10, background: "#111B2A", color: "#FFFFFF", padding: "7px 10px", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Change equation</button> : null}
       {isNumberBonds ? (
         <div style={{ borderRadius: 12, border: "1px solid rgba(207,255,4,.28)", background: "rgba(207,255,4,.07)", color: "#DFFF70", padding: "9px 11px", fontSize: 11, fontWeight: 750, lineHeight: 1.45 }}>
-          You place the catch cue. In the game it automatically continues through catch → spinout → drag.
+          Catch the gem on the beat, then place it in a slot.
         </div>
       ) : null}
       {controls}

@@ -49,7 +49,7 @@ test("editor side panels progressively disclose without removing access", () => 
     lessonBuilderSource,
     /function beginGuidedEditing\(\)[\s\S]*?setAdvancedMode\(false\)[\s\S]*?setIsBuilderPanelOpen\(false\)/,
   );
-  assert.match(lessonBuilderSource, /<EditorPanelRail label="Build"/);
+  assert.match(lessonBuilderSource, /<EditorPanelRail label=\{isNumberBondsActivity \? "Bond" : "Build"\}/);
   assert.match(lessonBuilderSource, /<EditorPanelRail label="Library"/);
   assert.match(lessonBuilderSource, /Collapse equation builder/);
   assert.match(lessonBuilderSource, /Collapse equation library/);
@@ -90,7 +90,13 @@ test("Number Bonds timing repairs require a beat-snapped preview and can be undo
   assert.match(lessonBuilderSource, /applyEncounterMovePatches/);
   assert.match(lessonBuilderSource, /setTimingRepairUndoSnapshot\(undoSnapshot\)/);
   assert.match(lessonBuilderSource, /Extend the song or remove a move/);
-  assert.doesNotMatch(readinessSource, /Move this catch cue for me/);
+  assert.doesNotMatch(readinessSource, /Move this note for me/);
+});
+
+test("Number Bonds note creation explains the one-note, one-gem contract", () => {
+  assert.match(composerSource, /Each note brings one gem into play/);
+  assert.match(lessonBuilderSource, /createDefaultNumberBondHitBubble/);
+  assert.match(lessonBuilderSource, /NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS/);
 });
 
 test("readiness blockers select the exact cue and seek to its authored time", () => {

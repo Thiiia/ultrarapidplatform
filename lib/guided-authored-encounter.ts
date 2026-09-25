@@ -121,13 +121,13 @@ const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   operator_target: "Pick a number or variable, not a + or = sign.",
   drag_source_not_ready: "Choose a Hit that comes before this Drag.",
   drag_source_not_earlier: "Move this Drag after its source Hit.",
-  unsupported_concurrency: "Move either action so their approach windows do not overlap.",
-  activity_mechanic_unsupported: "Use a Hit for this activity; its later interaction phases are generated at runtime.",
+  unsupported_concurrency: "Move one action later so the first has time to finish.",
+  activity_mechanic_unsupported: "Place song notes; each gem's catch, spin and drag happen automatically.",
   activity_equation_invalid: "Use one valid Number Bonds equation, such as 5 = 2 + 3.",
-  activity_target_shape: "Give this Number Bonds Hit exactly one bubble target.",
-  activity_equation_count: "Use exactly one equation for Number Bonds.",
-  activity_hit_count: "Use exactly one authored Hit for each generated Number Bonds gem.",
-  activity_hit_spacing: "Leave time for the previous gem's catch, spin and drag before the next Hit.",
+  activity_target_shape: "Give each song note exactly one bubble target on the big number.",
+  activity_equation_count: "Choose one big number for this mission.",
+  activity_hit_count: "Place one song note for each unit in the big number.",
+  activity_hit_spacing: "Leave time to catch and place the previous gem before the next song note.",
   gem_spacing: "Move this Hit farther from the previous Hit.",
   gem_tail: "Extend the lesson stop time after the final Hit.",
   simultaneous_hits: "Move this Hit so Number Bonds Hits do not happen together.",
@@ -153,11 +153,11 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
     drag_source_not_earlier: "must start after its source Hit",
     unsupported_concurrency: "overlaps another move",
     activity_mechanic_unsupported: "uses a mechanic that this activity does not author",
-    activity_equation_invalid: "uses an equation outside this activity's contract",
+    activity_equation_invalid: "has a Number Bonds target that cannot be read",
     activity_target_shape: "has the wrong target shape for this activity",
-    activity_equation_count: "has the wrong number of equations for this activity",
-    activity_hit_count: "does not match the generated gem count",
-    activity_hit_spacing: "starts before the previous Number Bonds Hit is ready",
+    activity_equation_count: "needs one big number for this mission",
+    activity_hit_count: "needs one song note for each unit in the big number",
+    activity_hit_spacing: "starts before the previous gem can be caught and placed",
     gem_spacing: "starts before the next Number Bonds Hit is available",
     gem_tail: "does not leave enough time after the final Number Bonds Hit",
     simultaneous_hits: "happens at the same time as another Number Bonds Hit",
@@ -296,7 +296,10 @@ export function evaluateEncounterReadiness(
   if (!capabilities.supportedAuthoredMechanics.includes(encounter.mechanic)) {
     issues.push(issue(encounter, "activity_mechanic_unsupported"));
   }
-  if (!encounter.equation || encounter.equation.tokens.length === 0) {
+  if (
+    capabilities.activityKey !== "number-bonds" &&
+    (!encounter.equation || encounter.equation.tokens.length === 0)
+  ) {
     issues.push(issue(encounter, "equation_required"));
   }
 
