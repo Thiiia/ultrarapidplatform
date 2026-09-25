@@ -2678,7 +2678,7 @@ function SongFilePickerModal({
             </select>
             <div style={{ color: rhythmSources.length ? "#AFC2D8" : "#FF9B9B", fontSize: 11, lineHeight: 1.45 }}>
               {rhythmSources.length
-                ? "This brings across verified beat timing only. Your Number Bonds target and catch cues start fresh; the song audio remains shared."
+                ? "This brings across verified beat timing only. Choose the number to make, then place notes from the song and play. The song audio remains shared."
                 : "This song has no verified rhythm revision available to start from."}
             </div>
           </div>
@@ -5011,7 +5011,7 @@ function EquationTimeline({
     { key: "equations", label: isNumberBondsTimeline ? "Bond" : "Equations", color: "#CFFF04" },
     ...mechanicsForTimeline.map((mechanic) => ({
       key: mechanic,
-      label: mechanic === "hit" ? (isNumberBondsTimeline ? "Catch cues" : "Hits") : mechanic === "spin" ? "Spinouts" : "Drags",
+      label: mechanic === "hit" ? (isNumberBondsTimeline ? "Notes" : "Hits") : mechanic === "spin" ? "Spinouts" : "Drags",
       color: mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF",
     })),
   ];
@@ -5840,7 +5840,7 @@ function NumberBondsSetupPanel({
       <div style={{ display: "grid", gap: 6 }}>
         <strong style={{ fontSize: 15, color: "#FFFFFF" }}>Make a number</strong>
         <span style={{ fontSize: 11, lineHeight: 1.45, color: "#FFFFFF99" }}>
-          Set the whole the player fills. Each catch cue stands for one unit block; the song timeline supplies its timing.
+          Set the number the player makes. Each song note stands for one unit block.
         </span>
       </div>
 
@@ -7208,7 +7208,7 @@ function CenterChoicePanel({
         <div style={{ width: "min(680px, 100%)", display: "grid", justifyItems: "center", gap: 18 }}>
           <div style={{ textAlign: "center", display: "grid", gap: 5 }}>
             <strong style={{ color: "#FFFFFF", fontSize: 19 }}>Number Bonds level preview</strong>
-            <span style={{ color: "#FFFFFF99", fontSize: 11 }}>One unit block is scheduled for each catch cue.</span>
+            <span style={{ color: "#FFFFFF99", fontSize: 11 }}>One unit block is scheduled for each note.</span>
           </div>
           {bond ? (
             <div aria-label={`Make ${bond.whole} using ${bond.whole} unit blocks`} style={{ width: "min(430px, 100%)", display: "grid", justifyItems: "center", gap: 14 }}>
@@ -11773,7 +11773,7 @@ export default function LessonBuilderClient({
     markDirty();
     setCenterChoice(null);
     setIsLibraryPanelOpen(false);
-    setSaveStatus("Target saved for this song. Add or remove one catch cue per unit block.");
+    setSaveStatus("Target saved for this song. Place one note per unit block.");
   }
 
   function handleBuildNumberBondMission(playAfterBuild: boolean) {
@@ -14016,7 +14016,7 @@ export default function LessonBuilderClient({
     ) / 1000;
     const songEndSeconds = audioDurationSeconds || metadata?.durationSeconds || 0;
     if (!songEndSeconds || nextSeconds + NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS > songEndSeconds) {
-      setSaveStatus("There is not enough song left for this gem. Move an earlier catch cue or choose a longer song.");
+    setSaveStatus("There is not enough song left for this gem. Move an earlier note or choose a longer song.");
       return;
     }
 
@@ -14055,7 +14055,7 @@ export default function LessonBuilderClient({
     }
     markDirty();
     seekSong(nextSeconds);
-    setSaveStatus(`Moved this catch cue to ${nextSeconds.toFixed(2)}s. Check the next step before playing.`);
+    setSaveStatus(`Moved this note to ${nextSeconds.toFixed(2)}s. Check the next step before playing.`);
   }
   return (
     <div

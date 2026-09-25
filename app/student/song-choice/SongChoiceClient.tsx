@@ -1579,7 +1579,7 @@ export default function SongChoiceClient({
             ? studentCopy.songChoice.preparing
             : selectedSongStatus === "error"
               ? "Try again"
-              : selectedSongCanPlay ? "Choose how to start" : "Make a lesson"}
+            : selectedSongCanPlay ? "Choose how to start" : currentActivityKey === "number-bonds" ? "Create Number Bonds mission" : "Make a lesson"}
         </button>
         </div>
       </div>
@@ -1634,7 +1634,7 @@ export default function SongChoiceClient({
               {selectedSongCanPlay
                 ? studentCopy.songChoice.readyToPlayBody
                 : selectedSong?.requiresRhythmSource
-                  ? "This song has beat timing ready to reuse. Create its Number Bonds game, then save before playing."
+                  ? "This song has beat timing ready to reuse. Choose a number, then press Play to place its notes and start."
                   : studentCopy.songChoice.needsWorkBody}
             </p>
 
