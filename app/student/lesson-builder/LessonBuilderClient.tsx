@@ -11828,7 +11828,7 @@ export default function LessonBuilderClient({
   }
 
   function handlePlayNumberBondMission() {
-    if (lessonPublishReadiness.ready && numberBondValues?.whole === numberBondTargetWhole) {
+    if (lessonPublishReadiness.ready && numberBondAuthoredNotesMatch) {
       void handleLaunchGame();
       return;
     }
@@ -12008,7 +12008,7 @@ export default function LessonBuilderClient({
   async function handleLaunchGame(playTemplateOnly = false) {
     if (isSaving) return;
     if (isNumberBondsActivity && !playTemplateOnly &&
-      (!lessonPublishReadiness.ready || numberBondValues?.whole !== numberBondTargetWhole)) {
+      (!lessonPublishReadiness.ready || !numberBondAuthoredNotesMatch)) {
       handleBuildNumberBondMission(true);
       return;
     }
