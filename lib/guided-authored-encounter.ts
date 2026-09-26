@@ -1,5 +1,7 @@
 import {
   AUTHORED_HIT_MISS_WINDOW_SECONDS,
+  AUTHORED_MIN_FIRST_CUE_SECONDS,
+  AUTHORED_PRESENTATION_EPSILON_SECONDS,
   AUTHORED_PRESENTATION_LEAD_SECONDS,
   isAuthoredEquationOperator,
 } from "./authored-lesson";
@@ -33,6 +35,7 @@ export type GuidedEncounterInput = {
 
 export type EncounterIssueCode =
   | "lesson_encounter_required"
+  | "first_cue_before_tutorial"
   | "equation_required"
   | "target_required"
   | "target_identity_invalid"
@@ -109,6 +112,7 @@ export type NormalizedStagedMechanic = {
 
 const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   lesson_encounter_required: "Add at least one encounter with a playable move.",
+  first_cue_before_tutorial: `Move the first song note to ${AUTHORED_MIN_FIRST_CUE_SECONDS.toFixed(1)}s or later.`,
   equation_required: "Choose an equation to get started.",
   target_required: "Pick a token for this move.",
   target_identity_invalid: "Choose the token again.",
@@ -139,6 +143,7 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
   const nextAction = ISSUE_ACTIONS[code];
   const labels: Record<EncounterIssueCode, string> = {
     lesson_encounter_required: "needs a playable move",
+    first_cue_before_tutorial: "starts before the tutorial gate",
     equation_required: "needs an equation",
     target_required: "needs a token",
     target_identity_invalid: "needs its token chosen again",
@@ -561,6 +566,16 @@ export function evaluateLessonPublishReadiness(
       if (!options.clock) return seconds;
       return options.clock.toSeconds(options.clock.toTick(seconds));
     };
+    if (firstInput) {
+      const firstSeconds = toRuntimeSeconds(firstInput.tick ?? ordered[0].event.tick);
+      if (Number.isFinite(firstSeconds) &&
+          firstSeconds + AUTHORED_PRESENTATION_EPSILON_SECONDS < AUTHORED_MIN_FIRST_CUE_SECONDS) {
+        blockers.push({
+          ...issue(firstInput, "first_cue_before_tutorial"),
+          earliestSafeStartSeconds: AUTHORED_MIN_FIRST_CUE_SECONDS,
+        });
+      }
+    }
     const timingIssues = validateAuthoredActivityTiming(
       capabilities.activityKey,
       ordered.map(({ event, mechanic, instance }) => {

@@ -125,12 +125,12 @@ test("generates valid lessons for separate synthetic chart rhythms without makin
     rhythmSource: source("song-two", "11111111-1111-4111-8111-111111111111", "equations"),
     rhythmDifficulty: "MediumSingle",
     chartContent: secondChart.content,
-    durationSeconds: 47,
+    durationSeconds: 55,
     cueSelectionConstraints: { minimumStartSeconds: 0 },
   }));
 
   assert.equal(first.draft.encounters.length, 3);
-  assert.deepEqual(second.provenance.selectedCueSeconds, [3, 11, 19, 27, 35]);
+  assert.deepEqual(second.provenance.selectedCueSeconds, [11, 19, 27, 35, 43]);
   assert.equal(second.draft.encounters.length, 5);
   assert.equal(second.draft.songAssetId, "song-two");
   assert.equal(second.provenance.sourceActivityKey, "equations");

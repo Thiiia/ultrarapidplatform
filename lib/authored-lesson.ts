@@ -99,7 +99,7 @@ export const AUTHORED_MIN_FIRST_CUE_SECONDS = 6;
  * stay within this simpler authoring contract.
  */
 export const AUTHORED_MAX_REQUIRED_HIT_PADS = 2;
-const AUTHORED_PRESENTATION_EPSILON_SECONDS = 0.0005;
+export const AUTHORED_PRESENTATION_EPSILON_SECONDS = 0.0005;
 
 export type AuthoredLessonClock = {
   toSeconds(tick: number): number;

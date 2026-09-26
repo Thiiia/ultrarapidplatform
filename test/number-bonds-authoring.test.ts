@@ -44,3 +44,11 @@ test("Number Bonds selects spaced notes from the chosen chart difficulty and lea
   assert.equal(planNumberBondNotes(notes, 4), null);
   assert.deepEqual(getNumberBondSongNotes(chart, "EasySingle", 43), []);
 });
+
+test("Number Bonds skips song notes before the authored tutorial gate", () => {
+  const chart = `[Song]\n{\n Resolution = 192\n Offset = 0\n}\n[SyncTrack]\n{\n 0 = B 120000\n}\n[ExpertSingle]\n{\n 1056 = N 0 0\n 2112 = N 1 0\n 2304 = N 2 0\n 6720 = N 3 0\n}`;
+  const notes = getNumberBondSongNotes(chart, "ExpertSingle", 43);
+
+  assert.deepEqual(notes.map((note) => note.seconds), [6, 17.5]);
+  assert.deepEqual(planNumberBondNotes(notes, 2)?.map((note) => note.seconds), [6, 17.5]);
+});

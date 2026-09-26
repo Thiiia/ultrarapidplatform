@@ -68,6 +68,21 @@ test("a lesson without a playable move is not ready to publish", () => {
   }
 });
 
+test("Number Bonds readiness flags a first note before the tutorial gate", () => {
+  const bondEquation: AuthoredSavedEquation = {
+    id: "bond-2",
+    tokens: ["2", "=", "1", "+", "1"].map((label, index) => ({ id: `bond-token-${index}`, label })),
+  };
+  const first = encounter("hit", { id: "hit-1", tick: 2.75, endTick: 2.75, equation: bondEquation });
+  const second = encounter("hit", { id: "hit-2", tick: 11, endTick: 11, equation: bondEquation });
+  const options = { activityKey: "number-bonds", equationQueue: [bondEquation], stopAtSeconds: 30 };
+
+  const early = evaluateLessonPublishReadiness([eventWith(first), eventWith(second)], options);
+  assert.equal(early.blockers.find((blocker) => blocker.code === "first_cue_before_tutorial")?.earliestSafeStartSeconds, 6);
+  const shifted = evaluateLessonPublishReadiness([eventWith({ ...first, tick: 6, endTick: 6 }), eventWith(second)], options);
+  assert.equal(shifted.blockers.some((blocker) => blocker.code === "first_cue_before_tutorial"), false);
+});
+
 test("editing cannot introduce a new Unity presenter collision, but can repair an old one", () => {
   const first = encounter("hit", { id: "hit-1", tick: 8, endTick: 8 });
   const second = encounter("hit", { id: "hit-2", tick: 10, endTick: 10 });

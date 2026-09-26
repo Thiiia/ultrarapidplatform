@@ -7,6 +7,7 @@ import {
 } from "./activity-authoring-capabilities";
 import { parseSupportedChartSemantics, type SupportedRhythmDifficulty } from "./chart-semantics";
 import { createLessonClock } from "./editor/lesson-timing";
+import { AUTHORED_MIN_FIRST_CUE_SECONDS } from "./authored-lesson";
 import {
   PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
   resolveAuthoredHitPadSlot,
@@ -248,7 +249,7 @@ export function generateNumberBondsAuthoredLesson(
   }
 
   const requestedConstraints = definition.cueSelectionConstraints ?? {};
-  const minimumStartSeconds = requestedConstraints.minimumStartSeconds ?? 0;
+  const requestedMinimumStartSeconds = requestedConstraints.minimumStartSeconds ?? AUTHORED_MIN_FIRST_CUE_SECONDS;
   const minimumSpacingSeconds = Math.max(
     NUMBER_BONDS_TIMING_POLICY.minimumHitSpacingSeconds,
     requestedConstraints.minimumSpacingSeconds ?? NUMBER_BONDS_TIMING_POLICY.minimumHitSpacingSeconds,
@@ -257,10 +258,11 @@ export function generateNumberBondsAuthoredLesson(
     NUMBER_BONDS_TIMING_POLICY.finalInteractionTailSeconds,
     requestedConstraints.finalInteractionTailSeconds ?? NUMBER_BONDS_TIMING_POLICY.finalInteractionTailSeconds,
   );
-  if (!Number.isFinite(minimumStartSeconds) || minimumStartSeconds < 0 ||
+  if (!Number.isFinite(requestedMinimumStartSeconds) || requestedMinimumStartSeconds < 0 ||
       !Number.isFinite(minimumSpacingSeconds) || !Number.isFinite(finalInteractionTailSeconds)) {
     throw new Error("Number Bonds cue constraints must be finite non-negative seconds.");
   }
+  const minimumStartSeconds = Math.max(AUTHORED_MIN_FIRST_CUE_SECONDS, requestedMinimumStartSeconds);
   const constraints = { minimumStartSeconds, minimumSpacingSeconds, finalInteractionTailSeconds };
 
   const noteTicks = getDifficultyNoteTicks(definition.chartContent, definition.rhythmDifficulty);

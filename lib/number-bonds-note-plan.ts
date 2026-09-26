@@ -1,4 +1,5 @@
 import { createLessonClock } from "./editor/lesson-timing";
+import { AUTHORED_MIN_FIRST_CUE_SECONDS } from "./authored-lesson";
 import {
   NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS,
   NUMBER_BONDS_MINIMUM_HIT_SPACING_SECONDS,
@@ -27,7 +28,7 @@ export function getNumberBondSongNotes(
   for (const match of body.matchAll(/^\s*(\d+)\s*=\s*N\s+([0-4])\s+\d+\s*$/gm)) {
     const tick = Number(match[1]);
     const seconds = clock.toSeconds(tick);
-    if (!Number.isFinite(seconds) || seconds < 2 || seconds > lastPlayableSecond) continue;
+    if (!Number.isFinite(seconds) || seconds < AUTHORED_MIN_FIRST_CUE_SECONDS || seconds > lastPlayableSecond) continue;
     if (!byTick.has(tick)) byTick.set(tick, { tick, lane: Number(match[2]), seconds });
   }
   return [...byTick.values()].sort((left, right) => left.seconds - right.seconds || left.lane - right.lane);
