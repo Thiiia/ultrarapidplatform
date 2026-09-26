@@ -84,12 +84,14 @@ import {
   generateNumberBondsStarterLesson,
   getNumberBondsCatalogueEquation,
   NUMBER_BONDS_EQUATION_CATALOGUE,
+  NUMBER_BONDS_STARTER_EQUATION_ID,
   NUMBER_BONDS_WHOLE_VALUES,
 } from "@/lib/number-bonds-content-generator";
 import {
   createDefaultNumberBondForSong,
   createNumberBondEquation,
   getDefaultNumberBondWholeForSong,
+  getInitialNumberBondWholeForCapacity,
   getNumberBondValues,
   NUMBER_BONDS_MAX_WHOLE,
   type NumberBondValues,
@@ -5954,7 +5956,7 @@ function NumberBondsSetupPanel({
           onClick={() => onSaveBond(whole)}
           style={{ minHeight: 40, borderRadius: 9, border: "1px solid #CFFF04", background: validWhole ? "#CFFF04" : "#657045", color: "#071222", fontSize: 12, fontWeight: 900, cursor: validWhole ? "pointer" : "not-allowed" }}
         >
-          Save target for this song
+          Build notes for this target
         </button>
       </div>
     </section>
@@ -7188,6 +7190,8 @@ function CenterChoicePanel({
   onQuickAddHit,
   onCreateEquation,
   onBrowseLibrary,
+  onChooseSong,
+  hasSong,
   showWorkspacePrompt,
   activityKey,
   numberBondValues,
@@ -7210,6 +7214,8 @@ function CenterChoicePanel({
   onQuickAddHit: (() => void) | null;
   onCreateEquation: () => void;
   onBrowseLibrary: () => void;
+  onChooseSong: () => void;
+  hasSong: boolean;
   showWorkspacePrompt: boolean;
   activityKey?: string | null;
   numberBondValues?: NumberBondValues | null;
@@ -7260,12 +7266,14 @@ function CenterChoicePanel({
     ? "Build your equation"
     : isPremade
     ? "Choose an equation"
-      : "Build or choose an equation";
+      : hasSong ? "Build or choose an equation" : "Choose a song to get started";
   const subtitle = isCreate
       ? "Use the builder on the left, then add it to an encounter."
     : isPremade
       ? "Choose an equation from the library, then add it to an encounter."
-      : "Make an equation or start with one from the lesson library.";
+      : hasSong
+        ? "Make an equation or start with one from the lesson library."
+        : "Pick a song, then add equations and place game actions on its timeline.";
   const selectedTokenOutlineColor =
     selectedMechanic === "hit"
       ? "#2EA7FF"
@@ -7315,7 +7323,6 @@ function CenterChoicePanel({
                 height: 50,
                 display: "block",
                 overflow: "visible",
-                animation: "urFlash 1s ease-in-out infinite alternate",
               }}
             />
 
@@ -7328,7 +7335,22 @@ function CenterChoicePanel({
               </p>
             </div>
 
-            {choice === null ? (
+            {choice === null && !hasSong ? (
+              <div style={{ display: "grid", justifyItems: "center", gap: 16, width: "100%" }}>
+                <button
+                  type="button"
+                  onClick={onChooseSong}
+                  style={{ minWidth: 220, minHeight: 50, borderRadius: 14, border: "1px solid #CFFF04", background: "#CFFF04", color: "#071222", fontSize: 15, fontWeight: 900, cursor: "pointer" }}
+                >
+                  Choose a song
+                </button>
+                <div aria-label="Lesson setup steps" style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 8, color: "#FFFFFFB3", fontSize: 12, fontWeight: 700 }}>
+                  <span style={{ color: "#CFFF04" }}>1. Song</span><span aria-hidden="true">→</span>
+                  <span>2. Equations</span><span aria-hidden="true">→</span>
+                  <span>3. Game actions</span>
+                </div>
+              </div>
+            ) : choice === null ? (
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
                 <button
                   type="button"
@@ -9942,7 +9964,7 @@ export default function LessonBuilderClient({
   const [lastSavedAuthorId, setLastSavedAuthorId] = useState<string | null>(null);
   const [lastSavedRevision, setLastSavedRevision] = useState<string | null>(null);
   const [selectedRhythmSource, setSelectedRhythmSource] = useState<RhythmSourceOption | null>(null);
-  const [numberBondsCatalogueId, setNumberBondsCatalogueId] = useState("");
+  const [numberBondsCatalogueId, setNumberBondsCatalogueId] = useState(NUMBER_BONDS_STARTER_EQUATION_ID);
   const [numberBondsRhythmDifficulty, setNumberBondsRhythmDifficulty] =
     useState<SupportedRhythmDifficulty>("ExpertSingle");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -10501,7 +10523,7 @@ export default function LessonBuilderClient({
       setNumberBondsRhythmDifficulty(generatedDifficulty);
       syncTimelineFilesFromEvents(nextEvents);
       setSaveStatus(
-        `${useStarterTemplate ? "Loaded the 2 = 1 + 1 starter template with" : "Generated"} ${generated.draft.encounters.length} Number Bonds catch cues from the ${generatedDifficulty} rhythm. Review and save the lesson before playing.`,
+        `${useStarterTemplate ? "Loaded the 5 = 2 + 3 starter template with" : "Generated"} ${generated.draft.encounters.length} Number Bonds catch cues from the ${generatedDifficulty} rhythm. Review and save the lesson before playing.`,
       );
     } catch (error) {
       setSaveStatus(error instanceof Error ? error.message : "The Number Bonds lesson could not be generated.");
@@ -10634,7 +10656,7 @@ export default function LessonBuilderClient({
   const numberBondWholeDefault = numberBondValues?.whole ?? (
     numberBondHitCount >= 2 && numberBondHitCount <= NUMBER_BONDS_MAX_WHOLE
       ? numberBondHitCount
-      : getDefaultNumberBondWholeForSong(selectedSongAssetId)
+      : getInitialNumberBondWholeForCapacity(0)
   );
   const numberBondSongNotes = useMemo(() => getNumberBondSongNotes(
     chartFile || originalChartFileRef.current,
@@ -10645,7 +10667,7 @@ export default function LessonBuilderClient({
   const numberBondTargetWhole = numberBondDraftTarget?.songAssetId === selectedSongAssetId
     ? numberBondDraftTarget.whole
     : numberBondValues?.whole ?? (numberBondSongCapacity >= 2
-      ? 2 + ((getDefaultNumberBondWholeForSong(selectedSongAssetId) - 2) % (Math.min(NUMBER_BONDS_MAX_WHOLE, numberBondSongCapacity) - 1))
+      ? getInitialNumberBondWholeForCapacity(numberBondSongCapacity)
       : numberBondWholeDefault);
   const numberBondPreview = numberBondValues?.whole === numberBondTargetWhole
     ? numberBondValues
@@ -11835,77 +11857,15 @@ export default function LessonBuilderClient({
   }
 
   function handleSaveNumberBond(whole: number) {
-    // Keep the existing runtime wire shape while asking teachers only for the
-    // whole the block tray must make. The deterministic split is internal to
-    // the Number Bonds activity and is not shown as an equation in this editor.
-    const partA = numberBondValues?.whole === whole
-      ? numberBondValues.partA
-      : createDefaultNumberBondForSong(selectedSongAssetId, whole).partA;
-    const equation = createNumberBondEquation(
-      whole,
-      partA,
-      numberBondEquation?.id ?? makeId("number-bond"),
-    );
-    const defaultBubble = createDefaultNumberBondHitBubble();
-
-    setAuthoredEquationQueue([equation]);
-    setSelectedEquationId(equation.id);
-    setTimelineEvents((current) => {
-      const nextEvents = current.map((eventSlot) => {
-        if ((eventSlot.counts?.hit ?? 0) === 0) return eventSlot;
-        const hitInstances = resizeMechanicInstances(
-          eventSlot.mechanicInstances?.hit,
-          eventSlot.counts.hit,
-        ).map((instance) => {
-          const currentBubble = instance.hitBubbles[0];
-          const pads = currentBubble?.pads?.length ? currentBubble.pads : defaultBubble.pads;
-          const positions = currentBubble?.positions?.length ? currentBubble.positions : pads;
-          return {
-            ...instance,
-            hitBubbles: [{
-              ...(currentBubble ?? defaultBubble),
-              tokenIndex: 0,
-              pads,
-              positions,
-            }],
-          };
-        });
-        return applyEquationToEvent({
-          ...eventSlot,
-          mechanicInstances: { ...eventSlot.mechanicInstances, hit: hitInstances },
-        }, equation);
-      });
-      syncTimelineFilesFromEvents(nextEvents);
-      return nextEvents;
-    });
-    setRtcmDraftMechanics((current) => current.map((draft) => {
-      if (draft.mechanic !== "hit") return draft;
-      const currentBubble = draft.hitBubbles[0];
-      const pads = currentBubble?.pads?.length ? currentBubble.pads : defaultBubble.pads;
-      const positions = currentBubble?.positions?.length ? currentBubble.positions : pads;
-      return {
-        ...draft,
-        equationId: equation.id,
-        hitBubbles: [{
-          ...(currentBubble ?? defaultBubble),
-          tokenIndex: 0,
-          pads,
-          positions,
-        }],
-      };
-    }));
-    markDirty();
-    setCenterChoice(null);
-    setIsLibraryPanelOpen(false);
-    setSaveStatus("Target saved for this song. Place one note per unit block.");
+    handleChooseNumberBondTarget(whole);
   }
 
-  function handleBuildNumberBondMission(playAfterBuild: boolean) {
+  function handleBuildNumberBondMission(playAfterBuild: boolean, targetWhole = numberBondTargetWhole) {
     if (!selectedSongStorage || !selectedSongLaunch || !isLessonLoaded) {
       setSaveStatus("Choose a song and wait for it to finish loading before playing.");
       return;
     }
-    const notes = planNumberBondNotes(numberBondSongNotes, numberBondTargetWhole);
+    const notes = planNumberBondNotes(numberBondSongNotes, targetWhole);
     if (!notes) {
       setSaveStatus(numberBondSongCapacity >= 2
         ? `This song can fit ${Math.min(20, numberBondSongCapacity)} notes. Choose a smaller number or another song.`
@@ -11913,11 +11873,11 @@ export default function LessonBuilderClient({
       return;
     }
 
-    const partA = numberBondValues?.whole === numberBondTargetWhole
+    const partA = numberBondValues?.whole === targetWhole
       ? numberBondValues.partA
-      : createDefaultNumberBondForSong(selectedSongAssetId, numberBondTargetWhole).partA;
+      : createDefaultNumberBondForSong(selectedSongAssetId, targetWhole).partA;
     const equation = createNumberBondEquation(
-      numberBondTargetWhole,
+      targetWhole,
       partA,
       numberBondEquation?.id ?? makeId("number-bond"),
     );
@@ -11935,6 +11895,7 @@ export default function LessonBuilderClient({
 
     // An explicit rebuild replaces only this Number Bonds mission's old notes.
     legacyEncounterSourceRef.current = null;
+    setNumberBondDraftTarget({ songAssetId: selectedSongAssetId, whole: targetWhole });
     setAuthoredEquationQueue([equation]);
     setSelectedEquationId(equation.id);
     setRtcmDraftMechanics([]);
@@ -11943,12 +11904,23 @@ export default function LessonBuilderClient({
     syncTimelineFilesFromEvents(events);
     setIsReadinessOpen(false);
     if (playAfterBuild) {
-      numberBondAutoLaunchRef.current = numberBondTargetWhole;
-      setNumberBondLaunchPendingWhole(numberBondTargetWhole);
+      numberBondAutoLaunchRef.current = targetWhole;
+      setNumberBondLaunchPendingWhole(targetWhole);
       setSaveStatus(`Placed ${notes.length} notes from the song. Preparing your mission…`);
     } else {
-      setSaveStatus(`Placed ${notes.length} notes from the song. Press Play to try the mission.`);
+      setSaveStatus(`Placed ${notes.length} notes from the song. Save the lesson or press Play to try it.`);
     }
+  }
+
+  function handleChooseNumberBondTarget(whole: number) {
+    if (!Number.isInteger(whole) || whole < 2 || whole > NUMBER_BONDS_MAX_WHOLE ||
+      whole > numberBondSongCapacity) {
+      setSaveStatus(numberBondSongCapacity >= 2
+        ? `This song can fit ${Math.min(NUMBER_BONDS_MAX_WHOLE, numberBondSongCapacity)} spaced notes. Choose a smaller number or another song.`
+        : "This song needs at least two playable, spaced notes before Number Bonds can start.");
+      return;
+    }
+    handleBuildNumberBondMission(false, whole);
   }
 
   function handlePlayNumberBondMission() {
@@ -11967,7 +11939,7 @@ export default function LessonBuilderClient({
       const randomWhole = getDefaultNumberBondWholeForSong(`${selectedSongAssetId}:reroll:${numberBondShuffleRef.current}`);
       const nextWhole = 2 + ((randomWhole - 2) % (capacity - 1));
       if (nextWhole === numberBondTargetWhole) continue;
-      setNumberBondDraftTarget({ songAssetId: selectedSongAssetId, whole: nextWhole });
+      handleChooseNumberBondTarget(nextWhole);
       return;
     }
   }
@@ -12806,7 +12778,7 @@ export default function LessonBuilderClient({
         : selectedSong.revision ?? extractRevisionFromStoragePath(selectedSong.chart.path),
     );
     setSelectedRhythmSource(selectedSong.rhythmSource ?? null);
-    setNumberBondsCatalogueId("");
+    setNumberBondsCatalogueId(NUMBER_BONDS_STARTER_EQUATION_ID);
     setNumberBondsRhythmDifficulty(
       selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key ?? "ExpertSingle",
     );
@@ -14546,10 +14518,10 @@ export default function LessonBuilderClient({
             onClick={() => handleGenerateNumberBondsLesson(true)}
             style={{ minHeight: 36, border: 0, borderRadius: 999, background: "#CFFF04", color: "#071222", fontSize: 11, fontWeight: 900, cursor: "pointer" }}
           >
-            Use 2 = 1 + 1 starter template
+            Use 5 = 2 + 3 starter template
           </button>
           <p style={{ margin: 0, color: "#AFC2D8", fontSize: 11, lineHeight: 1.45 }}>
-            This adds two catch cues from the first suitable verified rhythm. Save the lesson to make it playable.
+            This adds five catch cues from the first suitable verified rhythm. Save the lesson to make it playable.
           </p>
           <label style={{ display: "grid", gap: 4, color: "#D1D5DB", fontSize: 11, fontWeight: 800 }}>
             Number bond
@@ -14618,7 +14590,7 @@ export default function LessonBuilderClient({
           flex: 1,
           minHeight: 0,
           display: "grid",
-          gridTemplateRows: `${viewerRowHeight} ${timelineRowHeight}`,
+          gridTemplateRows: isGuidedStart ? "minmax(0, 1fr)" : `${viewerRowHeight} ${timelineRowHeight}`,
           background: pageBackgroundColor,
           color: textColor,
           overflow: "hidden",
@@ -14626,6 +14598,7 @@ export default function LessonBuilderClient({
       >
         {isGuidedStart ? (
           <GuidedTemplateStart
+            songTitle={metadata?.songTitle || uploadedSongName || "Selected song"}
             encounterCount={timelineEvents.length}
             actionCount={timelineEvents.reduce(
               (total, event) => total + gameplayMechanics.reduce(
@@ -14634,6 +14607,9 @@ export default function LessonBuilderClient({
               ),
               0,
             )}
+            hitCount={timelineEvents.reduce((total, event) => total + Math.max(0, event.counts?.hit ?? 0), 0)}
+            spinCount={timelineEvents.reduce((total, event) => total + Math.max(0, event.counts?.spin ?? 0), 0)}
+            dragCount={timelineEvents.reduce((total, event) => total + Math.max(0, event.counts?.drag ?? 0), 0)}
             onPlayTemplate={() => void handleLaunchGame(true)}
             onChangeEvent={handlePersonalizeStarterEncounter}
             onAddEquation={handleAddToStarterTemplate}
@@ -14654,15 +14630,17 @@ export default function LessonBuilderClient({
         >
           {isNumberBondsActivity ? (
             <NumberBondsMissionComposer
+              key={selectedSongAssetId}
               whole={numberBondTargetWhole}
               songTitle={metadata?.songTitle || uploadedSongName || "Selected song"}
               songCapacity={numberBondSongCapacity}
+              isSongLoaded={isLessonLoaded}
               notes={numberBondOrbitNotes}
               authoredNoteCount={numberBondAuthoredNotesMatch ? numberBondHitCount : 0}
               isReady={lessonPublishReadiness.ready && numberBondAuthoredNotesMatch}
               isPreparing={numberBondLaunchPendingWhole !== null || isSaving}
               status={saveStatus}
-              onWholeChange={(whole) => setNumberBondDraftTarget({ songAssetId: selectedSongAssetId, whole })}
+              onWholeChange={handleChooseNumberBondTarget}
               onShuffle={handleShuffleNumberBondTarget}
               onBuildNotes={() => handleBuildNumberBondMission(false)}
               onPlay={handlePlayNumberBondMission}
@@ -15035,6 +15013,8 @@ export default function LessonBuilderClient({
                           onQuickAddHit={handleAddHitAtPlayhead}
                           onCreateEquation={handleCreateEquationChoice}
                           onBrowseLibrary={handleBrowsePremadeChoice}
+                          onChooseSong={handleOpenFilePicker}
+                          hasSong={Boolean(selectedSongStorage || selectedSongLaunch)}
                           showWorkspacePrompt={showCenterWorkspacePrompt}
                           activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
                           numberBondValues={numberBondPreview}

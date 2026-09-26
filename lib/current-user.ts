@@ -1,5 +1,6 @@
 import { getAuth0 } from "@/lib/auth0";
 import { prisma } from "@/lib/prisma";
+import { shouldRefreshCurrentUser } from "@/lib/current-user-refresh";
 
 export async function getCurrentAppUser() {
   const session = await getAuth0().getSession();
@@ -63,6 +64,11 @@ export async function getCurrentAppUser() {
     });
   }
 
+  const now = new Date();
+  if (!shouldRefreshCurrentUser(existingUser, normalizedEmail, now)) {
+    return existingUser;
+  }
+
   return prisma.user.update({
     where: {
       auth0Sub,
@@ -71,7 +77,7 @@ export async function getCurrentAppUser() {
       email: normalizedEmail,
       normalizedEmail,
       name: existingUser.name ?? auth0Name ?? null,
-      lastLoginAt: new Date(),
+      lastLoginAt: now,
     },
   });
 }

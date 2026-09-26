@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import {
   Dela_Gothic_One,
   Geist_Mono,
@@ -7,8 +8,7 @@ import {
   Space_Grotesk,
 } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
-import GlobalSiteMusic from "@/app/GlobalSiteMusic";
-import { getStorageSignedUrl } from "@/lib/storage-media";
+import SiteMusicLoader from "@/app/SiteMusicLoader";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -38,16 +38,11 @@ export const metadata: Metadata = {
   description: "Platform shell",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const siteMusicUrl = await getStorageSignedUrl(
-    "Songs",
-    "Lofries _New_Orleanz_title.mp3",
-  );
-
   return (
     <html lang="en">
       <head>
@@ -60,7 +55,9 @@ export default async function RootLayout({
       </head>
       <body className={`${spaceGrotesk.variable} ${delaGothicOne.variable} ${geistMono.variable} ${grandstander.variable} antialiased`}>
         {children}
-        <GlobalSiteMusic src={siteMusicUrl} />
+        <Suspense fallback={null}>
+          <SiteMusicLoader />
+        </Suspense>
         <Analytics />
       </body>
     </html>

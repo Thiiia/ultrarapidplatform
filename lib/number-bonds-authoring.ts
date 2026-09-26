@@ -2,6 +2,15 @@ import type { AuthoredSavedEquation } from "./authored-lesson-serialization";
 
 export const NUMBER_BONDS_MIN_WHOLE = 2;
 export const NUMBER_BONDS_MAX_WHOLE = 20;
+export const NUMBER_BONDS_INITIAL_WHOLE = 5;
+export const NUMBER_BONDS_INITIAL_PART_A = 2;
+
+/** Start on the make-five design when the song has enough playable notes. */
+export function getInitialNumberBondWholeForCapacity(songCapacity: number): number {
+  return songCapacity >= NUMBER_BONDS_MIN_WHOLE
+    ? Math.min(NUMBER_BONDS_INITIAL_WHOLE, songCapacity)
+    : NUMBER_BONDS_INITIAL_WHOLE;
+}
 
 export type NumberBondValues = {
   whole: number;
@@ -107,6 +116,8 @@ export function createDefaultNumberBondForSong(
 
   const partCount = whole - 1;
   const reroll = Math.max(0, Math.floor(variation));
-  const partA = 1 + ((hash % partCount + reroll) % partCount);
+  const partA = whole === NUMBER_BONDS_INITIAL_WHOLE
+    ? 1 + ((NUMBER_BONDS_INITIAL_PART_A - 1 + reroll) % partCount)
+    : 1 + ((hash % partCount + reroll) % partCount);
   return { whole, partA, partB: whole - partA };
 }

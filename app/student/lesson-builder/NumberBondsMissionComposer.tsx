@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import styles from "./NumberBondsMissionComposer.module.css";
 
 type OrbitNote = { id: string; seconds: number };
@@ -8,6 +9,7 @@ export function NumberBondsMissionComposer({
   whole,
   songTitle,
   songCapacity,
+  isSongLoaded,
   notes,
   authoredNoteCount,
   isReady,
@@ -22,6 +24,7 @@ export function NumberBondsMissionComposer({
   whole: number;
   songTitle: string;
   songCapacity: number;
+  isSongLoaded: boolean;
   notes: OrbitNote[];
   authoredNoteCount: number;
   isReady: boolean;
@@ -33,15 +36,22 @@ export function NumberBondsMissionComposer({
   onPlay: () => void;
   onSelectNote: (index: number) => void;
 }) {
+  const [wholeDraft, setWholeDraft] = useState({ whole, songCapacity, text: String(whole) });
+  const wholeText = wholeDraft.whole === whole && wholeDraft.songCapacity === songCapacity
+    ? wholeDraft.text
+    : String(whole);
+
+  const maxSelectableWhole = Math.min(20, songCapacity);
+  const canChooseNumber = isSongLoaded && maxSelectableWhole >= 2 && !isPreparing;
   const canPlaceNotes = songCapacity >= whole;
-  const canPlay = isReady || canPlaceNotes;
+  const canPlay = isSongLoaded && (isReady || canPlaceNotes);
 
   return (
     <section className={styles.composer} aria-label="Number Bonds mission composer">
       <div className={styles.intro}>
         <span className={styles.eyebrow}>NUMBER BONDS · {songTitle}</span>
         <h1>Make a number. Play the song.</h1>
-        <p>Choose the big number, then press Play. The song places one bouncing gem for each orbiting note. You can adjust the note timing below.</p>
+        <p>Choose the big number, then press Play. The song places one bouncing gem for each orbiting note. Changing the number rebuilds its notes; you can adjust their timing below.</p>
       </div>
 
       <div className={styles.orbit} aria-label={`Make ${whole} with ${whole} notes`}>
@@ -73,33 +83,44 @@ export function NumberBondsMissionComposer({
 
       <div className={styles.controls}>
         <div className={styles.targetRow}>
-          <button type="button" aria-label="Decrease number" disabled={whole <= 2} onClick={() => onWholeChange(whole - 1)}>−</button>
+          <button type="button" aria-label="Decrease number" disabled={!canChooseNumber || whole <= 2} onClick={() => onWholeChange(Math.min(whole - 1, maxSelectableWhole))}>−</button>
           <label>
             <span>Number to make</span>
-            <input type="number" min={2} max={20} step={1} value={whole} onChange={(event) => {
-              const next = Number(event.currentTarget.value);
-              if (Number.isInteger(next) && next >= 2 && next <= 20) onWholeChange(next);
-            }} />
+            <input type="number" min={2} max={Math.max(2, maxSelectableWhole)} step={1} value={wholeText} disabled={!canChooseNumber}
+              onChange={(event) => {
+                const nextText = event.currentTarget.value;
+                setWholeDraft({ whole, songCapacity, text: nextText });
+                const next = Number(nextText);
+                if (nextText && Number.isInteger(next) && next >= 2 && next <= maxSelectableWhole && next !== whole) {
+                  onWholeChange(next);
+                }
+              }}
+              onBlur={() => setWholeDraft({ whole, songCapacity, text: String(whole) })}
+              onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
           </label>
-          <button type="button" aria-label="Increase number" disabled={whole >= 20} onClick={() => onWholeChange(whole + 1)}>+</button>
-          <button className={styles.shuffle} type="button" disabled={songCapacity < 3} onClick={onShuffle}>Shuffle</button>
+          <button type="button" aria-label="Increase number" disabled={!canChooseNumber || whole >= maxSelectableWhole} onClick={() => onWholeChange(whole + 1)}>+</button>
+          <button className={styles.shuffle} type="button" disabled={!canChooseNumber || maxSelectableWhole < 3} onClick={onShuffle}>Shuffle</button>
         </div>
 
         <div className={styles.progress} role="status">
           <strong>{authoredNoteCount} of {whole} notes placed</strong>
-          <span>{songCapacity >= 2
+          <span>{!isSongLoaded
+            ? "Loading song notes…"
+            : songCapacity >= 2
             ? `This song has room for up to ${Math.min(20, songCapacity)} spaced notes.`
-            : "Waiting for chart notes and song length."}</span>
+            : "This song has fewer than two playable, spaced notes."}</span>
         </div>
-        {!canPlaceNotes && !isReady && songCapacity >= 2 ? (
-          <p className={styles.notice}>Choose {songCapacity} or fewer for this song, or select a longer song.</p>
+        {isSongLoaded && !canPlaceNotes && !isReady ? (
+          <p className={styles.notice}>{songCapacity >= 2
+            ? `Choose ${Math.min(20, songCapacity)} or fewer for this song, or select a longer song.`
+            : "Select another song with at least two playable, spaced notes."}</p>
         ) : null}
         <div className={styles.actions}>
-          <button className={styles.secondary} type="button" disabled={!canPlaceNotes || isPreparing} onClick={onBuildNotes}>
+          <button className={styles.secondary} type="button" disabled={!isSongLoaded || !canPlaceNotes || isPreparing} onClick={onBuildNotes}>
             {authoredNoteCount ? "Rebuild notes from song" : "Place notes from song"}
           </button>
           <button className={styles.primary} type="button" disabled={!canPlay || isPreparing} onClick={onPlay}>
-            {isPreparing ? "Preparing mission…" : songCapacity < 2 && !isReady ? "Loading song notes…" : isReady ? "Play mission" : "Place notes & play"}
+            {isPreparing ? "Preparing mission…" : !isSongLoaded ? "Loading song notes…" : songCapacity < 2 && !isReady ? "Choose another song" : isReady ? "Play mission" : "Place notes & play"}
           </button>
         </div>
         {status ? <p className={styles.notice} role="status">{status}</p> : null}
