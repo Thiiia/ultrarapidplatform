@@ -1,4 +1,4 @@
-:root {
+.page {
   --bg: var(--ur-canvas-deep);
   --surface: var(--ur-canvas-top);
   --surface-soft: #103336;
@@ -10,9 +10,6 @@
   --nav: var(--ur-canvas-top);
   --accent: var(--ur-accent-lime);
   --shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-.page {
   min-height: 100vh;
   background: var(--ur-canvas-deep);
   color: var(--ur-text-marketing);

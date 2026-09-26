@@ -1,5 +1,7 @@
 import type { ChangeEvent, ReactNode } from "react";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
+import SwipeRoundedIcon from "@mui/icons-material/SwipeRounded";
+import TouchAppRoundedIcon from "@mui/icons-material/TouchAppRounded";
 
 import { AUTHORED_MAX_REQUIRED_HIT_PADS, isAuthoredEquationOperator } from "@/lib/authored-lesson";
 import {
@@ -29,6 +31,7 @@ export type GuidedEncounterComposerProps = {
   readiness: EncounterReadiness;
   step?: number;
   stepCount?: number;
+  showAlgebraSetupProgress?: boolean;
   activityKey?: SongActivityKey | null;
   dragSources?: DragSource[];
   onRemove?: () => void;
@@ -57,8 +60,8 @@ function TimeControls({
   onPatchInstance,
 }: Pick<GuidedEncounterComposerProps, "instance" | "onPatchInstance">) {
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end" }}>
-      <label style={{ display: "grid", gap: 4, color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>
+    <div className="algebra-composer__timeFields">
+      <label className="algebra-composer__fieldLabel">
         {studentCopy.mechanics.startTime}
         <input
           aria-label={studentCopy.mechanics.startTime}
@@ -71,10 +74,10 @@ function TimeControls({
             if (tick === undefined) return;
             onPatchInstance(instance.id, retimeGuidedEncounter(instance, "start", tick));
           })}
-          style={{ width: 96, borderRadius: 8, border: "1px solid #7A8FA8", background: "#0C1422", color: "#FFFFFF", padding: "7px 8px" }}
+          className="algebra-composer__field"
         />
       </label>
-      {instance.mechanic !== "hit" && <label style={{ display: "grid", gap: 4, color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>
+      {instance.mechanic !== "hit" && <label className="algebra-composer__fieldLabel">
         {studentCopy.mechanics.endTime}
         <input
           aria-label={studentCopy.mechanics.endTime}
@@ -87,7 +90,7 @@ function TimeControls({
             if (endTick === undefined) return;
             onPatchInstance(instance.id, retimeGuidedEncounter(instance, "end", endTick));
           })}
-          style={{ width: 96, borderRadius: 8, border: "1px solid #7A8FA8", background: "#0C1422", color: "#FFFFFF", padding: "7px 8px" }}
+          className="algebra-composer__field"
         />
       </label>}
     </div>
@@ -99,9 +102,9 @@ function TimingDetails({
   onPatchInstance,
 }: Pick<GuidedEncounterComposerProps, "instance" | "onPatchInstance">) {
   return (
-    <details data-repair-timing style={{ color: "#FFFFFFB3", fontSize: 11 }}>
-      <summary style={{ cursor: "pointer", fontWeight: 800 }}>Fine-tune timing</summary>
-      <div style={{ marginTop: 8 }}>
+    <details data-repair-timing className="algebra-composer__timing">
+      <summary>Fine-tune timing</summary>
+      <div className="algebra-composer__timePanel">
         <TimeControls instance={instance} onPatchInstance={onPatchInstance} />
       </div>
     </details>
@@ -128,15 +131,9 @@ function TokenButton({
       aria-pressed={!operator && selected}
       title={operator ? studentCopy.mechanics.operatorHint : `Choose ${label.toLowerCase()}`}
       onClick={onSelect}
-      style={{
-        borderRadius: 999,
-        border: `1px solid ${selected ? "#CFFF04" : "#7A8FA8"}`,
-        background: selected ? "rgba(207,255,4,.16)" : "#111B2A",
-        color: operator ? "#FFFFFF66" : "#FFFFFF",
-        padding: "8px 12px",
-        cursor: operator ? "not-allowed" : "pointer",
-        fontWeight: 800,
-      }}
+      className="algebra-composer__tokenButton"
+      data-selected={selected ? "true" : undefined}
+      data-operator={operator ? "true" : undefined}
     >
       {token.label}
     </button>
@@ -180,9 +177,9 @@ function TargetPicker({
   }
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <div style={{ color: "#CFFF04", fontSize: 12, fontWeight: 900 }}>{displayLabel}</div>
-      <div data-repair-control="target" style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+    <div className="algebra-composer__targetPicker">
+      <div className="algebra-composer__targetLabel">{displayLabel}</div>
+      <div data-repair-control="target" className="algebra-composer__tokenChoices">
         {tokens.map((token, tokenIndex) => (
           <TokenButton
             key={token.id}
@@ -194,7 +191,7 @@ function TargetPicker({
         ))}
       </div>
       {tokens.some((token) => isAuthoredEquationOperator(token.label)) ? (
-        <div style={{ color: "#FFFFFF80", fontSize: 11 }}>{studentCopy.mechanics.operatorHint}</div>
+        <div className="algebra-composer__hint">{studentCopy.mechanics.operatorHint}</div>
       ) : null}
     </div>
   );
@@ -220,22 +217,22 @@ function HitControls({
   });
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, alignItems: "center" }}>
+    <div className="algebra-composer__hitControls">
       <TargetPicker instance={instance} tokens={tokens} kind="Target token" displayLabel={studentCopy.mechanics.pickHitTarget} onPatchInstance={onPatchInstance} />
       {isNumberBonds && instance.hitBubbles.length > 1 ? (
         <button
           type="button"
           data-repair-control="single-target"
           onClick={() => onPatchInstance(instance.id, { hitBubbles: bubble ? [bubble] : [] })}
-          style={{ justifySelf: "start", border: "1px solid #7A8FA8", borderRadius: 9, background: "#111B2A", color: "#FFFFFF", padding: "7px 10px", cursor: "pointer" }}
+          className="algebra-composer__secondaryButton"
         >
           Keep only the first target
         </button>
       ) : null}
-      <div data-repair-control="pad" style={{ display: "grid", gap: 7, justifyItems: "center" }}>
-        <div style={{ color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>{studentCopy.mechanics.chooseButtons}</div>
+      <div data-repair-control="pad" className="algebra-composer__padPicker">
+        <div className="algebra-composer__fieldLabel">{studentCopy.mechanics.chooseButtons}</div>
         {legacyMapping.length > 0 ? (
-          <div role="status" style={{ maxWidth: 260, display: "grid", gap: 8, color: "#FFD77A", fontSize: 11, textAlign: "center" }}>
+          <div role="status" className="algebra-composer__legacyWarning">
             <span>This saved Hit uses the legacy pad layout. Its slot mapping differs from the player&apos;s named pads.</span>
             <span>{legacyMapping.join(" · ")}</span>
             <button
@@ -252,13 +249,13 @@ function HitControls({
                   }],
                 });
               }}
-              style={{ justifySelf: "center", borderRadius: 8, border: "1px solid #FFD77A", background: "transparent", color: "#FFD77A", padding: "7px 10px", fontWeight: 800, cursor: "pointer" }}
+              className="algebra-composer__warningButton"
             >
               Reassign using the player pad layout
             </button>
           </div>
         ) : (
-          <div role="group" aria-label="Choose the player pad for this hit" style={{ position: "relative", width: 184, height: 152, border: "1px solid #FFFFFF14", borderRadius: 14, background: "#0C1422" }}>
+          <div role="group" aria-label="Choose the player pad for this hit" className="algebra-composer__padBoard">
             {PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad, label }, slot) => {
               const selected = selectedSlots.has(slot);
               const offset = resolvePlayerHexHitPadPixelOffset(slot, PLAYER_HEX_AUTHORED_HIT_PAD_PREVIEW_RADIUS_PX);
@@ -271,6 +268,8 @@ function HitControls({
                   aria-label={`Player pad ${slot + 1}: ${label}`}
                   aria-pressed={selected}
                   title={label}
+                  className="algebra-composer__padButton"
+                  data-selected={selected ? "true" : undefined}
                   onClick={() => {
                     if (selectedTokenIndex === undefined) return;
                     const nextSlots = selected
@@ -290,13 +289,13 @@ function HitControls({
                       }],
                     });
                   }}
-                  style={{ position: "absolute", left: `calc(50% ${offset.dx < 0 ? "-" : "+"} ${Math.abs(offset.dx).toFixed(2)}px)`, top: `calc(50% ${offset.dy < 0 ? "-" : "+"} ${Math.abs(offset.dy).toFixed(2)}px)`, transform: "translate(-50%, -50%)", display: "grid", placeItems: "center", width: 38, height: 38, borderRadius: 12, border: `1px solid ${selected ? "#CFFF04" : "#7A8FA8"}`, background: selected ? "#CFFF04" : "#111B2A", color: selected ? "#071222" : "#FFFFFF", cursor: selectedTokenIndex === undefined ? "not-allowed" : "pointer", boxShadow: selected ? "0 0 18px rgba(207,255,4,.3)" : "none", fontSize: 11, fontWeight: 900 }}
+                  style={{ left: `calc(50% ${offset.dx < 0 ? "-" : "+"} ${Math.abs(offset.dx).toFixed(2)}px)`, top: `calc(50% ${offset.dy < 0 ? "-" : "+"} ${Math.abs(offset.dy).toFixed(2)}px)` }}
                 >
                   {slot + 1}
                 </button>
               );
             })}
-            <div aria-hidden="true" style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: 16, height: 16, borderRadius: 999, border: "1px solid #2EA7FF", background: "rgba(46,167,255,.12)", boxShadow: "0 0 16px rgba(46,167,255,.16)" }} />
+            <div aria-hidden="true" className="algebra-composer__padCenter" />
           </div>
         )}
       </div>
@@ -312,9 +311,9 @@ function DragControls({
   onPatchInstance,
 }: Pick<GuidedEncounterComposerProps, "instance" | "tokens" | "dragSources" | "onPatchInstance">) {
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div className="algebra-composer__dragControls">
       <TargetPicker instance={instance} tokens={tokens} kind="Drag target" displayLabel={studentCopy.mechanics.pickDragTarget} onPatchInstance={onPatchInstance} />
-      <label style={{ display: "grid", gap: 4, color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>
+      <label className="algebra-composer__fieldLabel">
         {studentCopy.mechanics.chooseEarlierHit}
         <select
           aria-label={studentCopy.mechanics.chooseEarlierHitLabel}
@@ -325,19 +324,44 @@ function DragControls({
             if (!target) return;
             onPatchInstance(instance.id, { dragTargets: [{ ...target, sourceHitId: event.currentTarget.value || undefined }] });
           }}
-          style={{ maxWidth: 260, borderRadius: 8, border: "1px solid #7A8FA8", background: "#0C1422", color: "#FFFFFF", padding: "7px 8px" }}
+          className="algebra-composer__field algebra-composer__sourceField"
         >
           <option value="">{studentCopy.mechanics.chooseEarlierHitOption}</option>
           {(dragSources ?? []).map((source) => <option key={source.id} value={source.id}>{source.label}</option>)}
         </select>
       </label>
       <TimingDetails instance={instance} onPatchInstance={onPatchInstance} />
-      <div aria-hidden="true" style={{ color: "#FFFFFF80", fontSize: 11 }}>{studentCopy.mechanics.connectEarlierHit}</div>
+      <div aria-hidden="true" className="algebra-composer__hint">{studentCopy.mechanics.connectEarlierHit}</div>
     </div>
   );
 }
 
 const lastRepairFocus = new WeakMap<HTMLElement, number>();
+
+const ALGEBRA_ACTION_REPAIR_CODES = new Set([
+  "activity_equation_count",
+  "activity_equation_invalid",
+  "activity_hit_count",
+  "activity_mechanic_unsupported",
+  "activity_target_shape",
+  "drag_source_not_earlier",
+  "drag_source_not_ready",
+  "drag_source_required",
+  "equation_required",
+  "hit_pad_required",
+  "operator_target",
+  "single_target_required",
+  "spin_target_required",
+  "target_identity_invalid",
+  "target_required",
+]);
+
+const ALGEBRA_SETUP_STEPS = ["Choose equation", "Set up action", "Tune the moment"] as const;
+
+function algebraSetupStage(instance: GuidedEncounterInput, tokens: AuthoredEquationToken[], readiness: EncounterReadiness) {
+  if (!instance.equation || tokens.length === 0) return 1;
+  return readiness.issueCodes.some((code) => ALGEBRA_ACTION_REPAIR_CODES.has(code)) ? 2 : 3;
+}
 
 function focusRepairChoice(section: HTMLElement | null, repairFocus: GuidedEncounterComposerProps["repairFocus"]) {
   if (!section || !repairFocus || lastRepairFocus.get(section) === repairFocus.nonce) return;
@@ -356,8 +380,9 @@ function focusRepairChoice(section: HTMLElement | null, repairFocus: GuidedEncou
   if (timing && (control === "start" || control === "end")) timing.open = true;
   const target = section.querySelector<HTMLElement>(`[data-repair-control="${control}"]`);
   const focusable = target?.matches("button,input,select") ? target : target?.querySelector<HTMLElement>("button:not(:disabled),input,select");
+  const reduceMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   lastRepairFocus.set(section, repairFocus.nonce);
-  section.scrollIntoView({ behavior: "smooth", block: "center" });
+  section.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
   focusable?.focus({ preventScroll: true });
 }
 
@@ -368,6 +393,7 @@ export function GuidedEncounterComposer({
   step = 1,
   stepCount = 3,
   activityKey = null,
+  showAlgebraSetupProgress = false,
   dragSources = [],
   onPatchInstance,
   onRemove,
@@ -375,45 +401,133 @@ export function GuidedEncounterComposer({
   repairFocus,
 }: GuidedEncounterComposerProps) {
   const isNumberBonds = activityKey === "number-bonds";
+  const setupStage = algebraSetupStage(instance, tokens, readiness);
+  const selectedTokenIndex = instance.mechanic === "hit"
+    ? instance.hitBubbles[0]?.tokenIndex
+    : instance.mechanic === "spin"
+      ? instance.spinTargets[0]?.tokenIndex
+      : instance.dragTargets[0]?.tokenIndex;
   const heading = instance.mechanic === "hit"
-    ? (isNumberBonds ? "Place a catch cue" : studentCopy.mechanics.makeHit)
+    ? (isNumberBonds ? "Note timing" : studentCopy.mechanics.makeHit)
     : instance.mechanic === "spin"
       ? studentCopy.mechanics.makeSpin
       : studentCopy.mechanics.makeDrag;
   let controls: ReactNode;
-  if (!instance.equation || tokens.length === 0) {
-    controls = <div style={{ display: "grid", gap: 8, justifyItems: "start", color: "#FFFFFFB3", fontSize: 12 }}>
+  if (isNumberBonds) {
+    controls = <div className="algebra-composer__numberBondsGuidance">
+      <strong>Each note brings one gem into play.</strong>
+      <span>The song sets the timing. You can move this note on the timeline to change when its gem appears.</span>
+    </div>;
+  } else if (!instance.equation || tokens.length === 0) {
+    controls = <div className="algebra-composer__emptyEquation">
       {studentCopy.mechanics.chooseEquation}
-      {onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} style={{ border: "1px solid #CFFF04", borderRadius: 10, background: "#CFFF04", color: "#071222", padding: "9px 12px", fontWeight: 800, cursor: "pointer" }}>Choose an equation</button> : null}
+      {onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} className="algebra-composer__primaryButton">Choose an equation</button> : null}
     </div>;
   } else if (instance.mechanic === "hit") {
     controls = <HitControls instance={instance} tokens={tokens} isNumberBonds={isNumberBonds} onPatchInstance={onPatchInstance} />;
   } else if (instance.mechanic === "spin") {
     controls = (
-      <div style={{ display: "grid", gap: 12 }}>
+      <div className="algebra-composer__spinControls">
         <TargetPicker instance={instance} tokens={tokens} kind="Spin target" displayLabel={studentCopy.mechanics.pickSpinTarget} onPatchInstance={onPatchInstance} />
         <TimingDetails instance={instance} onPatchInstance={onPatchInstance} />
-        <div aria-label="Spin cue" style={{ display: "flex", alignItems: "center", gap: 5, color: "#FFFFFF80", fontSize: 11 }}><ReplayRoundedIcon aria-hidden="true" fontSize="small" />{studentCopy.mechanics.spinCue}</div>
+        <div aria-label="Spin cue" className="algebra-composer__cueHint"><ReplayRoundedIcon aria-hidden="true" fontSize="small" />{studentCopy.mechanics.spinCue}</div>
       </div>
     );
   } else {
     controls = <DragControls instance={instance} tokens={tokens} dragSources={dragSources} onPatchInstance={onPatchInstance} />;
   }
 
+  const equationState = tokens.map((token) => token.label).join(" ");
+  const timingSummary = instance.mechanic === "hit"
+    ? (timeValue(instance.tick) ? `Hit at ${timeValue(instance.tick)}s` : "Hit timing not set")
+    : (timeValue(instance.tick) && timeValue(instance.endTick)
+      ? `${timeValue(instance.tick)}–${timeValue(instance.endTick)}s window`
+      : "Action window not set");
+  const MotionIcon = instance.mechanic === "hit"
+    ? TouchAppRoundedIcon
+    : instance.mechanic === "spin"
+      ? ReplayRoundedIcon
+      : SwipeRoundedIcon;
+  const motionCue = instance.mechanic === "hit"
+    ? "Tap the highlighted pad"
+    : instance.mechanic === "spin"
+      ? "Spin the hit pads"
+      : "Drag the highlighted term";
+
   return (
-    <section ref={(section) => focusRepairChoice(section, repairFocus)} aria-label={`${heading} composer`} className="experience-card" data-state={readiness.ready ? "ready" : "incomplete"} style={{ display: "grid", gap: 12, width: "min(100%, 760px)", margin: "0 auto", padding: "clamp(12px, 2vw, 18px)", borderRadius: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-        <h3 style={{ margin: 0, color: "#FFFFFF", fontSize: 15 }}>{heading}</h3>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ color: "#CFFF04", fontSize: 11, fontWeight: 900 }}>Step {step} of {stepCount}</span>
-          {onRemove ? <button type="button" data-repair-control="remove" onClick={onRemove} style={{ border: "1px solid #7A3A3A", borderRadius: 999, background: "transparent", color: "#FFB4B4", cursor: "pointer", fontSize: 11, fontWeight: 800, padding: "4px 8px" }}>Remove action</button> : null}
+    <section
+      ref={(section) => focusRepairChoice(section, repairFocus)}
+      aria-label={`${heading} composer`}
+      className="algebra-composer"
+      data-state={readiness.ready ? "ready" : "incomplete"}
+      data-setup-stage={showAlgebraSetupProgress ? setupStage : undefined}
+    >
+      <header className="algebra-composer__header">
+        <div>
+          <div className="algebra-composer__eyebrow">{isNumberBonds ? "CUE WORKSHOP" : activityKey === "early-algebra" ? "MISSION WORKSHOP" : "ACTION WORKSHOP"}</div>
+          <h3 className="algebra-composer__title">{heading}</h3>
         </div>
-      </div>
-      {readiness.ready ? <div className="experience-status" data-status="success" role="status" aria-live="polite">{studentCopy.editor.readyToPlay}</div> : <div className="experience-status" data-status="warning" role="status" aria-live="polite">{readiness.nextAction}</div>}
-      {instance.equation && onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} style={{ justifySelf: "start", border: "1px solid #7A8FA8", borderRadius: 10, background: "#111B2A", color: "#FFFFFF", padding: "7px 10px", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Change equation</button> : null}
+        <div className="algebra-composer__actions">
+          {!isNumberBonds ? (
+            <span className="algebra-composer__stepCount">
+              {showAlgebraSetupProgress ? `Step ${setupStage} of ${ALGEBRA_SETUP_STEPS.length}` : `Action ${step} of ${stepCount}`}
+            </span>
+          ) : null}
+          {onRemove ? <button type="button" data-repair-control="remove" onClick={onRemove} className="algebra-composer__remove">{isNumberBonds ? "Remove note" : "Remove action"}</button> : null}
+        </div>
+      </header>
+      {showAlgebraSetupProgress ? (
+        <ol className="algebra-composer__steps" aria-label="Algebra action setup">
+          {ALGEBRA_SETUP_STEPS.map((label, index) => {
+            const stepNumber = index + 1;
+            const state = stepNumber < setupStage ? "complete" : stepNumber === setupStage ? "active" : "upcoming";
+            return (
+              <li key={label} className="algebra-composer__step" data-state={state}>
+                {state === "active" ? <span aria-current="step">{label}</span> : <span>{label}</span>}
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
+      {readiness.ready ? (
+        <div className="experience-status" data-status="success" role="status" aria-live="polite">
+          {isNumberBonds ? "This note is ready. Press Play mission when you are ready." : studentCopy.editor.readyToPlay}
+        </div>
+      ) : (
+        <div className="experience-status" data-status="warning" role="status" aria-live="polite">{readiness.nextAction}</div>
+      )}
+      {!isNumberBonds && instance.equation && tokens.length > 0 ? (
+        <div className="algebra-composer__preview" data-mechanic={instance.mechanic} role="group" aria-label={`Player cue preview. Equation: ${equationState}`}>
+          <div className="algebra-composer__previewCopy">
+            <span className="algebra-composer__previewEyebrow">PLAYER VIEW</span>
+            <strong>See the move before it goes live</strong>
+            <span className="algebra-composer__previewAction" data-mechanic={instance.mechanic} aria-label={`Player action: ${motionCue}`}>
+              <MotionIcon className="algebra-composer__previewActionIcon" aria-hidden="true" fontSize="small" />
+              <span>{motionCue}</span>
+            </span>
+            <span className="algebra-composer__previewTarget">
+              {selectedTokenIndex === undefined ? "Choose a target in the action controls." : `Target: ${tokens[selectedTokenIndex]?.label ?? "equation token"}`}
+            </span>
+            <span className="algebra-composer__previewTiming">{timingSummary}</span>
+          </div>
+          <div className="algebra-composer__equation" aria-hidden="true">
+            {tokens.map((token, index) => (
+              <span
+                key={token.id}
+                className="algebra-composer__equationToken"
+                data-targeted={selectedTokenIndex === index ? "true" : undefined}
+                data-operator={isAuthoredEquationOperator(token.label) ? "true" : undefined}
+              >
+                {token.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {!isNumberBonds && instance.equation && onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} className="algebra-composer__changeEquation">Change equation</button> : null}
       {isNumberBonds ? (
-        <div style={{ borderRadius: 12, border: "1px solid rgba(207,255,4,.28)", background: "rgba(207,255,4,.07)", color: "#DFFF70", padding: "9px 11px", fontSize: 11, fontWeight: 750, lineHeight: 1.45 }}>
-          You place the catch cue. In the game it automatically continues through catch → spinout → drag.
+        <div className="algebra-composer__numberBondsNote">
+          Catch the gem on the beat, then place it in a slot.
         </div>
       ) : null}
       {controls}

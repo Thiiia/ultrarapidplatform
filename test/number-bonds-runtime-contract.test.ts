@@ -5,6 +5,8 @@ import test from "node:test";
 import {
   getAuthoredActivityContractIssues,
   getNumberBondsWholeTokenIndex,
+  NUMBER_BONDS_MAX_WHOLE,
+  NUMBER_BONDS_MIN_WHOLE,
   NUMBER_BONDS_TIMING_POLICY,
   validateAuthoredActivityTiming,
   type NumberBondsTimingIssue,
@@ -36,6 +38,14 @@ type RuntimeContractFixture = {
   timingPolicy: typeof NUMBER_BONDS_TIMING_POLICY;
   targetPolicy: string;
   hitCountPolicy: string;
+  quantityPolicy: {
+    minimumWhole: number;
+    maximumWhole: number;
+    unitsPerGem: number;
+    hitCountEqualsWhole: boolean;
+    maximumGridColumns: number;
+    maximumGridRows: number;
+  };
   hitPadLayouts: Array<{
     layoutVersion: number;
     pad: string;
@@ -88,12 +98,20 @@ function diagnosticDraft(spacingSeconds: number, tailSeconds: number) {
   return draft;
 }
 
-test("the shared fixture pins the initial Number Bonds runtime policy", () => {
+test("the shared fixture pins Number Bonds timing and one-unit scaling policy", () => {
   assert.equal(fixture.version, 1);
   assert.equal(fixture.activityKey, "number-bonds");
   assert.equal(fixture.targetPolicy, "whole-token");
   assert.equal(fixture.hitCountPolicy, "exactly-one-per-generated-gem");
   assert.deepEqual(NUMBER_BONDS_TIMING_POLICY, fixture.timingPolicy);
+  assert.deepEqual(fixture.quantityPolicy, {
+    minimumWhole: NUMBER_BONDS_MIN_WHOLE,
+    maximumWhole: NUMBER_BONDS_MAX_WHOLE,
+    unitsPerGem: 1,
+    hitCountEqualsWhole: true,
+    maximumGridColumns: 4,
+    maximumGridRows: 5,
+  });
 });
 
 test("the shared fixture keeps authored hit-pad labels and Unity's measured physical offsets aligned", () => {

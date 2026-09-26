@@ -161,12 +161,13 @@ test("a ready lesson does not reserve a permanent readiness panel", () => {
   const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
 
   assert.match(builder, /const needsReadinessCheck = !lessonPublishReadiness\.ready/);
-  assert.match(builder, /needsReadinessCheck && !isGuidedStart/);
+  assert.match(builder, /needsReadinessCheck && !isNumberBondsActivity && !isGuidedStart/);
 });
 
 test("hit placement mirrors the player pad layout and keeps legacy assignments explicit", () => {
   const composer = source("app/student/lesson-builder/GuidedEncounterComposer.tsx");
   const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+  const styles = source("app/globals.css");
 
   assert.match(composer, /PLAYER_HEX_AUTHORED_HIT_PADS/);
   assert.match(composer, /Reassign using the player pad layout/);
@@ -178,7 +179,7 @@ test("hit placement mirrors the player pad layout and keeps legacy assignments e
   assert.match(builder, /resolvePlayerHexHitPadPixelOffset/);
   assert.match(builder, /onQuickAddHit\?\.\(pad\);[\s\S]{0,100}else\s*\{\s*onSelectHitPad\?\.\(pad\);/);
   assert.match(builder, /function handleAddHitAtPlayhead\(hitPad\?: HitBubblePad\)[\s\S]{0,120}hitPad \? \{ hitPad \}/);
-  assert.match(composer, /repeat\(auto-fit, minmax\(220px, 1fr\)\)/);
+  assert.match(styles, /grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*13\.75rem\),\s*1fr\)\)/);
 });
 
 test("guided editing waits until the player chooses an editing action", () => {
@@ -231,10 +232,10 @@ test("Number Bonds presents one authored mechanic and explains its runtime expan
   const composer = source("app/student/lesson-builder/GuidedEncounterComposer.tsx");
 
   assert.match(builder, /supportedAuthoredMechanics/);
-  assert.match(builder, /isNumberBondsTimeline \? "Catch cues" : "Hits"/);
+  assert.match(builder, /isNumberBondsTimeline \? "Notes" : "Hits"/);
   assert.doesNotMatch(builder, /selectedActivityKey === "number-bonds"[\s\S]{0,160}onToggleRctm2Mode/);
-  assert.match(composer, /Place a catch cue/);
-  assert.match(composer, /catch → spinout → drag/);
+  assert.match(composer, /Each note brings one gem into play/);
+  assert.match(composer, /Catch the gem on the beat, then place it in a slot/);
 });
 
 test("advanced recorder exposes one tool at a time and makes draft commit explicit", () => {
@@ -252,9 +253,25 @@ test("first Number Bonds publication requires an explicit verified rhythm source
   const storage = source("lib/song-storage.ts");
 
   assert.match(builder, /Choose a verified rhythm/);
-  assert.match(builder, /Your Number Bonds equation and catches start fresh/);
+  assert.match(builder, /Your bond equation and note cues start fresh/);
   assert.match(builder, /rhythmSource: selectedRhythmSource/);
   assert.match(storage, /preferredActivityKey === "number-bonds"/);
   assert.match(storage, /status: "ready"/);
   assert.match(storage, /source\.chartSha256 === revision\.chartSha256/);
+});
+
+test("Number Bonds authoring can generate catch cues from a chosen catalogue bond and rhythm difficulty", () => {
+  const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+  const generator = source("lib/number-bonds-content-generator.ts");
+
+  assert.match(builder, /Generate a Number Bonds lesson/);
+  assert.match(builder, /NumberBondsEquationCatalogue|NUMBER_BONDS_EQUATION_CATALOGUE/);
+  assert.match(builder, /SUPPORTED_RHYTHM_DIFFICULTIES/);
+  assert.match(builder, /generateNumberBondsAuthoredLesson\(/);
+  assert.match(builder, /selectedRhythmSource\.revision/);
+  assert.match(builder, /selectedRhythmSource\.chartSha256/);
+  assert.match(builder, /timelineEvents\.length === 0/);
+  assert.match(generator, /serializeAuthoredLesson\(/);
+  assert.match(generator, /NUMBER_BONDS_TIMING_POLICY\.minimumHitSpacingSeconds/);
+  assert.match(generator, /NUMBER_BONDS_TIMING_POLICY\.finalInteractionTailSeconds/);
 });

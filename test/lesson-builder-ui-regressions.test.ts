@@ -19,12 +19,20 @@ const studentStyles = readFileSync(
   join(process.cwd(), "app/student/student.module.css"),
   "utf8",
 );
+const globalStyles = readFileSync(
+  join(process.cwd(), "app/globals.css"),
+  "utf8",
+);
 const studentCopySource = readFileSync(
   join(process.cwd(), "lib/student-copy.ts"),
   "utf8",
 );
 const songChoiceRequestSource = readFileSync(
   join(process.cwd(), "lib/editor/song-choice-request.ts"),
+  "utf8",
+);
+const lessonSaveRouteSource = readFileSync(
+  join(process.cwd(), "app/api/lesson-builder/save/route.ts"),
   "utf8",
 );
 
@@ -49,7 +57,8 @@ test("editor side panels progressively disclose without removing access", () => 
     lessonBuilderSource,
     /function beginGuidedEditing\(\)[\s\S]*?setAdvancedMode\(false\)[\s\S]*?setIsBuilderPanelOpen\(false\)/,
   );
-  assert.match(lessonBuilderSource, /<EditorPanelRail label="Build"/);
+  assert.match(lessonBuilderSource, /isNumberBondsActivity \? \([\s\S]*?<EditorPanelRail label="Bond"/);
+  assert.match(lessonBuilderSource, /: !isNumberBondsActivity \? \([\s\S]*?<EditorPanelRail label="Build"/);
   assert.match(lessonBuilderSource, /<EditorPanelRail label="Library"/);
   assert.match(lessonBuilderSource, /Collapse equation builder/);
   assert.match(lessonBuilderSource, /Collapse equation library/);
@@ -60,11 +69,51 @@ test("guided editing names actions and avoids exposing internal action codes", (
   assert.doesNotMatch(lessonBuilderSource, /\$\{item\.mechanic\[0\]\.toUpperCase\(\)\}\$\{item\.instanceIndex \+ 1\}/);
 });
 
+test("Algebra setup previews the selected move responsively using experience tokens", () => {
+  assert.match(composerSource, /showAlgebraSetupProgress/);
+  assert.match(composerSource, /Player cue preview/);
+  assert.match(composerSource, /data-targeted=\{selectedTokenIndex === index/);
+  assert.match(composerSource, /className="algebra-composer__padButton"/);
+  assert.match(globalStyles, /\.algebra-composer\s*\{[\s\S]*?--ur-accent-lime[\s\S]*?var\(--ur-radius-large\)/);
+  assert.match(globalStyles, /\.algebra-composer__preview\s*\{[\s\S]*?grid-template-columns/);
+  assert.match(globalStyles, /\.algebra-composer__padButton\s*\{[\s\S]*?width:\s*var\(--ur-target-minimum-web\);[\s\S]*?height:\s*var\(--ur-target-minimum-web\)/);
+  assert.match(globalStyles, /@media \(max-width: 520px\)[\s\S]*?\.algebra-composer__preview\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(composerSource, /window\.matchMedia\?\.\("\(prefers-reduced-motion: reduce\)"\)/);
+  assert.match(composerSource, /scrollIntoView\(\{ behavior: reduceMotion \? "auto" : "smooth"/);
+  assert.match(globalStyles, /prefers-reduced-motion:\s*reduce/);
+  assert.match(globalStyles, /\.algebra-composer__equationToken\[data-targeted="true"\]\s*\{\s*animation:\s*none;/);
+});
+
 test("lesson readiness is an expandable status control", () => {
   assert.match(readinessSource, /isOpen: boolean/);
   assert.match(readinessSource, /aria-expanded=\{isOpen\}/);
   assert.match(readinessSource, /hidden=\{!isOpen\}/);
   assert.match(lessonBuilderSource, /isOpen=\{isReadinessOpen\}/);
+});
+
+test("Number Bonds lesson hydration refreshes its exact shared rhythm without changing activity identity", () => {
+  const refreshStart = lessonBuilderSource.indexOf("refresh: async () => {");
+  const refreshSource = refreshStart >= 0 ? lessonBuilderSource.slice(refreshStart) : "";
+  const refreshEnd = refreshSource.search(/\r?\n {6}\},\r?\n {4}\}\)/);
+  const hydrationRefresh = refreshEnd > 0
+    ? refreshSource.slice(0, refreshEnd)
+    : undefined;
+
+  assert.ok(hydrationRefresh, "lesson hydration should expose a refresh callback");
+  assert.match(hydrationRefresh, /if\s*\(\s*selectedSong\.rhythmSource\s*\)/);
+  assert.match(hydrationRefresh, /resolveEditorRhythmSourceRefreshUrls/);
+  assert.match(hydrationRefresh, /buildEditorRhythmSourceRefreshQuery/);
+});
+
+test("authoring save exposes actionable validation feedback but keeps infrastructure errors generic", () => {
+  assert.match(lessonBuilderSource, /getAuthoringLessonSaveFailureMessage/);
+  assert.match(
+    lessonBuilderSource,
+    /status: response\.status[\s\S]*?getAuthoringLessonSaveFailureMessage/,
+  );
+  assert.match(lessonSaveRouteSource, /\[lesson-builder\/save\] validation rejected/);
+  assert.match(lessonSaveRouteSource, /\[lesson-builder\/save\] authored publication rejected/);
+  assert.match(lessonSaveRouteSource, /message\.slice\(0, 280\)/);
 });
 
 test("dense readiness blockers remain available in a bounded scroll area", () => {
@@ -81,11 +130,22 @@ test("lesson-level blockers explain the repair without acting like a cue link", 
   assert.match(lessonBuilderSource, /if \(blocker\.encounterId\) handleSelectReadinessEncounter\(blocker\.encounterId, blocker\.code\)/);
 });
 
-test("Number Bonds recording shows timing guidance and keeps automatic repairs inside the song", () => {
+test("Number Bonds timing repairs require a beat-snapped preview and can be undone", () => {
   assert.match(lessonBuilderSource, /\(!isRctm2Mode \|\| \(selectedSongActivity\?\.key \?\? selectedSongLaunch\?\.activityKey\) === "number-bonds"\)/);
-  assert.match(readinessSource, /Move this catch cue for me/);
-  assert.match(lessonBuilderSource, /nextSeconds \+ NUMBER_BONDS_TIMING_POLICY\.finalInteractionTailSeconds > songEndSeconds/);
-  assert.match(lessonBuilderSource, /setRtcmDraftMechanics\(\(current\) => current\.map/);
+  assert.match(readinessSource, /Preview move to next clear beat/);
+  assert.match(readinessSource, /Cancel preview/);
+  assert.match(readinessSource, /Undo last timing repair/);
+  assert.match(lessonBuilderSource, /proposeEncounterMove\([\s\S]*stopAtSeconds: sidecar\.stopAtSeconds/);
+  assert.match(lessonBuilderSource, /applyEncounterMovePatches/);
+  assert.match(lessonBuilderSource, /setTimingRepairUndoSnapshot\(undoSnapshot\)/);
+  assert.match(lessonBuilderSource, /Extend the song or remove a move/);
+  assert.doesNotMatch(readinessSource, /Move this note for me/);
+});
+
+test("Number Bonds note creation explains the one-note, one-gem contract", () => {
+  assert.match(composerSource, /Each note brings one gem into play/);
+  assert.match(lessonBuilderSource, /createDefaultNumberBondHitBubble/);
+  assert.match(lessonBuilderSource, /NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS/);
 });
 
 test("readiness blockers select the exact cue and seek to its authored time", () => {

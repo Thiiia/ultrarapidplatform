@@ -66,6 +66,17 @@ test("Number Bonds exposes authored Hit only and documents runtime expansion", (
   assert.deepEqual(capabilities.supportedAuthoredMechanics, ["hit"]);
   assert.deepEqual(capabilities.runtimeExpandedMechanics, ["hit", "catch", "spinout", "drag"]);
   assert.equal(getNumberBondsWhole(equation), 5);
+  assert.equal(getNumberBondsWhole({ state: "20 = 7 + 13" }), 20);
+});
+
+test("Number Bonds hit cues do not require authors to choose an equation", () => {
+  const readiness = evaluateEncounterReadiness({
+    ...hit("bond-hit", 10),
+    equation: null,
+  }, new Set(), { activityKey: "number-bonds" });
+
+  assert.equal(readiness.ready, true);
+  assert.equal(readiness.issueCodes.includes("equation_required"), false);
 });
 
 test("Number Bonds blocks authored Spin and multi-bubble Hits", () => {
@@ -92,7 +103,7 @@ test("Number Bonds blocks authored Spin and multi-bubble Hits", () => {
   );
 });
 
-test("Number Bonds publish readiness enforces one equation and enough authored Hits", () => {
+test("Number Bonds publish readiness requires exactly one Hit per whole unit", () => {
   const events = Array.from({ length: 5 }, (_, index) => timelineEvent(`event-${index}`, hit(`hit-${index}`, 10 + index * 10)));
   assert.equal(
     evaluateLessonPublishReadiness(events, {
@@ -109,6 +120,13 @@ test("Number Bonds publish readiness enforces one equation and enough authored H
     }).blockers.some((blocker) => blocker.code === "activity_hit_count"),
     true,
   );
+
+  const tooManyHits = Array.from({ length: 6 }, (_, index) => timelineEvent(`extra-event-${index}`, hit(`extra-hit-${index}`, 10 + index * 10)));
+  const tooManyReadiness = evaluateLessonPublishReadiness(tooManyHits, {
+    activityKey: "number-bonds",
+    equationQueue: [equation],
+  });
+  assert.equal(tooManyReadiness.blockers.some((blocker) => blocker.code === "activity_hit_count"), true);
 });
 
 test("Number Bonds gives a timing action before a too-close second gem is published", () => {

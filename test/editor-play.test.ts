@@ -52,6 +52,7 @@ for (const saveFails of [false, true]) test(`launch publishes a draft only when 
   const requests: Array<Record<string, unknown>> = [];
   const routes: string[] = [];
   const launch = load("handleLaunchGame", {
+    isNumberBondsActivity: false,
     selectedSongLaunch: {songAssetId: "song", activityKey: "early-algebra", authorName: "dev"},
     lastSavedAuthorId: "old-author", lastSavedRevision: "old-revision", isSaving: false, hasUnsavedChanges: true,
     lessonPublishReadiness: {ready: true, blockers: []},
@@ -84,6 +85,7 @@ test("launches a published template without asking it to save again", async () =
   const requests: Array<Record<string, unknown>> = [];
   let saves = 0;
   const launch = load("handleLaunchGame", {
+    isNumberBondsActivity: false,
     selectedSongLaunch: {songAssetId: "song", activityKey: "early-algebra", authorName: "dev"},
     selectedSongAuthorId: "template-author", lastSavedAuthorId: null, lastSavedRevision: "template-revision",
     isSaving: false, hasUnsavedChanges: false,
@@ -125,9 +127,30 @@ test("incomplete lesson saves locally but never calls publish", async () => {
   assert.match(saveStatus, /Spin 1 needs a target/);
 });
 
+test("Number Bonds Play rebuilds an incomplete mission without requesting a launch package", async () => {
+  let rebuilds = 0;
+  let requests = 0;
+  const launch = load("handleLaunchGame", {
+    isNumberBondsActivity: true,
+    isSaving: false,
+    lessonPublishReadiness: {ready: false, blockers: []},
+    numberBondValues: {whole: 5},
+    numberBondTargetWhole: 5,
+    handleBuildNumberBondMission: (autoLaunch: boolean) => {
+      assert.equal(autoLaunch, true);
+      rebuilds += 1;
+    },
+    requestFreshSongLaunchPackage: async () => { requests += 1; return null; },
+  });
+  await launch();
+  assert.equal(rebuilds, 1);
+  assert.equal(requests, 0);
+});
+
 test("Play skips package request while blockers exist", async () => {
   let requests = 0;
   const launch = load("handleLaunchGame", {
+    isNumberBondsActivity: false,
     lessonPublishReadiness: {
       ready: false,
       blockers: [{ encounterId: "spin-1", code: "spin_target_required", message: "Spin 1 needs a target.", nextAction: "Select the token to spin." }],

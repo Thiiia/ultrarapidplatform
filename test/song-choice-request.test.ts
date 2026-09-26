@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   fetchJsonWithTimeout,
   SONG_CHOICE_REQUEST_TIMEOUT_MESSAGE,
-} from "../lib/editor/song-choice-request.ts";
+} from "../lib/editor/song-choice-request";
 
 test("a stalled song-choice request aborts at its deadline with retry guidance", async () => {
   let observedSignal: AbortSignal | undefined;

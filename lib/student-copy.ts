@@ -127,7 +127,7 @@ export const studentCopy = {
     chooseEarlierHitOption: "Start independently",
     chooseEarlierHitLabel: "Choose an optional earlier Hit to unlock this Drag",
     connectEarlierHit: "Start independently, or require an earlier Hit to unlock this Drag.",
-    spinCue: "Spin this token while the move is active.",
+    spinCue: "Spin the hit pads while this move is active.",
     startTime: "Starts at",
     endTime: "Ends at",
   },
@@ -146,7 +146,7 @@ export const studentCopy = {
     savingResult: "Saving your result…",
     syncAgain: "Save result again",
     waitingToSave: "Your result is still waiting to be saved.",
-    lessonComplete: (events: number, attempts: number) => `Lesson complete: ${events} moves finished in ${attempts} tries.`,
+    lessonComplete: (sets: number, events: number, required: number, attempts: number) => `Lesson complete: ${sets} sets solved; ${events} of ${required} moves finished in ${attempts} tries.`,
     returnToSongs: "Choose another song when you are ready.",
   },
 } as const;

@@ -5,6 +5,7 @@ import {
   authoredStopBufferSeconds,
   validateNumberBondsTiming,
 } from "../lib/number-bonds-timing";
+import { validateAuthoredActivityTiming } from "../lib/activity-authoring-capabilities";
 
 test("Number Bonds uses a full final interaction tail", () => {
   assert.equal(authoredStopBufferSeconds("number-bonds"), 12);
@@ -30,4 +31,21 @@ test("Number Bonds rejects a stop before the final gem completes", () => {
   const hits = [{ id: "last", startSeconds: 17.5 }];
   assert.equal(validateNumberBondsTiming(hits, 29.499)[0]?.code, "gem_tail");
   assert.equal(validateNumberBondsTiming(hits, undefined)[0]?.code, "stop_required");
+});
+
+test("editor guidance delegates every timing decision to the shared readiness and publication validator", () => {
+  const cues = [
+    { id: "late", startSeconds: 19 },
+    { id: "non-finite", startSeconds: Number.NaN },
+    { id: "same-time", startSeconds: 19 },
+    { id: "too-close", startSeconds: 22 },
+  ];
+  const shared = validateAuthoredActivityTiming(
+    "number-bonds",
+    cues.map((cue) => ({ ...cue, type: "hit" as const })),
+    20,
+  );
+  const editor = validateNumberBondsTiming(cues, 20).map(({ message: _message, ...issue }) => issue);
+
+  assert.deepEqual(editor, shared);
 });

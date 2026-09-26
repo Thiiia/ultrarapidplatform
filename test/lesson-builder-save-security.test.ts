@@ -1,24 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { isSameOriginLessonSaveRequest } from "../lib/lesson-save-origin";
 
-type SaveRouteSecurity = {
-  isSameOriginLessonSaveRequest?: (request: Request) => boolean;
-};
-
-async function loadSaveRoute(): Promise<SaveRouteSecurity> {
-  return (await import("../app/api/lesson-builder/save/route")) as SaveRouteSecurity;
-}
-
-test("allows the public Team Editor to save from the same origin", async () => {
-  const saveRoute = await loadSaveRoute();
-
+test("allows the public Team Editor to save from the same origin", () => {
   assert.equal(
-    typeof saveRoute.isSameOriginLessonSaveRequest,
+    typeof isSameOriginLessonSaveRequest,
     "function",
-    "save route must allow same-origin public editor requests",
+    "same-origin save guard is available to the save route",
   );
   assert.equal(
-    saveRoute.isSameOriginLessonSaveRequest!(
+    isSameOriginLessonSaveRequest(
       new Request("https://platform.example/api/lesson-builder/save", {
         method: "POST",
         headers: { origin: "https://platform.example" },
@@ -27,7 +18,7 @@ test("allows the public Team Editor to save from the same origin", async () => {
     true,
   );
   assert.equal(
-    saveRoute.isSameOriginLessonSaveRequest!(
+    isSameOriginLessonSaveRequest(
       new Request("https://platform.example/api/lesson-builder/save", {
         method: "POST",
         headers: { origin: "https://other.example" },
@@ -37,7 +28,7 @@ test("allows the public Team Editor to save from the same origin", async () => {
   );
 
   assert.equal(
-    saveRoute.isSameOriginLessonSaveRequest!(
+    isSameOriginLessonSaveRequest(
       new Request("https://platform.example/api/lesson-builder/save", {
         method: "POST",
       }),

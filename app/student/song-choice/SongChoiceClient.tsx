@@ -909,6 +909,10 @@ export default function SongChoiceClient({
       return;
     }
 
+    if (currentActivityKey === "number-bonds" || !selectedSongCanPlay) {
+      handleCustomizeYes();
+      return;
+    }
     setIsCustomizePromptOpen(true);
   }
 
@@ -1545,7 +1549,7 @@ export default function SongChoiceClient({
           disabled={isLaunching || !selectedSong || selectedSongStatus === "idle" || selectedSongStatus === "loading"}
           aria-busy={isLaunching || selectedSongStatus === "loading"}
           onClick={handleContinue}
-          aria-label={selectedSongStatus === "error" ? "Try loading this song again" : `Continue to ${studentCopy.navigation.builder}`}
+          aria-label={selectedSongStatus === "error" ? "Try loading this song again" : currentActivityKey === "number-bonds" ? "Make and play a Number Bonds mission" : `Continue to ${studentCopy.navigation.builder}`}
           title={
             selectedSongStatus === "loading"
               ? studentCopy.songChoice.preparingMessage
@@ -1553,7 +1557,7 @@ export default function SongChoiceClient({
                 ? "Try loading this song again"
                 : selectedSongStatus === "idle"
                   ? "Select a song to continue"
-                  : `Continue to ${studentCopy.navigation.builder}`
+                : currentActivityKey === "number-bonds" ? "Set a number, place notes, and play" : `Continue to ${studentCopy.navigation.builder}`
           }
           style={{
             border: "none",
@@ -1576,7 +1580,7 @@ export default function SongChoiceClient({
             ? studentCopy.songChoice.preparing
             : selectedSongStatus === "error"
               ? "Try again"
-              : studentCopy.songChoice.continue}
+            : currentActivityKey === "number-bonds" ? "Make and play" : selectedSongCanPlay ? "Choose how to start" : "Make a lesson"}
         </button>
       </div>
 
@@ -1630,7 +1634,9 @@ export default function SongChoiceClient({
             <p style={{ margin: 0, color: "#D1D5DB", textAlign: "center", lineHeight: 1.45 }}>
               {selectedSongCanPlay
                 ? studentCopy.songChoice.readyToPlayBody
-                : studentCopy.songChoice.needsWorkBody}
+                : selectedSong?.requiresRhythmSource
+                  ? "This song has beat timing ready to reuse. Choose a number, then press Play to place its notes and start."
+                  : studentCopy.songChoice.needsWorkBody}
             </p>
 
             {launchError ? (
