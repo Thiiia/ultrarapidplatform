@@ -28,6 +28,10 @@ export function isPlayableSongLaunchPackage(
 
 const LEARNER_READINESS_MESSAGES: Array<[RegExp, string]> = [
   [
+    /^This Number Bonds lesson has not been published yet\./,
+    "This Number Bonds lesson is being built. Choose Build Number Bonds lesson to finish it, or try another song.",
+  ],
+  [
     /^No authored lesson or verified starter template is available\./,
     "This lesson is not ready to play yet. Try another song or ask your teacher for help.",
   ],

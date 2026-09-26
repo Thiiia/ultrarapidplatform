@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
-import { resolveFreshSongLaunchPackage } from "@/lib/song-launch-package";
+import { resolveFreshSongLaunchPackage, SongLaunchRevisionNotFoundError } from "@/lib/song-launch-package";
 import { shouldCreatePlayerLaunchAttempt } from "@/lib/player-launch-attempt-policy";
 import { getCurrentAppUser } from "@/lib/current-user";
 import {
@@ -65,6 +65,37 @@ function buildBlankAssetUrl(request: Request, kind: "chart" | "sidecar", activit
 }
 
 export async function POST(request: Request) {
+  let payload: {
+    songAssetId?: unknown;
+    activityKey?: unknown;
+    authorId?: unknown;
+    authorName?: unknown;
+    revision?: unknown;
+    allowBlankPackage?: unknown;
+    rhythmDifficultyKey?: unknown;
+    learningDifficultyKey?: unknown;
+    refreshLaunchAttemptId?: unknown;
+    refreshOnly?: unknown;
+  };
+  try {
+    const parsed: unknown = await request.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("Expected a JSON object");
+    }
+    payload = parsed;
+  } catch {
+    return NextResponse.json(
+      { code: "INVALID_JSON", error: "The launch request must contain a valid JSON object." },
+      { status: 400 },
+    );
+  }
+  if (typeof payload.songAssetId !== "string" || !payload.songAssetId.trim() ||
+      typeof payload.activityKey !== "string" || !payload.activityKey.trim()) {
+    return NextResponse.json(
+      { code: "INVALID_REQUEST", error: "Choose a song and activity before opening the lesson." },
+      { status: 400 },
+    );
+  }
   try {
     // The package route is also used by local/demo flows, so an absent auth
     // session does not prevent package resolution. Authenticated launches are
@@ -77,18 +108,6 @@ export async function POST(request: Request) {
       player = null;
     }
 
-    const payload = (await request.json()) as {
-      songAssetId?: unknown;
-      activityKey?: unknown;
-      authorId?: unknown;
-      authorName?: unknown;
-      revision?: unknown;
-      allowBlankPackage?: unknown;
-      rhythmDifficultyKey?: unknown;
-      learningDifficultyKey?: unknown;
-      refreshLaunchAttemptId?: unknown;
-      refreshOnly?: unknown;
-    };
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId");
     const activityKey = readRequiredString(payload.activityKey, "activityKey");
     const requestedAuthorId =
@@ -241,9 +260,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json(songPackage, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error instanceof SongLaunchRevisionNotFoundError) {
+      return NextResponse.json({ code: "REVISION_NOT_FOUND", error: error.message }, { status: 404 });
+    }
+    console.error("Song package launch failed", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to load song package" },
-      { status: 400 },
+      { code: "PACKAGE_UNAVAILABLE", error: "The song package could not be prepared right now. Please retry." },
+      { status: 503 },
     );
   }
 }

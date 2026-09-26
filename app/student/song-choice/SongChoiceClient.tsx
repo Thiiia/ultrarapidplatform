@@ -1557,7 +1557,9 @@ export default function SongChoiceClient({
                 ? "Try loading this song again"
                 : selectedSongStatus === "idle"
                   ? "Select a song to continue"
-                : currentActivityKey === "number-bonds" ? "Set a number, place notes, and play" : `Continue to ${studentCopy.navigation.builder}`
+                : currentActivityKey === "number-bonds"
+                  ? selectedSongCanPlay ? "Open the published Number Bonds lesson" : "Use the Number Bonds starter in Lesson Builder, then save to play"
+                  : `Continue to ${studentCopy.navigation.builder}`
           }
           style={{
             border: "none",
@@ -1580,7 +1582,9 @@ export default function SongChoiceClient({
             ? studentCopy.songChoice.preparing
             : selectedSongStatus === "error"
               ? "Try again"
-            : currentActivityKey === "number-bonds" ? "Make and play" : selectedSongCanPlay ? "Choose how to start" : "Make a lesson"}
+            : currentActivityKey === "number-bonds"
+              ? selectedSongCanPlay ? "Edit Number Bonds lesson" : "Build Number Bonds lesson"
+              : selectedSongCanPlay ? "Choose how to start" : "Make a lesson"}
         </button>
       </div>
 

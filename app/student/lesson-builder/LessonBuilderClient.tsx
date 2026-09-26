@@ -81,6 +81,7 @@ import {
 import { SUPPORTED_RHYTHM_DIFFICULTIES, type SupportedRhythmDifficulty } from "@/lib/chart-semantics";
 import {
   generateNumberBondsAuthoredLesson,
+  generateNumberBondsStarterLesson,
   getNumberBondsCatalogueEquation,
   NUMBER_BONDS_EQUATION_CATALOGUE,
   NUMBER_BONDS_WHOLE_VALUES,
@@ -1869,7 +1870,12 @@ async function jsonFromSignedUrl(signedUrl: string, signal?: AbortSignal) {
     throw error;
   }
 
-  const payload = await response.json();
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error("The lesson sidecar did not contain valid JSON. Reload the lesson or repair the published sidecar before editing.");
+  }
 
   appendSongFlowDebug("lesson-builder:sidecar:fetch:complete", "Sidecar JSON was parsed from the signed URL response.", {
     eventCount:
@@ -10436,7 +10442,7 @@ export default function LessonBuilderClient({
       ?? null
     : null;
 
-  function handleGenerateNumberBondsLesson() {
+  function handleGenerateNumberBondsLesson(useStarterTemplate = false) {
     const activityKey = selectedSongActivity?.key ?? selectedSongLaunch?.activityKey;
     if (activityKey !== "number-bonds" || !selectedSongStorage || !selectedRhythmSource) return;
     if (timelineEvents.length > 0 || rtcmDraftMechanics.length > 0) {
@@ -10451,9 +10457,8 @@ export default function LessonBuilderClient({
     }
 
     try {
-      const generated = generateNumberBondsAuthoredLesson({
+      const source = {
         songAssetId: selectedSongStorage.id,
-        equation: getNumberBondsCatalogueEquation(numberBondsCatalogueId),
         rhythmSource: {
           songAssetId: selectedSongStorage.id,
           activityKey: selectedRhythmSource.activityKey,
@@ -10461,10 +10466,17 @@ export default function LessonBuilderClient({
           chartSha256: selectedRhythmSource.chartSha256,
           audioSha256: selectedRhythmSource.audioSha256,
         },
-        rhythmDifficulty: numberBondsRhythmDifficulty,
         chartContent: chartFile,
         durationSeconds,
-      });
+      };
+      const generated = useStarterTemplate
+        ? generateNumberBondsStarterLesson(source)
+        : generateNumberBondsAuthoredLesson({
+            ...source,
+            equation: getNumberBondsCatalogueEquation(numberBondsCatalogueId),
+            rhythmDifficulty: numberBondsRhythmDifficulty,
+          });
+      const generatedDifficulty = generated.provenance.rhythmDifficulty;
       const authoredClock = createLessonClock(chartFile);
       const hydrated = timelineEventsFromAuthoredLesson(generated.draft, authoredClock);
       const nextEvents = hydrated.events as unknown as TimelineEventSlot[];
@@ -10483,11 +10495,13 @@ export default function LessonBuilderClient({
       setIsReadinessOpen(false);
       setSelectedSongLaunch((current) => current ? {
         ...current,
-        rhythmDifficultyKey: numberBondsRhythmDifficulty,
+        rhythmDifficultyKey: generatedDifficulty,
       } : current);
+      setNumberBondsCatalogueId(generated.draft.equations[0]?.id ?? numberBondsCatalogueId);
+      setNumberBondsRhythmDifficulty(generatedDifficulty);
       syncTimelineFilesFromEvents(nextEvents);
       setSaveStatus(
-        `Generated ${generated.draft.encounters.length} Number Bonds catch cues from the selected ${numberBondsRhythmDifficulty} rhythm. Review and save the lesson when ready.`,
+        `${useStarterTemplate ? "Loaded the 2 = 1 + 1 starter template with" : "Generated"} ${generated.draft.encounters.length} Number Bonds catch cues from the ${generatedDifficulty} rhythm. Review and save the lesson before playing.`,
       );
     } catch (error) {
       setSaveStatus(error instanceof Error ? error.message : "The Number Bonds lesson could not be generated.");
@@ -14523,9 +14537,20 @@ export default function LessonBuilderClient({
           <div>
             <h2 style={{ margin: 0, fontSize: 13, fontWeight: 900 }}>Generate a Number Bonds lesson</h2>
             <p style={{ margin: "5px 0 0", color: "#AFC2D8", fontSize: 11, lineHeight: 1.45 }}>
-              Uses chart note cues from rhythm revision {selectedRhythmSource.revision.slice(0, 8)}. It keeps the 7.5 second spacing and 12 second final interaction tail.
+              Uses chart note cues from rhythm revision {selectedRhythmSource.revision.slice(0, 8)}. The first cue starts after 6 seconds, with 7.5 second spacing and a 12 second final interaction tail.
             </p>
           </div>
+          <button
+            type="button"
+            disabled={!(audioDurationSeconds || metadata?.durationSeconds) || !chartFile.trim()}
+            onClick={() => handleGenerateNumberBondsLesson(true)}
+            style={{ minHeight: 36, border: 0, borderRadius: 999, background: "#CFFF04", color: "#071222", fontSize: 11, fontWeight: 900, cursor: "pointer" }}
+          >
+            Use 2 = 1 + 1 starter template
+          </button>
+          <p style={{ margin: 0, color: "#AFC2D8", fontSize: 11, lineHeight: 1.45 }}>
+            This adds two catch cues from the first suitable verified rhythm. Save the lesson to make it playable.
+          </p>
           <label style={{ display: "grid", gap: 4, color: "#D1D5DB", fontSize: 11, fontWeight: 800 }}>
             Number bond
             <select
@@ -14567,7 +14592,7 @@ export default function LessonBuilderClient({
             disabled={!isLessonLoaded || Boolean(loadError) || !numberBondsCatalogueId ||
               timelineEvents.length > 0 || rtcmDraftMechanics.length > 0 ||
               !(audioDurationSeconds || metadata?.durationSeconds)}
-            onClick={handleGenerateNumberBondsLesson}
+            onClick={() => handleGenerateNumberBondsLesson()}
             style={{
               minHeight: 36,
               border: 0,

@@ -88,8 +88,48 @@ test("keeps a blank editor scaffold blocked from gameplay when no verified templ
     state: "blocked",
     source: "editor-scaffold",
     canLaunch: false,
-    message: "No authored lesson or verified starter template is available. The blank chart is available for editing, but this scaffold cannot be launched as gameplay.",
+    message: "This Number Bonds lesson has not been published yet. Open Lesson Builder, use the Number Bonds starter template, then save the lesson before playing.",
   });
+});
+
+test("an unpublished Number Bonds song gives a blocked package even for a normal play request", async () => {
+  const resolved = await resolveFreshSongLaunchPackage({
+    songAssetId: "song-template",
+    activityKey: "number-bonds",
+    authorId: "author-template",
+    loadSongAsset: async () => ({
+      id: "song-template", isActive: true, songBucket: "Songs", songPath: "songs/template.mp3",
+    }),
+    loadSongChart: async () => null,
+    loadBlankSongChart: async () => ({
+      chart: { bucket: "Charts", path: "blank.chart", signedUrl: "https://example.test/blank.chart" },
+      sidecar: { bucket: "SidecarJsons", path: "blank.json", signedUrl: "https://example.test/blank.json" },
+    }),
+    createSignedUrl: async () => "https://example.test/template.mp3",
+  });
+
+  assert.equal(resolved.source, "editor-scaffold");
+  assert.equal(resolved.readiness.canLaunch, false);
+  assert.match(resolved.readiness.message, /Number Bonds starter template/);
+  assert.equal(resolved.receipt, undefined);
+});
+
+test("a missing pinned revision cannot turn into the starter or blank scaffold", async () => {
+  await assert.rejects(resolveFreshSongLaunchPackage({
+    songAssetId: "song-template",
+    activityKey: "number-bonds",
+    authorId: "author-template",
+    revision: "11111111-1111-4111-8111-111111111111",
+    loadSongAsset: async () => ({
+      id: "song-template", isActive: true, songBucket: "Songs", songPath: "songs/template.mp3",
+    }),
+    loadSongChart: async () => null,
+    loadBlankSongChart: async () => ({
+      chart: { bucket: "Charts", path: "blank.chart", signedUrl: "blank" },
+      sidecar: { bucket: "SidecarJsons", path: "blank.json", signedUrl: "blank" },
+    }),
+    createSignedUrl: async () => "audio",
+  }), /requested published lesson revision is unavailable/);
 });
 
 test("blocks swapped legacy assets instead of masquerading as a starter template", async () => {
@@ -619,11 +659,8 @@ test("serves a blocked editor scaffold when no chart is authored and a blank fal
   });
 });
 
-test("does not treat an editor blank package as playable content by default", async () => {
-  const songLaunchPackage = await loadSongLaunchPackageModule();
-
-  await assert.rejects(
-    songLaunchPackage!.resolveFreshSongLaunchPackage!({
+test("a normal request may receive an editor blank package but never a playable receipt", async () => {
+  const result = await resolveFreshSongLaunchPackage({
       songAssetId: "song-123",
       activityKey: "missing-numbers",
       authorId: null,
@@ -639,8 +676,8 @@ test("does not treat an editor blank package as playable content by default", as
         sidecar: { bucket: "SidecarJsons", path: "blank.json", signedUrl: "blank" },
       }),
       createSignedUrl: async () => "audio",
-    }),
-    /blank.*playable|No chart has been authored/i,
-  );
+    });
+  assert.equal(result.source, "editor-scaffold");
+  assert.equal(result.readiness.canLaunch, false);
+  assert.equal(result.receipt, undefined);
 });
-

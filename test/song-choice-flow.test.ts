@@ -40,6 +40,10 @@ test("song choice replaces infrastructure details with recoverable player copy",
     getSongLaunchErrorMessage(new Error("No authored lesson or verified starter template is available. The blank chart is available for editing.")),
     "This lesson is not ready to play yet. Try another song or ask your teacher for help.",
   );
+  assert.equal(
+    getSongLaunchErrorMessage(new Error("This Number Bonds lesson has not been published yet. Open Lesson Builder.")),
+    "This Number Bonds lesson is being built. Choose Build Number Bonds lesson to finish it, or try another song.",
+  );
 });
 
 test("song package cache keys include activity identity", () => {

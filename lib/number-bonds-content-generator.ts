@@ -63,6 +63,32 @@ export type GeneratedNumberBondsLesson = {
   };
 };
 
+export const NUMBER_BONDS_STARTER_EQUATION_ID = "bond-2-1-1";
+
+/** A two-gem starting lesson. Try the densest rhythm first, but only return
+ * content whose note spacing and final interaction tail actually fit. */
+export function generateNumberBondsStarterLesson(
+  definition: Omit<NumberBondsLessonDefinition, "equation" | "rhythmDifficulty">,
+): GeneratedNumberBondsLesson {
+  for (const rhythmDifficulty of ["ExpertSingle", "HardSingle", "MediumSingle", "EasySingle"] as const) {
+    try {
+      return generateNumberBondsAuthoredLesson({
+        ...definition,
+        equation: getNumberBondsCatalogueEquation(NUMBER_BONDS_STARTER_EQUATION_ID),
+        rhythmDifficulty,
+      });
+    } catch (error) {
+      // A missing or sparse difficulty is normal; the other difficulties may
+      // have two suitable cues. Identity and chart integrity are still checked
+      // by the publication boundary before anything is saved.
+      if (error instanceof Error && !/note section|rhythm window|note events|no rhythm notes|selected difficulty .* is missing|selected difficulty .* has no playable notes/i.test(error.message)) {
+        throw error;
+      }
+    }
+  }
+  throw new Error("This song has no rhythm difficulty with two Number Bonds catch cues after 6 seconds and enough time to finish. Choose another verified rhythm.");
+}
+
 export const NUMBER_BONDS_WHOLE_VALUES = Array.from(
   { length: NUMBER_BONDS_MAX_WHOLE - NUMBER_BONDS_MIN_WHOLE + 1 },
   (_, index) => NUMBER_BONDS_MIN_WHOLE + index,

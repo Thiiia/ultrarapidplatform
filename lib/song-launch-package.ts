@@ -49,6 +49,13 @@ type VerifiedStarterTemplate = {
   templateProvenance: TemplateProvenance;
 };
 
+export class SongLaunchRevisionNotFoundError extends Error {
+  constructor() {
+    super("The requested published lesson revision is unavailable. Reload the song and try again.");
+    this.name = "SongLaunchRevisionNotFoundError";
+  }
+}
+
 export type RhythmDifficultyKey = "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
 export type LessonSource = "authored" | "starter-template" | "editor-scaffold";
 export type PlayableLessonSource = Exclude<LessonSource, "editor-scaffold">;
@@ -353,6 +360,9 @@ export async function resolveFreshSongLaunchPackage({
   const chartTargets = await loadSongChart(canonicalSongAssetId, requestedActivityKey, authorId);
 
   if (!chartTargets) {
+    // A pinned launch must never silently substitute a different revision or
+    // a blank editor scaffold for the receipt the player requested.
+    if (revision) throw new SongLaunchRevisionNotFoundError();
     const verifiedTemplate = await loadVerifiedStarterTemplate?.(
       canonicalSongAssetId,
       requestedActivityKey,
@@ -360,13 +370,14 @@ export async function resolveFreshSongLaunchPackage({
     if (verifiedTemplate) {
       return buildVerifiedStarterTemplatePackage(verifiedTemplate);
     }
-    if (!allowBlankPackage) {
+    if (!loadBlankSongChart) {
       throw new Error(
         `No chart has been authored for ${requestedActivityKey}; no verified starter template is available`,
       );
     }
-
-    return buildEditorScaffoldPackage();
+    return buildEditorScaffoldPackage(requestedActivityKey === "number-bonds"
+      ? "This Number Bonds lesson has not been published yet. Open Lesson Builder, use the Number Bonds starter template, then save the lesson before playing."
+      : undefined);
   }
 
   try {
@@ -470,4 +481,3 @@ export async function resolveFreshSongLaunchPackage({
     } satisfies SignedStorageRef,
   } satisfies PlayableLessonPackage;
 }
-
