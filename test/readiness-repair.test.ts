@@ -84,7 +84,7 @@ test("preview uses stable cue IDs, cascades spacing repairs, snaps across tempo 
     "550e8400-e29b-41d4-a716-446655440004",
     "550e8400-e29b-41d4-a716-446655440005",
   ];
-  const events = [1, 4, 13, 22, 31].map((seconds, index) => ({
+  const events = [6, 12, 19, 28, 37].map((seconds, index) => ({
     ...eventFor("hit", cueIds[index], seconds, seconds, undefined, equation),
     displayLabel: "Catch cue",
   })) as AuthoredTimelineEvent[];
@@ -93,8 +93,8 @@ test("preview uses stable cue IDs, cascades spacing repairs, snaps across tempo 
   const proposal = proposeEncounterMove(events, cueIds[1], clock, {
     activityKey: "number-bonds",
     equationQueue: [equation],
-    stopAtSeconds: 45,
-    songEndSeconds: 50,
+    stopAtSeconds: 55,
+    songEndSeconds: 60,
   });
 
   assert.ok(proposal);
@@ -107,11 +107,11 @@ test("preview uses stable cue IDs, cascades spacing repairs, snaps across tempo 
     assert.equal(clock.toTick(patch.toSeconds) % clock.ticksPerBeat, 0, "moves must land on a beat");
     assert.equal(clock.toSeconds(clock.toTick(patch.toSeconds)), patch.toSeconds);
   }
-  assert.equal(proposal.patches[0].toSeconds, 9, "the changed tempo at eight seconds uses the one-second beat grid");
+  assert.equal(proposal.patches[0].toSeconds, 14, "the changed tempo at eight seconds uses the one-second beat grid");
 
   const applied = applyEncounterMovePatches(events, proposal.patches);
   assert.ok(applied);
-  assert.equal(applied.find((event) => event.id === proposal.patches[0].eventId)?.tick, 9);
+  assert.equal(applied.find((event) => event.id === proposal.patches[0].eventId)?.tick, 14);
   const undone = applyEncounterMovePatches(applied, proposal.patches, "undo");
   assert.deepEqual(undone, events);
 });
