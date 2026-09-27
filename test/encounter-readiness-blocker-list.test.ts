@@ -7,7 +7,16 @@ import {
 } from "../app/student/lesson-builder/readiness-blocker-list";
 
 test("250 simultaneous Hits keep the readiness panel to 12 actionable rows per page", () => {
-  const equation = { id: "eq", tokens: [{ id: "t", label: "5" }] };
+  const equation = {
+    id: "eq",
+    tokens: [
+      { id: "whole", label: "5" },
+      { id: "equals", label: "=" },
+      { id: "part-a", label: "2" },
+      { id: "plus", label: "+" },
+      { id: "part-b", label: "3" },
+    ],
+  };
   const events = Array.from({ length: 250 }, (_, index) => ({
     id: `event-${index}`,
     tick: 8,
@@ -19,7 +28,7 @@ test("250 simultaneous Hits keep the readiness panel to 12 actionable rows per p
         tick: 8,
         endTick: 8,
         equation,
-        hitBubbles: [{ tokenIndex: 0, targetId: "t", pads: ["left"] }],
+        hitBubbles: [{ tokenIndex: 0, targetId: "whole", pads: ["left"] }],
         spinTargets: [],
         dragTargets: [],
       }],

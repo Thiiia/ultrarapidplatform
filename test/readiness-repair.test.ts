@@ -27,6 +27,8 @@ const generalEquation: AuthoredSavedEquation = {
     { id: "term-a", label: "4x" },
     { id: "operator", label: "+" },
     { id: "term-b", label: "2" },
+    { id: "equals", label: "=" },
+    { id: "term-c", label: "10" },
   ],
 };
 

@@ -252,7 +252,7 @@ export function NumberBondsMissionComposer({
           <progress aria-label="Number of song notes placed" max={whole} value={Math.min(authoredNoteCount, whole)} />
           <span id="number-bonds-capacity">{capacityMessage}</span>
         </div>
-        <div className={styles.stopCard} role="status">
+        <div id="number-bonds-stop-guidance" className={styles.stopCard} role="status">
           <div><span>Lesson ends</span><strong>{formattedStop}</strong></div>
           <p>{!stopFitsSong
             ? "The final gem needs more song time. Move the last note earlier or choose a longer song."
@@ -264,8 +264,24 @@ export function NumberBondsMissionComposer({
           <button className={styles.secondary} type="button" disabled={!isSongLoaded || !canPlaceNotes || isPreparing} onClick={onBuildNotes}>
             {authoredNoteCount ? "Rebuild notes from song" : "Place notes from song"}
           </button>
-          <button className={styles.primary} type="button" disabled={!canPlay || isPreparing} onClick={onPlay}>
-            {isPreparing ? "Preparing mission…" : !isSongLoaded ? "Loading song notes…" : songCapacity < 2 && !isReady ? "Choose another song" : isReady ? "Play mission" : "Place notes & play"}
+          <button
+            className={styles.primary}
+            type="button"
+            aria-describedby="number-bonds-stop-guidance"
+            disabled={!canPlay || isPreparing}
+            onClick={onPlay}
+          >
+            {isPreparing
+              ? "Preparing mission…"
+              : !isSongLoaded
+                ? "Loading song notes…"
+                : !stopFitsSong
+                  ? "Move final note earlier"
+                  : songCapacity < 2 && !isReady
+                    ? "Choose another song"
+                    : isReady
+                      ? "Play mission"
+                      : "Place notes & play"}
           </button>
         </div>
         {status ? <p className={styles.status} role="status">{status}</p> : null}
