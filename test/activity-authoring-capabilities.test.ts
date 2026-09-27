@@ -4,6 +4,7 @@ import {
   getActivityAuthoringCapabilities,
   getAuthoredActivityContractIssues,
   getNumberBondsWhole,
+  validateAuthoredActivityTiming,
 } from "../lib/activity-authoring-capabilities";
 import {
   evaluateEncounterReadiness,
@@ -127,6 +128,19 @@ test("Number Bonds publish readiness requires exactly one Hit per whole unit", (
     equationQueue: [equation],
   });
   assert.equal(tooManyReadiness.blockers.some((blocker) => blocker.code === "activity_hit_count"), true);
+});
+
+test("Number Bonds accepts the fractional final interaction boundary without float narrowing", () => {
+  const finalHit = [{ id: "final-hit", type: "hit" as const, startSeconds: 140.527 }];
+
+  assert.deepEqual(
+    validateAuthoredActivityTiming("number-bonds", finalHit, 152.527),
+    [],
+  );
+  assert.deepEqual(
+    validateAuthoredActivityTiming("number-bonds", finalHit, 152.526999).map((issue) => issue.code),
+    ["gem_tail"],
+  );
 });
 
 test("Number Bonds gives a timing action before a too-close second gem is published", () => {
