@@ -3,9 +3,11 @@ import test from "node:test";
 
 import {
   authoredStopBufferSeconds,
+  resolveNumberBondsStopAtSeconds,
   validateNumberBondsTiming,
 } from "../lib/number-bonds-timing";
 import { validateAuthoredActivityTiming } from "../lib/activity-authoring-capabilities";
+import { createLessonClock } from "../lib/editor/lesson-timing";
 
 test("Number Bonds uses a full final interaction tail", () => {
   assert.equal(authoredStopBufferSeconds("number-bonds"), 12);
@@ -31,6 +33,16 @@ test("Number Bonds rejects a stop before the final gem completes", () => {
   const hits = [{ id: "last", startSeconds: 17.5 }];
   assert.equal(validateNumberBondsTiming(hits, 29.499)[0]?.code, "gem_tail");
   assert.equal(validateNumberBondsTiming(hits, undefined)[0]?.code, "stop_required");
+});
+
+test("automatic stop follows the chart tick when a rounded editor time lands earlier", () => {
+  const clock = createLessonClock('[Song]\n{\n  Resolution = 192\n}\n[SyncTrack]\n{\n  0 = B 123000\n}');
+  const editorHitSeconds = 6.001;
+  const runtimeHitSeconds = clock.toSeconds(clock.toTick(editorHitSeconds));
+  assert.ok(runtimeHitSeconds > editorHitSeconds);
+  assert.equal(validateNumberBondsTiming([{ id: "last", startSeconds: runtimeHitSeconds }], editorHitSeconds + 12)[0]?.code, "gem_tail");
+  const stopAtSeconds = resolveNumberBondsStopAtSeconds([editorHitSeconds], editorHitSeconds + 12, clock);
+  assert.deepEqual(validateNumberBondsTiming([{ id: "last", startSeconds: runtimeHitSeconds }], stopAtSeconds), []);
 });
 
 test("editor guidance delegates every timing decision to the shared readiness and publication validator", () => {

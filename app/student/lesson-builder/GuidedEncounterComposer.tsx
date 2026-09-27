@@ -202,8 +202,9 @@ function HitControls({
   instance,
   tokens,
   isNumberBonds,
+  isAlgebra,
   onPatchInstance,
-}: Pick<GuidedEncounterComposerProps, "instance" | "tokens" | "onPatchInstance"> & { isNumberBonds: boolean }) {
+}: Pick<GuidedEncounterComposerProps, "instance" | "tokens" | "onPatchInstance"> & { isNumberBonds: boolean; isAlgebra: boolean }) {
   const bubble = instance.hitBubbles[0];
   const selectedTokenIndex = bubble?.tokenIndex;
   const selectedSlots = new Set(bubble ? resolveAuthoredHitPadTarget(bubble) : []);
@@ -232,6 +233,11 @@ function HitControls({
       ) : null}
       <div data-repair-control="pad" className="algebra-composer__padPicker">
         <div className="algebra-composer__fieldLabel">{studentCopy.mechanics.chooseButtons}</div>
+        {isAlgebra ? <p className="algebra-composer__padInstruction" aria-live="polite">
+          {selectedTokenIndex === undefined
+            ? "Choose a term above, then choose where its bubble appears."
+            : `${selectedSlots.size} of ${padLimit} pads selected. Match the numbered pads on the player.`}
+        </p> : null}
         {legacyMapping.length > 0 ? (
           <div role="status" className="algebra-composer__legacyWarning">
             <span>This saved Hit uses the legacy pad layout. Its slot mapping differs from the player&apos;s named pads.</span>
@@ -259,7 +265,7 @@ function HitControls({
           <div role="group" aria-label="Choose the player pad for this hit" className="algebra-composer__padBoard">
             {PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad, label }, slot) => {
               const selected = selectedSlots.has(slot);
-              const offset = resolvePlayerHexHitPadPixelOffset(slot, PLAYER_HEX_AUTHORED_HIT_PAD_PREVIEW_RADIUS_PX);
+              const offset = resolvePlayerHexHitPadPixelOffset(slot, isAlgebra ? 70 : PLAYER_HEX_AUTHORED_HIT_PAD_PREVIEW_RADIUS_PX);
               if (!offset) return null;
               return (
                 <button
@@ -428,7 +434,7 @@ export function GuidedEncounterComposer({
       {onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} className="algebra-composer__primaryButton">Choose an equation</button> : null}
     </div>;
   } else if (instance.mechanic === "hit") {
-    controls = <HitControls instance={instance} tokens={tokens} isNumberBonds={isNumberBonds} onPatchInstance={onPatchInstance} />;
+    controls = <HitControls instance={instance} tokens={tokens} isNumberBonds={isNumberBonds} isAlgebra={isAlgebra} onPatchInstance={onPatchInstance} />;
   } else if (instance.mechanic === "spin") {
     controls = (
       <div className="algebra-composer__spinControls">
@@ -457,6 +463,12 @@ export function GuidedEncounterComposer({
     : instance.mechanic === "spin"
       ? "Spin the hit pads"
       : "Drag the highlighted term";
+  const previewPads = instance.mechanic === "hit" && instance.hitBubbles[0]
+    ? new Set(resolveAuthoredHitPadTarget(instance.hitBubbles[0]))
+    : new Set<number>();
+  const dragSourceLabel = instance.mechanic === "drag"
+    ? dragSources.find((source) => source.id === instance.dragTargets[0]?.sourceHitId)?.label
+    : null;
 
   return (
     <section
@@ -512,15 +524,18 @@ export function GuidedEncounterComposer({
               <span>{motionCue}</span>
             </span>
             <span className="algebra-composer__previewTarget">
-              {selectedTokenIndex === undefined ? "Choose a target in the action controls." : `Target: ${tokens[selectedTokenIndex]?.label ?? "equation token"}`}
+              {selectedTokenIndex === undefined
+                ? "Choose a target in the action controls."
+                : `Target: ${tokens[selectedTokenIndex]?.label ?? "equation token"}${dragSourceLabel ? ` · From ${dragSourceLabel}` : ""}`}
             </span>
             <span className="algebra-composer__previewTiming">{timingSummary}</span>
           </div>
           <div className="algebra-composer__equation" aria-hidden="true">
             {tokens.map((token, index) => (
               <span
-                key={token.id}
+                key={`${token.id}-${selectedTokenIndex === index ? instance.mechanic : "idle"}`}
                 className="algebra-composer__equationToken"
+                data-mechanic={instance.mechanic}
                 data-targeted={selectedTokenIndex === index ? "true" : undefined}
                 data-operator={isAuthoredEquationOperator(token.label) ? "true" : undefined}
               >
@@ -528,6 +543,23 @@ export function GuidedEncounterComposer({
               </span>
             ))}
           </div>
+          {isAlgebra ? (
+            <div className="algebra-composer__gesture" data-mechanic={instance.mechanic} aria-hidden="true">
+              {instance.mechanic === "hit" ? (
+                <div className="algebra-composer__gesturePads">
+                  {PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad }, slot) => {
+                    const offset = resolvePlayerHexHitPadPixelOffset(slot, 37);
+                    return offset ? <span key={pad} data-selected={previewPads.has(slot) ? "true" : undefined} style={{ left: `calc(50% ${offset.dx < 0 ? "-" : "+"} ${Math.abs(offset.dx).toFixed(2)}px)`, top: `calc(50% ${offset.dy < 0 ? "-" : "+"} ${Math.abs(offset.dy).toFixed(2)}px)` }}>{slot + 1}</span> : null;
+                  })}
+                  <i />
+                </div>
+              ) : instance.mechanic === "spin" ? (
+                <div className="algebra-composer__gestureSpin"><span>↻</span></div>
+              ) : (
+                <div className="algebra-composer__gestureDrag"><span /><i /><span /></div>
+              )}
+            </div>
+          ) : null}
         </div>
       ) : null}
       {!isNumberBonds && instance.equation && onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} className="algebra-composer__changeEquation">Change equation</button> : null}

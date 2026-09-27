@@ -15,6 +15,14 @@ const composerSource = readFileSync(
   join(process.cwd(), "app/student/lesson-builder/GuidedEncounterComposer.tsx"),
   "utf8",
 );
+const numberBondsComposerSource = readFileSync(
+  join(process.cwd(), "app/student/lesson-builder/NumberBondsMissionComposer.tsx"),
+  "utf8",
+);
+const numberBondsComposerStyles = readFileSync(
+  join(process.cwd(), "app/student/lesson-builder/NumberBondsMissionComposer.module.css"),
+  "utf8",
+);
 const studentStyles = readFileSync(
   join(process.cwd(), "app/student/student.module.css"),
   "utf8",
@@ -146,6 +154,23 @@ test("Number Bonds note creation explains the one-note, one-gem contract", () =>
   assert.match(composerSource, /Each note brings one gem into play/);
   assert.match(lessonBuilderSource, /createDefaultNumberBondHitBubble/);
   assert.match(lessonBuilderSource, /NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS/);
+});
+
+test("Number Bonds exposes a responsive ten-and-ones model and edits the split without replacing cues", () => {
+  assert.match(numberBondsComposerSource, /const tenGroups = Math\.floor\(count \/ 10\)/);
+  assert.match(numberBondsComposerSource, /const looseCount = count % 10/);
+  assert.match(numberBondsComposerSource, /<p>\{whole\} = \{partA\} \+ \{partB\}<\/p>/);
+  assert.match(numberBondsComposerSource, /onPartAChange: \(partA: number\) => void/);
+  assert.match(numberBondsComposerSource, /key=\{`\$\{whole\}-\$\{partA\}-\$\{partB\}`\}/);
+  assert.match(numberBondsComposerSource, /isNextSuggested \? styles\.noteNext/);
+  assert.match(
+    lessonBuilderSource,
+    /function handleChooseNumberBondSplit[\s\S]*?timelineEvents\.map\(\(eventSlot\) => applyEquationToEvent\(eventSlot, equation\)\)[\s\S]*?same \$\{whole\} spaced cues are still in place/,
+  );
+  assert.match(numberBondsComposerStyles, /\.tenFrame[\s\S]*?grid-template-columns:\s*repeat\(5, 14px\)/);
+  assert.match(numberBondsComposerStyles, /@media \(max-width:\s*430px\)[\s\S]*?\.splitEditor/);
+  assert.match(numberBondsComposerStyles, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.pictorialModel/);
+  assert.match(numberBondsComposerStyles, /\.splitEditor input[\s\S]*?min-height:\s*44px/);
 });
 
 test("readiness blockers select the exact cue and seek to its authored time", () => {

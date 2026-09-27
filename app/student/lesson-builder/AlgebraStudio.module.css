@@ -33,6 +33,8 @@
   backdrop-filter: blur(18px) saturate(135%);
 }
 .studioBar {
+  position: relative;
+  z-index: 1003;
   min-height: 64px;
   box-sizing: border-box;
   display: flex;
@@ -60,17 +62,33 @@
   font-weight: 900;
 }
 .studioMark span:last-child { color: var(--studio-accent); }
-.studioTitle { min-width: 0; display: grid; gap: 1px; }
+.studioTitle { min-width: 0; flex: 1 1 160px; display: grid; gap: 1px; }
 .studioTitle > span, .appearanceLabel { color: #d6baff; font: 800 10px/1.3 var(--ur-font-technical), monospace; letter-spacing: .1em; }
 .studioTitle strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(14px, 1.45vw, 19px); }
-.studioCounts { margin-left: auto; display: flex; gap: 12px; align-items: center; color: var(--studio-muted); white-space: nowrap; font-size: 12px; }
+.studioCounts { margin-left: auto; display: flex; gap: 12px; align-items: center; color: var(--studio-muted); white-space: nowrap; font-size: 14px; }
 .studioCounts strong { color: #fff; font-size: 15px; }
 .countDivider { width: 1px; height: 20px; background: var(--studio-border); }
-.addAction { min-height: 39px; flex: none; padding: 8px 13px; border: 1px solid #cfff04; border-radius: 10px; background: #cfff04; color: #10182a; font-size: 12px; font-weight: 900; cursor: pointer; }
+.addAction { min-height: 44px; flex: none; padding: 8px 16px; border: 1px solid #cfff04; border-radius: 14px; background: #cfff04; color: #10182a; font-size: 14px; font-weight: 900; cursor: pointer; transition: transform .22s ease, box-shadow .22s ease; }
+.addAction:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 22px #cfff0452; }
 .addAction:disabled { border-color: #657281; background: #283044; color: #a5afbf; cursor: not-allowed; }
+.guideWrap { position: relative; flex: none; }
+.guideToggle { min-height: 44px; padding: 8px 13px; border: 1px solid #bda7ec84; border-radius: 13px; background: #9879d524; color: #f5edff; font-size: 13px; font-weight: 800; cursor: pointer; }
+.guideToggle[aria-expanded="true"] { background: #9879d54d; border-color: #d7baff; }
+.guidePopover { position: absolute; top: calc(100% + 12px); right: 0; width: min(390px, calc(100vw - 24px)); box-sizing: border-box; display: grid; gap: 13px; padding: 20px; border: 1px solid #c1a5ffad; border-radius: 18px; background: #11182e; color: #fff; box-shadow: 0 20px 50px #0009; font-size: 14px; line-height: 1.5; }
+.guidePopover > strong { font-size: 19px; line-height: 1.2; }
+.guidePopover p { margin: 0; color: #d4d8ec; }
+.guidePopover ol { margin: 0; padding-left: 22px; display: grid; gap: 8px; color: #d4d8ec; }
+.guidePopover li::marker { color: #cfff04; font-weight: 900; }
+.guidePopover b { color: #fff; }
+.guideActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.guideActions button { min-height: 42px; padding: 8px 11px; border: 1px solid #bba9e9; border-radius: 10px; background: #2b2750; color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; }
+.guideActions button:last-child { border-color: #cfff04; background: #cfff04; color: #0b1428; }
+.guideActions button:disabled { opacity: .55; cursor: not-allowed; }
+.tutorialBubble { animation: studio-bubble-arrive .35s cubic-bezier(.18,1.3,.3,1) both; }
+@keyframes studio-bubble-arrive { from { transform: translateY(8px) scale(.94); opacity: .5; } to { transform: translateY(0) scale(1); opacity: 1; } }
 .appearance { display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 13px; border: 1px solid var(--studio-border); background: #0c122acc; }
 .appearanceLabel { padding: 0 8px; color: #b6b9d2; }
-.appearance button { min-height: 34px; border: 0; border-radius: 9px; padding: 5px 11px; color: var(--studio-muted); background: transparent; font-size: 11px; font-weight: 800; cursor: pointer; }
+.appearance button { min-height: 34px; border: 0; border-radius: 9px; padding: 5px 11px; color: var(--studio-muted); background: transparent; font-size: 12px; font-weight: 800; cursor: pointer; }
 .appearance button[aria-pressed="true"] { color: #10182a; background: var(--studio-accent); box-shadow: 0 3px 12px #cfff0438; }
 .appearance button:not([aria-pressed="true"]):hover { color: #fff; background: #ffffff19; }
 .main { gap: 10px; padding: 10px clamp(8px, 1.5vw, 24px) 14px; box-sizing: border-box; }
@@ -123,7 +141,7 @@
   gap: 20px;
 }
 .composer :global(.algebra-composer__eyebrow) { color: #d7bdff; letter-spacing: .15em; }
-.composer :global(.algebra-composer__title) { font-size: clamp(22px, 2.5vw, 32px); letter-spacing: -.025em; }
+.composer :global(.algebra-composer__title) { font-size: clamp(24px, 2.5vw, 32px); letter-spacing: -.025em; }
 .composer :global(.algebra-composer__stepCount) { color: #d7bdff; }
 .composerBody { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(250px, .9fr); align-items: start; gap: 17px; }
 .legacyBody, .legacyStage, .legacyInspector { display: contents; }
@@ -132,51 +150,80 @@
 .inspectorHeading { display: grid; gap: 3px; padding-bottom: 12px; border-bottom: 1px solid #ffffff22; }
 .inspectorHeading span { color: #d7bdff; font: 800 10px/1.3 var(--ur-font-technical), monospace; letter-spacing: .12em; }
 .inspectorHeading strong { font-size: 16px; }
-.composer :global(.algebra-composer__preview) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 22px; border: 1px solid #c4abff70; border-radius: 19px; background: radial-gradient(circle at 75% 15%, #9067e63d, transparent 45%), #161737; }
+.composer :global(.algebra-composer__preview) { display: grid; grid-template-columns: minmax(0, 1fr) 116px; gap: 16px; padding: 22px; border: 1px solid #c4abff70; border-radius: 19px; background: radial-gradient(circle at 75% 15%, #9067e63d, transparent 45%), #161737; }
 .composer :global(.algebra-composer__previewCopy) { gap: 7px; }
-.composer :global(.algebra-composer__previewCopy strong) { font-size: 17px; }
+.composer :global(.algebra-composer__previewCopy strong) { font-size: 18px; }
+.composer :global(.algebra-composer__previewTarget), .composer :global(.algebra-composer__previewTiming) { font-size: 13px; }
 .composer :global(.algebra-composer__previewAction) { background: #b28bff20; border-color: #b28bff70; }
 .composer :global(.algebra-composer__previewActionIcon) { color: #d7bdff; }
-.composer :global(.algebra-composer__equation) { min-height: 100px; justify-content: flex-start; gap: 9px; padding: 10px 0; }
+.composer :global(.algebra-composer__previewAction) { font-size: 13px; }
+.composer :global(.algebra-composer__equation) { grid-column: 1 / -1; min-height: 85px; justify-content: flex-start; gap: 12px; padding: 10px 0; }
 .composer :global(.algebra-composer__equationToken) { min-width: 42px; min-height: 55px; border-radius: 12px; border-color: #ffffff38; background: #0c1431; font-size: clamp(19px, 2.2vw, 26px); box-shadow: inset 0 1px #ffffff20; }
 .composer :global(.algebra-composer__equationToken[data-targeted="true"]) { border-color: var(--studio-accent); background: #cfff0420; color: var(--studio-accent); box-shadow: 0 0 22px #cfff0440; }
 .composer :global(.algebra-composer__equationToken[data-operator="true"]) { border-color: transparent; background: transparent; box-shadow: none; color: #d5bbff; }
 .composer :global(.algebra-composer__steps) { gap: 8px; }
-.composer :global(.algebra-composer__step) { color: #bbc3d9; }
+.composer :global(.algebra-composer__step) { color: #bbc3d9; font-size: 13px; }
 .composer :global(.algebra-composer__step[data-state="active"]) { color: #fff; }
 .composer :global(.algebra-composer__changeEquation) { justify-self: start; border-color: #ae95e888; background: #ffffff10; }
 .composer :global(.algebra-composer__targetLabel) { color: #fff; font-size: 14px; }
 .composer :global(.algebra-composer__tokenButton) { min-width: 45px; min-height: 45px; border-color: #ffffff43; border-radius: 11px; background: #18223d; }
 .composer :global(.algebra-composer__tokenButton[data-selected="true"]) { border-color: var(--studio-accent); background: #cfff0420; box-shadow: inset 0 0 0 1px #cfff0470; }
-.composer :global(.algebra-composer__padBoard) { width: min(100%, 230px); height: 178px; border-radius: 17px; border-color: #a493dd77; background: radial-gradient(circle at center, #583b8259, #111c35 70%); }
-.composer :global(.algebra-composer__padButton) { border-radius: 13px; border-color: #b5a7dfaa; background: #343354; }
+.composer :global(.algebra-composer__padBoard) { width: min(100%, 280px); height: 218px; border-radius: 22px; border-color: #a493dd77; background: radial-gradient(circle at center, #583b8259, #111c35 70%); }
+.composer :global(.algebra-composer__padButton) { width: 48px; height: 48px; border-radius: 50%; border-color: #b5a7dfaa; background: #343354; font-size: 15px; transition: transform .25s cubic-bezier(.2,.8,.2,1), background .25s ease, box-shadow .25s ease; }
+.composer :global(.algebra-composer__padButton:hover:not(:disabled)) { transform: translate(-50%, -50%) scale(1.12); }
 .composer :global(.algebra-composer__padButton[data-selected="true"]) { border-color: var(--studio-accent); background: var(--studio-accent); }
+.composer :global(.algebra-composer__padInstruction) { margin: 0; max-width: 34ch; color: #d5d8ed; font-size: 13px; line-height: 1.45; text-align: center; }
+.composer :global(.algebra-composer__targetLabel), .composer :global(.algebra-composer__fieldLabel) { font-size: 14px; }
+.composer :global(.algebra-composer__hint) { font-size: 12px; }
+.composer :global(.experience-status) { font-size: 14px; line-height: 1.45; }
+.composer :global(.algebra-composer__gesture) { width: 116px; height: 116px; display: grid; place-items: center; border-radius: 50%; background: #8464ca18; border: 1px solid #c5aafa52; }
+.composer :global(.algebra-composer__gesturePads) { position: relative; width: 112px; height: 112px; }
+.composer :global(.algebra-composer__gesturePads span) { position: absolute; width: 31px; height: 31px; display: grid; place-items: center; transform: translate(-50%, -50%); border: 1px solid #9b9ec1; border-radius: 50%; background: #202841; color: #e1e4f2; font-size: 12px; font-weight: 800; }
+.composer :global(.algebra-composer__gesturePads span[data-selected="true"]) { border-color: #cfff04; background: #cfff04; color: #081525; box-shadow: 0 0 0 5px #cfff0424, 0 0 20px #cfff0470; animation: studio-bubble-pop .42s cubic-bezier(.18,1.5,.4,1) both; }
+.composer :global(.algebra-composer__gesturePads i) { position: absolute; inset: 50% auto auto 50%; width: 14px; height: 14px; border-radius: 50%; transform: translate(-50%, -50%); background: #916be5; }
+.composer :global(.algebra-composer__gestureSpin) { width: 78px; height: 78px; display: grid; place-items: center; border: 3px dashed #e0c5ff; border-radius: 50%; animation: studio-spin 3s linear infinite; }
+.composer :global(.algebra-composer__gestureSpin span) { color: #d4b8ff; font-size: 40px; }
+.composer :global(.algebra-composer__gestureDrag) { width: 84px; display: flex; align-items: center; gap: 5px; }
+.composer :global(.algebra-composer__gestureDrag span) { width: 27px; height: 27px; flex: none; border: 2px solid #d7baff; border-radius: 50%; background: #7955be; }
+.composer :global(.algebra-composer__gestureDrag span:last-child) { background: transparent; border-style: dashed; }
+.composer :global(.algebra-composer__gestureDrag i) { height: 3px; flex: 1; background: #d7baff; position: relative; }
+.composer :global(.algebra-composer__gestureDrag i)::after { content: ""; position: absolute; right: 0; top: -4px; border-left: 7px solid #d7baff; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+.composer :global(.algebra-composer__gestureDrag span:first-child) { animation: studio-drag 1.8s ease-in-out infinite; }
+@keyframes studio-bubble-pop { from { transform: translate(-50%, -50%) scale(.45); opacity: .25; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+@keyframes studio-spin { to { transform: rotate(360deg); } }
+@keyframes studio-drag { 50% { transform: translateX(15px) scale(.82); } }
 .composer :global(.algebra-composer__timing) { border-top: 1px solid #ffffff26; padding-top: 5px; }
 .composer :global(.experience-status) { border-radius: 12px; }
 .shell[data-appearance="focus"] .header, .shell[data-appearance="focus"] .studioBar, .shell[data-appearance="focus"] .viewer, .shell[data-appearance="focus"] .timeline, .shell[data-appearance="focus"] .composer { backdrop-filter: none; box-shadow: none; }
 .shell[data-appearance="focus"] .composer { background: #111a2c; border-color: #49607a; }
 .shell[data-appearance="focus"] .composerInspector { background: #081222; border-color: #49607a; }
 .shell[data-appearance="focus"] .composer :global(.algebra-composer__preview) { background: #151f37; border-color: #49607a; }
-.draftBackdrop { position: fixed; inset: 0; z-index: 1600; display: grid; place-items: center; padding: 18px; background: #030613d9; backdrop-filter: blur(9px); }
-.draftDialog { width: min(1160px, 100%); max-height: min(92vh, 980px); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 14px; overflow: hidden; padding: clamp(16px, 2.3vw, 26px); box-sizing: border-box; border: 1px solid #c5adff88; border-radius: 23px; background: linear-gradient(140deg, #241e48, #101b32 55%, #0b132a); color: #fff; box-shadow: 0 28px 90px #000b, inset 0 1px #fff4; }
+.draftBackdrop { position: fixed; inset: 122px 0 0; z-index: 1600; display: grid; justify-items: end; background: #03061370; }
+.draftDialog { width: min(760px, 100%); height: 100%; min-height: 0; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 14px; overflow: hidden; padding: clamp(16px, 2.3vw, 26px); box-sizing: border-box; border: 1px solid #c5adff88; border-right: 0; border-radius: 24px 0 0 24px; background: linear-gradient(140deg, #241e48, #101b32 55%, #0b132a); color: #fff; box-shadow: -20px 0 70px #0009, inset 0 1px #fff4; animation: studio-sheet-arrive .3s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes studio-sheet-arrive { from { transform: translateX(24px); opacity: .7; } to { transform: translateX(0); opacity: 1; } }
 .draftHeader { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
 .draftHeader span { color: #d7bdff; font: 800 10px/1.3 var(--ur-font-technical), monospace; letter-spacing: .13em; }
 .draftHeader h2 { margin: 5px 0; font-size: clamp(21px, 2.5vw, 31px); }
-.draftHeader p { margin: 0; color: #c4c8dd; font-size: 13px; }
+.draftHeader p { margin: 0; color: #c4c8dd; font-size: 14px; line-height: 1.45; }
 .draftClose { width: 42px; height: 42px; flex: none; border: 1px solid #ffffff58; border-radius: 11px; background: #ffffff15; color: #fff; font-size: 25px; cursor: pointer; }
 .draftTopControls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; padding: 12px; border: 1px solid #ffffff2f; border-radius: 15px; background: #070e22a8; }
-.draftMechanics { display: flex; gap: 5px; padding: 4px; border: 1px solid #ffffff36; border-radius: 11px; }
-.draftMechanics button { min-height: 37px; min-width: 65px; padding: 6px 10px; border: 0; border-radius: 8px; background: transparent; color: #c4c8dd; text-transform: capitalize; font-weight: 800; cursor: pointer; }
-.draftMechanics button[aria-pressed="true"] { color: #0a1326; background: #cfff04; }
-.draftEquationLabel { min-width: min(250px, 100%); flex: 1; display: grid; gap: 5px; color: #d9dded; font-size: 11px; font-weight: 800; }
+.draftMechanics { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.draftMechanics button { min-height: 66px; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 9px; border: 1px solid #ffffff39; border-radius: 12px; background: #1c2541; color: #d5d8e9; text-align: left; cursor: pointer; transition: transform .2s ease, background .2s ease, border-color .2s ease; }
+.draftMechanics button:hover { transform: translateY(-2px); border-color: #d7bdff; }
+.draftMechanics button[aria-pressed="true"] { color: #0a1326; border-color: #cfff04; background: #cfff04; box-shadow: 0 5px 20px #cfff0430; }
+.draftMechanics button > span { display: grid; gap: 2px; min-width: 0; }
+.draftMechanics button strong { font-size: 14px; }
+.draftMechanics button small { font-size: 11px; line-height: 1.25; font-weight: 600; }
+.draftEquationLabel { min-width: min(250px, 100%); flex: 1; display: grid; gap: 5px; color: #d9dded; font-size: 13px; font-weight: 800; }
 .draftEquationLabel select { min-height: 45px; max-width: 100%; border: 1px solid #a99ce066; border-radius: 10px; padding: 0 10px; background: #101a32; color: #fff; }
-.draftCreateEquation { min-height: 45px; padding: 8px 12px; border: 1px solid #b7a2ec8c; border-radius: 10px; background: #a586ea22; color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; }
+.draftEquationLabel select { font-size: 14px; }
+.draftCreateEquation { min-height: 45px; padding: 8px 12px; border: 1px solid #b7a2ec8c; border-radius: 10px; background: #a586ea22; color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; }
 .draftComposer { min-height: 0; overflow: auto; padding: 2px; }
 .draftComposer > :global(.algebra-composer) { width: 100%; }
 .draftFooter { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid #ffffff2b; }
-.draftFooter > span { color: #f4dda4; font-size: 12px; line-height: 1.4; }
+.draftFooter > span { color: #f4dda4; font-size: 13px; line-height: 1.4; }
 .draftFooter > div { display: flex; gap: 8px; margin-left: auto; }
-.draftCancel, .draftCommit { min-height: 45px; padding: 9px 16px; border-radius: 10px; font-size: 12px; font-weight: 900; cursor: pointer; }
+.draftCancel, .draftCommit { min-height: 45px; padding: 9px 16px; border-radius: 10px; font-size: 14px; font-weight: 900; cursor: pointer; }
 .draftCancel { border: 1px solid #ffffff5e; background: #ffffff10; color: #fff; }
 .draftCommit { border: 1px solid #cfff04; background: #cfff04; color: #0a1326; }
 .draftCommit:disabled { border-color: #657281; background: #2d3945; color: #adb8c3; cursor: not-allowed; }
@@ -185,22 +232,36 @@
   .header, .studioBar, .viewer, .timeline, .composer { backdrop-filter: none; }
   .composer { background: #111a2c; }
 }
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .studioCounts { display: none; }
+}
+@media (max-width: 900px) {
   .appearance { margin-left: auto; }
+  .appearanceLabel { display: none; }
+  .appearance button { padding: 5px 8px; }
   .composerBody { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 600px) {
   .studioBar { flex-wrap: wrap; }
   .studioTitle { flex: 1; }
   .appearance { width: 100%; justify-content: center; }
+  .guideWrap { order: 3; }
+  .guidePopover { position: fixed; top: 172px; left: 12px; right: 12px; width: auto; max-height: calc(100dvh - 184px); overflow: auto; }
+  .composer :global(.algebra-composer__preview) { grid-template-columns: minmax(0, 1fr) 100px; padding: 15px; }
+  .composer :global(.algebra-composer__gesture) { width: 100px; height: 100px; }
   .emptySteps { grid-template-columns: 1fr; }
   .emptySteps span { display: flex; align-items: center; justify-content: center; }
-  .draftBackdrop { padding: 8px; }
-  .draftDialog { max-height: 96vh; padding: 12px; }
+  .draftBackdrop { inset: 0; }
+  .draftDialog { width: 100%; border-radius: 0; padding: 12px; }
+  .draftMechanics button { flex-direction: column; align-items: flex-start; }
+  .draftMechanics button small { display: none; }
   .draftFooter > div { width: 100%; }
   .draftFooter button { flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .composer :global(.algebra-composer__equationToken[data-targeted="true"]) { animation: none; }
+  .composer :global(.algebra-composer__gesturePads span[data-selected="true"]), .composer :global(.algebra-composer__gestureSpin), .composer :global(.algebra-composer__gestureDrag span:first-child), .draftDialog { animation: none; }
+  .tutorialBubble { animation: none; }
+  .addAction, .draftMechanics button, .composer :global(.algebra-composer__padButton) { transition: none; }
+  .addAction:hover:not(:disabled), .draftMechanics button:hover { transform: none; }
 }

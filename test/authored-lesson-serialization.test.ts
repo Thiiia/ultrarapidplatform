@@ -700,6 +700,55 @@ test("Number Bonds published content hydrates and serializes without changing it
   );
 });
 
+test("make thirteen keeps 13 = 10 + 3, one hit per unit, and its automatic stop after reload", () => {
+  const clock = createLessonClock(
+    `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+  );
+  const identity = { ...IDENTITY, activityKey: "number-bonds" };
+  const bond = equation("bond-13", ["13", "=", "10", "+", "3"]);
+  const events = Array.from({ length: 13 }, (_, index) => makeEvent(
+    `event-13-${index}`,
+    10 + index * 10,
+    { hit: 1 },
+    {
+      equation: bond,
+      instances: {
+        hit: [instance(`hit-13-${index}`, {
+          tick: 10 + index * 10,
+          equation: bond,
+          hitBubbles: [{ tokenIndex: 0, targetId: "bond-13-token-0", positions: ["left"], pads: ["left"] }],
+        })],
+      },
+    },
+  ));
+  const automaticStop = 142;
+
+  const first = serializeAuthoredLesson(
+    events,
+    identity,
+    clock,
+    automaticStop,
+    [bond],
+    { forPublish: true, activityKey: "number-bonds" },
+  );
+  const parsed = parseAuthoredLessonDraft(first);
+  const hydrated = timelineEventsFromAuthoredLesson(parsed, clock);
+  const second = serializeAuthoredLesson(
+    hydrated.events,
+    identity,
+    clock,
+    parsed.stopAtSeconds,
+    hydrated.equations,
+    { forPublish: true, activityKey: "number-bonds" },
+  );
+
+  assert.deepEqual(second, first);
+  assert.equal(parsed.stopAtSeconds, automaticStop);
+  assert.equal(second.encounters.length, 13);
+  assert.equal(second.equations?.[0]?.tokens?.map((token) => token.label).join(" "), "13 = 10 + 3");
+  assert.ok(second.encounters.every((encounter) => encounter.type === "hit" && encounter.equationId === "bond-13"));
+});
+
 test("never serializes a foreign target identity after an equation edit", () => {
   const clock = { toTick: (seconds: number) => Math.round(seconds * 1000), toSeconds: (tick: number) => tick / 1000 };
   const draft = serializeAuthoredLesson(

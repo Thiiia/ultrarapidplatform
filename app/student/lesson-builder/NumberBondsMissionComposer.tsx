@@ -1,11 +1,60 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { NUMBER_BONDS_MAX_WHOLE, NUMBER_BONDS_MIN_WHOLE } from "@/lib/number-bonds-authoring";
 import styles from "./NumberBondsMissionComposer.module.css";
 
 type OrbitNote = { id: string; seconds: number };
 const QUICK_TARGETS = [5, 7, 8, 10, 12, 15, 20];
+
+function UnitGroup({ count, tone, label, filled = true }: { count: number; tone: "whole" | "partA" | "partB"; label: string; filled?: boolean }) {
+  const tenGroups = Math.floor(count / 10);
+  const looseCount = count % 10;
+  const units = (length: number) => Array.from({ length }, (_, index) => (
+    <span className={`${styles.modelUnit} ${styles[`modelUnit_${tone}`]} ${filled ? "" : styles.modelUnit_empty}`} key={index} aria-hidden="true" />
+  ));
+
+  return (
+    <div className={styles.unitGroup} role="img" aria-label={label}>
+      {Array.from({ length: tenGroups }, (_, index) => (
+        <span className={styles.tenFrame} key={`ten-${index}`} aria-hidden="true">{units(10)}</span>
+      ))}
+      {looseCount ? (
+        <span
+          className={styles.looseUnits}
+          style={{ "--unit-columns": Math.min(5, looseCount) } as CSSProperties}
+          aria-hidden="true"
+        >
+          {units(looseCount)}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function PartWholeModel({ whole, partA, partB }: { whole: number; partA: number; partB: number }) {
+  return (
+    <div className={styles.pictorialModel} aria-label={`${whole} equals ${partA} plus ${partB}; every gem is one unit`}>
+      <div className={styles.modelWhole}>
+        <span>Whole · {whole}</span>
+        <UnitGroup count={whole} tone="whole" label={`${whole} single-unit gems in the whole`} />
+      </div>
+      <div className={styles.modelConnector} aria-hidden="true"><span /></div>
+      <div className={styles.modelParts}>
+        <div>
+          <span>Part A · {partA}</span>
+          <UnitGroup count={partA} tone="partA" label={`${partA} single-unit places in part A`} filled={false} />
+        </div>
+        <strong aria-hidden="true">+</strong>
+        <div>
+          <span>Part B · {partB}</span>
+          <UnitGroup count={partB} tone="partB" label={`${partB} single-unit places in part B`} filled={false} />
+        </div>
+      </div>
+      <p>{whole} = {partA} + {partB}</p>
+    </div>
+  );
+}
 
 export function NumberBondsMissionComposer({
   whole,
@@ -17,10 +66,13 @@ export function NumberBondsMissionComposer({
   isSongLoaded,
   notes,
   authoredNoteCount,
+  stopAtSeconds,
+  songDurationSeconds,
   isReady,
   isPreparing,
   status,
   onWholeChange,
+  onPartAChange,
   onShuffle,
   onBuildNotes,
   onPlay,
@@ -35,10 +87,13 @@ export function NumberBondsMissionComposer({
   isSongLoaded: boolean;
   notes: OrbitNote[];
   authoredNoteCount: number;
+  stopAtSeconds?: number;
+  songDurationSeconds: number;
   isReady: boolean;
   isPreparing: boolean;
   status: string;
   onWholeChange: (whole: number) => void;
+  onPartAChange: (partA: number) => void;
   onShuffle: () => void;
   onBuildNotes: () => void;
   onPlay: () => void;
@@ -53,7 +108,10 @@ export function NumberBondsMissionComposer({
   const maxInputWhole = Math.max(NUMBER_BONDS_MIN_WHOLE, maxSelectableWhole);
   const canChooseNumber = isSongLoaded && maxSelectableWhole >= NUMBER_BONDS_MIN_WHOLE && !isPreparing;
   const canPlaceNotes = whole >= NUMBER_BONDS_MIN_WHOLE && whole <= maxSelectableWhole;
-  const canPlay = isSongLoaded && (isReady || canPlaceNotes);
+  const stopFitsSong = !stopAtSeconds || !songDurationSeconds || stopAtSeconds <= songDurationSeconds + 0.05;
+  const canPlay = isSongLoaded && stopFitsSong && (isReady || canPlaceNotes);
+  const lastNoteSeconds = notes.length ? Math.max(...notes.map((note) => note.seconds)) : null;
+  const formattedStop = stopAtSeconds === undefined ? "After notes are placed" : `${Math.floor(stopAtSeconds / 60)}:${String(Math.floor(stopAtSeconds % 60)).padStart(2, "0")}`;
   const difficultyLabel = songDifficulty.replace("Single", "");
   const capacityMessage = !isSongLoaded
     ? "Loading this song’s playable notes…"
@@ -71,20 +129,22 @@ export function NumberBondsMissionComposer({
         <p>Choose any target from 2 to {NUMBER_BONDS_MAX_WHOLE}. Each orbiting note becomes one gem; the selected song and chart determine how many can fit.</p>
       </div>
 
-      <div className={styles.orbit} role="group" aria-label={`Make ${whole}: ${partA} plus ${partB} equals ${whole}; ${whole} song notes`}>
+      <div className={styles.orbit} role="group" aria-label={`Make ${whole}: ${whole} equals ${partA} plus ${partB}; ${whole} song notes`}
+        style={{ "--bond-progress": `${Math.min(100, 100 * authoredNoteCount / whole)}%` } as CSSProperties}>
         <div className={styles.orbitRing} aria-hidden="true" />
         <div className={styles.orbitCore}>
           <span>MAKE</span>
           <strong>{whole}</strong>
-          <span className={styles.equation}>{partA} + {partB} = {whole}</span>
+          <span className={styles.equation}>{whole} = {partA} + {partB}</span>
         </div>
         {Array.from({ length: whole }, (_, index) => {
           const angle = -Math.PI / 2 + 2 * Math.PI * index / whole;
           const note = notes[index];
           const isAuthored = Boolean(note && index < authoredNoteCount);
+          const isNextSuggested = Boolean(note && !isAuthored && index === authoredNoteCount);
           return (
             <button
-              className={`${styles.note} ${isAuthored ? styles.notePlaced : note ? styles.noteSuggested : styles.noteEmpty}`}
+              className={`${styles.note} ${isAuthored ? styles.notePlaced : note ? styles.noteSuggested : styles.noteEmpty} ${isNextSuggested ? styles.noteNext : ""}`}
               key={index}
               type="button"
               style={{ left: `${50 + Math.cos(angle) * 39}%`, top: `${50 + Math.sin(angle) * 39}%`, animationDelay: `${(index % 5) * -0.45}s` }}
@@ -100,6 +160,12 @@ export function NumberBondsMissionComposer({
       </div>
 
       <div className={styles.controls}>
+        <div className={styles.playFlow} aria-label="How this lesson plays">
+          <span><b>01</b> Catch a moving gem</span>
+          <span><b>02</b> Tap with the beat</span>
+          <span><b>03</b> Place it in a part</span>
+        </div>
+        <PartWholeModel key={`${whole}-${partA}-${partB}`} whole={whole} partA={partA} partB={partB} />
         <div className={styles.targetPanel}>
           <div className={styles.targetHeading}>
             <strong>Choose a target</strong>
@@ -125,6 +191,41 @@ export function NumberBondsMissionComposer({
             <button type="button" aria-label="Increase target" disabled={!canChooseNumber || whole >= maxSelectableWhole} onClick={() => onWholeChange(whole + 1)}>+</button>
             <button className={styles.shuffle} type="button" disabled={!canChooseNumber || maxSelectableWhole < 3} onClick={onShuffle}>Shuffle</button>
           </div>
+          <fieldset className={styles.splitEditor} disabled={!canChooseNumber} aria-describedby="number-bonds-split-help">
+            <legend>Choose the two parts</legend>
+            <label>
+              <span>Part A</span>
+              <input
+                type="number"
+                min={1}
+                max={whole - 1}
+                step={1}
+                value={partA}
+                onChange={(event) => {
+                  const next = Number(event.currentTarget.value);
+                  if (Number.isInteger(next) && next > 0 && next < whole && next !== partA) onPartAChange(next);
+                }}
+              />
+            </label>
+            <span aria-hidden="true">+</span>
+            <label>
+              <span>Part B</span>
+              <input
+                type="number"
+                min={1}
+                max={whole - 1}
+                step={1}
+                value={partB}
+                onChange={(event) => {
+                  const next = Number(event.currentTarget.value);
+                  const nextPartA = whole - next;
+                  if (Number.isInteger(next) && next > 0 && next < whole && nextPartA !== partA) onPartAChange(nextPartA);
+                }}
+              />
+            </label>
+            <strong>= {whole}</strong>
+          </fieldset>
+          <p className={styles.splitHelp} id="number-bonds-split-help">Each part must be at least 1. Changing a part keeps the same {whole} spaced song cues.</p>
           <div className={styles.quickTargets} role="group" aria-label="Common number bond targets">
             {QUICK_TARGETS.map((target) => {
               const available = canChooseNumber && target <= maxSelectableWhole;
@@ -150,6 +251,14 @@ export function NumberBondsMissionComposer({
           <strong>{authoredNoteCount} of {whole} notes placed</strong>
           <progress aria-label="Number of song notes placed" max={whole} value={Math.min(authoredNoteCount, whole)} />
           <span id="number-bonds-capacity">{capacityMessage}</span>
+        </div>
+        <div className={styles.stopCard} role="status">
+          <div><span>Lesson ends</span><strong>{formattedStop}</strong></div>
+          <p>{!stopFitsSong
+            ? "The final gem needs more song time. Move the last note earlier or choose a longer song."
+            : lastNoteSeconds === null
+              ? "The end point is set automatically after the final gem."
+              : `Set automatically after the final note at ${lastNoteSeconds.toFixed(1)}s, with time for the gem’s finish and placement.`}</p>
         </div>
         <div className={styles.actions}>
           <button className={styles.secondary} type="button" disabled={!isSongLoaded || !canPlaceNotes || isPreparing} onClick={onBuildNotes}>

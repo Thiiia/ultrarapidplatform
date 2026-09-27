@@ -35,12 +35,15 @@ test("Number Bonds starts at make five when the song has room and stays within s
 
 test("Number Bonds editor data supports the Unity one-gem-per-unit range", () => {
   const equation = createNumberBondEquation(20, 7, "song-bond");
+  const makeThirteen = createNumberBondEquation(13, 10, "make-thirteen");
 
   assert.deepEqual(getNumberBondValues(equation), {
     whole: 20,
     partA: 7,
     partB: 13,
   });
+  assert.equal(makeThirteen.tokens.map((token) => token.label).join(" "), "13 = 10 + 3");
+  assert.deepEqual(getNumberBondValues(makeThirteen), { whole: 13, partA: 10, partB: 3 });
   assert.throws(() => createNumberBondEquation(21, 7, "too-large"), /between 2 and 20/);
   assert.throws(() => createNumberBondEquation(5, 5, "empty-part"), /positive parts/);
 });

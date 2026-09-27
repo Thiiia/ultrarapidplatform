@@ -15,6 +15,21 @@ export function authoredStopBufferSeconds(activityKey: string | null | undefined
   return activityKey === "number-bonds" ? NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS : 5;
 }
 
+/** Use the chart tick that Unity will play, not a rounded editor second. */
+export function resolveNumberBondsStopAtSeconds(
+  hitSeconds: readonly number[],
+  baseStopAtSeconds: number | undefined,
+  clock: { toTick(seconds: number): number; toSeconds(tick: number): number },
+): number | undefined {
+  const latestRuntimeHitSeconds = hitSeconds.reduce((latest, seconds) => {
+    if (!Number.isFinite(seconds)) return latest;
+    return Math.max(latest, clock.toSeconds(clock.toTick(seconds)));
+  }, Number.NEGATIVE_INFINITY);
+  return Number.isFinite(latestRuntimeHitSeconds)
+    ? Math.max(baseStopAtSeconds ?? 0, latestRuntimeHitSeconds + NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS)
+    : baseStopAtSeconds;
+}
+
 /**
  * Compatibility wrapper for editor callers that need user-facing guidance.
  * The policy and validation logic live in validateAuthoredActivityTiming so

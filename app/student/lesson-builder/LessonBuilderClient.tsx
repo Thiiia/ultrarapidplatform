@@ -78,6 +78,7 @@ import {
   authoredStopBufferSeconds,
   NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS,
   NUMBER_BONDS_MINIMUM_HIT_SPACING_SECONDS,
+  resolveNumberBondsStopAtSeconds,
 } from "@/lib/number-bonds-timing";
 import { SUPPORTED_RHYTHM_DIFFICULTIES, type SupportedRhythmDifficulty } from "@/lib/chart-semantics";
 import {
@@ -2345,19 +2346,20 @@ function TutorialBubble({
     <div
       role="dialog"
       aria-label="Tutorial step"
+      className={algebraStyles.tutorialBubble}
       style={{
         position: "relative",
-        borderRadius: 10,
-        border: "1px solid #CFFF04",
-        background: "#101621",
+        borderRadius: 18,
+        border: "1px solid #BCA6F5",
+        background: "linear-gradient(135deg, #34235B, #14233C)",
         color: "#FFFFFF",
-        padding: "22px 12px 10px",
+        padding: "29px 17px 17px",
         boxSizing: "border-box",
         fontFamily: "Space Grotesk, sans-serif",
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: 700,
-        lineHeight: 1.4,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
+        lineHeight: 1.5,
+        boxShadow: "inset 0 1px rgba(255,255,255,0.2), 0 12px 32px rgba(0,0,0,0.45)",
       }}
     >
       <button
@@ -2365,13 +2367,13 @@ function TutorialBubble({
         onClick={onSkip}
         style={{
           position: "absolute",
-          top: 4,
-          left: 6,
+          top: 8,
+          right: 12,
           background: "none",
           border: "none",
           padding: 0,
           color: "#FFFFFF80",
-          fontSize: 9,
+          fontSize: 12,
           fontWeight: 800,
           textDecoration: "underline",
           cursor: "pointer",
@@ -5836,27 +5838,31 @@ function NumberBondsSetupPanel({
   wholeDefault,
   bond,
   hitCueCount,
+  songCapacity,
   onSaveBond,
 }: {
   songAssetId: string;
   wholeDefault: number;
   bond: NumberBondValues | null;
   hitCueCount: number;
+  songCapacity: number;
   onSaveBond: (whole: number) => void;
 }) {
   const [wholeText, setWholeText] = useState(() => String(bond?.whole ?? wholeDefault));
   const [variation, setVariation] = useState(0);
   const whole = Number(wholeText);
-  const validWhole = Number.isInteger(whole) && whole >= 2 && whole <= NUMBER_BONDS_MAX_WHOLE;
+  const maxWhole = Math.min(NUMBER_BONDS_MAX_WHOLE, songCapacity);
+  const validWhole = Number.isInteger(whole) && whole >= 2 && whole <= maxWhole;
   const completedCueCount = validWhole ? Math.min(hitCueCount, whole) : 0;
   const remainingCueCount = validWhole ? Math.max(0, whole - hitCueCount) : 0;
   const extraCueCount = validWhole ? Math.max(0, hitCueCount - whole) : 0;
 
   function randomizeWhole() {
     const currentWhole = validWhole ? whole : wholeDefault;
+    if (maxWhole < 2) return;
     for (let attempt = 1; attempt <= NUMBER_BONDS_MAX_WHOLE; attempt += 1) {
       const nextVariation = variation + attempt;
-      const nextWhole = getDefaultNumberBondWholeForSong(`${songAssetId}:reroll:${nextVariation}`);
+      const nextWhole = 2 + (getDefaultNumberBondWholeForSong(`${songAssetId}:reroll:${nextVariation}`) - 2) % (maxWhole - 1);
       if (nextWhole === currentWhole) continue;
       setVariation(nextVariation);
       setWholeText(String(nextWhole));
@@ -5904,7 +5910,7 @@ function NumberBondsSetupPanel({
             data-repair-control="whole"
             type="number"
             min={2}
-            max={NUMBER_BONDS_MAX_WHOLE}
+            max={Math.max(2, maxWhole)}
             step={1}
             value={wholeText}
             onChange={(event) => setWholeText(event.currentTarget.value)}
@@ -5914,9 +5920,9 @@ function NumberBondsSetupPanel({
         <button
           type="button"
           aria-label="Increase target whole"
-          disabled={!validWhole || whole >= NUMBER_BONDS_MAX_WHOLE}
-          onClick={() => setWholeText(String(Math.min(NUMBER_BONDS_MAX_WHOLE, whole + 1)))}
-          style={{ borderRadius: 10, border: "1px solid #53677F", background: "#182436", color: "#FFFFFF", fontSize: 24, fontWeight: 800, cursor: validWhole && whole < NUMBER_BONDS_MAX_WHOLE ? "pointer" : "not-allowed" }}
+          disabled={!validWhole || whole >= maxWhole}
+          onClick={() => setWholeText(String(Math.min(maxWhole, whole + 1)))}
+          style={{ borderRadius: 10, border: "1px solid #53677F", background: "#182436", color: "#FFFFFF", fontSize: 24, fontWeight: 800, cursor: validWhole && whole < maxWhole ? "pointer" : "not-allowed" }}
         >+</button>
       </div>
 
@@ -5950,7 +5956,9 @@ function NumberBondsSetupPanel({
 
       {!validWhole ? (
         <div role="alert" style={{ color: "#FFCB6B", fontSize: 11, lineHeight: 1.4 }}>
-          Choose a whole number from 2 to {NUMBER_BONDS_MAX_WHOLE}.
+          {maxWhole < 2
+            ? "This chart needs at least two spaced notes. Choose another song or chart."
+            : `Choose a whole number from 2 to ${maxWhole} for this song.`}
         </div>
       ) : null}
 
@@ -5958,6 +5966,7 @@ function NumberBondsSetupPanel({
         <button
           type="button"
           onClick={randomizeWhole}
+          disabled={maxWhole < 2}
           style={{ minHeight: 36, display: "flex", justifyContent: "center", alignItems: "center", gap: 6, borderRadius: 9, border: "1px solid #52647B", background: "#182436", color: "#DCE7F4", fontSize: 11, fontWeight: 800, cursor: "pointer" }}
         >
           <ReplayRoundedIcon aria-hidden="true" fontSize="small" /> Shuffle this song’s target
@@ -8125,24 +8134,34 @@ function RtcmModePanel({
               onClick={() => setSelectedTool(mechanic)}
               aria-pressed={selectedTool === mechanic}
               style={{
-                minHeight: 36,
-                borderRadius: 999,
-                border: `1px solid ${selectedTool === mechanic ? "#CFFF04" : subtleBorderColor}`,
-                background: selectedTool === mechanic ? "rgba(207,255,4,0.14)" : "#151E2B",
-                color: selectedTool === mechanic ? "#CFFF04" : "#FFFFFFB3",
-                fontWeight: 900,
+                minHeight: 58,
+                borderRadius: 14,
+                border: `1px solid ${selectedTool === mechanic ? mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF8A8A" : "#C69AFF" : subtleBorderColor}`,
+                background: selectedTool === mechanic ? "linear-gradient(145deg, #283455, #151E32)" : "#151E2B",
+                color: "#FFFFFF",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                padding: "7px 9px",
+                boxShadow: selectedTool === mechanic ? "inset 0 1px #FFFFFF33, 0 5px 18px #0006" : "none",
                 cursor: "pointer",
-                textTransform: "capitalize",
               }}
             >
-              {mechanic}
+              {mechanic === "hit" ? <TouchAppRoundedIcon aria-hidden="true" fontSize="small" /> : mechanic === "spin" ? <ReplayRoundedIcon aria-hidden="true" fontSize="small" /> : <SwipeRoundedIcon aria-hidden="true" fontSize="small" />}
+              <span style={{ display: "grid", gap: 1, textAlign: "left" }}>
+                <strong style={{ fontSize: 14 }}>{mechanic === "hit" ? "Hit" : mechanic === "spin" ? "Spin" : "Drag"}</strong>
+                <small style={{ color: "#CBD7E9", fontSize: 11, fontWeight: 600 }}>{mechanic === "hit" ? "Tap a pad" : mechanic === "spin" ? "Hold & turn" : "Pull a term"}</small>
+              </span>
             </button>
           ))}
         </div>
-        <div role="status" style={{ color: isEncounterOpen ? "#DFFF70" : "#AFC2D8", fontSize: 12, fontWeight: 700, textAlign: "center" }}>
-          {isEncounterOpen
-            ? `${draftedActionCount} action${draftedActionCount === 1 ? "" : "s"} recorded in this encounter draft. Play the song, record one action at a time, then save the encounter.`
-            : "Start an encounter first. Then play the song and record one action at a time."}
+        <div role="status" aria-live="polite" style={{ color: isEncounterOpen ? "#DFFF70" : "#AFC2D8", fontSize: 13, fontWeight: 700, lineHeight: 1.45, textAlign: "center" }}>
+          {pendingRangeMechanic
+            ? `Recording ${pendingRangeMechanic}. Release to set its end time.`
+            : isEncounterOpen
+              ? `${draftedActionCount} move${draftedActionCount === 1 ? "" : "s"} captured. ${isSongPlaying ? "Use the selected gesture, then save the encounter." : "Play the song to capture the next move."}`
+              : "Start an encounter, play the song, then capture each move with its gesture."}
         </div>
       </div>
 
@@ -8161,8 +8180,8 @@ function RtcmModePanel({
             display: selectedTool === "hit" ? "grid" : "none",
             height: "100%",
             borderRadius: 14,
-            border: `1px solid ${subtleBorderColor}`,
-            background: "#141414",
+            border: "1px solid #2EA7FF77",
+            background: "radial-gradient(circle at 50% 35%, #1D4264, #141A27 65%)",
             padding: "12px 8px 14px",
             boxSizing: "border-box",
             gridTemplateRows: "auto 1fr auto",
@@ -8186,7 +8205,7 @@ function RtcmModePanel({
             height: "100%",
             borderRadius: 14,
             border: `1px solid ${pendingRangeMechanic === "spin" ? "#FF3535AA" : subtleBorderColor}`,
-            background: "#141414",
+            background: "radial-gradient(circle at 50% 35%, #5A2935, #1D1723 65%)",
             padding: "12px 8px 14px",
             boxSizing: "border-box",
             gridTemplateRows: "auto 1fr auto",
@@ -8216,7 +8235,7 @@ function RtcmModePanel({
             height: "100%",
             borderRadius: 14,
             border: `1px solid ${pendingRangeMechanic === "drag" ? "#B45CFFAA" : subtleBorderColor}`,
-            background: "#141414",
+            background: "radial-gradient(circle at 50% 35%, #492D63, #1B1729 65%)",
             padding: "12px 8px 14px",
             boxSizing: "border-box",
             gridTemplateRows: "auto 1fr auto",
@@ -10056,7 +10075,7 @@ export default function LessonBuilderClient({
   const filePickerSongRequestControllerRef = useRef<AbortController | null>(null);
   const filePickerAuthorsRequestControllerRef = useRef<AbortController | null>(null);
   const isAdvancedMode = advancedMode;
-  const isGuidedStart = entryIntent === "personalize" && !guidedStarted && isLessonLoaded
+  const isGuidedStart = entryIntent === "personalize" && !guidedStarted && isLessonLoaded && (selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) !== "early-algebra"
     && (selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) !== "number-bonds";
   const [selectedContextMechanicKey, setSelectedContextMechanicKey] =
     useState<string | null>(null);
@@ -10077,11 +10096,6 @@ export default function LessonBuilderClient({
   const lessonLoadAbortRef = useRef<AbortController | null>(null);
   const rctm2EntrySidecarRef = useRef<SidecarPayload>(emptySidecar);
   const rctm2EntryChartFileRef = useRef("");
-
-  const sidecar = useMemo(
-    () => sidecarFromTimelineEvents(timelineEvents),
-    [timelineEvents, chartFile, selectedSongActivity, selectedSongLaunch],
-  );
 
   const equationViewerBlockSize = useMemo(
     () => row2ColumnWidths[1] * 0.12,
@@ -10494,6 +10508,14 @@ export default function LessonBuilderClient({
     [rtcmDraftMechanics, authoredEquationQueue, rtcmPendingHold, currentSongSeconds],
   );
 
+  // Readiness, playback and saving must use the same stop boundary. Recorded
+  // mechanics can include the final Number Bonds Hit even when it is not yet
+  // represented by a timeline slot.
+  const sidecar = useMemo(
+    () => sidecarFromTimelineEvents(timelineEvents, true),
+    [timelineEvents, rtcmDraftMechanics, rtcmPendingHold, currentSongSeconds, chartFile, selectedSongActivity, selectedSongLaunch],
+  );
+
   const lessonPublishReadiness = useMemo(
     () => evaluateLessonPublishReadiness([...timelineEvents, ...rtcmAuthoredEvents] as AuthoredTimelineEvent[], {
       activityKey: selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null,
@@ -10813,7 +10835,7 @@ export default function LessonBuilderClient({
       ? Math.max(eventEndSeconds, draftEndSeconds) + authoredStopBufferSeconds(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey)
       : undefined;
     const activityKey = selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null;
-    const finalNumberBondsHitSeconds = activityKey === "number-bonds"
+    const numberBondsHitSeconds = activityKey === "number-bonds"
       ? [
           ...events.flatMap((event) => event.mechanicInstances.hit.map((instance) =>
             typeof instance.tick === "number" ? timelineTickToSeconds(instance.tick) : timelineTickToSeconds(event.tick),
@@ -10821,16 +10843,12 @@ export default function LessonBuilderClient({
           ...(includeRecorded ? rtcmDraftMechanics
             .filter((draft) => draft.mechanic === "hit")
             .map((draft) => timelineTickToSeconds(draft.tick)) : []),
-        ].reduce((latest, secondsAt) => Math.max(latest, secondsAt), Number.NEGATIVE_INFINITY)
-      : Number.NEGATIVE_INFINITY;
-    const stopAtSeconds = Number.isFinite(finalNumberBondsHitSeconds)
-      ? Math.max(
-          baseStopAtSeconds ?? 0,
-          finalNumberBondsHitSeconds + NUMBER_BONDS_TIMING_POLICY.finalInteractionTailSeconds,
-        )
-      : baseStopAtSeconds;
-
+        ]
+      : [];
     const clock = createLessonClock(chartFile || originalChartFileRef.current);
+    const stopAtSeconds = activityKey === "number-bonds"
+      ? resolveNumberBondsStopAtSeconds(numberBondsHitSeconds, baseStopAtSeconds, clock)
+      : baseStopAtSeconds;
     return {
       ...seconds,
       ...(legacyEncounterSourceRef.current ? { legacySource: legacyEncounterSourceRef.current } : {}),
@@ -10995,9 +11013,9 @@ export default function LessonBuilderClient({
   }
 
   function handleAddToStarterTemplate() {
-    handleNewEquation();
     beginGuidedEditing();
-    setTutorialStep(isDemoMode ? "welcome" : null);
+    handleNewEquation();
+    setTutorialStep(isDemoMode ? "build" : null);
     setLibraryTab("mine");
     setStarterTemplateDismissedForSongId(selectedSongStorage?.id ?? null);
     setSaveStatus("Add an equation if you want to. The other moves are ready to play.");
@@ -11048,7 +11066,7 @@ export default function LessonBuilderClient({
     setCenterChoice("create");
     setMode("equation");
     setHideEquationHeader(true);
-    setTutorialStep((current) => (isDemoMode && current === null ? "welcome" : current));
+    setTutorialStep((current) => (isDemoMode && current === null ? "build" : current));
   }
 
   function handleToggleRctm1Mode() {
@@ -11939,7 +11957,11 @@ export default function LessonBuilderClient({
     handleChooseNumberBondTarget(whole);
   }
 
-  function handleBuildNumberBondMission(playAfterBuild: boolean, targetWhole = numberBondTargetWhole) {
+  function handleBuildNumberBondMission(
+    playAfterBuild: boolean,
+    targetWhole = numberBondTargetWhole,
+    targetPartA?: number,
+  ) {
     if (!selectedSongStorage || !selectedSongLaunch || !isLessonLoaded) {
       setSaveStatus("Choose a song and wait for it to finish loading before playing.");
       return;
@@ -11952,9 +11974,9 @@ export default function LessonBuilderClient({
       return;
     }
 
-    const partA = numberBondValues?.whole === targetWhole
+    const partA = targetPartA ?? (numberBondValues?.whole === targetWhole
       ? numberBondValues.partA
-      : createDefaultNumberBondForSong(selectedSongAssetId, targetWhole).partA;
+      : createDefaultNumberBondForSong(selectedSongAssetId, targetWhole).partA);
     const equation = createNumberBondEquation(
       targetWhole,
       partA,
@@ -12000,6 +12022,32 @@ export default function LessonBuilderClient({
       return;
     }
     handleBuildNumberBondMission(false, whole);
+  }
+
+  function handleChooseNumberBondSplit(partA: number) {
+    const whole = numberBondTargetWhole;
+    if (!Number.isInteger(partA) || partA <= 0 || partA >= whole) {
+      setSaveStatus(`Choose two positive parts that add to ${whole}.`);
+      return;
+    }
+
+    if (!numberBondAuthoredNotesMatch) {
+      handleBuildNumberBondMission(false, whole, partA);
+      return;
+    }
+
+    const equation = createNumberBondEquation(
+      whole,
+      partA,
+      numberBondEquation?.id ?? makeId("number-bond"),
+    );
+    const nextEvents = timelineEvents.map((eventSlot) => applyEquationToEvent(eventSlot, equation));
+    setAuthoredEquationQueue([equation]);
+    setSelectedEquationId(equation.id);
+    setTimelineEvents(nextEvents);
+    syncTimelineFilesFromEvents(nextEvents);
+    markDirty();
+    setSaveStatus(`Updated the bond to ${whole} = ${partA} + ${whole - partA}. The same ${whole} spaced cues are still in place.`);
   }
 
   function handlePlayNumberBondMission() {
@@ -13655,6 +13703,7 @@ export default function LessonBuilderClient({
     }
     const equation = algebraEquationOptions.find((entry) => !getEquationDraftIssue(entry.tokens)) ?? null;
     const tick = Number(currentSongSeconds.toFixed(3));
+    setGuidedStarted(true);
     setIsSongPlaying(false);
     const firstTokenIndex = equation?.tokens.findIndex((token) => !isAuthoredEquationOperator(token.label)) ?? -1;
     setAlgebraActionDraft({
@@ -14581,6 +14630,9 @@ export default function LessonBuilderClient({
           actionCount={timelineEvents.reduce((total, event) => total + gameplayMechanics.reduce((count, mechanic) => count + Math.max(0, event.counts?.[mechanic] ?? 0), 0), 0)}
           appearance={algebraAppearance}
           canAddAction={isLessonLoaded && Boolean(selectedSongStorage || selectedSongLaunch)}
+          showIntro={entryIntent === "personalize" && !guidedStarted && isLessonLoaded}
+          onEditFirstEncounter={handlePersonalizeStarterEncounter}
+          onCreateEquation={handleAddToStarterTemplate}
           onAddAction={() => openAlgebraActionDraft("hit")}
           onAppearanceChange={(appearance) => {
             setAlgebraAppearance(appearance);
@@ -14832,10 +14884,13 @@ export default function LessonBuilderClient({
               isSongLoaded={isLessonLoaded}
               notes={numberBondOrbitNotes}
               authoredNoteCount={numberBondAuthoredNotesMatch ? numberBondHitCount : 0}
+              stopAtSeconds={sidecar.stopAtSeconds}
+              songDurationSeconds={audioDurationSeconds || metadata?.durationSeconds || 0}
               isReady={lessonPublishReadiness.ready && numberBondAuthoredNotesMatch}
               isPreparing={numberBondLaunchPendingWhole !== null || isSaving}
               status={saveStatus}
               onWholeChange={handleChooseNumberBondTarget}
+              onPartAChange={handleChooseNumberBondSplit}
               onShuffle={handleShuffleNumberBondTarget}
               onBuildNotes={() => handleBuildNumberBondMission(false)}
               onPlay={handlePlayNumberBondMission}
@@ -14887,6 +14942,7 @@ export default function LessonBuilderClient({
                         wholeDefault={numberBondTargetWhole}
                         bond={numberBondValues?.whole === numberBondTargetWhole ? numberBondValues : null}
                         hitCueCount={numberBondHitCount}
+                        songCapacity={numberBondSongCapacity}
                         onSaveBond={(whole) => {
                           setNumberBondDraftTarget({ songAssetId: selectedSongAssetId, whole });
                           handleSaveNumberBond(whole);
@@ -15451,6 +15507,11 @@ export default function LessonBuilderClient({
         <AlgebraActionDraft
           draft={algebraActionDraft}
           equations={algebraEquationOptions}
+          dragSources={dragSources.filter((source) => timelineEvents.some((event) =>
+            (event.mechanicInstances?.hit ?? []).some((instance) =>
+              instance.id === source.id && timelineTickToSeconds(instance.tick ?? event.tick) < (algebraActionDraft.tick ?? 0),
+            ),
+          ))}
           readiness={algebraDraftReadiness}
           blockingReason={getAlgebraDraftBlockingReason(algebraActionDraft)}
           onPatch={(patch) => setAlgebraActionDraft((current) => current ? { ...current, ...patch } : null)}
