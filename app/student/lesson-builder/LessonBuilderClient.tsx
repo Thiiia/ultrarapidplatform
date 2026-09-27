@@ -22,6 +22,7 @@ import {
   resolveEditorRhythmSourceRefreshUrls,
 } from "@/lib/editor/rhythm-source-refresh";
 import { getAuthoringLessonSaveFailureMessage } from "@/lib/editor/lesson-save-error";
+import { getEquationDraftIssue } from "@/lib/editor/equation-draft-readiness";
 import {
   serializeAuthoredLesson,
   timelineEventsFromAuthoredLesson,
@@ -99,6 +100,10 @@ import {
 import { getNumberBondSongNotes, getSpacedNumberBondNotes, planNumberBondNotes } from "@/lib/number-bonds-note-plan";
 import { getLearnerFacingError, studentCopy } from "@/lib/student-copy";
 import GuidedTemplateStart from "./GuidedTemplateStart";
+import { AlgebraStudioBar, type AlgebraAppearance } from "./AlgebraStudioBar";
+import { AlgebraEmptyState } from "./AlgebraEmptyState";
+import { AlgebraActionDraft } from "./AlgebraActionDraft";
+import algebraStyles from "./AlgebraStudio.module.css";
 import { GuidedEncounterComposer } from "./GuidedEncounterComposer";
 import { NumberBondsMissionComposer } from "./NumberBondsMissionComposer";
 import { EncounterReadinessPanel } from "./EncounterReadinessPanel";
@@ -1909,11 +1914,13 @@ function HeaderBar({
   onToggleRctm1Mode,
   onToggleRctm2Mode,
   selectedActivityKey,
+  isAlgebraStudio = false,
 }: {
   selectedSongTitle: string;
   selectedSongArtist: string;
   selectedActivityLabel: string;
   selectedActivityKey: SongActivityKey | null;
+  isAlgebraStudio?: boolean;
   isSaving: boolean;
   onNavigateHome: () => void;
   onOpenFile: () => void;
@@ -1929,11 +1936,13 @@ function HeaderBar({
 }) {
   return (
     <header
+      className={isAlgebraStudio ? algebraStyles.header : undefined}
       style={{
-        background: headerBackgroundColor,
+        background: isAlgebraStudio ? "rgba(13, 14, 34, .78)" : headerBackgroundColor,
         width: "100%",
         boxSizing: "border-box",
-        height: headerHeight,
+        height: isAlgebraStudio ? 58 : headerHeight,
+        flexShrink: 0,
         borderBottom: `1px solid ${subtleBorderColor}`,
         display: "flex",
         alignItems: "center",
@@ -2000,7 +2009,7 @@ function HeaderBar({
               padding: "0 14px",
               borderRadius: 999,
               border: "1px solid #7A8FA8",
-              background: "#060B15FC",
+              background: isAlgebraStudio ? "rgba(47, 42, 86, .75)" : "#060B15FC",
               color: "#FFFFFF",
               fontFamily: "Space Grotesk, sans-serif",
               maxWidth: 320,
@@ -2063,7 +2072,7 @@ function HeaderBar({
               fontSize: 12,
               fontWeight: 700,
               borderRadius: 999,
-              background: "#060B15FC",
+              background: isAlgebraStudio ? "rgba(47, 42, 86, .75)" : "#060B15FC",
               border: "1px solid #7A8FA8",
               fontFamily: "Space Grotesk, sans-serif",
               whiteSpace: "nowrap",
@@ -2099,7 +2108,7 @@ function HeaderBar({
                   height: 38,
                   borderRadius: 999,
                   border: "1px solid #7A8FA8",
-                  background: chartmakerInfo.isActive ? "#CFFF04" : "#060B15FC",
+                  background: chartmakerInfo.isActive ? "#CFFF04" : isAlgebraStudio ? "rgba(47, 42, 86, .75)" : "#060B15FC",
                   color: chartmakerInfo.isActive ? "#071222" : "#7A8FA8",
                   fontSize: 14,
                   fontWeight: 700,
@@ -2488,12 +2497,14 @@ function EditorToast({
 function EditorPanelRail({
   label,
   onOpen,
+  isAlgebraStudio = false,
 }: {
   label: string;
   onOpen: () => void;
+  isAlgebraStudio?: boolean;
 }) {
   return (
-    <div className={styles.editorPanelRail}>
+    <div className={`${styles.editorPanelRail} ${isAlgebraStudio ? algebraStyles.rail : ""}`}>
       <button type="button" onClick={onOpen} className={styles.editorPanelRailButton} aria-label={`Open ${label}`}>
         <span aria-hidden="true">{label}</span>
         <span className={styles.editorPanelRailIcon} aria-hidden="true">+</span>
@@ -4493,7 +4504,8 @@ function MechanicInstanceRow({
             overflow: "visible",
           }}
         >
-          <GuidedEncounterComposer
+                            <GuidedEncounterComposer
+            studioClasses={algebraStyles}
             instance={guidedInstance}
             tokens={equation?.tokens ?? []}
             readiness={readiness}
@@ -6152,18 +6164,25 @@ function getEquationTileStyle({
 function EquationTileButton({
   label,
   onClick,
+  disabled = false,
+  title,
 }: {
   label: string;
   onClick: () => void;
+  disabled?: boolean;
+  title?: string;
 }) {
   return (
     <button
       key={label}
       type="button"
       onClick={onClick}
+      disabled={disabled}
+      title={title}
       style={{
         ...getEquationTileStyle({ label }),
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.38 : 1,
       }}
     >
       {label}
@@ -6936,8 +6955,11 @@ function LeftEquationBuilderPanel({
   onClearEquation,
   onSaveEquation,
   onUseDraftInEvent,
+  draftIssue,
+  canAuthorEquation = true,
   tutorialPrompt = null,
   onSkipTutorial,
+  isAlgebraStudio = false,
 }: {
   draftTokens: EquationToken[];
   activeEventLabel: string | null;
@@ -6946,8 +6968,11 @@ function LeftEquationBuilderPanel({
   onClearEquation: () => void;
   onSaveEquation: () => void;
   onUseDraftInEvent: () => void;
+  draftIssue: string | null;
+  canAuthorEquation?: boolean;
   tutorialPrompt?: string | null;
   onSkipTutorial?: () => void;
+  isAlgebraStudio?: boolean;
 }) {
   const numberTiles = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
   const operatorTiles = ["+", "-", "×", "÷", "="];
@@ -6955,7 +6980,11 @@ function LeftEquationBuilderPanel({
   const hasDraft = draftTokens.length > 0;
 
   function renderTile(label: string, kind: "number" | "operator" | "variable") {
-    return <EquationTileButton key={`${kind}-${label}`} label={label} onClick={() => onAddToken(label)} />;
+    const equalsBlocked = label === "=" && (draftTokens.length === 0 || draftTokens.some((token) => token.label === "="));
+    const lastLabel = draftTokens.at(-1)?.label;
+    const binaryOperatorBlocked = kind === "operator" && label !== "=" && (!lastLabel || isAuthoredEquationOperator(lastLabel));
+    const disabled = equalsBlocked || binaryOperatorBlocked;
+    return <EquationTileButton key={`${kind}-${label}`} label={label} onClick={() => onAddToken(label)} disabled={disabled} title={equalsBlocked ? "Add a left side first and use one = sign." : binaryOperatorBlocked ? "Add a term before this sign." : undefined} />;
   }
 
   return (
@@ -6966,7 +6995,7 @@ function LeftEquationBuilderPanel({
         height: "100%",
         minHeight: 0,
         minWidth: 0,
-        background: row2Column1BackgroundColor,
+        background: isAlgebraStudio ? "rgba(10, 18, 39, .96)" : row2Column1BackgroundColor,
         color: textColor,
         borderRight: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
@@ -7002,7 +7031,7 @@ function LeftEquationBuilderPanel({
             animation: "urFlash 900ms ease-in-out infinite alternate",
           }}
         >
-          {activeEventLabel ? `For ${activeEventLabel}` : "Choose an encounter below to start"}
+          {activeEventLabel ? `For ${activeEventLabel}` : isAlgebraStudio ? "Build first, then add a player action" : "Choose an encounter below to start"}
         </div>
         <div
           title={activeEventEquationText ?? undefined}
@@ -7017,7 +7046,7 @@ function LeftEquationBuilderPanel({
             whiteSpace: "nowrap",
           }}
         >
-          {activeEventEquationText ? `Current: ${activeEventEquationText}` : "Your equation will be used by the selected encounter."}
+          {activeEventEquationText ? `Current: ${activeEventEquationText}` : isAlgebraStudio ? "Save a complete equation to use it in this lesson." : "Your equation will be used by the selected encounter."}
         </div>
       </div>
 
@@ -7093,6 +7122,7 @@ function LeftEquationBuilderPanel({
         >
           {hasDraft ? tokensToEquationState(draftTokens) : "Equation preview"}
         </div>
+        {!canAuthorEquation ? <div role="status" style={{ color: "#FFDBA3", fontSize: 10, lineHeight: 1.3 }}>Choose and load a song before saving an equation.</div> : hasDraft && draftIssue ? <div role="status" style={{ color: "#FFDBA3", fontSize: 10, lineHeight: 1.3 }}>{draftIssue}</div> : null}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1.45fr", gap: 6 }}>
           <button
@@ -7132,17 +7162,17 @@ function LeftEquationBuilderPanel({
             <button
               type="button"
               onClick={onSaveEquation}
-              disabled={!hasDraft}
+              disabled={!canAuthorEquation || !hasDraft || Boolean(draftIssue)}
               style={{
                 width: "100%",
                 minHeight: 26,
                 borderRadius: 8,
-                border: `1px solid ${hasDraft ? "#CFFF04" : subtleBorderColor}`,
-                background: hasDraft ? "#CFFF04" : "#252525",
-                color: hasDraft ? "#000000" : "#FFFFFF66",
+                border: `1px solid ${hasDraft && !draftIssue ? "#CFFF04" : subtleBorderColor}`,
+                background: hasDraft && !draftIssue ? "#CFFF04" : "#252525",
+                color: hasDraft && !draftIssue ? "#000000" : "#FFFFFF66",
                 fontSize: 10,
                 fontWeight: 900,
-                cursor: hasDraft ? "pointer" : "not-allowed",
+                cursor: hasDraft && !draftIssue ? "pointer" : "not-allowed",
               }}
             >
           {studentCopy.editor.saveEquation}
@@ -7152,17 +7182,17 @@ function LeftEquationBuilderPanel({
         <button
           type="button"
           onClick={onUseDraftInEvent}
-          disabled={!hasDraft || !activeEventLabel}
+          disabled={!canAuthorEquation || !hasDraft || Boolean(draftIssue) || !activeEventLabel}
           style={{
             width: "100%",
             minHeight: 28,
             borderRadius: 8,
-            border: `1px solid ${hasDraft && activeEventLabel ? "#2EA7FF" : subtleBorderColor}`,
-            background: hasDraft && activeEventLabel ? "rgba(46,167,255,0.16)" : "#252525",
-            color: hasDraft && activeEventLabel ? "#BDE4FF" : "#FFFFFF66",
+            border: `1px solid ${hasDraft && !draftIssue && activeEventLabel ? "#2EA7FF" : subtleBorderColor}`,
+            background: hasDraft && !draftIssue && activeEventLabel ? "rgba(46,167,255,0.16)" : "#252525",
+            color: hasDraft && !draftIssue && activeEventLabel ? "#BDE4FF" : "#FFFFFF66",
             fontSize: 10,
             fontWeight: 900,
-            cursor: hasDraft && activeEventLabel ? "pointer" : "not-allowed",
+            cursor: hasDraft && !draftIssue && activeEventLabel ? "pointer" : "not-allowed",
           }}
         >
           {studentCopy.editor.useEquationForGroup(activeEventLabel ?? "the selected encounter")}
@@ -7192,6 +7222,7 @@ function CenterChoicePanel({
   onBrowseLibrary,
   onChooseSong,
   hasSong,
+  songTitle,
   showWorkspacePrompt,
   activityKey,
   numberBondValues,
@@ -7216,6 +7247,7 @@ function CenterChoicePanel({
   onBrowseLibrary: () => void;
   onChooseSong: () => void;
   hasSong: boolean;
+  songTitle: string;
   showWorkspacePrompt: boolean;
   activityKey?: string | null;
   numberBondValues?: NumberBondValues | null;
@@ -7283,6 +7315,10 @@ function CenterChoicePanel({
           ? "#B45CFF"
           : "#CFFF04";
 
+  if (activityKey === "early-algebra" && choice === null && !hasVisibleEquation && !hasSelectedEvent && !hideHeader) {
+    return <AlgebraEmptyState hasSong={hasSong} songTitle={songTitle} onChooseSong={onChooseSong} onCreateEquation={onCreateEquation} onBrowseLibrary={onBrowseLibrary} />;
+  }
+
   return (
     <section
       aria-label="Equation workspace choice"
@@ -7291,7 +7327,7 @@ function CenterChoicePanel({
         height: "100%",
         minHeight: 0,
         minWidth: 0,
-        background: row2Column2BackgroundColor,
+        background: activityKey === "early-algebra" ? "transparent" : row2Column2BackgroundColor,
         color: textColor,
         boxSizing: "border-box",
         overflow: hideHeader ? "visible" : "hidden",
@@ -9177,6 +9213,7 @@ function LibraryPanel({
   shouldScrollLibrary,
   tutorialPrompt = null,
   onSkipTutorial,
+  isAlgebraStudio = false,
 }: {
   activeTab: LibraryTab;
   savedEquations: SavedEquation[];
@@ -9193,6 +9230,7 @@ function LibraryPanel({
   shouldScrollLibrary: boolean;
   tutorialPrompt?: string | null;
   onSkipTutorial?: () => void;
+  isAlgebraStudio?: boolean;
 }) {
   const displayedEquations = libraryEquationsForTab(
     activeTab,
@@ -9209,7 +9247,7 @@ function LibraryPanel({
         height: "100%",
         minHeight: 0,
         minWidth: 0,
-        background: row2Column3BackgroundColor,
+        background: isAlgebraStudio ? "rgba(10, 18, 39, .96)" : row2Column3BackgroundColor,
         color: textColor,
         borderLeft: `1px solid ${subtleBorderColor}`,
         boxSizing: "border-box",
@@ -9922,7 +9960,18 @@ export default function LessonBuilderClient({
   const [entryIntent, setEntryIntent] = useState<PlayerLessonEntryIntent>("play");
   const [guidedStarted, setGuidedStarted] = useState(false);
   const [advancedMode, setAdvancedMode] = useState(false);
+  const [algebraAppearance, setAlgebraAppearance] = useState<AlgebraAppearance>("glass");
+  const [algebraActionDraft, setAlgebraActionDraft] = useState<GuidedEncounterInput | null>(null);
+  const [pendingAlgebraActionDraft, setPendingAlgebraActionDraft] = useState<GuidedEncounterInput | null>(null);
   const [isLessonLoaded, setIsLessonLoaded] = useState(false);
+  useEffect(() => {
+    try {
+      const savedAppearance = window.localStorage.getItem("ultrarapid-algebra-editor-appearance");
+      if (savedAppearance === "glass" || savedAppearance === "focus") setAlgebraAppearance(savedAppearance);
+    } catch {
+      // Private browsing may block local storage; the editor still works.
+    }
+  }, []);
   const [advancedConfirmOpen, setAdvancedConfirmOpen] = useState(false);
   const [isReadinessOpen, setIsReadinessOpen] = useState(false);
   const [timingRepairPreviewState, setTimingRepairPreviewState] = useState<{
@@ -10627,6 +10676,18 @@ export default function LessonBuilderClient({
 
   const isNumberBondsActivity =
     (selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds";
+  const isAlgebraActivity =
+    (selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "early-algebra";
+  const algebraEquationOptions = [
+    ...(selectedEquation ? [selectedEquation] : []),
+    ...(centerContextEventEquation ? [centerContextEventEquation] : []),
+    ...authoredEquationQueue,
+    ...savedEquations,
+    ...templateEquations,
+  ].filter((equation, index, all) => all.findIndex((candidate) => candidate.id === equation.id) === index);
+  const algebraDraftReadiness = algebraActionDraft
+    ? evaluateEncounterReadiness(algebraActionDraft, new Set(), { activityKey: "early-algebra" })
+    : null;
   const selectedSongAssetId =
     selectedSongLaunch?.songAssetId ?? selectedSongStorage?.id ?? "number-bonds";
   const numberBondEquation = useMemo(() => {
@@ -11371,7 +11432,12 @@ export default function LessonBuilderClient({
   }
 
   function handleSaveEquation() {
-    if (draftTokens.length === 0) {
+    if (!isLessonLoaded || !selectedSongStorage && !selectedSongLaunch) {
+      setSaveStatus("Choose and load a song before saving an equation.");
+      return;
+    }
+    if (draftIssue) {
+      setSaveStatus(draftIssue);
       return;
     }
 
@@ -11393,8 +11459,17 @@ export default function LessonBuilderClient({
     setCustomTokenLabel("");
     setMode("event");
     markDirty();
+    if (pendingAlgebraActionDraft) {
+      setAlgebraActionDraft({ ...pendingAlgebraActionDraft, equation: nextEquation, hitBubbles: [], spinTargets: [], dragTargets: [] });
+      setPendingAlgebraActionDraft(null);
+      setIsBuilderPanelOpen(false);
+      setIsLibraryPanelOpen(false);
+      setCenterChoice(null);
+      setHideEquationHeader(false);
+      setSaveStatus("Equation saved. Finish setting up your player action.");
+    }
     // Demo tutorial step 2 -> 3: equation saved, point at the Add Equation button.
-    setTutorialStep((current) => (current === null ? null : "add"));
+    setTutorialStep((current) => pendingAlgebraActionDraft ? null : (current === null ? null : "add"));
   }
 
   function handleUseDraftInActiveEvent() {
@@ -11403,9 +11478,8 @@ export default function LessonBuilderClient({
       return;
     }
 
-    const equalsIndex = draftTokens.findIndex((token) => token.label === "=");
-    if (equalsIndex <= 0 || equalsIndex >= draftTokens.length - 1) {
-      setSaveStatus(studentCopy.editor.equationNeedsBothSides);
+    if (draftIssue) {
+      setSaveStatus(draftIssue);
       return;
     }
 
@@ -11431,10 +11505,8 @@ export default function LessonBuilderClient({
     );
   }
 
-  // Draft counts as a full equation once "=" has tokens on both sides.
-  const draftEqualsIndex = draftTokens.findIndex((token) => token.label === "=");
-  const isDraftEquationValid =
-    draftEqualsIndex > 0 && draftEqualsIndex < draftTokens.length - 1;
+  const draftIssue = getEquationDraftIssue(draftTokens);
+  const isDraftEquationValid = draftIssue === null;
   // Demo tutorial step 2: show the save prompt as soon as the draft is valid.
   const showSaveEquationTutorialPrompt =
     tutorialStep === "save" || (tutorialStep === "build" && isDraftEquationValid);
@@ -11821,6 +11893,13 @@ export default function LessonBuilderClient({
   function handleDropEquation(equation: SavedEquation) {
     if (!activeEventId) {
       return;
+    }
+    if (isAlgebraActivity) {
+      const issue = getEquationDraftIssue(equation.tokens);
+      if (issue) {
+        setSaveStatus(issue);
+        return;
+      }
     }
 
     // Demo tutorial step 3: equation assigned to an event, tutorial done.
@@ -13531,6 +13610,94 @@ export default function LessonBuilderClient({
     }
   }
 
+  function makeAlgebraDraftEvent(draft: GuidedEncounterInput): TimelineEventSlot {
+    const tick = draft.tick ?? 0;
+    const event = makeTimelineEvent(timelineEvents.length, tick, { [draft.mechanic]: 1 }, draft.mechanic === "hit" ? undefined : draft.endTick);
+    return {
+      ...event,
+      assignments: { ...event.assignments, [draft.mechanic]: draft.equation ?? null },
+      mechanicInstances: {
+        ...event.mechanicInstances,
+        [draft.mechanic]: [{
+          id: draft.id,
+          tick,
+          ...(draft.mechanic === "hit" ? {} : { endTick: draft.endTick }),
+          hitBubbles: draft.hitBubbles,
+          spinTargets: draft.spinTargets,
+          dragTargets: draft.dragTargets,
+          equation: draft.equation ?? null,
+        }],
+      },
+    };
+  }
+
+  function getAlgebraDraftBlockingReason(draft: GuidedEncounterInput): string | null {
+    if (!isLessonLoaded || !selectedSongStorage && !selectedSongLaunch) return "Choose and load a song first.";
+    const duration = audioDurationSeconds || metadata?.durationSeconds || 0;
+    if (!duration) return "Wait for the song duration before placing actions.";
+    const tick = draft.tick;
+    if (tick === undefined || !Number.isFinite(tick) || tick < 0 || tick >= duration) return `Choose a start time before ${formatSongTime(duration, isAdvancedMode)}.`;
+    if (draft.mechanic !== "hit" && (draft.endTick === undefined || !Number.isFinite(draft.endTick) || draft.endTick > duration)) return `End this action by ${formatSongTime(duration, isAdvancedMode)}.`;
+    const nextEvents = [...timelineEvents, makeAlgebraDraftEvent(draft)].sort((left, right) => left.tick - right.tick);
+    const before = [...timelineEvents, ...rtcmAuthoredEvents] as AuthoredTimelineEvent[];
+    const after = [...nextEvents, ...rtcmAuthoredEvents] as AuthoredTimelineEvent[];
+    const options = { activityKey: "early-algebra", equationQueue: authoredEquationQueue };
+    const conflict = findNewTimingConflict(before, after, options);
+    if (conflict) return `${conflict.message} ${conflict.nextAction}`;
+    const ownBlocker = evaluateLessonPublishReadiness(after, options).blockers.find((blocker) => blocker.encounterId === draft.id && blocker.code === "drag_source_not_earlier");
+    return ownBlocker ? `${ownBlocker.message} ${ownBlocker.nextAction}` : null;
+  }
+
+  function openAlgebraActionDraft(mechanic: GuidedEncounterInput["mechanic"], hitPad?: HitBubblePad) {
+    if (!isLessonLoaded || !selectedSongStorage && !selectedSongLaunch) {
+      setSaveStatus("Choose and load a song before adding an action.");
+      return;
+    }
+    const equation = algebraEquationOptions.find((entry) => !getEquationDraftIssue(entry.tokens)) ?? null;
+    const tick = Number(currentSongSeconds.toFixed(3));
+    setIsSongPlaying(false);
+    const firstTokenIndex = equation?.tokens.findIndex((token) => !isAuthoredEquationOperator(token.label)) ?? -1;
+    setAlgebraActionDraft({
+      id: makeId("action"),
+      mechanic,
+      tick,
+      ...(mechanic === "hit" ? {} : { endTick: Number((tick + 1).toFixed(3)) }),
+      equation,
+      hitBubbles: mechanic === "hit" && hitPad && firstTokenIndex >= 0 ? [{
+        tokenIndex: firstTokenIndex,
+        targetId: equation?.tokens[firstTokenIndex].id,
+        positions: [hitPad],
+        pads: [hitPad],
+        padLayoutVersion: PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
+      }] : [],
+      spinTargets: [],
+      dragTargets: [],
+    });
+  }
+
+  function commitAlgebraActionDraft() {
+    const draft = algebraActionDraft;
+    if (!draft) return;
+    const equationIssue = draft.equation ? getEquationDraftIssue(draft.equation.tokens) : "Choose an equation first.";
+    const readiness = evaluateEncounterReadiness(draft, new Set(), { activityKey: "early-algebra" });
+    const blocker = getAlgebraDraftBlockingReason(draft);
+    if (equationIssue || !readiness.ready || blocker) {
+      setSaveStatus(equationIssue ?? (!readiness.ready ? readiness.nextAction : blocker ?? "Finish this action first."));
+      return;
+    }
+    const event = makeAlgebraDraftEvent(draft);
+    const nextEvents = [...timelineEvents, event].sort((left, right) => left.tick - right.tick);
+    setTimelineEvents(nextEvents);
+    setActiveEventId(event.id);
+    setSelectedContextMechanicKey(`${draft.mechanic}:0`);
+    if (draft.equation) {
+      setAuthoredEquationQueue((current) => current.some((entry) => entry.id === draft.equation?.id) ? current : [...current, draft.equation!]);
+    }
+    syncTimelineFilesFromEvents(nextEvents);
+    setAlgebraActionDraft(null);
+    setSaveStatus(`Ready ${draft.mechanic} action added at ${formatSongTime(draft.tick ?? 0, isAdvancedMode)}.`);
+  }
+
   function handleRetimeMechanicMarker(
     eventId: string,
     mechanic: GameplayMechanic,
@@ -13734,6 +13901,10 @@ export default function LessonBuilderClient({
       setSaveStatus(
         `${studentCopy.mechanics[mechanic]} follows the song note automatically. Place a note instead.`,
       );
+      return;
+    }
+    if (isAlgebraActivity && !isAdvancedMode && mode !== "rctm1" && mode !== "rctm2") {
+      openAlgebraActionDraft(mechanic, options.hitPad);
       return;
     }
     const hitPad = options.hitPad ?? (
@@ -14344,10 +14515,11 @@ export default function LessonBuilderClient({
   }
   return (
     <div
-      className={styles.studentTypography}
+      className={`${styles.studentTypography} ${isAlgebraActivity ? algebraStyles.shell : ""}`}
+      data-appearance={isAlgebraActivity ? algebraAppearance : undefined}
       style={{
         minHeight: "100vh",
-        background: pageBackgroundColor,
+        background: isAlgebraActivity ? undefined : pageBackgroundColor,
         color: textColor,
         display: "flex",
         flexDirection: "column",
@@ -14386,6 +14558,7 @@ export default function LessonBuilderClient({
           selectedSongActivity?.label ?? getActivityLabel(defaultSongActivityKey)
         }
         selectedActivityKey={selectedSongActivity?.key ?? null}
+        isAlgebraStudio={isAlgebraActivity}
         isSaving={isSaving}
         onNavigateHome={() => requestNavigation(() => router.push(navBasePath))}
         onOpenFile={handleOpenFilePicker}
@@ -14401,6 +14574,20 @@ export default function LessonBuilderClient({
         onToggleRctm1Mode={handleToggleRctm1Mode}
         onToggleRctm2Mode={handleToggleRctm2Mode}
       />
+      {isAlgebraActivity ? (
+        <AlgebraStudioBar
+          songTitle={metadata?.songTitle?.trim() || uploadedSongName || "Choose a song"}
+          encounterCount={timelineEvents.length}
+          actionCount={timelineEvents.reduce((total, event) => total + gameplayMechanics.reduce((count, mechanic) => count + Math.max(0, event.counts?.[mechanic] ?? 0), 0), 0)}
+          appearance={algebraAppearance}
+          canAddAction={isLessonLoaded && Boolean(selectedSongStorage || selectedSongLaunch)}
+          onAddAction={() => openAlgebraActionDraft("hit")}
+          onAppearanceChange={(appearance) => {
+            setAlgebraAppearance(appearance);
+            try { window.localStorage.setItem("ultrarapid-algebra-editor-appearance", appearance); } catch { /* Continue without persistence. */ }
+          }}
+        />
+      ) : null}
       {needsReadinessCheck && !isNumberBondsActivity && !isGuidedStart && !isRctm1Mode &&
         (!isRctm2Mode || (selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds") ? (
         <div
@@ -14465,6 +14652,7 @@ export default function LessonBuilderClient({
           </label> : null}
           <GuidedEncounterComposer
             instance={{ ...recordedRepairDraft, equation: recordedRepairEquation }}
+            studioClasses={algebraStyles}
             tokens={recordedRepairEquation?.tokens ?? []}
             readiness={{
               encounterId: recordedRepairDraft.id,
@@ -14585,19 +14773,22 @@ export default function LessonBuilderClient({
       ) : null}
 
       <main
+        className={isAlgebraActivity ? algebraStyles.main : undefined}
         style={{
           width: "100%",
-          flex: 1,
-          minHeight: 0,
+          flex: isAlgebraActivity ? "none" : 1,
+          height: isAlgebraActivity ? "calc(100dvh - 122px)" : undefined,
+          minHeight: isAlgebraActivity ? 560 : 0,
           display: "grid",
-          gridTemplateRows: isGuidedStart ? "minmax(0, 1fr)" : `${viewerRowHeight} ${timelineRowHeight}`,
-          background: pageBackgroundColor,
+          gridTemplateRows: isGuidedStart ? "minmax(0, 1fr)" : isAlgebraActivity ? "minmax(0, 1fr) minmax(180px, 28%)" : `${viewerRowHeight} ${timelineRowHeight}`,
+          background: isAlgebraActivity ? "transparent" : pageBackgroundColor,
           color: textColor,
           overflow: "hidden",
         }}
       >
         {isGuidedStart ? (
           <GuidedTemplateStart
+            isAlgebraStudio={isAlgebraActivity}
             songTitle={metadata?.songTitle || uploadedSongName || "Selected song"}
             encounterCount={timelineEvents.length}
             actionCount={timelineEvents.reduce(
@@ -14619,11 +14810,12 @@ export default function LessonBuilderClient({
           <>
         <section
           aria-label="Main viewer"
+          className={isAlgebraActivity ? algebraStyles.viewer : undefined}
           style={{
             minHeight: 0,
             display: "flex",
             alignItems: "stretch",
-            background: pageBackgroundColor,
+            background: isAlgebraActivity ? "rgba(17, 19, 44, .6)" : pageBackgroundColor,
             color: textColor,
             overflow: "hidden",
           }}
@@ -14632,7 +14824,10 @@ export default function LessonBuilderClient({
             <NumberBondsMissionComposer
               key={selectedSongAssetId}
               whole={numberBondTargetWhole}
+              partA={numberBondPreview.partA}
+              partB={numberBondPreview.partB}
               songTitle={metadata?.songTitle || uploadedSongName || "Selected song"}
+              songDifficulty={selectedSongLaunch?.rhythmDifficultyKey ?? "ExpertSingle"}
               songCapacity={numberBondSongCapacity}
               isSongLoaded={isLessonLoaded}
               notes={numberBondOrbitNotes}
@@ -14741,7 +14936,7 @@ export default function LessonBuilderClient({
             <>
               {isBuilderPanelOpen && !isNumberBondsActivity ? (
                 <div
-                  className={styles.editorPanelSurface}
+                  className={`${styles.editorPanelSurface} ${isAlgebraActivity ? algebraStyles.panelSurface : ""}`}
                   style={{
                     flex: `0 0 ${row2DisplayWidths.column1}px`,
                     minWidth: 0,
@@ -14755,20 +14950,23 @@ export default function LessonBuilderClient({
                   <button
                     type="button"
                     className={styles.editorPanelCloseButton}
-                    onClick={() => setIsBuilderPanelOpen(false)}
+                    onClick={() => { setIsBuilderPanelOpen(false); setPendingAlgebraActionDraft(null); }}
                     aria-label="Collapse equation builder"
                     title="Collapse equation builder"
                   >
                     ×
                   </button>
                   <LeftEquationBuilderPanel
+                    isAlgebraStudio={isAlgebraActivity}
+                    canAuthorEquation={isLessonLoaded && Boolean(selectedSongStorage || selectedSongLaunch)}
                     draftTokens={draftTokens}
-                    activeEventLabel={centerContextEventIndex >= 0 ? studentCopy.editor.moveGroup(centerContextEventIndex + 1) : null}
+                    activeEventLabel={!pendingAlgebraActionDraft && centerContextEventIndex >= 0 ? studentCopy.editor.moveGroup(centerContextEventIndex + 1) : null}
                     activeEventEquationText={centerContextEventEquation ? tokensToEquationState(centerContextEventEquation.tokens) : null}
                     onAddToken={handleAppendEquationToken}
                     onClearEquation={handleClearEquationDraft}
                     onSaveEquation={handleSaveEquation}
                     onUseDraftInEvent={handleUseDraftInActiveEvent}
+                    draftIssue={draftIssue}
                     tutorialPrompt={
                       showSaveEquationTutorialPrompt
                         ? "Save this equation so you can use it in your lesson."
@@ -14778,7 +14976,7 @@ export default function LessonBuilderClient({
                   />
                 </div>
               ) : !isNumberBondsActivity ? (
-                <EditorPanelRail label="Build" onOpen={() => setIsBuilderPanelOpen(true)} />
+                <EditorPanelRail label="Build" onOpen={() => setIsBuilderPanelOpen(true)} isAlgebraStudio={isAlgebraActivity} />
               ) : null}
 
               {isBuilderPanelOpen && !isNumberBondsActivity ? (
@@ -14807,7 +15005,7 @@ export default function LessonBuilderClient({
                         ? "auto minmax(0, 1fr) 0"
                         : "7% 80% 13%"
                       : "0 100% 0",
-                    background: row2Column2BackgroundColor,
+                    background: isAlgebraActivity ? "transparent" : row2Column2BackgroundColor,
                     overflow: "hidden",
                   }}
                 >
@@ -14972,6 +15170,7 @@ export default function LessonBuilderClient({
                           ) : null}
                           <GuidedEncounterComposer
                             instance={selectedGuidedEncounter}
+                            studioClasses={algebraStyles}
                             tokens={selectedGuidedEncounter.equation?.tokens ?? []}
                             readiness={selectedGuidedReadiness}
                             activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
@@ -15015,6 +15214,7 @@ export default function LessonBuilderClient({
                           onBrowseLibrary={handleBrowsePremadeChoice}
                           onChooseSong={handleOpenFilePicker}
                           hasSong={Boolean(selectedSongStorage || selectedSongLaunch)}
+                          songTitle={metadata?.songTitle?.trim() || uploadedSongName || "this song"}
                           showWorkspacePrompt={showCenterWorkspacePrompt}
                           activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
                           numberBondValues={numberBondPreview}
@@ -15157,7 +15357,7 @@ export default function LessonBuilderClient({
                     }}
                   />
 
-                  <div className={styles.editorPanelSurface} style={{ flex: `0 0 ${row2DisplayWidths.column3}px`, minWidth: 0, height: "100%", position: "relative" }}>
+                  <div className={`${styles.editorPanelSurface} ${isAlgebraActivity ? algebraStyles.panelSurface : ""}`} style={{ flex: `0 0 ${row2DisplayWidths.column3}px`, minWidth: 0, height: "100%", position: "relative" }}>
                     <button
                       type="button"
                       className={styles.editorPanelCloseButton}
@@ -15168,6 +15368,7 @@ export default function LessonBuilderClient({
                       ×
                     </button>
                     <LibraryPanel
+                      isAlgebraStudio={isAlgebraActivity}
                       activeTab={libraryTab}
                       savedEquations={savedEquations}
                       templateEquations={templateEquations}
@@ -15191,7 +15392,7 @@ export default function LessonBuilderClient({
                   </div>
                 </>
               ) : (
-                <EditorPanelRail label="Library" onOpen={() => setIsLibraryPanelOpen(true)} />
+                <EditorPanelRail label="Library" onOpen={() => setIsLibraryPanelOpen(true)} isAlgebraStudio={isAlgebraActivity} />
               )}
 
             </>
@@ -15200,9 +15401,10 @@ export default function LessonBuilderClient({
 
         <section
           aria-label="Timeline row"
+          className={isAlgebraActivity ? algebraStyles.timeline : undefined}
           style={{
             minHeight: 0,
-            background: row3BackgroundColor,
+            background: isAlgebraActivity ? "rgba(12, 17, 37, .78)" : row3BackgroundColor,
             overflow: "visible",
             position: "relative",
             zIndex: 2,
@@ -15244,6 +15446,36 @@ export default function LessonBuilderClient({
           </>
         )}
       </main>
+
+      {isAlgebraActivity && algebraActionDraft && algebraDraftReadiness ? (
+        <AlgebraActionDraft
+          draft={algebraActionDraft}
+          equations={algebraEquationOptions}
+          readiness={algebraDraftReadiness}
+          blockingReason={getAlgebraDraftBlockingReason(algebraActionDraft)}
+          onPatch={(patch) => setAlgebraActionDraft((current) => current ? { ...current, ...patch } : null)}
+          onChooseEquation={(equationId) => {
+            const equation = algebraEquationOptions.find((entry) => entry.id === equationId) ?? null;
+            setAlgebraActionDraft((current) => current ? { ...current, equation, hitBubbles: [], spinTargets: [], dragTargets: [] } : null);
+          }}
+          onChooseMechanic={(mechanic) => setAlgebraActionDraft((current) => current ? {
+            ...current,
+            mechanic,
+            endTick: mechanic === "hit" ? undefined : Number(((current.tick ?? 0) + 1).toFixed(3)),
+            hitBubbles: [],
+            spinTargets: [],
+            dragTargets: [],
+          } : null)}
+          onCreateEquation={() => {
+            setPendingAlgebraActionDraft(algebraActionDraft);
+            setAlgebraActionDraft(null);
+            handleCreateEquationChoice();
+            setIsBuilderPanelOpen(true);
+          }}
+          onCommit={commitAlgebraActionDraft}
+          onCancel={() => setAlgebraActionDraft(null)}
+        />
+      ) : null}
 
       {advancedConfirmOpen ? (
         <div role="dialog" aria-modal="true" aria-labelledby="advanced-chartmaker-title" style={{ position: "fixed", inset: 0, zIndex: 1300, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.7)" }} onKeyDown={(event) => { if (event.key === "Escape") setAdvancedConfirmOpen(false); }}>

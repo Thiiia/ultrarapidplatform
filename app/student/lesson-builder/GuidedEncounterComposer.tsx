@@ -37,6 +37,7 @@ export type GuidedEncounterComposerProps = {
   onRemove?: () => void;
   onChooseEquation?: () => void;
   repairFocus?: { code: string; nonce: number } | null;
+  studioClasses?: Record<string, string>;
   onPatchInstance: (
     instanceId: string,
     patch: Partial<GuidedEncounterInput>,
@@ -348,6 +349,7 @@ const ALGEBRA_ACTION_REPAIR_CODES = new Set([
   "drag_source_not_ready",
   "drag_source_required",
   "equation_required",
+  "equation_incomplete",
   "hit_pad_required",
   "operator_target",
   "single_target_required",
@@ -366,7 +368,7 @@ function algebraSetupStage(instance: GuidedEncounterInput, tokens: AuthoredEquat
 function focusRepairChoice(section: HTMLElement | null, repairFocus: GuidedEncounterComposerProps["repairFocus"]) {
   if (!section || !repairFocus || lastRepairFocus.get(section) === repairFocus.nonce) return;
   const code = repairFocus.code;
-  const control = code === "equation_required" || code === "activity_equation_invalid" || code === "activity_equation_count" ? "equation"
+  const control = code === "equation_required" || code === "equation_incomplete" || code === "activity_equation_invalid" || code === "activity_equation_count" ? "equation"
     : code === "activity_mechanic_unsupported" ? "remove"
     : code === "hit_pad_required" ? "pad"
     : code === "activity_target_shape" && section.querySelector("[data-repair-control='single-target']") ? "single-target"
@@ -399,8 +401,10 @@ export function GuidedEncounterComposer({
   onRemove,
   onChooseEquation,
   repairFocus,
+  studioClasses,
 }: GuidedEncounterComposerProps) {
   const isNumberBonds = activityKey === "number-bonds";
+  const isAlgebra = activityKey === "early-algebra";
   const setupStage = algebraSetupStage(instance, tokens, readiness);
   const selectedTokenIndex = instance.mechanic === "hit"
     ? instance.hitBubbles[0]?.tokenIndex
@@ -439,8 +443,8 @@ export function GuidedEncounterComposer({
 
   const equationState = tokens.map((token) => token.label).join(" ");
   const timingSummary = instance.mechanic === "hit"
-    ? (timeValue(instance.tick) ? `Hit at ${timeValue(instance.tick)}s` : "Hit timing not set")
-    : (timeValue(instance.tick) && timeValue(instance.endTick)
+    ? (typeof instance.tick === "number" ? `Hit at ${timeValue(instance.tick)}s` : "Hit timing not set")
+    : (typeof instance.tick === "number" && typeof instance.endTick === "number"
       ? `${timeValue(instance.tick)}–${timeValue(instance.endTick)}s window`
       : "Action window not set");
   const MotionIcon = instance.mechanic === "hit"
@@ -458,7 +462,7 @@ export function GuidedEncounterComposer({
     <section
       ref={(section) => focusRepairChoice(section, repairFocus)}
       aria-label={`${heading} composer`}
-      className="algebra-composer"
+      className={`algebra-composer ${isAlgebra ? studioClasses?.composer ?? "" : ""}`}
       data-state={readiness.ready ? "ready" : "incomplete"}
       data-setup-stage={showAlgebraSetupProgress ? setupStage : undefined}
     >
@@ -476,6 +480,8 @@ export function GuidedEncounterComposer({
           {onRemove ? <button type="button" data-repair-control="remove" onClick={onRemove} className="algebra-composer__remove">{isNumberBonds ? "Remove note" : "Remove action"}</button> : null}
         </div>
       </header>
+      <div className={isAlgebra ? studioClasses?.composerBody : undefined} style={isAlgebra ? undefined : { display: "contents" }}>
+        <div className={isAlgebra ? studioClasses?.composerStage : undefined} style={isAlgebra ? undefined : { display: "contents" }}>
       {showAlgebraSetupProgress ? (
         <ol className="algebra-composer__steps" aria-label="Algebra action setup">
           {ALGEBRA_SETUP_STEPS.map((label, index) => {
@@ -530,7 +536,17 @@ export function GuidedEncounterComposer({
           Catch the gem on the beat, then place it in a slot.
         </div>
       ) : null}
-      {controls}
+        </div>
+        <div className={isAlgebra ? studioClasses?.composerInspector : undefined} style={isAlgebra ? undefined : { display: "contents" }}>
+          {isAlgebra ? (
+            <div className={studioClasses?.inspectorHeading}>
+              <span>THE ACTION</span>
+              <strong>Set what the player does</strong>
+            </div>
+          ) : null}
+          {controls}
+        </div>
+      </div>
     </section>
   );
 }

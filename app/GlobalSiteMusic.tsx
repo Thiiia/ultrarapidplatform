@@ -61,5 +61,5 @@ export default function GlobalSiteMusic({ src }: { src: string | null }) {
 
   if (!src) return null;
 
-  return <audio ref={audioRef} src={src} loop preload="auto" aria-hidden="true" />;
+  return <audio ref={audioRef} src={src} loop preload="none" aria-hidden="true" />;
 }

@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   createDefaultNumberBondForSong,
   createNumberBondEquation,
+  getInitialNumberBondWholeForCapacity,
   getNumberBondValues,
 } from "../lib/number-bonds-authoring";
 import {
@@ -18,9 +19,18 @@ test("Number Bonds song defaults are stable, valid, and vary by reroll", () => {
 
   assert.deepEqual(first, repeated);
   assert.equal(first.whole, 5);
+  assert.deepEqual(first, { whole: 5, partA: 2, partB: 3 });
   assert.ok(first.partA > 0 && first.partA < first.whole);
   assert.equal(first.partA + first.partB, first.whole);
   assert.notEqual(first.partA, rerolled.partA);
+});
+
+test("Number Bonds starts at make five when the song has room and stays within smaller songs", () => {
+  assert.equal(getInitialNumberBondWholeForCapacity(0), 5);
+  assert.equal(getInitialNumberBondWholeForCapacity(2), 2);
+  assert.equal(getInitialNumberBondWholeForCapacity(4), 4);
+  assert.equal(getInitialNumberBondWholeForCapacity(5), 5);
+  assert.equal(getInitialNumberBondWholeForCapacity(20), 5);
 });
 
 test("Number Bonds editor data supports the Unity one-gem-per-unit range", () => {

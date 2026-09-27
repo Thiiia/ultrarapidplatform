@@ -2,6 +2,7 @@
 
 import { studentCopy } from "@/lib/student-copy";
 import styles from "./GuidedTemplateStart.module.css";
+import algebraStyles from "./AlgebraStudio.module.css";
 
 type GuidedTemplateStartProps = {
   songTitle: string;
@@ -10,13 +11,14 @@ type GuidedTemplateStartProps = {
   hitCount: number;
   spinCount: number;
   dragCount: number;
+  isAlgebraStudio?: boolean;
   onPlayTemplate: () => void;
   onChangeEvent: () => void;
   onAddEquation: () => void;
   onUseAdvanced: () => void;
 };
 
-export default function GuidedTemplateStart({ songTitle, encounterCount, actionCount, hitCount, spinCount, dragCount, onPlayTemplate, onChangeEvent, onAddEquation, onUseAdvanced }: GuidedTemplateStartProps) {
+export default function GuidedTemplateStart({ songTitle, encounterCount, actionCount, hitCount, spinCount, dragCount, isAlgebraStudio = false, onPlayTemplate, onChangeEvent, onAddEquation, onUseAdvanced }: GuidedTemplateStartProps) {
   const actions = [
     { name: "Hit", count: hitCount, className: styles.hit },
     { name: "Spin", count: spinCount, className: styles.spin },
@@ -24,7 +26,7 @@ export default function GuidedTemplateStart({ songTitle, encounterCount, actionC
   ];
 
   return (
-    <section aria-labelledby="guided-template-title" className={styles.screen}>
+    <section aria-labelledby="guided-template-title" className={`${styles.screen} ${isAlgebraStudio ? algebraStyles.guidedStart : ""}`}>
       <div className={styles.panel}>
         <div className={styles.heading}>
           <p className={styles.eyebrow}>{studentCopy.editor.readyToPlay}</p>

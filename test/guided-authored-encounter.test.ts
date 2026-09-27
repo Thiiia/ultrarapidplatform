@@ -21,6 +21,8 @@ const equation: AuthoredSavedEquation = {
     { id: "token-0", label: "4x" },
     { id: "token-1", label: "+" },
     { id: "token-2", label: "2" },
+    { id: "token-3", label: "=" },
+    { id: "token-4", label: "6" },
   ],
 };
 
@@ -66,6 +68,15 @@ test("a lesson without a playable move is not ready to publish", () => {
     assert.deepEqual(result.blockers.map((blocker) => blocker.code), ["lesson_encounter_required"]);
     assert.match(result.nextAction, /Add at least one encounter/);
   }
+});
+
+test("Early Algebra keeps an incomplete saved equation out of Save and Play", () => {
+  const incomplete = encounter("hit", {
+    equation: { id: "old-incomplete", tokens: [{ id: "one", label: "4x" }] },
+  });
+  const readiness = evaluateLessonPublishReadiness([eventWith(incomplete)], { activityKey: "early-algebra" });
+  assert.equal(readiness.ready, false);
+  assert.equal(readiness.blockers.find((blocker) => blocker.encounterId === incomplete.id)?.code, "equation_incomplete");
 });
 
 test("Number Bonds readiness flags a first note before the tutorial gate", () => {

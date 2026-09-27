@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { prepareAuthoredLessonForPublication } from "../lib/authored-lesson-publication";
-import { migrateEarlyAlgebraCatalogueSong } from "../lib/early-algebra-catalogue-migration";
+import { migrateEarlyAlgebraCatalogueSong, upgradeEarlyAlgebraCatalogueHitPads } from "../lib/early-algebra-catalogue-migration";
 import { createLessonClock } from "../lib/editor/lesson-timing";
 
 const chart = `[Song]
@@ -50,6 +50,9 @@ test("migrates old hits to the player hex and uses the released phrase for separ
     encounter.hitBubbles?.length === 1 && encounter.hitBubbles[0].padLayoutVersion === 2));
   assert.equal(migrated.encounters.find((encounter) => encounter.id === "first-hit")?.hitBubbles?.[0]?.pads?.[0], "top");
   assert.equal(migrated.encounters.find((encounter) => encounter.id === "second-hit")?.hitBubbles?.[0]?.pads?.[0], "upperLeft");
+  assert.equal(migrated.encounters.find((encounter) => encounter.id === "first-hit")?.hitBubbles?.[0]?.pads?.length, 1);
+  assert.equal(migrated.encounters.find((encounter) => encounter.id === "second-hit")?.hitBubbles?.[0]?.pads?.length, 2);
+  assert.ok(migrated.encounters.filter((encounter) => encounter.type === "hit").some((encounter) => encounter.id.includes("-rhythm-hit-") && encounter.hitBubbles?.[0]?.pads?.length === 2));
   assert.doesNotThrow(() => prepareAuthoredLessonForPublication({
     sidecarContent: JSON.stringify(migrated), previousSidecarContent: JSON.stringify(source),
     identity: { songAssetId: "jazzmaybach", activityKey: "early-algebra", authorId: "author", revision: "new" },
@@ -82,6 +85,7 @@ test("every catalogue progression has distinct equations with positive integer s
         startTick: 2688, endTick: 2688, hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"] }] }],
     };
     const migrated = migrateEarlyAlgebraCatalogueSong({ songAssetId, chart, sidecar: JSON.stringify(source) });
+    assert.ok(migrated.encounters.filter((encounter) => encounter.type === "hit").every((encounter) => (encounter.hitBubbles?.[0]?.pads?.length ?? 0) <= 2), songAssetId);
     assert.equal(new Set(migrated.equations.map((equation) => equation.state)).size, count, songAssetId);
     const solutions = migrated.equations.map((equation) => {
       const [left, right] = equation.state.split("=");
@@ -92,4 +96,24 @@ test("every catalogue progression has distinct equations with positive integer s
     assert.ok(solutions.every((solution) => Number.isSafeInteger(solution) && solution > 0), songAssetId);
     assert.ok(new Set(solutions).size >= Math.min(2, count), songAssetId);
   }
+});
+
+test("a published rhythm catalogue can gain two-pad Hits without changing equations or timing", () => {
+  const source = {
+    version: 3, mode: "authored", songAssetId: "garden", activityKey: "early-algebra",
+    equations: [{ id: "eq-0", state: "7x + 9 = 3x + 29" }],
+    encounters: [
+      { id: "featured-hit", eventId: "event-1", type: "hit", equationId: "eq-0", startTick: 2688, endTick: 2688,
+        hitBubbles: [{ tokenIndex: 0, padLayoutVersion: 2, pads: ["top"], positions: ["top"] }] },
+      { id: "featured-hit-rhythm-hit-1", eventId: "event-2", type: "hit", equationId: "eq-0", startTick: 3456, endTick: 3456,
+        hitBubbles: [{ tokenIndex: 2, padLayoutVersion: 2, pads: ["upperRight"], positions: ["upperRight"] }] },
+    ],
+  };
+  const upgraded = upgradeEarlyAlgebraCatalogueHitPads({ songAssetId: "garden", sidecar: JSON.stringify(source) });
+  assert.deepEqual(upgraded.equations.map((equation) => equation.state), source.equations.map((equation) => equation.state));
+  assert.deepEqual(upgraded.encounters.map((encounter) => [encounter.id, encounter.startTick, encounter.endTick]),
+    source.encounters.map((encounter) => [encounter.id, encounter.startTick, encounter.endTick]));
+  assert.deepEqual(upgraded.encounters[0].hitBubbles?.[0]?.pads, ["top", "lowerRight"]);
+  assert.deepEqual(upgraded.encounters[1].hitBubbles?.[0]?.pads, ["upperRight"]);
+  assert.throws(() => upgradeEarlyAlgebraCatalogueHitPads({ songAssetId: "garden", sidecar: JSON.stringify(upgraded) }), /already has its two-pad progression/);
 });

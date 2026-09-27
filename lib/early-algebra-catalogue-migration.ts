@@ -43,15 +43,15 @@ const advanced = [
   "18x + 4 = 10x + 100", "17x - 12 = 9x + 20",
 ];
 
-const catalogue: Record<string, { states: readonly string[]; offset: number }> = {
-  garden: { states: advanced, offset: 0 },
-  geminiqueen: { states: foundation, offset: 0 },
-  grudge: { states: intermediate, offset: 0 },
-  jazzmaybach: { states: ["x + 4 = 10", "3x + 7 = 31"], offset: 0 },
-  justbecause: { states: intermediate, offset: 2 },
-  oneone: { states: intermediate, offset: 4 },
-  seven: { states: foundation, offset: 5 },
-  waves: { states: foundation, offset: 0 },
+const catalogue: Record<string, { states: readonly string[]; offset: number; dualPadFromEquation: number }> = {
+  garden: { states: advanced, offset: 0, dualPadFromEquation: 0 },
+  geminiqueen: { states: foundation, offset: 0, dualPadFromEquation: 2 },
+  grudge: { states: intermediate, offset: 0, dualPadFromEquation: 1 },
+  jazzmaybach: { states: ["x + 4 = 10", "3x + 7 = 31"], offset: 0, dualPadFromEquation: 1 },
+  justbecause: { states: intermediate, offset: 2, dualPadFromEquation: 1 },
+  oneone: { states: intermediate, offset: 4, dualPadFromEquation: 1 },
+  seven: { states: foundation, offset: 5, dualPadFromEquation: 2 },
+  waves: { states: foundation, offset: 0, dualPadFromEquation: 2 },
 };
 
 type Clock = ReturnType<typeof createLessonClock>;
@@ -117,6 +117,7 @@ export function migrateEarlyAlgebraCatalogueSong(input: {
     };
   });
   const equationById = new Map(equations.map((equation) => [equation.id, equation]));
+  const equationOrder = new Map(equations.map((equation, index) => [equation.id, index]));
   const clock = createLessonClock(input.chart);
   const { ticks: anchors } = musicalAnchorTicks(input.chart);
   let hitOrdinal = 0;
@@ -127,17 +128,23 @@ export function migrateEarlyAlgebraCatalogueSong(input: {
     return targetFor(equation, "hit", occurrence);
   };
   const padFor = (ordinal: number) => PLAYER_HEX_AUTHORED_HIT_PADS[ordinal % PLAYER_HEX_AUTHORED_HIT_PADS.length].pad;
+  const padsFor = (equation: AuthoredLessonEquation, ordinal: number, featured: boolean) => {
+    const twoPads = (equationOrder.get(equation.id) ?? 0) >= specification.dualPadFromEquation &&
+      (featured || ordinal % 3 === 0);
+    return twoPads ? [padFor(ordinal), padFor(ordinal + 2)] : [padFor(ordinal)];
+  };
   const encounters = source.encounters.map((encounter) => {
     const equation = equationById.get(encounter.equationId ?? "");
     if (!equation) throw new Error(`Missing equation for '${encounter.id}'`);
     if (encounter.type === "hit") {
       const originalSlot = resolveAuthoredHitPadTarget(encounter.hitBubbles?.[0] ?? {})[0];
-      const pad = padFor(originalSlot == null ? hitOrdinal : originalSlot);
+      const padOrdinal = originalSlot == null ? hitOrdinal : originalSlot;
+      const pads = padsFor(equation, padOrdinal, true);
       const target = nextHitTarget(equation);
       hitOrdinal += 1;
       return { ...encounter, hitBubbles: [{
         ...target, padLayoutVersion: PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
-        pads: [pad], positions: [pad],
+        pads, positions: pads,
       }] };
     }
     const startSeconds = clock.toSeconds(encounter.startTick);
@@ -177,14 +184,14 @@ export function migrateEarlyAlgebraCatalogueSong(input: {
       if (seconds < lastSelected + AUTHORED_HIT_MISS_WINDOW_SECONDS + AUTHORED_PRESENTATION_LEAD_SECONDS + 0.15) continue;
       if (count >= 4) break;
       const equation = equationById.get(previous.equationId ?? "")!;
-      const pad = padFor(hitOrdinal++);
+      const pads = padsFor(equation, hitOrdinal++, false);
       const id = `${previous.id}-rhythm-hit-${++addedOrdinal}`;
       added.push({
         id, eventId: `${previous.eventId}-rhythm-${tick}`, type: "hit",
         equationId: equation.id, startTick: tick, endTick: tick,
         hitBubbles: [{ ...nextHitTarget(equation),
           padLayoutVersion: PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
-          pads: [pad], positions: [pad] }],
+          pads, positions: pads }],
       });
       lastSelected = seconds;
       count += 1;
@@ -200,4 +207,41 @@ export function migrateEarlyAlgebraCatalogueSong(input: {
     ...(stopAtSeconds == null ? {} : { stopAtSeconds }),
   };
   return parseAuthoredLessonDraft(draft);
+}
+
+/** Upgrade an already rhythm-migrated catalogue without changing its equations or cue timing. */
+export function upgradeEarlyAlgebraCatalogueHitPads(input: { songAssetId: string; sidecar: string }) {
+  const specification = catalogue[input.songAssetId];
+  if (!specification) throw new Error(`Unknown Early Algebra catalogue song '${input.songAssetId}'`);
+  const source = parseAuthoredLessonDraft(JSON.parse(input.sidecar));
+  if (source.activityKey !== "early-algebra" || source.songAssetId !== input.songAssetId) {
+    throw new Error(`Catalogue identity mismatch for '${input.songAssetId}'`);
+  }
+  if (!source.encounters.some((encounter) => encounter.id.includes("-rhythm-hit-"))) {
+    throw new Error(`'${input.songAssetId}' needs the rhythm-hit migration first`);
+  }
+  const equationOrder = new Map(source.equations.map((equation, index) => [equation.id, index]));
+  let hitOrdinal = 0;
+  let upgraded = 0;
+  const encounters = source.encounters.map((encounter) => {
+    if (encounter.type !== "hit") return encounter;
+    const ordinal = hitOrdinal++;
+    const equationIndex = equationOrder.get(encounter.equationId ?? "");
+    if (equationIndex === undefined) throw new Error(`Missing equation for '${encounter.id}'`);
+    const featured = !encounter.id.includes("-rhythm-hit-");
+    if (equationIndex < specification.dualPadFromEquation || (!featured && ordinal % 3 !== 0)) return encounter;
+    if (encounter.hitBubbles?.length !== 1 || encounter.hitBubbles[0].padLayoutVersion !== PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION) {
+      throw new Error(`'${encounter.id}' needs one player-hex hit bubble before pad upgrade`);
+    }
+    const bubble = encounter.hitBubbles[0];
+    const slots = resolveAuthoredHitPadTarget(bubble);
+    if (slots.length === 2) return encounter;
+    if (slots.length !== 1) throw new Error(`'${encounter.id}' needs one existing pad before pad upgrade`);
+    const first = PLAYER_HEX_AUTHORED_HIT_PADS[slots[0]].pad;
+    const second = PLAYER_HEX_AUTHORED_HIT_PADS[(slots[0] + 2) % PLAYER_HEX_AUTHORED_HIT_PADS.length].pad;
+    upgraded += 1;
+    return { ...encounter, hitBubbles: [{ ...bubble, pads: [first, second], positions: [first, second] }] };
+  });
+  if (upgraded === 0) throw new Error(`'${input.songAssetId}' already has its two-pad progression`);
+  return parseAuthoredLessonDraft({ ...source, encounters });
 }

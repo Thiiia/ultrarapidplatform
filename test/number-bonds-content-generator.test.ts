@@ -84,17 +84,17 @@ test("the reusable catalogue covers every ordered positive-part bond through 20"
   assert.equal(next.tokens[0].id, "bond-5-2-3-token-0");
 });
 
-test("the starter uses two safe cues and falls back to a usable rhythm difficulty", () => {
-  const chart = chartForCueSeconds([2, 8, 16, 24], { difficulty: "MediumSingle" });
+test("the starter builds make five with five safe cues and falls back to a usable rhythm difficulty", () => {
+  const chart = chartForCueSeconds([2, 8, 16, 24, 32, 40], { difficulty: "MediumSingle" });
   const { equation: _equation, rhythmDifficulty: _difficulty, ...input } = definition({
     chartContent: chart.content,
-    durationSeconds: 38,
+    durationSeconds: 55,
   });
   const starter = generateNumberBondsStarterLesson(input);
   assert.equal(starter.provenance.rhythmDifficulty, "MediumSingle");
-  assert.deepEqual(starter.provenance.selectedCueSeconds, [8, 16]);
-  assert.equal(starter.draft.equations[0]?.state, "2 = 1 + 1");
-  assert.equal(starter.draft.encounters.length, 2);
+  assert.deepEqual(starter.provenance.selectedCueSeconds, [8, 16, 24, 32, 40]);
+  assert.equal(starter.draft.equations[0]?.state, "5 = 2 + 3");
+  assert.equal(starter.draft.encounters.length, 5);
   assert.ok(starter.draft.encounters.every((encounter) => encounter.type === "hit"));
   const publication = prepareAuthoredLessonForPublication({
     sidecarContent: starter.sidecarContent,
@@ -106,7 +106,7 @@ test("the starter uses two safe cues and falls back to a usable rhythm difficult
     },
     runtimeClock: createLessonClock(chart.content),
   });
-  assert.deepEqual(publication.counts, { equations: 1, encounters: 2, targets: 2 });
+  assert.deepEqual(publication.counts, { equations: 1, encounters: 5, targets: 5 });
 });
 
 test("the starter explains when no rhythm can fit its final interaction", () => {
@@ -115,7 +115,7 @@ test("the starter explains when no rhythm can fit its final interaction", () => 
     chartContent: chart.content,
     durationSeconds: 20,
   });
-  assert.throws(() => generateNumberBondsStarterLesson(input), /no rhythm difficulty with two Number Bonds catch cues/i);
+  assert.throws(() => generateNumberBondsStarterLesson(input), /no rhythm difficulty with five Number Bonds catch cues/i);
 });
 
 test("generates deterministic cues from the selected difficulty across a tempo change and preserves source provenance", () => {

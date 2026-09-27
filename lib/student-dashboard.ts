@@ -27,7 +27,8 @@ export async function getStudentDashboardData(userId: string) {
     return null;
   }
 
-  const assignments = await prisma.assignment.findMany({
+  const [assignments, progressRecords] = await Promise.all([
+    prisma.assignment.findMany({
     where: {
       status: {
         in: ["assigned", "in_progress"],
@@ -65,9 +66,8 @@ export async function getStudentDashboardData(userId: string) {
       },
     ],
     take: 6,
-  });
-
-  const progressRecords = await prisma.progress.findMany({
+    }),
+    prisma.progress.findMany({
     where: {
       userId: user.id,
       status: {
@@ -81,7 +81,8 @@ export async function getStudentDashboardData(userId: string) {
       updatedAt: "desc",
     },
     take: 6,
-  });
+    }),
+  ]);
 
   const classes = user.classMemberships.map((membership) => membership.class);
 

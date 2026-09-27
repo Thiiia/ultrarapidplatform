@@ -19,6 +19,7 @@ import {
   type NumberBondsTimingIssue,
 } from "./activity-authoring-capabilities";
 import { resolveAuthoredHitPadTarget } from "./authored-hit-pad-layout";
+import { getEquationDraftIssue } from "./editor/equation-draft-readiness";
 
 export type GuidedMechanic = "hit" | "spin" | "drag";
 
@@ -37,6 +38,7 @@ export type EncounterIssueCode =
   | "lesson_encounter_required"
   | "first_cue_before_tutorial"
   | "equation_required"
+  | "equation_incomplete"
   | "target_required"
   | "target_identity_invalid"
   | "hit_pad_required"
@@ -114,6 +116,7 @@ const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   lesson_encounter_required: "Add at least one encounter with a playable move.",
   first_cue_before_tutorial: `Move the first song note to ${AUTHORED_MIN_FIRST_CUE_SECONDS.toFixed(1)}s or later.`,
   equation_required: "Choose an equation to get started.",
+  equation_incomplete: "Choose a complete equation with one = sign and terms on both sides.",
   target_required: "Pick a token for this move.",
   target_identity_invalid: "Choose the token again.",
   hit_pad_required: "Choose at least one button for the token.",
@@ -145,6 +148,7 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
     lesson_encounter_required: "needs a playable move",
     first_cue_before_tutorial: "starts before the tutorial gate",
     equation_required: "needs an equation",
+    equation_incomplete: "needs a complete equation",
     target_required: "needs a token",
     target_identity_invalid: "needs its token chosen again",
     hit_pad_required: "needs a button",
@@ -306,6 +310,9 @@ export function evaluateEncounterReadiness(
     (!encounter.equation || encounter.equation.tokens.length === 0)
   ) {
     issues.push(issue(encounter, "equation_required"));
+  } else if (capabilities.activityKey === "early-algebra" && encounter.equation) {
+    const equationIssue = getEquationDraftIssue(encounter.equation.tokens);
+    if (equationIssue) issues.push({ ...issue(encounter, "equation_incomplete"), nextAction: equationIssue });
   }
 
   const targets = targetIndexes(encounter);

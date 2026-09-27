@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { prepareAuthoredLessonForPublication } from "../lib/authored-lesson-publication";
-import { migrateEarlyAlgebraCatalogueSong } from "../lib/early-algebra-catalogue-migration";
+import { migrateEarlyAlgebraCatalogueSong, upgradeEarlyAlgebraCatalogueHitPads } from "../lib/early-algebra-catalogue-migration";
 import { createLessonClock } from "../lib/editor/lesson-timing";
 import { validateLessonContent } from "../lib/lesson-content";
 
@@ -14,6 +14,8 @@ const snapshotDir = argument("--snapshot-dir") ?? "/tmp/early-algebra-catalogue-
 const outputDir = argument("--output-dir") ?? "/tmp/early-algebra-catalogue-migrated-20260926";
 const apply = process.argv.includes("--apply");
 const capture = process.argv.includes("--capture");
+const verifyLive = process.argv.includes("--verify-live");
+const hitPadUpgrade = process.argv.includes("--hitpad-upgrade");
 
 type Source = { chart: string; sidecar: string; authorId: string; revision: string };
 
@@ -52,7 +54,7 @@ async function live(songAssetId: string): Promise<Source> {
 }
 
 async function main() {
-  if (capture && apply) throw new Error("Capture and apply must run separately");
+  if ([capture, apply, verifyLive].filter(Boolean).length > 1) throw new Error("Capture, verify, and apply must run separately");
   if (capture) {
     await mkdir(snapshotDir, { recursive: true });
     for (const songAssetId of songs) {
@@ -74,11 +76,13 @@ async function main() {
   for (const songAssetId of songs) {
     try {
       const reference = await snapshot(songAssetId);
-      const source = apply ? await live(songAssetId) : reference;
+      const source = apply || verifyLive ? await live(songAssetId) : reference;
       if (source.revision !== reference.revision || source.sidecar !== reference.sidecar || source.chart !== reference.chart) {
         throw new Error(`${songAssetId}: current published revision differs from the reviewed snapshot`);
       }
-      const draft = migrateEarlyAlgebraCatalogueSong({ songAssetId, chart: source.chart, sidecar: source.sidecar });
+      const draft = hitPadUpgrade
+        ? upgradeEarlyAlgebraCatalogueHitPads({ songAssetId, sidecar: source.sidecar })
+        : migrateEarlyAlgebraCatalogueSong({ songAssetId, chart: source.chart, sidecar: source.sidecar });
       const publication = prepareAuthoredLessonForPublication({
         sidecarContent: JSON.stringify(draft),
         identity: { songAssetId, activityKey: "early-algebra", authorId: source.authorId, revision: randomUUID() },
@@ -94,6 +98,7 @@ async function main() {
         newEncounters: draft.encounters.length,
         originalHits: old.encounters.filter((item) => item.type === "hit").length,
         newHits: draft.encounters.filter((item) => item.type === "hit").length,
+        dualPadHits: draft.encounters.filter((item) => item.type === "hit" && item.hitBubbles?.[0]?.pads?.length === 2).length,
         equations: draft.equations.length,
       };
       prepared.push({ songAssetId, source, content: JSON.stringify(draft, null, 2), summary });
@@ -121,7 +126,7 @@ async function main() {
       break;
     }
   }
-  console.log(JSON.stringify({ mode: apply ? "apply" : "dry-run", outputDir, results }, null, 2));
+  console.log(JSON.stringify({ mode: apply ? "apply" : verifyLive ? "verify-live" : "dry-run", outputDir, results }, null, 2));
   if (results.some((item) => "error" in item)) process.exitCode = 1;
 }
 

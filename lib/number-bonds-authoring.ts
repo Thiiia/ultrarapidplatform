@@ -96,7 +96,7 @@ export function createNumberBondEquation(
   };
 }
 
-/** A saved song starts with a repeatable random-looking bond; authors can edit or reroll it. */
+/** Make five starts at 2 + 3; authors can edit or reroll the split. */
 export function createDefaultNumberBondForSong(
   songAssetId: string,
   whole: number,
