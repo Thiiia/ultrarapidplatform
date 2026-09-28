@@ -71,7 +71,7 @@ export default function GuidedTemplateStart({ songTitle, encounterCount, actionC
           <button type="button" onClick={onChangeEvent} className={styles.secondary}>Change first encounter</button>
           <button type="button" onClick={onAddEquation} className={styles.secondary}>Add an equation</button>
         </div>
-        <button type="button" onClick={onUseAdvanced} className={`${styles.secondary} ${styles.advanced}`}>Open more tools</button>
+        <button type="button" onClick={onUseAdvanced} className={`${styles.secondary} ${styles.advanced}`}>Open full editor</button>
         <p className={styles.note}>After these encounters, the game can use its own questions if it needs more.</p>
       </div>
     </section>

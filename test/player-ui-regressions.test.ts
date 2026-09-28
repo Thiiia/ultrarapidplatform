@@ -187,15 +187,25 @@ test("guided editing waits until the player chooses an editing action", () => {
   const guidedStart = source("app/student/lesson-builder/GuidedTemplateStart.tsx");
 
   assert.match(builder, /const \[tutorialStep, setTutorialStep\][\s\S]*?= useState<[^>]+>\(null\)/);
-  assert.match(builder, /setTutorialStep\(isDemoMode \? "welcome" : null\)/);
+  assert.match(builder, /setTutorialStep\(isDemoMode \? "build" : null\)/);
   assert.match(guidedStart, /Play this lesson/);
   assert.match(guidedStart, /Add an equation/);
   assert.match(guidedStart, /Encounter/);
   assert.match(guidedStart, /encounter group/);
   assert.match(guidedStart, /game action/);
   assert.match(builder, /actionCount=\{timelineEvents\.reduce/);
+  assert.match(builder, /aria-label=\{`Zoom timeline out, current zoom/);
+  assert.match(builder, /Fit full song in timeline/);
   assert.match(guidedStart, /A Hit, Spin, or Drag is an action you set inside an encounter\./);
   assert.match(guidedStart, /After these encounters, the game can use its own questions if it needs more\./);
+});
+
+test("composer keeps precise timing inputs while showing concise preview times", () => {
+  const composer = source("app/student/lesson-builder/GuidedEncounterComposer.tsx");
+
+  assert.match(composer, /function timeValue\(value: number \| undefined\)[\s\S]{0,180}value\.toFixed\(2\)/);
+  assert.match(composer, /data-repair-control="start"[\s\S]{0,120}step="0\.01"/);
+  assert.match(composer, /instance\.tick\)\}s/);
 });
 
 test("player-facing equation actions explain what happens to the lesson", () => {
@@ -242,9 +252,9 @@ test("advanced recorder exposes one tool at a time and makes draft commit explic
   const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
 
   assert.match(builder, /const \[selectedTool, setSelectedTool\] = useState<GameplayMechanic>\("hit"\)/);
-  assert.match(builder, /Start encounter/);
+  assert.match(builder, /Record encounter/);
   assert.match(builder, /Save encounter/);
-  assert.match(builder, /recorded in this encounter draft/);
+  assert.match(builder, /recorded in the current encounter draft/);
   assert.match(builder, /rtcmPendingHoldRef\.current = pendingHold/);
 });
 

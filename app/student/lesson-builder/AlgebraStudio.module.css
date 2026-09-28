@@ -68,8 +68,9 @@
 .studioCounts { margin-left: auto; display: flex; gap: 12px; align-items: center; color: var(--studio-muted); white-space: nowrap; font-size: 14px; }
 .studioCounts strong { color: #fff; font-size: 15px; }
 .countDivider { width: 1px; height: 20px; background: var(--studio-border); }
-.addAction { min-height: 44px; flex: none; padding: 8px 16px; border: 1px solid #cfff04; border-radius: 14px; background: #cfff04; color: #10182a; font-size: 14px; font-weight: 900; cursor: pointer; transition: transform .22s ease, box-shadow .22s ease; }
-.addAction:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 22px #cfff0452; }
+.addAction { min-height: 44px; flex: none; padding: 8px 16px; border: 1px solid #cfff04; border-radius: 14px; background: #cfff04; color: #10182a; font-size: 14px; font-weight: 900; cursor: pointer; transition: transform .12s cubic-bezier(.22,1,.36,1), box-shadow .18s ease, filter .18s ease; }
+.addAction:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 8px 22px #cfff0452; }
+.addAction:active:not(:disabled) { transform: scale(.98); }
 .addAction:disabled { border-color: #657281; background: #283044; color: #a5afbf; cursor: not-allowed; }
 .guideWrap { position: relative; flex: none; }
 .guideToggle { min-height: 44px; padding: 8px 13px; border: 1px solid #bda7ec84; border-radius: 13px; background: #9879d524; color: #f5edff; font-size: 13px; font-weight: 800; cursor: pointer; }
@@ -84,8 +85,8 @@
 .guideActions button { min-height: 42px; padding: 8px 11px; border: 1px solid #bba9e9; border-radius: 10px; background: #2b2750; color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; }
 .guideActions button:last-child { border-color: #cfff04; background: #cfff04; color: #0b1428; }
 .guideActions button:disabled { opacity: .55; cursor: not-allowed; }
-.tutorialBubble { animation: studio-bubble-arrive .35s cubic-bezier(.18,1.3,.3,1) both; }
-@keyframes studio-bubble-arrive { from { transform: translateY(8px) scale(.94); opacity: .5; } to { transform: translateY(0) scale(1); opacity: 1; } }
+.tutorialBubble { animation: studio-bubble-arrive .28s cubic-bezier(.22,1,.36,1) both; }
+@keyframes studio-bubble-arrive { from { transform: translateY(8px); opacity: .65; } to { transform: translateY(0); opacity: 1; } }
 .appearance { display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 13px; border: 1px solid var(--studio-border); background: #0c122acc; }
 .appearanceLabel { padding: 0 8px; color: #b6b9d2; }
 .appearance button { min-height: 34px; border: 0; border-radius: 9px; padding: 5px 11px; color: var(--studio-muted); background: transparent; font-size: 12px; font-weight: 800; cursor: pointer; }
@@ -102,6 +103,26 @@
 }
 .viewer { backdrop-filter: blur(12px); }
 .timeline { backdrop-filter: blur(10px); }
+.timelineMarkerHandle:focus-visible {
+  z-index: 5;
+  outline: 2px solid var(--studio-accent);
+  outline-offset: 4px;
+  box-shadow: 0 0 0 7px #cfff0430;
+}
+.timelineResizeHandle {
+  z-index: 5;
+  opacity: 0;
+  background: transparent;
+  transition: opacity .12s ease, background .12s ease;
+}
+.timelineResizeHandle:hover { opacity: .6; background: #ffffff24; }
+.timelineResizeHandle:focus-visible {
+  opacity: 1;
+  border-radius: 999px;
+  background: #cfff0460;
+  outline: 2px solid var(--studio-accent);
+  outline-offset: 2px;
+}
 .center { min-width: 0; background: transparent; }
 .panelSurface { border-right: 1px solid var(--studio-border); border-left: 1px solid var(--studio-border); }
 .rail { background: #241b3d9e; }
@@ -132,6 +153,7 @@
 
 .composer {
   width: min(100%, 1050px);
+  box-sizing: border-box;
   padding: clamp(16px, 2.5vw, 30px);
   border: 1px solid #c1a5ff70;
   border-radius: 25px;
@@ -199,8 +221,8 @@
 .shell[data-appearance="focus"] .composerInspector { background: #081222; border-color: #49607a; }
 .shell[data-appearance="focus"] .composer :global(.algebra-composer__preview) { background: #151f37; border-color: #49607a; }
 .draftBackdrop { position: fixed; inset: 122px 0 0; z-index: 1600; display: grid; justify-items: end; background: #03061370; }
-.draftDialog { width: min(760px, 100%); height: 100%; min-height: 0; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 14px; overflow: hidden; padding: clamp(16px, 2.3vw, 26px); box-sizing: border-box; border: 1px solid #c5adff88; border-right: 0; border-radius: 24px 0 0 24px; background: linear-gradient(140deg, #241e48, #101b32 55%, #0b132a); color: #fff; box-shadow: -20px 0 70px #0009, inset 0 1px #fff4; animation: studio-sheet-arrive .3s cubic-bezier(.2,.8,.2,1) both; }
-@keyframes studio-sheet-arrive { from { transform: translateX(24px); opacity: .7; } to { transform: translateX(0); opacity: 1; } }
+.draftDialog { width: min(760px, 100%); height: 100%; min-height: 0; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 14px; overflow: hidden; padding: clamp(16px, 2.3vw, 26px); box-sizing: border-box; border: 1px solid #c5adff88; border-right: 0; border-radius: 24px 0 0 24px; background: linear-gradient(140deg, #241e48, #101b32 55%, #0b132a); color: #fff; box-shadow: -20px 0 70px #0009, inset 0 1px #fff4; animation: studio-sheet-arrive .28s cubic-bezier(.22,1,.36,1) both; }
+@keyframes studio-sheet-arrive { from { transform: translateY(8px); opacity: .7; } to { transform: translateY(0); opacity: 1; } }
 .draftHeader { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
 .draftHeader span { color: #d7bdff; font: 800 10px/1.3 var(--ur-font-technical), monospace; letter-spacing: .13em; }
 .draftHeader h2 { margin: 5px 0; font-size: clamp(21px, 2.5vw, 31px); }
@@ -208,8 +230,9 @@
 .draftClose { width: 42px; height: 42px; flex: none; border: 1px solid #ffffff58; border-radius: 11px; background: #ffffff15; color: #fff; font-size: 25px; cursor: pointer; }
 .draftTopControls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; padding: 12px; border: 1px solid #ffffff2f; border-radius: 15px; background: #070e22a8; }
 .draftMechanics { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
-.draftMechanics button { min-height: 66px; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 9px; border: 1px solid #ffffff39; border-radius: 12px; background: #1c2541; color: #d5d8e9; text-align: left; cursor: pointer; transition: transform .2s ease, background .2s ease, border-color .2s ease; }
-.draftMechanics button:hover { transform: translateY(-2px); border-color: #d7bdff; }
+.draftMechanics button { min-height: 66px; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 9px; border: 1px solid #ffffff39; border-radius: 12px; background: #1c2541; color: #d5d8e9; text-align: left; cursor: pointer; transition: transform .12s cubic-bezier(.22,1,.36,1), background .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.draftMechanics button:hover { border-color: #d7bdff; background: #ffffff19; }
+.draftMechanics button:active { transform: scale(.98); }
 .draftMechanics button[aria-pressed="true"] { color: #0a1326; border-color: #cfff04; background: #cfff04; box-shadow: 0 5px 20px #cfff0430; }
 .draftMechanics button > span { display: grid; gap: 2px; min-width: 0; }
 .draftMechanics button strong { font-size: 14px; }
@@ -262,6 +285,193 @@
   .composer :global(.algebra-composer__equationToken[data-targeted="true"]) { animation: none; }
   .composer :global(.algebra-composer__gesturePads span[data-selected="true"]), .composer :global(.algebra-composer__gestureSpin), .composer :global(.algebra-composer__gestureDrag span:first-child), .draftDialog { animation: none; }
   .tutorialBubble { animation: none; }
-  .addAction, .draftMechanics button, .composer :global(.algebra-composer__padButton) { transition: none; }
-  .addAction:hover:not(:disabled), .draftMechanics button:hover { transform: none; }
+.addAction, .draftMechanics button, .composer :global(.algebra-composer__padButton) { transition: none; }
+.addAction:active:not(:disabled), .draftMechanics button:active { transform: none; }
+}
+
+/* Calm the editor by using one visual language for the equation, player pads, and action controls. */
+.composerInspector {
+  background: linear-gradient(145deg, #ffffff10, #ffffff04 48%, #a68cff0c), #111a31bd;
+  border-color: #c7b5ff48;
+  box-shadow: inset 0 1px #ffffff28, 0 16px 36px #03050c33;
+  backdrop-filter: blur(18px) saturate(135%);
+}
+.composer :global(.algebra-composer__preview) {
+  border-color: #a9d9ff61;
+  background: radial-gradient(circle at 78% 14%, #9b82ff35, transparent 42%), linear-gradient(145deg, #a9d8ff18, #ffffff08 52%, #30236329), #151c37c9;
+  box-shadow: inset 0 1px #ffffff31, 0 14px 34px #02040c38;
+  backdrop-filter: blur(16px) saturate(125%);
+}
+.composer :global(.algebra-composer__preview[data-mechanic="hit"]) { grid-template-columns: minmax(0, 1fr); }
+.composer :global(.algebra-composer__equationToken) {
+  width: 58px;
+  min-width: 58px;
+  height: 58px;
+  min-height: 58px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  border-color: #c7d9ff70;
+  background: radial-gradient(circle at 32% 24%, #ffffff36, #ffffff13 38%, #8278d72a 100%);
+  box-shadow: inset 0 1px #ffffff45, inset 0 -8px 18px #080d272a, 0 6px 18px #0509193b;
+  backdrop-filter: blur(8px);
+  transition: transform .24s cubic-bezier(.2,.8,.2,1), background .24s ease, box-shadow .24s ease;
+}
+.composer :global(.algebra-composer__equationToken[data-targeted="true"]) {
+  border-color: #d9ff39;
+  background: radial-gradient(circle at 32% 22%, #f4ffb6, #cfff04 55%, #91b900);
+  color: #101827;
+  box-shadow: inset 0 1px #ffffffb5, 0 0 0 5px #cfff0423, 0 9px 25px #cfff0445;
+  animation: studio-equation-commit .18s cubic-bezier(.22,1,.36,1) both;
+}
+.composer :global(.algebra-composer__equationToken[data-operator="true"]) {
+  width: auto;
+  min-width: 22px;
+  height: auto;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.composer :global(.algebra-composer__tokenButton) {
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 50%;
+  border-color: #d1dcff75;
+  background: radial-gradient(circle at 30% 22%, #ffffff31, #ffffff11 46%, #8a78d332);
+  box-shadow: inset 0 1px #ffffff39, 0 5px 14px #0206163d;
+  backdrop-filter: blur(7px);
+  transition: transform .12s cubic-bezier(.22,1,.36,1), background .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.composer :global(.algebra-composer__tokenButton:hover:not(:disabled)) { border-color: #f2f4ff; background: radial-gradient(circle at 30% 22%, #ffffff40, #ffffff16 46%, #a392e23d); }
+.composer :global(.algebra-composer__tokenButton:active:not(:disabled)) { transform: scale(.98); }
+.composer :global(.algebra-composer__tokenButton[data-selected="true"]) {
+  background: radial-gradient(circle at 30% 22%, #f4ffad, #cfff04 58%, #8ea900);
+  color: #101827;
+  box-shadow: inset 0 1px #ffffffb0, 0 0 0 4px #cfff0425, 0 8px 20px #cfff0440;
+  animation: studio-equation-commit .18s cubic-bezier(.22,1,.36,1) both;
+}
+.composer :global(.algebra-composer__padBoard) {
+  border-color: #b7cbff78;
+  background: radial-gradient(circle at 50% 38%, #a281e63a, transparent 60%), linear-gradient(145deg, #ffffff13, #ffffff05), #111a31bd;
+  box-shadow: inset 0 1px #ffffff2b, 0 12px 30px #03061233;
+  backdrop-filter: blur(14px) saturate(125%);
+}
+.composer :global(.algebra-composer__padButton) {
+  border-color: #d0def7a8;
+  background: radial-gradient(circle at 30% 22%, #ffffff3b, #ffffff17 44%, #7fa6ce32);
+  box-shadow: inset 0 1px #ffffff46, 0 5px 14px #02061640;
+  backdrop-filter: blur(6px);
+  transition: transform .12s cubic-bezier(.22,1,.36,1), background .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.composer :global(.algebra-composer__padButton:hover:not(:disabled)) { transform: translate(-50%, -50%); border-color: #f2f4ff; background: radial-gradient(circle at 30% 22%, #ffffff48, #ffffff1c 44%, #9bbde147); }
+.composer :global(.algebra-composer__padButton:active:not(:disabled)) { transform: translate(-50%, -50%) scale(.98); }
+.composer :global(.algebra-composer__padButton[data-selected="true"]) {
+  background: radial-gradient(circle at 30% 22%, #f4ffb6, #cfff04 58%, #91b900);
+  color: #101827;
+  box-shadow: inset 0 1px #ffffffb5, 0 0 0 5px #cfff0425, 0 8px 22px #cfff0445;
+  animation: studio-equation-commit .18s cubic-bezier(.22,1,.36,1) both;
+}
+.draftBackdrop { background: #03061363; backdrop-filter: blur(3px); }
+.draftDialog {
+  width: min(1080px, calc(100vw - 24px));
+  border-right: 1px solid #c5adff88;
+  background: linear-gradient(145deg, #322754d9, #15223bd9 54%, #0a142bdd);
+  box-shadow: -20px 0 70px #0008, inset 0 1px #ffffff42, -1px 0 #ffffff20;
+  backdrop-filter: blur(24px) saturate(135%);
+}
+.draftTopControls {
+  gap: 16px;
+  padding: 16px;
+  border-color: #d6c9ff45;
+  background: linear-gradient(140deg, #ffffff10, #ffffff05 52%, #9982e61a), #10182bbd;
+  box-shadow: inset 0 1px #ffffff2c, 0 10px 25px #04071336;
+  backdrop-filter: blur(16px) saturate(125%);
+}
+.draftMechanics { gap: 12px; }
+.draftMechanics button {
+  min-height: 78px;
+  gap: 12px;
+  padding: 13px 15px;
+  border-radius: 16px;
+  border-color: #d6e3ff52;
+  background: linear-gradient(145deg, #ffffff18, #ffffff08 46%, #9982dc19), #1b2742bb;
+  box-shadow: inset 0 1px #ffffff31, 0 8px 20px #0308172b;
+  backdrop-filter: blur(12px) saturate(120%);
+}
+.draftMechanics button[aria-pressed="true"] {
+  border-color: #e5ff8f;
+  background: linear-gradient(145deg, #f2ffbd, #cfff04 62%, #a7cb00);
+  box-shadow: inset 0 1px #ffffffbd, 0 0 0 4px #cfff0420, 0 10px 25px #cfff0438;
+}
+.draftMechanics button strong { font-size: 15px; }
+.draftMechanics button small { font-size: 12px; }
+.draftEquationLabel select, .draftCreateEquation, .draftClose {
+  border-color: #d1c7ff69;
+  background: linear-gradient(145deg, #ffffff19, #ffffff08), #111b31a8;
+  box-shadow: inset 0 1px #ffffff25;
+  backdrop-filter: blur(10px);
+}
+.draftComposer > :global(.algebra-composer) { margin: 0 auto; }
+.composer :global(.algebra-composer__gestureSpin) { animation: studio-spin .28s cubic-bezier(.22,1,.36,1) both; }
+.composer :global(.algebra-composer__gestureDrag span:first-child) { animation: studio-drag .28s cubic-bezier(.22,1,.36,1) both; }
+@keyframes studio-equation-commit { from { transform: scale(.98); } to { transform: scale(1); } }
+@keyframes studio-spin { from { transform: rotate(-65deg); } to { transform: rotate(0deg); } }
+@keyframes studio-drag { from { transform: translateX(-8px) scale(.9); } to { transform: translateX(0) scale(1); } }
+
+@media (max-width: 700px) {
+  .draftDialog { width: 100%; border-radius: 0; }
+  .draftMechanics { grid-template-columns: minmax(0, 1fr); }
+  .draftMechanics button { min-height: 58px; flex-direction: row; align-items: center; }
+  .draftMechanics button small { display: block; }
+  .composer :global(.algebra-composer__equationToken) { width: 48px; min-width: 48px; height: 48px; min-height: 48px; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .composerInspector, .composer :global(.algebra-composer__preview), .composer :global(.algebra-composer__padBoard), .draftBackdrop, .draftDialog, .draftTopControls, .draftMechanics button, .draftEquationLabel select, .draftCreateEquation, .draftClose, .composer :global(.algebra-composer__equationToken), .composer :global(.algebra-composer__tokenButton), .composer :global(.algebra-composer__padButton) { backdrop-filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer :global(.algebra-composer__equationToken[data-targeted="true"]), .composer :global(.algebra-composer__tokenButton[data-selected="true"]), .composer :global(.algebra-composer__padButton[data-selected="true"]), .composer :global(.algebra-composer__gestureSpin), .composer :global(.algebra-composer__gestureDrag span:first-child) { animation: none; }
+  .composer :global(.algebra-composer__equationToken), .composer :global(.algebra-composer__tokenButton), .composer :global(.algebra-composer__padButton) { transition: none; }
+}
+
+.timelineZoomControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 4px;
+}
+.timelineZoomButton, .timelineFitButton {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d6c9ff50;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #ffffff1a, #ffffff08 54%, #9f83e51a), #111a2dc9;
+  color: #f4f1ff;
+  box-shadow: inset 0 1px #ffffff28, 0 5px 14px #0206163d;
+  backdrop-filter: blur(12px) saturate(125%);
+  cursor: pointer;
+  transition: transform .12s cubic-bezier(.22,1,.36,1), background .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.timelineZoomButton { font-size: 19px; font-weight: 800; }
+.timelineZoomButton:hover:not(:disabled), .timelineFitButton:hover { border-color: #e4d9ffb0; background: linear-gradient(145deg, #ffffff29, #ffffff10 54%, #b39af230), #20213ccf; }
+.timelineZoomButton:active:not(:disabled), .timelineFitButton:active { transform: scale(.98); }
+.timelineZoomButton:disabled { cursor: default; opacity: .5; }
+.timelineFitButton { align-content: center; gap: 1px; border-color: #cfff0470; color: #eaff95; }
+.timelineFitValue { font-size: 9px; line-height: 1; font-weight: 800; }
+.timelineFitLabel { font-size: 8px; line-height: 1; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+.recordEncounterButton { min-height: 44px; border-radius: 12px; box-shadow: inset 0 1px #ffffff2b, 0 6px 18px #0004; backdrop-filter: blur(10px) saturate(130%); transition: transform .12s cubic-bezier(.22,1,.36,1), background .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.recordEncounterButton:hover { border-color: #e5ff8f; box-shadow: inset 0 1px #ffffff42, 0 7px 20px #cfff0420; }
+.recordEncounterButton:active { transform: scale(.98); }
+@media (prefers-reduced-transparency: reduce) {
+  .timelineZoomButton, .timelineFitButton, .recordEncounterButton { backdrop-filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .timelineZoomButton, .timelineFitButton, .recordEncounterButton { transition: none; }
+  .timelineZoomButton:active:not(:disabled), .timelineFitButton:active, .recordEncounterButton:active { transform: none; }
 }

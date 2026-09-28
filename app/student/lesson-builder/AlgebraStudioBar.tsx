@@ -11,7 +11,6 @@ export function AlgebraStudioBar({
   onAppearanceChange,
   onAddAction,
   canAddAction,
-  showIntro,
   onEditFirstEncounter,
   onCreateEquation,
 }: {
@@ -22,12 +21,11 @@ export function AlgebraStudioBar({
   onAppearanceChange: (appearance: AlgebraAppearance) => void;
   onAddAction: () => void;
   canAddAction: boolean;
-  showIntro: boolean;
   onEditFirstEncounter: () => void;
   onCreateEquation: () => void;
 }) {
   const [guideOverride, setGuideOverride] = useState<boolean | null>(null);
-  const guideOpen = guideOverride ?? showIntro;
+  const guideOpen = guideOverride ?? false;
 
   return (
     <div className={styles.studioBar} aria-label="Early Algebra studio">
@@ -41,13 +39,13 @@ export function AlgebraStudioBar({
         <span className={styles.countDivider} aria-hidden="true" />
         <span><strong>{actionCount}</strong> {actionCount === 1 ? "action" : "actions"}</span>
       </div>
-      <button type="button" className={styles.addAction} onClick={onAddAction} disabled={!canAddAction} title={canAddAction ? "Set up a player action" : "Choose and load a song first"}>+ New action</button>
+      <button type="button" className={styles.addAction} onClick={onAddAction} disabled={!canAddAction} title={canAddAction ? "Set up a player move" : "Choose and load a song first"}>+ Add a move</button>
       <div className={styles.guideWrap}>
         <button type="button" className={styles.guideToggle} aria-expanded={guideOpen} aria-controls="algebra-studio-guide" onClick={() => setGuideOverride(!guideOpen)}>How it works</button>
         {guideOpen ? (
           <div id="algebra-studio-guide" className={styles.guidePopover} role="region" aria-label="Algebra studio guide">
             <strong>Build and play in this studio</strong>
-            <p>An encounter is a moment in the song. It can hold several player moves linked to an equation.</p>
+            <p>Use Add a move to place one action precisely, or start an encounter to record several moves while the song plays.</p>
             <ol>
               <li><b>Choose an equation.</b> Its terms become the player targets.</li>
               <li><b>Place a move.</b> Hit selects one or two pads; Spin and Drag use a time window.</li>

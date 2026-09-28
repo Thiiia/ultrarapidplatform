@@ -45,9 +45,9 @@ export function AlgebraActionDraft({ draft, equations, dragSources, readiness, b
       <section className={styles.draftDialog} role="dialog" aria-modal="true" aria-labelledby="algebra-draft-title" onKeyDown={(event) => { if (event.key === "Escape") onCancel(); }}>
         <div className={styles.draftHeader}>
           <div>
-            <span>CREATE A PLAYER MOMENT</span>
-            <h2 id="algebra-draft-title">Shape a move on this song</h2>
-            <p>Choose a move, its equation and its timing. The preview changes as you build.</p>
+            <span>ADD A MOVE</span>
+            <h2 id="algebra-draft-title">Choose a move</h2>
+            <p>Set its equation, target and timing. The preview updates as you build.</p>
           </div>
           <button type="button" className={styles.draftClose} onClick={onCancel} aria-label="Close action setup">×</button>
         </div>
@@ -71,7 +71,7 @@ export function AlgebraActionDraft({ draft, equations, dragSources, readiness, b
               ))}
             </select>
           </label>
-          <button type="button" className={styles.draftCreateEquation} onClick={onCreateEquation}>Make a new equation</button>
+          <button type="button" className={styles.draftCreateEquation} onClick={onCreateEquation}>Build a new equation</button>
         </div>
         <div className={styles.draftComposer}>
           <GuidedEncounterComposer

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { ChangeEvent, DragEvent, PointerEvent, ReactNode } from "react";
+import type { ChangeEvent, DragEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent, ReactNode } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
@@ -4970,6 +4970,7 @@ function EquationTimeline({
     destroy(): void;
   } | null>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
+  const [timelineZoom, setTimelineZoom] = useState(1);
   const [draggedMechanicMarker, setDraggedMechanicMarker] = useState<{
     eventId: string;
     mechanic: GameplayMechanic;
@@ -4983,7 +4984,7 @@ function EquationTimeline({
   const [viewportWidth, setViewportWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1280);
   const blockDurationSeconds = isAdvancedMode ? 1 : 8;
   const fineGridIntervalSeconds = isAdvancedMode ? 0.2 : 0;
-  const blockWidthPx = viewportWidth * 0.05;
+  const blockWidthPx = viewportWidth * 0.05 * timelineZoom;
   useEffect(() => {
     if (!waveformContainerRef.current || !waveformPeaks.length) {
       return;
@@ -5050,18 +5051,30 @@ function EquationTimeline({
     .filter((mechanic) => !(hideSpinouts && mechanic === "spin"));
   const isNumberBondsTimeline = authoringCapabilities.activityKey === "number-bonds";
   const rowCountAfterHeader = 2 + mechanicsForTimeline.length;
-  const rowHeightPercent = (100 - 15) / rowCountAfterHeader;
-  const timelineGridRows = `15% repeat(${rowCountAfterHeader}, ${rowHeightPercent}%)`;
+  const timelineHeaderPercent = 18;
+  const rowHeightPercent = (100 - timelineHeaderPercent) / rowCountAfterHeader;
+  const timelineGridRows = `${timelineHeaderPercent}% repeat(${rowCountAfterHeader}, ${rowHeightPercent}%)`;
 
   const labelRows = [
     { key: "merged", label: "", color: "#FFFFFF" },
     { key: "equations", label: isNumberBondsTimeline ? "Bond" : "Equations", color: "#CFFF04" },
     ...mechanicsForTimeline.map((mechanic) => ({
       key: mechanic,
-      label: mechanic === "hit" ? (isNumberBondsTimeline ? "Notes" : "Hits") : mechanic === "spin" ? "Spinouts" : "Drags",
+      label: mechanic === "hit" ? (isNumberBondsTimeline ? "Notes" : "Hits") : mechanic === "spin" ? "Spins" : "Drags",
       color: mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF",
     })),
   ];
+
+  function setTimelineZoomLevel(nextZoom: number) {
+    setTimelineZoom(Math.min(2.5, Math.max(0.15, Number(nextZoom.toFixed(2)))));
+  }
+
+  function fitTimelineToView() {
+    const availableWidth = timelineTrackRef.current?.clientWidth ?? viewportWidth * 0.88;
+    const baseBlockWidth = viewportWidth * 0.05;
+    const fitZoom = (availableWidth - endScrollBuffer) / Math.max(1, blockCount * baseBlockWidth);
+    setTimelineZoomLevel(Math.min(1, fitZoom));
+  }
 
   function getSecondsFromClientX(clientX: number, options: { autoScroll?: boolean } = {}) {
     const track = timelineTrackRef.current;
@@ -5122,6 +5135,44 @@ function EquationTimeline({
     }
 
     return Math.max(0, Math.min(visualDurationSeconds, snappedSeconds));
+  }
+
+  function handleTimelineRetimingByKey(
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    currentSeconds: number,
+    onChange: (seconds: number) => void,
+  ) {
+    const fineStep = isAdvancedMode ? fineGridIntervalSeconds : 0.02;
+    const step = fineStep * (event.shiftKey ? 5 : 1);
+    let nextSeconds: number;
+
+    switch (event.key) {
+      case "ArrowLeft":
+      case "ArrowDown":
+        nextSeconds = currentSeconds - step;
+        break;
+      case "ArrowRight":
+      case "ArrowUp":
+        nextSeconds = currentSeconds + step;
+        break;
+      case "PageDown":
+        nextSeconds = currentSeconds - step * 10;
+        break;
+      case "PageUp":
+        nextSeconds = currentSeconds + step * 10;
+        break;
+      case "Home":
+        nextSeconds = 0;
+        break;
+      case "End":
+        nextSeconds = visualDurationSeconds;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    onChange(snapTimelineSeconds(nextSeconds));
   }
 
   function retimeDraggedMarker(
@@ -5307,7 +5358,7 @@ function EquationTimeline({
         overflow: "visible",
         fontFamily: "Space Grotesk, sans-serif",
         display: "grid",
-        gridTemplateColumns: "12.5vw minmax(0, 1fr)",
+        gridTemplateColumns: "clamp(156px, 10vw, 190px) minmax(0, 1fr)",
       }}
     >
       <div
@@ -5328,7 +5379,41 @@ function EquationTimeline({
             borderBottom: `1px solid ${subtleBorderColor}`,
             boxSizing: "border-box",
           }}
-        />
+          role="group"
+          aria-label="Timeline zoom controls"
+          className={algebraStyles.timelineZoomControls}
+        >
+          <button
+            type="button"
+            aria-label={`Zoom timeline out, current zoom ${Math.round(timelineZoom * 100)} percent`}
+            title="Zoom out"
+            onClick={() => setTimelineZoomLevel(timelineZoom - 0.25)}
+            disabled={timelineZoom <= 0.15}
+            className={algebraStyles.timelineZoomButton}
+          >
+            −
+          </button>
+          <button
+            type="button"
+            aria-label={`Fit full song in timeline, current zoom ${Math.round(timelineZoom * 100)} percent`}
+            title="Fit the full song in the visible timeline"
+            onClick={fitTimelineToView}
+            className={algebraStyles.timelineFitButton}
+          >
+            <span className={algebraStyles.timelineFitValue} aria-hidden="true">{Math.round(timelineZoom * 100)}%</span>
+            <span className={algebraStyles.timelineFitLabel} aria-hidden="true">Fit</span>
+          </button>
+          <button
+            type="button"
+            aria-label={`Zoom timeline in, current zoom ${Math.round(timelineZoom * 100)} percent`}
+            title="Zoom in"
+            onClick={() => setTimelineZoomLevel(timelineZoom + 0.25)}
+            disabled={timelineZoom >= 2.5}
+            className={algebraStyles.timelineZoomButton}
+          >
+            +
+          </button>
+        </div>
         {labelRows.slice(1).map((row) => (
           <div
             key={row.key}
@@ -5455,7 +5540,7 @@ function EquationTimeline({
                     top: 0,
                     bottom: 0,
                     width: 1,
-                    background: "rgba(207,255,4,0.34)",
+                    background: "rgba(207,255,4,0.2)",
                     transform: "translateX(-0.5px)",
                   }}
                 />
@@ -5574,6 +5659,11 @@ function EquationTimeline({
                   pixelsPerSecond,
                 );
                 const isActive = eventSlot.id === activeEventId;
+                const eventLabel = studentCopy.editor.moveGroup(index + 1);
+                const accessibleEventLabel = eventSlot.rctm2Number
+                  ? `${eventLabel} · #${eventSlot.rctm2Number}`
+                  : eventLabel;
+                const visualEventLabel = activityKey === "early-algebra" ? `E${index + 1}` : accessibleEventLabel;
 
                 return (
                   <div
@@ -5591,14 +5681,16 @@ function EquationTimeline({
                   >
                     <button
                       type="button"
+                      aria-label={accessibleEventLabel}
+                      title={accessibleEventLabel}
                       onPointerDown={(event) => event.stopPropagation()}
                       onClick={() => onSelectEvent(eventSlot.id)}
                       style={{
                         position: "absolute",
                         inset: 0,
                         borderRadius: 10,
-                        border: `2px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
-                        background: isActive ? "#252525" : "#202020",
+                        border: `1px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
+                        background: isActive ? "linear-gradient(145deg, #37344eeb, #191b30ed)" : "linear-gradient(145deg, #27283be0, #151725e8)",
                         color: "#FFFFFF",
                         display: "flex",
                         alignItems: "center",
@@ -5608,12 +5700,11 @@ function EquationTimeline({
                         boxSizing: "border-box",
                         cursor: "pointer",
                         overflow: "hidden",
+                        boxShadow: isActive ? "inset 0 1px #ffffff2b, 0 0 0 2px #cfff0420" : "inset 0 1px #ffffff1b, 0 5px 12px #0003",
                       }}
                     >
-                      <span style={{ fontSize: 11, fontWeight: 900 }}>
-                        {eventSlot.rctm2Number
-                          ? `${studentCopy.editor.moveGroup(index + 1)} · #${eventSlot.rctm2Number}`
-                          : studentCopy.editor.moveGroup(index + 1)}
+                      <span aria-hidden="true" style={{ fontSize: activityKey === "early-algebra" ? 11 : 10, fontWeight: 900, whiteSpace: "nowrap" }}>
+                        {visualEventLabel}
                       </span>
                     </button>
 
@@ -5621,7 +5712,21 @@ function EquationTimeline({
                       <button
                         key={`${eventSlot.id}-event-edge-${edge}`}
                         type="button"
-                        aria-label={`Drag event ${edge} edge`}
+                        className={algebraStyles.timelineResizeHandle}
+                        role="slider"
+                        aria-orientation="horizontal"
+                        aria-valuemin={0}
+                        aria-valuemax={visualDurationSeconds}
+                        aria-valuenow={edge === "start" ? eventWindow.startSeconds : eventWindow.endSeconds}
+                        aria-valuetext={`${formatTimelineTime(edge === "start" ? eventWindow.startSeconds : eventWindow.endSeconds, isAdvancedMode)} seconds`}
+                        aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight PageUp PageDown Home End"
+                        title="Use arrow keys to adjust time; Shift+arrow for a larger step, Page keys for a larger jump, Home/End for song limits."
+                        aria-label={`Move ${accessibleEventLabel} ${edge} time`}
+                        onKeyDown={(keyboardEvent) => handleTimelineRetimingByKey(
+                          keyboardEvent,
+                          edge === "start" ? eventWindow.startSeconds : eventWindow.endSeconds,
+                          (seconds) => onRetimeEventEdge(eventSlot.id, edge, seconds),
+                        )}
                         onPointerDown={(event) =>
                           handleEventEdgePointerDown(event, {
                             eventId: eventSlot.id,
@@ -5639,9 +5744,7 @@ function EquationTimeline({
                           [edge === "start" ? "left" : "right"]: -8,
                           border: "none",
                           borderRadius: 0,
-                          background: "transparent",
                           boxShadow: "none",
-                          opacity: 0,
                           cursor: "ew-resize",
                           padding: 0,
                           touchAction: "none",
@@ -5703,7 +5806,22 @@ function EquationTimeline({
                             <button
                               key={`${eventSlot.id}-${mechanic}-start-${instanceIndex}`}
                               type="button"
+                              className={algebraStyles.timelineMarkerHandle}
                               data-timeline-interactive="true"
+                              role="slider"
+                              aria-orientation="horizontal"
+                              aria-valuemin={0}
+                              aria-valuemax={visualDurationSeconds}
+                              aria-valuenow={markerSeconds}
+                              aria-valuetext={`${formatTimelineTime(markerSeconds, isAdvancedMode)} seconds`}
+                              aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight PageUp PageDown Home End"
+                              title="Use arrow keys to adjust time; Shift+arrow for a larger step, Page keys for a larger jump, Home/End for song limits."
+                              aria-label={`Hit ${instanceIndex + 1} timing`}
+                              onKeyDown={(keyboardEvent) => handleTimelineRetimingByKey(
+                                keyboardEvent,
+                                markerSeconds,
+                                (seconds) => onRetimeMechanicMarker(eventSlot.id, mechanic, instanceIndex, "start", seconds),
+                              )}
                               onPointerDown={(event) =>
                                 handleMechanicMarkerPointerDown(event, {
                                   eventId: eventSlot.id,
@@ -5735,7 +5853,6 @@ function EquationTimeline({
                                 lineHeight: "20px",
                                 textAlign: "center",
                               }}
-                              aria-label={`Drag ${mechanic} timing`}
                             >
                               {getHitPadNumberFromPlacement(instance.hitBubbles?.[0]) ?? ""}
                             </button>
@@ -5787,7 +5904,22 @@ function EquationTimeline({
                                 <button
                                   key={`${eventSlot.id}-${mechanic}-${edge}-${instanceIndex}`}
                                   type="button"
+                                  className={algebraStyles.timelineMarkerHandle}
                                   data-timeline-interactive="true"
+                                  role="slider"
+                                  aria-orientation="horizontal"
+                                  aria-valuemin={0}
+                                  aria-valuemax={visualDurationSeconds}
+                                  aria-valuenow={edge === "start" ? window.startSeconds : window.endSeconds}
+                                  aria-valuetext={`${formatTimelineTime(edge === "start" ? window.startSeconds : window.endSeconds, isAdvancedMode)} seconds`}
+                                  aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight PageUp PageDown Home End"
+                                  title="Use arrow keys to adjust time; Shift+arrow for a larger step, Page keys for a larger jump, Home/End for song limits."
+                                  aria-label={`${mechanic} ${instanceIndex + 1} ${edge} timing`}
+                                  onKeyDown={(keyboardEvent) => handleTimelineRetimingByKey(
+                                    keyboardEvent,
+                                    edge === "start" ? window.startSeconds : window.endSeconds,
+                                    (seconds) => onRetimeMechanicMarker(eventSlot.id, mechanic, instanceIndex, edge, seconds),
+                                  )}
                                   onPointerDown={(event) =>
                                     handleMechanicMarkerPointerDown(event, {
                                       eventId: eventSlot.id,
@@ -5813,7 +5945,6 @@ function EquationTimeline({
                                     touchAction: "none",
                                     padding: 0,
                                   }}
-                                  aria-label={`Drag ${mechanic} ${edge} timing`}
                                 />
                               ),
                             )}
@@ -8069,13 +8200,16 @@ function RtcmModePanel({
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
           <button
             type="button"
+            className={algebraStyles.recordEncounterButton}
+            aria-pressed={eventRangeStartTick !== null}
+            title={eventRangeStartTick === null ? "Start capturing moves in a song range" : "Finish and save the recorded encounter"}
             onClick={onCreateEvent}
             style={{
               minWidth: 132,
-              minHeight: 38,
-              borderRadius: 10,
+              minHeight: 44,
+              borderRadius: 12,
               border: `1px solid ${eventRangeStartTick !== null ? "#CFFF04" : subtleBorderColor}`,
-              background: eventRangeStartTick !== null ? "rgba(207,255,4,0.14)" : "#252525",
+              background: eventRangeStartTick !== null ? "linear-gradient(145deg, #dfff9a30, #cfff0419), #10182d" : "linear-gradient(145deg, #ffffff19, #ffffff08), #111a2d",
               color: eventRangeStartTick !== null ? "#CFFF04" : "#FFFFFFDD",
               fontSize: 11,
               fontWeight: 900,
@@ -8083,7 +8217,7 @@ function RtcmModePanel({
               padding: "0 12px",
             }}
           >
-            {eventRangeStartTick === null ? "Start encounter" : "Save encounter"}
+            {eventRangeStartTick === null ? "Record encounter" : "Save encounter"}
           </button>
           <button
             type="button"
@@ -8871,13 +9005,16 @@ function Rctm2ModePanel({
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
           <button
             type="button"
+            className={algebraStyles.recordEncounterButton}
+            aria-pressed={eventRangeStartTick !== null}
+            title={eventRangeStartTick === null ? "Start capturing moves in a song range" : "Finish and save the recorded encounter"}
             onClick={() => onCreateEvent(safeNumber)}
             style={{
               minWidth: 132,
-              minHeight: 38,
-              borderRadius: 10,
+              minHeight: 44,
+              borderRadius: 12,
               border: `1px solid ${eventRangeStartTick !== null ? "#CFFF04" : subtleBorderColor}`,
-              background: eventRangeStartTick !== null ? "rgba(207,255,4,0.14)" : "#252525",
+              background: eventRangeStartTick !== null ? "linear-gradient(145deg, #dfff9a30, #cfff0419), #10182d" : "linear-gradient(145deg, #ffffff19, #ffffff08), #111a2d",
               color: eventRangeStartTick !== null ? "#CFFF04" : "#FFFFFFDD",
               fontSize: 11,
               fontWeight: 900,
@@ -14630,7 +14767,6 @@ export default function LessonBuilderClient({
           actionCount={timelineEvents.reduce((total, event) => total + gameplayMechanics.reduce((count, mechanic) => count + Math.max(0, event.counts?.[mechanic] ?? 0), 0), 0)}
           appearance={algebraAppearance}
           canAddAction={isLessonLoaded && Boolean(selectedSongStorage || selectedSongLaunch)}
-          showIntro={entryIntent === "personalize" && !guidedStarted && isLessonLoaded}
           onEditFirstEncounter={handlePersonalizeStarterEncounter}
           onCreateEquation={handleAddToStarterTemplate}
           onAddAction={() => openAlgebraActionDraft("hit")}

@@ -45,7 +45,7 @@ export type GuidedEncounterComposerProps = {
 };
 
 function timeValue(value: number | undefined) {
-  return typeof value === "number" && Number.isFinite(value) ? String(value) : "";
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(2) : "";
 }
 
 function updateTime(
@@ -466,6 +466,7 @@ export function GuidedEncounterComposer({
   const previewPads = instance.mechanic === "hit" && instance.hitBubbles[0]
     ? new Set(resolveAuthoredHitPadTarget(instance.hitBubbles[0]))
     : new Set<number>();
+  const previewPadLabels = [...previewPads].sort((left, right) => left - right).map((slot) => slot + 1);
   const dragSourceLabel = instance.mechanic === "drag"
     ? dragSources.find((source) => source.id === instance.dragTargets[0]?.sourceHitId)?.label
     : null;
@@ -484,9 +485,9 @@ export function GuidedEncounterComposer({
           <h3 className="algebra-composer__title">{heading}</h3>
         </div>
         <div className="algebra-composer__actions">
-          {!isNumberBonds ? (
+          {!isNumberBonds && !showAlgebraSetupProgress ? (
             <span className="algebra-composer__stepCount">
-              {showAlgebraSetupProgress ? `Step ${setupStage} of ${ALGEBRA_SETUP_STEPS.length}` : `Action ${step} of ${stepCount}`}
+              Action {step} of {stepCount}
             </span>
           ) : null}
           {onRemove ? <button type="button" data-repair-control="remove" onClick={onRemove} className="algebra-composer__remove">{isNumberBonds ? "Remove note" : "Remove action"}</button> : null}
@@ -518,7 +519,6 @@ export function GuidedEncounterComposer({
         <div className="algebra-composer__preview" data-mechanic={instance.mechanic} role="group" aria-label={`Player cue preview. Equation: ${equationState}`}>
           <div className="algebra-composer__previewCopy">
             <span className="algebra-composer__previewEyebrow">PLAYER VIEW</span>
-            <strong>See the move before it goes live</strong>
             <span className="algebra-composer__previewAction" data-mechanic={instance.mechanic} aria-label={`Player action: ${motionCue}`}>
               <MotionIcon className="algebra-composer__previewActionIcon" aria-hidden="true" fontSize="small" />
               <span>{motionCue}</span>
@@ -526,7 +526,9 @@ export function GuidedEncounterComposer({
             <span className="algebra-composer__previewTarget">
               {selectedTokenIndex === undefined
                 ? "Choose a target in the action controls."
-                : `Target: ${tokens[selectedTokenIndex]?.label ?? "equation token"}${dragSourceLabel ? ` · From ${dragSourceLabel}` : ""}`}
+                : instance.mechanic === "hit"
+                  ? `Equation target ${tokens[selectedTokenIndex]?.label ?? "equation token"} · ${previewPadLabels.length > 0 ? `player pad${previewPadLabels.length === 1 ? "" : "s"} ${previewPadLabels.join(" + ")}` : "choose a player pad"}`
+                  : `Target: ${tokens[selectedTokenIndex]?.label ?? "equation token"}${dragSourceLabel ? ` · From ${dragSourceLabel}` : ""}`}
             </span>
             <span className="algebra-composer__previewTiming">{timingSummary}</span>
           </div>
@@ -543,17 +545,9 @@ export function GuidedEncounterComposer({
               </span>
             ))}
           </div>
-          {isAlgebra ? (
-            <div className="algebra-composer__gesture" data-mechanic={instance.mechanic} aria-hidden="true">
-              {instance.mechanic === "hit" ? (
-                <div className="algebra-composer__gesturePads">
-                  {PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad }, slot) => {
-                    const offset = resolvePlayerHexHitPadPixelOffset(slot, 37);
-                    return offset ? <span key={pad} data-selected={previewPads.has(slot) ? "true" : undefined} style={{ left: `calc(50% ${offset.dx < 0 ? "-" : "+"} ${Math.abs(offset.dx).toFixed(2)}px)`, top: `calc(50% ${offset.dy < 0 ? "-" : "+"} ${Math.abs(offset.dy).toFixed(2)}px)` }}>{slot + 1}</span> : null;
-                  })}
-                  <i />
-                </div>
-              ) : instance.mechanic === "spin" ? (
+          {isAlgebra && instance.mechanic !== "hit" ? (
+            <div key={instance.mechanic} className="algebra-composer__gesture" data-mechanic={instance.mechanic} aria-hidden="true">
+              {instance.mechanic === "spin" ? (
                 <div className="algebra-composer__gestureSpin"><span>↻</span></div>
               ) : (
                 <div className="algebra-composer__gestureDrag"><span /><i /><span /></div>
