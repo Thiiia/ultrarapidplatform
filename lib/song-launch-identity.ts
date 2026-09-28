@@ -10,6 +10,21 @@ export function extractRevisionFromStoragePath(path: string): string | null {
   return match?.[1] ?? null;
 }
 
+export function resolveSelectedLessonRevision(selection: {
+  revision?: string | null;
+  chart: { path: string };
+  sidecar?: { path: string } | null;
+  rhythmSource?: { revision?: string | null } | null;
+}): string | null {
+  const revision = selection.revision?.trim();
+  if (revision) return revision;
+
+  const currentLessonPath = selection.rhythmSource
+    ? selection.sidecar?.path
+    : selection.chart.path;
+  return currentLessonPath ? extractRevisionFromStoragePath(currentLessonPath) : null;
+}
+
 export function requireMatchingRevision(
   chartPath: string,
   sidecarPath: string,

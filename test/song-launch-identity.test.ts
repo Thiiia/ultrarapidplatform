@@ -4,6 +4,7 @@ import {
   checkSaveRevisionPrecondition,
   extractRevisionFromStoragePath,
   requireMatchingRevision,
+  resolveSelectedLessonRevision,
 } from "../lib/song-launch-identity";
 
 test("extracts the immutable revision from authored storage paths", () => {
@@ -11,6 +12,43 @@ test("extracts the immutable revision from authored storage paths", () => {
     extractRevisionFromStoragePath("Felix/Early_Algebra/revisions/rev-7/song.chart"),
     "rev-7",
   );
+});
+
+test("keeps the Number Bonds lesson revision when it has a separate rhythm source", () => {
+  const selectedSong = {
+    revision: null,
+    chart: {
+      path: "dev/Early_Algebra/revisions/algebra-seven-r8/seven.chart",
+    },
+    sidecar: {
+      path: "dev/Number_Bonds/revisions/lesson-seven-r1/seven.json",
+    },
+    rhythmSource: {
+      activityKey: "early-algebra",
+      revision: "algebra-seven-r8",
+    },
+  };
+
+  assert.equal(
+    resolveSelectedLessonRevision(selectedSong),
+    "lesson-seven-r1",
+  );
+});
+
+test("does not treat a new Number Bonds lesson's source chart as its saved revision", () => {
+  const selectedSong = {
+    revision: null,
+    chart: {
+      path: "dev/Early_Algebra/revisions/algebra-seven-r8/seven.chart",
+    },
+    sidecar: null,
+    rhythmSource: {
+      activityKey: "early-algebra",
+      revision: "algebra-seven-r8",
+    },
+  };
+
+  assert.equal(resolveSelectedLessonRevision(selectedSong), null);
 });
 
 test("rejects chart and sidecar paths from different revisions", () => {
