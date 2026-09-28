@@ -566,6 +566,10 @@ export async function POST(request: Request) {
 
     const previousRhythmSource: LessonRhythmSourceProvenance | null =
       previousRevision?.rhythmSource &&
+      typeof previousRevision.chartSha256 === "string" &&
+      typeof previousRevision.audioSha256 === "string" &&
+      typeof previousRevision.rhythmSource.chartSha256 === "string" &&
+      typeof previousRevision.rhythmSource.audioSha256 === "string" &&
       previousRevision.chartSha256 === previousRevision.rhythmSource.chartSha256 &&
       previousRevision.audioSha256 === previousRevision.rhythmSource.audioSha256
         ? {

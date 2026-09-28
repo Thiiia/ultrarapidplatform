@@ -485,9 +485,11 @@ export function GuidedEncounterComposer({
           <h3 className="algebra-composer__title">{heading}</h3>
         </div>
         <div className="algebra-composer__actions">
-          {!isNumberBonds && !showAlgebraSetupProgress ? (
+          {!isNumberBonds ? (
             <span className="algebra-composer__stepCount">
-              Action {step} of {stepCount}
+              {showAlgebraSetupProgress
+                ? `Step ${setupStage} of ${ALGEBRA_SETUP_STEPS.length}`
+                : `Action ${step} of ${stepCount}`}
             </span>
           ) : null}
           {onRemove ? <button type="button" data-repair-control="remove" onClick={onRemove} className="algebra-composer__remove">{isNumberBonds ? "Remove note" : "Remove action"}</button> : null}
