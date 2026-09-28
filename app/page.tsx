@@ -65,11 +65,12 @@ export default async function HomePage() {
             title="UltraRapid landing background video"
             style={{
               position: "absolute",
-              inset: 0,
+              left: 0,
+              bottom: 0,
               width: "100%",
-              height: "100%",
+              height: "27%",
               objectFit: "cover",
-              objectPosition: "center bottom",
+              objectPosition: "center center",
               filter: "brightness(1.15) contrast(1.08) saturate(1.05)",
             }}
           />
