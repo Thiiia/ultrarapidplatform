@@ -380,48 +380,39 @@ async function buildSongChoiceForAsset({
   authorName?: string | null;
 }): Promise<SongChoice | null> {
   try {
-    let songSignedUrl = "";
-    let chartSignedUrl = "";
-    let sidecarSignedUrl: string | null = null;
-
-    try {
-      songSignedUrl = await createSignedUrl(songAsset.songBucket, storageSong.path);
-    } catch (error) {
-      console.warn("Unable to generate signed URL for song asset while listing songs", {
-        songAssetId: songAsset.id,
-        songPath: storageSong.path,
-        error: getErrorMessage(error),
-      });
-    }
-
-    if (signChartAssets && chartRecord.chartBucket && chartRecord.chartPath) {
-      try {
-        chartSignedUrl = await createSignedUrl(chartRecord.chartBucket, chartRecord.chartPath);
-      } catch (error) {
-        console.warn("Unable to generate signed URL for chart while listing songs", {
+    const [songSignedUrl, chartSignedUrl, sidecarSignedUrl, songMetadata] = await Promise.all([
+      createSignedUrl(songAsset.songBucket, storageSong.path).catch((error) => {
+        console.warn("Unable to generate signed URL for song asset while listing songs", {
           songAssetId: songAsset.id,
-          chartPath: chartRecord.chartPath,
+          songPath: storageSong.path,
           error: getErrorMessage(error),
         });
-      }
-    }
-
-    if (signChartAssets && chartRecord.sidecarBucket && chartRecord.sidecarPath) {
-      try {
-        sidecarSignedUrl = await createSignedUrl(
-          chartRecord.sidecarBucket,
-          chartRecord.sidecarPath,
-        );
-      } catch (error) {
-        console.warn("Unable to generate signed URL for sidecar while listing songs", {
-          songAssetId: songAsset.id,
-          sidecarPath: chartRecord.sidecarPath,
-          error: getErrorMessage(error),
-        });
-      }
-    }
-
-    const songMetadata = await getFileMetadata(songAsset.songBucket, storageSong.path).catch(() => null);
+        return "";
+      }),
+      signChartAssets && chartRecord.chartBucket && chartRecord.chartPath
+        ? createSignedUrl(chartRecord.chartBucket, chartRecord.chartPath).catch((error) => {
+            console.warn("Unable to generate signed URL for chart while listing songs", {
+              songAssetId: songAsset.id,
+              chartPath: chartRecord.chartPath,
+              error: getErrorMessage(error),
+            });
+            return "";
+          })
+        : Promise.resolve(""),
+      signChartAssets && chartRecord.sidecarBucket && chartRecord.sidecarPath
+        ? createSignedUrl(chartRecord.sidecarBucket, chartRecord.sidecarPath).catch((error) => {
+            console.warn("Unable to generate signed URL for sidecar while listing songs", {
+              songAssetId: songAsset.id,
+              sidecarPath: chartRecord.sidecarPath,
+              error: getErrorMessage(error),
+            });
+            return null;
+          })
+        : Promise.resolve(null),
+      storageSong.size === null
+        ? getFileMetadata(songAsset.songBucket, storageSong.path).catch(() => null)
+        : Promise.resolve(null),
+    ]);
     const metadata = songMetadata?.metadata as Record<string, unknown> | undefined;
 
     const songContentType =
