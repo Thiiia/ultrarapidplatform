@@ -793,7 +793,7 @@ export async function getEditorSongChoices(
     const sharedRhythmRevisions = await prisma.gameContentRevision.findMany({
       where: {
         authorId,
-        activityKey: { not: preferredActivityKey },
+        activityKey: "early-algebra",
         status: "ready",
         chartSha256: { not: null },
         audioSha256: { not: null },
@@ -810,71 +810,62 @@ export async function getEditorSongChoices(
       },
     });
 
+    type VerifiedRhythmRevision = (typeof sharedRhythmRevisions)[number] & {
+      chartSha256: string;
+      audioSha256: string;
+    };
+    const latestRhythmRevisionBySong = new Map<string, VerifiedRhythmRevision>();
     for (const revision of sharedRhythmRevisions) {
       if (!revision.chartSha256 || !revision.audioSha256) continue;
-
-      const existingSources = rhythmSourcesBySong.get(revision.songAssetId) ?? [];
-      // A song can have many historical publications with identical timing.
-      // Offer only the newest immutable revision for each activity + chart hash.
-      if (
-        existingSources.some(
-          (source) =>
-            source.activityKey === revision.activityKey &&
-            source.chartSha256 === revision.chartSha256,
-        )
-      ) {
-        continue;
-      }
-
-      const sourceActivityKey = resolveRequestedSongActivityKey(revision.activityKey);
-      if (!sourceActivityKey) continue;
-
-      try {
-        existingSources.push({
-          activityKey: sourceActivityKey,
-          revision: revision.revision,
+      // Revisions are ordered newest first. One current Early Algebra source
+      // per song is enough for Number Bonds and avoids signing old revisions.
+      if (!latestRhythmRevisionBySong.has(revision.songAssetId)) {
+        latestRhythmRevisionBySong.set(revision.songAssetId, {
+          ...revision,
           chartSha256: revision.chartSha256,
           audioSha256: revision.audioSha256,
-          chart: {
-            bucket: revision.chartBucket,
-            path: revision.chartPath,
-            signedUrl: await createSignedUrl(revision.chartBucket, revision.chartPath),
-            contentType: getContentTypeFromPath(revision.chartPath),
-          },
-        });
-        rhythmSourcesBySong.set(revision.songAssetId, existingSources);
-      } catch (error) {
-        console.warn("Skipping unavailable shared rhythm source", {
-          songAssetId: revision.songAssetId,
-          sourceActivityKey,
-          sourceRevision: revision.revision,
-          error: getErrorMessage(error),
         });
       }
     }
+
+    await Promise.all(
+      Array.from(latestRhythmRevisionBySong.entries()).map(async ([songAssetId, revision]) => {
+        const sourceActivityKey = resolveRequestedSongActivityKey(revision.activityKey);
+        if (!sourceActivityKey) return;
+
+        try {
+          const signedUrl = await createSignedUrl(revision.chartBucket, revision.chartPath);
+          rhythmSourcesBySong.set(songAssetId, [{
+            activityKey: sourceActivityKey,
+            revision: revision.revision,
+            chartSha256: revision.chartSha256,
+            audioSha256: revision.audioSha256,
+            chart: {
+              bucket: revision.chartBucket,
+              path: revision.chartPath,
+              signedUrl,
+              contentType: getContentTypeFromPath(revision.chartPath),
+            },
+          }]);
+        } catch (error) {
+          console.warn("Skipping unavailable shared rhythm source", {
+            songAssetId,
+            sourceActivityKey,
+            sourceRevision: revision.revision,
+            error: getErrorMessage(error),
+          });
+        }
+      }),
+    );
   }
 
   const blankSongs: Array<SongChoice | null> = await Promise.all(
     songAssets.map(async (songAsset) => {
       const existingChart = chartsByAsset.get(`${songAsset.id}:${authorId ?? ""}`) ?? null;
       if (existingChart) {
-        const storageSong = storageSongByPath.get(songAsset.songPath);
-        if (!storageSong) {
-          return null;
-        }
-
-        return buildSongChoiceForAsset({
-          songAsset,
-          storageSong,
-          activityKey: preferredActivityKey,
-          authorName: authorName,
-          chartRecord: {
-            chartBucket: existingChart.chartBucket,
-            chartPath: existingChart.chartPath,
-            sidecarBucket: existingChart.sidecarBucket,
-            sidecarPath: existingChart.sidecarPath,
-          },
-        });
+        // Existing charts are built once below, where Number Bonds choices
+        // also receive their required shared-rhythm source options.
+        return null;
       }
 
       if (authorId && !authoredSongIds.has(songAsset.id)) {
@@ -943,7 +934,7 @@ export async function getEditorSongChoices(
             return null;
           }
 
-          return buildSongChoiceForAsset({
+          const songChoice = await buildSongChoiceForAsset({
             songAsset: chart.songAsset,
             storageSong,
             activityKey: preferredActivityKey,
@@ -955,6 +946,15 @@ export async function getEditorSongChoices(
               sidecarPath: chart.sidecarPath,
             },
           });
+          if (!songChoice || preferredActivityKey !== "number-bonds") {
+            return songChoice;
+          }
+
+          return {
+            ...songChoice,
+            requiresRhythmSource: true,
+            rhythmSources: rhythmSourcesBySong.get(chart.songAssetId) ?? [],
+          };
         }),
       )
     : [];
@@ -966,9 +966,13 @@ export async function getEditorSongChoices(
 
 /** Song-choice may offer Number Bonds starters for authoring, but not as playable lessons. */
 export function filterAuthorableNumberBondsSongs(choices: readonly SongChoice[]): SongChoice[] {
-  return choices.filter((song) =>
-    !song.requiresRhythmSource || (song.rhythmSources?.length ?? 0) > 0,
-  );
+  return choices.filter((song) => {
+    const requiresRhythmSource =
+      song.activityKey === "number-bonds" || song.requiresRhythmSource;
+    return !requiresRhythmSource || song.rhythmSources?.some(
+      (source) => source.activityKey === "early-algebra",
+    ) === true;
+  });
 }
 
 export async function getSongChoicesForCreation(
