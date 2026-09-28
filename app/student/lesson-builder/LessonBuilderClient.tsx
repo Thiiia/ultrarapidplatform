@@ -50,7 +50,10 @@ import {
 import { repairLegacyMigratedAuthoredLesson } from "@/lib/legacy-authored-migration";
 import { isLegacyEncounterSidecar, validateLegacyEncounters, persistLegacyEncounters, type LegacyEncounter, type LegacyEncounterSidecar } from "@/lib/legacy-encounters";
 import { validateLessonContent } from "@/lib/lesson-content";
-import { extractRevisionFromStoragePath } from "@/lib/song-launch-identity";
+import {
+  extractRevisionFromStoragePath,
+  resolveSelectedLessonRevision,
+} from "@/lib/song-launch-identity";
 import { tokenizeAuthoredEquationState } from "@/lib/authored-lesson";
 import { createLessonClock, mapLessonTimes } from "@/lib/editor/lesson-timing";
 import {
@@ -13252,11 +13255,7 @@ export default function LessonBuilderClient({
     setFilePickerActivityKey(resolvedActivityKey);
     setSelectedSongAuthorId(selectedSong.authorId ?? null);
     setLastSavedAuthorId(selectedSong.authorId ?? null);
-    setLastSavedRevision(
-      selectedSong.rhythmSource
-        ? null
-        : selectedSong.revision ?? extractRevisionFromStoragePath(selectedSong.chart.path),
-    );
+    setLastSavedRevision(resolveSelectedLessonRevision(selectedSong));
     setSelectedRhythmSource(selectedSong.rhythmSource ?? null);
     setNumberBondsCatalogueId(NUMBER_BONDS_STARTER_EQUATION_ID);
     setNumberBondsRhythmDifficulty(
