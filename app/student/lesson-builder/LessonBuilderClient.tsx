@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import type { ChangeEvent, DragEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent, ReactNode } from "react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useId } from "react";
+import { createPortal } from "react-dom";
 import WaveSurfer from "wavesurfer.js";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
 import SwipeRoundedIcon from "@mui/icons-material/SwipeRounded";
@@ -335,6 +336,29 @@ type RtcmDraftMechanic = {
   dragTargets: DragTarget[];
 };
 
+function selectRtcmDraftsInRange(
+  drafts: readonly RtcmDraftMechanic[],
+  rangeStartSeconds: number,
+  rangeEndSeconds: number,
+) {
+  const startSeconds = Math.min(rangeStartSeconds, rangeEndSeconds);
+  const endSeconds = Math.max(rangeStartSeconds, rangeEndSeconds);
+
+  return drafts.filter((draft) => {
+    if (draft.tick < startSeconds || draft.tick > endSeconds) {
+      return false;
+    }
+
+    if (draft.mechanic === "hit") {
+      return true;
+    }
+
+    return typeof draft.endTick === "number"
+      ? draft.endTick <= endSeconds
+      : true;
+  });
+}
+
 function isRecoverableRtcmDraft(value: unknown): value is RtcmDraftMechanic {
   if (!value || typeof value !== "object") return false;
   const draft = value as Partial<RtcmDraftMechanic>;
@@ -451,6 +475,62 @@ type CenterChoice = "create" | "premade" | null;
 type LibraryTab = "mine" | "premade";
 
 type TimelineMarkerEdge = "start" | "end";
+
+type TimelineEventLabelItem = {
+  eventId: string;
+  index: number;
+  left: number;
+  startSeconds: number;
+  accessibleLabel: string;
+  visualLabel: string;
+  isActive: boolean;
+};
+
+type TimelineEventLabelCluster = {
+  key: string;
+  left: number;
+  width: number;
+  items: TimelineEventLabelItem[];
+};
+
+function timelineEventClusterButtonWidth(eventCount: number) {
+  if (eventCount === 1) {
+    return 44;
+  }
+
+  return Math.min(104, 54 + String(eventCount).length * 9);
+}
+
+function groupTimelineEventLabels(items: readonly TimelineEventLabelItem[]) {
+  const sortedItems = [...items].sort(
+    (left, right) => left.left - right.left || left.index - right.index,
+  );
+  const clusters: TimelineEventLabelCluster[] = [];
+  const gapPx = 6;
+
+  sortedItems.forEach((item) => {
+    const currentCluster = clusters[clusters.length - 1];
+    const nextLabelStart = currentCluster
+      ? currentCluster.left + currentCluster.width + gapPx
+      : Number.NEGATIVE_INFINITY;
+
+    if (currentCluster && item.left < nextLabelStart) {
+      currentCluster.items.push(item);
+      currentCluster.width = timelineEventClusterButtonWidth(currentCluster.items.length);
+      currentCluster.key = JSON.stringify(currentCluster.items.map((entry) => entry.eventId));
+      return;
+    }
+
+    clusters.push({
+      key: item.eventId,
+      left: item.left,
+      width: timelineEventClusterButtonWidth(1),
+      items: [item],
+    });
+  });
+
+  return clusters;
+}
 
 type Rctm2BondZone = "leftBond" | "rightBond";
 type Rctm2Point = {
@@ -2088,11 +2168,31 @@ function HeaderBar({
           {(() => {
             const chartmakerInfo = (() => {
               if (selectedActivityKey === "early-algebra") {
-                return { label: studentCopy.editor.advancedTools, onClick: onToggleRctm1Mode, isActive: isRctm1Mode };
+                return {
+                  label: isRctm1Mode ? "Guided mode" : "Record live",
+                  ariaLabel: isRctm1Mode ? "Return to the guided editor" : "Open live encounter recording",
+                  title: isRctm1Mode
+                    ? "Return to the guided lesson editor"
+                    : "Record Hit, Spin, and Drag gestures while the song plays",
+                  onClick: onToggleRctm1Mode,
+                  isActive: isRctm1Mode,
+                };
               } else if (selectedActivityKey === "equations") {
-                return { label: studentCopy.editor.advancedTools, onClick: onToggleRctm1Mode, isActive: isRctm1Mode };
+                return {
+                  label: studentCopy.editor.advancedTools,
+                  ariaLabel: studentCopy.editor.advancedToolsTitle,
+                  title: studentCopy.editor.advancedToolsBody,
+                  onClick: onToggleRctm1Mode,
+                  isActive: isRctm1Mode,
+                };
               } else if (selectedActivityKey === "missing-numbers") {
-                return { label: studentCopy.editor.advancedTools, onClick: onToggleRctm2Mode, isActive: isRctm2Mode };
+                return {
+                  label: studentCopy.editor.advancedTools,
+                  ariaLabel: studentCopy.editor.advancedToolsTitle,
+                  title: studentCopy.editor.advancedToolsBody,
+                  onClick: onToggleRctm2Mode,
+                  isActive: isRctm2Mode,
+                };
               }
               return null;
             })();
@@ -2104,6 +2204,8 @@ function HeaderBar({
                 type="button"
                 onClick={chartmakerInfo.onClick}
                 aria-pressed={chartmakerInfo.isActive}
+                aria-label={chartmakerInfo.ariaLabel}
+                title={chartmakerInfo.title}
                 style={{
                   minWidth: 106,
                   height: 38,
@@ -4963,14 +5065,19 @@ function EquationTimeline({
   audioObjectUrl: string;
   isAdvancedMode: boolean;
 }) {
+  const timelineId = useId();
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
   const waveformContainerRef = useRef<HTMLDivElement | null>(null);
+  const timelineClusterMenuRef = useRef<HTMLDivElement | null>(null);
+  const timelineClusterTriggerRef = useRef<HTMLButtonElement | null>(null);
   const wavesurferRef = useRef<{
     load(url: string): void;
     destroy(): void;
   } | null>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [timelineZoom, setTimelineZoom] = useState(1);
+  const [openEventClusterKey, setOpenEventClusterKey] = useState<string | null>(null);
+  const [openEventClusterPosition, setOpenEventClusterPosition] = useState<{ top: number; left: number } | null>(null);
   const [draggedMechanicMarker, setDraggedMechanicMarker] = useState<{
     eventId: string;
     mechanic: GameplayMechanic;
@@ -5064,6 +5171,71 @@ function EquationTimeline({
       color: mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF",
     })),
   ];
+  const timelineEventLabelClusters = groupTimelineEventLabels(
+    events.map((eventSlot, index) => {
+      const eventWindow = getTimelineEventTimeWindowSeconds(eventSlot);
+      const eventLabel = studentCopy.editor.moveGroup(index + 1);
+
+      return {
+        eventId: eventSlot.id,
+        index,
+        left: Math.min(trackWidth, Math.max(0, eventWindow.startSeconds * pixelsPerSecond)),
+        startSeconds: eventWindow.startSeconds,
+        accessibleLabel: eventSlot.rctm2Number
+          ? `${eventLabel} · #${eventSlot.rctm2Number}`
+          : eventLabel,
+        visualLabel: activityKey === "early-algebra" ? `E${index + 1}` : eventLabel,
+        isActive: eventSlot.id === activeEventId,
+      };
+    }),
+  );
+  const openEventCluster = timelineEventLabelClusters.find(
+    (cluster) => cluster.key === openEventClusterKey,
+  ) ?? null;
+
+  useEffect(() => {
+    if (openEventClusterKey === null) {
+      return;
+    }
+
+    const closeMenu = () => {
+      setOpenEventClusterKey(null);
+      setOpenEventClusterPosition(null);
+    };
+    const handlePointerDownOutside = (event: globalThis.PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (timelineClusterMenuRef.current?.contains(target) || timelineClusterTriggerRef.current?.contains(target)) {
+        return;
+      }
+
+      closeMenu();
+    };
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      event.preventDefault();
+      closeMenu();
+      timelineClusterTriggerRef.current?.focus();
+    };
+
+    window.addEventListener("scroll", closeMenu, true);
+    window.addEventListener("resize", closeMenu);
+    document.addEventListener("pointerdown", handlePointerDownOutside);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("scroll", closeMenu, true);
+      window.removeEventListener("resize", closeMenu);
+      document.removeEventListener("pointerdown", handlePointerDownOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [openEventClusterKey]);
 
   function setTimelineZoomLevel(nextZoom: number) {
     setTimelineZoom(Math.min(2.5, Math.max(0.15, Number(nextZoom.toFixed(2)))));
@@ -5647,14 +5819,15 @@ function EquationTimeline({
                 No timeline events yet.
               </div>
             ) : (
-              events.map((eventSlot, index) => {
+              <>
+              {events.map((eventSlot, index) => {
                 const eventWindow = getTimelineEventTimeWindowSeconds(eventSlot);
                 const eventLeft = Math.min(
                   trackWidth,
                   Math.max(0, eventWindow.startSeconds * pixelsPerSecond),
                 );
                 const eventWidth = Math.max(
-                  44,
+                  2,
                   (eventWindow.endSeconds - eventWindow.startSeconds) *
                   pixelsPerSecond,
                 );
@@ -5663,7 +5836,6 @@ function EquationTimeline({
                 const accessibleEventLabel = eventSlot.rctm2Number
                   ? `${eventLabel} · #${eventSlot.rctm2Number}`
                   : eventLabel;
-                const visualEventLabel = activityKey === "early-algebra" ? `E${index + 1}` : accessibleEventLabel;
 
                 return (
                   <div
@@ -5674,39 +5846,28 @@ function EquationTimeline({
                       left: eventLeft,
                       top: "50%",
                       width: eventWidth,
-                      minWidth: 44,
-                      minHeight: 30,
                       transform: "translateY(-50%)",
+                      zIndex: isActive ? 2 : 1,
+                      pointerEvents: "none",
                     }}
                   >
-                    <button
-                      type="button"
-                      aria-label={accessibleEventLabel}
-                      title={accessibleEventLabel}
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={() => onSelectEvent(eventSlot.id)}
+                    <span
+                      aria-hidden="true"
                       style={{
                         position: "absolute",
-                        inset: 0,
-                        borderRadius: 10,
-                        border: `1px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
-                        background: isActive ? "linear-gradient(145deg, #37344eeb, #191b30ed)" : "linear-gradient(145deg, #27283be0, #151725e8)",
-                        color: "#FFFFFF",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 8,
-                        padding: "4px 8px",
-                        boxSizing: "border-box",
-                        cursor: "pointer",
-                        overflow: "hidden",
-                        boxShadow: isActive ? "inset 0 1px #ffffff2b, 0 0 0 2px #cfff0420" : "inset 0 1px #ffffff1b, 0 5px 12px #0003",
+                        left: 0,
+                        top: "50%",
+                        width: "100%",
+                        height: isActive ? 7 : 5,
+                        border: `1px solid ${isActive ? "#CFFF0488" : "#d5c7ff36"}`,
+                        borderRadius: 999,
+                        background: isActive
+                          ? "linear-gradient(90deg, #cfff0430, #dfff7080, #cfff0430)"
+                          : "linear-gradient(90deg, #d5c7ff22, #ffffff54, #d5c7ff22)",
+                        boxShadow: isActive ? "0 0 12px #cfff0435, inset 0 1px #ffffff66" : "inset 0 1px #ffffff40",
+                        transform: "translateY(-50%)",
                       }}
-                    >
-                      <span aria-hidden="true" style={{ fontSize: activityKey === "early-algebra" ? 11 : 10, fontWeight: 900, whiteSpace: "nowrap" }}>
-                        {visualEventLabel}
-                      </span>
-                    </button>
+                    />
 
                     {(["start", "end"] as TimelineMarkerEdge[]).map((edge) => (
                       <button
@@ -5748,12 +5909,87 @@ function EquationTimeline({
                           cursor: "ew-resize",
                           padding: 0,
                           touchAction: "none",
+                          pointerEvents: "auto",
                         }}
                       />
                     ))}
                   </div>
                 );
-              })
+              })}
+              {timelineEventLabelClusters.map((cluster) => {
+                const activeItem = cluster.items.find((item) => item.isActive) ?? null;
+                const isOpen = cluster.items.length > 1 && openEventClusterKey === cluster.key;
+                const optionListId = `${timelineId}-event-cluster-options`;
+                const label = cluster.items.length === 1
+                  ? cluster.items[0].visualLabel
+                  : activeItem
+                    ? `${activeItem.visualLabel} +${cluster.items.length - 1}`
+                    : `${cluster.items.length} encounters`;
+                const accessibleLabel = cluster.items.length === 1
+                  ? cluster.items[0].accessibleLabel
+                  : `${cluster.items.length} encounters near ${formatTimelineTime(cluster.items[0].startSeconds, true)}. Choose an encounter.`;
+
+                return (
+                  <div
+                    key={cluster.key}
+                    style={{
+                      position: "absolute",
+                      left: cluster.left,
+                      top: "50%",
+                      width: cluster.width,
+                      height: 26,
+                      transform: "translateY(-50%)",
+                      zIndex: isOpen ? 13 : activeItem ? 5 : 4,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      ref={isOpen ? timelineClusterTriggerRef : undefined}
+                      className={algebraStyles.timelineEventLabel}
+                      data-active={Boolean(activeItem)}
+                      aria-label={accessibleLabel}
+                      aria-expanded={cluster.items.length > 1 ? isOpen : undefined}
+                      aria-controls={isOpen ? optionListId : undefined}
+                      title={accessibleLabel}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        if (cluster.items.length === 1) {
+                          onSelectEvent(cluster.items[0].eventId);
+                          return;
+                        }
+
+                        if (openEventClusterKey === cluster.key) {
+                          setOpenEventClusterKey(null);
+                          setOpenEventClusterPosition(null);
+                          return;
+                        }
+
+                        const triggerRect = event.currentTarget.getBoundingClientRect();
+                        const menuHeight = Math.min(176, 54 + cluster.items.length * 36);
+                        const menuTopAbove = triggerRect.top - menuHeight - 7;
+                        const menuTopBelow = triggerRect.bottom + 7;
+                        const menuTop = menuTopAbove >= 8
+                          ? menuTopAbove
+                          : Math.min(Math.max(8, window.innerHeight - menuHeight - 8), menuTopBelow);
+                        const menuLeft = Math.max(8, Math.min(triggerRect.left, window.innerWidth - 220 - 8));
+
+                        timelineClusterTriggerRef.current = event.currentTarget;
+                        setOpenEventClusterPosition({ top: menuTop, left: menuLeft });
+                        setOpenEventClusterKey(cluster.key);
+                      }}
+                      style={{
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
+                        padding: "0 6px",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  </div>
+                );
+              })}
+              </>
             )}
           </div>
 
@@ -5960,6 +6196,46 @@ function EquationTimeline({
           })}
         </div>
       </div>
+      {openEventCluster && openEventClusterPosition && typeof document !== "undefined"
+        ? createPortal(
+          <div
+            ref={timelineClusterMenuRef}
+            id={`${timelineId}-event-cluster-options`}
+            className={algebraStyles.timelineEventClusterMenu}
+            role="group"
+            aria-label={`${openEventCluster.items.length} encounters. Choose one.`}
+            style={{
+              position: "fixed",
+              left: openEventClusterPosition.left,
+              top: openEventClusterPosition.top,
+              bottom: "auto",
+              zIndex: 1400,
+            }}
+          >
+            {openEventCluster.items.map((item) => (
+              <button
+                key={item.eventId}
+                type="button"
+                className={algebraStyles.timelineEventClusterOption}
+                data-active={item.isActive}
+                aria-label={`${item.accessibleLabel} at ${formatTimelineTime(item.startSeconds, true)}`}
+                title={`${item.accessibleLabel} · ${formatTimelineTime(item.startSeconds, true)}`}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={() => {
+                  onSelectEvent(item.eventId);
+                  setOpenEventClusterKey(null);
+                  setOpenEventClusterPosition(null);
+                  timelineClusterTriggerRef.current?.focus();
+                }}
+              >
+                <span>{item.visualLabel}</span>
+                <span>{formatTimelineTime(item.startSeconds, true)}</span>
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )
+        : null}
     </section>
   );
 }
@@ -8146,10 +8422,13 @@ function RtcmModePanel({
   onDeleteEvent,
   onClear,
   isSongPlaying,
+  currentSongSeconds,
   pendingRangeMechanic,
   eventRangeStartTick,
   canDeleteEvent,
   draftedActionCount,
+  inRangeDraftCount,
+  outOfRangeDraftCount,
 }: {
   onAddHit: (pad: HitBubblePad) => void;
   onStartHold: (tool: Exclude<GameplayMechanic, "hit">) => void;
@@ -8158,10 +8437,13 @@ function RtcmModePanel({
   onDeleteEvent: () => void;
   onClear: () => void;
   isSongPlaying: boolean;
+  currentSongSeconds: number;
   pendingRangeMechanic: "spin" | "drag" | null;
   eventRangeStartTick: number | null;
   canDeleteEvent: boolean;
   draftedActionCount: number;
+  inRangeDraftCount: number;
+  outOfRangeDraftCount: number;
 }) {
   const [selectedTool, setSelectedTool] = useState<GameplayMechanic>("hit");
   const isEncounterOpen = eventRangeStartTick !== null;
@@ -8260,6 +8542,29 @@ function RtcmModePanel({
       </div>
 
       <div style={{ width: "min(720px, 90vw)", display: "grid", gap: 10, paddingBottom: 12 }}>
+        {isEncounterOpen ? (
+          <div
+            className={algebraStyles.rtcmCaptureReadout}
+            aria-label="Encounter capture range"
+            aria-live="off"
+          >
+            <div className={algebraStyles.rtcmCaptureMeta}>
+              <span>CAPTURE WINDOW</span>
+              <span>PLAYHEAD {formatSongTime(currentSongSeconds, true)}</span>
+            </div>
+            <div className={algebraStyles.rtcmCaptureRange}>
+              <span>{formatSongTime(Math.min(eventRangeStartTick, currentSongSeconds), true)}</span>
+              <span aria-hidden="true">→</span>
+              <span>{formatSongTime(Math.max(eventRangeStartTick, currentSongSeconds), true)}</span>
+            </div>
+            <div className={algebraStyles.rtcmCaptureCounts}>
+              <span>{inRangeDraftCount} move{inRangeDraftCount === 1 ? "" : "s"} will be included</span>
+              {outOfRangeDraftCount > 0 ? (
+                <span>{outOfRangeDraftCount} draft{outOfRangeDraftCount === 1 ? "" : "s"} outside this range</span>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }} aria-label="Choose recorder tool">
           {gameplayMechanics.map((mechanic) => (
             <button
@@ -8294,8 +8599,10 @@ function RtcmModePanel({
           {pendingRangeMechanic
             ? `Recording ${pendingRangeMechanic}. Release to set its end time.`
             : isEncounterOpen
-              ? `${draftedActionCount} move${draftedActionCount === 1 ? "" : "s"} captured. ${isSongPlaying ? "Use the selected gesture, then save the encounter." : "Play the song to capture the next move."}`
-              : "Start an encounter, play the song, then capture each move with its gesture."}
+              ? `${inRangeDraftCount} move${inRangeDraftCount === 1 ? "" : "s"} in this range. ${isSongPlaying ? "Use the selected gesture or save the encounter." : "Play the song to capture moves."}`
+              : draftedActionCount > 0
+                ? `${draftedActionCount} unsaved move${draftedActionCount === 1 ? "" : "s"} remain. Start an encounter to place them in a song range.`
+                : "Start an encounter, play the song, then capture each move with its gesture."}
         </div>
       </div>
 
@@ -10097,6 +10404,16 @@ export default function LessonBuilderClient({
     startTick: number;
   } | null>(null);
   const [currentSongSeconds, setCurrentSongSeconds] = useState(0);
+  const rtcmDraftsInCurrentRange = useMemo(
+    () => rtcmEventRangeStartTick === null
+      ? []
+      : selectRtcmDraftsInRange(
+        rtcmDraftMechanics,
+        rtcmEventRangeStartTick,
+        currentSongSeconds,
+      ),
+    [currentSongSeconds, rtcmDraftMechanics, rtcmEventRangeStartTick],
+  );
   const [isSongPlaying, setIsSongPlaying] = useState(false);
   const [audioObjectUrl, setAudioObjectUrl] = useState("");
   const [audioDurationSeconds, setAudioDurationSeconds] = useState(0);
@@ -11494,19 +11811,11 @@ export default function LessonBuilderClient({
       return;
     }
 
-    const selectedDrafts = rtcmDraftMechanics.filter((draft) => {
-      if (draft.tick < startTick || draft.tick > finalEndTick) {
-        return false;
-      }
-
-      if (draft.mechanic === "hit") {
-        return true;
-      }
-
-      return typeof draft.endTick === "number"
-        ? draft.endTick <= finalEndTick
-        : true;
-    });
+    const selectedDrafts = selectRtcmDraftsInRange(
+      rtcmDraftMechanics,
+      startTick,
+      finalEndTick,
+    );
 
     if (selectedDrafts.length === 0) {
       setSaveStatus("Add at least one move inside this song range before saving the encounter.");
@@ -15048,10 +15357,13 @@ export default function LessonBuilderClient({
                 onDeleteEvent={handleDeleteActiveEvent}
                 onClear={handleClearRtcmChart}
                 isSongPlaying={isSongPlaying}
+                currentSongSeconds={currentSongSeconds}
                 pendingRangeMechanic={rtcmPendingHold?.mechanic ?? null}
                 eventRangeStartTick={rtcmEventRangeStartTick}
                 canDeleteEvent={Boolean(rtcmDeleteTargetEventId)}
                 draftedActionCount={rtcmDraftMechanics.length}
+                inRangeDraftCount={rtcmDraftsInCurrentRange.length}
+                outOfRangeDraftCount={rtcmDraftMechanics.length - rtcmDraftsInCurrentRange.length}
               />
             </div>
           ) : isRctm2Mode ? (
