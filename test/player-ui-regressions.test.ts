@@ -213,8 +213,8 @@ test("player-facing equation actions explain what happens to the lesson", () => 
 
   assert.match(builder, /Hide from my lesson/);
   assert.match(builder, /Show again:/);
-  assert.match(builder, /studentCopy\.editor\.useEquationForGroup/);
-  assert.match(builder, /Assign to every move in this encounter/);
+  assert.match(builder, /aria-label="Use the selected equation for every move in this encounter"/);
+  assert.match(builder, /Use for every move/);
   assert.match(builder, /Every move in \$\{studentCopy\.editor\.moveGroup/);
   assert.match(builder, /Encounter \(timed\)/);
   assert.match(builder, /Each Hit, Spin, or Drag becomes its own move in the game when you save\./);
