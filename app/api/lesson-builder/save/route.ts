@@ -20,6 +20,10 @@ import { createLessonClock } from "@/lib/editor/lesson-timing";
 import { isSameOriginLessonSaveRequest } from "@/lib/lesson-save-origin";
 import { mapLessonSaveInfrastructureError } from "@/lib/lesson-save-infrastructure-error";
 import {
+  resolveLessonSaveRhythmSource,
+  type LessonRhythmSourceProvenance,
+} from "@/lib/lesson-save-rhythm-source";
+import {
   resolveRhythmSourceRevision,
   type ResolvedRhythmSource,
 } from "@/lib/song-rhythm-bootstrap";
@@ -402,13 +406,6 @@ export async function POST(request: Request) {
       });
     }
 
-    if (targets.current && hasRhythmSourceRequest) {
-      return NextResponse.json(
-        { error: "rhythmSource is only allowed for the first publication of an activity lesson" },
-        { status: 409 },
-      );
-    }
-
     let chartContent: string;
     let chartSource: "submitted" | "preserved" | "shared-rhythm";
     let resolvedRhythmSource: ResolvedRhythmSource | null = null;
@@ -475,20 +472,6 @@ export async function POST(request: Request) {
       "sidecar.content",
     );
 
-    console.info("[lesson-builder/save] chart source", {
-      songAssetId,
-      activityKey,
-      authorId: targetAuthor.id,
-      requestedRevision,
-      chartSource,
-      sourceChartPath:
-        chartSource === "preserved"
-          ? targets.current?.chartPath ?? null
-          : null,
-      rhythmSourceActivityKey: resolvedRhythmSource?.sourceActivityKey ?? null,
-      rhythmSourceRevision: resolvedRhythmSource?.sourceRevision ?? null,
-    });
-
     try {
       validateLessonContent(chartContent, sidecarContent, { forSave: true });
     } catch (error) {
@@ -543,6 +526,88 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
+
+    const previousRevision = precondition.currentRevision
+      ? await prisma.gameContentRevision.findUnique({
+          where: { revision: precondition.currentRevision },
+          select: {
+            revision: true,
+            songAssetId: true,
+            activityKey: true,
+            authorId: true,
+            chartBucket: true,
+            chartPath: true,
+            chartSha256: true,
+            audioSha256: true,
+            rhythmSource: {
+              select: {
+                revision: true,
+                activityKey: true,
+                chartSha256: true,
+                audioSha256: true,
+              },
+            },
+          },
+        })
+      : null;
+    if (
+      previousRevision &&
+      (previousRevision.songAssetId !== songAssetId ||
+        previousRevision.activityKey !== activityKey ||
+        previousRevision.authorId !== targetAuthor.id ||
+        previousRevision.chartBucket !== targets.chart.bucket ||
+        previousRevision.chartPath !== targets.chart.path)
+    ) {
+      return NextResponse.json(
+        { error: "Save revision conflict: the current lesson revision could not be verified" },
+        { status: 409 },
+      );
+    }
+
+    const previousRhythmSource: LessonRhythmSourceProvenance | null =
+      previousRevision?.rhythmSource &&
+      previousRevision.chartSha256 === previousRevision.rhythmSource.chartSha256 &&
+      previousRevision.audioSha256 === previousRevision.rhythmSource.audioSha256
+        ? {
+            activityKey: previousRevision.rhythmSource.activityKey,
+            revision: previousRevision.rhythmSource.revision,
+            chartSha256: previousRevision.rhythmSource.chartSha256,
+            audioSha256: previousRevision.rhythmSource.audioSha256,
+          }
+        : null;
+    let persistedRhythmSource: LessonRhythmSourceProvenance | null;
+    try {
+      persistedRhythmSource = resolveLessonSaveRhythmSource({
+        activityKey,
+        chartSource,
+        resolvedRhythmSource: resolvedRhythmSource
+          ? {
+              activityKey: resolvedRhythmSource.sourceActivityKey,
+              revision: resolvedRhythmSource.sourceRevision,
+              chartSha256: resolvedRhythmSource.chartSha256,
+              audioSha256: resolvedRhythmSource.audioSha256,
+            }
+          : null,
+        previousRhythmSource,
+      });
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Unable to preserve rhythm source provenance" },
+        { status: 400 },
+      );
+    }
+
+    console.info("[lesson-builder/save] chart source", {
+      songAssetId,
+      activityKey,
+      authorId: targetAuthor.id,
+      requestedRevision,
+      chartSource,
+      sourceChartPath: chartSource === "preserved" ? targets.current?.chartPath ?? null : null,
+      rhythmSourceActivityKey: persistedRhythmSource?.activityKey ?? null,
+      rhythmSourceRevision: persistedRhythmSource?.revision ?? null,
+    });
+
     const persistedSidecarContent = authoredPublication.content;
     const [chartSha256, audioSha256] = await Promise.all([
       Promise.resolve(sha256(chartContent)),
@@ -633,7 +698,7 @@ export async function POST(request: Request) {
                 chartSha256,
                 sidecarSha256: sha256(sidecar.content),
                 audioSha256,
-                rhythmSourceRevision: resolvedRhythmSource?.sourceRevision ?? null,
+                rhythmSourceRevision: persistedRhythmSource?.revision ?? null,
                 authoredLessonVersion: 3,
                 authoredMode: "authored",
                 equationCount: authoredPublication.counts.equations,
@@ -669,12 +734,12 @@ export async function POST(request: Request) {
       revision: revisionId,
       publicationRequestId,
       migratedFromLegacy: authoredPublication.migratedFromLegacy,
-      rhythmSource: resolvedRhythmSource
+      rhythmSource: persistedRhythmSource
         ? {
-            activityKey: resolvedRhythmSource.sourceActivityKey,
-            revision: resolvedRhythmSource.sourceRevision,
-            chartSha256: resolvedRhythmSource.chartSha256,
-            audioSha256: resolvedRhythmSource.audioSha256,
+            activityKey: persistedRhythmSource.activityKey,
+            revision: persistedRhythmSource.revision,
+            chartSha256: persistedRhythmSource.chartSha256,
+            audioSha256: persistedRhythmSource.audioSha256,
           }
         : null,
       songAsset: {
