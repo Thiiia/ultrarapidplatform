@@ -6582,12 +6582,21 @@ function EquationTileButton({
   onClick,
   disabled = false,
   title,
+  paletteKind,
 }: {
   label: string;
   onClick: () => void;
   disabled?: boolean;
   title?: string;
+  paletteKind?: "number" | "operator" | "variable";
 }) {
+  const paletteSize = paletteKind === "operator" ? 44 : 54;
+  const paletteTone = paletteKind === "operator"
+    ? { border: "rgba(214, 190, 255, .46)", background: "radial-gradient(circle at 30% 22%, #ffffff28, #ffffff0d 48%, #bd9cff29)" }
+    : paletteKind === "variable"
+      ? { border: "rgba(211, 174, 255, .6)", background: "radial-gradient(circle at 30% 22%, #ffffff32, #ffffff10 48%, #a66bff42)" }
+      : { border: "rgba(160, 207, 255, .62)", background: "radial-gradient(circle at 30% 22%, #ffffff3b, #ffffff12 48%, #57a8ff3d)" };
+
   return (
     <button
       key={label}
@@ -6595,8 +6604,24 @@ function EquationTileButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
+      className={paletteKind ? algebraStyles.equationPaletteBubble : undefined}
+      data-kind={paletteKind}
       style={{
         ...getEquationTileStyle({ label }),
+        ...(paletteKind ? {
+          width: `min(${paletteSize}px, 100%)`,
+          minWidth: 0,
+          height: "auto",
+          aspectRatio: "1",
+          minHeight: 44,
+          borderRadius: paletteKind === "operator" ? 15 : "50%",
+          border: `1px solid ${paletteTone.border}`,
+          background: paletteTone.background,
+          boxShadow: "inset 0 1px #ffffff36, 0 5px 13px #02061640",
+          backdropFilter: "blur(8px) saturate(125%)",
+          fontFamily: "Space Grotesk, sans-serif",
+          fontSize: paletteKind === "operator" ? 18 : 19,
+        } : {}),
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.38 : 1,
       }}
@@ -7400,164 +7425,93 @@ function LeftEquationBuilderPanel({
     const lastLabel = draftTokens.at(-1)?.label;
     const binaryOperatorBlocked = kind === "operator" && label !== "=" && (!lastLabel || isAuthoredEquationOperator(lastLabel));
     const disabled = equalsBlocked || binaryOperatorBlocked;
-    return <EquationTileButton key={`${kind}-${label}`} label={label} onClick={() => onAddToken(label)} disabled={disabled} title={equalsBlocked ? "Add a left side first and use one = sign." : binaryOperatorBlocked ? "Add a term before this sign." : undefined} />;
+    return <EquationTileButton key={`${kind}-${label}`} label={label} onClick={() => onAddToken(label)} disabled={disabled} paletteKind={kind} title={equalsBlocked ? "Add a left side first and use one = sign." : binaryOperatorBlocked ? "Add a term before this sign." : undefined} />;
   }
 
   return (
     <section
       aria-label="Equation builder column"
+      className={algebraStyles.equationBuilderPanel}
+      data-algebra-studio={isAlgebraStudio ? "true" : undefined}
       style={{
         width: "100%",
         height: "100%",
         minHeight: 0,
         minWidth: 0,
-        background: isAlgebraStudio ? "rgba(10, 18, 39, .96)" : row2Column1BackgroundColor,
+        background: isAlgebraStudio ? undefined : row2Column1BackgroundColor,
         color: textColor,
-        borderRight: `1px solid ${subtleBorderColor}`,
-        boxSizing: "border-box",
-        overflow: "hidden",
-        display: "grid",
-        gridTemplateRows: "auto minmax(0, 1fr) auto",
       }}
     >
-      <div
-        style={{
-          minHeight: 0,
-          padding: "10px 10px 8px",
-          borderBottom: `1px solid ${subtleBorderColor}`,
-          boxSizing: "border-box",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "flex-start",
-          gap: 6,
-          fontFamily: "Space Grotesk, sans-serif",
-        }}
-      >
-        <div style={{ fontSize: 13, fontWeight: 900, lineHeight: 1.1 }}>
-          Make an equation
+      <div className={algebraStyles.equationBuilderHeader}>
+        <div className={algebraStyles.equationBuilderTitleGroup}>
+          <div className={algebraStyles.equationBuilderTitle}>Make an equation</div>
+          <div className={algebraStyles.equationBuilderScope}>
+            {activeEventLabel ? `For ${activeEventLabel}` : isAlgebraStudio ? "Build first, then add a player action" : "Choose an encounter below to start"}
+          </div>
         </div>
-        <div
-          style={{
-            color: "#CFFF04",
-            fontSize: 11,
-            fontWeight: 900,
-            letterSpacing: "0.03em",
-            textTransform: "uppercase",
-            animation: "urFlash 900ms ease-in-out infinite alternate",
-          }}
-        >
-          {activeEventLabel ? `For ${activeEventLabel}` : isAlgebraStudio ? "Build first, then add a player action" : "Choose an encounter below to start"}
-        </div>
-        <div
-          title={activeEventEquationText ?? undefined}
-          style={{
-            width: "100%",
-            overflow: "hidden",
-            color: "#FFFFFF99",
-            fontSize: 10,
-            fontWeight: 700,
-            lineHeight: 1.25,
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {activeEventEquationText ? `Current: ${activeEventEquationText}` : isAlgebraStudio ? "Save a complete equation to use it in this lesson." : "Your equation will be used by the selected encounter."}
+        <div className={algebraStyles.equationBuilderCurrent} title={activeEventEquationText ?? undefined}>
+          <span>Current</span>
+          <strong>{activeEventEquationText ?? (activeEventLabel ? "No equation assigned" : "Start with a number")}</strong>
         </div>
       </div>
 
-      <div
-        style={{
-          minHeight: 0,
-          padding: 10,
-          boxSizing: "border-box",
-          overflowY: "auto",
-          fontFamily: "Space Grotesk, sans-serif",
-        }}
-      >
-        <div style={{ display: "grid", gap: 12 }}>
-          <div>
-            <div style={{ color: "#FFFFFF99", fontSize: 10, fontWeight: 900, marginBottom: 6, textTransform: "uppercase" }}>
-              Numbers
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6 }}>
+      <div className={algebraStyles.equationPaletteScroll}>
+        <div className={algebraStyles.equationPaletteGroups}>
+          <div className={algebraStyles.equationPaletteGroup} data-kind="number">
+            <div className={algebraStyles.equationPaletteHeading}><span>Numbers</span><span>0–9</span></div>
+            <div className={algebraStyles.equationPaletteGrid}>
               {numberTiles.map((label) => renderTile(label, "number"))}
             </div>
           </div>
 
-          <div>
-            <div style={{ color: "#FFFFFF99", fontSize: 10, fontWeight: 900, marginBottom: 6, textTransform: "uppercase" }}>
-              Operators
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6 }}>
+          <div className={algebraStyles.equationPaletteGroup} data-kind="operator">
+            <div className={algebraStyles.equationPaletteHeading}><span>Operators</span><span>+ − × ÷ =</span></div>
+            <div className={algebraStyles.equationPaletteGrid}>
               {operatorTiles.map((label) => renderTile(label, "operator"))}
             </div>
           </div>
 
-          <div>
-            <div style={{ color: "#FFFFFF99", fontSize: 10, fontWeight: 900, marginBottom: 6, textTransform: "uppercase" }}>
-              Variables
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6 }}>
+          <div className={algebraStyles.equationPaletteGroup} data-kind="variable">
+            <div className={algebraStyles.equationPaletteHeading}><span>Variables</span><span>X Y Z</span></div>
+            <div className={algebraStyles.equationPaletteGrid}>
               {variableTiles.map((label) => renderTile(label, "variable"))}
             </div>
           </div>
         </div>
       </div>
 
-      <div
-        style={{
-          minHeight: 0,
-          padding: 8,
-          borderTop: `1px solid ${subtleBorderColor}`,
-          boxSizing: "border-box",
-          display: "grid",
-          gridTemplateRows: "auto auto auto",
-          gap: 6,
-          fontFamily: "Space Grotesk, sans-serif",
-        }}
-      >
+      <div className={algebraStyles.equationComposerFooter}>
         <div
           aria-label="Draft equation preview"
-          style={{
-            minHeight: 22,
-            borderRadius: 8,
-            background: "#191919",
-            border: `1px solid ${subtleBorderColor}`,
-            color: hasDraft ? "#FFFFFF" : "#FFFFFF66",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            overflow: "hidden",
-            padding: "2px 6px",
-            boxSizing: "border-box",
-            fontSize: 11,
-            fontWeight: 800,
-            whiteSpace: "nowrap",
-          }}
+          className={`${algebraStyles.equationDraftPreview} ${hasDraft ? algebraStyles.equationDraftPreviewActive : ""}`}
+          aria-live="polite"
+          aria-atomic="true"
+          title={hasDraft ? tokensToEquationState(draftTokens) : undefined}
         >
-          {hasDraft ? tokensToEquationState(draftTokens) : "Equation preview"}
+          {hasDraft ? (
+            <div className={algebraStyles.equationDraftTokens}>
+              {draftTokens.map((token, index) => (
+                <span key={`${token.label}-${index}`} className={algebraStyles.equationDraftToken} data-kind={getEquationTileKind(token.label)}>
+                  {token.label}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className={algebraStyles.equationDraftPlaceholder}>Tap a number bubble to start</span>
+          )}
         </div>
-        {!canAuthorEquation ? <div role="status" style={{ color: "#FFDBA3", fontSize: 10, lineHeight: 1.3 }}>Choose and load a song before saving an equation.</div> : hasDraft && draftIssue ? <div role="status" style={{ color: "#FFDBA3", fontSize: 10, lineHeight: 1.3 }}>{draftIssue}</div> : null}
+        {!canAuthorEquation ? <div role="status" className={algebraStyles.equationDraftStatus}>Choose and load a song before saving an equation.</div> : hasDraft && draftIssue ? <div role="status" className={algebraStyles.equationDraftStatus}>{draftIssue}</div> : null}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.45fr", gap: 6 }}>
-          <button
-            type="button"
-            onClick={onClearEquation}
-            disabled={!hasDraft}
-            style={{
-              minHeight: 26,
-              borderRadius: 8,
-              border: `1px solid ${subtleBorderColor}`,
-              background: "#252525",
-              color: hasDraft ? "#FFFFFF" : "#FFFFFF66",
-              fontSize: 10,
-              fontWeight: 900,
-              cursor: hasDraft ? "pointer" : "not-allowed",
-            }}
-          >
-            Clear
-          </button>
+        <div className={algebraStyles.equationComposerActions} data-has-draft={hasDraft ? "true" : "false"}>
+          {hasDraft ? (
+            <button
+              type="button"
+              onClick={onClearEquation}
+              className={algebraStyles.equationComposerSecondary}
+            >
+              Clear
+            </button>
+          ) : null}
           <div style={{ position: "relative" }}>
             {tutorialPrompt ? (
               <div
@@ -7579,40 +7533,22 @@ function LeftEquationBuilderPanel({
               type="button"
               onClick={onSaveEquation}
               disabled={!canAuthorEquation || !hasDraft || Boolean(draftIssue)}
-              style={{
-                width: "100%",
-                minHeight: 26,
-                borderRadius: 8,
-                border: `1px solid ${hasDraft && !draftIssue ? "#CFFF04" : subtleBorderColor}`,
-                background: hasDraft && !draftIssue ? "#CFFF04" : "#252525",
-                color: hasDraft && !draftIssue ? "#000000" : "#FFFFFF66",
-                fontSize: 10,
-                fontWeight: 900,
-                cursor: hasDraft && !draftIssue ? "pointer" : "not-allowed",
-              }}
+              className={algebraStyles.equationComposerPrimary}
             >
-          {studentCopy.editor.saveEquation}
+              {studentCopy.editor.saveEquation}
             </button>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onUseDraftInEvent}
-          disabled={!canAuthorEquation || !hasDraft || Boolean(draftIssue) || !activeEventLabel}
-          style={{
-            width: "100%",
-            minHeight: 28,
-            borderRadius: 8,
-            border: `1px solid ${hasDraft && !draftIssue && activeEventLabel ? "#2EA7FF" : subtleBorderColor}`,
-            background: hasDraft && !draftIssue && activeEventLabel ? "rgba(46,167,255,0.16)" : "#252525",
-            color: hasDraft && !draftIssue && activeEventLabel ? "#BDE4FF" : "#FFFFFF66",
-            fontSize: 10,
-            fontWeight: 900,
-            cursor: hasDraft && !draftIssue && activeEventLabel ? "pointer" : "not-allowed",
-          }}
-        >
-          {studentCopy.editor.useEquationForGroup(activeEventLabel ?? "the selected encounter")}
-        </button>
+        {hasDraft && activeEventLabel ? (
+          <button
+            type="button"
+            onClick={onUseDraftInEvent}
+            disabled={!canAuthorEquation || Boolean(draftIssue)}
+            className={algebraStyles.equationComposerAssign}
+          >
+            Use for all moves
+          </button>
+        ) : null}
       </div>
     </section>
   );
@@ -9673,6 +9609,8 @@ function LibraryPanel({
   onHideSourceEquation,
   onRestoreSourceEquation,
   onDeleteMineEquation,
+  onOpenEquationBuilder,
+  isEquationBuilderOpen,
   shouldScrollLibrary,
   tutorialPrompt = null,
   onSkipTutorial,
@@ -9690,112 +9628,113 @@ function LibraryPanel({
   onHideSourceEquation: (equationId: string) => void;
   onRestoreSourceEquation: (equationId: string) => void;
   onDeleteMineEquation: (equationId: string) => void;
+  onOpenEquationBuilder: () => void;
+  isEquationBuilderOpen: boolean;
   shouldScrollLibrary: boolean;
   tutorialPrompt?: string | null;
   onSkipTutorial?: () => void;
   isAlgebraStudio?: boolean;
 }) {
+  const visibleTemplateEquations = templateEquations.filter(
+    (equation) => !hiddenSourceEquationIds.includes(equation.id),
+  );
   const displayedEquations = libraryEquationsForTab(
     activeTab,
     savedEquations,
-    templateEquations.filter((equation) => !hiddenSourceEquationIds.includes(equation.id)),
+    visibleTemplateEquations,
   );
   const canAddEquation = Boolean(activeEventId && selectedEquationId);
 
   return (
     <section
       aria-label="Equation library"
+      className={algebraStyles.equationLibraryPanel}
+      data-algebra-studio={isAlgebraStudio ? "true" : undefined}
       style={{
         width: "100%",
         height: "100%",
         minHeight: 0,
         minWidth: 0,
-        background: isAlgebraStudio ? "rgba(10, 18, 39, .96)" : row2Column3BackgroundColor,
+        background: isAlgebraStudio ? undefined : row2Column3BackgroundColor,
         color: textColor,
-        borderLeft: `1px solid ${subtleBorderColor}`,
-        boxSizing: "border-box",
-        overflow: "hidden",
-        display: "grid",
-        gridTemplateRows: "10% 90%",
-        fontFamily: "Space Grotesk, sans-serif",
       }}
     >
-      <div
-        style={{
-          minHeight: 0,
-          padding: "8px 8px 6px",
-          borderBottom: `1px solid ${subtleBorderColor}`,
-          boxSizing: "border-box",
-          display: "grid",
-          alignContent: "center",
-          gap: 6,
-        }}
-      >
-        <div style={{ textAlign: "left", fontSize: 13, fontWeight: 900 }}>Library</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+      <div className={algebraStyles.equationLibraryHeader}>
+        <div className={algebraStyles.equationLibraryTitleRow}>
+          <strong>Equation library</strong>
+        </div>
+        <div className={algebraStyles.equationLibraryTabs} aria-label="Equation library sections">
           {(["mine", "premade"] as LibraryTab[]).map((tab) => {
             const isActive = activeTab === tab;
+            const count = tab === "mine" ? savedEquations.length : visibleTemplateEquations.length;
             return (
               <button
                 key={tab}
                 type="button"
                 onClick={() => onTabChange(tab)}
-                style={{
-                  minHeight: 24,
-                  borderRadius: 8,
-                  border: `1px solid ${isActive ? "#CFFF04" : subtleBorderColor}`,
-                  background: isActive ? "rgba(207,255,4,0.12)" : "#252525",
-                  color: isActive ? "#CFFF04" : "#FFFFFF99",
-                  fontSize: 9,
-                  fontWeight: 900,
-                  cursor: "pointer",
-                  padding: "0 4px",
-                }}
+                className={algebraStyles.equationLibraryTab}
+                aria-pressed={isActive}
               >
-                {tab === "mine" ? "Mine" : "Lesson template"}
+                <span>{tab === "mine" ? "Mine" : "Templates"}</span>
+                <span className={algebraStyles.equationLibraryTabCount}>{count}</span>
               </button>
             );
-            })}
+          })}
         </div>
-        <div style={{ color: "#FFFFFF80", fontSize: 9, lineHeight: 1.3 }}>
+        <p className={algebraStyles.equationLibraryHint}>
           {activeTab === "premade"
-            ? "These are ready-made equations. Hide one just for your lesson, or show it again later."
-            : "Your saved equations are here. Choose one, then add it to the selected part."}
-        </div>
+            ? "Use an example, or hide it from this lesson."
+            : savedEquations.length > 0
+              ? "Choose an equation, then apply it to this encounter."
+              : "Build and save an equation to reuse it here."}
+        </p>
       </div>
 
-      <div
-        style={{
-          minHeight: 0,
-          padding: 10,
-          boxSizing: "border-box",
-          display: "grid",
-          gridTemplateRows: "minmax(0, 1fr) auto",
-          gap: 10,
-          overflow: "hidden",
-        }}
-      >
+      <div className={algebraStyles.equationLibraryBody}>
         <div
+          className={algebraStyles.equationLibraryScroll}
           style={{
-            minHeight: 0,
-            overflowY: shouldScrollLibrary ? "auto" : "hidden",
-            paddingRight: shouldScrollLibrary ? 4 : 0,
-            boxSizing: "border-box",
+            overflowY: shouldScrollLibrary || displayedEquations.length > 0 || hiddenSourceEquationIds.length > 0 ? "auto" : "hidden",
           }}
         >
           {displayedEquations.length === 0 ? (
-              <div style={{ color: "#FFFFFF80", fontSize: 11, fontWeight: 700, lineHeight: 1.35 }}>
-                {activeTab === "mine"
-                  ? "Equations you make in this session will appear here."
-                  : "This template has no reusable equations."}
+              <div className={algebraStyles.equationLibraryEmpty}>
+                <div className={algebraStyles.equationLibraryEmptyEquation} aria-hidden="true">
+                  <span data-kind="variable">x</span>
+                  <i>−</i>
+                  <span data-kind="number">5</span>
+                  <i>=</i>
+                  <span data-kind="number" data-targeted="true">6</span>
+                </div>
+                <strong>
+                  {activeTab === "mine"
+                    ? "No saved equations yet"
+                    : hiddenSourceEquationIds.length > 0
+                      ? "No visible templates"
+                      : "No lesson templates yet"}
+                </strong>
+                <p>
+                  {activeTab === "mine"
+                    ? isEquationBuilderOpen
+                      ? "Build one on the left and save it here to reuse it."
+                      : "Open the builder to create a reusable equation."
+                    : hiddenSourceEquationIds.length > 0
+                      ? "Restore a hidden template below, or add one when this lesson has examples."
+                      : "Ready-made equations for this activity will appear here."}
+                </p>
+                {activeTab === "mine" && !isEquationBuilderOpen ? (
+                  <button type="button" className={algebraStyles.equationLibraryCreate} onClick={onOpenEquationBuilder}>
+                    Open equation builder <span aria-hidden="true">↗</span>
+                  </button>
+                ) : null}
               </div>
             ) : (
-              <div style={{ display: "grid", gap: 10 }}>
+              <div className={algebraStyles.equationLibraryList}>
                 {displayedEquations.map((equation) => {
                   const isSelected = equation.id === selectedEquationId;
 
                   return (
-                    <div key={equation.id} style={{ display: "grid", gap: 5 }}>
+                    <div key={equation.id} className={algebraStyles.equationLibraryItem}>
                     <button
                       type="button"
                       draggable
@@ -9807,43 +9746,20 @@ function LibraryPanel({
                         );
                         event.dataTransfer.effectAllowed = "copy";
                       }}
-                      style={{
-                        minHeight: 52,
-                        padding: 6,
-                        borderRadius: 10,
-                        border: `2px solid ${isSelected ? "#CFFF04" : subtleBorderColor}`,
-                        background: isSelected ? "rgba(207,255,4,0.10)" : "#191919",
-                        color: textColor,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                      }}
+                      className={algebraStyles.equationLibraryEntry}
+                      data-selected={isSelected ? "true" : undefined}
                       title={tokensToEquationState(equation.tokens)}
                     >
-                      <span
-                        style={{
-                          width: "100%",
-                          color: textColor,
-                          fontSize: 11,
-                          fontWeight: 900,
-                          lineHeight: 1.25,
-                          textAlign: "center",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "normal",
-                          wordBreak: "break-word",
-                        }}
-                      >
+                      <span className={algebraStyles.equationLibraryExpression}>
                         {tokensToEquationState(equation.tokens)}
                       </span>
                     </button>
                     {activeTab === "premade" ? (
-                      <button type="button" aria-label={`Hide ${tokensToEquationState(equation.tokens)} from my lesson`} onClick={() => onHideSourceEquation(equation.id)} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 7, background: "#252525", color: "#FFFFFFAA", fontSize: 9, padding: "4px 2px", cursor: "pointer" }}>
+                      <button type="button" className={algebraStyles.equationLibraryManage} aria-label={`Hide ${tokensToEquationState(equation.tokens)} from my lesson`} onClick={() => onHideSourceEquation(equation.id)}>
                         Hide from my lesson
                       </button>
                     ) : (
-                      <button type="button" onClick={() => onDeleteMineEquation(equation.id)} style={{ border: "1px solid #FF7F7F66", borderRadius: 7, background: "#2A1414", color: "#FFB0B0", fontSize: 9, padding: "4px 2px", cursor: "pointer" }}>
+                      <button type="button" className={`${algebraStyles.equationLibraryManage} ${algebraStyles.equationLibraryDelete}`} onClick={() => onDeleteMineEquation(equation.id)}>
                         Delete my equation
                       </button>
                     )}
@@ -9853,12 +9769,12 @@ function LibraryPanel({
               </div>
           )}
           {hiddenSourceEquationIds.length > 0 ? (
-            <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${subtleBorderColor}`, display: "grid", gap: 5 }}>
-              <span style={{ color: "#FFFFFF80", fontSize: 9, fontWeight: 800 }}>Hidden in my lesson</span>
+            <div className={algebraStyles.equationLibraryHidden}>
+              <span>Hidden in my lesson</span>
               {hiddenSourceEquationIds.map((equationId) => {
                 const hiddenEquation = templateEquations.find((equation) => equation.id === equationId);
                 return (
-                  <button key={equationId} type="button" aria-label={`Show ${hiddenEquation ? tokensToEquationState(hiddenEquation.tokens) : "this equation"} again`} onClick={() => onRestoreSourceEquation(equationId)} style={{ border: `1px solid ${subtleBorderColor}`, borderRadius: 7, background: "transparent", color: "#CFFF04", fontSize: 9, padding: "4px 2px", cursor: "pointer" }}>
+                  <button key={equationId} type="button" className={algebraStyles.equationLibraryRestore} aria-label={`Show ${hiddenEquation ? tokensToEquationState(hiddenEquation.tokens) : "this equation"} again`} onClick={() => onRestoreSourceEquation(equationId)}>
                     Show again: {hiddenEquation ? tokensToEquationState(hiddenEquation.tokens) : "this equation"}
                   </button>
                 );
@@ -9867,8 +9783,8 @@ function LibraryPanel({
           ) : null}
         </div>
 
-        {activeEventId ? (
-          <div style={{ position: "relative" }}>
+        {activeEventId && displayedEquations.length > 0 ? (
+          <div className={algebraStyles.equationLibraryAssign}>
             {tutorialPrompt ? (
               <div
                 style={{
@@ -9890,19 +9806,10 @@ function LibraryPanel({
               type="button"
               onClick={onAddSelectedEquationToEvent}
               disabled={!canAddEquation}
-              style={{
-                width: "100%",
-                minHeight: 34,
-                borderRadius: 10,
-                border: `1px solid ${canAddEquation ? "#CFFF04" : subtleBorderColor}`,
-                background: canAddEquation ? "#CFFF04" : "#252525",
-                color: canAddEquation ? "#000000" : "#FFFFFF66",
-                fontSize: 10,
-                fontWeight: 900,
-                cursor: canAddEquation ? "pointer" : "not-allowed",
-              }}
+              className={algebraStyles.equationLibraryAssignButton}
+              aria-label="Use the selected equation for every move in this encounter"
             >
-              Assign to every move in this encounter
+              Use for every move
             </button>
           </div>
         ) : null}
@@ -15453,7 +15360,7 @@ export default function LessonBuilderClient({
                 >
                   <button
                     type="button"
-                    className={styles.editorPanelCloseButton}
+                    className={`${styles.editorPanelCloseButton} ${isAlgebraActivity ? algebraStyles.panelCloseButton : ""}`}
                     onClick={() => { setIsBuilderPanelOpen(false); setPendingAlgebraActionDraft(null); }}
                     aria-label="Collapse equation builder"
                     title="Collapse equation builder"
@@ -15864,7 +15771,7 @@ export default function LessonBuilderClient({
                   <div className={`${styles.editorPanelSurface} ${isAlgebraActivity ? algebraStyles.panelSurface : ""}`} style={{ flex: `0 0 ${row2DisplayWidths.column3}px`, minWidth: 0, height: "100%", position: "relative" }}>
                     <button
                       type="button"
-                      className={styles.editorPanelCloseButton}
+                      className={`${styles.editorPanelCloseButton} ${isAlgebraActivity ? algebraStyles.panelCloseButton : ""}`}
                       onClick={() => setIsLibraryPanelOpen(false)}
                       aria-label="Collapse equation library"
                       title="Collapse equation library"
@@ -15885,6 +15792,8 @@ export default function LessonBuilderClient({
                       onHideSourceEquation={handleHideSourceEquation}
                       onRestoreSourceEquation={handleRestoreSourceEquation}
                       onDeleteMineEquation={handleDeleteMineEquation}
+                      onOpenEquationBuilder={() => setIsBuilderPanelOpen(true)}
+                      isEquationBuilderOpen={isBuilderPanelOpen}
                       shouldScrollLibrary={isTimelineInstructionVisible}
                       tutorialPrompt={
                         tutorialStep === "add"
