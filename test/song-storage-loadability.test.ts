@@ -20,7 +20,7 @@ test("editor excludes an authored choice missing its chart or sidecar URL", () =
   assert.equal(isEditorSongChoiceLoadable({ ...complete, chart: { ...complete.chart, signedUrl: "" } }), false);
 });
 
-test("Number Bonds song choice offers verified starters but excludes songs without a rhythm", () => {
+test("Number Bonds song choice requires an Early Algebra rhythm, including for legacy lessons", () => {
   const readySource = {
     activityKey: "early-algebra" as const,
     revision: "revision-1",
@@ -36,9 +36,15 @@ test("Number Bonds song choice offers verified starters but excludes songs witho
     rhythmSources: [readySource],
   };
   const noRhythm: SongChoice = { ...starter, id: "no-rhythm", rhythmSources: [] };
+  const wrongActivity: SongChoice = {
+    ...starter,
+    id: "wrong-activity",
+    rhythmSources: [{ ...readySource, activityKey: "equations" }],
+  };
   const published: SongChoice = { ...starter, id: "published", requiresRhythmSource: false, rhythmSources: [] };
+  const legacy: SongChoice = { ...complete, id: "legacy", activityKey: "number-bonds" };
   assert.deepEqual(
-    filterAuthorableNumberBondsSongs([starter, noRhythm, published]).map((song) => song.id),
-    ["starter", "published"],
+    filterAuthorableNumberBondsSongs([starter, noRhythm, wrongActivity, published, legacy]).map((song) => song.id),
+    ["starter"],
   );
 });

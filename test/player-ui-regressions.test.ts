@@ -266,8 +266,9 @@ test("first Number Bonds publication requires an explicit verified rhythm source
   assert.match(builder, /Your bond equation and note cues start fresh/);
   assert.match(builder, /rhythmSource: selectedRhythmSource/);
   assert.match(storage, /preferredActivityKey === "number-bonds"/);
+  assert.match(storage, /activityKey: "early-algebra"/);
   assert.match(storage, /status: "ready"/);
-  assert.match(storage, /source\.chartSha256 === revision\.chartSha256/);
+  assert.match(storage, /latestRhythmRevisionBySong\.has\(revision\.songAssetId\)/);
 });
 
 test("Number Bonds authoring can generate catch cues from a chosen catalogue bond and rhythm difficulty", () => {
