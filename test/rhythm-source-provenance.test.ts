@@ -13,9 +13,10 @@ const migration = readFileSync(join(
 test("shared rhythm publications persist the immutable source revision on the target revision", () => {
   assert.match(
     route,
-    /rhythmSourceRevision:\s*resolvedRhythmSource\?\.sourceRevision\s*\?\?\s*null/,
-    "the publication transaction must write the verified source revision link",
+    /rhythmSourceRevision:\s*persistedRhythmSource\?\.revision\s*\?\?\s*null/,
+    "the publication transaction must write the resolved or preserved source revision link",
   );
+  assert.match(route, /resolveLessonSaveRhythmSource\(/);
   assert.match(
     schema,
     /rhythmSourceRevision\s+String\?\s+@map\("rhythm_source_revision"\)\s+@db\.Uuid/,
@@ -31,10 +32,10 @@ test("shared rhythm publications persist the immutable source revision on the ta
   assert.match(migration, /CREATE INDEX game_content_revisions_rhythm_source_revision_idx/);
 });
 
-test("shared rhythm retries replay before the first-publication-only check and match the stored source", () => {
+test("shared rhythm retries replay before the next publication and match the stored source", () => {
   const replayLookup = route.indexOf("const replayedPublication = await prisma.gameContentRevision.findUnique");
-  const firstPublicationGuard = route.indexOf("if (targets.current && hasRhythmSourceRequest)");
-  assert.ok(replayLookup >= 0 && firstPublicationGuard > replayLookup);
+  assert.ok(replayLookup >= 0);
+  assert.doesNotMatch(route, /rhythmSource is only allowed for the first publication/);
   assert.match(route, /replayedPublication\.rhythmSource\?\.revision\s*\?\?\s*null/);
   assert.match(route, /replayedPublication\.rhythmSource\?\.activityKey\s*\?\?\s*null/);
 });

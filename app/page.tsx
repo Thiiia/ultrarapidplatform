@@ -71,6 +71,7 @@ export default async function HomePage() {
               height: "27%",
               objectFit: "cover",
               objectPosition: "center center",
+              transform: "translateY(12dvh)",
               filter: "brightness(1.15) contrast(1.08) saturate(1.05)",
             }}
           />
