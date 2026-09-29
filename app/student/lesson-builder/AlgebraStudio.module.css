@@ -172,17 +172,17 @@
 .inspectorHeading { display: grid; gap: 3px; padding-bottom: 12px; border-bottom: 1px solid #ffffff22; }
 .inspectorHeading span { color: #d7bdff; font: 800 10px/1.3 var(--ur-font-technical), monospace; letter-spacing: .12em; }
 .inspectorHeading strong { font-size: 16px; }
-.composer :global(.algebra-composer__preview) { display: grid; grid-template-columns: minmax(0, 1fr) 116px; gap: 16px; padding: 22px; border: 1px solid #c4abff70; border-radius: 19px; background: radial-gradient(circle at 75% 15%, #9067e63d, transparent 45%), #161737; }
+.composer :global(.algebra-composer__preview) { display: grid; grid-template-columns: minmax(0, 1fr) 116px; gap: 16px; padding: 22px; border: 1px solid rgba(184, 232, 235, .34); border-radius: 19px; background: radial-gradient(ellipse 42% 72% at 73% 88%, rgba(92, 157, 104, .14), transparent 72%), linear-gradient(145deg, rgba(9, 38, 46, .94), rgba(3, 14, 20, .92)); box-shadow: inset 0 1px rgba(255, 255, 255, .1), 0 14px 34px rgba(0, 0, 0, .22); backdrop-filter: blur(12px) saturate(125%); }
 .composer :global(.algebra-composer__previewCopy) { gap: 7px; }
 .composer :global(.algebra-composer__previewCopy strong) { font-size: 18px; }
 .composer :global(.algebra-composer__previewTarget), .composer :global(.algebra-composer__previewTiming) { font-size: 13px; }
-.composer :global(.algebra-composer__previewAction) { background: #b28bff20; border-color: #b28bff70; }
-.composer :global(.algebra-composer__previewActionIcon) { color: #d7bdff; }
+.composer :global(.algebra-composer__previewAction) { background: #cfff0412; border-color: #cfff0447; }
+.composer :global(.algebra-composer__previewActionIcon) { color: var(--studio-accent); }
 .composer :global(.algebra-composer__previewAction) { font-size: 13px; }
 .composer :global(.algebra-composer__equation) { grid-column: 1 / -1; min-height: 85px; justify-content: flex-start; gap: 12px; padding: 10px 0; }
-.composer :global(.algebra-composer__equationToken) { min-width: 42px; min-height: 55px; border-radius: 12px; border-color: #ffffff38; background: #0c1431; font-size: clamp(19px, 2.2vw, 26px); box-shadow: inset 0 1px #ffffff20; }
-.composer :global(.algebra-composer__equationToken[data-targeted="true"]) { border-color: var(--studio-accent); background: #cfff0420; color: var(--studio-accent); box-shadow: 0 0 22px #cfff0440; }
-.composer :global(.algebra-composer__equationToken[data-operator="true"]) { border-color: transparent; background: transparent; box-shadow: none; color: #d5bbff; }
+.composer :global(.algebra-composer__equationToken) { width: 56px; min-width: 56px; height: 56px; min-height: 56px; border-radius: 50%; border-color: rgba(184, 232, 235, .46); background: linear-gradient(150deg, rgba(255, 255, 255, .05), transparent 48%), rgba(3, 14, 20, .76); box-shadow: inset 0 1px rgba(255, 255, 255, .16), 0 7px 18px rgba(0, 0, 0, .24); backdrop-filter: blur(7px) saturate(120%); color: #fff; font-family: var(--font-grandstander), var(--ur-font-interface), sans-serif; font-size: 24px; }
+.composer :global(.algebra-composer__equationToken[data-targeted="true"]:not([data-operator="true"])) { border-color: rgba(220, 246, 244, .78); background: linear-gradient(150deg, rgba(255, 255, 255, .06), transparent 48%), rgba(3, 14, 20, .76); color: #fff; box-shadow: inset 0 1px rgba(255, 255, 255, .2), 0 0 21px rgba(207, 255, 4, .12); outline: 1px solid rgba(220, 246, 244, .48); outline-offset: 4px; }
+.composer :global(.algebra-composer__equationToken[data-operator="true"]) { width: auto; min-width: 0; height: auto; min-height: 0; border-color: transparent; background: transparent; box-shadow: none; backdrop-filter: none; color: #fff; font-family: var(--font-grandstander), var(--ur-font-interface), sans-serif; font-size: clamp(22px, 2.2vw, 30px); }
 .composer :global(.algebra-composer__steps) { gap: 8px; }
 .composer :global(.algebra-composer__step) { color: #bbc3d9; font-size: 13px; }
 .composer :global(.algebra-composer__step[data-state="active"]) { color: #fff; }
@@ -680,9 +680,12 @@
 }
 @media (prefers-reduced-transparency: reduce) {
   .composerInspector, .composer :global(.algebra-composer__preview), .composer :global(.algebra-composer__padBoard), .draftBackdrop, .draftDialog, .draftTopControls, .draftMechanics button, .draftEquationLabel select, .draftCreateEquation, .draftClose, .composer :global(.algebra-composer__equationToken), .composer :global(.algebra-composer__tokenButton), .composer :global(.algebra-composer__padButton) { backdrop-filter: none; }
+  .composer :global(.algebra-composer__preview) { background: #09262e; }
+  .composer :global(.algebra-composer__equationToken:not([data-operator="true"])) { background: #061a20; }
 }
 @media (prefers-reduced-motion: reduce) {
   .composer :global(.algebra-composer__equationToken[data-targeted="true"]), .composer :global(.algebra-composer__tokenButton[data-selected="true"]), .composer :global(.algebra-composer__padButton[data-selected="true"]), .composer :global(.algebra-composer__gestureSpin), .composer :global(.algebra-composer__gestureDrag span:first-child) { animation: none; }
+  .composer :global(.algebra-composer__equationOrbit) { animation: none; transform: translate(-50%, -50%); }
   .composer :global(.algebra-composer__equationToken), .composer :global(.algebra-composer__tokenButton), .composer :global(.algebra-composer__padButton) { transition: none; }
 }
 

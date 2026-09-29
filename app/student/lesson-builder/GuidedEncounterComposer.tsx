@@ -520,7 +520,7 @@ export function GuidedEncounterComposer({
       {!isNumberBonds && instance.equation && tokens.length > 0 ? (
         <div className="algebra-composer__preview" data-mechanic={instance.mechanic} role="group" aria-label={`Player cue preview. Equation: ${equationState}`}>
           <div className="algebra-composer__previewCopy">
-            <span className="algebra-composer__previewEyebrow">PLAYER VIEW</span>
+            <span className="algebra-composer__previewEyebrow">APPROACH / CHART-OWNED</span>
             <span className="algebra-composer__previewAction" data-mechanic={instance.mechanic} aria-label={`Player action: ${motionCue}`}>
               <MotionIcon className="algebra-composer__previewActionIcon" aria-hidden="true" fontSize="small" />
               <span>{motionCue}</span>
@@ -544,6 +544,11 @@ export function GuidedEncounterComposer({
                 data-operator={isAuthoredEquationOperator(token.label) ? "true" : undefined}
               >
                 {token.label}
+                {selectedTokenIndex === index && !isAuthoredEquationOperator(token.label) ? (
+                  <span className="algebra-composer__equationOrbit" aria-hidden="true">
+                    <span className="algebra-composer__equationSpark" />
+                  </span>
+                ) : null}
               </span>
             ))}
           </div>
