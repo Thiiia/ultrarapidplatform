@@ -3,7 +3,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { resolveFreshSongLaunchPackage, SongLaunchRevisionNotFoundError } from "@/lib/song-launch-package";
-import { shouldCreatePlayerLaunchAttempt } from "@/lib/player-launch-attempt-policy";
+import { canRefreshPlayerLaunchAttempt, parsePlayerLaunchRefreshRequest, shouldCreatePlayerLaunchAttempt } from "@/lib/player-launch-attempt-policy";
+import { canonicalPlayerJson } from "@/lib/player-run-lifecycle";
 import { getCurrentAppUser } from "@/lib/current-user";
 import {
   DEV_AUTHOR_FOLDER,
@@ -110,7 +111,7 @@ export async function POST(request: Request) {
 
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId");
     const activityKey = readRequiredString(payload.activityKey, "activityKey");
-    const requestedAuthorId =
+    let requestedAuthorId =
       typeof payload.authorId === "string" && payload.authorId.trim()
         ? payload.authorId.trim()
         : null;
@@ -118,7 +119,7 @@ export async function POST(request: Request) {
       typeof payload.authorName === "string" && payload.authorName.trim()
         ? payload.authorName.trim()
         : null;
-    const requestedRevision =
+    let requestedRevision =
       typeof payload.revision === "string" && payload.revision.trim()
         ? payload.revision.trim()
         : null;
@@ -133,10 +134,51 @@ export async function POST(request: Request) {
       typeof payload.learningDifficultyKey === "string" && payload.learningDifficultyKey.trim()
         ? payload.learningDifficultyKey.trim()
         : null;
-    const refreshLaunchAttemptId =
-      payload.refreshOnly === true && typeof payload.refreshLaunchAttemptId === "string" && payload.refreshLaunchAttemptId.trim()
-        ? payload.refreshLaunchAttemptId.trim()
-        : null;
+    const refreshRequest = parsePlayerLaunchRefreshRequest(
+      payload.refreshOnly,
+      payload.refreshLaunchAttemptId,
+    );
+    if (!refreshRequest.ok) {
+      return NextResponse.json({
+        code: "INVALID_REFRESH_REQUEST",
+        error: "This lesson session could not be resumed. Start it again from your lessons.",
+      }, { status: 400 });
+    }
+    const refreshLaunchAttemptId = refreshRequest.launchAttemptId;
+    let refreshAttempt: {
+      userId: string;
+      songAssetId: string;
+      activityKey: string;
+      authorId: string;
+      revision: string | null;
+      receipt: Prisma.JsonValue;
+      status: string;
+    } | null = null;
+    if (refreshLaunchAttemptId) {
+      if (!player) {
+        return NextResponse.json({ code: "ATTEMPT_NOT_AUTHENTICATED", error: "Sign in again to resume this lesson." }, { status: 403 });
+      }
+      refreshAttempt = await prisma.playerLaunchAttempt.findUnique({
+        where: { launchAttemptId: refreshLaunchAttemptId },
+        select: { userId: true, songAssetId: true, activityKey: true, authorId: true, revision: true, receipt: true, status: true },
+      });
+      if (!refreshAttempt) {
+        return NextResponse.json({ code: "ATTEMPT_NOT_FOUND", error: "This lesson session has expired. Start it again from your lessons." }, { status: 404 });
+      }
+      if (refreshAttempt.userId !== player.id) {
+        return NextResponse.json({ code: "ATTEMPT_FORBIDDEN", error: "This lesson session belongs to another learner." }, { status: 403 });
+      }
+      if (!canRefreshPlayerLaunchAttempt(refreshAttempt.status)) {
+        return NextResponse.json({ code: "ATTEMPT_TERMINAL", error: "This lesson session has ended. Start a new run from your lessons." }, { status: 409 });
+      }
+      if (refreshAttempt.songAssetId !== songAssetId || refreshAttempt.activityKey !== activityKey ||
+        (requestedAuthorId && refreshAttempt.authorId !== requestedAuthorId) ||
+        (requestedRevision && refreshAttempt.revision !== requestedRevision) || !refreshAttempt.revision) {
+        return NextResponse.json({ code: "ATTEMPT_IDENTITY_MISMATCH", error: "This lesson session no longer matches its published revision." }, { status: 409 });
+      }
+      requestedAuthorId = refreshAttempt.authorId;
+      requestedRevision = refreshAttempt.revision;
+    }
     const author = await resolveRequestedAuthor({
       authorId: requestedAuthorId,
       authorName: requestedAuthorName,
@@ -230,6 +272,11 @@ export async function POST(request: Request) {
       },
       createSignedUrl,
     });
+
+    if (refreshAttempt && (!songPackage.receipt ||
+      canonicalPlayerJson(songPackage.receipt) !== canonicalPlayerJson(refreshAttempt.receipt))) {
+      return NextResponse.json({ code: "ATTEMPT_IDENTITY_MISMATCH", error: "This lesson session no longer matches its published revision." }, { status: 409 });
+    }
 
     if (shouldCreatePlayerLaunchAttempt({
       hasAuthenticatedPlayer: Boolean(player),
