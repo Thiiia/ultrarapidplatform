@@ -1,4 +1,5 @@
 import { tokenizeAuthoredEquationState } from "./authored-lesson";
+import type { AuthoredLessonNumberBondGem } from "./authored-lesson";
 import { evaluateLessonPublishReadiness } from "./guided-authored-encounter";
 import { getAuthoredActivityContractIssues } from "./activity-authoring-capabilities";
 import type { AuthoredHitPadLayoutVersion } from "./authored-hit-pad-layout";
@@ -94,6 +95,8 @@ export type AuthoredLessonDraft = {
   stopAtSeconds?: number;
   equations: Array<{ id: string; state: string; tokens?: AuthoredEquationToken[] }>;
   encounters: AuthoredDraftEncounter[];
+  numberBondSequenceVersion?: 1;
+  numberBondGems?: AuthoredLessonNumberBondGem[];
 };
 
 const GAMEPLAY_MECHANICS = ["hit", "spin", "drag"] as const;
