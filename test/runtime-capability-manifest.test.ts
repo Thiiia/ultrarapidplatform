@@ -6,7 +6,7 @@ import test from "node:test";
 import { getActivityAuthoringCapabilities } from "../lib/activity-authoring-capabilities";
 import { parseRuntimeCapabilityManifestJson } from "../lib/runtime-capability-manifest";
 
-const EXPECTED_FIXTURE_SHA256_LF = "cf9a0efc4699633d82a13aa112a9cf8257b98550dea32647fa4e5fe2200505fd";
+const EXPECTED_FIXTURE_SHA256_LF = "0bebfb039cb93467648b5b8700916fd6e90a86290248f9b374b32ee0ebba5bbf";
 const fixturePath = fileURLToPath(new URL(
   "../contracts/runtime-capabilities/v1/runtime-capabilities.json",
   import.meta.url,
@@ -38,12 +38,23 @@ test("Unity runtime capability build fixture parses without changing authoring a
   assert.deepEqual(manifest.activities.map((activity) => activity.activityKey), ["number-bonds", "early-algebra"]);
   assert.deepEqual(manifest.activities[0].runtimeMechanics, ["hit", "catch", "spinout", "drag"]);
   assert.deepEqual(manifest.activities[0].authoredLessonAdapters[0].mechanics, ["hit"]);
+  assert.deepEqual(manifest.activities[0].authoredSequenceAdapters, [{
+    authoredLessonProtocolVersion: 3,
+    sequenceVersion: 1,
+    encounterMechanics: ["hit", "spin", "drag"],
+  }]);
   assert.deepEqual(manifest.activities[1].runtimeMechanics, ["hit", "spin", "drag"]);
   assert.deepEqual(manifest.activities[1].authoredLessonAdapters[0].mechanics, ["hit", "spin", "drag"]);
+  assert.deepEqual(manifest.activities[1].authoredSequenceAdapters, []);
 
   assert.deepEqual(
     getActivityAuthoringCapabilities("number-bonds").supportedAuthoredMechanics,
     ["hit"],
+  );
+  assert.equal(
+    "runtimeCapabilities" in manifest.activities[0],
+    false,
+    "receipt runtimeCapabilities are not part of the build capability document",
   );
   assert.deepEqual(
     getActivityAuthoringCapabilities("early-algebra").supportedAuthoredMechanics,
@@ -86,6 +97,20 @@ test("runtime capability parser rejects unknown mechanics and inaccurate declara
       activities[1],
     ],
   })), /runtime mechanics do not match/);
+  assert.throws(() => parseRuntimeCapabilityManifestJson(JSON.stringify({
+    ...fixture,
+    activities: [
+      {
+        ...activities[0],
+        authoredSequenceAdapters: [{
+          authoredLessonProtocolVersion: 3,
+          sequenceVersion: 2,
+          encounterMechanics: ["hit", "spin", "drag"],
+        }],
+      },
+      activities[1],
+    ],
+  })), /unsupported lesson or sequence protocol/);
 });
 
 test("runtime capability parser rejects protocol-axis and manifest-version drift", () => {

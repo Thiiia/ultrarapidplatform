@@ -5,10 +5,12 @@ const EXPECTED_MECHANICS = {
   "number-bonds": {
     runtime: ["hit", "catch", "spinout", "drag"],
     authored: ["hit"],
+    authoredSequences: [{ sequenceVersion: 1, encounterMechanics: ["hit", "spin", "drag"] }],
   },
   "early-algebra": {
     runtime: ["hit", "spin", "drag"],
     authored: ["hit", "spin", "drag"],
+    authoredSequences: [],
   },
 } as const;
 
@@ -21,10 +23,17 @@ export type RuntimeCapabilityAuthoredAdapter = Readonly<{
   mechanics: readonly AuthoredRuntimeAdapterMechanic[];
 }>;
 
+export type RuntimeCapabilityAuthoredSequenceAdapter = Readonly<{
+  authoredLessonProtocolVersion: 3;
+  sequenceVersion: 1;
+  encounterMechanics: readonly AuthoredRuntimeAdapterMechanic[];
+}>;
+
 export type RuntimeCapabilityActivity = Readonly<{
   activityKey: RuntimeCapabilityActivityKey;
   runtimeMechanics: readonly RuntimeCapabilityMechanic[];
   authoredLessonAdapters: readonly RuntimeCapabilityAuthoredAdapter[];
+  authoredSequenceAdapters: readonly RuntimeCapabilityAuthoredSequenceAdapter[];
 }>;
 
 export type RuntimeCapabilityManifest = Readonly<{
@@ -51,8 +60,9 @@ const PROTOCOL_KEYS = [
   "calibrationProtocolVersion",
   "publicDemoAdapterVersion",
 ] as const;
-const ACTIVITY_KEYS_IN_DOCUMENT = ["activityKey", "runtimeMechanics", "authoredLessonAdapters"] as const;
+const ACTIVITY_KEYS_IN_DOCUMENT = ["activityKey", "runtimeMechanics", "authoredLessonAdapters", "authoredSequenceAdapters"] as const;
 const ADAPTER_KEYS = ["authoredLessonProtocolVersion", "mechanics"] as const;
+const SEQUENCE_ADAPTER_KEYS = ["authoredLessonProtocolVersion", "sequenceVersion", "encounterMechanics"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -162,10 +172,32 @@ export function parseRuntimeCapabilityManifest(value: unknown): RuntimeCapabilit
       };
     });
 
+    const expectedSequenceAdapters = EXPECTED_MECHANICS[activityKey].authoredSequences;
+    if (!Array.isArray(activity.authoredSequenceAdapters) || activity.authoredSequenceAdapters.length !== expectedSequenceAdapters.length) {
+      throw new Error(`Runtime capability activity '${activityKey}' must declare its implemented authored sequence adapters.`);
+    }
+    const authoredSequenceAdapters = activity.authoredSequenceAdapters.map((adapter, adapterIndex): RuntimeCapabilityAuthoredSequenceAdapter => {
+      if (!isRecord(adapter)) throw new Error(`Authored sequence adapter ${adapterIndex} must be an object.`);
+      assertExactKeys(adapter, SEQUENCE_ADAPTER_KEYS, `Authored sequence adapter ${adapterIndex}`);
+      if (adapter.authoredLessonProtocolVersion !== 3 || adapter.sequenceVersion !== 1) {
+        throw new Error(`Authored sequence adapter ${adapterIndex} uses an unsupported lesson or sequence protocol.`);
+      }
+      const encounterMechanics = parseStringArray(adapter.encounterMechanics, AUTHORED_MECHANICS, "authored sequence encounter mechanics");
+      if (!matchesExpected(encounterMechanics, expectedSequenceAdapters[adapterIndex].encounterMechanics)) {
+        throw new Error(`Runtime capability activity '${activityKey}' authored sequence mechanics do not match the implemented adapter.`);
+      }
+      return {
+        authoredLessonProtocolVersion: 3,
+        sequenceVersion: 1,
+        encounterMechanics,
+      };
+    });
+
     return {
       activityKey,
       runtimeMechanics,
       authoredLessonAdapters,
+      authoredSequenceAdapters,
     };
   });
 

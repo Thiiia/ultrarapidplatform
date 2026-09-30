@@ -10,11 +10,13 @@ import {
   serializeAuthoredLesson,
   timelineEventsFromAuthoredLesson,
 } from "../lib/authored-lesson-serialization";
+import { loadLessonAssets } from "../lib/editor/lesson-hydration";
 import {
   getActivityAuthoringCapabilities,
   getAuthoredActivityContractIssues,
 } from "../lib/activity-authoring-capabilities";
 import { prepareAuthoredLessonForPublication } from "../lib/authored-lesson-publication";
+import { publishLessonSaveRevision } from "../lib/lesson-save-revision";
 
 type JsonObject = Record<string, any>;
 
@@ -26,6 +28,32 @@ const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as {
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function stableSequenceProjection(lesson: JsonObject) {
+  return {
+    songAssetId: lesson.songAssetId,
+    activityKey: lesson.activityKey,
+    stopAtSeconds: lesson.stopAtSeconds,
+    equations: lesson.equations.map((equation: JsonObject) => ({
+      id: equation.id,
+      state: equation.state,
+      tokens: equation.tokens,
+    })),
+    encounters: lesson.encounters.map((encounter: JsonObject) => ({
+      id: encounter.id,
+      eventId: encounter.eventId,
+      type: encounter.type,
+      equationId: encounter.equationId,
+      startTick: encounter.startTick,
+      endTick: encounter.endTick,
+      hitBubbles: encounter.hitBubbles,
+      spinTargets: encounter.spinTargets,
+      dragTargets: encounter.dragTargets,
+    })),
+    numberBondSequenceVersion: lesson.numberBondSequenceVersion,
+    numberBondGems: lesson.numberBondGems,
+  };
 }
 
 function applyMutation(lesson: JsonObject, mutation: JsonObject) {
@@ -166,6 +194,109 @@ test("Number Bonds sequence v1 survives editor hydration and save with encounter
       },
     ),
     /Number Bonds sequence v1/,
+  );
+});
+
+test("canonical 5 = 2 + 3 survives editor create, save, reopen, publish and immutable revision reload", async () => {
+  const created = parseAuthoredLessonDraft(clone(fixture.validLesson));
+  const clock = {
+    toTick: (seconds: number) => seconds,
+    toSeconds: (tick: number) => tick,
+  };
+  const expected = stableSequenceProjection(created);
+
+  const hydrated = timelineEventsFromAuthoredLesson(created, clock);
+  const savedDraft = serializeAuthoredLesson(
+    hydrated.events,
+    {
+      songAssetId: created.songAssetId,
+      activityKey: created.activityKey,
+      authorId: created.authorId,
+      revision: created.revision,
+    },
+    clock,
+    created.stopAtSeconds,
+    hydrated.equations,
+    {
+      numberBondSequenceV1: {
+        version: 1,
+        gems: hydrated.numberBondGems ?? [],
+      },
+    },
+  );
+  assert.deepEqual(stableSequenceProjection(savedDraft), expected, "Save preserves all encounter and gem identity/timing/target data");
+
+  const reopened = parseAuthoredLessonDraft(JSON.parse(JSON.stringify(savedDraft)));
+  const reopenedHydration = timelineEventsFromAuthoredLesson(reopened, clock);
+  assert.deepEqual(reopenedHydration.numberBondGems, created.numberBondGems, "Reopen restores stable gem journeys");
+  assert.deepEqual(
+    stableSequenceProjection(serializeAuthoredLesson(
+      reopenedHydration.events,
+      {
+        songAssetId: reopened.songAssetId,
+        activityKey: reopened.activityKey,
+        authorId: reopened.authorId,
+        revision: reopened.revision,
+      },
+      clock,
+      reopened.stopAtSeconds,
+      reopenedHydration.equations,
+      {
+        numberBondSequenceV1: {
+          version: 1,
+          gems: reopenedHydration.numberBondGems ?? [],
+        },
+      },
+    )),
+    expected,
+    "The reopened editor state serializes to the same v1 representation",
+  );
+
+  const revisionId = "number-bonds-sequence-v1-5-2-3-published";
+  const publication = prepareAuthoredLessonForPublication({
+    sidecarContent: JSON.stringify(savedDraft),
+    identity: {
+      songAssetId: created.songAssetId,
+      activityKey: created.activityKey,
+      authorId: "runtime-contract-fixture",
+      revision: revisionId,
+    },
+    runtimeClock: { toSeconds: (tick) => tick },
+  });
+  const published = parseAuthoredLessonDraft(JSON.parse(publication.content));
+  assert.deepEqual(stableSequenceProjection(published), expected, "Publish keeps stable sequence fields while stamping revision identity");
+
+  const storage = new Map<string, string>();
+  const savedRevision = await publishLessonSaveRevision({
+    targets: {
+      chart: { bucket: "Charts", path: "Number_Bonds/5-2-3.chart" },
+      sidecar: { bucket: "SidecarJsons", path: "Number_Bonds/5-2-3.json" },
+    },
+    revisionId,
+    content: { chart: "canonical-sequence-v1-test-chart", sidecar: publication.content },
+    upload: async (file) => { storage.set(file.path, file.content); },
+    commitRevision: async (revision) => {
+      assert.equal(revision.revisionId, revisionId);
+      assert.equal(storage.get(revision.sidecar.path), publication.content);
+    },
+  });
+  const reloadedAssets = await loadLessonAssets({
+    refs: {
+      audioUrl: "fixture-audio",
+      chartUrl: savedRevision.chart.path,
+      sidecarUrl: savedRevision.sidecar.path,
+    },
+    fetchAudio: async (url) => url,
+    fetchChart: async (url) => storage.get(url) ?? Promise.reject(new Error(`missing immutable chart ${url}`)),
+    fetchSidecar: async (url) => JSON.parse(storage.get(url) ?? "null"),
+  });
+  const reloadedPublishedRevision = parseAuthoredLessonDraft(reloadedAssets.sidecar);
+  assert.equal(reloadedPublishedRevision.revision, revisionId);
+  assert.deepEqual(stableSequenceProjection(reloadedPublishedRevision), expected);
+  assert.deepEqual(
+    timelineEventsFromAuthoredLesson(reloadedPublishedRevision, clock).numberBondGems,
+    created.numberBondGems,
+    "Unity-facing published reload restores the same five gem journeys",
   );
 });
 
