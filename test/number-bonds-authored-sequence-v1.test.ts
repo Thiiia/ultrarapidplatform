@@ -7,6 +7,10 @@ import {
   stampAuthoredLessonIdentity,
 } from "../lib/authored-lesson";
 import {
+  serializeAuthoredLesson,
+  timelineEventsFromAuthoredLesson,
+} from "../lib/authored-lesson-serialization";
+import {
   getActivityAuthoringCapabilities,
   getAuthoredActivityContractIssues,
 } from "../lib/activity-authoring-capabilities";
@@ -79,6 +83,90 @@ test("Number Bonds sequence v1 parses and retains the full linked 5 = 2 + 3 jour
   });
   assert.deepEqual(stamped.numberBondGems, parsed.numberBondGems);
   assert.equal(stamped.numberBondSequenceVersion, 1);
+
+  const publication = prepareAuthoredLessonForPublication({
+    sidecarContent: JSON.stringify(parsed),
+    identity: {
+      songAssetId: parsed.songAssetId,
+      activityKey: parsed.activityKey,
+      authorId: "runtime-contract-fixture",
+      revision: "number-bonds-sequence-v1-published",
+    },
+    runtimeClock: { toSeconds: (tick) => tick },
+  });
+  const published = parseAuthoredLessonDraft(JSON.parse(publication.content));
+  assert.equal(published.numberBondSequenceVersion, 1);
+  assert.deepEqual(published.numberBondGems, parsed.numberBondGems);
+});
+
+test("Number Bonds sequence v1 survives editor hydration and save with encounter edits validated", () => {
+  const parsed = parseAuthoredLessonDraft(clone(fixture.validLesson));
+  const identityClock = {
+    toTick: (seconds: number) => seconds,
+    toSeconds: (tick: number) => tick,
+  };
+  const hydrated = timelineEventsFromAuthoredLesson(parsed, identityClock);
+
+  assert.equal(hydrated.numberBondSequenceVersion, 1);
+  assert.deepEqual(hydrated.numberBondGems, parsed.numberBondGems);
+
+  const saved = serializeAuthoredLesson(
+    hydrated.events,
+    {
+      songAssetId: parsed.songAssetId,
+      activityKey: parsed.activityKey,
+      authorId: parsed.authorId,
+      revision: parsed.revision,
+    },
+    identityClock,
+    parsed.stopAtSeconds,
+    hydrated.equations,
+    {
+      forPublish: true,
+      activityKey: "number-bonds",
+      numberBondSequenceV1: {
+        version: 1,
+        gems: hydrated.numberBondGems ?? [],
+      },
+    },
+  );
+
+  assert.equal(saved.numberBondSequenceVersion, 1);
+  assert.deepEqual(saved.numberBondGems, parsed.numberBondGems);
+  assert.deepEqual(
+    parseAuthoredLessonDraft(saved).numberBondGems,
+    parsed.numberBondGems,
+  );
+
+  const changed = structuredClone(hydrated.events);
+  const lastGemDrag = changed
+    .flatMap((event) => event.mechanicInstances.drag)
+    .find((instance) => instance.id === parsed.numberBondGems![4].dragEncounterId);
+  assert.ok(lastGemDrag);
+  lastGemDrag!.tick = parsed.encounters.find(
+    (encounter) => encounter.id === parsed.numberBondGems![4].spinEncounterId,
+  )!.endTick;
+  assert.throws(
+    () => serializeAuthoredLesson(
+      changed,
+      {
+        songAssetId: parsed.songAssetId,
+        activityKey: parsed.activityKey,
+        authorId: parsed.authorId,
+        revision: parsed.revision,
+      },
+      identityClock,
+      parsed.stopAtSeconds,
+      hydrated.equations,
+      {
+        numberBondSequenceV1: {
+          version: 1,
+          gems: hydrated.numberBondGems ?? [],
+        },
+      },
+    ),
+    /Number Bonds sequence v1/,
+  );
 });
 
 test("shared malformed sequence mutations are rejected by parse or publication timing", () => {

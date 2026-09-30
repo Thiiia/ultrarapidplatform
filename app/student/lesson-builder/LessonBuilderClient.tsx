@@ -28,6 +28,7 @@ import {
   serializeAuthoredLesson,
   timelineEventsFromAuthoredLesson,
   type AuthoredLessonDraft,
+  type AuthoredNumberBondSequenceV1,
   type AuthoredTimelineEvent,
 } from "@/lib/authored-lesson-serialization";
 import {
@@ -1705,7 +1706,11 @@ function authoredSidecarFromTimelineEvents(
   clock: ReturnType<typeof createLessonClock>,
   stopAtSeconds?: number,
   equationQueue: SavedEquation[] = [],
-  options: { forPublish?: boolean; activityKey?: string | null } = {},
+  options: {
+    forPublish?: boolean;
+    activityKey?: string | null;
+    numberBondSequenceV1?: AuthoredNumberBondSequenceV1;
+  } = {},
 ): AuthoredLessonDraft {
   return serializeAuthoredLesson(
     events as unknown as AuthoredTimelineEvent[],
@@ -10288,6 +10293,10 @@ export default function LessonBuilderClient({
 
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventSlot[]>([]);
   const [numberBondDraftTarget, setNumberBondDraftTarget] = useState<{ songAssetId: string; whole: number } | null>(null);
+  const [numberBondSequenceV1, setNumberBondSequenceV1] = useState<{
+    songAssetId: string;
+    sequence: AuthoredNumberBondSequenceV1;
+  } | null>(null);
   const [numberBondLaunchPendingWhole, setNumberBondLaunchPendingWhole] = useState<number | null>(null);
   const numberBondAutoLaunchRef = useRef<number | null>(null);
   const numberBondShuffleRef = useRef(0);
@@ -10940,6 +10949,14 @@ export default function LessonBuilderClient({
       setTimelineEvents(nextEvents);
       setAuthoredEquationQueue(hydrated.equations);
       setTemplateEquations(hydrated.equations);
+      setNumberBondSequenceV1(
+        hydrated.numberBondSequenceVersion === 1 && hydrated.numberBondGems
+          ? {
+              songAssetId: generated.draft.songAssetId,
+              sequence: { version: 1, gems: hydrated.numberBondGems },
+            }
+          : null,
+      );
       setSelectedEquationId(generated.draft.equations[0]?.id ?? null);
       setActiveEventId(nextEvents[0]?.id ?? null);
       setRtcmDraftMechanics([]);
@@ -11272,6 +11289,14 @@ export default function LessonBuilderClient({
       timelineRehydrateSourceRef.current = nextSidecar;
       setAuthoredEquationQueue(importedEquations);
       setTemplateEquations(importedEquations);
+      setNumberBondSequenceV1(
+        hydrated.numberBondSequenceVersion === 1 && hydrated.numberBondGems
+          ? {
+              songAssetId: authoredDraft.songAssetId,
+              sequence: { version: 1, gems: hydrated.numberBondGems },
+            }
+          : null,
+      );
       setActiveEventId(nextEvents[0]?.id ?? null);
       setMode(nextMode);
       setStoreSidecar(nextSidecar as StoreSidecarPayload);
@@ -11519,6 +11544,7 @@ export default function LessonBuilderClient({
   }
 
   function handleClearRtcmChart() {
+    setNumberBondSequenceV1(null);
     setTimelineEvents([]);
     setRtcmDraftMechanics([]);
     setRtcmEventRangeStartTick(null);
@@ -12755,7 +12781,13 @@ export default function LessonBuilderClient({
             authoredClock,
             timelineSidecar.stopAtSeconds,
             authoredEquationQueue,
-            { forPublish: true, activityKey },
+            {
+              forPublish: true,
+              activityKey,
+              ...(numberBondSequenceV1?.songAssetId === selectedSongStorage.id && activityKey === "number-bonds"
+                ? { numberBondSequenceV1: numberBondSequenceV1.sequence }
+                : {}),
+            },
           )
         : null;
 
@@ -13145,6 +13177,7 @@ export default function LessonBuilderClient({
   }
 
   function hydrateSelectedSong(selectedSong: SelectedSongPayload) {
+    setNumberBondSequenceV1(null);
     const generation = ++lessonLoadGenerationRef.current;
     lessonLoadAbortRef.current?.abort();
     const controller = new AbortController();

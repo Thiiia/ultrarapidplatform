@@ -131,6 +131,12 @@ export function validateNumberBondSequenceV1(
   const referencedSpins = new Set<string>();
   const referencedDrags = new Set<string>();
   const referencedHits = new Set<string>();
+  const journeys: Array<{
+    unitIndex: number;
+    hit: NumberBondSequenceEncounter;
+    spin: NumberBondSequenceEncounter;
+    drag: NumberBondSequenceEncounter;
+  }> = [];
 
   for (const gem of gems) {
     if (!gem.gemId.trim() || gemIds.has(gem.gemId)) fail("gemId values must be non-empty and unique.");
@@ -196,6 +202,7 @@ export function validateNumberBondSequenceV1(
       fail(`gem '${gem.gemId}' must complete Hit, then Spin, then Drag.`);
     }
     referencedHits.add(hitTarget.id);
+    journeys.push({ unitIndex: gem.unitIndex, hit: hitTarget, spin, drag });
   }
 
   if (unitIndices.size !== 5 || [0, 1, 2, 3, 4].some((index) => !unitIndices.has(index))) {
@@ -210,6 +217,12 @@ export function validateNumberBondSequenceV1(
     encountersByType.hit.some((encounter) => !referencedHits.has(encounter.id))
   ) {
     fail("every Hit, Spin, and Drag must belong to exactly one gem.");
+  }
+  journeys.sort((left, right) => left.unitIndex - right.unitIndex);
+  for (let index = 1; index < journeys.length; index += 1) {
+    if (journeys[index - 1].drag.endTick >= journeys[index].hit.startTick) {
+      fail("each gem must finish its Drag before the next unit Hit begins.");
+    }
   }
 
   return gems;
