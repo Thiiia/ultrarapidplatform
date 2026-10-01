@@ -521,7 +521,7 @@ export function validateAuthoredLessonPlayability(
 
 export function parseAuthoredLessonDraft(
   value: unknown,
-  options: { requirePublishedIdentity?: boolean; activityKey?: string | null } = {},
+  options: { requirePublishedIdentity?: boolean; activityKey?: string | null; allowEmpty?: boolean } = {},
 ): AuthoredLessonDraft {
   if (!value || typeof value !== "object") {
     throw new Error("Authored lesson payload must be an object");
@@ -710,7 +710,7 @@ export function parseAuthoredLessonDraft(
   }
   validateRuntimeConcurrency(result.encounters, options.activityKey ?? result.activityKey);
   validateNumberBondSequenceV1(result);
-  if (result.equations.length === 0 && result.encounters.length === 0) {
+  if (!options.allowEmpty && result.equations.length === 0 && result.encounters.length === 0) {
     throw new Error("Authored lesson contains no equations or encounters");
   }
   return result;

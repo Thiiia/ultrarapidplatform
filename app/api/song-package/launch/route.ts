@@ -6,6 +6,7 @@ import { resolveFreshSongLaunchPackage, SongLaunchRevisionNotFoundError } from "
 import { canRefreshPlayerLaunchAttempt, parsePlayerLaunchRefreshRequest, shouldCreatePlayerLaunchAttempt } from "@/lib/player-launch-attempt-policy";
 import { canonicalPlayerJson } from "@/lib/player-run-lifecycle";
 import { getCurrentAppUser } from "@/lib/current-user";
+import { canPreviewOwnLessonDraft } from "@/lib/lesson-save-authorization";
 import {
   DEV_AUTHOR_FOLDER,
   findAuthorByName,
@@ -79,6 +80,7 @@ export async function POST(request: Request) {
     learningDifficultyKey?: unknown;
     refreshLaunchAttemptId?: unknown;
     refreshOnly?: unknown;
+    allowDraftPreview?: unknown;
   };
   try {
     const parsed: unknown = await request.json();
@@ -197,6 +199,8 @@ export async function POST(request: Request) {
     if (!author) {
       throw new Error("No default author is configured");
     }
+    const allowDraftPreview = payload.allowDraftPreview === true &&
+      canPreviewOwnLessonDraft(player, author.id, requestedRevision);
     const authorFolder = resolveAuthorFolder({ name: author.name, email: null });
 
     const songPackage = await resolveFreshSongLaunchPackage({
@@ -225,7 +229,7 @@ export async function POST(request: Request) {
             songAssetId: assetId,
             activityKey: resolvedActivityKey,
             authorId,
-            status: "ready",
+            status: allowDraftPreview ? { in: ["ready", "draft"] } : "ready",
             ...(requestedRevision ? { revision: requestedRevision } : {}),
           },
           orderBy: { publishedAt: "desc" },
