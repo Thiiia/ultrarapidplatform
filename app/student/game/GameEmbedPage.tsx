@@ -10,6 +10,7 @@ import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 import { createBridgeContext, getOrCreateInstallationId, parseCalibrationState, PlatformPlayerCompletionSchema, validateBridgeMessage, type BridgeContext, type CalibrationState, type PlatformPlayerCompletion } from "@/lib/platform-player-bridge";
 import { getSongLaunchErrorMessage } from "@/lib/song-choice-flow";
 import { requestFreshSongLaunchParams } from "@/lib/song-launch-client";
+import { getUnityGameUrl } from "@/lib/unity-game-url";
 import { studentCopy } from "@/lib/student-copy";
 import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigation";
 import { webglFlexFrameStyle, webglViewportHostStyle } from "@/lib/webgl-embed-layout";
@@ -27,8 +28,7 @@ import ProgressTab from "@/public/header_icons/progress_tab.svg";
 /* Utility Icon Imports */
 import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
 
-const GAME_URL =
-  process.env.NEXT_PUBLIC_GAME_URL ?? "https://ultrarapidtest.netlify.app/";
+const GAME_URL = getUnityGameUrl();
 const DemoCalibrationStoragePrefix = "ultrarapid-demo-calibration-v2:";
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;

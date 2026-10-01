@@ -173,17 +173,18 @@ export function parseRuntimeCapabilityManifest(value: unknown): RuntimeCapabilit
     });
 
     const expectedSequenceAdapters = EXPECTED_MECHANICS[activityKey].authoredSequences;
-    if (!Array.isArray(activity.authoredSequenceAdapters) || activity.authoredSequenceAdapters.length !== expectedSequenceAdapters.length) {
-      throw new Error(`Runtime capability activity '${activityKey}' must declare its implemented authored sequence adapters.`);
+    if (!Array.isArray(activity.authoredSequenceAdapters) || activity.authoredSequenceAdapters.length > expectedSequenceAdapters.length) {
+      throw new Error(`Runtime capability activity '${activityKey}' declares unsupported authored sequence adapters.`);
     }
     const authoredSequenceAdapters = activity.authoredSequenceAdapters.map((adapter, adapterIndex): RuntimeCapabilityAuthoredSequenceAdapter => {
       if (!isRecord(adapter)) throw new Error(`Authored sequence adapter ${adapterIndex} must be an object.`);
       assertExactKeys(adapter, SEQUENCE_ADAPTER_KEYS, `Authored sequence adapter ${adapterIndex}`);
-      if (adapter.authoredLessonProtocolVersion !== 3 || adapter.sequenceVersion !== 1) {
+      const expectedSequenceAdapter = expectedSequenceAdapters.find((expected) => expected.sequenceVersion === adapter.sequenceVersion);
+      if (adapter.authoredLessonProtocolVersion !== 3 || !expectedSequenceAdapter) {
         throw new Error(`Authored sequence adapter ${adapterIndex} uses an unsupported lesson or sequence protocol.`);
       }
       const encounterMechanics = parseStringArray(adapter.encounterMechanics, AUTHORED_MECHANICS, "authored sequence encounter mechanics");
-      if (!matchesExpected(encounterMechanics, expectedSequenceAdapters[adapterIndex].encounterMechanics)) {
+      if (!matchesExpected(encounterMechanics, expectedSequenceAdapter.encounterMechanics)) {
         throw new Error(`Runtime capability activity '${activityKey}' authored sequence mechanics do not match the implemented adapter.`);
       }
       return {

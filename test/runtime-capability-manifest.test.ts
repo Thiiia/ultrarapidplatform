@@ -124,3 +124,17 @@ test("runtime capability parser rejects protocol-axis and manifest-version drift
     manifestVersion: 2,
   })), /Unsupported runtime capability manifest version/);
 });
+
+test("runtime capability parser preserves honest hit-only Number Bonds builds", () => {
+  const activities = fixture.activities as Array<Record<string, unknown>>;
+  const manifest = parseRuntimeCapabilityManifestJson(JSON.stringify({
+    ...fixture,
+    activities: [
+      { ...activities[0], authoredSequenceAdapters: [] },
+      activities[1],
+    ],
+  }));
+
+  assert.deepEqual(manifest.activities[0].authoredLessonAdapters[0].mechanics, ["hit"]);
+  assert.deepEqual(manifest.activities[0].authoredSequenceAdapters, []);
+});

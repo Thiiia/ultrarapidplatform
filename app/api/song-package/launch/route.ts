@@ -13,6 +13,8 @@ import {
 } from "@/lib/song-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { resolveRequestedAuthor } from "@/lib/song-author";
+import { assertHostedUnitySupportsPublishedLesson, HostedUnityCapabilityError } from "@/lib/hosted-unity-capability-check";
+import { getUnityGameUrl } from "@/lib/unity-game-url";
 import {
   buildAuthoredChartStoragePaths,
   type SongActivityKey,
@@ -278,6 +280,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ code: "ATTEMPT_IDENTITY_MISMATCH", error: "This lesson session no longer matches its published revision." }, { status: 409 });
     }
 
+    if (songPackage.readiness.canLaunch && songPackage.receipt) {
+      if (songPackage.receipt.songAssetId !== songPackage.songAssetId ||
+          songPackage.receipt.activityKey !== songPackage.activityKey ||
+          songPackage.receipt.authorId !== songPackage.authorId ||
+          songPackage.receipt.revision !== songPackage.revision) {
+        throw new HostedUnityCapabilityError(
+          "PUBLISHED_LESSON_IDENTITY_MISMATCH",
+          "The prepared lesson identity does not match its launch receipt.",
+        );
+      }
+      await assertHostedUnitySupportsPublishedLesson({
+        gameUrl: getUnityGameUrl(),
+        sidecarUrl: songPackage.sidecar.signedUrl,
+        expectedActivityKey: songPackage.activityKey,
+        receipt: songPackage.receipt,
+      });
+    }
+
     if (shouldCreatePlayerLaunchAttempt({
       hasAuthenticatedPlayer: Boolean(player),
       refreshLaunchAttemptId,
@@ -307,6 +327,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json(songPackage, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error instanceof HostedUnityCapabilityError) {
+      const status = error.code === "RUNTIME_CAPABILITY_UNAVAILABLE" ? 503 : 409;
+      return NextResponse.json({ code: error.code, error: error.message }, { status });
+    }
     if (error instanceof SongLaunchRevisionNotFoundError) {
       return NextResponse.json({ code: "REVISION_NOT_FOUND", error: error.message }, { status: 404 });
     }
