@@ -18,6 +18,7 @@ import { checkSaveRevisionPrecondition } from "@/lib/song-launch-identity";
 import { prepareAuthoredLessonForPublication } from "@/lib/authored-lesson-publication";
 import { createLessonClock } from "@/lib/editor/lesson-timing";
 import { isSameOriginLessonSaveRequest } from "@/lib/lesson-save-origin";
+import { canSaveLessonForAuthor } from "@/lib/lesson-save-authorization";
 import { mapLessonSaveInfrastructureError } from "@/lib/lesson-save-infrastructure-error";
 import {
   resolveLessonSaveRhythmSource,
@@ -219,10 +220,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Keep the session lookup for user freshness, but resolve the requested
-    // author explicitly below. An explicit unknown author must never become
-    // dev content.
-    await getCurrentAppUser().catch(() => null);
+    // The origin check protects browser requests from cross-site submission;
+    // it is not authentication. Saving writes shared lesson assets and an
+    // immutable publication, so require a real app session before parsing it.
+    const sessionUser = await getCurrentAppUser().catch(() => null);
+    if (!sessionUser) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
 
     const payload = (await request.json()) as SavePayload;
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId").toLowerCase();
@@ -280,6 +284,10 @@ export async function POST(request: Request) {
         return user ? { id: user.id, name: user.name } : null;
       },
       getDefault: async () => {
+        if (sessionUser.role !== "admin") {
+          return { id: sessionUser.id, name: sessionUser.name };
+        }
+
         const user = await getOrCreateDevAuthor();
         return { id: user.id, name: user.name };
       },
@@ -287,9 +295,15 @@ export async function POST(request: Request) {
     if (!targetAuthor) {
       return NextResponse.json({ error: "No default author is configured" }, { status: 400 });
     }
+    if (!canSaveLessonForAuthor(sessionUser, targetAuthor.id)) {
+      return NextResponse.json(
+        { error: "You can only save lessons under your own author account." },
+        { status: 403 },
+      );
+    }
     const authorFolder = resolveAuthorFolder({
       name: targetAuthor.name,
-      email: null,
+      email: targetAuthor.id === sessionUser.id ? sessionUser.email : null,
     });
 
     // Resolve the currently-published lesson BEFORE deciding where chart content
