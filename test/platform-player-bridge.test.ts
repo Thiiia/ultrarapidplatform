@@ -40,7 +40,9 @@ test("shared runtime fixtures pass Platform bridge validation without drifting",
     assert.deepEqual(message.receipt, identityFixture.receipt);
     const parsed = PlatformPlayerBridgeMessageSchema.safeParse(message);
     assert.equal(parsed.success, true);
-    if (parsed.success) assert.deepEqual(parsed.data.completion, message.completion);
+    if (parsed.success && parsed.data.type === "run-complete") {
+      assert.deepEqual(parsed.data.completion, message.completion);
+    }
 
     const context = {
       nonce: message.nonce,
@@ -102,7 +104,10 @@ test("completion validation rejects invalid counters, unsupported versions, and 
     assert.equal(validateBridgeMessage({ ...message, completion }, context).ok, false);
   }
 
-  const v3 = runCompleteV3Fixture.message;
+  const v3 = PlatformPlayerBridgeMessageSchema.parse(runCompleteV3Fixture.message);
+  if (v3.type !== "run-complete" || v3.completion.completionVersion !== 3) {
+    throw new Error("run-complete-v3 fixture must be a version 3 completion message");
+  }
   const missionSteps = v3.completion.missionSteps.map((step, index) =>
     index === 0 ? { ...step, signedErrorMs: Number.NaN } : step,
   );
@@ -110,7 +115,10 @@ test("completion validation rejects invalid counters, unsupported versions, and 
     ...v3,
     completion: { ...v3.completion, missionSteps },
   }, context).ok, false);
-  const parsedV3 = PlatformPlayerBridgeMessageSchema.parse(v3);
+  const parsedV3 = PlatformPlayerBridgeMessageSchema.parse(runCompleteV3Fixture.message);
+  if (parsedV3.type !== "run-complete" || parsedV3.completion.completionVersion !== 3) {
+    throw new Error("run-complete-v3 fixture must be a version 3 completion message");
+  }
   assert.deepEqual(parsedV3.completion, v3.completion);
   assert.equal(parsedV3.completion.missionSteps[0].signedErrorMs, -12);
 });
