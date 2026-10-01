@@ -8,6 +8,7 @@ import {
   NUMBER_BONDS_MAX_WHOLE,
   NUMBER_BONDS_MIN_WHOLE,
 } from "./number-bonds-authoring";
+import { validateNumberBondSequenceV1 } from "./number-bonds-authored-sequence";
 
 export { NUMBER_BONDS_MAX_WHOLE, NUMBER_BONDS_MIN_WHOLE };
 
@@ -196,7 +197,8 @@ export type ActivityContractIssue = {
     | "activity_mechanic_unsupported"
     | "activity_target_shape"
     | "activity_hit_count"
-    | "activity_unknown";
+    | "activity_unknown"
+    | "number_bond_sequence_invalid";
   encounterId?: string;
   message: string;
 };
@@ -206,7 +208,7 @@ export type ActivityContractIssue = {
  * is reported for repair; it is never silently retagged or rewritten.
  */
 export function getAuthoredActivityContractIssues(
-  draft: Pick<AuthoredLessonDraft, "activityKey" | "equations" | "encounters">,
+  draft: Pick<AuthoredLessonDraft, "activityKey" | "equations" | "encounters" | "stopAtSeconds" | "numberBondSequenceVersion" | "numberBondGems">,
 ): ActivityContractIssue[] {
   const normalized = normalizeSongActivityKey(draft.activityKey);
   if (!normalized) {
@@ -218,6 +220,17 @@ export function getAuthoredActivityContractIssues(
 
   const capabilities = getActivityAuthoringCapabilities(normalized);
   if (capabilities.activityKey !== "number-bonds") return [];
+
+  if (draft.numberBondSequenceVersion !== undefined || draft.numberBondGems !== undefined) {
+    try {
+      if (validateNumberBondSequenceV1(draft)) return [];
+    } catch (error) {
+      return [{
+        code: "number_bond_sequence_invalid",
+        message: error instanceof Error ? error.message : "The Number Bonds sequence v1 contract is invalid.",
+      }];
+    }
+  }
 
   const issues: ActivityContractIssue[] = [];
   if (draft.equations.length !== 1) {

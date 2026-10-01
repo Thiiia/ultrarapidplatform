@@ -1,0 +1,64 @@
+{
+  "manifestVersion": 1,
+  "protocolVersions": {
+    "runtimeProtocolVersion": 1,
+    "receiptVersion": 1,
+    "contractVersion": 1,
+    "completionVersions": [
+      2,
+      3
+    ],
+    "authoredLessonProtocolVersion": 3,
+    "calibrationProtocolVersion": 1,
+    "publicDemoAdapterVersion": 1
+  },
+  "activities": [
+    {
+      "activityKey": "number-bonds",
+      "runtimeMechanics": [
+        "hit",
+        "catch",
+        "spinout",
+        "drag"
+      ],
+      "authoredLessonAdapters": [
+        {
+          "authoredLessonProtocolVersion": 3,
+          "mechanics": [
+            "hit"
+          ]
+        }
+      ],
+      "authoredSequenceAdapters": [
+        {
+          "authoredLessonProtocolVersion": 3,
+          "sequenceVersion": 1,
+          "encounterMechanics": [
+            "hit",
+            "spin",
+            "drag"
+          ]
+        }
+      ]
+    },
+    {
+      "activityKey": "early-algebra",
+      "runtimeMechanics": [
+        "hit",
+        "spin",
+        "drag"
+      ],
+      "authoredLessonAdapters": [
+        {
+          "authoredLessonProtocolVersion": 3,
+          "mechanics": [
+            "hit",
+            "spin",
+            "drag"
+          ]
+        }
+      ],
+      "authoredSequenceAdapters": []
+    }
+  ]
+}

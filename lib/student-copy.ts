@@ -148,6 +148,9 @@ export const studentCopy = {
     waitingToSave: "Your result is still waiting to be saved.",
     lessonComplete: (sets: number, events: number, required: number, attempts: number) => `Lesson complete: ${sets} sets solved; ${events} of ${required} moves finished in ${attempts} tries.`,
     returnToSongs: "Choose another song when you are ready.",
+    returning: "Closing this lesson…",
+    returnSyncFailed: "We could not close this lesson session. Try again before leaving.",
+    retryReturn: "Try again",
   },
 } as const;
 
