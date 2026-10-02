@@ -1990,6 +1990,7 @@ function HeaderBar({
   onOpenFile,
   onLaunch,
   onSave,
+  onSaveDraft,
   canLaunch,
   canPublish = true,
   isRctm1Mode,
@@ -2010,6 +2011,7 @@ function HeaderBar({
   onOpenFile: () => void;
   onLaunch: () => void;
   onSave: () => void;
+  onSaveDraft: () => void;
   canLaunch: boolean;
   canPublish?: boolean;
   isRctm1Mode: boolean;
@@ -2022,19 +2024,20 @@ function HeaderBar({
     <header
       className={isAlgebraStudio ? algebraStyles.header : undefined}
       style={{
-        background: isAlgebraStudio ? "rgba(13, 14, 34, .78)" : headerBackgroundColor,
+        background: isAlgebraStudio ? "rgba(8, 39, 51, .94)" : headerBackgroundColor,
         width: "100%",
         boxSizing: "border-box",
-        height: isAlgebraStudio ? 58 : headerHeight,
+        height: isAlgebraStudio ? 64 : headerHeight,
         flexShrink: 0,
-        borderBottom: `1px solid ${subtleBorderColor}`,
+        borderBottom: `1px solid ${isAlgebraStudio ? "rgba(169, 217, 208, .2)" : subtleBorderColor}`,
         display: "flex",
         alignItems: "center",
       }}
     >
       <div
+        className={isAlgebraStudio ? algebraStyles.headerInner : undefined}
         style={{
-          width: pagePanelWidth,
+          width: isAlgebraStudio ? "100%" : pagePanelWidth,
           height: "100%",
           margin: "0 auto",
           display: "flex",
@@ -2045,10 +2048,11 @@ function HeaderBar({
         }}
       >
         <div
+          className={isAlgebraStudio ? algebraStyles.headerBrandGroup : undefined}
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 28,
+            gap: isAlgebraStudio ? 14 : 28,
             minWidth: 0,
             overflow: "visible",
           }}
@@ -2059,41 +2063,54 @@ function HeaderBar({
             aria-label="Back to dashboard home"
             title="Back to dashboard home"
             style={{
-              width: 156,
-              height: 35,
+              width: isAlgebraStudio ? 34 : 156,
+              height: isAlgebraStudio ? 34 : 35,
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: "center",
               flexShrink: 0,
               overflow: "visible",
-              background: "none",
-              border: "none",
+              background: isAlgebraStudio ? "rgba(255,255,255,.07)" : "none",
+              border: isAlgebraStudio ? "1px solid rgba(169,217,208,.35)" : "none",
+              borderRadius: isAlgebraStudio ? 12 : 0,
               padding: 0,
               cursor: "pointer",
             }}
           >
-            <URIcon
-              aria-hidden="true"
-              style={{
-                width: 156,
-                height: 35,
-                display: "block",
-                flexShrink: 0,
-                overflow: "visible",
-              }}
-            />
+            {isAlgebraStudio ? (
+              <span aria-hidden="true" className={algebraStyles.headerBackMark}>←</span>
+            ) : (
+              <URIcon
+                aria-hidden="true"
+                style={{
+                  width: 156,
+                  height: 35,
+                  display: "block",
+                  flexShrink: 0,
+                  overflow: "visible",
+                }}
+              />
+            )}
           </button>
+
+          {isAlgebraStudio ? (
+            <div className={algebraStyles.headerStudioIdentity}>
+              <strong>ULTRARAPID / STUDIO</strong>
+              <span>PRIVATE DRAFT</span>
+            </div>
+          ) : null}
 
           <div
             style={{
               minWidth: 0,
               height: 38,
-              display: "inline-flex",
+              display: isAlgebraStudio ? "none" : "inline-flex",
               alignItems: "center",
               gap: 8,
               padding: "0 14px",
               borderRadius: 999,
               border: "1px solid #7A8FA8",
-              background: isAlgebraStudio ? "rgba(47, 42, 86, .75)" : "#060B15FC",
+              background: isAlgebraStudio ? "#103336" : "#060B15FC",
               color: "#FFFFFF",
               fontFamily: "Space Grotesk, sans-serif",
               maxWidth: 320,
@@ -2149,14 +2166,14 @@ function HeaderBar({
               height: 38,
               padding: "0 14px",
               textDecoration: "none",
-              display: "inline-flex",
+              display: isAlgebraStudio ? "none" : "inline-flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#CFFF04",
               fontSize: 12,
               fontWeight: 700,
               borderRadius: 999,
-              background: isAlgebraStudio ? "rgba(47, 42, 86, .75)" : "#060B15FC",
+              background: isAlgebraStudio ? "#103336" : "#060B15FC",
               border: "1px solid #7A8FA8",
               fontFamily: "Space Grotesk, sans-serif",
               whiteSpace: "nowrap",
@@ -2210,13 +2227,13 @@ function HeaderBar({
                 aria-label={chartmakerInfo.ariaLabel}
                 title={chartmakerInfo.title}
                 style={{
-                  minWidth: 106,
-                  height: 38,
+                  minWidth: isAlgebraStudio ? 112 : 106,
+                  height: isAlgebraStudio ? 40 : 38,
                   borderRadius: 999,
-                  border: "1px solid #7A8FA8",
-                  background: chartmakerInfo.isActive ? "#CFFF04" : isAlgebraStudio ? "rgba(47, 42, 86, .75)" : "#060B15FC",
-                  color: chartmakerInfo.isActive ? "#071222" : "#7A8FA8",
-                  fontSize: 14,
+                  border: `1px solid ${isAlgebraStudio ? "rgba(207, 255, 4, .45)" : "#7A8FA8"}`,
+                  background: chartmakerInfo.isActive ? "#CFFF04" : isAlgebraStudio ? "rgba(255,255,255,.07)" : "#060B15FC",
+                  color: chartmakerInfo.isActive ? "#071222" : isAlgebraStudio ? "#F4F5ED" : "#7A8FA8",
+                  fontSize: isAlgebraStudio ? 12 : 14,
                   fontWeight: 700,
                   cursor: "pointer",
                   padding: "0 16px",
@@ -2230,9 +2247,10 @@ function HeaderBar({
         </div>
 
         <div
+          className={isAlgebraStudio ? algebraStyles.headerActionGroup : undefined}
           style={{
             display: "flex",
-            gap: 6,
+            gap: isAlgebraStudio ? 8 : 6,
             marginLeft: "auto",
             alignItems: "center",
             flexShrink: 0,
@@ -2245,14 +2263,14 @@ function HeaderBar({
             aria-label={studentCopy.editor.changeSongLabel}
             title={studentCopy.editor.changeSongLabel}
             style={{
-              width: 64,
-              height: 30,
+              minWidth: isAlgebraStudio ? 96 : 64,
+              height: isAlgebraStudio ? 42 : 30,
               borderRadius: 12,
-              border: `1px solid ${subtleBorderColor}`,
-              background: panelBackgroundColor,
-              padding: "0 8px",
-              color: "#FFFFFF",
-              fontSize: 10,
+              border: `1px solid ${isAlgebraStudio ? "rgba(169,217,208,.3)" : subtleBorderColor}`,
+              background: isAlgebraStudio ? "rgba(255,255,255,.06)" : panelBackgroundColor,
+              padding: isAlgebraStudio ? "0 12px" : "0 8px",
+              color: "#F4F5ED",
+              fontSize: isAlgebraStudio ? 12 : 10,
               fontWeight: 800,
               cursor: "pointer",
               display: "inline-flex",
@@ -2275,38 +2293,57 @@ function HeaderBar({
             type="button"
             onClick={onLaunch}
             disabled={!canLaunch || isSaving}
-            aria-label={studentCopy.editor.playLessonLabel}
-            title={isSaving ? "Saving lesson changes" : canLaunch ? studentCopy.editor.playLessonLabel : studentCopy.editor.pickSongBeforePlay}
+            aria-label={isAlgebraStudio ? "Play lesson preview" : studentCopy.editor.playLessonLabel}
+            title={isSaving ? "Saving lesson changes" : canLaunch ? (isAlgebraStudio ? "Preview this lesson" : studentCopy.editor.playLessonLabel) : studentCopy.editor.pickSongBeforePlay}
+            className={isAlgebraStudio ? algebraStyles.headerActionButton : undefined}
             style={{
-              minWidth: 70,
-              height: 30,
+              minWidth: isAlgebraStudio ? 124 : 70,
+              height: isAlgebraStudio ? 42 : 30,
               borderRadius: 12,
-              border: `1px solid ${subtleBorderColor}`,
+              border: `1px solid ${isAlgebraStudio ? "rgba(207,255,4,.58)" : subtleBorderColor}`,
               background: canLaunch && !isSaving ? "#CFFF04" : "rgba(207,255,4,0.12)",
-              color: canLaunch && !isSaving ? "#071222" : "#7A8FA8",
+              color: canLaunch && !isSaving ? "#07120D" : "#A9B2AC",
               fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 11,
+              fontSize: isAlgebraStudio ? 13 : 11,
               fontWeight: 800,
               cursor: canLaunch && !isSaving ? "pointer" : "not-allowed",
               opacity: canLaunch && !isSaving ? 1 : 0.55,
             }}
           >
-            Play
+            {isAlgebraStudio ? "Play preview" : "Play"}
           </button>
+
+          {isAlgebraStudio ? (
+            <button
+              type="button"
+              onClick={onSaveDraft}
+              disabled={isSaving}
+              aria-label="Save private draft"
+              title="Save a private draft for later"
+              className={algebraStyles.headerDraftButton}
+            >
+              Save draft
+            </button>
+          ) : null}
 
           <button
             type="button"
             disabled={!canPublish || isSaving}
             onClick={onSave}
-            aria-label={studentCopy.editor.saveLessonLabel}
-            title={canPublish ? studentCopy.editor.saveLessonLabel : "Finish the lesson before saving"}
+            aria-label={isAlgebraStudio ? "Publish lesson" : studentCopy.editor.saveLessonLabel}
+            title={canPublish ? (isAlgebraStudio ? "Publish this lesson" : studentCopy.editor.saveLessonLabel) : "Finish the lesson before publishing"}
+            className={isAlgebraStudio ? algebraStyles.headerPublishButton : undefined}
             style={{
-              width: 60,
-              height: 29,
-              border: "none",
+              minWidth: isAlgebraStudio ? 144 : 60,
+              height: isAlgebraStudio ? 42 : 29,
+              border: isAlgebraStudio ? "1px solid #CFFF04" : "none",
               borderRadius: 12,
-              background: "transparent",
-              padding: 0,
+              background: isAlgebraStudio ? "#CFFF04" : "transparent",
+              padding: isAlgebraStudio ? "0 16px" : 0,
+              color: "#07120D",
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 13,
+              fontWeight: 800,
               cursor: canPublish && !isSaving ? "pointer" : "not-allowed",
               opacity: canPublish && !isSaving ? 1 : 0.55,
               display: "inline-flex",
@@ -2314,17 +2351,21 @@ function HeaderBar({
               justifyContent: "center",
             }}
           >
-            <img
-              src="/Save_Button.svg"
-              alt=""
-              aria-hidden="true"
-              style={{
-                width: 60,
-                height: 29,
-                display: "block",
-                objectFit: "contain",
-              }}
-            />
+            {isAlgebraStudio ? (
+              isSaving ? "Saving…" : "Publish lesson"
+            ) : (
+              <img
+                src="/Save_Button.svg"
+                alt=""
+                aria-hidden="true"
+                style={{
+                  width: 60,
+                  height: 29,
+                  display: "block",
+                  objectFit: "contain",
+                }}
+              />
+            )}
           </button>
         </div>
       </div>
@@ -5160,6 +5201,7 @@ function EquationTimeline({
   const mechanicsForTimeline = authoringCapabilities.supportedAuthoredMechanics
     .filter((mechanic) => !(hideSpinouts && mechanic === "spin"));
   const isNumberBondsTimeline = authoringCapabilities.activityKey === "number-bonds";
+  const isAlgebraTimeline = authoringCapabilities.activityKey === "early-algebra";
   const rowCountAfterHeader = 2 + mechanicsForTimeline.length;
   const timelineHeaderPercent = 18;
   const rowHeightPercent = (100 - timelineHeaderPercent) / rowCountAfterHeader;
@@ -5171,7 +5213,11 @@ function EquationTimeline({
     ...mechanicsForTimeline.map((mechanic) => ({
       key: mechanic,
       label: mechanic === "hit" ? (isNumberBondsTimeline ? "Notes" : "Hits") : mechanic === "spin" ? "Spins" : "Drags",
-      color: mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF",
+      color: mechanic === "hit"
+        ? (isAlgebraTimeline ? "#00FF57" : "#2EA7FF")
+        : mechanic === "spin"
+          ? (isAlgebraTimeline ? "#6F00F6" : "#FF3535")
+          : (isAlgebraTimeline ? "#66D9FF" : "#B45CFF"),
     })),
   ];
   const timelineEventLabelClusters = groupTimelineEventLabels(
@@ -6533,23 +6579,33 @@ function getEquationTileStyle({
   compact = false,
   disabled = false,
   compactSize,
+  algebraPlayer = false,
 }: {
   label: string;
   compact?: boolean;
   disabled?: boolean;
   compactSize?: number;
+  algebraPlayer?: boolean;
 }) {
   const kind = getEquationTileKind(label);
   const isOperator = kind === "operator";
   const isNumber = kind === "number";
+  const isAlgebraPlayerTerm = algebraPlayer && !isOperator;
 
-  const background = isOperator ? "#6B3312" : isNumber ? "#1B3668" : "#3D1E6B";
-  const borderTop = isOperator
+  const background = isAlgebraPlayerTerm
+    ? "radial-gradient(circle at 32% 22%, rgba(255,255,255,.12), rgba(255,255,255,.04) 42%, rgba(255,255,255,.02)), rgba(255,255,255,.065)"
+    : isOperator ? "#6B3312" : isNumber ? "#1B3668" : "#3D1E6B";
+  const borderTop = isAlgebraPlayerTerm
+    ? "1px solid rgba(255,255,255,.5)"
+    : isOperator
     ? "1px solid #FF8C3C73"
     : isNumber
       ? "1px solid #64A0FF73"
       : "1px solid #B478FF73";
-  const boxShadow = isOperator
+  const sideBorder = isAlgebraPlayerTerm ? "1px solid rgba(255,255,255,.5)" : "none";
+  const boxShadow = isAlgebraPlayerTerm
+    ? "inset 0 1px rgba(255,255,255,.24), 0 12px 30px rgba(0,0,0,.3)"
+    : isOperator
     ? "0px 0px 8px 0px #FF823C4D"
     : isNumber
       ? "0px 0px 8px 0px #3C82FF4D"
@@ -6560,11 +6616,11 @@ function getEquationTileStyle({
     minWidth: compact ? compactSize ?? 42 : 0,
     height: compact ? compactSize ?? 34 : undefined,
     minHeight: compact ? undefined : 42,
-    borderRadius: 12,
+    borderRadius: isAlgebraPlayerTerm ? "50%" : 12,
     borderTop,
-    borderRight: "none",
-    borderBottom: "none",
-    borderLeft: "none",
+    borderRight: sideBorder,
+    borderBottom: sideBorder,
+    borderLeft: sideBorder,
     background,
     boxShadow,
     color: "#FFFFFF",
@@ -6652,6 +6708,7 @@ function EquationTileStrip({
   mechanicEndSeconds,
   isSongPlaying = false,
   onQuickAddHit,
+  algebraPlayer = false,
 }: {
   tokens: EquationToken[];
   emptyLabel?: string;
@@ -6673,6 +6730,7 @@ function EquationTileStrip({
   mechanicEndSeconds?: number | null;
   isSongPlaying?: boolean;
   onQuickAddHit?: (pad: HitBubblePad) => void;
+  algebraPlayer?: boolean;
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const selectedTokenRef = useRef<HTMLSpanElement | null>(null);
@@ -7050,6 +7108,7 @@ function EquationTileStrip({
       label: token.label,
       compact,
       compactSize,
+      algebraPlayer,
     });
 
     const tileStyle = {
@@ -7064,7 +7123,7 @@ function EquationTileStrip({
       cursor: isClickable ? "pointer" : "default",
       boxShadow: isSelected
         ? `0 0 0 2px ${selectedOutlineColor}, 0 0 16px ${selectedOutlineColor}66`
-        : undefined,
+        : baseStyle.boxShadow,
       position: "relative" as const,
       zIndex: 2,
       opacity: hideForDragAnimation ? 0 : 1,
@@ -7096,7 +7155,11 @@ function EquationTileStrip({
 
     if (!isClickable) {
       return (
-        <span key={token.id} style={tileStyle}>
+        <span
+          key={token.id}
+          className={algebraPlayer && !isOperator ? algebraStyles.playerTerm : undefined}
+          style={tileStyle}
+        >
           {token.label}
         </span>
       );
@@ -7111,9 +7174,10 @@ function EquationTileStrip({
         <button
           type="button"
           onClick={() => onTokenClick?.(tokenIndex)}
+          className={algebraPlayer && !isOperator ? algebraStyles.playerTerm : undefined}
           style={{
             ...tileStyle,
-            border: "none",
+            ...(algebraPlayer ? {} : { border: "none" }),
             padding: 0,
           }}
           aria-label={`Assign to token ${token.label}`}
@@ -7661,8 +7725,15 @@ function CenterChoicePanel({
       : hasSong
         ? "Make an equation or start with one from the lesson library."
         : "Pick a song, then add equations and place game actions on its timeline.";
-  const selectedTokenOutlineColor =
-    selectedMechanic === "hit"
+  const selectedTokenOutlineColor = activityKey === "early-algebra"
+    ? selectedMechanic === "hit"
+      ? "#00FF57"
+      : selectedMechanic === "spin"
+        ? "#6F00F6"
+        : selectedMechanic === "drag"
+          ? "#66D9FF"
+          : "#CFFF04"
+    : selectedMechanic === "hit"
       ? "#2EA7FF"
       : selectedMechanic === "spin"
         ? "#FF3535"
@@ -7828,9 +7899,14 @@ function CenterChoicePanel({
                 selectedHitPad={selectedHitPad}
                 onSelectHitPad={onSelectHitPad ?? undefined}
                 fontSizeOverride={{
-                  operator: 36,
-                  nonOperator: 44,
+                  operator: activityKey === "early-algebra"
+                    ? Math.max(24, Math.round(equationViewerBlockSize * 0.34))
+                    : 36,
+                  nonOperator: activityKey === "early-algebra"
+                    ? Math.max(30, Math.round(equationViewerBlockSize * 0.76))
+                    : 44,
                 }}
+                algebraPlayer={activityKey === "early-algebra"}
                 currentSongSeconds={currentSongSeconds}
                 mechanicStartSeconds={mechanicStartSeconds}
                 mechanicEndSeconds={mechanicEndSeconds}
@@ -14967,6 +15043,9 @@ export default function LessonBuilderClient({
         onSave={() => {
           void handlePublishChanges({ showNotice: true });
         }}
+        onSaveDraft={() => {
+          savePrivateDraft();
+        }}
         canLaunch={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && (lessonPublishReadiness.ready || isNumberBondsActivity)}
         canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
         isRctm1Mode={isRctm1Mode}
@@ -14990,36 +15069,6 @@ export default function LessonBuilderClient({
             try { window.localStorage.setItem("ultrarapid-algebra-editor-appearance", appearance); } catch { /* Continue without persistence. */ }
           }}
         />
-      ) : null}
-      {needsReadinessCheck && !isNumberBondsActivity && !isGuidedStart && !isRctm1Mode &&
-        (!isRctm2Mode || (selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds") ? (
-        <div
-          style={{
-            position: "fixed",
-            right: "clamp(18px, calc(8vw + 150px), 260px)",
-            top: 8,
-            width: "min(320px, calc(100vw - 36px))",
-            zIndex: 1002,
-          }}
-        >
-          <EncounterReadinessPanel
-            readiness={lessonPublishReadiness}
-            hasSong={Boolean(selectedSongStorage || selectedSongLaunch)}
-            canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
-            canPlay={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
-            onSelectEncounter={handleSelectReadinessEncounter}
-            onCreateEncounter={handleAddHitAtPlayhead}
-            timingRepairPreview={timingRepairPreviewState?.proposal ?? null}
-            onPreviewTimingRepair={(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds"
-              ? handlePreviewFirstTimingRepair
-              : undefined}
-            onApplyTimingRepair={handleApplyTimingRepairPreview}
-            onCancelTimingRepair={handleCancelTimingRepairPreview}
-            onUndoTimingRepair={timingRepairUndoSnapshot ? handleUndoTimingRepair : undefined}
-            isOpen={isReadinessOpen}
-            onToggle={() => setIsReadinessOpen((current) => !current)}
-          />
-        </div>
       ) : null}
 
       {recordedRepairDraft ? (
@@ -15177,10 +15226,11 @@ export default function LessonBuilderClient({
 
       <main
         className={isAlgebraActivity ? algebraStyles.main : undefined}
+        data-guided-start={isGuidedStart ? "true" : undefined}
         style={{
           width: "100%",
           flex: isAlgebraActivity ? "none" : 1,
-          height: isAlgebraActivity ? "calc(100dvh - 122px)" : undefined,
+          height: isAlgebraActivity ? "calc(100dvh - 128px)" : undefined,
           minHeight: isAlgebraActivity ? 560 : 0,
           display: "grid",
           gridTemplateRows: isGuidedStart ? "minmax(0, 1fr)" : isAlgebraActivity ? "minmax(0, 1fr) minmax(180px, 28%)" : `${viewerRowHeight} ${timelineRowHeight}`,
@@ -15189,6 +15239,37 @@ export default function LessonBuilderClient({
           overflow: "hidden",
         }}
       >
+        {needsReadinessCheck && !isNumberBondsActivity && !isGuidedStart && !isRctm1Mode &&
+          (!isRctm2Mode || (selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds") ? (
+          <div
+            style={{
+              position: isAlgebraActivity ? "absolute" : "fixed",
+              right: isAlgebraActivity ? "clamp(12px, 4.5vw, 72px)" : "clamp(18px, calc(8vw + 150px), 260px)",
+              top: isAlgebraActivity ? 10 : 8,
+              width: "min(320px, calc(100vw - 36px))",
+              zIndex: isAlgebraActivity ? 4 : 1002,
+            }}
+          >
+            <EncounterReadinessPanel
+              readiness={lessonPublishReadiness}
+              hasSong={Boolean(selectedSongStorage || selectedSongLaunch)}
+              canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
+              canPlay={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
+              onSelectEncounter={handleSelectReadinessEncounter}
+              onCreateEncounter={handleAddHitAtPlayhead}
+              timingRepairPreview={timingRepairPreviewState?.proposal ?? null}
+              onPreviewTimingRepair={(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds"
+                ? handlePreviewFirstTimingRepair
+                : undefined}
+              onApplyTimingRepair={handleApplyTimingRepairPreview}
+              onCancelTimingRepair={handleCancelTimingRepairPreview}
+              onUndoTimingRepair={timingRepairUndoSnapshot ? handleUndoTimingRepair : undefined}
+              isOpen={isReadinessOpen}
+              onToggle={() => setIsReadinessOpen((current) => !current)}
+            />
+          </div>
+        ) : null}
+
         {isGuidedStart ? (
           <GuidedTemplateStart
             isAlgebraStudio={isAlgebraActivity}
@@ -15218,7 +15299,7 @@ export default function LessonBuilderClient({
             minHeight: 0,
             display: "flex",
             alignItems: "stretch",
-            background: isAlgebraActivity ? "rgba(17, 19, 44, .6)" : pageBackgroundColor,
+            background: isAlgebraActivity ? "rgba(16, 51, 54, .48)" : pageBackgroundColor,
             color: textColor,
             overflow: "hidden",
           }}
