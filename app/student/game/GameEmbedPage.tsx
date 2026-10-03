@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FC, SVGProps } from "react";
 // import SongFlowDebugger from "@/app/components/SongFlowDebugger";
-import { resolveLaunchParams } from "@/lib/launch-handoff";
+import { resolveEmbeddedCalibrationLaunchSnapshot, resolveLaunchParams, type EmbeddedCalibrationLaunchSnapshot } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 import { createBridgeContext, getOrCreateInstallationId, parseCalibrationState, PlatformPlayerCompletionSchema, validateBridgeMessage, type BridgeContext, type CalibrationState, type PlatformPlayerCompletion } from "@/lib/platform-player-bridge";
 import { getSongLaunchErrorMessage } from "@/lib/song-choice-flow";
@@ -349,6 +349,10 @@ function GameEmbedSession({
   const [launchPreparationError, setLaunchPreparationError] = useState("");
   const [calibrationStatus, setCalibrationStatus] = useState<"loading" | "required" | "ready">("loading");
   const [calibration, setCalibration] = useState<CalibrationState | null>(null);
+  const [iframeCalibrationLaunchState, setIframeCalibrationLaunchState] = useState<{
+    bridgeNonce: string;
+    snapshot: EmbeddedCalibrationLaunchSnapshot;
+  } | null>(null);
   const [completedRun, setCompletedRun] = useState<Pick<CompletionSummary, "completedEvents" | "requiredEvents" | "solvedSets" | "hitAttempts"> | null>(null);
   const [bridgeStatusMessage, setBridgeStatusMessage] = useState("");
   const [pendingOutcome, setPendingOutcome] = useState<PendingOutcome | null>(null);
@@ -389,6 +393,28 @@ function GameEmbedSession({
     }
   }, [activeLaunchParams]);
   const bridgeContext = bridgeSetup.context;
+
+  const iframeCalibrationLaunchStateMatches =
+    Boolean(bridgeContext) && iframeCalibrationLaunchState?.bridgeNonce === bridgeContext?.nonce;
+  if (bridgeContext && calibrationStatus !== "loading" && !iframeCalibrationLaunchStateMatches) {
+    const snapshot = resolveEmbeddedCalibrationLaunchSnapshot(
+      null,
+      bridgeContext.nonce,
+      calibrationStatus,
+      calibration?.offsetMs ?? null,
+    );
+    if (snapshot) {
+      setIframeCalibrationLaunchState({ bridgeNonce: bridgeContext.nonce, snapshot });
+    }
+  }
+  const iframeCalibrationLaunchSnapshot = iframeCalibrationLaunchStateMatches
+    ? iframeCalibrationLaunchState?.snapshot ?? null
+    : resolveEmbeddedCalibrationLaunchSnapshot(
+        null,
+        bridgeContext?.nonce ?? null,
+        calibrationStatus,
+        calibration?.offsetMs ?? null,
+      );
 
   useEffect(() => {
     let cancelled = false;
@@ -610,15 +636,20 @@ function GameEmbedSession({
       params.set("installationId", bridgeContext.installationId);
       params.set("calibrationProtocolVersion", String(bridgeContext.protocolVersion));
       params.delete("calibrationOffsetMs");
-      const usableCalibration = calibrationStatus === "ready" ? calibration : null;
-      params.set("requiresCalibration", String(!usableCalibration));
-      if (usableCalibration) {
-        params.set("calibrationOffsetMs", String(usableCalibration.offsetMs));
+      const launchCalibration = resolveEmbeddedCalibrationLaunchSnapshot(
+        iframeCalibrationLaunchSnapshot,
+        bridgeContext.nonce,
+        calibrationStatus,
+        calibration?.offsetMs ?? null,
+      );
+      params.set("requiresCalibration", String(launchCalibration?.requiresCalibration ?? true));
+      if (launchCalibration?.calibrationOffsetMs !== undefined) {
+        params.set("calibrationOffsetMs", String(launchCalibration.calibrationOffsetMs));
       }
       params.set("platformOrigin", window.location.origin);
     }
     return getEmbeddedGameUrl(params);
-  }, [activeLaunchParams, bridgeContext, calibration, calibrationStatus]);
+  }, [activeLaunchParams, bridgeContext, calibration, calibrationStatus, iframeCalibrationLaunchSnapshot]);
 
   const canRenderEmbeddedGame = Boolean(
     activeLaunchParams &&
@@ -665,9 +696,9 @@ function GameEmbedSession({
         >
           {canRenderEmbeddedGame ? (
             <iframe
-              ref={iframeRef}
-              src={embeddedGameUrl}
-              title="UltraRapid Game"
+      ref={iframeRef}
+      src={embeddedGameUrl}
+      title="UltraRapid Game"
               allow="gamepad; autoplay"
               allowFullScreen
               style={{

@@ -72,7 +72,7 @@
 }
 .studioMark span:last-child { color: var(--studio-accent); }
 .studioTitle { min-width: 0; flex: 1 1 160px; display: grid; gap: 1px; }
-.studioTitle > span, .appearanceLabel { color: #d6baff; font: 800 10px/1.3 var(--ur-font-technical), monospace; letter-spacing: .1em; }
+.studioTitle > span, .appearanceLabel { color: var(--studio-muted); font: 700 10px/1.3 var(--ur-font-interface), sans-serif; letter-spacing: .1em; }
 .studioTitle strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(14px, 1.45vw, 19px); }
 .studioCounts { margin-left: auto; display: flex; gap: 12px; align-items: center; color: var(--studio-muted); white-space: nowrap; font-size: 14px; }
 .studioCounts strong { color: #fff; font-size: 15px; }
@@ -758,7 +758,7 @@
 .rtcmCaptureMeta { color: #d9d3f2; letter-spacing: .07em; }
 .rtcmCaptureRange { display: flex; align-items: center; justify-content: center; gap: 8px; color: #dfff70; font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .rtcmCaptureRange > span:not([aria-hidden="true"]) { padding: 3px 9px; border: 1px solid #d8ceff48; border-radius: 999px; background: linear-gradient(145deg, #ffffff24, #ffffff0b), #171d35b8; box-shadow: inset 0 1px #ffffff38, 0 3px 10px #060a1838; backdrop-filter: blur(8px); }
-.rtcmCaptureRange > span[aria-hidden="true"] { color: #f5f0ffbb; font-size: 12px; }
+.rtcmCaptureRange > span[aria-hidden="true"] { color: var(--studio-muted); font-size: 12px; }
 .rtcmCaptureCounts { color: #eef0f7; font-size: 11px; }
 .timelineEventLabel {
   position: absolute;
@@ -845,7 +845,7 @@
 .headerBrandGroup { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .headerStudioIdentity { display: grid; gap: 2px; min-width: 0; }
 .headerStudioIdentity strong { color: #fff; font-size: 15px; line-height: 1.1; letter-spacing: .01em; white-space: nowrap; }
-.headerStudioIdentity span { color: var(--color-ink-muted, #a9b2ac); font: 700 10px/1.2 var(--ur-font-technical), monospace; letter-spacing: .1em; }
+.headerStudioIdentity span { color: var(--color-ink-muted, #a9b2ac); font: 700 10px/1.2 var(--ur-font-interface), sans-serif; letter-spacing: .1em; }
 .headerActionGroup { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .headerActionButton,
 .headerDraftButton,

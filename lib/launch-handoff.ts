@@ -51,6 +51,49 @@ const launchParamKeys = [
   "return",
 ] as const;
 
+export type EmbeddedCalibrationLaunchSnapshot = Readonly<{
+  bridgeNonce: string;
+  requiresCalibration: boolean;
+  calibrationOffsetMs?: number;
+}>;
+
+/**
+ * Keep the calibration decision made for one iframe launch stable while the
+ * running Unity player reports its fresh calibration back to the platform.
+ * The player already applies that result in place; changing these URL params
+ * mid-run would reload the iframe and bypass its explicit Continue action.
+ */
+export function resolveEmbeddedCalibrationLaunchSnapshot(
+  current: EmbeddedCalibrationLaunchSnapshot | null,
+  bridgeNonce: string | null,
+  status: "loading" | "required" | "ready",
+  calibrationOffsetMs: number | null,
+): EmbeddedCalibrationLaunchSnapshot | null {
+  if (!bridgeNonce || status === "loading") {
+    return current;
+  }
+
+  if (current?.bridgeNonce === bridgeNonce) {
+    return current;
+  }
+
+  if (
+    status === "ready" &&
+    calibrationOffsetMs !== null &&
+    Number.isInteger(calibrationOffsetMs) &&
+    calibrationOffsetMs >= -350 &&
+    calibrationOffsetMs <= 350
+  ) {
+    return {
+      bridgeNonce,
+      requiresCalibration: false,
+      calibrationOffsetMs,
+    };
+  }
+
+  return { bridgeNonce, requiresCalibration: true };
+}
+
 function canUseSessionStorage() {
   return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
 }
