@@ -695,6 +695,7 @@ function GameEmbedSession({
               ref={iframeRef}
               src={embeddedGameUrl}
               title="UltraRapid Game"
+              className={styles.gameFrame}
               allow="gamepad; autoplay"
               allowFullScreen
               style={{

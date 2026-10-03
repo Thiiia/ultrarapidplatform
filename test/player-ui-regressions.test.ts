@@ -33,6 +33,19 @@ test("embedded Unity grants fullscreen without a duplicate iframe permission", (
   assert.match(gameEmbed, /allowFullScreen/);
 });
 
+test("the player handoff uses the shared response timings and a reduced-motion fallback", () => {
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+  const studentStyles = source("app/student/student.module.css");
+
+  assert.match(gameEmbed, /className=\{styles\.gameFrame\}/);
+  assert.match(studentStyles, /\.gamePreparingPulse[\s\S]{0,500}var\(--ur-motion-duration-ambient\)/);
+  assert.match(studentStyles, /\.gameFrame[\s\S]{0,500}var\(--ur-motion-duration-transition\)/);
+  assert.match(
+    studentStyles,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.gamePreparingPulse[\s\S]*\.gameFrame/,
+  );
+});
+
 test("game embed waits for the verified bridge and reports result-sync failures", () => {
   const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
 
