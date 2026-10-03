@@ -142,6 +142,12 @@
   color: #9aa4b4;
 }
 
+.subpageCardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 15px;
+}
+
 .headerActionGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -664,7 +670,8 @@
   .insightsGrid,
   .subjectGrid,
   .songGrid,
-  .recommendGrid {
+  .recommendGrid,
+  .subpageCardGrid {
     grid-template-columns: 1fr;
   }
 }

@@ -77,6 +77,54 @@ type SongLaunchInput = {
   launchAttemptId?: string | null;
 };
 
+type SongLaunchNavigationInput = Pick<
+  SongLaunchInput,
+  | "songAssetId"
+  | "activityKey"
+  | "authorId"
+  | "revision"
+  | "rhythmDifficultyKey"
+  | "learningDifficultyKey"
+  | "source"
+  | "templateProvenance"
+  | "launchAttemptId"
+>;
+
+export function createSongLaunchNavigationParams({
+  songAssetId,
+  activityKey,
+  authorId,
+  revision,
+  rhythmDifficultyKey,
+  learningDifficultyKey,
+  source,
+  templateProvenance,
+  launchAttemptId,
+}: SongLaunchNavigationInput) {
+  const params = new URLSearchParams({
+    launch: "PlayNow",
+    songAssetId,
+    activityKey,
+  });
+
+  if (authorId) params.set("authorId", authorId);
+  if (revision) params.set("revision", revision);
+  if (launchAttemptId) params.set("launchAttemptId", launchAttemptId);
+  if (rhythmDifficultyKey) params.set("rhythmDifficultyKey", rhythmDifficultyKey);
+  if (learningDifficultyKey) params.set("learningDifficultyKey", learningDifficultyKey);
+  if (source) params.set("source", source);
+  if (templateProvenance) {
+    params.set("templateId", templateProvenance.templateId);
+    params.set("templateLabel", templateProvenance.label);
+    params.set("templateOrigin", templateProvenance.origin);
+    if (templateProvenance.sourceRevision) {
+      params.set("templateSourceRevision", templateProvenance.sourceRevision);
+    }
+  }
+
+  return params;
+}
+
 export function createSongLaunchSearchParams({
   songAssetId,
   activityKey,

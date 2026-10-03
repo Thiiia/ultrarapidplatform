@@ -143,7 +143,7 @@ function HeaderBar({
   ];
   return (
     <header
-      className="experience-role-header"
+      className="experience-role-header experience-role-header--wide-nav"
       style={{
         background: headerBackgroundColor,
         width: "100%",
