@@ -241,3 +241,31 @@
     display: block;
   }
 }
+
+@media (max-width: 1300px) {
+  .experience-role-header--wide-nav {
+    height: auto !important;
+    min-height: 70px;
+    padding: 0.5rem 0;
+  }
+
+  .experience-role-header--wide-nav .experience-role-header-inner {
+    width: calc(100% - 1.5rem) !important;
+    height: auto !important;
+    gap: 0.75rem !important;
+  }
+
+  .experience-role-header--wide-nav .experience-role-brand-group {
+    gap: 0 !important;
+  }
+
+  .experience-role-header--wide-nav .experience-desktop-navigation,
+  .experience-role-header--wide-nav .experience-role-utilities {
+    display: none !important;
+  }
+
+  .experience-role-header--wide-nav .experience-mobile-navigation {
+    display: block;
+    margin-left: auto;
+  }
+}
