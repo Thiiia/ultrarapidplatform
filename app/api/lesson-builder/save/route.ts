@@ -15,9 +15,14 @@ import {
 import { DEV_AUTHOR_FOLDER, findAuthorByName, getOrCreateDevAuthor } from "@/lib/song-storage";
 import { resolveRequestedAuthor } from "@/lib/song-author";
 import { checkSaveRevisionPrecondition } from "@/lib/song-launch-identity";
-import { prepareAuthoredLessonForPublication } from "@/lib/authored-lesson-publication";
+import {
+  prepareAuthoredLessonDraft,
+  prepareAuthoredLessonForPublication,
+  type AuthoredLessonPublication,
+} from "@/lib/authored-lesson-publication";
 import { createLessonClock } from "@/lib/editor/lesson-timing";
 import { isSameOriginLessonSaveRequest } from "@/lib/lesson-save-origin";
+import { canPublishLessonForAuthor, canSaveLessonForAuthor } from "@/lib/lesson-save-authorization";
 import { mapLessonSaveInfrastructureError } from "@/lib/lesson-save-infrastructure-error";
 import {
   resolveLessonSaveRhythmSource,
@@ -41,6 +46,7 @@ type SaveFilePayload = {
 };
 
 type SavePayload = {
+  intent?: unknown;
   songAssetId?: unknown;
   activityKey?: unknown;
   authorId?: unknown;
@@ -219,12 +225,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Keep the session lookup for user freshness, but resolve the requested
-    // author explicitly below. An explicit unknown author must never become
-    // dev content.
-    await getCurrentAppUser().catch(() => null);
+    // The origin check protects browser requests from cross-site submission;
+    // it is not authentication. Saving writes shared lesson assets and an
+    // immutable lesson revision, so require a real app session before parsing it.
+    const sessionUser = await getCurrentAppUser().catch(() => null);
+    if (!sessionUser) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
 
     const payload = (await request.json()) as SavePayload;
+    if (payload.intent !== "draft" && payload.intent !== "publish") {
+      return NextResponse.json({ error: "intent must be either draft or publish" }, { status: 400 });
+    }
+    const intent = payload.intent;
     const songAssetId = readRequiredString(payload.songAssetId, "songAssetId").toLowerCase();
     const requestedAuthorId =
       typeof payload.authorId === "string" && payload.authorId.trim()
@@ -238,11 +251,12 @@ export async function POST(request: Request) {
       typeof payload.revision === "string" && payload.revision.trim()
         ? payload.revision.trim()
         : null;
-    const publicationRequestId =
-      request.headers.get("idempotency-key")?.trim() ||
-      (typeof payload.publicationRequestId === "string" && payload.publicationRequestId.trim()
-        ? payload.publicationRequestId.trim()
-        : randomUUID());
+    const publicationRequestId = intent === "publish"
+      ? request.headers.get("idempotency-key")?.trim() ||
+        (typeof payload.publicationRequestId === "string" && payload.publicationRequestId.trim()
+          ? payload.publicationRequestId.trim()
+          : randomUUID())
+      : null;
 
     if (!payload.sidecar) {
       return NextResponse.json(
@@ -280,6 +294,10 @@ export async function POST(request: Request) {
         return user ? { id: user.id, name: user.name } : null;
       },
       getDefault: async () => {
+        if (sessionUser.role !== "admin") {
+          return { id: sessionUser.id, name: sessionUser.name };
+        }
+
         const user = await getOrCreateDevAuthor();
         return { id: user.id, name: user.name };
       },
@@ -287,9 +305,21 @@ export async function POST(request: Request) {
     if (!targetAuthor) {
       return NextResponse.json({ error: "No default author is configured" }, { status: 400 });
     }
+    if (!canSaveLessonForAuthor(sessionUser, targetAuthor.id)) {
+      return NextResponse.json(
+        { error: "You can only save lessons under your own author account." },
+        { status: 403 },
+      );
+    }
+    if (intent === "publish" && !canPublishLessonForAuthor(sessionUser, targetAuthor.id)) {
+      return NextResponse.json(
+        { error: "Only teachers can publish their own lessons. Admins may publish for any author." },
+        { status: 403 },
+      );
+    }
     const authorFolder = resolveAuthorFolder({
       name: targetAuthor.name,
-      email: null,
+      email: targetAuthor.id === sessionUser.id ? sessionUser.email : null,
     });
 
     // Resolve the currently-published lesson BEFORE deciding where chart content
@@ -346,7 +376,8 @@ export async function POST(request: Request) {
     // immutable result before the first-publication-only guard runs. Bind the
     // request ID to the same source revision and activity so a reused ID cannot
     // silently replay a different lesson bootstrap.
-    const replayedPublication = await prisma.gameContentRevision.findUnique({
+    const replayedPublication = publicationRequestId
+      ? await prisma.gameContentRevision.findUnique({
       where: { publicationRequestId },
       select: {
         revision: true,
@@ -367,7 +398,8 @@ export async function POST(request: Request) {
           },
         },
       },
-    });
+    })
+      : null;
     if (replayedPublication) {
       if (
         replayedPublication.songAssetId !== songAssetId ||
@@ -390,6 +422,8 @@ export async function POST(request: Request) {
         authorId: targetAuthor.id,
         authorName: targetAuthor.name,
         revision: replayedPublication.revision,
+        status: "ready",
+        previewable: true,
         publicationRequestId,
         migratedFromLegacy: false,
         rhythmSource: replayedPublication.rhythmSource
@@ -492,19 +526,67 @@ export async function POST(request: Request) {
           "current sidecar",
         )
         : undefined;
+    const previousAuthoredSidecarContent = (() => {
+      if (!previousSidecarContent) return undefined;
+      try {
+        const previous = JSON.parse(previousSidecarContent) as { version?: unknown; mode?: unknown };
+        return previous.version === 3 && previous.mode === "authored"
+          ? previousSidecarContent
+          : undefined;
+      } catch {
+        return undefined;
+      }
+    })();
     const revisionId = randomUUID();
-    let authoredPublication;
+    let authoredPublication: AuthoredLessonPublication | null = null;
+    let revisionCounts: { equations: number; encounters: number; targets: number } | null = null;
+    let authoredLessonVersion: number | null = 3;
+    let authoredMode: string | null = "authored";
     try {
       const authoredClock = createLessonClock(chartContent);
-      authoredPublication = prepareAuthoredLessonForPublication({
-        sidecarContent,
-        identity: { songAssetId, activityKey, authorId: targetAuthor.id, revision: revisionId },
-        legacyToTickAfterSeconds: (tick, seconds) => {
-          return authoredClock.toTick(authoredClock.toSeconds(tick) + seconds);
-        },
-        runtimeClock: authoredClock,
-        previousSidecarContent,
-      });
+      const identity = { songAssetId, activityKey, authorId: targetAuthor.id, revision: revisionId };
+      const legacyToTickAfterSeconds = (tick: number, seconds: number) => {
+        return authoredClock.toTick(authoredClock.toSeconds(tick) + seconds);
+      };
+      if (intent === "publish") {
+        authoredPublication = prepareAuthoredLessonForPublication({
+          sidecarContent,
+          identity,
+          legacyToTickAfterSeconds,
+          runtimeClock: authoredClock,
+          previousSidecarContent: previousAuthoredSidecarContent,
+        });
+        revisionCounts = authoredPublication.counts;
+      } else {
+        let draft: AuthoredLessonPublication | null = null;
+        try {
+          draft = prepareAuthoredLessonDraft({ sidecarContent, identity, legacyToTickAfterSeconds });
+        } catch {
+          // Valid editor sidecars can still be in the legacy timeline format.
+          // Keep those private drafts intact; only an authored v3 snapshot can preview.
+          authoredPublication = {
+            content: sidecarContent,
+            counts: { equations: 0, encounters: 0, targets: 0 },
+            migratedFromLegacy: false,
+          };
+          authoredLessonVersion = null;
+          authoredMode = null;
+        }
+        if (draft) {
+          try {
+            const playableDraft = prepareAuthoredLessonForPublication({
+              sidecarContent: draft.content,
+              identity,
+              runtimeClock: authoredClock,
+              previousSidecarContent: previousAuthoredSidecarContent,
+            });
+            authoredPublication = { ...playableDraft, migratedFromLegacy: draft.migratedFromLegacy };
+            revisionCounts = playableDraft.counts;
+          } catch {
+            authoredPublication = draft;
+          }
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Invalid authored lesson payload";
       console.warn("[lesson-builder/save] authored publication rejected", {
@@ -513,6 +595,10 @@ export async function POST(request: Request) {
         message: message.slice(0, 280),
       });
       return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    if (!authoredPublication) {
+      return NextResponse.json({ error: "Unable to prepare lesson content for saving" }, { status: 400 });
     }
     
     // Concurrency precondition: the draft's previous revision must match the
@@ -688,7 +774,7 @@ export async function POST(request: Request) {
             await transaction.gameContentRevision.create({
               data: {
                 revision: publishedRevisionId,
-                publicationRequestId,
+                ...(publicationRequestId ? { publicationRequestId } : {}),
                 songChartId: songChartId!,
                 songAssetId,
                 activityKey,
@@ -703,13 +789,13 @@ export async function POST(request: Request) {
                 sidecarSha256: sha256(sidecar.content),
                 audioSha256,
                 rhythmSourceRevision: persistedRhythmSource?.revision ?? null,
-                authoredLessonVersion: 3,
-                authoredMode: "authored",
-                equationCount: authoredPublication.counts.equations,
-                encounterCount: authoredPublication.counts.encounters,
-                targetCount: authoredPublication.counts.targets,
-                status: "ready",
-                publishedAt: new Date(),
+                authoredLessonVersion,
+                authoredMode,
+                equationCount: revisionCounts?.equations ?? null,
+                encounterCount: revisionCounts?.encounters ?? null,
+                targetCount: revisionCounts?.targets ?? null,
+                status: intent === "publish" ? "ready" : "draft",
+                publishedAt: intent === "publish" ? new Date() : null,
               },
             });
           });
@@ -736,7 +822,9 @@ export async function POST(request: Request) {
       authorId: targetAuthor.id,
       authorName: targetAuthor.name,
       revision: revisionId,
-      publicationRequestId,
+      status: intent === "publish" ? "ready" : "draft",
+      previewable: intent === "publish" || revisionCounts !== null,
+      ...(publicationRequestId ? { publicationRequestId } : {}),
       migratedFromLegacy: authoredPublication.migratedFromLegacy,
       rhythmSource: persistedRhythmSource
         ? {
@@ -780,4 +868,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

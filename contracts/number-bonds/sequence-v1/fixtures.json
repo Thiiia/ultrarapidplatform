@@ -1,0 +1,490 @@
+{
+  "fixtureVersion": 1,
+  "testTempoMap": {
+    "resolution": 1,
+    "segments": [
+      {
+        "startTick": 0,
+        "beatsPerMinute": 60
+      }
+    ]
+  },
+  "validLesson": {
+    "version": 3,
+    "mode": "authored",
+    "songAssetId": "number-bonds-contract-fixture-5-2-3",
+    "activityKey": "number-bonds",
+    "authorId": "runtime-contract-fixture",
+    "revision": "number-bonds-sequence-v1-5-2-3",
+    "stopAtSeconds": 84,
+    "equations": [
+      {
+        "id": "equation-five",
+        "state": "5 = 2 + 3",
+        "tokens": [
+          {
+            "id": "whole-five",
+            "label": "5"
+          },
+          {
+            "id": "equals",
+            "label": "="
+          },
+          {
+            "id": "part-a-two",
+            "label": "2"
+          },
+          {
+            "id": "plus",
+            "label": "+"
+          },
+          {
+            "id": "part-b-three",
+            "label": "3"
+          }
+        ]
+      }
+    ],
+    "encounters": [
+      {
+        "id": "hit-gem-01",
+        "eventId": "event-hit-gem-01",
+        "type": "hit",
+        "equationId": "equation-five",
+        "startTick": 8,
+        "endTick": 8,
+        "hitBubbles": [
+          {
+            "tokenIndex": 0,
+            "targetId": "whole-five",
+            "padLayoutVersion": 2,
+            "positions": [
+              "top"
+            ],
+            "pads": [
+              "top"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "spin-gem-01",
+        "eventId": "event-spin-gem-01",
+        "type": "spin",
+        "equationId": "equation-five",
+        "startTick": 10,
+        "endTick": 12,
+        "spinTargets": [
+          {
+            "tokenIndex": 0,
+            "targetId": "whole-five"
+          }
+        ]
+      },
+      {
+        "id": "drag-gem-01",
+        "eventId": "event-drag-gem-01",
+        "type": "drag",
+        "equationId": "equation-five",
+        "startTick": 14,
+        "endTick": 16,
+        "dragTargets": [
+          {
+            "tokenIndex": 2,
+            "targetId": "part-a-two",
+            "sourceHitId": "hit-gem-01"
+          }
+        ]
+      },
+      {
+        "id": "hit-gem-02",
+        "eventId": "event-hit-gem-02",
+        "type": "hit",
+        "equationId": "equation-five",
+        "startTick": 22,
+        "endTick": 22,
+        "hitBubbles": [
+          {
+            "tokenIndex": 0,
+            "targetId": "whole-five",
+            "padLayoutVersion": 2,
+            "positions": [
+              "top"
+            ],
+            "pads": [
+              "top"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "spin-gem-02",
+        "eventId": "event-spin-gem-02",
+        "type": "spin",
+        "equationId": "equation-five",
+        "startTick": 24,
+        "endTick": 26,
+        "spinTargets": [
+          {
+            "tokenIndex": 0,
+            "targetId": "whole-five"
+          }
+        ]
+      },
+      {
+        "id": "drag-gem-02",
+        "eventId": "event-drag-gem-02",
+        "type": "drag",
+        "equationId": "equation-five",
+        "startTick": 28,
+        "endTick": 30,
+        "dragTargets": [
+          {
+            "tokenIndex": 2,
+            "targetId": "part-a-two",
+            "sourceHitId": "hit-gem-02"
+          }
+        ]
+      },
+      {
+        "id": "hit-gem-03",
+        "eventId": "event-hit-gem-03",
+        "type": "hit",
+        "equationId": "equation-five",
+        "startTick": 36,
+        "endTick": 36,
+        "hitBubbles": [
+          {
+            "tokenIndex": 0,
+            "targetId": "whole-five",
+            "padLayoutVersion": 2,
+            "positions": [
+              "top"
+            ],
+            "pads": [
+              "top"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "spin-gem-03",
+        "eventId": "event-spin-gem-03",
+        "type": "spin",
+        "equationId": "equation-five",
+        "startTick": 38,
+        "endTick": 40,
+        "spinTargets": [
+          {
+            "tokenIndex": 0,
+            "targetId": "whole-five"
+          }
+        ]
+      },
+      {
+        "id": "drag-gem-03",
+        "eventId": "event-drag-gem-03",
+        "type": "drag",
+        "equationId": "equation-five",
+        "startTick": 42,
+        "endTick": 44,
+        "dragTargets": [
+          {
+            "tokenIndex": 4,
+            "targetId": "part-b-three",
+            "sourceHitId": "hit-gem-03"
+          }
+        ]
+      },
+      {
+        "id": "hit-gem-04",
+        "eventId": "event-hit-gem-04",
+        "type": "hit",
+        "equationId": "equation-five",
+        "startTick": 50,
+        "endTick": 50,
+        "hitBubbles": [
+          {
+            "tokenIndex": 0,
+            "targetId": "whole-five",
+            "padLayoutVersion": 2,
+            "positions": [
+              "top"
+            ],
+            "pads": [
+              "top"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "spin-gem-04",
+        "eventId": "event-spin-gem-04",
+        "type": "spin",
+        "equationId": "equation-five",
+        "startTick": 52,
+        "endTick": 54,
+        "spinTargets": [
+          {
+            "tokenIndex": 0,
+            "targetId": "whole-five"
+          }
+        ]
+      },
+      {
+        "id": "drag-gem-04",
+        "eventId": "event-drag-gem-04",
+        "type": "drag",
+        "equationId": "equation-five",
+        "startTick": 56,
+        "endTick": 58,
+        "dragTargets": [
+          {
+            "tokenIndex": 4,
+            "targetId": "part-b-three",
+            "sourceHitId": "hit-gem-04"
+          }
+        ]
+      },
+      {
+        "id": "hit-gem-05",
+        "eventId": "event-hit-gem-05",
+        "type": "hit",
+        "equationId": "equation-five",
+        "startTick": 64,
+        "endTick": 64,
+        "hitBubbles": [
+          {
+            "tokenIndex": 0,
+            "targetId": "whole-five",
+            "padLayoutVersion": 2,
+            "positions": [
+              "top"
+            ],
+            "pads": [
+              "top"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "spin-gem-05",
+        "eventId": "event-spin-gem-05",
+        "type": "spin",
+        "equationId": "equation-five",
+        "startTick": 66,
+        "endTick": 68,
+        "spinTargets": [
+          {
+            "tokenIndex": 0,
+            "targetId": "whole-five"
+          }
+        ]
+      },
+      {
+        "id": "drag-gem-05",
+        "eventId": "event-drag-gem-05",
+        "type": "drag",
+        "equationId": "equation-five",
+        "startTick": 70,
+        "endTick": 72,
+        "dragTargets": [
+          {
+            "tokenIndex": 4,
+            "targetId": "part-b-three",
+            "sourceHitId": "hit-gem-05"
+          }
+        ]
+      }
+    ],
+    "numberBondSequenceVersion": 1,
+    "numberBondGems": [
+      {
+        "gemId": "gem-01",
+        "unitIndex": 0,
+        "spinEncounterId": "spin-gem-01",
+        "dragEncounterId": "drag-gem-01",
+        "destination": {
+          "part": "part-a",
+          "slotIndex": 0
+        }
+      },
+      {
+        "gemId": "gem-02",
+        "unitIndex": 1,
+        "spinEncounterId": "spin-gem-02",
+        "dragEncounterId": "drag-gem-02",
+        "destination": {
+          "part": "part-a",
+          "slotIndex": 1
+        }
+      },
+      {
+        "gemId": "gem-03",
+        "unitIndex": 2,
+        "spinEncounterId": "spin-gem-03",
+        "dragEncounterId": "drag-gem-03",
+        "destination": {
+          "part": "part-b",
+          "slotIndex": 0
+        }
+      },
+      {
+        "gemId": "gem-04",
+        "unitIndex": 3,
+        "spinEncounterId": "spin-gem-04",
+        "dragEncounterId": "drag-gem-04",
+        "destination": {
+          "part": "part-b",
+          "slotIndex": 1
+        }
+      },
+      {
+        "gemId": "gem-05",
+        "unitIndex": 4,
+        "spinEncounterId": "spin-gem-05",
+        "dragEncounterId": "drag-gem-05",
+        "destination": {
+          "part": "part-b",
+          "slotIndex": 2
+        }
+      }
+    ]
+  },
+  "malformedCases": [
+    {
+      "id": "missing-hit",
+      "mutation": {
+        "kind": "remove-encounter",
+        "encounterId": "hit-gem-01"
+      }
+    },
+    {
+      "id": "missing-spin",
+      "mutation": {
+        "kind": "remove-encounter",
+        "encounterId": "spin-gem-01"
+      }
+    },
+    {
+      "id": "missing-drag",
+      "mutation": {
+        "kind": "remove-encounter",
+        "encounterId": "drag-gem-01"
+      }
+    },
+    {
+      "id": "duplicate-gem-id",
+      "mutation": {
+        "kind": "set-gem-id",
+        "gemId": "gem-02",
+        "value": "gem-01"
+      }
+    },
+    {
+      "id": "duplicate-unit-index",
+      "mutation": {
+        "kind": "set-unit-index",
+        "gemId": "gem-02",
+        "value": 0
+      }
+    },
+    {
+      "id": "duplicate-destination-slot",
+      "mutation": {
+        "kind": "set-destination",
+        "gemId": "gem-02",
+        "part": "part-a",
+        "slotIndex": 0
+      }
+    },
+    {
+      "id": "orphan-action",
+      "mutation": {
+        "kind": "add-encounter",
+        "encounter": {
+          "id": "orphan-spin",
+          "eventId": "event-orphan-spin",
+          "type": "spin",
+          "equationId": "equation-five",
+          "startTick": 74,
+          "endTick": 76,
+          "spinTargets": [
+            {
+              "tokenIndex": 0,
+              "targetId": "whole-five"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wrong-equation",
+      "mutation": {
+        "kind": "set-encounter-equation",
+        "encounterId": "spin-gem-01",
+        "equationId": "equation-other"
+      }
+    },
+    {
+      "id": "invalid-pad",
+      "mutation": {
+        "kind": "set-hit-pad",
+        "encounterId": "hit-gem-01",
+        "pad": "center"
+      }
+    },
+    {
+      "id": "invalid-destination-part",
+      "mutation": {
+        "kind": "set-destination",
+        "gemId": "gem-01",
+        "part": "part-c",
+        "slotIndex": 0
+      }
+    },
+    {
+      "id": "invalid-destination-slot",
+      "mutation": {
+        "kind": "set-destination",
+        "gemId": "gem-01",
+        "part": "part-a",
+        "slotIndex": 2
+      }
+    },
+    {
+      "id": "backwards-timing",
+      "mutation": {
+        "kind": "set-encounter-timing",
+        "encounterId": "spin-gem-01",
+        "startTick": 7,
+        "endTick": 9
+      }
+    },
+    {
+      "id": "overlapping-actionable-gem",
+      "mutation": {
+        "kind": "set-encounter-timing",
+        "encounterId": "hit-gem-02",
+        "startTick": 16,
+        "endTick": 16
+      }
+    },
+    {
+      "id": "action-after-stop",
+      "mutation": {
+        "kind": "set-encounter-timing",
+        "encounterId": "drag-gem-05",
+        "startTick": 85,
+        "endTick": 87
+      }
+    },
+    {
+      "id": "unknown-extension-version",
+      "mutation": {
+        "kind": "set-sequence-version",
+        "value": 2
+      }
+    }
+  ]
+}

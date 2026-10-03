@@ -386,6 +386,7 @@ model PlayerLaunchAttempt {
   source          String
   templateId      String?
   receipt         Json
+  status          PlayerLaunchAttemptStatus @default(active)
   createdAt       DateTime         @default(now())
 
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -464,4 +465,12 @@ enum GameContentRevisionStatus {
   failed
 
   @@map("game_content_revision_status")
+}
+
+enum PlayerLaunchAttemptStatus {
+  active
+  completed
+  returned
+
+  @@map("player_launch_attempt_status")
 }

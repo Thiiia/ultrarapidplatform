@@ -147,3 +147,56 @@ export function prepareAuthoredLessonForPublication({
     migratedFromLegacy,
   };
 }
+
+/**
+ * Persist an editable, schema-valid draft without requiring gameplay readiness.
+ * A separate publication validation decides whether the draft may be previewed.
+ */
+export function prepareAuthoredLessonDraft({
+  sidecarContent,
+  identity,
+  legacyToTickAfterSeconds,
+}: {
+  sidecarContent: string;
+  identity: { songAssetId: string; activityKey: string; authorId: string; revision: string };
+  legacyToTickAfterSeconds?: (tick: number, seconds: number) => number;
+}): AuthoredLessonPublication {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(sidecarContent);
+  } catch {
+    throw new Error("Authored lesson sidecar must contain valid JSON");
+  }
+
+  const migratedFromLegacy = isLegacyEncounterSidecar(raw);
+  let draft;
+  if (isLegacyEncounterSidecar(raw)) {
+    if (!legacyToTickAfterSeconds) throw new Error("Legacy authored migration requires a chart tempo map");
+    draft = migrateLegacyEncounterSidecar({
+      source: raw,
+      identity,
+      toTickAfterSeconds: legacyToTickAfterSeconds,
+    });
+  } else {
+    draft = parseAuthoredLessonDraft(repairLegacyMigratedAuthoredLesson(raw), {
+      activityKey: identity.activityKey,
+      allowEmpty: true,
+    });
+  }
+
+  const saved = stampAuthoredLessonIdentity(draft, identity);
+  const targets = saved.encounters.reduce((total, encounter) => {
+    const group = encounter.type === "hit"
+      ? encounter.hitBubbles
+      : encounter.type === "spin"
+        ? encounter.spinTargets
+        : encounter.dragTargets;
+    return total + (group?.length ?? 0);
+  }, 0);
+
+  return {
+    content: JSON.stringify(saved, null, 2),
+    counts: { equations: saved.equations.length, encounters: saved.encounters.length, targets },
+    migratedFromLegacy,
+  };
+}

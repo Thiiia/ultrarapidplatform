@@ -33,7 +33,7 @@ test("shared rhythm publications persist the immutable source revision on the ta
 });
 
 test("shared rhythm retries replay before the next publication and match the stored source", () => {
-  const replayLookup = route.indexOf("const replayedPublication = await prisma.gameContentRevision.findUnique");
+  const replayLookup = route.indexOf("const replayedPublication = publicationRequestId");
   assert.ok(replayLookup >= 0);
   assert.doesNotMatch(route, /rhythmSource is only allowed for the first publication/);
   assert.match(route, /replayedPublication\.rhythmSource\?\.revision\s*\?\?\s*null/);

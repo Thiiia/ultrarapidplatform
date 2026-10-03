@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import test from "node:test";
-import { createBridgeContext, needsCalibration, parseCalibrationState, validateBridgeMessage } from "../lib/platform-player-bridge";
+import { fileURLToPath } from "node:url";
+import { createBridgeContext, needsCalibration, parseCalibrationState, PlatformPlayerBridgeMessageSchema, validateBridgeMessage } from "../lib/platform-player-bridge";
 
 const receipt = {
   receiptVersion: 1 as const, contractVersion: 1 as const, songAssetId: "song", activityKey: "early-algebra", authorId: "author", revision: "rev",
@@ -8,6 +12,116 @@ const receipt = {
   chart: { bucket: "Charts", path: "rev/chart" }, sidecar: { bucket: "SidecarJsons", path: "rev/sidecar" }, audio: { bucket: "Songs", path: "song.mp3" },
   counts: { encounters: 1, equations: 1, targets: 1 }, hashes: { chartSha256: "a".repeat(64), sidecarSha256: "b".repeat(64), audioSha256: "c".repeat(64) },
 };
+
+const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), "../contracts/runtime/fixtures");
+const runtimeFixture = (name: string) => JSON.parse(readFileSync(join(fixtureRoot, name), "utf8"));
+const identityFixture = runtimeFixture("bridge-launch-identity.json");
+const runCompleteV2Fixture = runtimeFixture("run-complete-v2.json");
+const runCompleteV3Fixture = runtimeFixture("run-complete-v3.json");
+const sharedFixtureSha256: Record<string, string> = {
+  "bridge-launch-identity.json": "e0bdac0486c8e89a709af44fba5da1cf0f67f0fdfb0729657dd7cfcf2faf309d",
+  "completion-v2.json": "2fd4ab889f4bbd4eda90eba85854f9b61ee8fefb452a2097a72eadb35c524b91",
+  "completion-v3.json": "61fb7d6334406f1b9a2733f2914455ac4c388ac63bdea58749e0f7d81149e54c",
+  "run-complete-v2.json": "1919b99def18950383171b53b438b3bcd429cca37a78a115159e29814a381eda",
+  "run-complete-v3.json": "607678f5e63af6a8ee1d21e52b3b9880184c587b590f458157fc6f51806c83df",
+};
+
+test("shared runtime fixtures pass Platform bridge validation without drifting", () => {
+  for (const [name, expected] of Object.entries(sharedFixtureSha256)) {
+    const normalized = readFileSync(join(fixtureRoot, name), "utf8").replace(/\r\n/g, "\n");
+    assert.equal(createHash("sha256").update(normalized).digest("hex"), expected, `${name} must match the shared fixture digest`);
+  }
+
+  for (const envelope of [runCompleteV2Fixture, runCompleteV3Fixture]) {
+    const { message, sourceOrigin } = envelope;
+    assert.equal(sourceOrigin, identityFixture.origin);
+    assert.equal(message.type, "run-complete");
+    assert.equal(message.nonce, identityFixture.nonce);
+    assert.deepEqual(message.receipt, identityFixture.receipt);
+    const parsed = PlatformPlayerBridgeMessageSchema.safeParse(message);
+    assert.equal(parsed.success, true);
+    if (parsed.success && parsed.data.type === "run-complete") {
+      assert.deepEqual(parsed.data.completion, message.completion);
+    }
+
+    const context = {
+      nonce: message.nonce,
+      installationId: identityFixture.receipt.launchAttemptId,
+      receipt: identityFixture.receipt,
+      origin: sourceOrigin,
+      protocolVersion: 1,
+    };
+    assert.equal(validateBridgeMessage(message, context).ok, true);
+  }
+  assert.equal(runCompleteV3Fixture.message.completion.missionSteps[0].signedErrorMs, -12);
+});
+
+test("bridge rejects altered receipt identity and malformed run-complete envelopes", () => {
+  const { message } = runCompleteV3Fixture;
+  const context = createBridgeContext(
+    identityFixture.receipt,
+    identityFixture.origin + "/game",
+    identityFixture.receipt.launchAttemptId,
+  );
+  const changedReceipts = [
+    { ...message.receipt, songAssetId: "other-song" },
+    { ...message.receipt, revision: "other-revision" },
+    { ...message.receipt, launchAttemptId: "55555555-5555-4555-8555-555555555555" },
+    { ...message.receipt, hashes: { ...message.receipt.hashes, chartSha256: "d".repeat(64) } },
+    { ...message.receipt, hashes: { ...message.receipt.hashes, sidecarSha256: "d".repeat(64) } },
+    { ...message.receipt, hashes: { ...message.receipt.hashes, audioSha256: "d".repeat(64) } },
+  ];
+  for (const receipt of changedReceipts) {
+    assert.equal(validateBridgeMessage({ ...message, receipt }, context).ok, false);
+  }
+
+  for (const malformed of [
+    { ...message, nonce: undefined },
+    { ...message, receipt: undefined },
+    { ...message, completion: undefined },
+    { ...message, unexpected: true },
+  ]) {
+    assert.equal(validateBridgeMessage(malformed, context).ok, false);
+  }
+});
+
+test("completion validation rejects invalid counters, unsupported versions, and non-finite timing", () => {
+  const { message } = runCompleteV2Fixture;
+  const context = createBridgeContext(
+    identityFixture.receipt,
+    identityFixture.origin + "/game",
+    identityFixture.receipt.launchAttemptId,
+  );
+  for (const completion of [
+    { ...message.completion, completionVersion: 1 },
+    { ...message.completion, completedEvents: -1 },
+    { ...message.completion, completedEvents: 2, requiredEvents: 1 },
+    { ...message.completion, requiredEvents: -1 },
+    { ...message.completion, solvedSets: -1 },
+    { ...message.completion, hitAttempts: -1 },
+    { ...message.completion, solvedSets: 0 },
+  ]) {
+    assert.equal(validateBridgeMessage({ ...message, completion }, context).ok, false);
+  }
+
+  const v3 = PlatformPlayerBridgeMessageSchema.parse(runCompleteV3Fixture.message);
+  if (v3.type !== "run-complete" || v3.completion.completionVersion !== 3) {
+    throw new Error("run-complete-v3 fixture must be a version 3 completion message");
+  }
+  const missionSteps = v3.completion.missionSteps.map((step, index) =>
+    index === 0 ? { ...step, signedErrorMs: Number.NaN } : step,
+  );
+  assert.equal(validateBridgeMessage({
+    ...v3,
+    completion: { ...v3.completion, missionSteps },
+  }, context).ok, false);
+  const parsedV3 = PlatformPlayerBridgeMessageSchema.parse(runCompleteV3Fixture.message);
+  if (parsedV3.type !== "run-complete" || parsedV3.completion.completionVersion !== 3) {
+    throw new Error("run-complete-v3 fixture must be a version 3 completion message");
+  }
+  assert.deepEqual(parsedV3.completion, v3.completion);
+  assert.equal(parsedV3.completion.missionSteps[0].signedErrorMs, -12);
+});
 
 test("bridge rejects a receipt without the revision Unity requires", () => {
   const unrevisionedReceipt = { ...receipt, revision: undefined };

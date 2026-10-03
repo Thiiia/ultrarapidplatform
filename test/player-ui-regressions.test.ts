@@ -55,6 +55,19 @@ test("game embed waits for the verified bridge and reports result-sync failures"
   assert.match(gameEmbed, /studentCopy\.game\.resultSyncFailed/);
 });
 
+test("authenticated Return terminalizes the launch before detaching the Unity iframe", () => {
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+  const returnRoute = source("app/api/player-launch-attempts/return/route.ts");
+  const outcomes = source("app/api/player-outcomes/route.ts");
+
+  assert.match(gameEmbed, /if \(cancelled \|\| terminalAttemptRef\.current\) return;/);
+  assert.match(gameEmbed, /iframeRef\.current\.src = "about:blank"/);
+  assert.match(gameEmbed, /\/api\/player-launch-attempts\/return/);
+  assert.match(gameEmbed, /window\.removeEventListener\("message", onMessage\)/);
+  assert.match(returnRoute, /returnPlayerLaunchAttempt/);
+  assert.match(outcomes, /persistPlayerRunOutcome/);
+});
+
 test("the demo game keeps calibration and completion state local instead of calling private player APIs", () => {
   const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
 

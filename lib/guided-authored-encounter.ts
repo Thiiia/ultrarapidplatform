@@ -298,11 +298,13 @@ function targetIds(encounter: GuidedEncounterInput) {
 export function evaluateEncounterReadiness(
   encounter: GuidedEncounterInput,
   readyHitIds: ReadonlySet<string>,
-  options: { activityKey?: string | null } = {},
+  options: { activityKey?: string | null; numberBondSequenceVersion?: 1 } = {},
 ): EncounterReadiness {
   const issues: EncounterIssue[] = [];
   const capabilities = getActivityAuthoringCapabilities(options.activityKey);
-  if (!capabilities.supportedAuthoredMechanics.includes(encounter.mechanic)) {
+  const explicitNumberBondsSequence =
+    capabilities.activityKey === "number-bonds" && options.numberBondSequenceVersion === 1;
+  if (!explicitNumberBondsSequence && !capabilities.supportedAuthoredMechanics.includes(encounter.mechanic)) {
     issues.push(issue(encounter, "activity_mechanic_unsupported"));
   }
   if (
@@ -468,6 +470,7 @@ export function evaluateLessonPublishReadiness(
     equationQueue?: readonly AuthoredSavedEquation[];
     clock?: { toTick(seconds: number): number; toSeconds(tick: number): number };
     stopAtSeconds?: number;
+    numberBondSequenceVersion?: 1;
   } = {},
 ): LessonPublishReadiness {
   const blockers: EncounterIssue[] = [];

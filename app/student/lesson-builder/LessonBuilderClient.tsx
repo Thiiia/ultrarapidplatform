@@ -28,6 +28,7 @@ import {
   serializeAuthoredLesson,
   timelineEventsFromAuthoredLesson,
   type AuthoredLessonDraft,
+  type AuthoredNumberBondSequenceV1,
   type AuthoredTimelineEvent,
 } from "@/lib/authored-lesson-serialization";
 import {
@@ -63,6 +64,7 @@ import {
 import { applyEquationToEvent as applyEquationToEventInstances } from "@/lib/authored-lesson-event-assignment";
 // import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { persistLaunchParams } from "@/lib/launch-handoff";
+import { readDemoLessonDraft, saveDemoLessonDraft } from "@/lib/demo-lesson-drafts";
 import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import {
   requestFreshSongLaunchPackage,
@@ -1705,7 +1707,11 @@ function authoredSidecarFromTimelineEvents(
   clock: ReturnType<typeof createLessonClock>,
   stopAtSeconds?: number,
   equationQueue: SavedEquation[] = [],
-  options: { forPublish?: boolean; activityKey?: string | null } = {},
+  options: {
+    forPublish?: boolean;
+    activityKey?: string | null;
+    numberBondSequenceV1?: AuthoredNumberBondSequenceV1;
+  } = {},
 ): AuthoredLessonDraft {
   return serializeAuthoredLesson(
     events as unknown as AuthoredTimelineEvent[],
@@ -1991,6 +1997,8 @@ function HeaderBar({
   onLaunch,
   onSave,
   onSaveDraft,
+  canSaveDraft = false,
+  saveActionLabel = studentCopy.editor.saveLessonLabel,
   canLaunch,
   canPublish = true,
   isRctm1Mode,
@@ -2011,7 +2019,9 @@ function HeaderBar({
   onOpenFile: () => void;
   onLaunch: () => void;
   onSave: () => void;
-  onSaveDraft: () => void;
+  onSaveDraft?: () => void;
+  canSaveDraft?: boolean;
+  saveActionLabel?: string;
   canLaunch: boolean;
   canPublish?: boolean;
   isRctm1Mode: boolean;
@@ -2289,6 +2299,30 @@ function HeaderBar({
             {studentCopy.editor.changeSong}
           </button>
 
+          {onSaveDraft && !isAlgebraStudio ? (
+            <button
+              type="button"
+              disabled={!canSaveDraft || isSaving}
+              onClick={onSaveDraft}
+              aria-label="Save lesson draft"
+              title={canSaveDraft ? "Save a private lesson draft" : "Load a lesson before saving a draft"}
+              style={{
+                height: 29,
+                border: `1px solid ${subtleBorderColor}`,
+                borderRadius: 12,
+                background: "transparent",
+                color: canSaveDraft && !isSaving ? "#DCE6F2" : "#7A8FA8",
+                padding: "0 9px",
+                fontSize: 10,
+                fontWeight: 800,
+                cursor: canSaveDraft && !isSaving ? "pointer" : "not-allowed",
+                opacity: canSaveDraft && !isSaving ? 1 : 0.55,
+              }}
+            >
+              Save draft
+            </button>
+          ) : null}
+
           <button
             type="button"
             onClick={onLaunch}
@@ -2313,11 +2347,11 @@ function HeaderBar({
             {isAlgebraStudio ? "Play preview" : "Play"}
           </button>
 
-          {isAlgebraStudio ? (
+          {isAlgebraStudio && onSaveDraft ? (
             <button
               type="button"
               onClick={onSaveDraft}
-              disabled={isSaving}
+              disabled={!canSaveDraft || isSaving}
               aria-label="Save private draft"
               title="Save a private draft for later"
               className={algebraStyles.headerDraftButton}
@@ -2330,8 +2364,8 @@ function HeaderBar({
             type="button"
             disabled={!canPublish || isSaving}
             onClick={onSave}
-            aria-label={isAlgebraStudio ? "Publish lesson" : studentCopy.editor.saveLessonLabel}
-            title={canPublish ? (isAlgebraStudio ? "Publish this lesson" : studentCopy.editor.saveLessonLabel) : "Finish the lesson before publishing"}
+            aria-label={saveActionLabel}
+            title={canPublish ? saveActionLabel : "Finish the lesson before saving"}
             className={isAlgebraStudio ? algebraStyles.headerPublishButton : undefined}
             style={{
               minWidth: isAlgebraStudio ? 144 : 60,
@@ -2352,7 +2386,7 @@ function HeaderBar({
             }}
           >
             {isAlgebraStudio ? (
-              isSaving ? "Saving…" : "Publish lesson"
+              isSaving ? "Saving…" : saveActionLabel
             ) : (
               <img
                 src="/Save_Button.svg"
@@ -10364,6 +10398,10 @@ export default function LessonBuilderClient({
 
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventSlot[]>([]);
   const [numberBondDraftTarget, setNumberBondDraftTarget] = useState<{ songAssetId: string; whole: number } | null>(null);
+  const [numberBondSequenceV1, setNumberBondSequenceV1] = useState<{
+    songAssetId: string;
+    sequence: AuthoredNumberBondSequenceV1;
+  } | null>(null);
   const [numberBondLaunchPendingWhole, setNumberBondLaunchPendingWhole] = useState<number | null>(null);
   const numberBondAutoLaunchRef = useRef<number | null>(null);
   const numberBondShuffleRef = useRef(0);
@@ -11016,6 +11054,14 @@ export default function LessonBuilderClient({
       setTimelineEvents(nextEvents);
       setAuthoredEquationQueue(hydrated.equations);
       setTemplateEquations(hydrated.equations);
+      setNumberBondSequenceV1(
+        hydrated.numberBondSequenceVersion === 1 && hydrated.numberBondGems
+          ? {
+              songAssetId: generated.draft.songAssetId,
+              sequence: { version: 1, gems: hydrated.numberBondGems },
+            }
+          : null,
+      );
       setSelectedEquationId(generated.draft.equations[0]?.id ?? null);
       setActiveEventId(nextEvents[0]?.id ?? null);
       setRtcmDraftMechanics([]);
@@ -11348,6 +11394,14 @@ export default function LessonBuilderClient({
       timelineRehydrateSourceRef.current = nextSidecar;
       setAuthoredEquationQueue(importedEquations);
       setTemplateEquations(importedEquations);
+      setNumberBondSequenceV1(
+        hydrated.numberBondSequenceVersion === 1 && hydrated.numberBondGems
+          ? {
+              songAssetId: authoredDraft.songAssetId,
+              sequence: { version: 1, gems: hydrated.numberBondGems },
+            }
+          : null,
+      );
       setActiveEventId(nextEvents[0]?.id ?? null);
       setMode(nextMode);
       setStoreSidecar(nextSidecar as StoreSidecarPayload);
@@ -11595,6 +11649,7 @@ export default function LessonBuilderClient({
   }
 
   function handleClearRtcmChart() {
+    setNumberBondSequenceV1(null);
     setTimelineEvents([]);
     setRtcmDraftMechanics([]);
     setRtcmEventRangeStartTick(null);
@@ -12700,6 +12755,12 @@ export default function LessonBuilderClient({
       return;
     }
 
+    if (isDemoMode && !playTemplateOnly) {
+      if (hasUnsavedChanges && !(await handleSaveToSupabase())) return;
+      setSaveStatus("Your demo changes are saved on this device. Demo drafts are not published as official lessons.");
+      return;
+    }
+
     const strategy = playTemplateOnly ? "published-template" : lessonLaunchStrategy(hasUnsavedChanges);
     let launchAuthorId = lastSavedAuthorId ?? selectedSongAuthorId ?? null;
     let launchRevision = lastSavedRevision;
@@ -12721,9 +12782,10 @@ export default function LessonBuilderClient({
       const freshSongLaunch = await requestFreshSongLaunchPackage({
         ...selectedSongLaunch,
         authorId: launchAuthorId,
-        authorName: selectedSongLaunch.authorName ?? null,
+        authorName: launchAuthorId ? null : selectedSongLaunch.authorName ?? null,
         revision: launchRevision,
         allowBlankPackage: !loadedSongReadyRef.current && !launchRevision,
+        allowDraftPreview: navBasePath === "/student",
       });
       setLessonReadiness(freshSongLaunch.readiness);
       if (!freshSongLaunch.readiness.canLaunch) {
@@ -12776,7 +12838,7 @@ export default function LessonBuilderClient({
     }
   }
 
-  async function handleSaveToSupabase(options: { showNotice?: boolean } = {}) {
+  async function handleSaveToSupabase(options: { showNotice?: boolean; intent?: "draft" | "publish" } = {}) {
     const { showNotice = false } = options;
 
     if (!selectedSongStorage) {
@@ -12808,6 +12870,7 @@ export default function LessonBuilderClient({
       if (!activityKey) {
         throw new Error("The selected song activity identity is missing; reload the lesson before saving.");
       }
+      const intent = options.intent ?? (navBasePath === "/student" || isDemoMode ? "draft" : "publish");
 
       const saveEditGeneration = editGenerationRef.current;
 
@@ -12831,7 +12894,13 @@ export default function LessonBuilderClient({
             authoredClock,
             timelineSidecar.stopAtSeconds,
             authoredEquationQueue,
-            { forPublish: true, activityKey },
+            {
+              forPublish: intent === "publish",
+              activityKey,
+              ...(numberBondSequenceV1?.songAssetId === selectedSongStorage.id && activityKey === "number-bonds"
+                ? { numberBondSequenceV1: numberBondSequenceV1.sequence }
+                : {}),
+            },
           )
         : null;
 
@@ -12862,6 +12931,19 @@ export default function LessonBuilderClient({
         throw new Error("The selected song activity does not have a complete save package.");
       }
 
+      if (isDemoMode) {
+        saveDemoLessonDraft(window.localStorage, selectedSongStorage.id, activityKey, {
+          chart: chartText,
+          sidecar: sidecarJson,
+        });
+        originalChartFileRef.current = chartText;
+        setChartFile(chartText);
+        setStoreSidecar(sidecarToPersist as StoreSidecarPayload);
+        setHasUnsavedChanges(false);
+        setSaveStatus("Saved for this demo on this device. It has not been published.");
+        return { authorId: null, revision: null, localOnly: true };
+      }
+
       appendSongFlowDebug("lesson-builder:save:start", "Saving edited chart and sidecar back to Supabase.", {
         songAssetId: selectedSongStorage.id,
         chartPath: selectedSongStorage.chart.path,
@@ -12870,21 +12952,25 @@ export default function LessonBuilderClient({
         sidecarEventCount: timelineSidecar.events.length,
       });
 
-      const publicationRequestId = publicationRequestIdRef.current ?? crypto.randomUUID();
+      const publicationRequestId = intent === "publish"
+        ? publicationRequestIdRef.current ?? crypto.randomUUID()
+        : null;
       publicationRequestIdRef.current = publicationRequestId;
       const response = await fetch("/api/lesson-builder/save", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Idempotency-Key": publicationRequestId,
+          ...(publicationRequestId ? { "Idempotency-Key": publicationRequestId } : {}),
         },
         body: JSON.stringify({
+          intent,
           songAssetId: selectedSongStorage.id,
           activityKey,
-          authorId: lastSavedAuthorId ?? selectedSongAuthorId ?? undefined,
-          authorName: selectedSongAuthorName ?? undefined,
+          authorId: navBasePath.startsWith("/admin/users/")
+            ? navBasePath.slice("/admin/users/".length).split("/")[0]
+            : lastSavedAuthorId ?? undefined,
           revision: lastSavedRevision ?? undefined,
-          publicationRequestId,
+          ...(publicationRequestId ? { publicationRequestId } : {}),
           chart: selectedRhythmSource
             ? undefined
             : {
@@ -12914,9 +13000,12 @@ export default function LessonBuilderClient({
 
       const result = (await response.json().catch(() => null)) as {
         error?: string;
+        status?: "draft" | "ready";
+        previewable?: boolean;
         chart?: { bucket?: string; path?: string };
         sidecar?: { bucket?: string; path?: string };
         authorId?: string;
+        authorName?: string | null;
         revision?: string;
       } | null;
 
@@ -12942,6 +13031,8 @@ export default function LessonBuilderClient({
       if (publishedCurrentSnapshot && workspaceSource) deletePlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
       setLastSavedAuthorId(result.authorId);
       setLastSavedRevision(result.revision);
+      setSelectedSongAuthorId(result.authorId);
+      setSelectedSongAuthorName(result.authorName ?? null);
       setSelectedRhythmSource(null);
 
       if (
@@ -12951,6 +13042,35 @@ export default function LessonBuilderClient({
         !result?.sidecar?.bucket
       ) {
         throw new Error("Saved files could not be verified");
+      }
+
+      try {
+        const rawSelectedSong = window.sessionStorage.getItem("ultrarapid_selected_song");
+        if (rawSelectedSong) {
+          const selectedSong = JSON.parse(rawSelectedSong) as SelectedSongPayload;
+          if (selectedSong.id === selectedSongStorage.id) {
+            window.sessionStorage.setItem("ultrarapid_selected_song", JSON.stringify({
+              ...selectedSong,
+              authorId: result.authorId,
+              authorName: result.authorName ?? null,
+              revision: result.revision,
+              chart: {
+                ...selectedSong.chart,
+                bucket: result.chart.bucket,
+                path: savedChartPath,
+              },
+              sidecar: selectedSong.sidecar
+                ? {
+                    ...selectedSong.sidecar,
+                    bucket: result.sidecar.bucket,
+                    path: savedSidecarPath,
+                  }
+                : null,
+            }));
+          }
+        }
+      } catch {
+        // The server save is authoritative; a later reload can still select the personal draft.
       }
 
       setSelectedSongStorage((current) =>
@@ -12985,19 +13105,30 @@ export default function LessonBuilderClient({
       if (publishedCurrentSnapshot) {
         setChartFile(chartText);
         setStoreSidecar(sidecarToPersist as StoreSidecarPayload);
-        setSaveStatus(studentCopy.editor.changesSaved);
+        setSaveStatus(intent === "publish"
+          ? studentCopy.editor.changesSaved
+          : "Personal draft saved. Only you can preview it until a teacher publishes it.");
         setHasUnsavedChanges(false);
       } else {
         setSaveStatus(studentCopy.editor.newerChangesRemain);
         setHasUnsavedChanges(true);
       }
       publicationRequestIdRef.current = null;
-      setLessonReadiness({
-        state: "ready",
-        source: "authored",
-        canLaunch: true,
-        message: "Your saved lesson is ready to play.",
-      });
+      setLessonReadiness(result.previewable
+        ? {
+            state: "ready",
+            source: "authored",
+            canLaunch: true,
+            message: intent === "publish"
+              ? "Your published lesson is ready to play."
+              : "Your personal draft is ready for you to preview.",
+          }
+        : {
+            state: "repairable",
+            source: "authored",
+            canLaunch: false,
+            message: "Your personal draft is saved. Finish the lesson before previewing it.",
+          });
 
       if (showNotice) {
         const activityLabel = getActivityLabel(activityKey);
@@ -13221,6 +13352,7 @@ export default function LessonBuilderClient({
   }
 
   function hydrateSelectedSong(selectedSong: SelectedSongPayload) {
+    setNumberBondSequenceV1(null);
     const generation = ++lessonLoadGenerationRef.current;
     lessonLoadAbortRef.current?.abort();
     const controller = new AbortController();
@@ -13453,6 +13585,7 @@ export default function LessonBuilderClient({
           authorName: selectedSong.authorName ?? null,
           revision,
           allowBlankPackage: false,
+          allowDraftPreview: navBasePath === "/student",
           rhythmDifficultyKey: selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key ?? undefined,
         });
         if (fresh.revision !== revision) {
@@ -13480,16 +13613,22 @@ export default function LessonBuilderClient({
           },
         );
 
-        if (!chart.trim()) {
+        const demoDraft = isDemoMode
+          ? readDemoLessonDraft(window.localStorage, selectedSong.id, resolvedActivityKey)
+          : null;
+        const hydratedChart = demoDraft?.chart ?? chart;
+        const hydratedSidecar = demoDraft ? JSON.parse(demoDraft.sidecar) : sidecar;
+
+        if (!hydratedChart.trim()) {
           throw new Error(
             "We could not load the original lesson file. Your current work is still here.",
           );
         }
-        validateLessonContent(chart, JSON.stringify(sidecar), { forSave: true });
+        validateLessonContent(hydratedChart, JSON.stringify(hydratedSidecar), { forSave: true });
         const nextChartName = selectedSong.chart.path.split("/").pop() ?? "selected.chart";
         const normalizedSidecar = mergeTimelineSidecarSources(
-          sidecar ?? emptySidecar,
-          chart,
+          hydratedSidecar ?? emptySidecar,
+          hydratedChart,
           selectedSongMetadata,
         );
         const sidecarActivityKey = normalizeSongActivityKey(
@@ -13503,10 +13642,10 @@ export default function LessonBuilderClient({
           });
         }
 
-        originalChartFileRef.current = chart;
-        setChartFile(chart);
+        originalChartFileRef.current = hydratedChart;
+        setChartFile(hydratedChart);
         setUploadedChartName(nextChartName);
-        loadSidecarIntoTimeline(normalizedSidecar, null, [], [], "event", chart);
+        loadSidecarIntoTimeline(normalizedSidecar, null, [], [], "event", hydratedChart);
         setPendingSongFile(audio);
         if (retried) {
           setSelectedSongLaunch((current) => current ? {
@@ -13518,7 +13657,7 @@ export default function LessonBuilderClient({
         }
         loadedSongReadyRef.current = true;
         setIsLessonLoaded(true);
-        setSaveStatus(studentCopy.editor.lessonLoaded);
+        setSaveStatus(demoDraft ? "Restored your local demo draft." : studentCopy.editor.lessonLoaded);
         setLessonReadiness({
           state: "ready",
           source: "authored",
@@ -13551,6 +13690,15 @@ export default function LessonBuilderClient({
 
   function savePrivateDraft() {
     try {
+      if (isDemoMode && selectedSongStorage) {
+        const activityKey = selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null;
+        if (activityKey) {
+          saveDemoLessonDraft(window.localStorage, selectedSongStorage.id, activityKey, {
+            chart: chartFile || originalChartFileRef.current,
+            sidecar: JSON.stringify(sidecarFromTimelineEvents(timelineEvents, true)),
+          });
+        }
+      }
       if (workspaceSource && typeof window !== "undefined") {
         writePlayerLessonWorkspaceDraft(sessionStorage, {
           version: 1,
@@ -13573,11 +13721,13 @@ export default function LessonBuilderClient({
   async function handlePublishChanges(options: { showNotice?: boolean } = {}) {
     if (!lessonPublishReadiness.ready) {
       const blocker = lessonPublishReadiness.blockers[0];
-      savePrivateDraft();
+      const saved = navBasePath === "/student"
+        ? await handleSaveToSupabase({ ...options, intent: "draft" })
+        : savePrivateDraft();
       if (blocker.encounterId) handleSelectReadinessEncounter(blocker.encounterId, blocker.code);
       else setIsReadinessOpen(true);
-      setSaveStatus(`${studentCopy.editor.draftSaved} ${blocker.message} ${blocker.nextAction}`);
-      return false;
+      setSaveStatus(`${saved ? studentCopy.editor.draftSaved : studentCopy.editor.draftRecoveryFailed} ${blocker.message} ${blocker.nextAction}`);
+      return saved;
     }
 
     return handleSaveToSupabase(options);
@@ -15044,10 +15194,17 @@ export default function LessonBuilderClient({
           void handlePublishChanges({ showNotice: true });
         }}
         onSaveDraft={() => {
-          savePrivateDraft();
+          if (isDemoMode) savePrivateDraft();
+          else void handleSaveToSupabase({ showNotice: true, intent: "draft" });
         }}
+        canSaveDraft={Boolean(selectedSongStorage) && isLessonLoaded && !loadError}
+        saveActionLabel={isDemoMode
+          ? "Save demo changes"
+          : navBasePath === "/student"
+            ? "Save personal draft"
+            : "Publish official lesson"}
         canLaunch={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && (lessonPublishReadiness.ready || isNumberBondsActivity)}
-        canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
+        canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && (isDemoMode || navBasePath === "/student" || lessonPublishReadiness.ready)}
         isRctm1Mode={isRctm1Mode}
         isRctm2Mode={isRctm2Mode}
         hideChartmaker={isGuidedStart}

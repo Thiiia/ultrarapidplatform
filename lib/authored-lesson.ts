@@ -10,6 +10,7 @@ import {
   resolveAuthoredHitPadSlot,
   resolveAuthoredHitPadTarget,
 } from "./authored-hit-pad-layout";
+import { validateNumberBondSequenceV1 } from "./number-bonds-authored-sequence";
 
 export const AUTHORED_LESSON_VERSION = 3 as const;
 
@@ -45,6 +46,17 @@ export type AuthoredLessonEquation = {
   tokens?: AuthoredLessonToken[];
 };
 
+export type AuthoredLessonNumberBondGem = {
+  gemId: string;
+  unitIndex: number;
+  spinEncounterId: string;
+  dragEncounterId: string;
+  destination: {
+    part: "part-a" | "part-b";
+    slotIndex: number;
+  };
+};
+
 export type AuthoredLessonEncounter = {
   id: string;
   eventId: string;
@@ -67,6 +79,8 @@ export type AuthoredLessonPayload = {
   stopAtSeconds?: number;
   equations: AuthoredLessonEquation[];
   encounters: AuthoredLessonEncounter[];
+  numberBondSequenceVersion?: 1;
+  numberBondGems?: AuthoredLessonNumberBondGem[];
 };
 
 export type AuthoredLessonDraft = Omit<AuthoredLessonPayload, "authorId" | "revision"> & {
@@ -507,7 +521,7 @@ export function validateAuthoredLessonPlayability(
 
 export function parseAuthoredLessonDraft(
   value: unknown,
-  options: { requirePublishedIdentity?: boolean; activityKey?: string | null } = {},
+  options: { requirePublishedIdentity?: boolean; activityKey?: string | null; allowEmpty?: boolean } = {},
 ): AuthoredLessonDraft {
   if (!value || typeof value !== "object") {
     throw new Error("Authored lesson payload must be an object");
@@ -575,6 +589,44 @@ export function parseAuthoredLessonDraft(
       ...(type === "drag" ? { dragTargets: targets ?? [] } : {}),
     };
   }) : (() => { throw new Error("Authored lesson encounters must be an array"); })();
+  const hasSequenceVersion = Object.prototype.hasOwnProperty.call(payload, "numberBondSequenceVersion");
+  const hasSequenceGems = Object.prototype.hasOwnProperty.call(payload, "numberBondGems");
+  if (hasSequenceVersion !== hasSequenceGems) {
+    throw new Error("Number Bonds sequence v1 requires both numberBondSequenceVersion and numberBondGems");
+  }
+  let numberBondGems: AuthoredLessonNumberBondGem[] | undefined;
+  if (hasSequenceVersion) {
+    if (payload.numberBondSequenceVersion !== 1) {
+      throw new Error(`Unsupported Number Bonds sequence version '${String(payload.numberBondSequenceVersion)}'`);
+    }
+    if (!Array.isArray(payload.numberBondGems)) {
+      throw new Error("Number Bonds sequence numberBondGems must be an array");
+    }
+    numberBondGems = payload.numberBondGems.map((value, index) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new Error(`Number Bonds sequence numberBondGems[${index}] must be an object`);
+      }
+      const gem = value as Record<string, unknown>;
+      if (!gem.destination || typeof gem.destination !== "object" || Array.isArray(gem.destination)) {
+        throw new Error(`Number Bonds sequence numberBondGems[${index}].destination must be an object`);
+      }
+      const destination = gem.destination as Record<string, unknown>;
+      const part = destination.part;
+      if (part !== "part-a" && part !== "part-b") {
+        throw new Error(`Number Bonds sequence numberBondGems[${index}].destination.part is invalid`);
+      }
+      return {
+        gemId: requireString(gem.gemId, `numberBondGems[${index}].gemId`),
+        unitIndex: requireTick(gem.unitIndex, `numberBondGems[${index}].unitIndex`),
+        spinEncounterId: requireString(gem.spinEncounterId, `numberBondGems[${index}].spinEncounterId`),
+        dragEncounterId: requireString(gem.dragEncounterId, `numberBondGems[${index}].dragEncounterId`),
+        destination: {
+          part,
+          slotIndex: requireTick(destination.slotIndex, `numberBondGems[${index}].destination.slotIndex`),
+        },
+      };
+    });
+  }
   const result: AuthoredLessonDraft = {
     version: AUTHORED_LESSON_VERSION,
     mode: "authored",
@@ -589,6 +641,7 @@ export function parseAuthoredLessonDraft(
         : (() => { throw new Error("Authored lesson stopAtSeconds must be a non-negative number"); })()),
     equations,
     encounters,
+    ...(hasSequenceVersion ? { numberBondSequenceVersion: 1 as const, numberBondGems: numberBondGems! } : {}),
   };
   if (options.requirePublishedIdentity && (!result.authorId || !result.revision)) {
     throw new Error("Authored lesson published launch requires authorId and revision");
@@ -656,7 +709,8 @@ export function parseAuthoredLessonDraft(
     }
   }
   validateRuntimeConcurrency(result.encounters, options.activityKey ?? result.activityKey);
-  if (result.equations.length === 0 && result.encounters.length === 0) {
+  validateNumberBondSequenceV1(result);
+  if (!options.allowEmpty && result.equations.length === 0 && result.encounters.length === 0) {
     throw new Error("Authored lesson contains no equations or encounters");
   }
   return result;
