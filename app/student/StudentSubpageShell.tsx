@@ -448,13 +448,7 @@ export default function StudentSubpageShell({
       <HeaderBar pathname={pathname} topTabs={topTabs} navBasePath={navBasePath} />
 
       <DashboardSection title={title}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: 15,
-          }}
-        >
+        <div className={styles.subpageCardGrid}>
           {cards.map((card) => (
             <PlaceholderCard
               key={card.title}

@@ -48,11 +48,12 @@ test("header exposes Play wired to launch, disabled during save or without a son
   assert.equal(launches, 1);
 });
 
-for (const saveFails of [false, true]) test(`launch publishes a draft only when publication succeeds; saveFails=${saveFails}`, async () => {
+for (const saveFails of [false, true]) test(`student launch previews its saved personal draft only when save succeeds; saveFails=${saveFails}`, async () => {
   const requests: Array<Record<string, unknown>> = [];
   const routes: string[] = [];
   const launch = load("handleLaunchGame", {
     isNumberBondsActivity: false,
+    isDemoMode: false,
     selectedSongLaunch: {songAssetId: "song", activityKey: "early-algebra", authorName: "dev"},
     lastSavedAuthorId: "old-author", lastSavedRevision: "old-revision", isSaving: false, hasUnsavedChanges: true,
     lessonPublishReadiness: {ready: true, blockers: []},
@@ -63,7 +64,7 @@ for (const saveFails of [false, true]) test(`launch publishes a draft only when 
       return {songAssetId: "song", activityKey: "early-algebra", chart: {signedUrl: "chart"},
         sidecar: {signedUrl: "sidecar"}, audio: {signedUrl: "audio"}, readiness: {canLaunch: true, state: "ready", message: ""}, ...request};
     },
-    createSongLaunchSearchParams: () => new URLSearchParams(), navBasePath: "/demo/student",
+    createSongLaunchSearchParams: () => new URLSearchParams(), navBasePath: "/student",
     buildEmbeddedGameUrl: () => "game", process: {env: {}}, appendSongFlowDebug: () => {},
     getPlayerLaunchRoute: (basePath: string) => `${basePath}/game`,
     persistLaunchParams: () => {}, router: {push: (route: string) => routes.push(route)}, setSaveStatus: () => {},
@@ -86,6 +87,7 @@ test("launches a published template without asking it to save again", async () =
   let saves = 0;
   const launch = load("handleLaunchGame", {
     isNumberBondsActivity: false,
+    isDemoMode: false,
     selectedSongLaunch: {songAssetId: "song", activityKey: "early-algebra", authorName: "dev"},
     selectedSongAuthorId: "template-author", lastSavedAuthorId: null, lastSavedRevision: "template-revision",
     isSaving: false, hasUnsavedChanges: false,
@@ -96,7 +98,7 @@ test("launches a published template without asking it to save again", async () =
       requests.push(request);
       return {songAssetId: "song", activityKey: "early-algebra", chart: {signedUrl: "chart"}, sidecar: {signedUrl: "sidecar"}, audio: {signedUrl: "audio"}, readiness: {canLaunch: true, state: "ready", message: ""}, ...request};
     },
-    createSongLaunchSearchParams: () => new URLSearchParams(), navBasePath: "/demo/student",
+    createSongLaunchSearchParams: () => new URLSearchParams(), navBasePath: "/student",
     buildEmbeddedGameUrl: () => "game", process: {env: {}}, appendSongFlowDebug: () => {},
     getPlayerLaunchRoute: (basePath: string) => `${basePath}/game`,
     persistLaunchParams: () => {}, router: {push: () => {}}, setSaveStatus: () => {},
@@ -108,10 +110,11 @@ test("launches a published template without asking it to save again", async () =
   assert.equal(requests[0].revision, "template-revision");
 });
 
-test("incomplete lesson saves locally but never calls publish", async () => {
+test("incomplete demo lesson saves locally but never calls server publish", async () => {
   let publishRequests = 0;
   let saveStatus = "";
   const publish = load("handlePublishChanges", {
+    navBasePath: "/demo/student",
     lessonPublishReadiness: {
       ready: false,
       blockers: [{ encounterId: "spin-1", code: "spin_target_required", message: "Spin 1 needs a target.", nextAction: "Select the token to spin." }],
@@ -122,7 +125,7 @@ test("incomplete lesson saves locally but never calls publish", async () => {
     handleSaveToSupabase: async () => { publishRequests += 1; return false; },
   });
   const result = await publish({});
-  assert.equal(result, false);
+  assert.equal(result, true, "a successful local draft save is reported as successful");
   assert.equal(publishRequests, 0);
   assert.match(saveStatus, /Spin 1 needs a target/);
 });

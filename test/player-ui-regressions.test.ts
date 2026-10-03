@@ -33,6 +33,19 @@ test("embedded Unity grants fullscreen without a duplicate iframe permission", (
   assert.match(gameEmbed, /allowFullScreen/);
 });
 
+test("the player handoff uses the shared response timings and a reduced-motion fallback", () => {
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+  const studentStyles = source("app/student/student.module.css");
+
+  assert.match(gameEmbed, /className=\{styles\.gameFrame\}/);
+  assert.match(studentStyles, /\.gamePreparingPulse[\s\S]{0,500}var\(--ur-motion-duration-ambient\)/);
+  assert.match(studentStyles, /\.gameFrame[\s\S]{0,500}var\(--ur-motion-duration-transition\)/);
+  assert.match(
+    studentStyles,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.gamePreparingPulse[\s\S]*\.gameFrame/,
+  );
+});
+
 test("game embed waits for the verified bridge and reports result-sync failures", () => {
   const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
 
@@ -40,6 +53,19 @@ test("game embed waits for the verified bridge and reports result-sync failures"
   assert.match(gameEmbed, /calibrationStatus !== "loading"/);
   assert.match(gameEmbed, /studentCopy\.game\.syncAgain/);
   assert.match(gameEmbed, /studentCopy\.game\.resultSyncFailed/);
+});
+
+test("authenticated Return terminalizes the launch before detaching the Unity iframe", () => {
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+  const returnRoute = source("app/api/player-launch-attempts/return/route.ts");
+  const outcomes = source("app/api/player-outcomes/route.ts");
+
+  assert.match(gameEmbed, /if \(cancelled \|\| terminalAttemptRef\.current\) return;/);
+  assert.match(gameEmbed, /iframeRef\.current\.src = "about:blank"/);
+  assert.match(gameEmbed, /\/api\/player-launch-attempts\/return/);
+  assert.match(gameEmbed, /window\.removeEventListener\("message", onMessage\)/);
+  assert.match(returnRoute, /returnPlayerLaunchAttempt/);
+  assert.match(outcomes, /persistPlayerRunOutcome/);
 });
 
 test("the demo game keeps calibration and completion state local instead of calling private player APIs", () => {
@@ -285,4 +311,12 @@ test("Number Bonds authoring can generate catch cues from a chosen catalogue bon
   assert.match(generator, /serializeAuthoredLesson\(/);
   assert.match(generator, /NUMBER_BONDS_TIMING_POLICY\.minimumHitSpacingSeconds/);
   assert.match(generator, /NUMBER_BONDS_TIMING_POLICY\.finalInteractionTailSeconds/);
+});
+
+test("integrated Algebra draft controls remain exclusive and use the actual save intent", () => {
+  const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+  assert.match(builder, /onSaveDraft && !isAlgebraStudio \? \(/);
+  assert.match(builder, /isAlgebraStudio && onSaveDraft \? \(/);
+  assert.match(builder, /isSaving \? "Saving…" : saveActionLabel/);
+  assert.match(builder, /saved \? studentCopy\.editor\.draftSaved : studentCopy\.editor\.draftRecoveryFailed/);
 });

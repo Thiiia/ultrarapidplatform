@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { platformSecurityHeaders } from "./lib/security-headers";
 
 const nextConfig: NextConfig = {
   turbopack: {
@@ -12,6 +13,10 @@ const nextConfig: NextConfig = {
 
   async headers() {
     return [
+      {
+        source: "/(.*)",
+        headers: platformSecurityHeaders.map((header) => ({ ...header })),
+      },
       {
         source: "/unity/Build/:file(.*\\.wasm\\.unityweb)",
         headers: [{ key: "Content-Type", value: "application/wasm" }],

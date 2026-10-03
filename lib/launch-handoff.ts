@@ -69,13 +69,13 @@ export function resolveEmbeddedCalibrationLaunchSnapshot(
   status: "loading" | "required" | "ready",
   calibrationOffsetMs: number | null,
 ): EmbeddedCalibrationLaunchSnapshot | null {
-  if (!bridgeNonce || status === "loading") {
-    return current;
-  }
+  if (!bridgeNonce) return null;
 
   if (current?.bridgeNonce === bridgeNonce) {
     return current;
   }
+
+  if (status === "loading") return null;
 
   if (
     status === "ready" &&

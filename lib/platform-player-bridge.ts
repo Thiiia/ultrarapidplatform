@@ -68,7 +68,7 @@ const AlgebraMissionStepSchema = z.object({
   operation: z.string().max(64),
   equationProgress: z.number().finite().min(0).max(1),
   performanceOutcomes: z.array(z.enum(["perfect", "good", "early", "late", "miss"])).max(32),
-  recordedAtUtc: z.string().min(1).max(40),
+  recordedAtUtc: z.string().datetime().max(40),
 }).strict();
 export type AlgebraMissionStep = z.infer<typeof AlgebraMissionStepSchema>;
 

@@ -1,0 +1,61 @@
+{
+  "completionVersion": 3,
+  "outcome": "completed",
+  "completedEvents": 1,
+  "requiredEvents": 1,
+  "solvedSets": 1,
+  "hitAttempts": 2,
+  "missionSteps": [
+    {
+      "recordType": "authored-judgement",
+      "equationId": "eq_001",
+      "encounterId": "enc_hit_001",
+      "mechanic": "hit",
+      "stepIndex": 1,
+      "slotIndex": 0,
+      "judgement": "perfect",
+      "hasTimingError": true,
+      "signedErrorMs": -12,
+      "fromEquation": "3x + 6 = 18",
+      "toEquation": "3x + 6 = 18",
+      "operation": "",
+      "equationProgress": 0,
+      "performanceOutcomes": [],
+      "recordedAtUtc": "2026-09-25T12:00:00.000Z"
+    },
+    {
+      "recordType": "equation-transition",
+      "equationId": "eq_001",
+      "encounterId": "",
+      "mechanic": "equation",
+      "stepIndex": 1,
+      "slotIndex": -1,
+      "judgement": "none",
+      "hasTimingError": false,
+      "signedErrorMs": 0,
+      "fromEquation": "3x + 6 = 18",
+      "toEquation": "3x = 12",
+      "operation": "SubtractConstant",
+      "equationProgress": 0.5,
+      "performanceOutcomes": ["perfect", "good"],
+      "recordedAtUtc": "2026-09-25T12:00:01.000Z"
+    },
+    {
+      "recordType": "performance",
+      "equationId": "eq_001",
+      "encounterId": "enc_drag_001",
+      "mechanic": "drag",
+      "stepIndex": 2,
+      "slotIndex": 0,
+      "judgement": "good",
+      "hasTimingError": false,
+      "signedErrorMs": 0,
+      "fromEquation": "3x = 12",
+      "toEquation": "x = 4",
+      "operation": "DivideCoefficient",
+      "equationProgress": 1,
+      "performanceOutcomes": ["good"],
+      "recordedAtUtc": "2026-09-25T12:00:02.000Z"
+    }
+  ]
+}

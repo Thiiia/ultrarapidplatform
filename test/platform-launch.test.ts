@@ -19,6 +19,16 @@ type PlatformLaunchModule = {
     revision?: string;
     receipt?: { receiptVersion: 1; songAssetId: string; activityKey: string; authorId: string; revision?: string };
   }) => URLSearchParams;
+  createSongLaunchNavigationParams?: (input: {
+    songAssetId: string;
+    activityKey: string;
+    authorId?: string;
+    revision?: string;
+    launchAttemptId?: string;
+    rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
+    learningDifficultyKey?: string | null;
+    source?: "authored" | "starter-template";
+  }) => URLSearchParams;
 };
 
 async function loadPlatformLaunchModule(): Promise<PlatformLaunchModule | null> {
@@ -94,6 +104,34 @@ test("forwards a selected song package from the platform iframe to Unity", async
     authorId: "author-7",
     revision: "rev-7",
   });
+});
+
+test("browser navigation carries launch identity without short-lived storage credentials", async () => {
+  const platformLaunch = await loadPlatformLaunchModule();
+
+  assert.equal(
+    typeof platformLaunch?.createSongLaunchNavigationParams,
+    "function",
+    "platform-launch must expose a browser-safe navigation handoff",
+  );
+
+  const navigationParams = platformLaunch!.createSongLaunchNavigationParams!({
+    songAssetId: "song-123",
+    activityKey: "number-bonds",
+    authorId: "author-7",
+    revision: "rev-7",
+    launchAttemptId: "00000000-0000-4000-8000-000000000007",
+    rhythmDifficultyKey: "HardSingle",
+    source: "authored",
+  });
+
+  assert.equal(
+    navigationParams.toString(),
+    "launch=PlayNow&songAssetId=song-123&activityKey=number-bonds&authorId=author-7&revision=rev-7&launchAttemptId=00000000-0000-4000-8000-000000000007&rhythmDifficultyKey=HardSingle&source=authored",
+  );
+  for (const key of ["chartUrl", "audioUrl", "sidecarUrl", "receipt", "receiptJson"]) {
+    assert.equal(navigationParams.has(key), false, `${key} must stay out of the browser navigation URL`);
+  }
 });
 
 test("editor PlayNow chain preserves the complete identity through the embedded game URL", async () => {

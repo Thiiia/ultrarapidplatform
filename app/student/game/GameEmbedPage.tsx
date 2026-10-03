@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FC, SVGProps } from "react";
 // import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { resolveEmbeddedCalibrationLaunchSnapshot, resolveLaunchParams, type EmbeddedCalibrationLaunchSnapshot } from "@/lib/launch-handoff";
@@ -10,6 +10,7 @@ import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 import { createBridgeContext, getOrCreateInstallationId, parseCalibrationState, PlatformPlayerCompletionSchema, validateBridgeMessage, type BridgeContext, type CalibrationState, type PlatformPlayerCompletion } from "@/lib/platform-player-bridge";
 import { getSongLaunchErrorMessage } from "@/lib/song-choice-flow";
 import { requestFreshSongLaunchParams } from "@/lib/song-launch-client";
+import { getUnityGameUrl } from "@/lib/unity-game-url";
 import { studentCopy } from "@/lib/student-copy";
 import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigation";
 import { webglFlexFrameStyle, webglViewportHostStyle } from "@/lib/webgl-embed-layout";
@@ -27,8 +28,7 @@ import ProgressTab from "@/public/header_icons/progress_tab.svg";
 /* Utility Icon Imports */
 import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
 
-const GAME_URL =
-  process.env.NEXT_PUBLIC_GAME_URL ?? "https://ultrarapidtest.netlify.app/";
+const GAME_URL = getUnityGameUrl();
 const DemoCalibrationStoragePrefix = "ultrarapid-demo-calibration-v2:";
 
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
@@ -143,7 +143,7 @@ function HeaderBar({
   ];
   return (
     <header
-      className="experience-role-header"
+      className="experience-role-header experience-role-header--wide-nav"
       style={{
         background: headerBackgroundColor,
         width: "100%",
@@ -357,6 +357,9 @@ function GameEmbedSession({
   const [bridgeStatusMessage, setBridgeStatusMessage] = useState("");
   const [pendingOutcome, setPendingOutcome] = useState<PendingOutcome | null>(null);
   const [outcomeSyncState, setOutcomeSyncState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [returnSyncState, setReturnSyncState] = useState<"idle" | "saving" | "failed">("idle");
+  const returnReceiptRef = useRef<BridgeContext["receipt"] | null>(null);
+  const terminalAttemptRef = useRef(false);
   const acceptedOutcomeAttemptIdRef = useRef("");
   const isDemoMode = navBasePath.startsWith("/demo/");
 
@@ -396,17 +399,6 @@ function GameEmbedSession({
 
   const iframeCalibrationLaunchStateMatches =
     Boolean(bridgeContext) && iframeCalibrationLaunchState?.bridgeNonce === bridgeContext?.nonce;
-  if (bridgeContext && calibrationStatus !== "loading" && !iframeCalibrationLaunchStateMatches) {
-    const snapshot = resolveEmbeddedCalibrationLaunchSnapshot(
-      null,
-      bridgeContext.nonce,
-      calibrationStatus,
-      calibration?.offsetMs ?? null,
-    );
-    if (snapshot) {
-      setIframeCalibrationLaunchState({ bridgeNonce: bridgeContext.nonce, snapshot });
-    }
-  }
   const iframeCalibrationLaunchSnapshot = iframeCalibrationLaunchStateMatches
     ? iframeCalibrationLaunchState?.snapshot ?? null
     : resolveEmbeddedCalibrationLaunchSnapshot(
@@ -415,6 +407,33 @@ function GameEmbedSession({
         calibrationStatus,
         calibration?.offsetMs ?? null,
       );
+
+  if (bridgeContext && iframeCalibrationLaunchSnapshot && !iframeCalibrationLaunchStateMatches) {
+    setIframeCalibrationLaunchState({
+      bridgeNonce: bridgeContext.nonce,
+      snapshot: iframeCalibrationLaunchSnapshot,
+    });
+  }
+
+  const handleAttemptReturn = useCallback(async (receipt: BridgeContext["receipt"]) => {
+    terminalAttemptRef.current = true;
+    returnReceiptRef.current = receipt;
+    setReturnSyncState("saving");
+    if (iframeRef.current) iframeRef.current.src = "about:blank";
+    try {
+      const response = await fetch("/api/player-launch-attempts/return", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ receipt }),
+        keepalive: true,
+      });
+      if (!response.ok) throw new Error("launch return sync failed");
+      window.location.assign(`${navBasePath}/song-choice`);
+    } catch {
+      setReturnSyncState("failed");
+      setBridgeStatusMessage(studentCopy.game.returnSyncFailed);
+    }
+  }, [navBasePath]);
 
   useEffect(() => {
     let cancelled = false;
@@ -524,6 +543,7 @@ function GameEmbedSession({
     }
 
     const onMessage = (event: MessageEvent) => {
+      if (cancelled || terminalAttemptRef.current) return;
       if (event.source !== iframeRef.current?.contentWindow) return;
       if (event.origin !== bridgeContext.origin) return;
       const result = validateBridgeMessage(event.data, bridgeContext);
@@ -585,8 +605,12 @@ function GameEmbedSession({
         }
         setOutcomeSyncState("saving");
         setPendingOutcome({ receipt: result.message.receipt, completion });
-      } else {
+      } else if (isDemoMode) {
+        terminalAttemptRef.current = true;
+        if (iframeRef.current) iframeRef.current.src = "about:blank";
         window.location.assign(`${navBasePath}/song-choice`);
+      } else {
+        void handleAttemptReturn(result.message.receipt);
       }
     };
     window.addEventListener("message", onMessage);
@@ -594,7 +618,7 @@ function GameEmbedSession({
       cancelled = true;
       window.removeEventListener("message", onMessage);
     };
-  }, [bridgeContext, isDemoMode, navBasePath]);
+  }, [bridgeContext, handleAttemptReturn, isDemoMode, navBasePath]);
 
   useEffect(() => {
     if (isDemoMode || !pendingOutcome) return;
@@ -651,7 +675,7 @@ function GameEmbedSession({
     return getEmbeddedGameUrl(params);
   }, [activeLaunchParams, bridgeContext, calibration, calibrationStatus, iframeCalibrationLaunchSnapshot]);
 
-  const canRenderEmbeddedGame = Boolean(
+  const canRenderEmbeddedGame = returnSyncState === "idle" && Boolean(
     activeLaunchParams &&
     (!activeLaunchParams.get("receipt") || (bridgeContext && calibrationStatus !== "loading")),
   );
@@ -694,11 +718,31 @@ function GameEmbedSession({
             overflow: "hidden",
           }}
         >
-          {canRenderEmbeddedGame ? (
+          {returnSyncState !== "idle" ? (
+            <div className="experience-card" role={returnSyncState === "failed" ? "alert" : "status"} aria-live={returnSyncState === "failed" ? "assertive" : "polite"} style={{ ...webglFlexFrameStyle, display: "grid", placeItems: "center", borderRadius: 12, padding: 24, boxSizing: "border-box", textAlign: "center" }}>
+              <div style={{ display: "grid", gap: 14, justifyItems: "center", maxWidth: 460 }}>
+                <strong>{returnSyncState === "saving" ? studentCopy.game.returning : studentCopy.game.returnSyncFailed}</strong>
+                {returnSyncState === "saving" ? null : (
+                  <button
+                    type="button"
+                    className="experience-button"
+                    onClick={() => {
+                      const receipt = returnReceiptRef.current;
+                      if (receipt) void handleAttemptReturn(receipt);
+                    }}
+                    style={{ border: "none", borderRadius: 999, background: "var(--ur-accent-lime)", color: "var(--ur-canvas-deep)", padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}
+                  >
+                    {studentCopy.game.retryReturn}
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : canRenderEmbeddedGame ? (
             <iframe
-      ref={iframeRef}
-      src={embeddedGameUrl}
-      title="UltraRapid Game"
+              ref={iframeRef}
+              src={embeddedGameUrl}
+              title="UltraRapid Game"
+              className={styles.gameFrame}
               allow="gamepad; autoplay"
               allowFullScreen
               style={{

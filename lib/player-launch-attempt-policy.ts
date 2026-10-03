@@ -15,3 +15,23 @@ export function shouldCreatePlayerLaunchAttempt(input: {
     && input.hasReceipt
     && input.hasLaunchAttemptId;
 }
+
+export function canRefreshPlayerLaunchAttempt(status: string): boolean {
+  return status === "active";
+}
+
+export function parsePlayerLaunchRefreshRequest(
+  refreshOnly: unknown,
+  launchAttemptId: unknown,
+): { ok: true; launchAttemptId: string | null } | { ok: false } {
+  const normalizedId = typeof launchAttemptId === "string" ? launchAttemptId.trim() : "";
+  if (refreshOnly === true) {
+    return normalizedId
+      ? { ok: true, launchAttemptId: normalizedId }
+      : { ok: false };
+  }
+
+  return normalizedId
+    ? { ok: false }
+    : { ok: true, launchAttemptId: null };
+}
