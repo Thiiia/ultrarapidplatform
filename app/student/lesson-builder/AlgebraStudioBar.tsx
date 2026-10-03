@@ -31,7 +31,7 @@ export function AlgebraStudioBar({
     <div className={styles.studioBar} aria-label="Early Algebra studio">
       <div className={styles.studioMark} aria-hidden="true"><span>×</span><span>+</span></div>
       <div className={styles.studioTitle}>
-        <span>EARLY ALGEBRA · LESSON STUDIO</span>
+        <span>YOUR LESSON</span>
         <strong>{songTitle}</strong>
       </div>
       <div className={styles.studioCounts} aria-label="Lesson contents">
