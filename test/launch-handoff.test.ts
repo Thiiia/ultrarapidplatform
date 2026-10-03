@@ -80,3 +80,10 @@ test('fresh calibration does not reload the active iframe before Unity Continue'
     calibrationOffsetMs: -37,
   });
 });
+
+test('a pending new launch cannot inherit another nonce calibration snapshot', () => {
+  const previous = resolveEmbeddedCalibrationLaunchSnapshot(null, 'launch-a', 'ready', -37);
+  assert.equal(resolveEmbeddedCalibrationLaunchSnapshot(previous, 'launch-b', 'loading', null), null);
+  assert.equal(resolveEmbeddedCalibrationLaunchSnapshot(previous, null, 'ready', -37), null);
+  assert.equal(resolveEmbeddedCalibrationLaunchSnapshot(previous, 'launch-a', 'loading', null), previous);
+});

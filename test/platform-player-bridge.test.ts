@@ -247,6 +247,16 @@ test("version 3 completion carries bounded mission steps with stable equation an
     ...completed,
     completion: { ...completed.completion, missionSteps: completed.completion.missionSteps.slice(0, 1).map((step) => ({ ...step, equationId: "" })) },
   }, context).ok, false);
+  for (const recordedAtUtc of ["2026-02-30T12:00:00Z", "2026-09-25", "2026-09-25T12:00:00+01:00", "1234"]) {
+    assert.equal(validateBridgeMessage({
+      ...completed,
+      completion: { ...completed.completion, missionSteps: [{ ...completed.completion.missionSteps[0], recordedAtUtc }] },
+    }, context).ok, false, `${recordedAtUtc} is not a valid UTC mission timestamp`);
+  }
+  assert.equal(validateBridgeMessage({
+    ...completed,
+    completion: { ...completed.completion, missionSteps: [{ ...completed.completion.missionSteps[0], recordedAtUtc: "2026-09-25T12:00:00.1234567Z" }] },
+  }, context).ok, true, ".NET round-trip UTC timestamps remain supported");
   assert.equal(validateBridgeMessage({
     ...completed,
     completion: { ...completed.completion, missionSteps: Array.from({ length: 512 }, () => completed.completion.missionSteps[0]) },

@@ -312,3 +312,11 @@ test("Number Bonds authoring can generate catch cues from a chosen catalogue bon
   assert.match(generator, /NUMBER_BONDS_TIMING_POLICY\.minimumHitSpacingSeconds/);
   assert.match(generator, /NUMBER_BONDS_TIMING_POLICY\.finalInteractionTailSeconds/);
 });
+
+test("integrated Algebra draft controls remain exclusive and use the actual save intent", () => {
+  const builder = source("app/student/lesson-builder/LessonBuilderClient.tsx");
+  assert.match(builder, /onSaveDraft && !isAlgebraStudio \? \(/);
+  assert.match(builder, /isAlgebraStudio && onSaveDraft \? \(/);
+  assert.match(builder, /isSaving \? "Saving…" : saveActionLabel/);
+  assert.match(builder, /saved \? studentCopy\.editor\.draftSaved : studentCopy\.editor\.draftRecoveryFailed/);
+});
