@@ -5,6 +5,7 @@ import {
   NUMBER_BONDS_MIN_WHOLE,
   NUMBER_BONDS_TIMING_POLICY,
 } from "./activity-authoring-capabilities";
+import { getNumberBondValues } from "./number-bonds-authoring";
 import { parseSupportedChartSemantics, type SupportedRhythmDifficulty } from "./chart-semantics";
 import { createLessonClock } from "./editor/lesson-timing";
 import { AUTHORED_MIN_FIRST_CUE_SECONDS } from "./authored-lesson";
@@ -65,16 +66,22 @@ export type GeneratedNumberBondsLesson = {
 
 export const NUMBER_BONDS_STARTER_EQUATION_ID = "bond-5-2-3";
 
-/** A five-gem starting lesson. Try the densest rhythm first, but only return
- * content whose note spacing and final interaction tail actually fit. */
+/** A song-specific starting lesson. Try the densest rhythm first, but only
+ * return content whose note spacing and final interaction tail actually fit. */
 export function generateNumberBondsStarterLesson(
-  definition: Omit<NumberBondsLessonDefinition, "equation" | "rhythmDifficulty">,
+  definition: Omit<NumberBondsLessonDefinition, "equation" | "rhythmDifficulty"> & {
+    equation?: AuthoredSavedEquation;
+  },
 ): GeneratedNumberBondsLesson {
+  const equation = definition.equation ?? getNumberBondsCatalogueEquation(NUMBER_BONDS_STARTER_EQUATION_ID);
+  const whole = getNumberBondValues(equation)?.whole;
+  if (!whole) throw new Error("Choose a supported Number Bonds equation before generating a song template.");
+
   for (const rhythmDifficulty of ["ExpertSingle", "HardSingle", "MediumSingle", "EasySingle"] as const) {
     try {
       return generateNumberBondsAuthoredLesson({
         ...definition,
-        equation: getNumberBondsCatalogueEquation(NUMBER_BONDS_STARTER_EQUATION_ID),
+        equation,
         rhythmDifficulty,
       });
     } catch (error) {
@@ -86,7 +93,7 @@ export function generateNumberBondsStarterLesson(
       }
     }
   }
-  throw new Error("This song has no rhythm difficulty with five Number Bonds catch cues after 6 seconds and enough time to finish. Choose a longer rhythm or a smaller number bond.");
+  throw new Error(`This song has no rhythm difficulty with ${whole} Number Bonds catch cues after 6 seconds and enough time to finish. Choose a longer rhythm or a smaller number bond.`);
 }
 
 export const NUMBER_BONDS_WHOLE_VALUES = Array.from(

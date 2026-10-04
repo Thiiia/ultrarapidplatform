@@ -104,7 +104,13 @@ import {
   NUMBER_BONDS_MAX_WHOLE,
   type NumberBondValues,
 } from "@/lib/number-bonds-authoring";
-import { getNumberBondSongNotes, getSpacedNumberBondNotes, planNumberBondNotes } from "@/lib/number-bonds-note-plan";
+import {
+  getNumberBondSequenceCapacity,
+  getNumberBondSequenceTailSeconds,
+  getNumberBondSongNotes,
+  planNumberBondNotes,
+  planNumberBondSequenceCues,
+} from "@/lib/number-bonds-note-plan";
 import { getLearnerFacingError, studentCopy } from "@/lib/student-copy";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import { AlgebraStudioBar, type AlgebraAppearance } from "./AlgebraStudioBar";
@@ -6381,7 +6387,7 @@ function NumberBondsSetupPanel({
       <div style={{ display: "grid", gap: 6 }}>
         <strong style={{ fontSize: 15, color: "#FFFFFF" }}>Make a number</strong>
         <span style={{ fontSize: 11, lineHeight: 1.45, color: "#FFFFFF99" }}>
-          Set the number the player makes. Each song note stands for one unit block.
+          Set the number the player makes. Each chart cue builds one unit gem with a Hit, Spin and Drag.
         </span>
       </div>
 
@@ -6422,13 +6428,13 @@ function NumberBondsSetupPanel({
             <strong style={{ color: "#FFFFFF", fontSize: 12 }}>Number blocks</strong>
             <span role="status" style={{ color: remainingCueCount === 0 && extraCueCount === 0 ? "#CFFF04" : "#FFFFFF99", fontSize: 10, fontWeight: 800 }}>
               {extraCueCount > 0
-                ? `${hitCueCount} / ${whole} notes · ${extraCueCount} to remove`
+                ? `${hitCueCount} / ${whole} cues · ${extraCueCount} to remove`
                 : remainingCueCount > 0
-                  ? `${completedCueCount} / ${whole} notes · ${remainingCueCount} to add`
-                  : `${whole} / ${whole} notes ready`}
+                  ? `${completedCueCount} / ${whole} cues · ${remainingCueCount} to add`
+                  : `${whole} / ${whole} cues ready`}
             </span>
           </div>
-          <div role="img" aria-label={`${completedCueCount} of ${whole} unit block notes are placed`} style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 6 }}>
+          <div role="img" aria-label={`${completedCueCount} of ${whole} gem journey cues are placed`} style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 6 }}>
             {Array.from({ length: whole }, (_, index) => {
               const isScheduled = index < completedCueCount;
               return (
@@ -6439,7 +6445,7 @@ function NumberBondsSetupPanel({
             })}
           </div>
           <span style={{ color: "#FFFFFF80", fontSize: 10, lineHeight: 1.4 }}>
-            One note fills one block. Timing feedback stays on the performance step below the song timeline.
+            One chart cue anchors one unit gem. Timing feedback stays with the performance step.
           </span>
         </div>
       ) : null}
@@ -6447,7 +6453,7 @@ function NumberBondsSetupPanel({
       {!validWhole ? (
         <div role="alert" style={{ color: "#FFCB6B", fontSize: 11, lineHeight: 1.4 }}>
           {maxWhole < 2
-            ? "This chart needs at least two spaced notes. Choose another song or chart."
+            ? "This chart cannot fit two complete Hit, Spin and Drag journeys. Choose a longer or more open song chart."
             : `Choose a whole number from 2 to ${maxWhole} for this song.`}
         </div>
       ) : null}
@@ -6467,7 +6473,7 @@ function NumberBondsSetupPanel({
           onClick={() => onSaveBond(whole)}
           style={{ minHeight: 40, borderRadius: 9, border: "1px solid #CFFF04", background: validWhole ? "#CFFF04" : "#657045", color: "#071222", fontSize: 12, fontWeight: 900, cursor: validWhole ? "pointer" : "not-allowed" }}
         >
-          Build notes for this target
+          Build gems for this target
         </button>
       </div>
     </section>
@@ -11227,12 +11233,20 @@ export default function LessonBuilderClient({
       ? numberBondHitCount
       : getInitialNumberBondWholeForCapacity(0)
   );
+  const numberBondChart = chartFile || originalChartFileRef.current;
+  const numberBondDifficulty = selectedSongLaunch?.rhythmDifficultyKey ?? "ExpertSingle";
+  const numberBondDurationSeconds = audioDurationSeconds || metadata?.durationSeconds || 0;
   const numberBondSongNotes = useMemo(() => getNumberBondSongNotes(
-    chartFile || originalChartFileRef.current,
-    selectedSongLaunch?.rhythmDifficultyKey ?? "ExpertSingle",
-    audioDurationSeconds || metadata?.durationSeconds || 0,
+    numberBondChart,
+    numberBondDifficulty,
+    numberBondDurationSeconds,
+    getNumberBondSequenceTailSeconds(numberBondChart),
   ), [audioDurationSeconds, chartFile, metadata?.durationSeconds, selectedSongLaunch?.rhythmDifficultyKey]);
-  const numberBondSongCapacity = getSpacedNumberBondNotes(numberBondSongNotes).length;
+  const numberBondSongCapacity = useMemo(() => getNumberBondSequenceCapacity(
+    numberBondChart,
+    numberBondDifficulty,
+    numberBondDurationSeconds,
+  ), [audioDurationSeconds, chartFile, metadata?.durationSeconds, selectedSongLaunch?.rhythmDifficultyKey]);
   const numberBondTargetWhole = numberBondDraftTarget?.songAssetId === selectedSongAssetId
     ? numberBondDraftTarget.whole
     : numberBondValues?.whole ?? (numberBondSongCapacity >= 2
@@ -11243,6 +11257,9 @@ export default function LessonBuilderClient({
     : createDefaultNumberBondForSong(selectedSongAssetId, numberBondTargetWhole);
   const numberBondAuthoredNotesMatch = numberBondValues?.whole === numberBondTargetWhole &&
     numberBondHitCount === numberBondTargetWhole;
+  const numberBondHasSequenceV1 = numberBondSequenceV1?.songAssetId === selectedSongAssetId &&
+    numberBondSequenceV1.sequence.version === 1 &&
+    numberBondSequenceV1.sequence.gems.length === numberBondTargetWhole;
   const numberBondOrbitNotes = useMemo(() => {
     const authored = numberBondAuthoredNotesMatch ? [...timelineEvents, ...rtcmAuthoredEvents]
       .flatMap((event) => (event.mechanicInstances?.hit ?? []).map((instance) => ({
@@ -11271,7 +11288,7 @@ export default function LessonBuilderClient({
       void handleLaunchGame();
     } else {
       const blocker = lessonPublishReadiness.blockers[0];
-      setSaveStatus(blocker?.nextAction ?? "These song notes need a timing adjustment before play.");
+      setSaveStatus(blocker?.nextAction ?? "These chart cues need a timing adjustment before play.");
       setIsReadinessOpen(true);
     }
   });
@@ -12453,11 +12470,16 @@ export default function LessonBuilderClient({
       setSaveStatus("Choose a song and wait for it to finish loading before playing.");
       return;
     }
-    const notes = planNumberBondNotes(numberBondSongNotes, targetWhole);
-    if (!notes) {
+    const cues = planNumberBondSequenceCues(
+      numberBondChart,
+      numberBondDifficulty,
+      numberBondDurationSeconds,
+      targetWhole,
+    );
+    if (!cues) {
       setSaveStatus(numberBondSongCapacity >= 2
-        ? `This song can fit ${Math.min(20, numberBondSongCapacity)} notes. Choose a smaller number or another song.`
-        : "This rhythm chart needs playable notes and a known song length before Number Bonds can start.");
+        ? `This song can fit ${numberBondSongCapacity} complete gem journeys. Choose a smaller whole or another song.`
+        : "This rhythm chart needs enough playable notes and time for every gem to hit, spin and drag.");
       return;
     }
 
@@ -12470,20 +12492,53 @@ export default function LessonBuilderClient({
       numberBondEquation?.id ?? makeId("number-bond"),
     );
     const chartLanePads: HitBubblePad[] = ["topLeft", "topRight", "left", "right", "bottomLeft"];
-    const events = notes.map((note, index) => {
-      const eventSlot = makeTimelineEvent(index, Number(note.seconds.toFixed(3)), { hit: 1 });
-      const pad = chartLanePads[note.lane] ?? "bottomRight";
+    const events = cues.map((cue, index) => {
+      const eventSlot = makeTimelineEvent(index, cue.hitSeconds, { hit: 1, spin: 1, drag: 1 }, cue.dragEndSeconds);
+      const hit = eventSlot.mechanicInstances.hit[0];
+      const spin = eventSlot.mechanicInstances.spin[0];
+      const drag = eventSlot.mechanicInstances.drag[0];
+      const pad = chartLanePads[cue.note.lane] ?? "bottomRight";
+      const partTokenIndex = index < partA ? 2 : 4;
+
       eventSlot.mechanicInstances.hit[0] = {
-        ...eventSlot.mechanicInstances.hit[0],
-        tick: eventSlot.tick,
+        ...hit,
+        tick: cue.hitSeconds,
+        endTick: cue.hitSeconds,
         hitBubbles: [{ tokenIndex: 0, pads: [pad], positions: [pad] }],
       };
+      eventSlot.mechanicInstances.spin[0] = {
+        ...spin,
+        tick: cue.spinStartSeconds,
+        endTick: cue.spinEndSeconds,
+        spinTargets: [{ tokenIndex: 0 }],
+      };
+      eventSlot.mechanicInstances.drag[0] = {
+        ...drag,
+        tick: cue.dragStartSeconds,
+        endTick: cue.dragEndSeconds,
+        dragTargets: [{ tokenIndex: partTokenIndex, sourceHitId: hit.id }],
+      };
+
       return applyEquationToEvent(eventSlot, equation);
+    });
+    const sequenceGems = events.map((event, unitIndex) => {
+      const inPartA = unitIndex < partA;
+      return {
+        gemId: makeId("gem"),
+        unitIndex,
+        spinEncounterId: event.mechanicInstances.spin[0].id,
+        dragEncounterId: event.mechanicInstances.drag[0].id,
+        destination: {
+          part: inPartA ? "part-a" as const : "part-b" as const,
+          slotIndex: inPartA ? unitIndex : unitIndex - partA,
+        },
+      };
     });
 
     // An explicit rebuild replaces only this Number Bonds mission's old notes.
     legacyEncounterSourceRef.current = null;
     setNumberBondDraftTarget({ songAssetId: selectedSongAssetId, whole: targetWhole });
+    setNumberBondSequenceV1({ songAssetId: selectedSongAssetId, sequence: { version: 1, gems: sequenceGems } });
     setAuthoredEquationQueue([equation]);
     setSelectedEquationId(equation.id);
     setRtcmDraftMechanics([]);
@@ -12494,9 +12549,9 @@ export default function LessonBuilderClient({
     if (playAfterBuild) {
       numberBondAutoLaunchRef.current = targetWhole;
       setNumberBondLaunchPendingWhole(targetWhole);
-      setSaveStatus(`Placed ${notes.length} notes from the song. Preparing your mission…`);
+      setSaveStatus(`Built ${events.length} complete gem journeys. Preparing your mission…`);
     } else {
-      setSaveStatus(`Placed ${notes.length} notes from the song. Save the lesson or press Play to try it.`);
+      setSaveStatus(`Built ${events.length} complete gem journeys from ${metadata?.songTitle || "this song"}, aligned to its chart. Save the lesson or press Play to try it.`);
     }
   }
 
@@ -12504,8 +12559,8 @@ export default function LessonBuilderClient({
     if (!Number.isInteger(whole) || whole < 2 || whole > NUMBER_BONDS_MAX_WHOLE ||
       whole > numberBondSongCapacity) {
       setSaveStatus(numberBondSongCapacity >= 2
-        ? `This song can fit ${Math.min(NUMBER_BONDS_MAX_WHOLE, numberBondSongCapacity)} spaced notes. Choose a smaller number or another song.`
-        : "This song needs at least two playable, spaced notes before Number Bonds can start.");
+        ? `This song can fit ${numberBondSongCapacity} complete gem journeys. Choose a smaller whole or another song.`
+        : "This song needs at least two playable, spaced chart cues with room for Spin and Drag.");
       return;
     }
     handleBuildNumberBondMission(false, whole);
@@ -12529,12 +12584,33 @@ export default function LessonBuilderClient({
       numberBondEquation?.id ?? makeId("number-bond"),
     );
     const nextEvents = timelineEvents.map((eventSlot) => applyEquationToEvent(eventSlot, equation));
+    setNumberBondSequenceV1((current) => {
+      if (current?.songAssetId !== selectedSongAssetId || current.sequence.gems.length !== whole) return current;
+      return {
+        ...current,
+        sequence: {
+          ...current.sequence,
+          gems: current.sequence.gems.map((gem) => {
+            const inPartA = gem.unitIndex < partA;
+            return {
+              ...gem,
+              destination: {
+                part: inPartA ? "part-a" as const : "part-b" as const,
+                slotIndex: inPartA ? gem.unitIndex : gem.unitIndex - partA,
+              },
+            };
+          }),
+        },
+      };
+    });
     setAuthoredEquationQueue([equation]);
     setSelectedEquationId(equation.id);
     setTimelineEvents(nextEvents);
     syncTimelineFilesFromEvents(nextEvents);
     markDirty();
-    setSaveStatus(`Updated the bond to ${whole} = ${partA} + ${whole - partA}. The same ${whole} spaced cues are still in place.`);
+    setSaveStatus(numberBondHasSequenceV1
+      ? `Updated the bond to ${whole} = ${partA} + ${whole - partA}. The same ${whole} chart-timed Hit → Spin → Drag journeys stay in place.`
+      : `Updated the bond to ${whole} = ${partA} + ${whole - partA}. The same ${whole} chart Hit cues stay in place.`);
   }
 
   function handlePlayNumberBondMission() {
@@ -15473,6 +15549,7 @@ export default function LessonBuilderClient({
               isSongLoaded={isLessonLoaded}
               notes={numberBondOrbitNotes}
               authoredNoteCount={numberBondAuthoredNotesMatch ? numberBondHitCount : 0}
+              hasAuthoredSequence={numberBondHasSequenceV1}
               stopAtSeconds={sidecar.stopAtSeconds}
               songDurationSeconds={audioDurationSeconds || metadata?.durationSeconds || 0}
               isReady={lessonPublishReadiness.ready && numberBondAuthoredNotesMatch}

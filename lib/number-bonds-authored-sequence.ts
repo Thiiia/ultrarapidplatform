@@ -45,9 +45,8 @@ export type NumberBondSequenceLesson = {
 };
 
 const SEQUENCE_VERSION = 1;
-const WHOLE_TOKEN_ID = "whole-five";
-const PART_A_TOKEN_ID = "part-a-two";
-const PART_B_TOKEN_ID = "part-b-three";
+const MIN_WHOLE = 2;
+const MAX_WHOLE = 20;
 
 function fail(message: string): never {
   throw new Error(`Number Bonds sequence v1: ${message}`);
@@ -55,6 +54,39 @@ function fail(message: string): never {
 
 function isExtensionDeclared(lesson: Pick<NumberBondSequenceLesson, "numberBondSequenceVersion" | "numberBondGems">) {
   return lesson.numberBondSequenceVersion !== undefined || lesson.numberBondGems !== undefined;
+}
+
+function parseNumberBondEquation(state: string) {
+  const normalized = state.trim().replace(/\s+/g, " ");
+  const wholeFirst = normalized.match(/^(\d+)\s*=\s*(\d+)\s*\+\s*(\d+)$/);
+  const partsFirst = normalized.match(/^(\d+)\s*\+\s*(\d+)\s*=\s*(\d+)$/);
+  const match = wholeFirst ?? partsFirst;
+  if (!match) fail("the equation must use supported whole = part + part notation.");
+
+  const whole = Number(wholeFirst ? match[1] : match[3]);
+  const partA = Number(wholeFirst ? match[2] : match[1]);
+  const partB = Number(wholeFirst ? match[3] : match[2]);
+  if (
+    !Number.isSafeInteger(whole) ||
+    !Number.isSafeInteger(partA) ||
+    !Number.isSafeInteger(partB) ||
+    whole < MIN_WHOLE ||
+    whole > MAX_WHOLE ||
+    partA <= 0 ||
+    partB <= 0 ||
+    partA + partB !== whole
+  ) {
+    fail(`the parts must be positive integers that sum to a whole from ${MIN_WHOLE} to ${MAX_WHOLE}.`);
+  }
+
+  return {
+    whole,
+    partA,
+    partB,
+    tokenIndexes: wholeFirst
+      ? { whole: 0, partA: 2, partB: 4, labels: [`${whole}`, "=", `${partA}`, "+", `${partB}`] }
+      : { whole: 4, partA: 0, partB: 2, labels: [`${partA}`, "+", `${partB}`, "=", `${whole}`] },
+  };
 }
 
 /**
@@ -75,35 +107,29 @@ export function validateNumberBondSequenceV1(
   if (lesson.activityKey !== "number-bonds") {
     fail("v1 is supported only for the Number Bonds activity.");
   }
-  if (lesson.equations.length !== 1 || lesson.equations[0].state.trim().replace(/\s+/g, " ") !== "5 = 2 + 3") {
-    fail("v1 currently supports only the 5 = 2 + 3 equation.");
-  }
+  if (lesson.equations.length !== 1) fail("exactly one authored Number Bonds equation is required.");
   if (lesson.stopAtSeconds === undefined || !Number.isFinite(lesson.stopAtSeconds)) {
     fail("stopAtSeconds is required.");
   }
 
   const equation = lesson.equations[0];
+  const bond = parseNumberBondEquation(equation.state);
   const tokens = equation.tokens ?? [];
   const labels = tokens.map((token) => token.label.trim());
   if (
     labels.length !== 5 ||
-    labels[0] !== "5" ||
-    labels[1] !== "=" ||
-    labels[2] !== "2" ||
-    labels[3] !== "+" ||
-    labels[4] !== "3" ||
-    tokens.some((token) => !token.id.trim()) ||
-    new Set(tokens.map((token) => token.id)).size !== tokens.length ||
-    tokens[0].id !== WHOLE_TOKEN_ID ||
-    tokens[2].id !== PART_A_TOKEN_ID ||
-    tokens[4].id !== PART_B_TOKEN_ID
+    labels.some((label, index) => label !== bond.tokenIndexes.labels[index]) ||
+    tokens.some((token) => typeof token.id !== "string" || !token.id.trim()) ||
+    new Set(tokens.map((token) => token.id)).size !== tokens.length
   ) {
-    fail("the canonical equation token identities are required.");
+    fail("equation token labels and stable identities must match the authored bond.");
   }
 
   const gems = lesson.numberBondGems;
-  if (gems.length !== 5) fail("exactly five unit gems are required.");
-  if (lesson.encounters.length !== 15) fail("exactly five Hit, five Spin, and five Drag encounters are required.");
+  if (gems.length !== bond.whole) fail(`exactly ${bond.whole} unit gems are required.`);
+  if (lesson.encounters.length !== bond.whole * 3) {
+    fail(`exactly ${bond.whole} Hit, ${bond.whole} Spin, and ${bond.whole} Drag encounters are required.`);
+  }
 
   const encountersById = new Map<string, NumberBondSequenceEncounter>();
   const encountersByType = {
@@ -118,11 +144,11 @@ export function validateNumberBondSequenceV1(
     encountersByType[encounter.type].push(encounter);
   }
   if (
-    encountersByType.hit.length !== 5 ||
-    encountersByType.spin.length !== 5 ||
-    encountersByType.drag.length !== 5
+    encountersByType.hit.length !== bond.whole ||
+    encountersByType.spin.length !== bond.whole ||
+    encountersByType.drag.length !== bond.whole
   ) {
-    fail("exactly five Hit, five Spin, and five Drag encounters are required.");
+    fail(`exactly ${bond.whole} Hit, ${bond.whole} Spin, and ${bond.whole} Drag encounters are required.`);
   }
 
   const gemIds = new Set<string>();
@@ -141,8 +167,8 @@ export function validateNumberBondSequenceV1(
   for (const gem of gems) {
     if (!gem.gemId.trim() || gemIds.has(gem.gemId)) fail("gemId values must be non-empty and unique.");
     gemIds.add(gem.gemId);
-    if (!Number.isSafeInteger(gem.unitIndex) || gem.unitIndex < 0 || gem.unitIndex > 4 || unitIndices.has(gem.unitIndex)) {
-      fail("unitIndex values must uniquely cover units 0 through 4.");
+    if (!Number.isSafeInteger(gem.unitIndex) || gem.unitIndex < 0 || gem.unitIndex >= bond.whole || unitIndices.has(gem.unitIndex)) {
+      fail(`unitIndex values must uniquely cover units 0 through ${bond.whole - 1}.`);
     }
     unitIndices.add(gem.unitIndex);
 
@@ -156,10 +182,11 @@ export function validateNumberBondSequenceV1(
     referencedSpins.add(spin.id);
     referencedDrags.add(drag.id);
 
-    const expectedPart: NumberBondSequenceDestinationPart = gem.unitIndex < 2 ? "part-a" : "part-b";
-    const expectedSlot = gem.unitIndex < 2 ? gem.unitIndex : gem.unitIndex - 2;
-    const expectedTokenIndex = gem.unitIndex < 2 ? 2 : 4;
-    const expectedTokenId = gem.unitIndex < 2 ? PART_A_TOKEN_ID : PART_B_TOKEN_ID;
+    const inPartA = gem.unitIndex < bond.partA;
+    const expectedPart: NumberBondSequenceDestinationPart = inPartA ? "part-a" : "part-b";
+    const expectedSlot = inPartA ? gem.unitIndex : gem.unitIndex - bond.partA;
+    const expectedTokenIndex = inPartA ? bond.tokenIndexes.partA : bond.tokenIndexes.partB;
+    const expectedTokenId = tokens[expectedTokenIndex].id;
     if (gem.destination.part !== expectedPart || gem.destination.slotIndex !== expectedSlot) {
       fail(`gem '${gem.gemId}' has an invalid destination part or slot.`);
     }
@@ -175,7 +202,11 @@ export function validateNumberBondSequenceV1(
       fail(`gem '${gem.gemId}' Hit, Spin, and Drag timing is out of order.`);
     }
     const hitBubbles = hitTarget.hitBubbles ?? [];
-    if (hitBubbles.length !== 1 || hitBubbles[0].tokenIndex !== 0 || hitBubbles[0].targetId !== WHOLE_TOKEN_ID) {
+    if (
+      hitBubbles.length !== 1 ||
+      hitBubbles[0].tokenIndex !== bond.tokenIndexes.whole ||
+      hitBubbles[0].targetId !== tokens[bond.tokenIndexes.whole].id
+    ) {
       fail(`gem '${gem.gemId}' Hit must target the whole token.`);
     }
     const hitPads = new Set([
@@ -185,7 +216,11 @@ export function validateNumberBondSequenceV1(
     if (hitPads.size !== 1) fail(`gem '${gem.gemId}' Hit must select exactly one pad.`);
 
     const spinTargets = spin.spinTargets ?? [];
-    if (spinTargets.length !== 1 || spinTargets[0].tokenIndex !== 0 || spinTargets[0].targetId !== WHOLE_TOKEN_ID) {
+    if (
+      spinTargets.length !== 1 ||
+      spinTargets[0].tokenIndex !== bond.tokenIndexes.whole ||
+      spinTargets[0].targetId !== tokens[bond.tokenIndexes.whole].id
+    ) {
       fail(`gem '${gem.gemId}' Spin must target the whole token.`);
     }
 
@@ -205,13 +240,13 @@ export function validateNumberBondSequenceV1(
     journeys.push({ unitIndex: gem.unitIndex, hit: hitTarget, spin, drag });
   }
 
-  if (unitIndices.size !== 5 || [0, 1, 2, 3, 4].some((index) => !unitIndices.has(index))) {
-    fail("unitIndex values must uniquely cover units 0 through 4.");
+  if (unitIndices.size !== bond.whole || Array.from({ length: bond.whole }, (_, index) => index).some((index) => !unitIndices.has(index))) {
+    fail(`unitIndex values must uniquely cover units 0 through ${bond.whole - 1}.`);
   }
   if (
-    referencedHits.size !== 5 ||
-    referencedSpins.size !== 5 ||
-    referencedDrags.size !== 5 ||
+    referencedHits.size !== bond.whole ||
+    referencedSpins.size !== bond.whole ||
+    referencedDrags.size !== bond.whole ||
     encountersByType.spin.some((encounter) => !referencedSpins.has(encounter.id)) ||
     encountersByType.drag.some((encounter) => !referencedDrags.has(encounter.id)) ||
     encountersByType.hit.some((encounter) => !referencedHits.has(encounter.id))
@@ -221,7 +256,7 @@ export function validateNumberBondSequenceV1(
   journeys.sort((left, right) => left.unitIndex - right.unitIndex);
   for (let index = 1; index < journeys.length; index += 1) {
     if (journeys[index - 1].drag.endTick >= journeys[index].hit.startTick) {
-      fail("each gem must finish its Drag before the next unit Hit begins.");
+      fail(`each gem must finish its Drag before the next unit Hit begins (unit ${index + 1}).`);
     }
   }
 

@@ -17,7 +17,12 @@ import {
 } from "../lib/activity-authoring-capabilities";
 import { prepareAuthoredLessonForPublication } from "../lib/authored-lesson-publication";
 import { publishLessonSaveRevision } from "../lib/lesson-save-revision";
+import {
+  validateNumberBondSequenceV1,
+  type NumberBondSequenceLesson,
+} from "../lib/number-bonds-authored-sequence";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- The fixture helpers mutate JSON payload shapes across versions.
 type JsonObject = Record<string, any>;
 
 const fixturePath = path.join(process.cwd(), "contracts/number-bonds/sequence-v1/fixtures.json");
@@ -98,6 +103,91 @@ function applyMutation(lesson: JsonObject, mutation: JsonObject) {
   }
 }
 
+function createExpandedBondLesson(whole: number, partA: number, partB: number): JsonObject {
+  const lesson = clone(fixture.validLesson);
+  const equationId = `bond-${whole}-${partA}-${partB}`;
+  const equation = lesson.equations[0] as JsonObject;
+  equation.id = equationId;
+  equation.state = `${whole} = ${partA} + ${partB}`;
+  equation.tokens = [`${whole}`, "=", `${partA}`, "+", `${partB}`].map((label, index) => ({
+    id: `${equationId}-token-${index}`,
+    label,
+  }));
+
+  const templateGems = lesson.numberBondGems as JsonObject[];
+  const templateEncounters = lesson.encounters as JsonObject[];
+  const encountersById = new Map(templateEncounters.map((encounter) => [encounter.id as string, encounter]));
+  const encounters: JsonObject[] = [];
+  const gems: JsonObject[] = [];
+
+  for (let unitIndex = 0; unitIndex < whole; unitIndex += 1) {
+    const template = templateGems[unitIndex % templateGems.length];
+    const templateHitId = templateEncounters.find((encounter) =>
+      encounter.type === "hit" &&
+      templateEncounters.some((drag) =>
+        drag.id === template.dragEncounterId &&
+        drag.dragTargets?.[0]?.sourceHitId === encounter.id))?.id as string;
+    const templateHit = encountersById.get(templateHitId);
+    const templateSpin = encountersById.get(template.spinEncounterId as string);
+    const templateDrag = encountersById.get(template.dragEncounterId as string);
+    assert.ok(templateHit && templateSpin && templateDrag, "fixture should contain a complete unit journey");
+
+    const suffix = `unit-${unitIndex + 1}`;
+    const hitId = `${equationId}-${suffix}-hit`;
+    const spinId = `${equationId}-${suffix}-spin`;
+    const dragId = `${equationId}-${suffix}-drag`;
+    const hitStart = 1_000 + unitIndex * 3_000;
+    const inPartA = unitIndex < partA;
+    const partTokenIndex = inPartA ? 2 : 4;
+    const partTokenId = equation.tokens[partTokenIndex].id;
+
+    const hit = clone(templateHit);
+    hit.id = hitId;
+    hit.eventId = `${equationId}-${suffix}-hit-event`;
+    hit.equationId = equationId;
+    hit.startTick = hitStart;
+    hit.endTick = hitStart;
+    hit.hitBubbles[0].tokenIndex = 0;
+    hit.hitBubbles[0].targetId = equation.tokens[0].id;
+
+    const spin = clone(templateSpin);
+    spin.id = spinId;
+    spin.eventId = `${equationId}-${suffix}-spin-event`;
+    spin.equationId = equationId;
+    spin.startTick = hitStart + 800;
+    spin.endTick = hitStart + 1_000;
+    spin.spinTargets[0].tokenIndex = 0;
+    spin.spinTargets[0].targetId = equation.tokens[0].id;
+
+    const drag = clone(templateDrag);
+    drag.id = dragId;
+    drag.eventId = `${equationId}-${suffix}-drag-event`;
+    drag.equationId = equationId;
+    drag.startTick = hitStart + 1_600;
+    drag.endTick = hitStart + 2_000;
+    drag.dragTargets[0].tokenIndex = partTokenIndex;
+    drag.dragTargets[0].targetId = partTokenId;
+    drag.dragTargets[0].sourceHitId = hitId;
+
+    encounters.push(hit, spin, drag);
+    gems.push({
+      gemId: `${equationId}-${suffix}-gem`,
+      unitIndex,
+      spinEncounterId: spinId,
+      dragEncounterId: dragId,
+      destination: {
+        part: inPartA ? "part-a" : "part-b",
+        slotIndex: inPartA ? unitIndex : unitIndex - partA,
+      },
+    });
+  }
+
+  lesson.encounters = encounters;
+  lesson.numberBondGems = gems;
+  lesson.stopAtSeconds = 300;
+  return lesson;
+}
+
 test("Number Bonds sequence v1 parses and retains the full linked 5 = 2 + 3 journey", () => {
   const parsed = parseAuthoredLessonDraft(clone(fixture.validLesson));
   assert.equal(parsed.numberBondSequenceVersion, 1);
@@ -125,6 +215,17 @@ test("Number Bonds sequence v1 parses and retains the full linked 5 = 2 + 3 jour
   const published = parseAuthoredLessonDraft(JSON.parse(publication.content));
   assert.equal(published.numberBondSequenceVersion, 1);
   assert.deepEqual(published.numberBondGems, parsed.numberBondGems);
+});
+
+test("Number Bonds sequence v1 generalizes equation tokens, gem counts, and part slots for 15 = 11 + 4", () => {
+  const lesson = createExpandedBondLesson(15, 11, 4);
+  const gems = validateNumberBondSequenceV1(lesson as unknown as NumberBondSequenceLesson);
+
+  assert.equal(gems?.length, 15);
+  assert.deepEqual(gems?.[10].destination, { part: "part-a", slotIndex: 10 });
+  assert.deepEqual(gems?.[11].destination, { part: "part-b", slotIndex: 0 });
+  assert.deepEqual(gems?.[14].destination, { part: "part-b", slotIndex: 3 });
+  assert.equal(lesson.encounters.length, 45);
 });
 
 test("Number Bonds sequence v1 survives editor hydration and save with encounter edits validated", () => {

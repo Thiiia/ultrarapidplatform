@@ -42,6 +42,18 @@
   line-height: 1.5;
 }
 
+.sequenceHint {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #d2b86a88;
+  border-radius: 10px;
+  background: #302d1fcc;
+  color: #fff0c7;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .orbit {
   position: relative;
   justify-self: center;
@@ -148,7 +160,7 @@
 
 .playFlow {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -636,7 +648,7 @@
   .quickTargets { gap: 4px; }
   .quickTargets button { min-height: 44px; }
   .actions { grid-template-columns: 1fr; }
-  .playFlow { grid-template-columns: 1fr; }
+  .playFlow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .playFlow span { grid-template-columns: 24px 1fr; align-items: center; }
   .pictorialModel { padding: 10px; }
   .modelParts { gap: 4px; }

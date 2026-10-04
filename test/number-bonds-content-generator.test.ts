@@ -109,13 +109,26 @@ test("the starter builds make five with five safe cues and falls back to a usabl
   assert.deepEqual(publication.counts, { equations: 1, encounters: 5, targets: 5 });
 });
 
+test("the song starter accepts a selected bond value and builds one chart Hit per unit", () => {
+  const chart = chartForCueSeconds([2, 8, 16, 24, 32, 40, 48, 56], { difficulty: "MediumSingle" });
+  const starter = generateNumberBondsStarterLesson(definition({
+    equation: getNumberBondsCatalogueEquation("bond-7-3-4"),
+    chartContent: chart.content,
+    durationSeconds: 70,
+  }));
+
+  assert.equal(starter.draft.equations[0]?.state, "7 = 3 + 4");
+  assert.equal(starter.draft.encounters.length, 7);
+  assert.equal(starter.provenance.selectedCueSeconds.length, 7);
+});
+
 test("the starter explains when no rhythm can fit its final interaction", () => {
   const chart = chartForCueSeconds([2, 8, 16], { difficulty: "ExpertSingle" });
   const { equation: _equation, rhythmDifficulty: _difficulty, ...input } = definition({
     chartContent: chart.content,
     durationSeconds: 20,
   });
-  assert.throws(() => generateNumberBondsStarterLesson(input), /no rhythm difficulty with five Number Bonds catch cues/i);
+  assert.throws(() => generateNumberBondsStarterLesson(input), /no rhythm difficulty with 5 Number Bonds catch cues/i);
 });
 
 test("generates deterministic cues from the selected difficulty across a tempo change and preserves source provenance", () => {

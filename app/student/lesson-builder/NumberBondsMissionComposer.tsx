@@ -66,6 +66,7 @@ export function NumberBondsMissionComposer({
   isSongLoaded,
   notes,
   authoredNoteCount,
+  hasAuthoredSequence,
   stopAtSeconds,
   songDurationSeconds,
   isReady,
@@ -87,6 +88,7 @@ export function NumberBondsMissionComposer({
   isSongLoaded: boolean;
   notes: OrbitNote[];
   authoredNoteCount: number;
+  hasAuthoredSequence: boolean;
   stopAtSeconds?: number;
   songDurationSeconds: number;
   isReady: boolean;
@@ -116,20 +118,23 @@ export function NumberBondsMissionComposer({
   const capacityMessage = !isSongLoaded
     ? "Loading this song’s playable notes…"
     : songCapacity < NUMBER_BONDS_MIN_WHOLE
-      ? `This ${difficultyLabel} chart has too few playable notes. Choose a song chart with at least ${NUMBER_BONDS_MIN_WHOLE}.`
+      ? `This ${difficultyLabel} chart cannot fit ${NUMBER_BONDS_MIN_WHOLE} complete gem journeys. Choose a longer or more open song chart.`
       : whole > maxSelectableWhole
-        ? `This ${difficultyLabel} chart supports up to ${maxSelectableWhole}. Choose a smaller target or a song with more spaced notes.`
-        : `Up to ${maxSelectableWhole} spaced cues on this ${difficultyLabel} chart. The game limit is ${NUMBER_BONDS_MAX_WHOLE}.`;
+        ? `This ${difficultyLabel} chart supports up to ${maxSelectableWhole} complete gem journeys. Choose a smaller target or a song with more room between cues.`
+        : `Up to ${maxSelectableWhole} complete gem journeys fit this ${difficultyLabel} chart. The game limit is ${NUMBER_BONDS_MAX_WHOLE}.`;
 
   return (
     <section className={styles.composer} aria-label="Number Bonds mission composer">
       <div className={styles.intro}>
         <span className={styles.eyebrow}>NUMBER BONDS · {songTitle}</span>
         <h1>Build a bond. Play the song.</h1>
-        <p>Choose any target from 2 to {NUMBER_BONDS_MAX_WHOLE}. Each orbiting note becomes one gem; the selected song and chart determine how many can fit.</p>
+        <p>Choose a target from 2 to {NUMBER_BONDS_MAX_WHOLE}. Each chart cue becomes one gem with its own Hit, Spin and Drag; the song determines how many complete journeys fit.</p>
       </div>
+      {authoredNoteCount === whole && !hasAuthoredSequence ? (
+        <p className={styles.sequenceHint} role="note">This saved revision has chart-timed Hits only. Build gems from the chart to add a Spin and Drag to every unit.</p>
+      ) : null}
 
-      <div className={styles.orbit} role="group" aria-label={`Make ${whole}: ${whole} equals ${partA} plus ${partB}; ${whole} song notes`}
+      <div className={styles.orbit} role="group" aria-label={`Make ${whole}: ${whole} equals ${partA} plus ${partB}; ${whole} chart-timed gem journeys`}
         style={{ "--bond-progress": `${Math.min(100, 100 * authoredNoteCount / whole)}%` } as CSSProperties}>
         <div className={styles.orbitRing} aria-hidden="true" />
         <div className={styles.orbitCore}>
@@ -161,9 +166,10 @@ export function NumberBondsMissionComposer({
 
       <div className={styles.controls}>
         <div className={styles.playFlow} aria-label="How this lesson plays">
-          <span><b>01</b> Catch a moving gem</span>
-          <span><b>02</b> Tap with the beat</span>
-          <span><b>03</b> Place it in a part</span>
+          <span><b>01</b> Catch the gem</span>
+          <span><b>02</b> Tap the charted pad</span>
+          <span><b>03</b> Spin the gem</span>
+          <span><b>04</b> Drag it to a part</span>
         </div>
         <PartWholeModel key={`${whole}-${partA}-${partB}`} whole={whole} partA={partA} partB={partB} />
         <div className={styles.targetPanel}>
@@ -225,7 +231,7 @@ export function NumberBondsMissionComposer({
             </label>
             <strong>= {whole}</strong>
           </fieldset>
-          <p className={styles.splitHelp} id="number-bonds-split-help">Each part must be at least 1. Changing a part keeps the same {whole} spaced song cues.</p>
+          <p className={styles.splitHelp} id="number-bonds-split-help">Each part must be at least 1. Changing a part keeps the same {whole} chart hits and their Spin → Drag timings.</p>
           <div className={styles.quickTargets} role="group" aria-label="Common number bond targets">
             {QUICK_TARGETS.map((target) => {
               const available = canChooseNumber && target <= maxSelectableWhole;
@@ -236,7 +242,7 @@ export function NumberBondsMissionComposer({
                   className={whole === target ? styles.quickTargetActive : styles.quickTarget}
                   aria-label={`Make ${target}`}
                   aria-pressed={whole === target}
-                  title={available ? `Build make ${target}` : `This song needs at least ${target} spaced notes`}
+                  title={available ? `Build make ${target}` : `This song needs room for ${target} complete gem journeys`}
                   disabled={!available}
                   onClick={() => onWholeChange(target)}
                 >
@@ -248,21 +254,23 @@ export function NumberBondsMissionComposer({
         </div>
 
         <div className={styles.progress}>
-          <strong>{authoredNoteCount} of {whole} notes placed</strong>
-          <progress aria-label="Number of song notes placed" max={whole} value={Math.min(authoredNoteCount, whole)} />
+          <strong>{authoredNoteCount} of {whole} {hasAuthoredSequence ? "gem journeys built" : "chart Hits placed"}</strong>
+          <progress aria-label={hasAuthoredSequence ? "Number of complete gem journeys built" : "Number of chart Hits placed"} max={whole} value={Math.min(authoredNoteCount, whole)} />
           <span id="number-bonds-capacity">{capacityMessage}</span>
         </div>
         <div id="number-bonds-stop-guidance" className={styles.stopCard} role="status">
           <div><span>Lesson ends</span><strong>{formattedStop}</strong></div>
           <p>{!stopFitsSong
             ? "The final gem needs more song time. Move the last note earlier or choose a longer song."
-            : lastNoteSeconds === null
+              : lastNoteSeconds === null
               ? "The end point is set automatically after the final gem."
-              : `Set automatically after the final note at ${lastNoteSeconds.toFixed(1)}s, with time for the gem’s finish and placement.`}</p>
+              : hasAuthoredSequence
+                ? `Set automatically after the final chart Hit at ${lastNoteSeconds.toFixed(1)}s, with time for its Spin, Drag and finish.`
+                : `This saved lesson ends after its final chart Hit at ${lastNoteSeconds.toFixed(1)}s.`}</p>
         </div>
         <div className={styles.actions}>
           <button className={styles.secondary} type="button" disabled={!isSongLoaded || !canPlaceNotes || isPreparing} onClick={onBuildNotes}>
-            {authoredNoteCount ? "Rebuild notes from song" : "Place notes from song"}
+            {authoredNoteCount ? "Rebuild gems from chart" : "Build gems from chart"}
           </button>
           <button
             className={styles.primary}
@@ -274,14 +282,14 @@ export function NumberBondsMissionComposer({
             {isPreparing
               ? "Preparing mission…"
               : !isSongLoaded
-                ? "Loading song notes…"
+                ? "Loading song chart…"
                 : !stopFitsSong
                   ? "Move final note earlier"
                   : songCapacity < 2 && !isReady
                     ? "Choose another song"
                     : isReady
-                      ? "Play mission"
-                      : "Place notes & play"}
+                      ? hasAuthoredSequence ? "Play mission" : "Play saved lesson"
+                      : "Build gems & play"}
           </button>
         </div>
         {status ? <p className={styles.status} role="status">{status}</p> : null}
