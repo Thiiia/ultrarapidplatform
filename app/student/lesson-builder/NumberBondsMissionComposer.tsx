@@ -64,6 +64,7 @@ export function NumberBondsMissionComposer({
   songDifficulty,
   songCapacity,
   isSongLoaded,
+  loadError,
   notes,
   authoredNoteCount,
   hasAuthoredSequence,
@@ -86,6 +87,7 @@ export function NumberBondsMissionComposer({
   songDifficulty: string;
   songCapacity: number;
   isSongLoaded: boolean;
+  loadError?: string | null;
   notes: OrbitNote[];
   authoredNoteCount: number;
   hasAuthoredSequence: boolean;
@@ -123,12 +125,26 @@ export function NumberBondsMissionComposer({
         ? `This ${difficultyLabel} chart supports up to ${maxSelectableWhole} complete gem journeys. Choose a smaller target or a song with more room between cues.`
         : `Up to ${maxSelectableWhole} complete gem journeys fit this ${difficultyLabel} chart. The game limit is ${NUMBER_BONDS_MAX_WHOLE}.`;
 
+  if (!isSongLoaded) {
+    return (
+      <section className={styles.composer} aria-label="Number Bonds mission composer" aria-busy={!loadError}>
+        <div className={styles.intro}>
+          <span className={styles.eyebrow}>NUMBER BONDS · {songTitle}</span>
+          <h1>Build a bond. Play the song.</h1>
+        </div>
+        <p className={styles.status} role={loadError ? "alert" : "status"}>
+          {loadError || status || `Loading ${songTitle}’s chart and playable notes…`}
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section className={styles.composer} aria-label="Number Bonds mission composer">
       <div className={styles.intro}>
         <span className={styles.eyebrow}>NUMBER BONDS · {songTitle}</span>
         <h1>Build a bond. Play the song.</h1>
-        <p>Choose a target from 2 to {NUMBER_BONDS_MAX_WHOLE}. Each chart cue becomes one gem with its own Hit, Spin and Drag; the song determines how many complete journeys fit.</p>
+        <p>Choose a target from 2 to {NUMBER_BONDS_MAX_WHOLE}. Each Hit stays on a playable note from this song’s verified chart; smaller targets sample cues across the track. Spin and Drag land on the chart’s beat grid.</p>
       </div>
       {authoredNoteCount === whole && !hasAuthoredSequence ? (
         <p className={styles.sequenceHint} role="note">This saved revision has chart-timed Hits only. Build gems from the chart to add a Spin and Drag to every unit.</p>

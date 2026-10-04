@@ -6137,7 +6137,7 @@ function EquationTimeline({
                   boxSizing: "border-box",
                 }}
               >
-                {events.map((eventSlot) => {
+                {events.map((eventSlot, eventIndex) => {
                   const instances = eventSlot.mechanicInstances?.[mechanic] ?? [];
                   const fallbackCount = Math.max(
                     0,
@@ -6182,7 +6182,7 @@ function EquationTimeline({
                               aria-valuetext={`${formatTimelineTime(markerSeconds, isAdvancedMode)} seconds`}
                               aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight PageUp PageDown Home End"
                               title="Use arrow keys to adjust time; Shift+arrow for a larger step, Page keys for a larger jump, Home/End for song limits."
-                              aria-label={`Hit ${instanceIndex + 1} timing`}
+                              aria-label={`Encounter ${eventIndex + 1} Hit ${instanceIndex + 1} timing`}
                               onKeyDown={(keyboardEvent) => handleTimelineRetimingByKey(
                                 keyboardEvent,
                                 markerSeconds,
@@ -15588,6 +15588,7 @@ export default function LessonBuilderClient({
               songDifficulty={selectedSongLaunch?.rhythmDifficultyKey ?? "ExpertSingle"}
               songCapacity={numberBondSongCapacity}
               isSongLoaded={isLessonLoaded}
+              loadError={loadError}
               notes={numberBondOrbitNotes}
               authoredNoteCount={numberBondAuthoredNotesMatch ? numberBondHitCount : 0}
               hasAuthoredSequence={numberBondHasSequenceV1}
