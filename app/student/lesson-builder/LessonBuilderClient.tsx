@@ -5154,6 +5154,8 @@ function EquationTimeline({
   const waveformContainerRef = useRef<HTMLDivElement | null>(null);
   const timelineClusterMenuRef = useRef<HTMLDivElement | null>(null);
   const timelineClusterTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const timelineZoomModeRef = useRef<"fit" | "manual">("fit");
+  const lastTimelineContentKeyRef = useRef<string | null>(null);
   const wavesurferRef = useRef<{
     load(url: string): void;
     destroy(): void;
@@ -5187,8 +5189,8 @@ function EquationTimeline({
 
     const wavesurfer = WaveSurfer.create({
       container: waveformContainerRef.current,
-      waveColor: "#CFFF04",
-      progressColor: "#CFFF0466",
+      waveColor: activityKey === "number-bonds" ? "#A9D9D066" : "#CFFF04",
+      progressColor: activityKey === "number-bonds" ? "#CFFF04A6" : "#CFFF0466",
       height: "auto",
     });
 
@@ -5204,7 +5206,7 @@ function EquationTimeline({
         wavesurferRef.current = null;
       }
     };
-  }, [waveformPeaks.length, audioObjectUrl]);
+  }, [activityKey, waveformPeaks.length, audioObjectUrl]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -5233,6 +5235,36 @@ function EquationTimeline({
   const playheadMaxLeft = visualDurationSeconds * pixelsPerSecond;
   const endScrollBuffer = 260;
   const trackWidth = Math.max(blockCount * blockWidthPx + endScrollBuffer, blockWidthPx);
+  const timelineContentKey = `${activityKey ?? "none"}:${durationSeconds}:${events.map((eventSlot) => eventSlot.id).join("|")}`;
+
+  useEffect(() => {
+    if (lastTimelineContentKeyRef.current !== timelineContentKey) {
+      lastTimelineContentKeyRef.current = timelineContentKey;
+      timelineZoomModeRef.current = "fit";
+    }
+
+    const track = timelineTrackRef.current;
+    if (!track) return;
+
+    const updateFitZoom = () => {
+      if (timelineZoomModeRef.current !== "fit") return;
+
+      const availableWidth = track.clientWidth || viewportWidth * 0.88;
+      const baseBlockWidth = viewportWidth * 0.05;
+      const fitZoom = (availableWidth - endScrollBuffer) / Math.max(1, blockCount * baseBlockWidth);
+      const nextZoom = Math.min(1, Math.max(0.15, Number(fitZoom.toFixed(2))));
+      setTimelineZoom((currentZoom) => currentZoom === nextZoom ? currentZoom : nextZoom);
+    };
+
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateFitZoom);
+    observer?.observe(track);
+    const frame = window.requestAnimationFrame(updateFitZoom);
+
+    return () => {
+      observer?.disconnect();
+      window.cancelAnimationFrame(frame);
+    };
+  }, [timelineContentKey, viewportWidth, blockCount, endScrollBuffer]);
   const playheadLeft = Math.min(
     playheadMaxLeft,
     Math.max(0, currentSongSeconds * pixelsPerSecond),
@@ -5273,7 +5305,11 @@ function EquationTimeline({
         accessibleLabel: eventSlot.rctm2Number
           ? `${eventLabel} · #${eventSlot.rctm2Number}`
           : eventLabel,
-        visualLabel: activityKey === "early-algebra" ? `E${index + 1}` : eventLabel,
+        visualLabel: activityKey === "number-bonds"
+          ? `#${index + 1}`
+          : activityKey === "early-algebra"
+            ? `E${index + 1}`
+            : eventLabel,
         isActive: eventSlot.id === activeEventId,
       };
     }),
@@ -5326,7 +5362,8 @@ function EquationTimeline({
     };
   }, [openEventClusterKey]);
 
-  function setTimelineZoomLevel(nextZoom: number) {
+  function setTimelineZoomLevel(nextZoom: number, mode: "fit" | "manual" = "manual") {
+    timelineZoomModeRef.current = mode;
     setTimelineZoom(Math.min(2.5, Math.max(0.15, Number(nextZoom.toFixed(2)))));
   }
 
@@ -5334,7 +5371,7 @@ function EquationTimeline({
     const availableWidth = timelineTrackRef.current?.clientWidth ?? viewportWidth * 0.88;
     const baseBlockWidth = viewportWidth * 0.05;
     const fitZoom = (availableWidth - endScrollBuffer) / Math.max(1, blockCount * baseBlockWidth);
-    setTimelineZoomLevel(Math.min(1, fitZoom));
+    setTimelineZoomLevel(Math.min(1, fitZoom), "fit");
   }
 
   function getSecondsFromClientX(clientX: number, options: { autoScroll?: boolean } = {}) {
@@ -6011,9 +6048,13 @@ function EquationTimeline({
                 const optionListId = `${timelineId}-event-cluster-options`;
                 const label = cluster.items.length === 1
                   ? cluster.items[0].visualLabel
-                  : activeItem
-                    ? `${activeItem.visualLabel} +${cluster.items.length - 1}`
-                    : `${cluster.items.length} encounters`;
+                  : isNumberBondsTimeline
+                    ? activeItem
+                      ? `${activeItem.visualLabel} +${cluster.items.length - 1}`
+                      : `${cluster.items.length} cues`
+                    : activeItem
+                      ? `${activeItem.visualLabel} +${cluster.items.length - 1}`
+                      : `${cluster.items.length} encounters`;
                 const accessibleLabel = cluster.items.length === 1
                   ? cluster.items[0].accessibleLabel
                   : `${cluster.items.length} encounters near ${formatTimelineTime(cluster.items[0].startSeconds, true)}. Choose an encounter.`;
