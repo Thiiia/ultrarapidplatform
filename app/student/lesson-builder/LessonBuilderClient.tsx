@@ -2005,6 +2005,7 @@ function HeaderBar({
   onSaveDraft,
   canSaveDraft = false,
   saveActionLabel = studentCopy.editor.saveLessonLabel,
+  isDemoMode = false,
   canLaunch,
   canPublish = true,
   isRctm1Mode,
@@ -2028,6 +2029,7 @@ function HeaderBar({
   onSaveDraft?: () => void;
   canSaveDraft?: boolean;
   saveActionLabel?: string;
+  isDemoMode?: boolean;
   canLaunch: boolean;
   canPublish?: boolean;
   isRctm1Mode: boolean;
@@ -2310,8 +2312,14 @@ function HeaderBar({
               type="button"
               disabled={!canSaveDraft || isSaving}
               onClick={onSaveDraft}
-              aria-label="Save lesson draft"
-              title={canSaveDraft ? "Save a private lesson draft" : "Load a lesson before saving a draft"}
+              aria-label={isDemoMode ? "Save demo changes on this device only" : "Save lesson draft"}
+              title={canSaveDraft
+                ? isDemoMode
+                  ? "Saves only in this browser. It is not saved to Supabase or published."
+                  : "Save a private lesson draft"
+                : isDemoMode
+                  ? "Choose a lesson before saving this demo"
+                  : "Load a lesson before saving a draft"}
               style={{
                 height: 29,
                 border: `1px solid ${subtleBorderColor}`,
@@ -2325,7 +2333,7 @@ function HeaderBar({
                 opacity: canSaveDraft && !isSaving ? 1 : 0.55,
               }}
             >
-              Save draft
+              {isDemoMode ? "Save demo" : "Save draft"}
             </button>
           ) : null}
 
@@ -15315,6 +15323,7 @@ export default function LessonBuilderClient({
           else void handleSaveToSupabase({ showNotice: true, intent: "draft" });
         }}
         canSaveDraft={Boolean(selectedSongStorage) && isLessonLoaded && !loadError}
+        isDemoMode={isDemoMode}
         saveActionLabel={isDemoMode
           ? "Save demo changes"
           : navBasePath === "/student"
