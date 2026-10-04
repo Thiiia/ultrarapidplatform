@@ -55,6 +55,14 @@ test("game embed waits for the verified bridge and reports result-sync failures"
   assert.match(gameEmbed, /studentCopy\.game\.resultSyncFailed/);
 });
 
+test("game embed asks for a song before loading Unity without a complete selection", () => {
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+
+  assert.match(gameEmbed, /const needsSongChoice = !songAssetId \|\| !activityKey;/);
+  assert.match(gameEmbed, /const canRenderEmbeddedGame = !needsSongChoice &&/);
+  assert.match(gameEmbed, /studentCopy\.game\.chooseSongTitle/);
+});
+
 test("authenticated Return terminalizes the launch before detaching the Unity iframe", () => {
   const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
   const returnRoute = source("app/api/player-launch-attempts/return/route.ts");

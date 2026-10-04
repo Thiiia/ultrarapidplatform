@@ -165,7 +165,7 @@ test("Number Bonds exposes a responsive ten-and-ones model and edits the split w
   assert.match(numberBondsComposerSource, /isNextSuggested \? styles\.noteNext/);
   assert.match(
     lessonBuilderSource,
-    /function handleChooseNumberBondSplit[\s\S]*?timelineEvents\.map\(\(eventSlot\) => applyEquationToEvent\(eventSlot, equation\)\)[\s\S]*?same \$\{whole\} spaced cues are still in place/,
+    /function handleChooseNumberBondSplit[\s\S]*?timelineEvents\.map\(\(eventSlot\) => applyEquationToEvent\(eventSlot, equation\)\)[\s\S]*?setTimelineEvents\(nextEvents\)[\s\S]*?same \$\{whole\} chart(?:-timed Hit → Spin → Drag journeys| Hit cues) stay in place/,
   );
   assert.match(numberBondsComposerStyles, /\.tenFrame[\s\S]*?grid-template-columns:\s*repeat\(5, 14px\)/);
   assert.match(numberBondsComposerStyles, /@media \(max-width:\s*430px\)[\s\S]*?\.splitEditor/);

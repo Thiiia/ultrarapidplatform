@@ -371,7 +371,7 @@ function GameEmbedSession({
   );
   const songAssetId = resolvedParams.get("songAssetId");
   const activityKey = resolvedParams.get("activityKey");
-  const needsSongChoice = resolvedParams.size === 0;
+  const needsSongChoice = !songAssetId || !activityKey;
   const activeLaunchParams = launchParams ?? (
     !songAssetId || !activityKey ? resolvedParams : null
   );
@@ -675,7 +675,7 @@ function GameEmbedSession({
     return getEmbeddedGameUrl(params);
   }, [activeLaunchParams, bridgeContext, calibration, calibrationStatus, iframeCalibrationLaunchSnapshot]);
 
-  const canRenderEmbeddedGame = returnSyncState === "idle" && Boolean(
+  const canRenderEmbeddedGame = !needsSongChoice && returnSyncState === "idle" && Boolean(
     activeLaunchParams &&
     (!activeLaunchParams.get("receipt") || (bridgeContext && calibrationStatus !== "loading")),
   );
