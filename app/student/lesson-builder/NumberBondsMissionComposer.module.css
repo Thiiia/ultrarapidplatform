@@ -161,6 +161,14 @@
   scale: 1.12;
 }
 
+.noteSelected {
+  z-index: 2;
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px #cfff0455, 0 0 22px #cfff04dd;
+  scale: 1.1;
+}
+
 .noteSuggested {
   border: 1px dashed #b9db8b;
   background: #214539;
@@ -641,6 +649,7 @@
 @media (max-width: 900px) and (pointer: coarse) {
   .note { width: 44px; transition: none; }
   .notePlaced:hover:not(:disabled) { filter: none; box-shadow: none; scale: 1; }
+  .noteSelected { outline: 3px solid #fff; outline-offset: 3px; box-shadow: 0 0 0 5px #cfff0455; scale: 1; }
   .noteNext {
     animation: none;
     box-shadow: none;

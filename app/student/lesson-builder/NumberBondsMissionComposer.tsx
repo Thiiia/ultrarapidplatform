@@ -68,6 +68,7 @@ export function NumberBondsMissionComposer({
   notes,
   authoredNoteCount,
   hasAuthoredSequence,
+  selectedNoteId,
   stopAtSeconds,
   songDurationSeconds,
   isReady,
@@ -91,6 +92,7 @@ export function NumberBondsMissionComposer({
   notes: OrbitNote[];
   authoredNoteCount: number;
   hasAuthoredSequence: boolean;
+  selectedNoteId?: string | null;
   stopAtSeconds?: number;
   songDurationSeconds: number;
   isReady: boolean;
@@ -147,7 +149,7 @@ export function NumberBondsMissionComposer({
       <div className={styles.intro}>
         <span className={styles.eyebrow}>NUMBER BONDS · {songTitle}</span>
         <h1>Build a bond. Play the song.</h1>
-        <p>Choose a target from 2 to {NUMBER_BONDS_MAX_WHOLE}. Each Hit stays on a playable note from this song’s verified chart; smaller targets sample cues across the track. Spin and Drag land on the chart’s beat grid. Select a placed note to edit its Hit target and player pad in the cue editor; adjust its timing on the Notes track.</p>
+        <p>Choose a target from 2 to {NUMBER_BONDS_MAX_WHOLE}. Each Hit starts on a playable note from this song&apos;s verified chart; smaller targets sample cues across the track. Spin and Drag land on the chart&apos;s beat grid. Select a placed note to choose its single player pad—the whole stays the Hit target. Fine-tune its timing in the cue editor and snap it back to a playable chart cue when needed.</p>
       </div>
       {authoredNoteCount === whole && !hasAuthoredSequence ? (
         <p className={styles.sequenceHint} role="note">This saved revision has chart-timed Hits only. Build gems from the chart to add a Spin and Drag to every unit.</p>
@@ -171,15 +173,17 @@ export function NumberBondsMissionComposer({
           const note = notes[index];
           const isAuthored = Boolean(note && index < authoredNoteCount);
           const isNextSuggested = Boolean(note && !isAuthored && index === authoredNoteCount);
+          const isSelected = Boolean(isAuthored && selectedNoteId && note?.id === selectedNoteId);
           return (
             <button
-              className={`${styles.note} ${isAuthored ? styles.notePlaced : note ? styles.noteSuggested : styles.noteEmpty} ${isNextSuggested ? styles.noteNext : ""}`}
+              className={`${styles.note} ${isAuthored ? styles.notePlaced : note ? styles.noteSuggested : styles.noteEmpty} ${isNextSuggested ? styles.noteNext : ""} ${isSelected ? styles.noteSelected : ""}`}
               key={index}
               type="button"
               style={{ left: `${50 + Math.cos(angle) * orbitRadius}%`, top: `${50 + Math.sin(angle) * orbitRadius}%`, animationDelay: `${(index % 5) * -0.45}s` }}
               disabled={!isAuthored}
               onClick={() => onSelectNote(index)}
-              aria-label={note ? `${isAuthored ? "Placed" : "Suggested"} note ${index + 1} at ${note.seconds.toFixed(1)} seconds` : `Note ${index + 1} awaits song timing`}
+              aria-pressed={isAuthored ? isSelected : undefined}
+              aria-label={note ? `${isAuthored ? "Placed" : "Suggested"} note ${index + 1} at ${note.seconds.toFixed(1)} seconds${isSelected ? ", selected for editing" : ""}` : `Note ${index + 1} awaits song timing`}
               title={note ? `${note.seconds.toFixed(1)}s · select on timeline` : "Timing will come from the song"}
             >
               {index + 1}

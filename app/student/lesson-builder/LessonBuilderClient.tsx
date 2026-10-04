@@ -15405,6 +15405,7 @@ export default function LessonBuilderClient({
             }}
             activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
             dragSources={[...dragSources, ...rtcmDraftMechanics.filter((draft) => draft.mechanic === "hit").map((draft) => ({ id: draft.id, label: `Recorded Hit · ${draft.tick.toFixed(2)}s` }))]}
+            chartHitCues={isNumberBondsActivity ? numberBondSongNotes : undefined}
             repairFocus={repairFocus}
             onChooseEquation={isNumberBondsActivity ? undefined : () => document.getElementById("recorded-repair-equation")?.focus()}
             onPatchInstance={handlePatchRecordedRepair}
@@ -15608,6 +15609,7 @@ export default function LessonBuilderClient({
               notes={numberBondOrbitNotes}
               authoredNoteCount={numberBondAuthoredNotesMatch ? numberBondHitCount : 0}
               hasAuthoredSequence={numberBondHasSequenceV1}
+              selectedNoteId={selectedGuidedEncounter?.mechanic === "hit" ? selectedGuidedEncounter.id : null}
               stopAtSeconds={sidecar.stopAtSeconds}
               songDurationSeconds={audioDurationSeconds || metadata?.durationSeconds || 0}
               isReady={lessonPublishReadiness.ready && numberBondAuthoredNotesMatch}
@@ -15957,6 +15959,7 @@ export default function LessonBuilderClient({
                             tokens={selectedGuidedEncounter.equation?.tokens ?? []}
                             readiness={selectedGuidedReadiness}
                             activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
+                            chartHitCues={isNumberBondsActivity ? numberBondSongNotes : undefined}
                             showAlgebraSetupProgress={(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "early-algebra"}
                             step={selectedGuidedReadiness.issueCodes.includes("equation_required") ? 1 : 2}
                             stepCount={3}

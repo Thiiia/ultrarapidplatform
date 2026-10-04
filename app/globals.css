@@ -604,8 +604,9 @@ textarea:focus-visible,
 
 .algebra-composer__padBoard {
   position: relative;
-  width: 11.5rem;
-  height: 9.5rem;
+  width: 12rem;
+  height: 12rem;
+  box-sizing: border-box;
   border: 1px solid rgb(255 255 255 / 14%);
   border-radius: var(--ur-radius-large);
   background: color-mix(in srgb, var(--ur-canvas-deep) 72%, var(--ur-canvas-top));
@@ -634,6 +635,98 @@ textarea:focus-visible,
   background: var(--ur-accent-lime);
   color: var(--ur-canvas-deep);
   box-shadow: 0 0 1rem rgb(var(--ur-accent-lime-rgb) / 28%);
+}
+
+.algebra-composer__padButton:focus-visible {
+  z-index: 2;
+  outline: 3px solid var(--color-blue);
+  outline-offset: 3px;
+}
+
+.algebra-composer__padButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.algebra-composer__padInstruction {
+  max-width: 20rem;
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.algebra-composer__numberBondsTarget {
+  display: grid;
+  justify-items: start;
+  align-content: center;
+  gap: var(--ur-space-2);
+  min-width: 0;
+  padding: var(--ur-space-3);
+  border: 1px solid rgb(var(--ur-accent-lime-rgb) / 24%);
+  border-radius: var(--ur-radius-large);
+  background: color-mix(in srgb, var(--ur-canvas-top) 88%, var(--ur-accent-lime));
+}
+
+.algebra-composer__wholeToken {
+  display: inline-grid;
+  justify-items: start;
+  gap: 2px;
+  min-width: 5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(var(--ur-accent-lime-rgb) / 48%);
+  border-radius: var(--ur-radius-medium);
+  background: rgb(var(--ur-accent-lime-rgb) / 12%);
+  color: var(--ur-text-primary);
+}
+
+.algebra-composer__wholeToken span {
+  color: var(--ur-accent-lime);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.algebra-composer__wholeToken strong {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.algebra-composer__chartSync {
+  display: grid;
+  justify-items: start;
+  gap: var(--ur-space-2);
+  width: min(100%, 12rem);
+  box-sizing: border-box;
+  padding: var(--ur-space-2) var(--ur-space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--ur-radius-medium);
+  background: var(--ur-canvas-deep);
+}
+
+.algebra-composer__chartSync > div {
+  display: grid;
+  gap: 2px;
+}
+
+.algebra-composer__chartSync strong {
+  color: var(--ur-accent-lime);
+  font-size: 0.75rem;
+}
+
+.algebra-composer__chartSync span {
+  color: var(--color-ink-muted);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.algebra-composer__chartSync[data-aligned="false"] {
+  border-color: color-mix(in srgb, var(--color-orange) 42%, var(--color-border-strong));
+}
+
+.algebra-composer__chartSync[data-aligned="false"] strong {
+  color: var(--color-orange);
 }
 
 .algebra-composer__padCenter {
@@ -704,6 +797,11 @@ textarea:focus-visible,
 
   .algebra-composer__equationOrbit {
     animation: none;
+  }
+
+  .algebra-composer__padButton,
+  .algebra-composer__chartSync {
+    transition: none;
   }
 }
 
