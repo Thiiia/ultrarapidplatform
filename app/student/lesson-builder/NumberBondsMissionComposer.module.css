@@ -70,6 +70,21 @@
   box-shadow: 0 0 32px #b5ff2420;
 }
 
+.orbitRingInner {
+  position: absolute;
+  inset: 25%;
+  border: 1px dashed #87d9bd55;
+  border-radius: 50%;
+}
+
+.orbitDense .orbitRing {
+  inset: 9.3%;
+}
+
+.orbitDense .orbitCore {
+  inset: 33%;
+}
+
 .orbitRing::before {
   content: "";
   position: absolute;
@@ -120,6 +135,7 @@
 .note {
   position: absolute;
   z-index: 1;
+  box-sizing: border-box;
   display: grid;
   place-items: center;
   width: clamp(29px, 8%, 42px);
@@ -128,7 +144,7 @@
   border-radius: 50%;
   color: #ecffd2;
   font: 800 12px/1 "Space Grotesk", sans-serif;
-  transition: filter 180ms ease, box-shadow 180ms ease, scale 180ms ease;
+  transition: left 180ms ease, top 180ms ease, filter 180ms ease, box-shadow 180ms ease, scale 180ms ease;
 }
 
 .notePlaced {
@@ -136,7 +152,7 @@
   background: #285343;
   box-shadow: 0 0 16px #cfff04bb;
   cursor: pointer;
-  transition: filter 180ms ease, box-shadow 180ms ease;
+  transition: left 180ms ease, top 180ms ease, filter 180ms ease, box-shadow 180ms ease;
 }
 
 .notePlaced:hover:not(:disabled) {
@@ -467,13 +483,13 @@
 
 .quickTargets {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 44px), 1fr));
   gap: 6px;
 }
 
 .quickTargets button {
   min-width: 0;
-  min-height: 38px;
+  min-height: 44px;
   border: 1px solid #607f87;
   border-radius: 9px;
   background: #152d37;
@@ -660,7 +676,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .note, .noteSuggested, .noteNext, .pictorialModel { animation: none; }
+  .note, .noteSuggested, .noteNext, .pictorialModel, .orbitRing::before { animation: none; }
+  .note, .notePlaced, .orbitRing::before { transition: none; }
   .notePlaced,
   .targetRow > button,
   .quickTargets button,

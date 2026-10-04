@@ -605,7 +605,11 @@ export async function POST(request: Request) {
     // revision currently published in storage. The NEW revision (revisionId) is
     // generated below and stamped as output identity, never equated with the
     // previous one (that mismatch was the F02 second-save defect).
-    const precondition = checkSaveRevisionPrecondition(targets.chart.path, requestedRevision);
+    // A revision loaded from another author or activity can seed a new private
+    // draft, but it is not the concurrency token for this author’s first save.
+    // Only compare revisions when this author already has a SongChart pointer.
+    const expectedRevision = targets.current ? requestedRevision : null;
+    const precondition = checkSaveRevisionPrecondition(targets.chart.path, expectedRevision);
     if (!precondition.ok) {
       return NextResponse.json(
         { error: `Save revision conflict: expected ${precondition.expected}, found ${precondition.found ?? "none"}` },

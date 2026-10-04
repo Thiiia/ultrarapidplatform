@@ -114,6 +114,9 @@ export function NumberBondsMissionComposer({
   const canPlaceNotes = whole >= NUMBER_BONDS_MIN_WHOLE && whole <= maxSelectableWhole;
   const stopFitsSong = !stopAtSeconds || !songDurationSeconds || stopAtSeconds <= songDurationSeconds + 0.05;
   const canPlay = isSongLoaded && stopFitsSong && (isReady || canPlaceNotes);
+  // At 17 targets, narrow touch layouts no longer leave 44px between single-ring cues.
+  const usesTwoOrbitRings = whole >= 17;
+  const outerOrbitCount = usesTwoOrbitRings ? Math.ceil(whole / 2) : whole;
   const lastNoteSeconds = notes.length ? Math.max(...notes.map((note) => note.seconds)) : null;
   const formattedStop = stopAtSeconds === undefined ? "After notes are placed" : `${Math.floor(stopAtSeconds / 60)}:${String(Math.floor(stopAtSeconds % 60)).padStart(2, "0")}`;
   const difficultyLabel = songDifficulty.replace("Single", "");
@@ -150,16 +153,21 @@ export function NumberBondsMissionComposer({
         <p className={styles.sequenceHint} role="note">This saved revision has chart-timed Hits only. Build gems from the chart to add a Spin and Drag to every unit.</p>
       ) : null}
 
-      <div className={styles.orbit} role="group" aria-label={`Make ${whole}: ${whole} equals ${partA} plus ${partB}; ${whole} chart-timed gem journeys`}
+      <div className={`${styles.orbit} ${usesTwoOrbitRings ? styles.orbitDense : ""}`} role="group" aria-label={`Make ${whole}: ${whole} equals ${partA} plus ${partB}; ${whole} chart-timed gem journeys`}
         style={{ "--bond-progress": `${Math.min(100, 100 * authoredNoteCount / whole)}%` } as CSSProperties}>
         <div className={styles.orbitRing} aria-hidden="true" />
+        {usesTwoOrbitRings ? <div className={styles.orbitRingInner} aria-hidden="true" /> : null}
         <div className={styles.orbitCore}>
           <span>MAKE</span>
           <strong>{whole}</strong>
           <span className={styles.equation}>{whole} = {partA} + {partB}</span>
         </div>
         {Array.from({ length: whole }, (_, index) => {
-          const angle = -Math.PI / 2 + 2 * Math.PI * index / whole;
+          const usesInnerRing = usesTwoOrbitRings && index >= outerOrbitCount;
+          const ringIndex = usesInnerRing ? index - outerOrbitCount : index;
+          const ringCount = usesInnerRing ? whole - outerOrbitCount : outerOrbitCount;
+          const orbitRadius = usesInnerRing ? 25 : usesTwoOrbitRings ? 40.7 : 39;
+          const angle = -Math.PI / 2 + 2 * Math.PI * ringIndex / ringCount;
           const note = notes[index];
           const isAuthored = Boolean(note && index < authoredNoteCount);
           const isNextSuggested = Boolean(note && !isAuthored && index === authoredNoteCount);
@@ -168,7 +176,7 @@ export function NumberBondsMissionComposer({
               className={`${styles.note} ${isAuthored ? styles.notePlaced : note ? styles.noteSuggested : styles.noteEmpty} ${isNextSuggested ? styles.noteNext : ""}`}
               key={index}
               type="button"
-              style={{ left: `${50 + Math.cos(angle) * 39}%`, top: `${50 + Math.sin(angle) * 39}%`, animationDelay: `${(index % 5) * -0.45}s` }}
+              style={{ left: `${50 + Math.cos(angle) * orbitRadius}%`, top: `${50 + Math.sin(angle) * orbitRadius}%`, animationDelay: `${(index % 5) * -0.45}s` }}
               disabled={!isAuthored}
               onClick={() => onSelectNote(index)}
               aria-label={note ? `${isAuthored ? "Placed" : "Suggested"} note ${index + 1} at ${note.seconds.toFixed(1)} seconds` : `Note ${index + 1} awaits song timing`}
