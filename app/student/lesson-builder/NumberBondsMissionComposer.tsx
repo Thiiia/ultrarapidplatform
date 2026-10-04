@@ -147,7 +147,7 @@ export function NumberBondsMissionComposer({
       <div className={styles.intro}>
         <span className={styles.eyebrow}>NUMBER BONDS · {songTitle}</span>
         <h1>Build a bond. Play the song.</h1>
-        <p>Choose a target from 2 to {NUMBER_BONDS_MAX_WHOLE}. Each Hit stays on a playable note from this song’s verified chart; smaller targets sample cues across the track. Spin and Drag land on the chart’s beat grid.</p>
+        <p>Choose a target from 2 to {NUMBER_BONDS_MAX_WHOLE}. Each Hit stays on a playable note from this song’s verified chart; smaller targets sample cues across the track. Spin and Drag land on the chart’s beat grid. Select a placed note to edit its Hit target and player pad in the cue editor; adjust its timing on the Notes track.</p>
       </div>
       {authoredNoteCount === whole && !hasAuthoredSequence ? (
         <p className={styles.sequenceHint} role="note">This saved revision has chart-timed Hits only. Build gems from the chart to add a Spin and Drag to every unit.</p>
