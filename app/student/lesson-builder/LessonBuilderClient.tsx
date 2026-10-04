@@ -12687,7 +12687,14 @@ export default function LessonBuilderClient({
     const note = numberBondOrbitNotes[index];
     if (!note) return;
     const eventSlot = timelineEvents.find((event) => event.mechanicInstances.hit.some((instance) => instance.id === note.id));
-    if (eventSlot) setActiveEventId(eventSlot.id);
+    const hitIndex = eventSlot?.mechanicInstances.hit.findIndex((instance) => instance.id === note.id) ?? -1;
+    if (eventSlot && hitIndex >= 0) {
+      setActiveEventId(eventSlot.id);
+      setSelectedContextMechanicKey(`hit:${hitIndex}`);
+      setMode("event");
+      setAdvancedMode(false);
+      setCenterChoice(null);
+    }
     seekSong(note.seconds);
   }
 
