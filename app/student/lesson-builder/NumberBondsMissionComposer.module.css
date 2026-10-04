@@ -347,6 +347,36 @@
   min-width: 0;
 }
 
+.selectedHitEditor {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: clamp(14px, 2vw, 20px);
+  border: 1px solid #cfff0466;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #172c32f5, #0c1d26f5);
+  box-shadow: 0 16px 42px #020a0d66;
+}
+
+.selectedHitSummary {
+  display: grid;
+  gap: 4px;
+}
+
+.selectedHitSummary strong {
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.selectedHitSummary p {
+  max-width: 62ch;
+  margin: 0;
+  color: #d4e1e8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .targetPanel {
   display: grid;
   gap: 12px;

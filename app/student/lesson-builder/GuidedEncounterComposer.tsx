@@ -207,12 +207,14 @@ function HitControls({
   isAlgebra,
   numberBondsWholeTokenIndex,
   nearestChartCueSeconds,
+  chartCueSourceAvailable,
   onPatchInstance,
 }: Pick<GuidedEncounterComposerProps, "instance" | "tokens" | "onPatchInstance"> & {
   isNumberBonds: boolean;
   isAlgebra: boolean;
   numberBondsWholeTokenIndex: number | null;
   nearestChartCueSeconds: number | null;
+  chartCueSourceAvailable: boolean;
 }) {
   const bubble = instance.hitBubbles[0];
   const selectedTokenIndex = isNumberBonds
@@ -378,7 +380,15 @@ function HitControls({
             <div aria-hidden="true" className="algebra-composer__padCenter" />
           </div>
         )}
-        {isNumberBonds && nearestChartCueSeconds !== null ? (
+        {chartCueSourceAvailable && nearestChartCueSeconds === null ? (
+          <div className="algebra-composer__chartSync" data-aligned="false" role="status">
+            <div>
+              <strong>Chart sync unavailable</strong>
+              <span>No playable notes were found for this song and difficulty.</span>
+            </div>
+          </div>
+        ) : null}
+        {nearestChartCueSeconds !== null ? (
           <div className="algebra-composer__chartSync" data-aligned={chartCueIsAligned ? "true" : "false"} role="status" aria-live="polite">
             <div>
               <strong>{chartCueIsAligned ? "On a playable song cue" : "Nearest playable song cue"}</strong>
@@ -521,7 +531,7 @@ export function GuidedEncounterComposer({
       : studentCopy.mechanics.makeDrag;
   let controls: ReactNode;
   const finiteChartCueTimes = chartHitCues?.map((cue) => cue.seconds).filter(Number.isFinite) ?? [];
-  const nearestChartCueSeconds = isNumberBonds && instance.mechanic === "hit" && typeof instance.tick === "number" && finiteChartCueTimes.length
+  const nearestChartCueSeconds = instance.mechanic === "hit" && typeof instance.tick === "number" && finiteChartCueTimes.length
     ? finiteChartCueTimes.reduce((closest, candidate) =>
       Math.abs(candidate - instance.tick!) < Math.abs(closest - instance.tick!) ? candidate : closest,
     finiteChartCueTimes[0])
@@ -539,6 +549,7 @@ export function GuidedEncounterComposer({
         isAlgebra={false}
         numberBondsWholeTokenIndex={numberBondsWholeTokenIndex}
         nearestChartCueSeconds={nearestChartCueSeconds}
+        chartCueSourceAvailable={chartHitCues !== undefined}
         onPatchInstance={onPatchInstance}
       />
     </>;
@@ -554,7 +565,8 @@ export function GuidedEncounterComposer({
       isNumberBonds={false}
       isAlgebra={isAlgebra}
       numberBondsWholeTokenIndex={null}
-      nearestChartCueSeconds={null}
+      nearestChartCueSeconds={nearestChartCueSeconds}
+      chartCueSourceAvailable={chartHitCues !== undefined}
       onPatchInstance={onPatchInstance}
     />;
   } else if (instance.mechanic === "spin") {

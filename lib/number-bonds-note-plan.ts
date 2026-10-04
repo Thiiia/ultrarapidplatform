@@ -1,5 +1,5 @@
+import { getSongChartCues } from "./song-chart-cues";
 import { createLessonClock } from "./editor/lesson-timing";
-import { AUTHORED_MIN_FIRST_CUE_SECONDS } from "./authored-lesson";
 import {
   NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS,
   NUMBER_BONDS_MINIMUM_HIT_SPACING_SECONDS,
@@ -46,17 +46,11 @@ export function getNumberBondSongNotes(
   sequenceTailSeconds = 0,
 ): NumberBondSongNote[] {
   if (!chart.trim() || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return [];
-  const body = chart.match(new RegExp(`\\[${difficulty}\\]\\s*\\{([\\s\\S]*?)\\}`))?.[1];
-  if (!body) return [];
-
-  const clock = createLessonClock(chart);
   const lastPlayableSecond = durationSeconds - NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS - Math.max(0, sequenceTailSeconds);
   const byTick = new Map<number, NumberBondSongNote>();
-  for (const match of body.matchAll(/^\s*(\d+)\s*=\s*N\s+([0-4])\s+\d+\s*$/gm)) {
-    const tick = Number(match[1]);
-    const seconds = clock.toSeconds(tick);
-    if (!Number.isFinite(seconds) || seconds < AUTHORED_MIN_FIRST_CUE_SECONDS || seconds > lastPlayableSecond) continue;
-    if (!byTick.has(tick)) byTick.set(tick, { tick, lane: Number(match[2]), seconds });
+  for (const cue of getSongChartCues(chart, difficulty, durationSeconds)) {
+    if (cue.seconds > lastPlayableSecond) continue;
+    if (!byTick.has(cue.tick)) byTick.set(cue.tick, cue);
   }
   return [...byTick.values()].sort((left, right) => left.seconds - right.seconds || left.lane - right.lane);
 }

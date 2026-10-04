@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NUMBER_BONDS_MAX_WHOLE, NUMBER_BONDS_MIN_WHOLE } from "@/lib/number-bonds-authoring";
 import styles from "./NumberBondsMissionComposer.module.css";
 
@@ -69,6 +69,7 @@ export function NumberBondsMissionComposer({
   authoredNoteCount,
   hasAuthoredSequence,
   selectedNoteId,
+  selectedHitEditor,
   stopAtSeconds,
   songDurationSeconds,
   isReady,
@@ -93,6 +94,7 @@ export function NumberBondsMissionComposer({
   authoredNoteCount: number;
   hasAuthoredSequence: boolean;
   selectedNoteId?: string | null;
+  selectedHitEditor?: ReactNode;
   stopAtSeconds?: number;
   songDurationSeconds: number;
   isReady: boolean;
@@ -106,6 +108,8 @@ export function NumberBondsMissionComposer({
   onSelectNote: (index: number) => void;
 }) {
   const [wholeDraft, setWholeDraft] = useState({ whole, songCapacity, text: String(whole) });
+  const selectedHitEditorRef = useRef<HTMLElement | null>(null);
+  const previousSelectedNoteId = useRef(selectedNoteId);
   const wholeText = wholeDraft.whole === whole && wholeDraft.songCapacity === songCapacity
     ? wholeDraft.text
     : String(whole);
@@ -116,6 +120,16 @@ export function NumberBondsMissionComposer({
   const canPlaceNotes = whole >= NUMBER_BONDS_MIN_WHOLE && whole <= maxSelectableWhole;
   const stopFitsSong = !stopAtSeconds || !songDurationSeconds || stopAtSeconds <= songDurationSeconds + 0.05;
   const canPlay = isSongLoaded && stopFitsSong && (isReady || canPlaceNotes);
+  const selectedNoteIndex = selectedNoteId ? notes.findIndex((note) => note.id === selectedNoteId) : -1;
+  const selectedNote = selectedNoteIndex >= 0 ? notes[selectedNoteIndex] : null;
+
+  useEffect(() => {
+    if (previousSelectedNoteId.current === selectedNoteId) return;
+    previousSelectedNoteId.current = selectedNoteId;
+    if (!selectedNoteId || !selectedHitEditorRef.current) return;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    selectedHitEditorRef.current.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
+  }, [selectedNoteId]);
   // At 17 targets, narrow touch layouts no longer leave 44px between single-ring cues.
   const usesTwoOrbitRings = whole >= 17;
   const outerOrbitCount = usesTwoOrbitRings ? Math.ceil(whole / 2) : whole;
@@ -184,7 +198,7 @@ export function NumberBondsMissionComposer({
               onClick={() => onSelectNote(index)}
               aria-pressed={isAuthored ? isSelected : undefined}
               aria-label={note ? `${isAuthored ? "Placed" : "Suggested"} note ${index + 1} at ${note.seconds.toFixed(1)} seconds${isSelected ? ", selected for editing" : ""}` : `Note ${index + 1} awaits song timing`}
-              title={note ? `${note.seconds.toFixed(1)}s · select on timeline` : "Timing will come from the song"}
+              title={note ? `${note.seconds.toFixed(1)}s · select to edit this Hit` : "Timing will come from the song"}
             >
               {index + 1}
             </button>
@@ -322,6 +336,16 @@ export function NumberBondsMissionComposer({
         </div>
         {status ? <p className={styles.status} role="status">{status}</p> : null}
       </div>
+      {selectedHitEditor ? (
+        <section ref={selectedHitEditorRef} className={styles.selectedHitEditor} aria-label="Selected Number Bonds Hit editor">
+          <div className={styles.selectedHitSummary}>
+            <span className={styles.eyebrow}>EDITING SELECTED GEM</span>
+            <strong>{selectedNote ? `Gem ${selectedNoteIndex + 1} · ${selectedNote.seconds.toFixed(1)}s` : "Selected Hit cue"}</strong>
+            <p>Choose this gem’s player pad and check its timing against the song chart. Changes apply to this Hit in the lesson draft.</p>
+          </div>
+          {selectedHitEditor}
+        </section>
+      ) : null}
     </section>
   );
 }

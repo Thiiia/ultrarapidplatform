@@ -111,6 +111,7 @@ import {
   planNumberBondNotes,
   planNumberBondSequenceCues,
 } from "@/lib/number-bonds-note-plan";
+import { getSongChartCues } from "@/lib/song-chart-cues";
 import { getLearnerFacingError, studentCopy } from "@/lib/student-copy";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import { AlgebraStudioBar, type AlgebraAppearance } from "./AlgebraStudioBar";
@@ -11067,6 +11068,16 @@ export default function LessonBuilderClient({
       ?? savedEquations.find((entry) => entry.id === recordedRepairDraft.equationId)
       ?? null
     : null;
+  const recordedRepairIssues = recordedRepairDraft
+    ? lessonPublishReadiness.blockers.filter((blocker) => blocker.encounterId === recordedRepairDraft.id)
+    : [];
+  const recordedRepairReadiness = recordedRepairDraft ? {
+    encounterId: recordedRepairDraft.id,
+    ready: recordedRepairIssues.length === 0,
+    issues: recordedRepairIssues,
+    issueCodes: recordedRepairIssues.map((item) => item.code),
+    nextAction: recordedRepairIssues[0]?.nextAction ?? "This move is ready.",
+  } : null;
 
   function handleGenerateNumberBondsLesson(useStarterTemplate = false) {
     const activityKey = selectedSongActivity?.key ?? selectedSongLaunch?.activityKey;
@@ -11291,6 +11302,14 @@ export default function LessonBuilderClient({
     numberBondDurationSeconds,
     getNumberBondSequenceTailSeconds(numberBondChart),
   ), [audioDurationSeconds, chartFile, metadata?.durationSeconds, selectedSongLaunch?.rhythmDifficultyKey]);
+  const songChartCues = useMemo(() => isAlgebraActivity
+    ? getSongChartCues(numberBondChart, numberBondDifficulty, numberBondDurationSeconds)
+    : [], [audioDurationSeconds, chartFile, isAlgebraActivity, metadata?.durationSeconds, selectedSongLaunch?.rhythmDifficultyKey]);
+  const activityChartHitCues = isNumberBondsActivity
+    ? numberBondSongNotes
+    : isAlgebraActivity
+      ? songChartCues
+      : undefined;
   const numberBondSongCapacity = useMemo(() => getNumberBondSequenceCapacity(
     numberBondChart,
     numberBondDifficulty,
@@ -12686,12 +12705,23 @@ export default function LessonBuilderClient({
   function handleSelectNumberBondNote(index: number) {
     const note = numberBondOrbitNotes[index];
     if (!note) return;
-    const eventSlot = timelineEvents.find((event) => event.mechanicInstances.hit.some((instance) => instance.id === note.id));
-    const hitIndex = eventSlot?.mechanicInstances.hit.findIndex((instance) => instance.id === note.id) ?? -1;
-    if (eventSlot && hitIndex >= 0) {
-      setActiveEventId(eventSlot.id);
-      setSelectedContextMechanicKey(`hit:${hitIndex}`);
-      setMode("event");
+    const selection = findGuidedEncounterSelection(
+      timelineEvents as unknown as AuthoredTimelineEvent[],
+      note.id,
+    ) ?? findGuidedEncounterSelection(rtcmAuthoredEvents, note.id);
+    if (selection) {
+      const isRecordedDraft = rtcmDraftMechanics.some((draft) => draft.id === selection.eventId);
+      if (isRecordedDraft) {
+        setActiveEventId(null);
+        setSelectedContextMechanicKey(null);
+        setRecordedRepairId(selection.eventId);
+        setMode("rctm2");
+      } else {
+        setRecordedRepairId(null);
+        setActiveEventId(selection.eventId);
+        setSelectedContextMechanicKey(`${selection.mechanic}:${selection.instanceIndex}`);
+        setMode("event");
+      }
       setAdvancedMode(false);
       setCenterChoice(null);
     }
@@ -15361,7 +15391,7 @@ export default function LessonBuilderClient({
         />
       ) : null}
 
-      {recordedRepairDraft ? (
+      {recordedRepairDraft && !isNumberBondsActivity ? (
         <aside aria-label="Recorded move repair" style={{ position: "fixed", top: 68, right: 16, zIndex: 1204, width: "min(460px, calc(100vw - 32px))", maxHeight: "calc(100vh - 84px)", overflowY: "auto", padding: 12, borderRadius: 16, border: "1px solid #7A8FA8", background: "#101827", boxShadow: "0 16px 40px #0009" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <strong>Fix recorded move</strong>
@@ -15405,7 +15435,7 @@ export default function LessonBuilderClient({
             }}
             activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
             dragSources={[...dragSources, ...rtcmDraftMechanics.filter((draft) => draft.mechanic === "hit").map((draft) => ({ id: draft.id, label: `Recorded Hit · ${draft.tick.toFixed(2)}s` }))]}
-            chartHitCues={isNumberBondsActivity ? numberBondSongNotes : undefined}
+            chartHitCues={activityChartHitCues}
             repairFocus={repairFocus}
             onChooseEquation={isNumberBondsActivity ? undefined : () => document.getElementById("recorded-repair-equation")?.focus()}
             onPatchInstance={handlePatchRecordedRepair}
@@ -15609,7 +15639,43 @@ export default function LessonBuilderClient({
               notes={numberBondOrbitNotes}
               authoredNoteCount={numberBondAuthoredNotesMatch ? numberBondHitCount : 0}
               hasAuthoredSequence={numberBondHasSequenceV1}
-              selectedNoteId={selectedGuidedEncounter?.mechanic === "hit" ? selectedGuidedEncounter.id : null}
+              selectedNoteId={selectedGuidedEncounter?.mechanic === "hit"
+                ? selectedGuidedEncounter.id
+                : recordedRepairDraft?.mechanic === "hit" ? recordedRepairDraft.id : null}
+              selectedHitEditor={selectedGuidedEncounter?.mechanic === "hit" && selectedGuidedReadiness ? (
+                <GuidedEncounterComposer
+                  instance={selectedGuidedEncounter}
+                  studioClasses={algebraStyles}
+                  tokens={selectedGuidedEncounter.equation?.tokens ?? []}
+                  readiness={selectedGuidedReadiness}
+                  activityKey="number-bonds"
+                  chartHitCues={numberBondSongNotes}
+                  dragSources={dragSources}
+                  onPatchInstance={handlePatchSelectedGuidedEncounter}
+                  repairFocus={repairFocus}
+                  onRemove={isFocusedGuidedEditor ? handleRemoveSelectedContextMechanic : undefined}
+                />
+              ) : recordedRepairDraft?.mechanic === "hit" && recordedRepairReadiness ? (
+                <GuidedEncounterComposer
+                  instance={{ ...recordedRepairDraft, equation: recordedRepairEquation }}
+                  studioClasses={algebraStyles}
+                  tokens={recordedRepairEquation?.tokens ?? []}
+                  readiness={recordedRepairReadiness}
+                  activityKey="number-bonds"
+                  chartHitCues={numberBondSongNotes}
+                  dragSources={[
+                    ...dragSources,
+                    ...rtcmDraftMechanics.filter((draft) => draft.mechanic === "hit").map((draft) => ({ id: draft.id, label: `Recorded Hit · ${draft.tick.toFixed(2)}s` })),
+                  ]}
+                  repairFocus={repairFocus}
+                  onPatchInstance={handlePatchRecordedRepair}
+                  onRemove={() => {
+                    setRtcmDraftMechanics((current) => current.filter((draft) => draft.id !== recordedRepairDraft.id));
+                    setRecordedRepairId(null);
+                    markDirty();
+                  }}
+                />
+              ) : null}
               stopAtSeconds={sidecar.stopAtSeconds}
               songDurationSeconds={audioDurationSeconds || metadata?.durationSeconds || 0}
               isReady={lessonPublishReadiness.ready && numberBondAuthoredNotesMatch}
@@ -15953,22 +16019,24 @@ export default function LessonBuilderClient({
                               ) : null}
                             </div>
                           ) : null}
-                          <GuidedEncounterComposer
-                            instance={selectedGuidedEncounter}
-                            studioClasses={algebraStyles}
-                            tokens={selectedGuidedEncounter.equation?.tokens ?? []}
-                            readiness={selectedGuidedReadiness}
-                            activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
-                            chartHitCues={isNumberBondsActivity ? numberBondSongNotes : undefined}
-                            showAlgebraSetupProgress={(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "early-algebra"}
-                            step={selectedGuidedReadiness.issueCodes.includes("equation_required") ? 1 : 2}
-                            stepCount={3}
-                            dragSources={dragSources}
-                            onPatchInstance={handlePatchSelectedGuidedEncounter}
-                            repairFocus={repairFocus}
-                            onChooseEquation={isNumberBondsActivity ? undefined : () => { setLibraryTab("mine"); setIsLibraryPanelOpen(true); }}
-                            onRemove={isFocusedGuidedEditor ? handleRemoveSelectedContextMechanic : undefined}
-                          />
+                          {!(isNumberBondsActivity && selectedGuidedEncounter.mechanic === "hit") ? (
+                            <GuidedEncounterComposer
+                              instance={selectedGuidedEncounter}
+                              studioClasses={algebraStyles}
+                              tokens={selectedGuidedEncounter.equation?.tokens ?? []}
+                              readiness={selectedGuidedReadiness}
+                              activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
+                              chartHitCues={activityChartHitCues}
+                              showAlgebraSetupProgress={(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "early-algebra"}
+                              step={selectedGuidedReadiness.issueCodes.includes("equation_required") ? 1 : 2}
+                              stepCount={3}
+                              dragSources={dragSources}
+                              onPatchInstance={handlePatchSelectedGuidedEncounter}
+                              repairFocus={repairFocus}
+                              onChooseEquation={isNumberBondsActivity ? undefined : () => { setLibraryTab("mine"); setIsLibraryPanelOpen(true); }}
+                              onRemove={isFocusedGuidedEditor ? handleRemoveSelectedContextMechanic : undefined}
+                            />
+                          ) : null}
                         </div>
                       ) : null}
                       {!isFocusedGuidedEditor ? <div style={{ minHeight: 0, overflow: "hidden" }}>
