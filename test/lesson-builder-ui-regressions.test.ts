@@ -156,6 +156,17 @@ test("Number Bonds note creation explains the one-note, one-gem contract", () =>
   assert.match(lessonBuilderSource, /NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS/);
 });
 
+test("chart cue status copy uses a single readable timestamp without escaped entities", () => {
+  const chartCueCopy = composerSource.match(
+    /<strong>\{chartCueIsAligned \? "On a playable chart cue"[\s\S]*?<\/span>/,
+  )?.[0];
+
+  assert.ok(chartCueCopy);
+  assert.match(chartCueCopy, /timeValue\(nearestChartCueSeconds\)/);
+  assert.match(chartCueCopy, /s away · cue at /);
+  assert.doesNotMatch(chartCueCopy, /&(?:apos|amp;apos);/);
+});
+
 test("Number Bonds exposes a responsive ten-and-ones model and edits the split without replacing cues", () => {
   assert.match(numberBondsComposerSource, /const tenGroups = Math\.floor\(count \/ 10\)/);
   assert.match(numberBondsComposerSource, /const looseCount = count % 10/);
