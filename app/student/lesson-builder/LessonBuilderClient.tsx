@@ -28,6 +28,7 @@ import {
   serializeAuthoredLesson,
   timelineEventsFromAuthoredLesson,
   type AuthoredLessonDraft,
+  type AuthoredNumberBondSequenceV1,
   type AuthoredTimelineEvent,
 } from "@/lib/authored-lesson-serialization";
 import {
@@ -63,6 +64,7 @@ import {
 import { applyEquationToEvent as applyEquationToEventInstances } from "@/lib/authored-lesson-event-assignment";
 // import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { persistLaunchParams } from "@/lib/launch-handoff";
+import { readDemoLessonDraft, saveDemoLessonDraft } from "@/lib/demo-lesson-drafts";
 import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import {
   requestFreshSongLaunchPackage,
@@ -102,7 +104,14 @@ import {
   NUMBER_BONDS_MAX_WHOLE,
   type NumberBondValues,
 } from "@/lib/number-bonds-authoring";
-import { getNumberBondSongNotes, getSpacedNumberBondNotes, planNumberBondNotes } from "@/lib/number-bonds-note-plan";
+import {
+  getNumberBondSequenceCapacity,
+  getNumberBondSequenceTailSeconds,
+  getNumberBondSongNotes,
+  planNumberBondNotes,
+  planNumberBondSequenceCues,
+} from "@/lib/number-bonds-note-plan";
+import { getSongChartCues } from "@/lib/song-chart-cues";
 import { getLearnerFacingError, studentCopy } from "@/lib/student-copy";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import { AlgebraStudioBar, type AlgebraAppearance } from "./AlgebraStudioBar";
@@ -1705,7 +1714,11 @@ function authoredSidecarFromTimelineEvents(
   clock: ReturnType<typeof createLessonClock>,
   stopAtSeconds?: number,
   equationQueue: SavedEquation[] = [],
-  options: { forPublish?: boolean; activityKey?: string | null } = {},
+  options: {
+    forPublish?: boolean;
+    activityKey?: string | null;
+    numberBondSequenceV1?: AuthoredNumberBondSequenceV1;
+  } = {},
 ): AuthoredLessonDraft {
   return serializeAuthoredLesson(
     events as unknown as AuthoredTimelineEvent[],
@@ -1990,6 +2003,10 @@ function HeaderBar({
   onOpenFile,
   onLaunch,
   onSave,
+  onSaveDraft,
+  canSaveDraft = false,
+  saveActionLabel = studentCopy.editor.saveLessonLabel,
+  isDemoMode = false,
   canLaunch,
   canPublish = true,
   isRctm1Mode,
@@ -2010,6 +2027,10 @@ function HeaderBar({
   onOpenFile: () => void;
   onLaunch: () => void;
   onSave: () => void;
+  onSaveDraft?: () => void;
+  canSaveDraft?: boolean;
+  saveActionLabel?: string;
+  isDemoMode?: boolean;
   canLaunch: boolean;
   canPublish?: boolean;
   isRctm1Mode: boolean;
@@ -2022,19 +2043,20 @@ function HeaderBar({
     <header
       className={isAlgebraStudio ? algebraStyles.header : undefined}
       style={{
-        background: isAlgebraStudio ? "rgba(13, 14, 34, .78)" : headerBackgroundColor,
+        background: isAlgebraStudio ? "rgba(8, 39, 51, .94)" : headerBackgroundColor,
         width: "100%",
         boxSizing: "border-box",
-        height: isAlgebraStudio ? 58 : headerHeight,
+        height: isAlgebraStudio ? 64 : headerHeight,
         flexShrink: 0,
-        borderBottom: `1px solid ${subtleBorderColor}`,
+        borderBottom: `1px solid ${isAlgebraStudio ? "rgba(169, 217, 208, .2)" : subtleBorderColor}`,
         display: "flex",
         alignItems: "center",
       }}
     >
       <div
+        className={isAlgebraStudio ? algebraStyles.headerInner : undefined}
         style={{
-          width: pagePanelWidth,
+          width: isAlgebraStudio ? "100%" : pagePanelWidth,
           height: "100%",
           margin: "0 auto",
           display: "flex",
@@ -2045,10 +2067,11 @@ function HeaderBar({
         }}
       >
         <div
+          className={isAlgebraStudio ? algebraStyles.headerBrandGroup : undefined}
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 28,
+            gap: isAlgebraStudio ? 14 : 28,
             minWidth: 0,
             overflow: "visible",
           }}
@@ -2059,41 +2082,54 @@ function HeaderBar({
             aria-label="Back to dashboard home"
             title="Back to dashboard home"
             style={{
-              width: 156,
-              height: 35,
+              width: isAlgebraStudio ? 34 : 156,
+              height: isAlgebraStudio ? 34 : 35,
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: "center",
               flexShrink: 0,
               overflow: "visible",
-              background: "none",
-              border: "none",
+              background: isAlgebraStudio ? "rgba(255,255,255,.07)" : "none",
+              border: isAlgebraStudio ? "1px solid rgba(169,217,208,.35)" : "none",
+              borderRadius: isAlgebraStudio ? 12 : 0,
               padding: 0,
               cursor: "pointer",
             }}
           >
-            <URIcon
-              aria-hidden="true"
-              style={{
-                width: 156,
-                height: 35,
-                display: "block",
-                flexShrink: 0,
-                overflow: "visible",
-              }}
-            />
+            {isAlgebraStudio ? (
+              <span aria-hidden="true" className={algebraStyles.headerBackMark}>←</span>
+            ) : (
+              <URIcon
+                aria-hidden="true"
+                style={{
+                  width: 156,
+                  height: 35,
+                  display: "block",
+                  flexShrink: 0,
+                  overflow: "visible",
+                }}
+              />
+            )}
           </button>
+
+          {isAlgebraStudio ? (
+            <div className={algebraStyles.headerStudioIdentity}>
+              <strong>ULTRARAPID / STUDIO</strong>
+              <span>PRIVATE DRAFT</span>
+            </div>
+          ) : null}
 
           <div
             style={{
               minWidth: 0,
               height: 38,
-              display: "inline-flex",
+              display: isAlgebraStudio ? "none" : "inline-flex",
               alignItems: "center",
               gap: 8,
               padding: "0 14px",
               borderRadius: 999,
               border: "1px solid #7A8FA8",
-              background: isAlgebraStudio ? "rgba(47, 42, 86, .75)" : "#060B15FC",
+              background: isAlgebraStudio ? "#103336" : "#060B15FC",
               color: "#FFFFFF",
               fontFamily: "Space Grotesk, sans-serif",
               maxWidth: 320,
@@ -2149,14 +2185,14 @@ function HeaderBar({
               height: 38,
               padding: "0 14px",
               textDecoration: "none",
-              display: "inline-flex",
+              display: isAlgebraStudio ? "none" : "inline-flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#CFFF04",
               fontSize: 12,
               fontWeight: 700,
               borderRadius: 999,
-              background: isAlgebraStudio ? "rgba(47, 42, 86, .75)" : "#060B15FC",
+              background: isAlgebraStudio ? "#103336" : "#060B15FC",
               border: "1px solid #7A8FA8",
               fontFamily: "Space Grotesk, sans-serif",
               whiteSpace: "nowrap",
@@ -2210,13 +2246,13 @@ function HeaderBar({
                 aria-label={chartmakerInfo.ariaLabel}
                 title={chartmakerInfo.title}
                 style={{
-                  minWidth: 106,
-                  height: 38,
+                  minWidth: isAlgebraStudio ? 112 : 106,
+                  height: isAlgebraStudio ? 40 : 38,
                   borderRadius: 999,
-                  border: "1px solid #7A8FA8",
-                  background: chartmakerInfo.isActive ? "#CFFF04" : isAlgebraStudio ? "rgba(47, 42, 86, .75)" : "#060B15FC",
-                  color: chartmakerInfo.isActive ? "#071222" : "#7A8FA8",
-                  fontSize: 14,
+                  border: `1px solid ${isAlgebraStudio ? "rgba(207, 255, 4, .45)" : "#7A8FA8"}`,
+                  background: chartmakerInfo.isActive ? "#CFFF04" : isAlgebraStudio ? "rgba(255,255,255,.07)" : "#060B15FC",
+                  color: chartmakerInfo.isActive ? "#071222" : isAlgebraStudio ? "#F4F5ED" : "#7A8FA8",
+                  fontSize: isAlgebraStudio ? 12 : 14,
                   fontWeight: 700,
                   cursor: "pointer",
                   padding: "0 16px",
@@ -2230,9 +2266,10 @@ function HeaderBar({
         </div>
 
         <div
+          className={isAlgebraStudio ? algebraStyles.headerActionGroup : undefined}
           style={{
             display: "flex",
-            gap: 6,
+            gap: isAlgebraStudio ? 8 : 6,
             marginLeft: "auto",
             alignItems: "center",
             flexShrink: 0,
@@ -2245,14 +2282,14 @@ function HeaderBar({
             aria-label={studentCopy.editor.changeSongLabel}
             title={studentCopy.editor.changeSongLabel}
             style={{
-              width: 64,
-              height: 30,
+              minWidth: isAlgebraStudio ? 96 : 64,
+              height: isAlgebraStudio ? 42 : 30,
               borderRadius: 12,
-              border: `1px solid ${subtleBorderColor}`,
-              background: panelBackgroundColor,
-              padding: "0 8px",
-              color: "#FFFFFF",
-              fontSize: 10,
+              border: `1px solid ${isAlgebraStudio ? "rgba(169,217,208,.3)" : subtleBorderColor}`,
+              background: isAlgebraStudio ? "rgba(255,255,255,.06)" : panelBackgroundColor,
+              padding: isAlgebraStudio ? "0 12px" : "0 8px",
+              color: "#F4F5ED",
+              fontSize: isAlgebraStudio ? 12 : 10,
               fontWeight: 800,
               cursor: "pointer",
               display: "inline-flex",
@@ -2271,42 +2308,91 @@ function HeaderBar({
             {studentCopy.editor.changeSong}
           </button>
 
+          {onSaveDraft && !isAlgebraStudio ? (
+            <button
+              type="button"
+              disabled={!canSaveDraft || isSaving}
+              onClick={onSaveDraft}
+              aria-label={isDemoMode ? "Save demo changes on this device only" : "Save lesson draft"}
+              title={canSaveDraft
+                ? isDemoMode
+                  ? "Saves only in this browser. It is not saved to Supabase or published."
+                  : "Save a private lesson draft"
+                : isDemoMode
+                  ? "Choose a lesson before saving this demo"
+                  : "Load a lesson before saving a draft"}
+              style={{
+                height: 29,
+                border: `1px solid ${subtleBorderColor}`,
+                borderRadius: 12,
+                background: "transparent",
+                color: canSaveDraft && !isSaving ? "#DCE6F2" : "#7A8FA8",
+                padding: "0 9px",
+                fontSize: 10,
+                fontWeight: 800,
+                cursor: canSaveDraft && !isSaving ? "pointer" : "not-allowed",
+                opacity: canSaveDraft && !isSaving ? 1 : 0.55,
+              }}
+            >
+              {isDemoMode ? "Save demo" : "Save draft"}
+            </button>
+          ) : null}
+
           <button
             type="button"
             onClick={onLaunch}
             disabled={!canLaunch || isSaving}
-            aria-label={studentCopy.editor.playLessonLabel}
-            title={isSaving ? "Saving lesson changes" : canLaunch ? studentCopy.editor.playLessonLabel : studentCopy.editor.pickSongBeforePlay}
+            aria-label={isAlgebraStudio ? "Play lesson preview" : studentCopy.editor.playLessonLabel}
+            title={isSaving ? "Saving lesson changes" : canLaunch ? (isAlgebraStudio ? "Preview this lesson" : studentCopy.editor.playLessonLabel) : studentCopy.editor.pickSongBeforePlay}
+            className={isAlgebraStudio ? algebraStyles.headerActionButton : undefined}
             style={{
-              minWidth: 70,
-              height: 30,
+              minWidth: isAlgebraStudio ? 124 : 70,
+              height: isAlgebraStudio ? 42 : 30,
               borderRadius: 12,
-              border: `1px solid ${subtleBorderColor}`,
+              border: `1px solid ${isAlgebraStudio ? "rgba(207,255,4,.58)" : subtleBorderColor}`,
               background: canLaunch && !isSaving ? "#CFFF04" : "rgba(207,255,4,0.12)",
-              color: canLaunch && !isSaving ? "#071222" : "#7A8FA8",
+              color: canLaunch && !isSaving ? "#07120D" : "#A9B2AC",
               fontFamily: "Space Grotesk, sans-serif",
-              fontSize: 11,
+              fontSize: isAlgebraStudio ? 13 : 11,
               fontWeight: 800,
               cursor: canLaunch && !isSaving ? "pointer" : "not-allowed",
               opacity: canLaunch && !isSaving ? 1 : 0.55,
             }}
           >
-            Play
+            {isAlgebraStudio ? "Play preview" : "Play"}
           </button>
+
+          {isAlgebraStudio && onSaveDraft ? (
+            <button
+              type="button"
+              onClick={onSaveDraft}
+              disabled={!canSaveDraft || isSaving}
+              aria-label="Save private draft"
+              title="Save a private draft for later"
+              className={algebraStyles.headerDraftButton}
+            >
+              Save draft
+            </button>
+          ) : null}
 
           <button
             type="button"
             disabled={!canPublish || isSaving}
             onClick={onSave}
-            aria-label={studentCopy.editor.saveLessonLabel}
-            title={canPublish ? studentCopy.editor.saveLessonLabel : "Finish the lesson before saving"}
+            aria-label={saveActionLabel}
+            title={canPublish ? saveActionLabel : "Finish the lesson before saving"}
+            className={isAlgebraStudio ? algebraStyles.headerPublishButton : undefined}
             style={{
-              width: 60,
-              height: 29,
-              border: "none",
+              minWidth: isAlgebraStudio ? 144 : 60,
+              height: isAlgebraStudio ? 42 : 29,
+              border: isAlgebraStudio ? "1px solid #CFFF04" : "none",
               borderRadius: 12,
-              background: "transparent",
-              padding: 0,
+              background: isAlgebraStudio ? "#CFFF04" : "transparent",
+              padding: isAlgebraStudio ? "0 16px" : 0,
+              color: "#07120D",
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 13,
+              fontWeight: 800,
               cursor: canPublish && !isSaving ? "pointer" : "not-allowed",
               opacity: canPublish && !isSaving ? 1 : 0.55,
               display: "inline-flex",
@@ -2314,17 +2400,21 @@ function HeaderBar({
               justifyContent: "center",
             }}
           >
-            <img
-              src="/Save_Button.svg"
-              alt=""
-              aria-hidden="true"
-              style={{
-                width: 60,
-                height: 29,
-                display: "block",
-                objectFit: "contain",
-              }}
-            />
+            {isAlgebraStudio ? (
+              isSaving ? "Saving…" : saveActionLabel
+            ) : (
+              <img
+                src="/Save_Button.svg"
+                alt=""
+                aria-hidden="true"
+                style={{
+                  width: 60,
+                  height: 29,
+                  display: "block",
+                  objectFit: "contain",
+                }}
+              />
+            )}
           </button>
         </div>
       </div>
@@ -5073,6 +5163,8 @@ function EquationTimeline({
   const waveformContainerRef = useRef<HTMLDivElement | null>(null);
   const timelineClusterMenuRef = useRef<HTMLDivElement | null>(null);
   const timelineClusterTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const timelineZoomModeRef = useRef<"fit" | "manual">("fit");
+  const lastTimelineContentKeyRef = useRef<string | null>(null);
   const wavesurferRef = useRef<{
     load(url: string): void;
     destroy(): void;
@@ -5106,8 +5198,8 @@ function EquationTimeline({
 
     const wavesurfer = WaveSurfer.create({
       container: waveformContainerRef.current,
-      waveColor: "#CFFF04",
-      progressColor: "#CFFF0466",
+      waveColor: activityKey === "number-bonds" ? "#A9D9D066" : "#CFFF04",
+      progressColor: activityKey === "number-bonds" ? "#CFFF04A6" : "#CFFF0466",
       height: "auto",
     });
 
@@ -5123,7 +5215,7 @@ function EquationTimeline({
         wavesurferRef.current = null;
       }
     };
-  }, [waveformPeaks.length, audioObjectUrl]);
+  }, [activityKey, waveformPeaks.length, audioObjectUrl]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -5152,6 +5244,36 @@ function EquationTimeline({
   const playheadMaxLeft = visualDurationSeconds * pixelsPerSecond;
   const endScrollBuffer = 260;
   const trackWidth = Math.max(blockCount * blockWidthPx + endScrollBuffer, blockWidthPx);
+  const timelineContentKey = `${activityKey ?? "none"}:${durationSeconds}:${events.map((eventSlot) => eventSlot.id).join("|")}`;
+
+  useEffect(() => {
+    if (lastTimelineContentKeyRef.current !== timelineContentKey) {
+      lastTimelineContentKeyRef.current = timelineContentKey;
+      timelineZoomModeRef.current = "fit";
+    }
+
+    const track = timelineTrackRef.current;
+    if (!track) return;
+
+    const updateFitZoom = () => {
+      if (timelineZoomModeRef.current !== "fit") return;
+
+      const availableWidth = track.clientWidth || viewportWidth * 0.88;
+      const baseBlockWidth = viewportWidth * 0.05;
+      const fitZoom = (availableWidth - endScrollBuffer) / Math.max(1, blockCount * baseBlockWidth);
+      const nextZoom = Math.min(1, Math.max(0.15, Number(fitZoom.toFixed(2))));
+      setTimelineZoom((currentZoom) => currentZoom === nextZoom ? currentZoom : nextZoom);
+    };
+
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateFitZoom);
+    observer?.observe(track);
+    const frame = window.requestAnimationFrame(updateFitZoom);
+
+    return () => {
+      observer?.disconnect();
+      window.cancelAnimationFrame(frame);
+    };
+  }, [timelineContentKey, viewportWidth, blockCount, endScrollBuffer]);
   const playheadLeft = Math.min(
     playheadMaxLeft,
     Math.max(0, currentSongSeconds * pixelsPerSecond),
@@ -5160,6 +5282,7 @@ function EquationTimeline({
   const mechanicsForTimeline = authoringCapabilities.supportedAuthoredMechanics
     .filter((mechanic) => !(hideSpinouts && mechanic === "spin"));
   const isNumberBondsTimeline = authoringCapabilities.activityKey === "number-bonds";
+  const isAlgebraTimeline = authoringCapabilities.activityKey === "early-algebra";
   const rowCountAfterHeader = 2 + mechanicsForTimeline.length;
   const timelineHeaderPercent = 18;
   const rowHeightPercent = (100 - timelineHeaderPercent) / rowCountAfterHeader;
@@ -5171,7 +5294,11 @@ function EquationTimeline({
     ...mechanicsForTimeline.map((mechanic) => ({
       key: mechanic,
       label: mechanic === "hit" ? (isNumberBondsTimeline ? "Notes" : "Hits") : mechanic === "spin" ? "Spins" : "Drags",
-      color: mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF3535" : "#B45CFF",
+      color: mechanic === "hit"
+        ? (isAlgebraTimeline ? "#00FF57" : "#2EA7FF")
+        : mechanic === "spin"
+          ? (isAlgebraTimeline ? "#6F00F6" : "#FF3535")
+          : (isAlgebraTimeline ? "#66D9FF" : "#B45CFF"),
     })),
   ];
   const timelineEventLabelClusters = groupTimelineEventLabels(
@@ -5187,7 +5314,11 @@ function EquationTimeline({
         accessibleLabel: eventSlot.rctm2Number
           ? `${eventLabel} · #${eventSlot.rctm2Number}`
           : eventLabel,
-        visualLabel: activityKey === "early-algebra" ? `E${index + 1}` : eventLabel,
+        visualLabel: activityKey === "number-bonds"
+          ? `#${index + 1}`
+          : activityKey === "early-algebra"
+            ? `E${index + 1}`
+            : eventLabel,
         isActive: eventSlot.id === activeEventId,
       };
     }),
@@ -5240,7 +5371,8 @@ function EquationTimeline({
     };
   }, [openEventClusterKey]);
 
-  function setTimelineZoomLevel(nextZoom: number) {
+  function setTimelineZoomLevel(nextZoom: number, mode: "fit" | "manual" = "manual") {
+    timelineZoomModeRef.current = mode;
     setTimelineZoom(Math.min(2.5, Math.max(0.15, Number(nextZoom.toFixed(2)))));
   }
 
@@ -5248,7 +5380,7 @@ function EquationTimeline({
     const availableWidth = timelineTrackRef.current?.clientWidth ?? viewportWidth * 0.88;
     const baseBlockWidth = viewportWidth * 0.05;
     const fitZoom = (availableWidth - endScrollBuffer) / Math.max(1, blockCount * baseBlockWidth);
-    setTimelineZoomLevel(Math.min(1, fitZoom));
+    setTimelineZoomLevel(Math.min(1, fitZoom), "fit");
   }
 
   function getSecondsFromClientX(clientX: number, options: { autoScroll?: boolean } = {}) {
@@ -5925,9 +6057,13 @@ function EquationTimeline({
                 const optionListId = `${timelineId}-event-cluster-options`;
                 const label = cluster.items.length === 1
                   ? cluster.items[0].visualLabel
-                  : activeItem
-                    ? `${activeItem.visualLabel} +${cluster.items.length - 1}`
-                    : `${cluster.items.length} encounters`;
+                  : isNumberBondsTimeline
+                    ? activeItem
+                      ? `${activeItem.visualLabel} +${cluster.items.length - 1}`
+                      : `${cluster.items.length} cues`
+                    : activeItem
+                      ? `${activeItem.visualLabel} +${cluster.items.length - 1}`
+                      : `${cluster.items.length} encounters`;
                 const accessibleLabel = cluster.items.length === 1
                   ? cluster.items[0].accessibleLabel
                   : `${cluster.items.length} encounters near ${formatTimelineTime(cluster.items[0].startSeconds, true)}. Choose an encounter.`;
@@ -6010,7 +6146,7 @@ function EquationTimeline({
                   boxSizing: "border-box",
                 }}
               >
-                {events.map((eventSlot) => {
+                {events.map((eventSlot, eventIndex) => {
                   const instances = eventSlot.mechanicInstances?.[mechanic] ?? [];
                   const fallbackCount = Math.max(
                     0,
@@ -6055,7 +6191,7 @@ function EquationTimeline({
                               aria-valuetext={`${formatTimelineTime(markerSeconds, isAdvancedMode)} seconds`}
                               aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight PageUp PageDown Home End"
                               title="Use arrow keys to adjust time; Shift+arrow for a larger step, Page keys for a larger jump, Home/End for song limits."
-                              aria-label={`Hit ${instanceIndex + 1} timing`}
+                              aria-label={`Encounter ${eventIndex + 1} Hit ${instanceIndex + 1} timing`}
                               onKeyDown={(keyboardEvent) => handleTimelineRetimingByKey(
                                 keyboardEvent,
                                 markerSeconds,
@@ -6301,7 +6437,7 @@ function NumberBondsSetupPanel({
       <div style={{ display: "grid", gap: 6 }}>
         <strong style={{ fontSize: 15, color: "#FFFFFF" }}>Make a number</strong>
         <span style={{ fontSize: 11, lineHeight: 1.45, color: "#FFFFFF99" }}>
-          Set the number the player makes. Each song note stands for one unit block.
+          Set the number the player makes. Each chart cue builds one unit gem with a Hit, Spin and Drag.
         </span>
       </div>
 
@@ -6342,13 +6478,13 @@ function NumberBondsSetupPanel({
             <strong style={{ color: "#FFFFFF", fontSize: 12 }}>Number blocks</strong>
             <span role="status" style={{ color: remainingCueCount === 0 && extraCueCount === 0 ? "#CFFF04" : "#FFFFFF99", fontSize: 10, fontWeight: 800 }}>
               {extraCueCount > 0
-                ? `${hitCueCount} / ${whole} notes · ${extraCueCount} to remove`
+                ? `${hitCueCount} / ${whole} cues · ${extraCueCount} to remove`
                 : remainingCueCount > 0
-                  ? `${completedCueCount} / ${whole} notes · ${remainingCueCount} to add`
-                  : `${whole} / ${whole} notes ready`}
+                  ? `${completedCueCount} / ${whole} cues · ${remainingCueCount} to add`
+                  : `${whole} / ${whole} cues ready`}
             </span>
           </div>
-          <div role="img" aria-label={`${completedCueCount} of ${whole} unit block notes are placed`} style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 6 }}>
+          <div role="img" aria-label={`${completedCueCount} of ${whole} gem journey cues are placed`} style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 6 }}>
             {Array.from({ length: whole }, (_, index) => {
               const isScheduled = index < completedCueCount;
               return (
@@ -6359,7 +6495,7 @@ function NumberBondsSetupPanel({
             })}
           </div>
           <span style={{ color: "#FFFFFF80", fontSize: 10, lineHeight: 1.4 }}>
-            One note fills one block. Timing feedback stays on the performance step below the song timeline.
+            One chart cue anchors one unit gem. Timing feedback stays with the performance step.
           </span>
         </div>
       ) : null}
@@ -6367,7 +6503,7 @@ function NumberBondsSetupPanel({
       {!validWhole ? (
         <div role="alert" style={{ color: "#FFCB6B", fontSize: 11, lineHeight: 1.4 }}>
           {maxWhole < 2
-            ? "This chart needs at least two spaced notes. Choose another song or chart."
+            ? "This chart cannot fit two complete Hit, Spin and Drag journeys. Choose a longer or more open song chart."
             : `Choose a whole number from 2 to ${maxWhole} for this song.`}
         </div>
       ) : null}
@@ -6387,7 +6523,7 @@ function NumberBondsSetupPanel({
           onClick={() => onSaveBond(whole)}
           style={{ minHeight: 40, borderRadius: 9, border: "1px solid #CFFF04", background: validWhole ? "#CFFF04" : "#657045", color: "#071222", fontSize: 12, fontWeight: 900, cursor: validWhole ? "pointer" : "not-allowed" }}
         >
-          Build notes for this target
+          Build gems for this target
         </button>
       </div>
     </section>
@@ -6533,23 +6669,33 @@ function getEquationTileStyle({
   compact = false,
   disabled = false,
   compactSize,
+  algebraPlayer = false,
 }: {
   label: string;
   compact?: boolean;
   disabled?: boolean;
   compactSize?: number;
+  algebraPlayer?: boolean;
 }) {
   const kind = getEquationTileKind(label);
   const isOperator = kind === "operator";
   const isNumber = kind === "number";
+  const isAlgebraPlayerTerm = algebraPlayer && !isOperator;
 
-  const background = isOperator ? "#6B3312" : isNumber ? "#1B3668" : "#3D1E6B";
-  const borderTop = isOperator
+  const background = isAlgebraPlayerTerm
+    ? "radial-gradient(circle at 32% 22%, rgba(255,255,255,.12), rgba(255,255,255,.04) 42%, rgba(255,255,255,.02)), rgba(255,255,255,.065)"
+    : isOperator ? "#6B3312" : isNumber ? "#1B3668" : "#3D1E6B";
+  const borderTop = isAlgebraPlayerTerm
+    ? "1px solid rgba(255,255,255,.5)"
+    : isOperator
     ? "1px solid #FF8C3C73"
     : isNumber
       ? "1px solid #64A0FF73"
       : "1px solid #B478FF73";
-  const boxShadow = isOperator
+  const sideBorder = isAlgebraPlayerTerm ? "1px solid rgba(255,255,255,.5)" : "none";
+  const boxShadow = isAlgebraPlayerTerm
+    ? "inset 0 1px rgba(255,255,255,.24), 0 12px 30px rgba(0,0,0,.3)"
+    : isOperator
     ? "0px 0px 8px 0px #FF823C4D"
     : isNumber
       ? "0px 0px 8px 0px #3C82FF4D"
@@ -6560,11 +6706,11 @@ function getEquationTileStyle({
     minWidth: compact ? compactSize ?? 42 : 0,
     height: compact ? compactSize ?? 34 : undefined,
     minHeight: compact ? undefined : 42,
-    borderRadius: 12,
+    borderRadius: isAlgebraPlayerTerm ? "50%" : 12,
     borderTop,
-    borderRight: "none",
-    borderBottom: "none",
-    borderLeft: "none",
+    borderRight: sideBorder,
+    borderBottom: sideBorder,
+    borderLeft: sideBorder,
     background,
     boxShadow,
     color: "#FFFFFF",
@@ -6652,6 +6798,7 @@ function EquationTileStrip({
   mechanicEndSeconds,
   isSongPlaying = false,
   onQuickAddHit,
+  algebraPlayer = false,
 }: {
   tokens: EquationToken[];
   emptyLabel?: string;
@@ -6673,6 +6820,7 @@ function EquationTileStrip({
   mechanicEndSeconds?: number | null;
   isSongPlaying?: boolean;
   onQuickAddHit?: (pad: HitBubblePad) => void;
+  algebraPlayer?: boolean;
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const selectedTokenRef = useRef<HTMLSpanElement | null>(null);
@@ -7050,6 +7198,7 @@ function EquationTileStrip({
       label: token.label,
       compact,
       compactSize,
+      algebraPlayer,
     });
 
     const tileStyle = {
@@ -7064,7 +7213,7 @@ function EquationTileStrip({
       cursor: isClickable ? "pointer" : "default",
       boxShadow: isSelected
         ? `0 0 0 2px ${selectedOutlineColor}, 0 0 16px ${selectedOutlineColor}66`
-        : undefined,
+        : baseStyle.boxShadow,
       position: "relative" as const,
       zIndex: 2,
       opacity: hideForDragAnimation ? 0 : 1,
@@ -7096,7 +7245,11 @@ function EquationTileStrip({
 
     if (!isClickable) {
       return (
-        <span key={token.id} style={tileStyle}>
+        <span
+          key={token.id}
+          className={algebraPlayer && !isOperator ? algebraStyles.playerTerm : undefined}
+          style={tileStyle}
+        >
           {token.label}
         </span>
       );
@@ -7111,9 +7264,10 @@ function EquationTileStrip({
         <button
           type="button"
           onClick={() => onTokenClick?.(tokenIndex)}
+          className={algebraPlayer && !isOperator ? algebraStyles.playerTerm : undefined}
           style={{
             ...tileStyle,
-            border: "none",
+            ...(algebraPlayer ? {} : { border: "none" }),
             padding: 0,
           }}
           aria-label={`Assign to token ${token.label}`}
@@ -7661,8 +7815,15 @@ function CenterChoicePanel({
       : hasSong
         ? "Make an equation or start with one from the lesson library."
         : "Pick a song, then add equations and place game actions on its timeline.";
-  const selectedTokenOutlineColor =
-    selectedMechanic === "hit"
+  const selectedTokenOutlineColor = activityKey === "early-algebra"
+    ? selectedMechanic === "hit"
+      ? "#00FF57"
+      : selectedMechanic === "spin"
+        ? "#6F00F6"
+        : selectedMechanic === "drag"
+          ? "#66D9FF"
+          : "#CFFF04"
+    : selectedMechanic === "hit"
       ? "#2EA7FF"
       : selectedMechanic === "spin"
         ? "#FF3535"
@@ -7828,9 +7989,14 @@ function CenterChoicePanel({
                 selectedHitPad={selectedHitPad}
                 onSelectHitPad={onSelectHitPad ?? undefined}
                 fontSizeOverride={{
-                  operator: 36,
-                  nonOperator: 44,
+                  operator: activityKey === "early-algebra"
+                    ? Math.max(24, Math.round(equationViewerBlockSize * 0.34))
+                    : 36,
+                  nonOperator: activityKey === "early-algebra"
+                    ? Math.max(30, Math.round(equationViewerBlockSize * 0.76))
+                    : 44,
                 }}
+                algebraPlayer={activityKey === "early-algebra"}
                 currentSongSeconds={currentSongSeconds}
                 mechanicStartSeconds={mechanicStartSeconds}
                 mechanicEndSeconds={mechanicEndSeconds}
@@ -10288,6 +10454,10 @@ export default function LessonBuilderClient({
 
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventSlot[]>([]);
   const [numberBondDraftTarget, setNumberBondDraftTarget] = useState<{ songAssetId: string; whole: number } | null>(null);
+  const [numberBondSequenceV1, setNumberBondSequenceV1] = useState<{
+    songAssetId: string;
+    sequence: AuthoredNumberBondSequenceV1;
+  } | null>(null);
   const [numberBondLaunchPendingWhole, setNumberBondLaunchPendingWhole] = useState<number | null>(null);
   const numberBondAutoLaunchRef = useRef<number | null>(null);
   const numberBondShuffleRef = useRef(0);
@@ -10898,6 +11068,16 @@ export default function LessonBuilderClient({
       ?? savedEquations.find((entry) => entry.id === recordedRepairDraft.equationId)
       ?? null
     : null;
+  const recordedRepairIssues = recordedRepairDraft
+    ? lessonPublishReadiness.blockers.filter((blocker) => blocker.encounterId === recordedRepairDraft.id)
+    : [];
+  const recordedRepairReadiness = recordedRepairDraft ? {
+    encounterId: recordedRepairDraft.id,
+    ready: recordedRepairIssues.length === 0,
+    issues: recordedRepairIssues,
+    issueCodes: recordedRepairIssues.map((item) => item.code),
+    nextAction: recordedRepairIssues[0]?.nextAction ?? "This move is ready.",
+  } : null;
 
   function handleGenerateNumberBondsLesson(useStarterTemplate = false) {
     const activityKey = selectedSongActivity?.key ?? selectedSongLaunch?.activityKey;
@@ -10940,6 +11120,14 @@ export default function LessonBuilderClient({
       setTimelineEvents(nextEvents);
       setAuthoredEquationQueue(hydrated.equations);
       setTemplateEquations(hydrated.equations);
+      setNumberBondSequenceV1(
+        hydrated.numberBondSequenceVersion === 1 && hydrated.numberBondGems
+          ? {
+              songAssetId: generated.draft.songAssetId,
+              sequence: { version: 1, gems: hydrated.numberBondGems },
+            }
+          : null,
+      );
       setSelectedEquationId(generated.draft.equations[0]?.id ?? null);
       setActiveEventId(nextEvents[0]?.id ?? null);
       setRtcmDraftMechanics([]);
@@ -11105,12 +11293,28 @@ export default function LessonBuilderClient({
       ? numberBondHitCount
       : getInitialNumberBondWholeForCapacity(0)
   );
+  const numberBondChart = chartFile || originalChartFileRef.current;
+  const numberBondDifficulty = selectedSongLaunch?.rhythmDifficultyKey ?? "ExpertSingle";
+  const numberBondDurationSeconds = audioDurationSeconds || metadata?.durationSeconds || 0;
   const numberBondSongNotes = useMemo(() => getNumberBondSongNotes(
-    chartFile || originalChartFileRef.current,
-    selectedSongLaunch?.rhythmDifficultyKey ?? "ExpertSingle",
-    audioDurationSeconds || metadata?.durationSeconds || 0,
+    numberBondChart,
+    numberBondDifficulty,
+    numberBondDurationSeconds,
+    getNumberBondSequenceTailSeconds(numberBondChart),
   ), [audioDurationSeconds, chartFile, metadata?.durationSeconds, selectedSongLaunch?.rhythmDifficultyKey]);
-  const numberBondSongCapacity = getSpacedNumberBondNotes(numberBondSongNotes).length;
+  const songChartCues = useMemo(() => isAlgebraActivity
+    ? getSongChartCues(numberBondChart, numberBondDifficulty, numberBondDurationSeconds)
+    : [], [audioDurationSeconds, chartFile, isAlgebraActivity, metadata?.durationSeconds, selectedSongLaunch?.rhythmDifficultyKey]);
+  const activityChartHitCues = isNumberBondsActivity
+    ? numberBondSongNotes
+    : isAlgebraActivity
+      ? songChartCues
+      : undefined;
+  const numberBondSongCapacity = useMemo(() => getNumberBondSequenceCapacity(
+    numberBondChart,
+    numberBondDifficulty,
+    numberBondDurationSeconds,
+  ), [audioDurationSeconds, chartFile, metadata?.durationSeconds, selectedSongLaunch?.rhythmDifficultyKey]);
   const numberBondTargetWhole = numberBondDraftTarget?.songAssetId === selectedSongAssetId
     ? numberBondDraftTarget.whole
     : numberBondValues?.whole ?? (numberBondSongCapacity >= 2
@@ -11121,6 +11325,9 @@ export default function LessonBuilderClient({
     : createDefaultNumberBondForSong(selectedSongAssetId, numberBondTargetWhole);
   const numberBondAuthoredNotesMatch = numberBondValues?.whole === numberBondTargetWhole &&
     numberBondHitCount === numberBondTargetWhole;
+  const numberBondHasSequenceV1 = numberBondSequenceV1?.songAssetId === selectedSongAssetId &&
+    numberBondSequenceV1.sequence.version === 1 &&
+    numberBondSequenceV1.sequence.gems.length === numberBondTargetWhole;
   const numberBondOrbitNotes = useMemo(() => {
     const authored = numberBondAuthoredNotesMatch ? [...timelineEvents, ...rtcmAuthoredEvents]
       .flatMap((event) => (event.mechanicInstances?.hit ?? []).map((instance) => ({
@@ -11149,7 +11356,7 @@ export default function LessonBuilderClient({
       void handleLaunchGame();
     } else {
       const blocker = lessonPublishReadiness.blockers[0];
-      setSaveStatus(blocker?.nextAction ?? "These song notes need a timing adjustment before play.");
+      setSaveStatus(blocker?.nextAction ?? "These chart cues need a timing adjustment before play.");
       setIsReadinessOpen(true);
     }
   });
@@ -11272,6 +11479,14 @@ export default function LessonBuilderClient({
       timelineRehydrateSourceRef.current = nextSidecar;
       setAuthoredEquationQueue(importedEquations);
       setTemplateEquations(importedEquations);
+      setNumberBondSequenceV1(
+        hydrated.numberBondSequenceVersion === 1 && hydrated.numberBondGems
+          ? {
+              songAssetId: authoredDraft.songAssetId,
+              sequence: { version: 1, gems: hydrated.numberBondGems },
+            }
+          : null,
+      );
       setActiveEventId(nextEvents[0]?.id ?? null);
       setMode(nextMode);
       setStoreSidecar(nextSidecar as StoreSidecarPayload);
@@ -11519,6 +11734,7 @@ export default function LessonBuilderClient({
   }
 
   function handleClearRtcmChart() {
+    setNumberBondSequenceV1(null);
     setTimelineEvents([]);
     setRtcmDraftMechanics([]);
     setRtcmEventRangeStartTick(null);
@@ -12322,11 +12538,16 @@ export default function LessonBuilderClient({
       setSaveStatus("Choose a song and wait for it to finish loading before playing.");
       return;
     }
-    const notes = planNumberBondNotes(numberBondSongNotes, targetWhole);
-    if (!notes) {
+    const cues = planNumberBondSequenceCues(
+      numberBondChart,
+      numberBondDifficulty,
+      numberBondDurationSeconds,
+      targetWhole,
+    );
+    if (!cues) {
       setSaveStatus(numberBondSongCapacity >= 2
-        ? `This song can fit ${Math.min(20, numberBondSongCapacity)} notes. Choose a smaller number or another song.`
-        : "This rhythm chart needs playable notes and a known song length before Number Bonds can start.");
+        ? `This song can fit ${numberBondSongCapacity} complete gem journeys. Choose a smaller whole or another song.`
+        : "This rhythm chart needs enough playable notes and time for every gem to hit, spin and drag.");
       return;
     }
 
@@ -12339,20 +12560,53 @@ export default function LessonBuilderClient({
       numberBondEquation?.id ?? makeId("number-bond"),
     );
     const chartLanePads: HitBubblePad[] = ["topLeft", "topRight", "left", "right", "bottomLeft"];
-    const events = notes.map((note, index) => {
-      const eventSlot = makeTimelineEvent(index, Number(note.seconds.toFixed(3)), { hit: 1 });
-      const pad = chartLanePads[note.lane] ?? "bottomRight";
+    const events = cues.map((cue, index) => {
+      const eventSlot = makeTimelineEvent(index, cue.hitSeconds, { hit: 1, spin: 1, drag: 1 }, cue.dragEndSeconds);
+      const hit = eventSlot.mechanicInstances.hit[0];
+      const spin = eventSlot.mechanicInstances.spin[0];
+      const drag = eventSlot.mechanicInstances.drag[0];
+      const pad = chartLanePads[cue.note.lane] ?? "bottomRight";
+      const partTokenIndex = index < partA ? 2 : 4;
+
       eventSlot.mechanicInstances.hit[0] = {
-        ...eventSlot.mechanicInstances.hit[0],
-        tick: eventSlot.tick,
+        ...hit,
+        tick: cue.hitSeconds,
+        endTick: cue.hitSeconds,
         hitBubbles: [{ tokenIndex: 0, pads: [pad], positions: [pad] }],
       };
+      eventSlot.mechanicInstances.spin[0] = {
+        ...spin,
+        tick: cue.spinStartSeconds,
+        endTick: cue.spinEndSeconds,
+        spinTargets: [{ tokenIndex: 0 }],
+      };
+      eventSlot.mechanicInstances.drag[0] = {
+        ...drag,
+        tick: cue.dragStartSeconds,
+        endTick: cue.dragEndSeconds,
+        dragTargets: [{ tokenIndex: partTokenIndex, sourceHitId: hit.id }],
+      };
+
       return applyEquationToEvent(eventSlot, equation);
+    });
+    const sequenceGems = events.map((event, unitIndex) => {
+      const inPartA = unitIndex < partA;
+      return {
+        gemId: makeId("gem"),
+        unitIndex,
+        spinEncounterId: event.mechanicInstances.spin[0].id,
+        dragEncounterId: event.mechanicInstances.drag[0].id,
+        destination: {
+          part: inPartA ? "part-a" as const : "part-b" as const,
+          slotIndex: inPartA ? unitIndex : unitIndex - partA,
+        },
+      };
     });
 
     // An explicit rebuild replaces only this Number Bonds mission's old notes.
     legacyEncounterSourceRef.current = null;
     setNumberBondDraftTarget({ songAssetId: selectedSongAssetId, whole: targetWhole });
+    setNumberBondSequenceV1({ songAssetId: selectedSongAssetId, sequence: { version: 1, gems: sequenceGems } });
     setAuthoredEquationQueue([equation]);
     setSelectedEquationId(equation.id);
     setRtcmDraftMechanics([]);
@@ -12363,9 +12617,9 @@ export default function LessonBuilderClient({
     if (playAfterBuild) {
       numberBondAutoLaunchRef.current = targetWhole;
       setNumberBondLaunchPendingWhole(targetWhole);
-      setSaveStatus(`Placed ${notes.length} notes from the song. Preparing your mission…`);
+      setSaveStatus(`Built ${events.length} complete gem journeys. Preparing your mission…`);
     } else {
-      setSaveStatus(`Placed ${notes.length} notes from the song. Save the lesson or press Play to try it.`);
+      setSaveStatus(`Built ${events.length} complete gem journeys from ${metadata?.songTitle || "this song"}, aligned to its chart. Save the lesson or press Play to try it.`);
     }
   }
 
@@ -12373,8 +12627,8 @@ export default function LessonBuilderClient({
     if (!Number.isInteger(whole) || whole < 2 || whole > NUMBER_BONDS_MAX_WHOLE ||
       whole > numberBondSongCapacity) {
       setSaveStatus(numberBondSongCapacity >= 2
-        ? `This song can fit ${Math.min(NUMBER_BONDS_MAX_WHOLE, numberBondSongCapacity)} spaced notes. Choose a smaller number or another song.`
-        : "This song needs at least two playable, spaced notes before Number Bonds can start.");
+        ? `This song can fit ${numberBondSongCapacity} complete gem journeys. Choose a smaller whole or another song.`
+        : "This song needs at least two playable, spaced chart cues with room for Spin and Drag.");
       return;
     }
     handleBuildNumberBondMission(false, whole);
@@ -12398,12 +12652,33 @@ export default function LessonBuilderClient({
       numberBondEquation?.id ?? makeId("number-bond"),
     );
     const nextEvents = timelineEvents.map((eventSlot) => applyEquationToEvent(eventSlot, equation));
+    setNumberBondSequenceV1((current) => {
+      if (current?.songAssetId !== selectedSongAssetId || current.sequence.gems.length !== whole) return current;
+      return {
+        ...current,
+        sequence: {
+          ...current.sequence,
+          gems: current.sequence.gems.map((gem) => {
+            const inPartA = gem.unitIndex < partA;
+            return {
+              ...gem,
+              destination: {
+                part: inPartA ? "part-a" as const : "part-b" as const,
+                slotIndex: inPartA ? gem.unitIndex : gem.unitIndex - partA,
+              },
+            };
+          }),
+        },
+      };
+    });
     setAuthoredEquationQueue([equation]);
     setSelectedEquationId(equation.id);
     setTimelineEvents(nextEvents);
     syncTimelineFilesFromEvents(nextEvents);
     markDirty();
-    setSaveStatus(`Updated the bond to ${whole} = ${partA} + ${whole - partA}. The same ${whole} spaced cues are still in place.`);
+    setSaveStatus(numberBondHasSequenceV1
+      ? `Updated the bond to ${whole} = ${partA} + ${whole - partA}. The same ${whole} chart-timed Hit → Spin → Drag journeys stay in place.`
+      : `Updated the bond to ${whole} = ${partA} + ${whole - partA}. The same ${whole} chart Hit cues stay in place.`);
   }
 
   function handlePlayNumberBondMission() {
@@ -12430,8 +12705,26 @@ export default function LessonBuilderClient({
   function handleSelectNumberBondNote(index: number) {
     const note = numberBondOrbitNotes[index];
     if (!note) return;
-    const eventSlot = timelineEvents.find((event) => event.mechanicInstances.hit.some((instance) => instance.id === note.id));
-    if (eventSlot) setActiveEventId(eventSlot.id);
+    const selection = findGuidedEncounterSelection(
+      timelineEvents as unknown as AuthoredTimelineEvent[],
+      note.id,
+    ) ?? findGuidedEncounterSelection(rtcmAuthoredEvents, note.id);
+    if (selection) {
+      const isRecordedDraft = rtcmDraftMechanics.some((draft) => draft.id === selection.eventId);
+      if (isRecordedDraft) {
+        setActiveEventId(null);
+        setSelectedContextMechanicKey(null);
+        setRecordedRepairId(selection.eventId);
+        setMode("rctm2");
+      } else {
+        setRecordedRepairId(null);
+        setActiveEventId(selection.eventId);
+        setSelectedContextMechanicKey(`${selection.mechanic}:${selection.instanceIndex}`);
+        setMode("event");
+      }
+      setAdvancedMode(false);
+      setCenterChoice(null);
+    }
     seekSong(note.seconds);
   }
 
@@ -12624,6 +12917,12 @@ export default function LessonBuilderClient({
       return;
     }
 
+    if (isDemoMode && !playTemplateOnly) {
+      if (hasUnsavedChanges && !(await handleSaveToSupabase())) return;
+      setSaveStatus("Your demo changes are saved on this device. Demo drafts are not published as official lessons.");
+      return;
+    }
+
     const strategy = playTemplateOnly ? "published-template" : lessonLaunchStrategy(hasUnsavedChanges);
     let launchAuthorId = lastSavedAuthorId ?? selectedSongAuthorId ?? null;
     let launchRevision = lastSavedRevision;
@@ -12645,9 +12944,10 @@ export default function LessonBuilderClient({
       const freshSongLaunch = await requestFreshSongLaunchPackage({
         ...selectedSongLaunch,
         authorId: launchAuthorId,
-        authorName: selectedSongLaunch.authorName ?? null,
+        authorName: launchAuthorId ? null : selectedSongLaunch.authorName ?? null,
         revision: launchRevision,
         allowBlankPackage: !loadedSongReadyRef.current && !launchRevision,
+        allowDraftPreview: navBasePath === "/student",
       });
       setLessonReadiness(freshSongLaunch.readiness);
       if (!freshSongLaunch.readiness.canLaunch) {
@@ -12700,7 +13000,7 @@ export default function LessonBuilderClient({
     }
   }
 
-  async function handleSaveToSupabase(options: { showNotice?: boolean } = {}) {
+  async function handleSaveToSupabase(options: { showNotice?: boolean; intent?: "draft" | "publish" } = {}) {
     const { showNotice = false } = options;
 
     if (!selectedSongStorage) {
@@ -12732,6 +13032,7 @@ export default function LessonBuilderClient({
       if (!activityKey) {
         throw new Error("The selected song activity identity is missing; reload the lesson before saving.");
       }
+      const intent = options.intent ?? (navBasePath === "/student" || isDemoMode ? "draft" : "publish");
 
       const saveEditGeneration = editGenerationRef.current;
 
@@ -12755,7 +13056,13 @@ export default function LessonBuilderClient({
             authoredClock,
             timelineSidecar.stopAtSeconds,
             authoredEquationQueue,
-            { forPublish: true, activityKey },
+            {
+              forPublish: intent === "publish",
+              activityKey,
+              ...(numberBondSequenceV1?.songAssetId === selectedSongStorage.id && activityKey === "number-bonds"
+                ? { numberBondSequenceV1: numberBondSequenceV1.sequence }
+                : {}),
+            },
           )
         : null;
 
@@ -12786,6 +13093,19 @@ export default function LessonBuilderClient({
         throw new Error("The selected song activity does not have a complete save package.");
       }
 
+      if (isDemoMode) {
+        saveDemoLessonDraft(window.localStorage, selectedSongStorage.id, activityKey, {
+          chart: chartText,
+          sidecar: sidecarJson,
+        });
+        originalChartFileRef.current = chartText;
+        setChartFile(chartText);
+        setStoreSidecar(sidecarToPersist as StoreSidecarPayload);
+        setHasUnsavedChanges(false);
+        setSaveStatus("Saved for this demo on this device. It has not been published.");
+        return { authorId: null, revision: null, localOnly: true };
+      }
+
       appendSongFlowDebug("lesson-builder:save:start", "Saving edited chart and sidecar back to Supabase.", {
         songAssetId: selectedSongStorage.id,
         chartPath: selectedSongStorage.chart.path,
@@ -12794,21 +13114,25 @@ export default function LessonBuilderClient({
         sidecarEventCount: timelineSidecar.events.length,
       });
 
-      const publicationRequestId = publicationRequestIdRef.current ?? crypto.randomUUID();
+      const publicationRequestId = intent === "publish"
+        ? publicationRequestIdRef.current ?? crypto.randomUUID()
+        : null;
       publicationRequestIdRef.current = publicationRequestId;
       const response = await fetch("/api/lesson-builder/save", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Idempotency-Key": publicationRequestId,
+          ...(publicationRequestId ? { "Idempotency-Key": publicationRequestId } : {}),
         },
         body: JSON.stringify({
+          intent,
           songAssetId: selectedSongStorage.id,
           activityKey,
-          authorId: lastSavedAuthorId ?? selectedSongAuthorId ?? undefined,
-          authorName: selectedSongAuthorName ?? undefined,
+          authorId: navBasePath.startsWith("/admin/users/")
+            ? navBasePath.slice("/admin/users/".length).split("/")[0]
+            : lastSavedAuthorId ?? undefined,
           revision: lastSavedRevision ?? undefined,
-          publicationRequestId,
+          ...(publicationRequestId ? { publicationRequestId } : {}),
           chart: selectedRhythmSource
             ? undefined
             : {
@@ -12838,9 +13162,12 @@ export default function LessonBuilderClient({
 
       const result = (await response.json().catch(() => null)) as {
         error?: string;
+        status?: "draft" | "ready";
+        previewable?: boolean;
         chart?: { bucket?: string; path?: string };
         sidecar?: { bucket?: string; path?: string };
         authorId?: string;
+        authorName?: string | null;
         revision?: string;
       } | null;
 
@@ -12866,6 +13193,8 @@ export default function LessonBuilderClient({
       if (publishedCurrentSnapshot && workspaceSource) deletePlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
       setLastSavedAuthorId(result.authorId);
       setLastSavedRevision(result.revision);
+      setSelectedSongAuthorId(result.authorId);
+      setSelectedSongAuthorName(result.authorName ?? null);
       setSelectedRhythmSource(null);
 
       if (
@@ -12875,6 +13204,35 @@ export default function LessonBuilderClient({
         !result?.sidecar?.bucket
       ) {
         throw new Error("Saved files could not be verified");
+      }
+
+      try {
+        const rawSelectedSong = window.sessionStorage.getItem("ultrarapid_selected_song");
+        if (rawSelectedSong) {
+          const selectedSong = JSON.parse(rawSelectedSong) as SelectedSongPayload;
+          if (selectedSong.id === selectedSongStorage.id) {
+            window.sessionStorage.setItem("ultrarapid_selected_song", JSON.stringify({
+              ...selectedSong,
+              authorId: result.authorId,
+              authorName: result.authorName ?? null,
+              revision: result.revision,
+              chart: {
+                ...selectedSong.chart,
+                bucket: result.chart.bucket,
+                path: savedChartPath,
+              },
+              sidecar: selectedSong.sidecar
+                ? {
+                    ...selectedSong.sidecar,
+                    bucket: result.sidecar.bucket,
+                    path: savedSidecarPath,
+                  }
+                : null,
+            }));
+          }
+        }
+      } catch {
+        // The server save is authoritative; a later reload can still select the personal draft.
       }
 
       setSelectedSongStorage((current) =>
@@ -12909,19 +13267,30 @@ export default function LessonBuilderClient({
       if (publishedCurrentSnapshot) {
         setChartFile(chartText);
         setStoreSidecar(sidecarToPersist as StoreSidecarPayload);
-        setSaveStatus(studentCopy.editor.changesSaved);
+        setSaveStatus(intent === "publish"
+          ? studentCopy.editor.changesSaved
+          : "Personal draft saved. Only you can preview it until a teacher publishes it.");
         setHasUnsavedChanges(false);
       } else {
         setSaveStatus(studentCopy.editor.newerChangesRemain);
         setHasUnsavedChanges(true);
       }
       publicationRequestIdRef.current = null;
-      setLessonReadiness({
-        state: "ready",
-        source: "authored",
-        canLaunch: true,
-        message: "Your saved lesson is ready to play.",
-      });
+      setLessonReadiness(result.previewable
+        ? {
+            state: "ready",
+            source: "authored",
+            canLaunch: true,
+            message: intent === "publish"
+              ? "Your published lesson is ready to play."
+              : "Your personal draft is ready for you to preview.",
+          }
+        : {
+            state: "repairable",
+            source: "authored",
+            canLaunch: false,
+            message: "Your personal draft is saved. Finish the lesson before previewing it.",
+          });
 
       if (showNotice) {
         const activityLabel = getActivityLabel(activityKey);
@@ -13145,6 +13514,7 @@ export default function LessonBuilderClient({
   }
 
   function hydrateSelectedSong(selectedSong: SelectedSongPayload) {
+    setNumberBondSequenceV1(null);
     const generation = ++lessonLoadGenerationRef.current;
     lessonLoadAbortRef.current?.abort();
     const controller = new AbortController();
@@ -13377,6 +13747,7 @@ export default function LessonBuilderClient({
           authorName: selectedSong.authorName ?? null,
           revision,
           allowBlankPackage: false,
+          allowDraftPreview: navBasePath === "/student",
           rhythmDifficultyKey: selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key ?? undefined,
         });
         if (fresh.revision !== revision) {
@@ -13404,16 +13775,22 @@ export default function LessonBuilderClient({
           },
         );
 
-        if (!chart.trim()) {
+        const demoDraft = isDemoMode
+          ? readDemoLessonDraft(window.localStorage, selectedSong.id, resolvedActivityKey)
+          : null;
+        const hydratedChart = demoDraft?.chart ?? chart;
+        const hydratedSidecar = demoDraft ? JSON.parse(demoDraft.sidecar) : sidecar;
+
+        if (!hydratedChart.trim()) {
           throw new Error(
             "We could not load the original lesson file. Your current work is still here.",
           );
         }
-        validateLessonContent(chart, JSON.stringify(sidecar), { forSave: true });
+        validateLessonContent(hydratedChart, JSON.stringify(hydratedSidecar), { forSave: true });
         const nextChartName = selectedSong.chart.path.split("/").pop() ?? "selected.chart";
         const normalizedSidecar = mergeTimelineSidecarSources(
-          sidecar ?? emptySidecar,
-          chart,
+          hydratedSidecar ?? emptySidecar,
+          hydratedChart,
           selectedSongMetadata,
         );
         const sidecarActivityKey = normalizeSongActivityKey(
@@ -13427,10 +13804,10 @@ export default function LessonBuilderClient({
           });
         }
 
-        originalChartFileRef.current = chart;
-        setChartFile(chart);
+        originalChartFileRef.current = hydratedChart;
+        setChartFile(hydratedChart);
         setUploadedChartName(nextChartName);
-        loadSidecarIntoTimeline(normalizedSidecar, null, [], [], "event", chart);
+        loadSidecarIntoTimeline(normalizedSidecar, null, [], [], "event", hydratedChart);
         setPendingSongFile(audio);
         if (retried) {
           setSelectedSongLaunch((current) => current ? {
@@ -13442,7 +13819,7 @@ export default function LessonBuilderClient({
         }
         loadedSongReadyRef.current = true;
         setIsLessonLoaded(true);
-        setSaveStatus(studentCopy.editor.lessonLoaded);
+        setSaveStatus(demoDraft ? "Restored your local demo draft." : studentCopy.editor.lessonLoaded);
         setLessonReadiness({
           state: "ready",
           source: "authored",
@@ -13475,6 +13852,15 @@ export default function LessonBuilderClient({
 
   function savePrivateDraft() {
     try {
+      if (isDemoMode && selectedSongStorage) {
+        const activityKey = selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null;
+        if (activityKey) {
+          saveDemoLessonDraft(window.localStorage, selectedSongStorage.id, activityKey, {
+            chart: chartFile || originalChartFileRef.current,
+            sidecar: JSON.stringify(sidecarFromTimelineEvents(timelineEvents, true)),
+          });
+        }
+      }
       if (workspaceSource && typeof window !== "undefined") {
         writePlayerLessonWorkspaceDraft(sessionStorage, {
           version: 1,
@@ -13497,11 +13883,13 @@ export default function LessonBuilderClient({
   async function handlePublishChanges(options: { showNotice?: boolean } = {}) {
     if (!lessonPublishReadiness.ready) {
       const blocker = lessonPublishReadiness.blockers[0];
-      savePrivateDraft();
+      const saved = navBasePath === "/student"
+        ? await handleSaveToSupabase({ ...options, intent: "draft" })
+        : savePrivateDraft();
       if (blocker.encounterId) handleSelectReadinessEncounter(blocker.encounterId, blocker.code);
       else setIsReadinessOpen(true);
-      setSaveStatus(`${studentCopy.editor.draftSaved} ${blocker.message} ${blocker.nextAction}`);
-      return false;
+      setSaveStatus(`${saved ? studentCopy.editor.draftSaved : studentCopy.editor.draftRecoveryFailed} ${blocker.message} ${blocker.nextAction}`);
+      return saved;
     }
 
     return handleSaveToSupabase(options);
@@ -14967,8 +15355,19 @@ export default function LessonBuilderClient({
         onSave={() => {
           void handlePublishChanges({ showNotice: true });
         }}
+        onSaveDraft={() => {
+          if (isDemoMode) savePrivateDraft();
+          else void handleSaveToSupabase({ showNotice: true, intent: "draft" });
+        }}
+        canSaveDraft={Boolean(selectedSongStorage) && isLessonLoaded && !loadError}
+        isDemoMode={isDemoMode}
+        saveActionLabel={isDemoMode
+          ? "Save demo changes"
+          : navBasePath === "/student"
+            ? "Save personal draft"
+            : "Publish official lesson"}
         canLaunch={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && (lessonPublishReadiness.ready || isNumberBondsActivity)}
-        canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
+        canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && (isDemoMode || navBasePath === "/student" || lessonPublishReadiness.ready)}
         isRctm1Mode={isRctm1Mode}
         isRctm2Mode={isRctm2Mode}
         hideChartmaker={isGuidedStart}
@@ -14991,38 +15390,8 @@ export default function LessonBuilderClient({
           }}
         />
       ) : null}
-      {needsReadinessCheck && !isNumberBondsActivity && !isGuidedStart && !isRctm1Mode &&
-        (!isRctm2Mode || (selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds") ? (
-        <div
-          style={{
-            position: "fixed",
-            right: "clamp(18px, calc(8vw + 150px), 260px)",
-            top: 8,
-            width: "min(320px, calc(100vw - 36px))",
-            zIndex: 1002,
-          }}
-        >
-          <EncounterReadinessPanel
-            readiness={lessonPublishReadiness}
-            hasSong={Boolean(selectedSongStorage || selectedSongLaunch)}
-            canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
-            canPlay={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
-            onSelectEncounter={handleSelectReadinessEncounter}
-            onCreateEncounter={handleAddHitAtPlayhead}
-            timingRepairPreview={timingRepairPreviewState?.proposal ?? null}
-            onPreviewTimingRepair={(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds"
-              ? handlePreviewFirstTimingRepair
-              : undefined}
-            onApplyTimingRepair={handleApplyTimingRepairPreview}
-            onCancelTimingRepair={handleCancelTimingRepairPreview}
-            onUndoTimingRepair={timingRepairUndoSnapshot ? handleUndoTimingRepair : undefined}
-            isOpen={isReadinessOpen}
-            onToggle={() => setIsReadinessOpen((current) => !current)}
-          />
-        </div>
-      ) : null}
 
-      {recordedRepairDraft ? (
+      {recordedRepairDraft && !isNumberBondsActivity ? (
         <aside aria-label="Recorded move repair" style={{ position: "fixed", top: 68, right: 16, zIndex: 1204, width: "min(460px, calc(100vw - 32px))", maxHeight: "calc(100vh - 84px)", overflowY: "auto", padding: 12, borderRadius: 16, border: "1px solid #7A8FA8", background: "#101827", boxShadow: "0 16px 40px #0009" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <strong>Fix recorded move</strong>
@@ -15066,6 +15435,7 @@ export default function LessonBuilderClient({
             }}
             activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
             dragSources={[...dragSources, ...rtcmDraftMechanics.filter((draft) => draft.mechanic === "hit").map((draft) => ({ id: draft.id, label: `Recorded Hit · ${draft.tick.toFixed(2)}s` }))]}
+            chartHitCues={activityChartHitCues}
             repairFocus={repairFocus}
             onChooseEquation={isNumberBondsActivity ? undefined : () => document.getElementById("recorded-repair-equation")?.focus()}
             onPatchInstance={handlePatchRecordedRepair}
@@ -15177,10 +15547,11 @@ export default function LessonBuilderClient({
 
       <main
         className={isAlgebraActivity ? algebraStyles.main : undefined}
+        data-guided-start={isGuidedStart ? "true" : undefined}
         style={{
           width: "100%",
           flex: isAlgebraActivity ? "none" : 1,
-          height: isAlgebraActivity ? "calc(100dvh - 122px)" : undefined,
+          height: isAlgebraActivity ? "calc(100dvh - 128px)" : undefined,
           minHeight: isAlgebraActivity ? 560 : 0,
           display: "grid",
           gridTemplateRows: isGuidedStart ? "minmax(0, 1fr)" : isAlgebraActivity ? "minmax(0, 1fr) minmax(180px, 28%)" : `${viewerRowHeight} ${timelineRowHeight}`,
@@ -15189,6 +15560,37 @@ export default function LessonBuilderClient({
           overflow: "hidden",
         }}
       >
+        {needsReadinessCheck && !isNumberBondsActivity && !isGuidedStart && !isRctm1Mode &&
+          (!isRctm2Mode || (selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds") ? (
+          <div
+            style={{
+              position: isAlgebraActivity ? "absolute" : "fixed",
+              right: isAlgebraActivity ? "clamp(12px, 4.5vw, 72px)" : "clamp(18px, calc(8vw + 150px), 260px)",
+              top: isAlgebraActivity ? 10 : 8,
+              width: "min(320px, calc(100vw - 36px))",
+              zIndex: isAlgebraActivity ? 4 : 1002,
+            }}
+          >
+            <EncounterReadinessPanel
+              readiness={lessonPublishReadiness}
+              hasSong={Boolean(selectedSongStorage || selectedSongLaunch)}
+              canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
+              canPlay={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && lessonPublishReadiness.ready}
+              onSelectEncounter={handleSelectReadinessEncounter}
+              onCreateEncounter={handleAddHitAtPlayhead}
+              timingRepairPreview={timingRepairPreviewState?.proposal ?? null}
+              onPreviewTimingRepair={(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds"
+                ? handlePreviewFirstTimingRepair
+                : undefined}
+              onApplyTimingRepair={handleApplyTimingRepairPreview}
+              onCancelTimingRepair={handleCancelTimingRepairPreview}
+              onUndoTimingRepair={timingRepairUndoSnapshot ? handleUndoTimingRepair : undefined}
+              isOpen={isReadinessOpen}
+              onToggle={() => setIsReadinessOpen((current) => !current)}
+            />
+          </div>
+        ) : null}
+
         {isGuidedStart ? (
           <GuidedTemplateStart
             isAlgebraStudio={isAlgebraActivity}
@@ -15218,7 +15620,7 @@ export default function LessonBuilderClient({
             minHeight: 0,
             display: "flex",
             alignItems: "stretch",
-            background: isAlgebraActivity ? "rgba(17, 19, 44, .6)" : pageBackgroundColor,
+            background: isAlgebraActivity ? "rgba(16, 51, 54, .48)" : pageBackgroundColor,
             color: textColor,
             overflow: "hidden",
           }}
@@ -15233,8 +15635,47 @@ export default function LessonBuilderClient({
               songDifficulty={selectedSongLaunch?.rhythmDifficultyKey ?? "ExpertSingle"}
               songCapacity={numberBondSongCapacity}
               isSongLoaded={isLessonLoaded}
+              loadError={loadError}
               notes={numberBondOrbitNotes}
               authoredNoteCount={numberBondAuthoredNotesMatch ? numberBondHitCount : 0}
+              hasAuthoredSequence={numberBondHasSequenceV1}
+              selectedNoteId={selectedGuidedEncounter?.mechanic === "hit"
+                ? selectedGuidedEncounter.id
+                : recordedRepairDraft?.mechanic === "hit" ? recordedRepairDraft.id : null}
+              selectedHitEditor={selectedGuidedEncounter?.mechanic === "hit" && selectedGuidedReadiness ? (
+                <GuidedEncounterComposer
+                  instance={selectedGuidedEncounter}
+                  studioClasses={algebraStyles}
+                  tokens={selectedGuidedEncounter.equation?.tokens ?? []}
+                  readiness={selectedGuidedReadiness}
+                  activityKey="number-bonds"
+                  chartHitCues={numberBondSongNotes}
+                  dragSources={dragSources}
+                  onPatchInstance={handlePatchSelectedGuidedEncounter}
+                  repairFocus={repairFocus}
+                  onRemove={isFocusedGuidedEditor ? handleRemoveSelectedContextMechanic : undefined}
+                />
+              ) : recordedRepairDraft?.mechanic === "hit" && recordedRepairReadiness ? (
+                <GuidedEncounterComposer
+                  instance={{ ...recordedRepairDraft, equation: recordedRepairEquation }}
+                  studioClasses={algebraStyles}
+                  tokens={recordedRepairEquation?.tokens ?? []}
+                  readiness={recordedRepairReadiness}
+                  activityKey="number-bonds"
+                  chartHitCues={numberBondSongNotes}
+                  dragSources={[
+                    ...dragSources,
+                    ...rtcmDraftMechanics.filter((draft) => draft.mechanic === "hit").map((draft) => ({ id: draft.id, label: `Recorded Hit · ${draft.tick.toFixed(2)}s` })),
+                  ]}
+                  repairFocus={repairFocus}
+                  onPatchInstance={handlePatchRecordedRepair}
+                  onRemove={() => {
+                    setRtcmDraftMechanics((current) => current.filter((draft) => draft.id !== recordedRepairDraft.id));
+                    setRecordedRepairId(null);
+                    markDirty();
+                  }}
+                />
+              ) : null}
               stopAtSeconds={sidecar.stopAtSeconds}
               songDurationSeconds={audioDurationSeconds || metadata?.durationSeconds || 0}
               isReady={lessonPublishReadiness.ready && numberBondAuthoredNotesMatch}
@@ -15578,21 +16019,24 @@ export default function LessonBuilderClient({
                               ) : null}
                             </div>
                           ) : null}
-                          <GuidedEncounterComposer
-                            instance={selectedGuidedEncounter}
-                            studioClasses={algebraStyles}
-                            tokens={selectedGuidedEncounter.equation?.tokens ?? []}
-                            readiness={selectedGuidedReadiness}
-                            activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
-                            showAlgebraSetupProgress={(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "early-algebra"}
-                            step={selectedGuidedReadiness.issueCodes.includes("equation_required") ? 1 : 2}
-                            stepCount={3}
-                            dragSources={dragSources}
-                            onPatchInstance={handlePatchSelectedGuidedEncounter}
-                            repairFocus={repairFocus}
-                            onChooseEquation={isNumberBondsActivity ? undefined : () => { setLibraryTab("mine"); setIsLibraryPanelOpen(true); }}
-                            onRemove={isFocusedGuidedEditor ? handleRemoveSelectedContextMechanic : undefined}
-                          />
+                          {!(isNumberBondsActivity && selectedGuidedEncounter.mechanic === "hit") ? (
+                            <GuidedEncounterComposer
+                              instance={selectedGuidedEncounter}
+                              studioClasses={algebraStyles}
+                              tokens={selectedGuidedEncounter.equation?.tokens ?? []}
+                              readiness={selectedGuidedReadiness}
+                              activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
+                              chartHitCues={activityChartHitCues}
+                              showAlgebraSetupProgress={(selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "early-algebra"}
+                              step={selectedGuidedReadiness.issueCodes.includes("equation_required") ? 1 : 2}
+                              stepCount={3}
+                              dragSources={dragSources}
+                              onPatchInstance={handlePatchSelectedGuidedEncounter}
+                              repairFocus={repairFocus}
+                              onChooseEquation={isNumberBondsActivity ? undefined : () => { setLibraryTab("mine"); setIsLibraryPanelOpen(true); }}
+                              onRemove={isFocusedGuidedEditor ? handleRemoveSelectedContextMechanic : undefined}
+                            />
+                          ) : null}
                         </div>
                       ) : null}
                       {!isFocusedGuidedEditor ? <div style={{ minHeight: 0, overflow: "hidden" }}>

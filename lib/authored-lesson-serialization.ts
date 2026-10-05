@@ -1,4 +1,6 @@
 import { tokenizeAuthoredEquationState } from "./authored-lesson";
+import { validateNumberBondSequenceV1 } from "./number-bonds-authored-sequence";
+import type { AuthoredLessonNumberBondGem } from "./authored-lesson";
 import { evaluateLessonPublishReadiness } from "./guided-authored-encounter";
 import { getAuthoredActivityContractIssues } from "./activity-authoring-capabilities";
 import type { AuthoredHitPadLayoutVersion } from "./authored-hit-pad-layout";
@@ -94,6 +96,13 @@ export type AuthoredLessonDraft = {
   stopAtSeconds?: number;
   equations: Array<{ id: string; state: string; tokens?: AuthoredEquationToken[] }>;
   encounters: AuthoredDraftEncounter[];
+  numberBondSequenceVersion?: 1;
+  numberBondGems?: AuthoredLessonNumberBondGem[];
+};
+
+export type AuthoredNumberBondSequenceV1 = {
+  version: 1;
+  gems: readonly AuthoredLessonNumberBondGem[];
 };
 
 const GAMEPLAY_MECHANICS = ["hit", "spin", "drag"] as const;
@@ -160,7 +169,11 @@ export function serializeAuthoredLesson(
   clock: AuthoredLessonClock,
   stopAtSeconds?: number,
   equationQueue: AuthoredSavedEquation[] = [],
-  options: { forPublish?: boolean; activityKey?: string | null } = {},
+  options: {
+    forPublish?: boolean;
+    activityKey?: string | null;
+    numberBondSequenceV1?: AuthoredNumberBondSequenceV1;
+  } = {},
 ): AuthoredLessonDraft {
   if (options.forPublish) {
     for (const event of events) {
@@ -179,6 +192,9 @@ export function serializeAuthoredLesson(
       equationQueue,
       clock,
       stopAtSeconds,
+      ...(options.numberBondSequenceV1
+        ? { numberBondSequenceVersion: options.numberBondSequenceV1.version }
+        : {}),
     });
     if (!readiness.ready) {
       const firstBlocker = readiness.blockers[0];
@@ -285,7 +301,20 @@ export function serializeAuthoredLesson(
     ...(typeof stopAtSeconds === "number" ? { stopAtSeconds } : {}),
     equations: equations.map((equation) => ({ ...equation, tokens: equation.tokens.map((token) => ({ ...token })) })),
     encounters,
+    ...(options.numberBondSequenceV1
+      ? {
+          numberBondSequenceVersion: options.numberBondSequenceV1.version,
+          numberBondGems: options.numberBondSequenceV1.gems.map((gem) => ({
+            ...gem,
+            destination: { ...gem.destination },
+          })),
+        }
+      : {}),
   };
+
+  if (options.numberBondSequenceV1) {
+    validateNumberBondSequenceV1(draft);
+  }
 
   if (options.forPublish) {
     if (draft.encounters.length === 0) {
@@ -309,6 +338,8 @@ export type HydratedAuthoredTimeline = {
   events: AuthoredTimelineEvent[];
   /** Every authored equation, including ones no mechanic references. */
   equations: HydrationEquation[];
+  numberBondSequenceVersion?: 1;
+  numberBondGems?: AuthoredLessonNumberBondGem[];
 };
 
 function stateToTokens(equationId: string, state: string) {
@@ -354,6 +385,8 @@ export function timelineEventsFromAuthoredLesson(
       spinTargets?: Array<{ tokenIndex: number; targetId?: string }>;
       dragTargets?: Array<{ tokenIndex: number; targetId?: string; sourceHitId?: string }>;
     }>;
+    numberBondSequenceVersion?: 1;
+    numberBondGems?: readonly AuthoredLessonNumberBondGem[];
   },
   clock: AuthoredLessonClock,
 ): HydratedAuthoredTimeline {
@@ -458,5 +491,17 @@ export function timelineEventsFromAuthoredLesson(
 
   // Keep encounters that share an event simultaneous; order is stable by first
   // appearance in the authored draft, which preserves authored order.
-  return { events: orderedEvents, equations };
+  return {
+    events: orderedEvents,
+    equations,
+    ...(draft.numberBondSequenceVersion === 1 && Array.isArray(draft.numberBondGems)
+      ? {
+          numberBondSequenceVersion: 1 as const,
+          numberBondGems: draft.numberBondGems.map((gem) => ({
+            ...gem,
+            destination: { ...gem.destination },
+          })),
+        }
+      : {}),
+  };
 }

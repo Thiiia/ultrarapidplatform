@@ -2,14 +2,14 @@
   box-sizing: border-box;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
-  grid-template-rows: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 16px clamp(18px, 4vw, 48px);
+  grid-template-rows: auto auto;
+  align-items: start;
+  gap: 12px clamp(18px, 3vw, 32px);
   width: 100%;
   height: 100%;
   min-height: 0;
   overflow: auto;
-  padding: clamp(18px, 3vw, 40px);
+  padding: clamp(18px, 2vw, 28px);
   background: radial-gradient(circle at 38% 48%, #153440 0, #0b202a 37%, #07151d 75%);
   color: #f8fafc;
   font-family: "Space Grotesk", sans-serif;
@@ -30,7 +30,7 @@
 
 .intro h1 {
   margin: 8px 0;
-  font-size: clamp(25px, 3vw, 42px);
+  font-size: clamp(25px, 2.8vw, 38px);
   line-height: 1.06;
 }
 
@@ -42,10 +42,22 @@
   line-height: 1.5;
 }
 
+.sequenceHint {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #d2b86a88;
+  border-radius: 10px;
+  background: #302d1fcc;
+  color: #fff0c7;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .orbit {
   position: relative;
   justify-self: center;
-  width: min(100%, 440px);
+  width: min(100%, 320px);
   min-width: 0;
   aspect-ratio: 1;
 }
@@ -56,6 +68,21 @@
   border: 1px solid #87d9bd66;
   border-radius: 50%;
   box-shadow: 0 0 32px #b5ff2420;
+}
+
+.orbitRingInner {
+  position: absolute;
+  inset: 25%;
+  border: 1px dashed #87d9bd55;
+  border-radius: 50%;
+}
+
+.orbitDense .orbitRing {
+  inset: 9.3%;
+}
+
+.orbitDense .orbitCore {
+  inset: 33%;
 }
 
 .orbitRing::before {
@@ -108,6 +135,7 @@
 .note {
   position: absolute;
   z-index: 1;
+  box-sizing: border-box;
   display: grid;
   place-items: center;
   width: clamp(29px, 8%, 42px);
@@ -116,7 +144,7 @@
   border-radius: 50%;
   color: #ecffd2;
   font: 800 12px/1 "Space Grotesk", sans-serif;
-  transition: filter 180ms ease, box-shadow 180ms ease, scale 180ms ease;
+  transition: left 180ms ease, top 180ms ease, filter 180ms ease, box-shadow 180ms ease, scale 180ms ease;
 }
 
 .notePlaced {
@@ -124,13 +152,21 @@
   background: #285343;
   box-shadow: 0 0 16px #cfff04bb;
   cursor: pointer;
-  transition: filter 180ms ease, box-shadow 180ms ease;
+  transition: left 180ms ease, top 180ms ease, filter 180ms ease, box-shadow 180ms ease;
 }
 
 .notePlaced:hover:not(:disabled) {
   filter: brightness(1.2);
   box-shadow: 0 0 22px #cfff04dd;
   scale: 1.12;
+}
+
+.noteSelected {
+  z-index: 2;
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px #cfff0455, 0 0 22px #cfff04dd;
+  scale: 1.1;
 }
 
 .noteSuggested {
@@ -148,7 +184,7 @@
 
 .playFlow {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -311,6 +347,36 @@
   min-width: 0;
 }
 
+.selectedHitEditor {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: clamp(14px, 2vw, 20px);
+  border: 1px solid #cfff0466;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #172c32f5, #0c1d26f5);
+  box-shadow: 0 16px 42px #020a0d66;
+}
+
+.selectedHitSummary {
+  display: grid;
+  gap: 4px;
+}
+
+.selectedHitSummary strong {
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.selectedHitSummary p {
+  max-width: 62ch;
+  margin: 0;
+  color: #d4e1e8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .targetPanel {
   display: grid;
   gap: 12px;
@@ -455,13 +521,13 @@
 
 .quickTargets {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 44px), 1fr));
   gap: 6px;
 }
 
 .quickTargets button {
   min-width: 0;
-  min-height: 38px;
+  min-height: 44px;
   border: 1px solid #607f87;
   border-radius: 9px;
   background: #152d37;
@@ -613,6 +679,7 @@
 @media (max-width: 900px) and (pointer: coarse) {
   .note { width: 44px; transition: none; }
   .notePlaced:hover:not(:disabled) { filter: none; box-shadow: none; scale: 1; }
+  .noteSelected { outline: 3px solid #fff; outline-offset: 3px; box-shadow: 0 0 0 5px #cfff0455; scale: 1; }
   .noteNext {
     animation: none;
     box-shadow: none;
@@ -636,7 +703,7 @@
   .quickTargets { gap: 4px; }
   .quickTargets button { min-height: 44px; }
   .actions { grid-template-columns: 1fr; }
-  .playFlow { grid-template-columns: 1fr; }
+  .playFlow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .playFlow span { grid-template-columns: 24px 1fr; align-items: center; }
   .pictorialModel { padding: 10px; }
   .modelParts { gap: 4px; }
@@ -648,7 +715,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .note, .noteSuggested, .noteNext, .pictorialModel { animation: none; }
+  .note, .noteSuggested, .noteNext, .pictorialModel, .orbitRing::before { animation: none; }
+  .note, .notePlaced, .orbitRing::before { transition: none; }
   .notePlaced,
   .targetRow > button,
   .quickTargets button,

@@ -68,7 +68,7 @@ const AlgebraMissionStepSchema = z.object({
   operation: z.string().max(64),
   equationProgress: z.number().finite().min(0).max(1),
   performanceOutcomes: z.array(z.enum(["perfect", "good", "early", "late", "miss"])).max(32),
-  recordedAtUtc: z.string().min(1).max(40),
+  recordedAtUtc: z.string().datetime().max(40),
 }).strict();
 export type AlgebraMissionStep = z.infer<typeof AlgebraMissionStepSchema>;
 
@@ -102,10 +102,27 @@ function validateCompletionAggregates(
   }
 }
 
+function validateMissionStepChronology(
+  completion: { missionSteps: Array<{ recordedAtUtc: string }> },
+  context: z.RefinementCtx,
+) {
+  let previous = Number.NEGATIVE_INFINITY;
+  completion.missionSteps.forEach((step, index) => {
+    const timestamp = Date.parse(step.recordedAtUtc);
+    if (!Number.isFinite(timestamp) || timestamp < previous) {
+      context.addIssue({ code: "custom", path: ["missionSteps", index, "recordedAtUtc"], message: "Mission steps must have valid, chronological UTC timestamps." });
+    }
+    previous = timestamp;
+  });
+}
+
 export const PlatformPlayerCompletionSchema = z.discriminatedUnion("completionVersion", [
   PlatformPlayerCompletionV2Schema,
   PlatformPlayerCompletionV3Schema,
-]).superRefine(validateCompletionAggregates);
+]).superRefine((completion, context) => {
+  validateCompletionAggregates(completion, context);
+  if (completion.completionVersion === 3) validateMissionStepChronology(completion, context);
+});
 export type PlatformPlayerCompletion = z.infer<typeof PlatformPlayerCompletionSchema>;
 
 export const PlatformPlayerBridgeMessageSchema = z.discriminatedUnion("type", [

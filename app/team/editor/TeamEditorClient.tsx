@@ -5224,9 +5224,15 @@ export default function LessonBuilderClient({
       return;
     }
 
-    if (!(await handleSaveToSupabase())) return;
+    const savedLesson = await handleSaveToSupabase();
+    if (!savedLesson) return;
     try {
-    const launchParams = await requestFreshSongLaunchParams({ ...selectedSongLaunch, rhythmDifficultyKey: selectedSongLaunch.rhythmDifficultyKey });
+    const launchParams = await requestFreshSongLaunchParams({
+      ...selectedSongLaunch,
+      authorId: savedLesson.authorId,
+      revision: savedLesson.revision,
+      rhythmDifficultyKey: selectedSongLaunch.rhythmDifficultyKey,
+    });
 
     persistLaunchParams(launchParams);
     router.push(navBasePath + "/game");
@@ -5276,9 +5282,9 @@ export default function LessonBuilderClient({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          intent: "publish",
           songAssetId: selectedSongStorage.id,
           activityKey,
-          authorName: selectedSongStorage.authorName ?? undefined,
           chart: { content: chartText },
           sidecar: { content: sidecarJson },
         }),
@@ -5288,6 +5294,8 @@ export default function LessonBuilderClient({
         error?: string;
         chart?: { bucket: string; path: string };
         sidecar?: { bucket: string; path: string };
+        authorId?: string;
+        revision?: string;
       } | null;
 
       if (!response.ok) {
@@ -5297,12 +5305,13 @@ export default function LessonBuilderClient({
       }
 
       if (!result?.chart?.path || !result?.sidecar?.path) throw new Error("Saved package references are missing");
+      if (!result.authorId || !result.revision) throw new Error("Saved lesson identity could not be verified");
       setSelectedSongStorage({ ...selectedSongStorage,
         chart: { ...selectedSongStorage.chart, ...result.chart },
         sidecar: { ...selectedSongStorage.sidecar, ...result.sidecar, contentType: "application/json;charset=utf-8" },
       });
       setSaveStatus("Saved");
-      return true;
+      return { authorId: result.authorId, revision: result.revision };
     } catch (error) {
       setSaveStatus(
         error instanceof Error

@@ -10,6 +10,7 @@ import {
 import { applyEquationToEvent } from "../lib/authored-lesson-event-assignment";
 import { createLessonClock } from "../lib/editor/lesson-timing";
 import { parseAuthoredLessonDraft } from "../lib/authored-lesson";
+import { prepareAuthoredLessonDraft, prepareAuthoredLessonForPublication } from "../lib/authored-lesson-publication";
 
 const IDENTITY = {
   songAssetId: "waves",
@@ -82,6 +83,31 @@ function makeEvent(
     mechanicInstances,
   };
 }
+
+test("draft persistence accepts an empty authored workspace while official publication rejects it", () => {
+  const identity = {
+    songAssetId: "song-1",
+    activityKey: "early-algebra",
+    authorId: "student-1",
+    revision: "00000000-0000-4000-8000-000000000001",
+  };
+  const sidecarContent = JSON.stringify({
+    version: 3,
+    mode: "authored",
+    songAssetId: identity.songAssetId,
+    activityKey: identity.activityKey,
+    equations: [],
+    encounters: [],
+  });
+  const savedDraft = prepareAuthoredLessonDraft({ sidecarContent, identity });
+
+  assert.equal(savedDraft.counts.encounters, 0);
+  assert.equal(JSON.parse(savedDraft.content).authorId, "student-1");
+  assert.throws(
+    () => prepareAuthoredLessonForPublication({ sidecarContent, identity }),
+    /contains no equations|at least one encounter/,
+  );
+});
 
 test("serializes fractional editor seconds to integer chart ticks exactly once", () => {
   // 123 BPM, resolution 480, offset 0: 10 seconds -> tick 9840.

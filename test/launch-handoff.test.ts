@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { resolveLaunchParams } from '../lib/launch-handoff';
+import { resolveEmbeddedCalibrationLaunchSnapshot, resolveLaunchParams } from '../lib/launch-handoff';
 import { buildEmbeddedGameUrl, createSongLaunchSearchParams } from '../lib/platform-launch';
 
 test('authored launch explicitly selects its edited difficulty without changing other launch defaults', () => {
@@ -63,4 +63,27 @@ test('handoff retains the platform calibration offset alongside its authority fi
   assert.equal(output.get('requiresCalibration'), 'false');
   assert.equal(output.get('calibrationProtocolVersion'), '1');
   assert.equal(output.get('calibrationOffsetMs'), '-37');
+});
+
+test('fresh calibration does not reload the active iframe before Unity Continue', () => {
+  const firstLaunch = resolveEmbeddedCalibrationLaunchSnapshot(null, 'launch-a', 'required', null);
+  assert.deepEqual(firstLaunch, { bridgeNonce: 'launch-a', requiresCalibration: true });
+
+  const calibrationReported = resolveEmbeddedCalibrationLaunchSnapshot(firstLaunch, 'launch-a', 'ready', -37);
+  assert.equal(calibrationReported, firstLaunch);
+  assert.equal(calibrationReported?.requiresCalibration, true);
+
+  const nextLaunch = resolveEmbeddedCalibrationLaunchSnapshot(calibrationReported, 'launch-b', 'ready', -37);
+  assert.deepEqual(nextLaunch, {
+    bridgeNonce: 'launch-b',
+    requiresCalibration: false,
+    calibrationOffsetMs: -37,
+  });
+});
+
+test('a pending new launch cannot inherit another nonce calibration snapshot', () => {
+  const previous = resolveEmbeddedCalibrationLaunchSnapshot(null, 'launch-a', 'ready', -37);
+  assert.equal(resolveEmbeddedCalibrationLaunchSnapshot(previous, 'launch-b', 'loading', null), null);
+  assert.equal(resolveEmbeddedCalibrationLaunchSnapshot(previous, null, 'ready', -37), null);
+  assert.equal(resolveEmbeddedCalibrationLaunchSnapshot(previous, 'launch-a', 'loading', null), previous);
 });

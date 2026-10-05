@@ -4,9 +4,13 @@ const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
 };
 
+const datasourceUrl =
+  process.env.POSTGRES_PRISMA_URL?.trim() || process.env.DATABASE_URL?.trim();
+
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    ...(datasourceUrl ? { datasourceUrl } : {}),
     log: ["error"],
   });
 

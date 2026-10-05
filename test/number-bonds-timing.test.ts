@@ -8,6 +8,11 @@ import {
 } from "../lib/number-bonds-timing";
 import { validateAuthoredActivityTiming } from "../lib/activity-authoring-capabilities";
 import { createLessonClock } from "../lib/editor/lesson-timing";
+import {
+  getNumberBondSequenceCapacity,
+  planNumberBondSequenceCues,
+  type NumberBondSequenceCueTiming,
+} from "../lib/number-bonds-note-plan";
 
 test("Number Bonds uses a full final interaction tail", () => {
   assert.equal(authoredStopBufferSeconds("number-bonds"), 12);
@@ -43,6 +48,50 @@ test("automatic stop follows the chart tick when a rounded editor time lands ear
   assert.equal(validateNumberBondsTiming([{ id: "last", startSeconds: runtimeHitSeconds }], editorHitSeconds + 12)[0]?.code, "gem_tail");
   const stopAtSeconds = resolveNumberBondsStopAtSeconds([editorHitSeconds], editorHitSeconds + 12, clock);
   assert.deepEqual(validateNumberBondsTiming([{ id: "last", startSeconds: runtimeHitSeconds }], stopAtSeconds), []);
+});
+
+test("song-specific Number Bonds cues stay on the tempo grid across a tempo change", () => {
+  const chart = [
+    "[Song]",
+    "{",
+    "  Resolution = 192",
+    "}",
+    "[SyncTrack]",
+    "{",
+    "  0 = B 120000",
+    "  7680 = B 80000",
+    "}",
+    "[ExpertSingle]",
+    "{",
+    "  2304 = N 0 0",
+    "  9408 = N 1 0",
+    "  11520 = N 2 0",
+    "}",
+  ].join("\n");
+  const clock = createLessonClock(chart);
+  const cues = planNumberBondSequenceCues(chart, "ExpertSingle", 60, 3);
+
+  assert.ok(cues);
+  assert.equal(getNumberBondSequenceCapacity(chart, "ExpertSingle", 60), 3);
+  assert.deepEqual(cues.map((cue) => cue.hitTick), [2304, 9408, 11520]);
+  const gridTicks = clock.ticksPerBeat / 16;
+
+  for (let index = 0; index < cues.length; index += 1) {
+    const cue: NumberBondSequenceCueTiming = cues[index]!;
+    assert.equal(cue.spinStartTick % gridTicks, 0);
+    assert.equal(cue.spinEndTick % gridTicks, 0);
+    assert.equal(cue.dragStartTick % gridTicks, 0);
+    assert.equal(cue.dragEndTick % gridTicks, 0);
+    assert.ok(cue.spinStartSeconds >= cue.hitSeconds + 0.75);
+    assert.ok(cue.spinStartTick < cue.spinEndTick);
+    assert.ok(cue.spinEndTick < cue.dragStartTick);
+    assert.ok(cue.dragStartTick < cue.dragEndTick);
+    if (cues[index + 1]) {
+      const nextCue: NumberBondSequenceCueTiming = cues[index + 1]!;
+      assert.ok(cue.dragEndTick < nextCue.hitTick);
+    }
+    assert.ok(60 - cue.dragEndSeconds >= 12);
+  }
 });
 
 test("editor guidance delegates every timing decision to the shared readiness and publication validator", () => {

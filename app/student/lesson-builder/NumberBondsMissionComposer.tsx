@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NUMBER_BONDS_MAX_WHOLE, NUMBER_BONDS_MIN_WHOLE } from "@/lib/number-bonds-authoring";
 import styles from "./NumberBondsMissionComposer.module.css";
 
@@ -64,8 +64,12 @@ export function NumberBondsMissionComposer({
   songDifficulty,
   songCapacity,
   isSongLoaded,
+  loadError,
   notes,
   authoredNoteCount,
+  hasAuthoredSequence,
+  selectedNoteId,
+  selectedHitEditor,
   stopAtSeconds,
   songDurationSeconds,
   isReady,
@@ -85,8 +89,12 @@ export function NumberBondsMissionComposer({
   songDifficulty: string;
   songCapacity: number;
   isSongLoaded: boolean;
+  loadError?: string | null;
   notes: OrbitNote[];
   authoredNoteCount: number;
+  hasAuthoredSequence: boolean;
+  selectedNoteId?: string | null;
+  selectedHitEditor?: ReactNode;
   stopAtSeconds?: number;
   songDurationSeconds: number;
   isReady: boolean;
@@ -100,6 +108,8 @@ export function NumberBondsMissionComposer({
   onSelectNote: (index: number) => void;
 }) {
   const [wholeDraft, setWholeDraft] = useState({ whole, songCapacity, text: String(whole) });
+  const selectedHitEditorRef = useRef<HTMLElement | null>(null);
+  const previousSelectedNoteId = useRef(selectedNoteId);
   const wholeText = wholeDraft.whole === whole && wholeDraft.songCapacity === songCapacity
     ? wholeDraft.text
     : String(whole);
@@ -110,48 +120,85 @@ export function NumberBondsMissionComposer({
   const canPlaceNotes = whole >= NUMBER_BONDS_MIN_WHOLE && whole <= maxSelectableWhole;
   const stopFitsSong = !stopAtSeconds || !songDurationSeconds || stopAtSeconds <= songDurationSeconds + 0.05;
   const canPlay = isSongLoaded && stopFitsSong && (isReady || canPlaceNotes);
+  const selectedNoteIndex = selectedNoteId ? notes.findIndex((note) => note.id === selectedNoteId) : -1;
+  const selectedNote = selectedNoteIndex >= 0 ? notes[selectedNoteIndex] : null;
+
+  useEffect(() => {
+    if (previousSelectedNoteId.current === selectedNoteId) return;
+    previousSelectedNoteId.current = selectedNoteId;
+    if (!selectedNoteId || !selectedHitEditorRef.current) return;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    selectedHitEditorRef.current.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
+  }, [selectedNoteId]);
+  // At 17 targets, narrow touch layouts no longer leave 44px between single-ring cues.
+  const usesTwoOrbitRings = whole >= 17;
+  const outerOrbitCount = usesTwoOrbitRings ? Math.ceil(whole / 2) : whole;
   const lastNoteSeconds = notes.length ? Math.max(...notes.map((note) => note.seconds)) : null;
   const formattedStop = stopAtSeconds === undefined ? "After notes are placed" : `${Math.floor(stopAtSeconds / 60)}:${String(Math.floor(stopAtSeconds % 60)).padStart(2, "0")}`;
   const difficultyLabel = songDifficulty.replace("Single", "");
   const capacityMessage = !isSongLoaded
     ? "Loading this song’s playable notes…"
     : songCapacity < NUMBER_BONDS_MIN_WHOLE
-      ? `This ${difficultyLabel} chart has too few playable notes. Choose a song chart with at least ${NUMBER_BONDS_MIN_WHOLE}.`
+      ? `This ${difficultyLabel} chart cannot fit ${NUMBER_BONDS_MIN_WHOLE} complete gem journeys. Choose a longer or more open song chart.`
       : whole > maxSelectableWhole
-        ? `This ${difficultyLabel} chart supports up to ${maxSelectableWhole}. Choose a smaller target or a song with more spaced notes.`
-        : `Up to ${maxSelectableWhole} spaced cues on this ${difficultyLabel} chart. The game limit is ${NUMBER_BONDS_MAX_WHOLE}.`;
+        ? `This ${difficultyLabel} chart supports up to ${maxSelectableWhole} complete gem journeys. Choose a smaller target or a song with more room between cues.`
+        : `Up to ${maxSelectableWhole} complete gem journeys fit this ${difficultyLabel} chart. The game limit is ${NUMBER_BONDS_MAX_WHOLE}.`;
+
+  if (!isSongLoaded) {
+    return (
+      <section className={styles.composer} aria-label="Number Bonds mission composer" aria-busy={!loadError}>
+        <div className={styles.intro}>
+          <span className={styles.eyebrow}>NUMBER BONDS · {songTitle}</span>
+          <h1>Build a bond. Play the song.</h1>
+        </div>
+        <p className={styles.status} role={loadError ? "alert" : "status"}>
+          {loadError || status || `Loading ${songTitle}’s chart and playable notes…`}
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className={styles.composer} aria-label="Number Bonds mission composer">
       <div className={styles.intro}>
         <span className={styles.eyebrow}>NUMBER BONDS · {songTitle}</span>
         <h1>Build a bond. Play the song.</h1>
-        <p>Choose any target from 2 to {NUMBER_BONDS_MAX_WHOLE}. Each orbiting note becomes one gem; the selected song and chart determine how many can fit.</p>
+        <p>Choose a target from 2 to {NUMBER_BONDS_MAX_WHOLE}. Each Hit starts on a playable note from this song&apos;s verified chart; smaller targets sample cues across the track. Spin and Drag land on the chart&apos;s beat grid. Select a placed note to choose its single player pad—the whole stays the Hit target. Fine-tune its timing in the cue editor and snap it back to a playable chart cue when needed.</p>
       </div>
+      {authoredNoteCount === whole && !hasAuthoredSequence ? (
+        <p className={styles.sequenceHint} role="note">This saved revision has chart-timed Hits only. Build gems from the chart to add a Spin and Drag to every unit.</p>
+      ) : null}
 
-      <div className={styles.orbit} role="group" aria-label={`Make ${whole}: ${whole} equals ${partA} plus ${partB}; ${whole} song notes`}
+      <div className={`${styles.orbit} ${usesTwoOrbitRings ? styles.orbitDense : ""}`} role="group" aria-label={`Make ${whole}: ${whole} equals ${partA} plus ${partB}; ${whole} chart-timed gem journeys`}
         style={{ "--bond-progress": `${Math.min(100, 100 * authoredNoteCount / whole)}%` } as CSSProperties}>
         <div className={styles.orbitRing} aria-hidden="true" />
+        {usesTwoOrbitRings ? <div className={styles.orbitRingInner} aria-hidden="true" /> : null}
         <div className={styles.orbitCore}>
           <span>MAKE</span>
           <strong>{whole}</strong>
           <span className={styles.equation}>{whole} = {partA} + {partB}</span>
         </div>
         {Array.from({ length: whole }, (_, index) => {
-          const angle = -Math.PI / 2 + 2 * Math.PI * index / whole;
+          const usesInnerRing = usesTwoOrbitRings && index >= outerOrbitCount;
+          const ringIndex = usesInnerRing ? index - outerOrbitCount : index;
+          const ringCount = usesInnerRing ? whole - outerOrbitCount : outerOrbitCount;
+          const orbitRadius = usesInnerRing ? 25 : usesTwoOrbitRings ? 40.7 : 39;
+          const angle = -Math.PI / 2 + 2 * Math.PI * ringIndex / ringCount;
           const note = notes[index];
           const isAuthored = Boolean(note && index < authoredNoteCount);
           const isNextSuggested = Boolean(note && !isAuthored && index === authoredNoteCount);
+          const isSelected = Boolean(isAuthored && selectedNoteId && note?.id === selectedNoteId);
           return (
             <button
-              className={`${styles.note} ${isAuthored ? styles.notePlaced : note ? styles.noteSuggested : styles.noteEmpty} ${isNextSuggested ? styles.noteNext : ""}`}
+              className={`${styles.note} ${isAuthored ? styles.notePlaced : note ? styles.noteSuggested : styles.noteEmpty} ${isNextSuggested ? styles.noteNext : ""} ${isSelected ? styles.noteSelected : ""}`}
               key={index}
               type="button"
-              style={{ left: `${50 + Math.cos(angle) * 39}%`, top: `${50 + Math.sin(angle) * 39}%`, animationDelay: `${(index % 5) * -0.45}s` }}
+              style={{ left: `${50 + Math.cos(angle) * orbitRadius}%`, top: `${50 + Math.sin(angle) * orbitRadius}%`, animationDelay: `${(index % 5) * -0.45}s` }}
               disabled={!isAuthored}
               onClick={() => onSelectNote(index)}
-              aria-label={note ? `${isAuthored ? "Placed" : "Suggested"} note ${index + 1} at ${note.seconds.toFixed(1)} seconds` : `Note ${index + 1} awaits song timing`}
-              title={note ? `${note.seconds.toFixed(1)}s · select on timeline` : "Timing will come from the song"}
+              aria-pressed={isAuthored ? isSelected : undefined}
+              aria-label={note ? `${isAuthored ? "Placed" : "Suggested"} note ${index + 1} at ${note.seconds.toFixed(1)} seconds${isSelected ? ", selected for editing" : ""}` : `Note ${index + 1} awaits song timing`}
+              title={note ? `${note.seconds.toFixed(1)}s · select to edit this Hit` : "Timing will come from the song"}
             >
               {index + 1}
             </button>
@@ -161,9 +208,10 @@ export function NumberBondsMissionComposer({
 
       <div className={styles.controls}>
         <div className={styles.playFlow} aria-label="How this lesson plays">
-          <span><b>01</b> Catch a moving gem</span>
-          <span><b>02</b> Tap with the beat</span>
-          <span><b>03</b> Place it in a part</span>
+          <span><b>01</b> Catch the gem</span>
+          <span><b>02</b> Tap the charted pad</span>
+          <span><b>03</b> Spin the gem</span>
+          <span><b>04</b> Drag it to a part</span>
         </div>
         <PartWholeModel key={`${whole}-${partA}-${partB}`} whole={whole} partA={partA} partB={partB} />
         <div className={styles.targetPanel}>
@@ -225,7 +273,7 @@ export function NumberBondsMissionComposer({
             </label>
             <strong>= {whole}</strong>
           </fieldset>
-          <p className={styles.splitHelp} id="number-bonds-split-help">Each part must be at least 1. Changing a part keeps the same {whole} spaced song cues.</p>
+          <p className={styles.splitHelp} id="number-bonds-split-help">Each part must be at least 1. Changing a part keeps the same {whole} chart hits and their Spin → Drag timings.</p>
           <div className={styles.quickTargets} role="group" aria-label="Common number bond targets">
             {QUICK_TARGETS.map((target) => {
               const available = canChooseNumber && target <= maxSelectableWhole;
@@ -236,7 +284,7 @@ export function NumberBondsMissionComposer({
                   className={whole === target ? styles.quickTargetActive : styles.quickTarget}
                   aria-label={`Make ${target}`}
                   aria-pressed={whole === target}
-                  title={available ? `Build make ${target}` : `This song needs at least ${target} spaced notes`}
+                  title={available ? `Build make ${target}` : `This song needs room for ${target} complete gem journeys`}
                   disabled={!available}
                   onClick={() => onWholeChange(target)}
                 >
@@ -248,21 +296,23 @@ export function NumberBondsMissionComposer({
         </div>
 
         <div className={styles.progress}>
-          <strong>{authoredNoteCount} of {whole} notes placed</strong>
-          <progress aria-label="Number of song notes placed" max={whole} value={Math.min(authoredNoteCount, whole)} />
+          <strong>{authoredNoteCount} of {whole} {hasAuthoredSequence ? "gem journeys built" : "chart Hits placed"}</strong>
+          <progress aria-label={hasAuthoredSequence ? "Number of complete gem journeys built" : "Number of chart Hits placed"} max={whole} value={Math.min(authoredNoteCount, whole)} />
           <span id="number-bonds-capacity">{capacityMessage}</span>
         </div>
         <div id="number-bonds-stop-guidance" className={styles.stopCard} role="status">
           <div><span>Lesson ends</span><strong>{formattedStop}</strong></div>
           <p>{!stopFitsSong
             ? "The final gem needs more song time. Move the last note earlier or choose a longer song."
-            : lastNoteSeconds === null
+              : lastNoteSeconds === null
               ? "The end point is set automatically after the final gem."
-              : `Set automatically after the final note at ${lastNoteSeconds.toFixed(1)}s, with time for the gem’s finish and placement.`}</p>
+              : hasAuthoredSequence
+                ? `Set automatically after the final chart Hit at ${lastNoteSeconds.toFixed(1)}s, with time for its Spin, Drag and finish.`
+                : `This saved lesson ends after its final chart Hit at ${lastNoteSeconds.toFixed(1)}s.`}</p>
         </div>
         <div className={styles.actions}>
           <button className={styles.secondary} type="button" disabled={!isSongLoaded || !canPlaceNotes || isPreparing} onClick={onBuildNotes}>
-            {authoredNoteCount ? "Rebuild notes from song" : "Place notes from song"}
+            {authoredNoteCount ? "Rebuild gems from chart" : "Build gems from chart"}
           </button>
           <button
             className={styles.primary}
@@ -274,18 +324,28 @@ export function NumberBondsMissionComposer({
             {isPreparing
               ? "Preparing mission…"
               : !isSongLoaded
-                ? "Loading song notes…"
+                ? "Loading song chart…"
                 : !stopFitsSong
                   ? "Move final note earlier"
                   : songCapacity < 2 && !isReady
                     ? "Choose another song"
                     : isReady
-                      ? "Play mission"
-                      : "Place notes & play"}
+                      ? hasAuthoredSequence ? "Play mission" : "Play saved lesson"
+                      : "Build gems & play"}
           </button>
         </div>
         {status ? <p className={styles.status} role="status">{status}</p> : null}
       </div>
+      {selectedHitEditor ? (
+        <section ref={selectedHitEditorRef} className={styles.selectedHitEditor} aria-label="Selected Number Bonds Hit editor">
+          <div className={styles.selectedHitSummary}>
+            <span className={styles.eyebrow}>EDITING SELECTED GEM</span>
+            <strong>{selectedNote ? `Gem ${selectedNoteIndex + 1} · ${selectedNote.seconds.toFixed(1)}s` : "Selected Hit cue"}</strong>
+            <p>Choose this gem’s player pad and check its timing against the song chart. Changes apply to this Hit in the lesson draft.</p>
+          </div>
+          {selectedHitEditor}
+        </section>
+      ) : null}
     </section>
   );
 }

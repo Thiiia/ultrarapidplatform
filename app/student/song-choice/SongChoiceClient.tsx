@@ -10,7 +10,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FC, SVGProps } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { persistLaunchParams } from "@/lib/launch-handoff";
-import { createSongLaunchSearchParams } from "@/lib/platform-launch";
+import { createSongLaunchNavigationParams } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import { assertSongActivityMatches } from "@/lib/song-activity-authority";
 import { normalizeSongActivityKey } from "@/lib/song-activity-storage";
@@ -22,6 +22,7 @@ import {
   type SongPackageLoadStatus,
 } from "@/lib/song-choice-flow";
 import { studentCopy } from "@/lib/student-copy";
+import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigation";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
 
@@ -214,9 +215,23 @@ function HeaderBar({
   dashboardType: DashboardType;
 }) {
   const profileHref = `${navBasePath}/profile`;
+  const mobileItems = [
+    ...topTabs.map((tab) => ({
+      label: tab.label,
+      href: tab.href,
+      current: pathname === tab.href,
+    })),
+    {
+      label: studentCopy.navigation.profile,
+      href: profileHref,
+      current: pathname === profileHref,
+    },
+    { label: studentCopy.navigation.logout, href: "/auth/logout", current: false },
+  ];
 
   return (
     <header
+      className="experience-role-header experience-role-header--wide-nav"
       style={{
         background: headerStyles.backgroundColor,
         width: "100%",
@@ -231,6 +246,7 @@ function HeaderBar({
       }}
     >
       <div
+        className="experience-role-header-inner"
         style={{
           width: pagePanelWidth,
           height: "100%",
@@ -244,6 +260,7 @@ function HeaderBar({
         }}
       >
         <div
+          className="experience-role-brand-group"
           style={{
             display: "flex",
             alignItems: "center",
@@ -277,7 +294,7 @@ function HeaderBar({
 
           <nav
             aria-label="Dashboard navigation"
-            className="experience-navigation"
+            className="experience-navigation experience-desktop-navigation"
             data-experience-component="navigation"
             style={{
               display: "flex",
@@ -362,6 +379,7 @@ function HeaderBar({
         </div>
 
         <div
+          className="experience-role-utilities"
           style={{
             display: "flex",
             gap: 6,
@@ -399,6 +417,10 @@ function HeaderBar({
             Log out
           </a>
         </div>
+        <ExperienceMobileNavigation
+          items={mobileItems}
+          label={dashboardType === "teacher" ? "Teacher" : "Student"}
+        />
       </div>
     </header>
   );
@@ -971,15 +993,11 @@ export default function SongChoiceClient({
       if (!isPlayableSongLaunchPackage(freshPackage)) {
         throw new Error(freshPackage.readiness.message);
       }
-      const launchParams = createSongLaunchSearchParams({
+      const launchParams = createSongLaunchNavigationParams({
         songAssetId: freshPackage.songAssetId,
         activityKey: freshPackage.activityKey,
-        chartUrl: freshPackage.chart.signedUrl,
-        sidecarUrl: freshPackage.sidecar.signedUrl,
-        audioUrl: freshPackage.audio.signedUrl,
         authorId: freshPackage.authorId,
         revision: freshPackage.revision,
-        receipt: freshPackage.receipt,
         source: freshPackage.source,
         templateProvenance: freshPackage.templateProvenance,
         launchAttemptId: freshPackage.launchAttemptId,

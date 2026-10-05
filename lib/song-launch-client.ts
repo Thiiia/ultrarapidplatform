@@ -2,7 +2,7 @@ import { createSongLaunchSearchParams } from "./platform-launch";
 import type { LessonReadiness, PlayableLessonSource, RhythmDifficultyKey, SongLaunchReceipt } from "./song-launch-package";
 import { assertSongActivityMatches } from "./song-activity-authority";
 
-export async function requestFreshSongLaunchParams(input: { songAssetId: string; activityKey: string; authorId?: string | null; authorName?: string | null; revision?: string | null; allowBlankPackage?: boolean; rhythmDifficultyKey?: RhythmDifficultyKey; learningDifficultyKey?: string | null; refreshLaunchAttemptId?: string | null }) {
+export async function requestFreshSongLaunchParams(input: { songAssetId: string; activityKey: string; authorId?: string | null; authorName?: string | null; revision?: string | null; allowBlankPackage?: boolean; allowDraftPreview?: boolean; rhythmDifficultyKey?: RhythmDifficultyKey; learningDifficultyKey?: string | null; refreshLaunchAttemptId?: string | null }) {
   const fresh = await requestFreshSongLaunchPackage(input);
   if (!fresh.readiness.canLaunch || fresh.source === "editor-scaffold") {
     throw new Error(fresh.readiness.message);
@@ -44,6 +44,7 @@ export async function requestFreshSongLaunchPackage({
   authorName = null,
   revision = null,
   allowBlankPackage = false,
+  allowDraftPreview = false,
   rhythmDifficultyKey,
   learningDifficultyKey = null,
   refreshLaunchAttemptId = null,
@@ -54,6 +55,7 @@ export async function requestFreshSongLaunchPackage({
   authorName?: string | null;
   revision?: string | null;
   allowBlankPackage?: boolean;
+  allowDraftPreview?: boolean;
   rhythmDifficultyKey?: RhythmDifficultyKey;
   learningDifficultyKey?: string | null;
   refreshLaunchAttemptId?: string | null;
@@ -68,6 +70,7 @@ export async function requestFreshSongLaunchPackage({
       authorName,
       revision,
       allowBlankPackage,
+      allowDraftPreview,
       rhythmDifficultyKey,
       learningDifficultyKey,
       refreshLaunchAttemptId,
