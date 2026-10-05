@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { resolveFreshSongLaunchPackage, SongLaunchRevisionNotFoundError } from "@/lib/song-launch-package";
-import { canRefreshPlayerLaunchAttempt, parsePlayerLaunchRefreshRequest, shouldCreatePlayerLaunchAttempt } from "@/lib/player-launch-attempt-policy";
+import { canRefreshPlayerLaunchAttempt, parsePlayerLaunchRefreshRequest, resolveLaunchAttemptIdForPackage, shouldCreatePlayerLaunchAttempt } from "@/lib/player-launch-attempt-policy";
 import { canonicalPlayerJson } from "@/lib/player-run-lifecycle";
 import { getCurrentAppUser } from "@/lib/current-user";
 import { canPreviewOwnLessonDraft } from "@/lib/lesson-save-authorization";
@@ -211,7 +211,11 @@ export async function POST(request: Request) {
       allowBlankPackage: payload.allowBlankPackage === true && !requestedRevision,
       rhythmDifficultyKey,
       learningDifficultyKey,
-      launchAttemptId: refreshLaunchAttemptId ?? randomUUID(),
+      launchAttemptId: resolveLaunchAttemptIdForPackage(
+        Boolean(player),
+        refreshLaunchAttemptId,
+        randomUUID,
+      ),
       loadSongAsset: async (id) =>
         prisma.songAsset.findUnique({
           where: { id },

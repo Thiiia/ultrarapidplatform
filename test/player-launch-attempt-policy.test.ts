@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   canRefreshPlayerLaunchAttempt,
   parsePlayerLaunchRefreshRequest,
+  resolveLaunchAttemptIdForPackage,
   shouldCreatePlayerLaunchAttempt,
 } from "../lib/player-launch-attempt-policy";
 
@@ -26,6 +27,34 @@ test("creates a player launch attempt only for a fresh playable package", () => 
     hasReceipt: true,
     hasLaunchAttemptId: true,
   }), true);
+});
+
+test("does not mint a resumable attempt id for anonymous demo packages", () => {
+  let generated = false;
+
+  assert.equal(resolveLaunchAttemptIdForPackage(
+    false,
+    null,
+    () => {
+      generated = true;
+      return "anonymous-attempt";
+    },
+  ), null);
+  assert.equal(generated, false);
+});
+
+test("authenticated packages get one attempt id and refreshes retain the active id", () => {
+  let generatedCount = 0;
+
+  assert.equal(resolveLaunchAttemptIdForPackage(true, null, () => {
+    generatedCount += 1;
+    return "attempt-1";
+  }), "attempt-1");
+  assert.equal(resolveLaunchAttemptIdForPackage(true, "attempt-existing", () => {
+    generatedCount += 1;
+    return "unexpected";
+  }), "attempt-existing");
+  assert.equal(generatedCount, 1);
 });
 
 test("refresh only revalidates the same active attempt and refuses terminal attempts", () => {
