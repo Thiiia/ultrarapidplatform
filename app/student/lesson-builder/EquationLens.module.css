@@ -1,0 +1,136 @@
+.bubble {
+  --lens-accent: #cfff04;
+  --lens-rim: #deedf5;
+  --lens-size: 62px;
+  position: relative;
+  isolation: isolate;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: var(--lens-size);
+  height: var(--lens-size);
+  border: 1px solid #dce7ef8c;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 32% 22%, #e7f0f32b, #d4e0e31b 42%, #829a9f2b);
+  box-shadow: inset 0 1px 1px #ffffff80, inset 0 -1px 1px #78bbd5a6, 0 8px 22px #020b1459;
+  color: #fff;
+  backdrop-filter: blur(5px) saturate(115%);
+  transition: border-color .12s ease-out, box-shadow .18s ease-out;
+}
+.bubble[data-mechanic="spin"] { --lens-accent: #be9bff; }
+.refraction {
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  border: none;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.refraction::after {
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  border-top: 1px solid #fff8;
+  content: "";
+  transform: rotate(-24deg);
+}
+.value {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  padding: 0 5px;
+  font-family: var(--font-grandstander, "Grandstander"), var(--font-space-grotesk, "Space Grotesk"), sans-serif;
+  font-size: clamp(20px, 2vw, 27px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.025em;
+  text-shadow: 0 1px 2px #04101799;
+}
+.operator { flex: 0 0 auto; color: #fff; font-size: 22px; font-weight: 800; line-height: 1; }
+.lens {
+  position: absolute;
+  inset: -9px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: none;
+  pointer-events: none;
+}
+.membrane {
+  position: absolute;
+  z-index: 0;
+  left: -16px;
+  top: -16px;
+  width: 108px;
+  height: 108px;
+  overflow: visible;
+  pointer-events: none;
+  transform-origin: 43.5% 43.5%;
+  animation: water-settle .48s ease-out both;
+}
+.waterBody { fill: #d7eef20a; stroke: #c6dde861; stroke-width: 1; }
+.waterLight { fill: none; stroke: #fff9; stroke-width: 1.15; stroke-linecap: round; }
+.waterEdge { fill: none; stroke: #82d5e391; stroke-width: 1.1; stroke-linecap: round; }
+.bubble[data-targeted="true"] { border-color: #f0f8ffba; box-shadow: inset 0 1px #fff9, inset 0 -1px #75cce6b3, 0 0 18px #bfefdf17; }
+.gemCarrier {
+  position: absolute;
+  z-index: 2;
+  right: -18px;
+  bottom: -18px;
+  width: 36px;
+  height: 36px;
+  animation: gem-connect .48s ease-out both;
+}
+.gem { position: relative; display: block; width: 100%; height: 100%; overflow: visible; }
+.gemDefault { display: block; width: 100%; height: 100%; object-fit: contain; }
+.gemHit {
+  position: absolute;
+  width: 222.22%;
+  height: 132%;
+  left: -94%;
+  top: -13%;
+  max-width: none;
+  opacity: 0;
+  pointer-events: none;
+  animation: gem-contact-light .6s ease-out both;
+}
+@keyframes gem-contact-light {
+  0% { opacity: 0; transform: scale(.9); }
+  20% { opacity: .68; transform: scale(1); }
+  47% { opacity: .3; transform: scale(1.035); }
+  100% { opacity: 0; transform: scale(1.08); }
+}
+@keyframes water-settle {
+  0% { opacity: .3; transform: scale(.96); }
+  25% { opacity: 1; transform: scale(1.045,.955); }
+  58% { transform: scale(.985,1.015); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes gem-connect {
+  0% { opacity: 0; transform: translate(-5px,-5px) scale(.72); }
+  25% { opacity: 1; transform: translate(-2px,-2px) scale(1.035); }
+  58% { transform: translate(1px,1px) scale(.98); }
+  100% { opacity: 1; transform: translate(0) scale(1); }
+}
+:global([data-appearance="focus"]) .bubble { background: #17323b; backdrop-filter: none; box-shadow: none; }
+:global([data-appearance="focus"]) .refraction { display: none; }
+:global([data-appearance="focus"]) .membrane { display: none; }
+:global([data-appearance="focus"]) .lens { background: none; box-shadow: none; border-color: var(--lens-accent); }
+@media (prefers-reduced-transparency: reduce) {
+  .bubble { background: #17323b; backdrop-filter: none; box-shadow: none; }
+  .refraction { display: none; }
+  .membrane { display: none; }
+  .lens { background: none; box-shadow: none; border-color: var(--lens-accent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bubble { transition: none; }
+  .lens, .membrane, .gemCarrier, .gemHit { animation: none; }
+}
+@media (forced-colors: active) {
+  .bubble { background: Canvas; color: CanvasText; border: 2px solid CanvasText; box-shadow: none; backdrop-filter: none; }
+  .value, .operator { color: CanvasText; text-shadow: none; }
+  .refraction { display: none; }
+  .membrane { display: none; }
+  .lens { border: 2px solid Highlight; background: none; box-shadow: none; }
+  .gem { color: Highlight; }
+  .gemCarrier { background: Canvas; box-shadow: none; }
+}

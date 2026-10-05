@@ -22,6 +22,7 @@ import type {
   GuidedEncounterInput,
 } from "@/lib/guided-authored-encounter";
 import { retimeGuidedEncounter } from "@/lib/guided-authored-encounter";
+import { EquationLens } from "./EquationLens";
 
 type DragSource = { id: string; label: string };
 
@@ -520,7 +521,7 @@ export function GuidedEncounterComposer({
       {!isNumberBonds && instance.equation && tokens.length > 0 ? (
         <div className="algebra-composer__preview" data-mechanic={instance.mechanic} role="group" aria-label={`Player cue preview. Equation: ${equationState}`}>
           <div className="algebra-composer__previewCopy">
-            <span className="algebra-composer__previewEyebrow">APPROACH / CHART-OWNED</span>
+            <span className="algebra-composer__previewEyebrow">PLAYER CUE</span>
             <span className="algebra-composer__previewAction" data-mechanic={instance.mechanic} aria-label={`Player action: ${motionCue}`}>
               <MotionIcon className="algebra-composer__previewActionIcon" aria-hidden="true" fontSize="small" />
               <span>{motionCue}</span>
@@ -535,7 +536,15 @@ export function GuidedEncounterComposer({
             <span className="algebra-composer__previewTiming">{timingSummary}</span>
           </div>
           <div className="algebra-composer__equation" aria-hidden="true">
-            {tokens.map((token, index) => (
+            {tokens.map((token, index) => isAlgebra ? (
+              <EquationLens
+                key={`${token.id}-${selectedTokenIndex === index ? instance.mechanic : "idle"}`}
+                label={token.label}
+                targeted={selectedTokenIndex === index}
+                mechanic={instance.mechanic}
+                operator={isAuthoredEquationOperator(token.label)}
+              />
+            ) : (
               <span
                 key={`${token.id}-${selectedTokenIndex === index ? instance.mechanic : "idle"}`}
                 className="algebra-composer__equationToken"
