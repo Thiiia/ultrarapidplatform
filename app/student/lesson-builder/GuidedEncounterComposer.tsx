@@ -392,10 +392,11 @@ function HitControls({
         {nearestChartCueSeconds !== null ? (
           <div className="algebra-composer__chartSync" data-aligned={chartCueIsAligned ? "true" : "false"} role="status" aria-live="polite">
             <div>
-              <strong>{chartCueIsAligned ? "On a playable song cue" : "Nearest playable song cue"}</strong>
+              <strong>{chartCueIsAligned ? "On a playable chart cue" : "Nearest playable chart cue"}</strong>
               <span>
-                {chartCueIsAligned ? "On the chart cue" : `${timeValue(chartCueOffsetSeconds ?? 0)}s away`}
-                {` · ${timeValue(nearestChartCueSeconds)}s in this song&apos;s verified chart`}
+                {chartCueIsAligned
+                  ? `${timeValue(nearestChartCueSeconds)}s`
+                  : `${timeValue(chartCueOffsetSeconds ?? 0)}s away · cue at ${timeValue(nearestChartCueSeconds)}s`}
               </span>
             </div>
             {!chartCueIsAligned ? (
