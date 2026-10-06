@@ -624,33 +624,88 @@ function GameEmbedSession({
     if (isDemoMode || !pendingOutcome) return;
 
     let cancelled = false;
-    fetch("/api/player-outcomes", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(pendingOutcome),
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error("outcome sync failed");
-        if (cancelled) return;
-        setOutcomeSyncState("saved");
-        if (pendingOutcome.completion.outcome === "completed") {
-          setCompletedRun({
-            completedEvents: pendingOutcome.completion.completedEvents,
-            requiredEvents: pendingOutcome.completion.requiredEvents,
-            solvedSets: pendingOutcome.completion.solvedSets,
-            hitAttempts: pendingOutcome.completion.hitAttempts,
-          });
+    const controller = new AbortController();
+    let retryTimeout: ReturnType<typeof setTimeout> | undefined;
+    let resumePendingWait: (() => void) | undefined;
+    const retryDelaysMs = [500, 1_500, 4_000] as const;
+    const waitForRetry = (milliseconds: number) => new Promise<void>((resolve) => {
+      resumePendingWait = resolve;
+      retryTimeout = setTimeout(() => {
+        retryTimeout = undefined;
+        resumePendingWait = undefined;
+        resolve();
+      }, milliseconds);
+    });
+
+    const syncOutcome = async () => {
+      let retryCount = 0;
+      try {
+        while (!cancelled) {
+          let response: Response;
+          try {
+            response = await fetch("/api/player-outcomes", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(pendingOutcome),
+              signal: controller.signal,
+            });
+          } catch (error) {
+            if (cancelled || controller.signal.aborted) return;
+            if (!(error instanceof TypeError) || retryCount >= retryDelaysMs.length) throw error;
+            await waitForRetry(retryDelaysMs[retryCount]);
+            retryCount += 1;
+            continue;
+          }
+
+          if (response.ok) {
+            if (cancelled) return;
+            setOutcomeSyncState("saved");
+            if (pendingOutcome.completion.outcome === "completed") {
+              setCompletedRun({
+                completedEvents: pendingOutcome.completion.completedEvents,
+                requiredEvents: pendingOutcome.completion.requiredEvents,
+                solvedSets: pendingOutcome.completion.solvedSets,
+                hitAttempts: pendingOutcome.completion.hitAttempts,
+              });
+            }
+            setBridgeStatusMessage((current) => current === studentCopy.game.resultSyncFailed ? "" : current);
+            setPendingOutcome(null);
+            return;
+          }
+
+          const retryableStatus = response.status === 502 || response.status === 503 || response.status === 504;
+          if (!retryableStatus || retryCount >= retryDelaysMs.length) {
+            throw new Error("outcome sync failed");
+          }
+
+          const retryAfter = response.headers.get("Retry-After");
+          const retryAfterSeconds = retryAfter === null ? Number.NaN : Number(retryAfter);
+          const delay = Number.isFinite(retryAfterSeconds) && retryAfterSeconds >= 0
+            ? Math.min(retryAfterSeconds * 1_000, 5_000)
+            : retryDelaysMs[retryCount];
+          await waitForRetry(delay);
+          retryCount += 1;
         }
-        setPendingOutcome(null);
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) {
           setOutcomeSyncState("failed");
           setBridgeStatusMessage(studentCopy.game.resultSyncFailed);
         }
-      });
+      }
+    };
 
-    return () => { cancelled = true; };
+    void syncOutcome();
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (retryTimeout !== undefined) {
+        clearTimeout(retryTimeout);
+        retryTimeout = undefined;
+        const resume = resumePendingWait;
+        resumePendingWait = undefined;
+        resume?.();
+      }
+    };
   }, [isDemoMode, pendingOutcome]);
 
   const embeddedGameUrl = useMemo(() => {

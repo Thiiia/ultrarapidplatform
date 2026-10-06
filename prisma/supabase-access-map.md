@@ -1,6 +1,6 @@
 # Supabase relational access map
 
-Audit date: 2026-09-24. Project ref: `hshovrqtmzvpjggqcpya` (PostgreSQL 17.6). The initial inventory was read-only. A later live migration is recorded below; it was already present when this session rechecked Supabase.
+Audit date: 2026-10-06. Project ref: `hshovrqtmzvpjggqcpya` (PostgreSQL 17.6). The initial inventory was read-only. Later live migrations are recorded below.
 
 ## Application access contract
 
@@ -62,7 +62,7 @@ The Data API relies on both PostgreSQL grants and RLS. Removing a role's table p
 
 At the initial audit, this migration had not been run against Supabase. A later read-only recheck found the live Supabase migration ledger entry `version=20260924113034`, `name=20260924123000_revoke_public_data_api_grants`. Its recorded SQL requires `current_user = 'postgres'`, revokes direct table grants and the trigger function grant, and hardens `postgres` defaults for tables, sequences, and functions. The local Prisma source now includes the same guards and privilege changes. The two migration ledgers are separate; no matching entry was found in Prisma's `_prisma_migrations` table.
 
-P9.2's exit gate remains open until the required application regression suite is exercised against a safe database. The live change was already present when this session rechecked it; this session made no database writes. No Supabase database branches are available, and no local PostgreSQL or Supabase CLI is installed in the current environment. P9.3 RLS work remains gated on verifying the actual deployed Prisma role and its RLS behavior. Signed URL success/expiry and immutable refresh behavior also remain unverified; private bucket metadata alone does not establish those runtime paths.
+P9.2's exit gate remains open until the required application regression suite is exercised against a safe database. The live change was already present when the 2026-09-24 recheck session confirmed it; that session made no database writes. No Supabase database branches are available, and no local PostgreSQL or Supabase CLI was installed in that environment. P9.3 RLS work remains gated on verifying the actual deployed Prisma role and its RLS behavior. Signed URL success/expiry and immutable refresh behavior also remain unverified; private bucket metadata alone does not establish those runtime paths.
 
 ## Post-migration recheck — 2026-09-24 12:08 UTC
 
@@ -82,3 +82,26 @@ Read-only checks after the Supabase migration ledger entry above established:
 Local tests cover deterministic schedules across a tempo change, separate song rhythms, all catalogued bonds, reordered equation token order, pad validity, insufficient chart space, and v3 publication round-trip. This is code validation, not proof of publication into multiple existing songs. The audited project currently has no Number Bonds revision, and P9.2, P9.4, P9.5, and P9.6 remain open pending safe-database, storage, authoring, and authenticated-journey evidence.
 
 The local P9.7 follow-up persists the exact source revision on each generated lesson revision. A composite foreign key ties the source revision to the same `SongAsset`, and `ON DELETE RESTRICT` preserves the audit link. The save route writes this provenance in the publication transaction. Idempotent retries now replay before the first-publication guard and reject reuse of a request ID with a different source revision or activity. These changes are in `prisma/schema.prisma`, `app/api/lesson-builder/save/route.ts`, and the local migration `20260924170000_add_rhythm_source_provenance`; that migration has not been applied to Supabase. The tests exercise synthetic source revisions and route/schema contracts only.
+
+## Recheck and repair — 2026-10-06
+
+The Supabase screenshot's PostgreSQL error is PostgREST's disabled-Data-API placeholder behavior: the Data API remains intentionally disabled for relational tables, while application data uses Auth0 and server-side Prisma and Storage continues separately. The live role had no explicit `pgrst.db_schemas` override and the `pg_pgrst_no_exposed_schemas` sentinel schema was absent. The official workaround is to create the empty `pgrst_no_exposed_schemas` schema, set `authenticator.pgrst.db_schemas` to it, and notify PostgREST. This keeps the Data API closed; it does not grant table or RPC access. If the Data API is re-enabled later, reset the manual role setting and notify PostgREST before enabling it in the dashboard:
+
+The applied operation is:
+
+```sql
+CREATE SCHEMA IF NOT EXISTS pgrst_no_exposed_schemas;
+ALTER ROLE authenticator SET pgrst.db_schemas = 'pgrst_no_exposed_schemas';
+NOTIFY pgrst;
+```
+
+The Supabase migration is role-guarded to require `current_user = 'postgres'`.
+
+```sql
+ALTER ROLE authenticator RESET pgrst.db_schemas;
+NOTIFY pgrst, 'reload config';
+```
+
+The live `game_content_revisions` table was 184 kB with 72 estimated rows. Three foreign keys lacked a complete supporting index. Single-column indexes were added for `author_id` and `song_chart_id`; the existing `rhythm_source_revision` index was replaced by `(rhythm_source_revision, song_asset_id)`, preserving its left-prefix lookup while covering the composite foreign key. The local Prisma model and reversible migration source are recorded in `prisma/schema.prisma` and `prisma/migrations/20261006105150_add_game_content_revision_fk_indexes/`. No grants or RLS policies were changed. The four RLS-enabled/no-policy advisor notices remain informational under the existing no-privilege access boundary.
+
+The live migration ledger records `suppress_disabled_data_api_postgrest_placeholder_errors` at `20261006105457` and `add_game_content_revision_fk_indexes` at `20261006105518`. The index migration source is mirrored in Prisma; the role setting is operational Supabase configuration and is documented above rather than being reapplied by every Prisma deployment. A post-change read confirmed the empty schema, the `authenticator` setting, and all three index definitions. A log query from 10:54:57 through 11:02:49 UTC found no further `pg_pgrst_no_exposed_schemas` errors. The UTC-converted hour corresponding to the screenshot contained 110 instances of the exact missing-schema error, consistent with the dashboard's 109-error count; the one-event difference likely reflects the dashboard's rolling-window boundary. The performance advisor no longer reports unindexed foreign keys; it reports 14 unused indexes, including the three just-created indexes before they have served workload. Do not remove them from that immediate post-migration sample alone.

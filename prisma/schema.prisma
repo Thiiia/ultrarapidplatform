@@ -321,7 +321,9 @@ model GameContentRevision {
   publishedAt           DateTime?                 @map("published_at")
 
   @@index([songAssetId, activityKey, authorId, status, publishedAt])
-  @@index([rhythmSourceRevision], map: "game_content_revisions_rhythm_source_revision_idx")
+  @@index([authorId], map: "game_content_revisions_author_id_idx")
+  @@index([rhythmSourceRevision, songAssetId], map: "game_content_revisions_rhythm_source_revision_song_asset_id_idx")
+  @@index([songChartId], map: "game_content_revisions_song_chart_id_idx")
   @@unique([revision, songAssetId], map: "game_content_revisions_revision_song_asset_id_key")
   @@map("game_content_revisions")
 }
