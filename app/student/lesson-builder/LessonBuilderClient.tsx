@@ -11058,8 +11058,13 @@ export default function LessonBuilderClient({
       equationQueue: authoredEquationQueue,
       clock: createLessonClock(chartFile || originalChartFileRef.current),
       stopAtSeconds: sidecar.stopAtSeconds,
+      numberBondSequenceVersion:
+        numberBondSequenceV1?.songAssetId ===
+        (selectedSongLaunch?.songAssetId ?? selectedSongStorage?.id ?? "number-bonds")
+          ? numberBondSequenceV1.sequence.version
+          : undefined,
     }),
-    [authoredEquationQueue, chartFile, rtcmAuthoredEvents, selectedSongActivity, selectedSongLaunch, sidecar, timelineEvents],
+    [authoredEquationQueue, chartFile, numberBondSequenceV1, rtcmAuthoredEvents, selectedSongActivity, selectedSongLaunch, selectedSongStorage, sidecar, timelineEvents],
   );
 
   const recordedRepairDraft = recordedRepairId

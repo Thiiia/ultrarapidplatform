@@ -156,6 +156,19 @@ test("Number Bonds note creation explains the one-note, one-gem contract", () =>
   assert.match(lessonBuilderSource, /NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS/);
 });
 
+test("Number Bonds sequence readiness follows the sequence for the currently selected song", () => {
+  const readiness = lessonBuilderSource.match(
+    /const lessonPublishReadiness = useMemo\([\s\S]*?\n  \);/,
+  )?.[0];
+
+  assert.ok(readiness);
+  assert.match(
+    readiness,
+    /numberBondSequenceVersion:\s*numberBondSequenceV1\?\.songAssetId ===\s*\(selectedSongLaunch\?\.songAssetId \?\? selectedSongStorage\?\.id \?\? "number-bonds"\)\s*\?\s*numberBondSequenceV1\.sequence\.version\s*:\s*undefined/,
+  );
+  assert.match(readiness, /\[authoredEquationQueue,[^\]]*numberBondSequenceV1[^\]]*selectedSongStorage[^\]]*\]/);
+});
+
 test("chart cue status copy uses a single readable timestamp without escaped entities", () => {
   const chartCueCopy = composerSource.match(
     /<strong>\{chartCueIsAligned \? "On a playable chart cue"[\s\S]*?<\/span>/,

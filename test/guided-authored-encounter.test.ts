@@ -94,6 +94,31 @@ test("Number Bonds readiness flags a first note before the tutorial gate", () =>
   assert.equal(shifted.blockers.some((blocker) => blocker.code === "first_cue_before_tutorial"), false);
 });
 
+test("Number Bonds sequence v1 permits its authored Spin and Drag mechanics", () => {
+  const bondEquation: AuthoredSavedEquation = {
+    id: "bond-2",
+    tokens: ["2", "=", "1", "+", "1"].map((label, index) => ({ id: `bond-token-${index}`, label })),
+  };
+
+  for (const mechanic of ["spin", "drag"] as const) {
+    const input = encounter(mechanic, {
+      equation: bondEquation,
+      ...(mechanic === "drag"
+        ? { dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-source" }] }
+        : {}),
+    });
+    const readyHitIds = new Set(["hit-source"]);
+    const legacy = evaluateEncounterReadiness(input, readyHitIds, { activityKey: "number-bonds" });
+    const sequence = evaluateEncounterReadiness(input, readyHitIds, {
+      activityKey: "number-bonds",
+      numberBondSequenceVersion: 1,
+    });
+
+    assert.equal(legacy.issueCodes.includes("activity_mechanic_unsupported"), true);
+    assert.equal(sequence.issueCodes.includes("activity_mechanic_unsupported"), false);
+  }
+});
+
 test("editing cannot introduce a new Unity presenter collision, but can repair an old one", () => {
   const first = encounter("hit", { id: "hit-1", tick: 8, endTick: 8 });
   const second = encounter("hit", { id: "hit-2", tick: 10, endTick: 10 });
