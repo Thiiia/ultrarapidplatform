@@ -1,4 +1,5 @@
 import type { FreshSongLaunchPackage } from "./song-launch-client";
+import { studentCopy } from "./student-copy";
 
 export type SongPackageLoadStatus = "idle" | "loading" | "ready" | "error";
 
@@ -48,6 +49,14 @@ const LEARNER_READINESS_MESSAGES: Array<[RegExp, string]> = [
 /** Keep deployment and storage details out of player-facing error copy. */
 export function getSongLaunchErrorMessage(error: unknown) {
   const rawMessage = error instanceof Error ? error.message.trim() : String(error ?? "").trim();
+  const errorCode =
+    typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+      ? error.code
+      : null;
+
+  if (errorCode === "RUNTIME_CAPABILITY_UNAVAILABLE") {
+    return studentCopy.game.runtimeUnavailable;
+  }
 
   const learnerMessage = LEARNER_READINESS_MESSAGES.find(([pattern]) => pattern.test(rawMessage))?.[1];
   if (learnerMessage) {

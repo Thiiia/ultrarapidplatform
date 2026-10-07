@@ -11,6 +11,7 @@ import {
   resolveSongActivityIdentity,
 } from "../lib/song-activity-authority";
 import type { FreshSongLaunchPackage } from "../lib/song-launch-client";
+import { studentCopy } from "../lib/student-copy";
 
 const packageBase: FreshSongLaunchPackage = {
   contractVersion: 1 as const,
@@ -44,6 +45,15 @@ test("song choice replaces infrastructure details with recoverable player copy",
     getSongLaunchErrorMessage(new Error("This Number Bonds lesson has not been published yet. Open Lesson Builder.")),
     "This Number Bonds lesson is being built. Choose Build Number Bonds lesson to finish it, or try another song.",
   );
+});
+
+test("hosted runtime capability outages explain the game runtime is unavailable", () => {
+  const error = Object.assign(
+    new Error("The hosted Unity capability manifest could not be loaded."),
+    { code: "RUNTIME_CAPABILITY_UNAVAILABLE", status: 503 },
+  );
+
+  assert.equal(getSongLaunchErrorMessage(error), studentCopy.game.runtimeUnavailable);
 });
 
 test("song package cache keys include activity identity", () => {
