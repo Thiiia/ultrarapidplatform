@@ -1,4 +1,5 @@
 import StudentSubpageShell from "@/app/student/StudentSubpageShell";
+import PlayerCalibrationResetControl from "@/app/student/profile/PlayerCalibrationResetControl";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,8 @@ export default function DemoStudentProfilePage() {
           href: "/demo/student/song-choice",
         },
       ]}
-    />
+    >
+      <PlayerCalibrationResetControl isDemoMode />
+    </StudentSubpageShell>
   );
 }

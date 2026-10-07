@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentAppUser } from "@/lib/current-user";
 import StudentSubpageShell from "../StudentSubpageShell";
+import PlayerCalibrationResetControl from "./PlayerCalibrationResetControl";
 
 export default async function StudentProfilePage() {
   const user = await getCurrentAppUser();
@@ -32,7 +33,9 @@ export default async function StudentProfilePage() {
           href: "/student/song-choice",
         },
       ]}
-    />
+    >
+      <PlayerCalibrationResetControl isDemoMode={false} />
+    </StudentSubpageShell>
   );
 }
 export const dynamic = "force-dynamic";

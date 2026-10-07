@@ -52,6 +52,7 @@ type StudentSubpageShellProps = {
   title: string;
   cards: StudentSubpageCard[];
   navBasePath?: string;
+  children?: ReactNode;
 };
 
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
@@ -426,6 +427,7 @@ function PlaceholderCard({
 export default function StudentSubpageShell({
   title,
   cards,
+  children,
   navBasePath = "/student",
 }: StudentSubpageShellProps) {
   const pathname = usePathname();
@@ -458,6 +460,7 @@ export default function StudentSubpageShell({
             />
           ))}
         </div>
+        {children}
       </DashboardSection>
     </div>
   );

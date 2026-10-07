@@ -9,6 +9,7 @@ import { persistLaunchParams, resolveEmbeddedCalibrationLaunchSnapshot, resolveL
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 import { createBridgeContext, getOrCreateInstallationId, parseCalibrationState, PlatformPlayerCompletionSchema, validateBridgeMessage, type BridgeContext, type CalibrationState, type PlatformPlayerCompletion } from "@/lib/platform-player-bridge";
 import { PlayerRunOutcomeBarrier } from "@/lib/player-run-outcome-barrier";
+import { demoCalibrationStorageKey } from "@/lib/player-calibration-reset";
 import { getSongLaunchErrorMessage } from "@/lib/song-choice-flow";
 import { requestFreshSongLaunchParams } from "@/lib/song-launch-client";
 import { getUnityGameUrl } from "@/lib/unity-game-url";
@@ -30,8 +31,6 @@ import ProgressTab from "@/public/header_icons/progress_tab.svg";
 import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
 
 const GAME_URL = getUnityGameUrl();
-const DemoCalibrationStoragePrefix = "ultrarapid-demo-calibration-v2:";
-
 type TabIcon = FC<SVGProps<SVGSVGElement>>;
 
 type HeaderTab = {
@@ -76,10 +75,6 @@ type GameEmbedSessionProps = GameEmbedPageProps & {
 
 function getEmbeddedGameUrl(searchParams: Pick<URLSearchParams, "get">) {
   return buildEmbeddedGameUrl(GAME_URL, resolveLaunchParams(searchParams));
-}
-
-function demoCalibrationStorageKey(installationId: string) {
-  return `${DemoCalibrationStoragePrefix}${installationId}`;
 }
 
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
