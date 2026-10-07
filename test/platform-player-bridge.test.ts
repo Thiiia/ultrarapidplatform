@@ -136,6 +136,38 @@ test("bridge validates nonce and receipt, and rejects arbitrary navigation", () 
   assert.equal(validateBridgeMessage({ ...valid, type: "navigate", url: "https://evil.example" }, context).ok, false);
 });
 
+test("demo bridge accepts attempt-less guest receipts while authenticated receipts keep their attempt ID", () => {
+  const { launchAttemptId: _authenticatedAttemptId, ...guestReceipt } = receipt;
+  const installationId = crypto.randomUUID();
+
+  assert.throws(
+    () => createBridgeContext(guestReceipt, "https://game.example/", installationId),
+    /require a player launch attempt ID/,
+  );
+
+  const guestContext = createBridgeContext(guestReceipt, "https://game.example/", installationId, {
+    allowGuestReceipt: true,
+  });
+  assert.equal(guestContext.receipt.launchAttemptId, undefined);
+  const guestCompletion = {
+    type: "run-complete" as const,
+    nonce: guestContext.nonce,
+    receipt: guestContext.receipt,
+    completion: {
+      completionVersion: 2 as const,
+      outcome: "completed" as const,
+      completedEvents: 1,
+      requiredEvents: 1,
+      solvedSets: 1,
+      hitAttempts: 1,
+    },
+  };
+  assert.equal(validateBridgeMessage(guestCompletion, guestContext).ok, true);
+
+  const authenticatedContext = createBridgeContext(receipt, "https://game.example/", installationId);
+  assert.equal(authenticatedContext.receipt.launchAttemptId, receipt.launchAttemptId);
+});
+
 test("bridge accepts the same receipt when Unity serializes keys in a different order", () => {
   const context = createBridgeContext(receipt, "https://game.example/", crypto.randomUUID());
   const reorderedReceipt = Object.fromEntries(Object.entries(receipt).reverse());

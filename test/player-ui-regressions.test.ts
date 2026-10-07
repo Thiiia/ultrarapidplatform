@@ -86,6 +86,13 @@ test("the demo game keeps calibration and completion state local instead of call
   assert.match(gameEmbed, /if \(isDemoMode \|\| !pendingOutcome\) return;/);
 });
 
+test("only the demo player opts into guest receipts before the verified iframe gate", () => {
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+
+  assert.match(gameEmbed, /createBridgeContext\(receipt, GAME_URL, installationId, \{ allowGuestReceipt: isDemoMode \}\)/);
+  assert.match(gameEmbed, /\(!activeLaunchParams\.get\("receipt"\) \|\| \(bridgeContext && calibrationStatus !== "loading"\)\)/);
+});
+
 test("demo calibration stores a structured offset and protocol record", () => {
   const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
   assert.match(gameEmbed, /JSON\.stringify\([\s\S]{0,240}offsetMs/);

@@ -37,7 +37,7 @@ export const BridgeReceiptSchema = z.object({
   runtimeCapabilities: z.array(z.string().min(1).max(80)).min(1).max(16),
   rhythmDifficultyKey: z.enum(["EasySingle", "MediumSingle", "HardSingle", "ExpertSingle"]).optional(),
   learningDifficultyKey: z.string().min(1).max(80).optional(),
-  launchAttemptId: z.string().uuid(),
+  launchAttemptId: z.string().uuid().optional(),
   chart: z.object({ bucket: z.string().min(1).max(80), path: z.string().min(1).max(500) }).strict(),
   sidecar: z.object({ bucket: z.string().min(1).max(80), path: z.string().min(1).max(500) }).strict(),
   audio: z.object({ bucket: z.string().min(1).max(80), path: z.string().min(1).max(500) }).strict(),
@@ -134,11 +134,19 @@ export const PlatformPlayerBridgeMessageSchema = z.discriminatedUnion("type", [
 export type PlatformPlayerBridgeMessage = z.infer<typeof PlatformPlayerBridgeMessageSchema>;
 export type BridgeContext = { nonce: string; installationId: string; receipt: z.infer<typeof BridgeReceiptSchema>; origin: string; protocolVersion: number };
 
-export function createBridgeContext(receipt: unknown, gameUrl: string, installationId: string, protocolVersion = 1): BridgeContext {
+export function createBridgeContext(
+  receipt: unknown,
+  gameUrl: string,
+  installationId: string,
+  options: { protocolVersion?: number; allowGuestReceipt?: boolean } = {},
+): BridgeContext {
   const parsedReceipt = BridgeReceiptSchema.parse(receipt);
+  if (!parsedReceipt.launchAttemptId && !options.allowGuestReceipt) {
+    throw new Error("Authenticated launch receipts require a player launch attempt ID");
+  }
   const origin = new URL(gameUrl).origin;
   const nonce = crypto.randomUUID();
-  return { nonce, installationId, receipt: parsedReceipt, origin, protocolVersion };
+  return { nonce, installationId, receipt: parsedReceipt, origin, protocolVersion: options.protocolVersion ?? 1 };
 }
 
 export function validateBridgeMessage(value: unknown, active: BridgeContext) {

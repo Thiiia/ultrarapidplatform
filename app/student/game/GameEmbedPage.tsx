@@ -385,7 +385,7 @@ function GameEmbedSession({
       const receipt = JSON.parse(receiptRaw);
       const installationId = getOrCreateInstallationId(window.localStorage);
       return {
-        context: createBridgeContext(receipt, GAME_URL, installationId),
+        context: createBridgeContext(receipt, GAME_URL, installationId, { allowGuestReceipt: isDemoMode }),
         error: "",
       };
     } catch {
@@ -587,9 +587,14 @@ function GameEmbedSession({
       } else if (result.message.type === "run-complete") {
         const completion = result.message.completion;
         const launchAttemptId = result.message.receipt.launchAttemptId;
-        // The outcome API accepts one completion per launch attempt.
-        if (acceptedOutcomeAttemptIdRef.current === launchAttemptId) return;
-        acceptedOutcomeAttemptIdRef.current = launchAttemptId;
+        // Only authenticated outcomes have a server-owned attempt id. A guest
+        // completion remains local and is not deduplicated through that API key.
+        if (launchAttemptId) {
+          if (acceptedOutcomeAttemptIdRef.current === launchAttemptId) return;
+          acceptedOutcomeAttemptIdRef.current = launchAttemptId;
+        } else if (!isDemoMode) {
+          return;
+        }
         if (isDemoMode) {
           setOutcomeSyncState("idle");
           setPendingOutcome(null);
