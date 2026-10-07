@@ -323,3 +323,13 @@ test("calibration state preserves the exact integer offset for the required prot
   });
   assert.equal(parseCalibrationState({ protocolVersion: 2, offsetMs: -37 }, 1), null);
 });
+
+test("retry requests are bound to the active nonce and immutable launch receipt", () => {
+  const context = createBridgeContext(receipt, "https://game.example/", crypto.randomUUID());
+  const retry = { type: "retry" as const, nonce: context.nonce, receipt };
+
+  assert.equal(validateBridgeMessage(retry, context).ok, true);
+  assert.equal(validateBridgeMessage({ ...retry, nonce: crypto.randomUUID() }, context).ok, false);
+  assert.equal(validateBridgeMessage({ ...retry, receipt: { ...receipt, revision: "another-revision" } }, context).ok, false);
+  assert.equal(validateBridgeMessage({ ...retry, launchAttemptId: "another-attempt" }, context).ok, false);
+});

@@ -135,6 +135,7 @@ export const PlatformPlayerBridgeMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("calibration-complete"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema, offsetMs: z.number().int().min(-350).max(350), protocolVersion: z.number().int().positive().max(32) }).strict(),
   z.object({ type: z.literal("run-complete"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema, completion: PlatformPlayerCompletionSchema }).strict(),
   z.object({ type: z.literal("exit-to-song-select"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema }).strict(),
+  z.object({ type: z.literal("retry"), nonce: z.string().uuid(), receipt: BridgeReceiptSchema }).strict(),
 ]);
 
 export type PlatformPlayerBridgeMessage = z.infer<typeof PlatformPlayerBridgeMessageSchema>;

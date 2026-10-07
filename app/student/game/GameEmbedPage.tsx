@@ -58,10 +58,15 @@ type PendingOutcome = {
   completion: CompletionSummary;
 };
 
+type GameEmbedRetryRequest = {
+  freshAttempt?: boolean;
+  launchSearchParams?: string | null;
+};
+
 type GameEmbedSessionProps = GameEmbedPageProps & {
   pathname: string;
   serializedSearchParams: string;
-  onRetry: () => void;
+  onRetry: (request?: GameEmbedRetryRequest) => void;
 };
 
 function getEmbeddedGameUrl(searchParams: Pick<URLSearchParams, "get">) {
@@ -325,15 +330,31 @@ export default function GameEmbedPage({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [retryNonce, setRetryNonce] = useState(0);
+  const [retrySearchParams, setRetrySearchParams] = useState<{
+    originalSearchParams: string;
+    searchParams: string;
+  } | null>(null);
   const serializedSearchParams = searchParams.toString();
+  const sessionSearchParams = retrySearchParams?.originalSearchParams === serializedSearchParams
+    ? retrySearchParams.searchParams
+    : serializedSearchParams;
+  const retry = useCallback((request?: GameEmbedRetryRequest) => {
+    const nextSearchParams = new URLSearchParams(request?.launchSearchParams ?? sessionSearchParams);
+    if (request?.freshAttempt) nextSearchParams.delete("launchAttemptId");
+    setRetrySearchParams({
+      originalSearchParams: serializedSearchParams,
+      searchParams: nextSearchParams.toString(),
+    });
+    setRetryNonce((current) => current + 1);
+  }, [serializedSearchParams, sessionSearchParams]);
 
   return (
     <GameEmbedSession
       key={`${serializedSearchParams}:${retryNonce}`}
       navBasePath={navBasePath}
       pathname={pathname}
-      serializedSearchParams={serializedSearchParams}
-      onRetry={() => setRetryNonce((current) => current + 1)}
+      serializedSearchParams={sessionSearchParams}
+      onRetry={retry}
     />
   );
 }
@@ -548,7 +569,13 @@ function GameEmbedSession({
       if (event.origin !== bridgeContext.origin) return;
       const result = validateBridgeMessage(event.data, bridgeContext);
       if (!result.ok) return;
-      if (result.message.type === "calibration-complete") {
+      if (result.message.type === "retry") {
+        terminalAttemptRef.current = true;
+        onRetry({
+          freshAttempt: true,
+          launchSearchParams: launchParams?.toString() ?? serializedSearchParams,
+        });
+      } else if (result.message.type === "calibration-complete") {
         if (isDemoMode) {
           window.localStorage.setItem(
             demoCalibrationStorageKey(bridgeContext.installationId),
@@ -623,7 +650,7 @@ function GameEmbedSession({
       cancelled = true;
       window.removeEventListener("message", onMessage);
     };
-  }, [bridgeContext, handleAttemptReturn, isDemoMode, navBasePath]);
+  }, [bridgeContext, handleAttemptReturn, isDemoMode, launchParams, navBasePath, onRetry, serializedSearchParams]);
 
   useEffect(() => {
     if (isDemoMode || !pendingOutcome) return;
@@ -767,7 +794,7 @@ function GameEmbedSession({
                 </span>
                 {launchErrorMessage ? (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
-                    <button type="button" className="experience-button" onClick={onRetry} style={{ border: "none", borderRadius: 999, background: "var(--ur-accent-lime)", color: "var(--ur-canvas-deep)", padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}>
+                    <button type="button" className="experience-button" onClick={() => onRetry()} style={{ border: "none", borderRadius: 999, background: "var(--ur-accent-lime)", color: "var(--ur-canvas-deep)", padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}>
                       Try again
                     </button>
                     <Link className="experience-button experience-button--secondary" href={`${navBasePath}/song-choice`} style={{ borderRadius: 999, color: "var(--ur-text-marketing)", padding: "9px 16px", textDecoration: "none", fontWeight: 700 }}>
