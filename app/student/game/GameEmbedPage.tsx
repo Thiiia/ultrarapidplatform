@@ -394,7 +394,7 @@ function GameEmbedSession({
         error: studentCopy.game.handoffError,
       };
     }
-  }, [activeLaunchParams]);
+  }, [activeLaunchParams, isDemoMode]);
   const bridgeContext = bridgeSetup.context;
 
   const iframeCalibrationLaunchStateMatches =
@@ -767,11 +767,9 @@ function GameEmbedSession({
                 </span>
                 {launchErrorMessage ? (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
-                    {launchPreparationError && (
-                      <button type="button" className="experience-button" onClick={onRetry} style={{ border: "none", borderRadius: 999, background: "var(--ur-accent-lime)", color: "var(--ur-canvas-deep)", padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}>
-                        Try again
-                      </button>
-                    )}
+                    <button type="button" className="experience-button" onClick={onRetry} style={{ border: "none", borderRadius: 999, background: "var(--ur-accent-lime)", color: "var(--ur-canvas-deep)", padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}>
+                      Try again
+                    </button>
                     <Link className="experience-button experience-button--secondary" href={`${navBasePath}/song-choice`} style={{ borderRadius: 999, color: "var(--ur-text-marketing)", padding: "9px 16px", textDecoration: "none", fontWeight: 700 }}>
                       {studentCopy.game.chooseAnotherSong}
                     </Link>

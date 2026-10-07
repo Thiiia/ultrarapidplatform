@@ -27,6 +27,14 @@ test("game embed refreshes its signed song package before loading Unity", () => 
   assert.match(gameEmbed, /Try again/);
 });
 
+test("game embed offers a same-song retry when bridge verification fails", () => {
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+
+  assert.match(gameEmbed, /const launchErrorMessage = launchPreparationError \|\| bridgeSetup\.error;/);
+  assert.match(gameEmbed, /\{launchErrorMessage \? \([\s\S]{0,500}onClick=\{onRetry\}[\s\S]{0,300}Try again/);
+  assert.doesNotMatch(gameEmbed, /\{launchPreparationError &&\s*\([\s\S]{0,300}Try again/);
+});
+
 test("embedded Unity grants fullscreen without a duplicate iframe permission", () => {
   const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
   assert.match(gameEmbed, /allow="gamepad; autoplay"/);
@@ -90,6 +98,7 @@ test("only the demo player opts into guest receipts before the verified iframe g
   const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
 
   assert.match(gameEmbed, /createBridgeContext\(receipt, GAME_URL, installationId, \{ allowGuestReceipt: isDemoMode \}\)/);
+  assert.match(gameEmbed, /\}, \[activeLaunchParams, isDemoMode\]\);/);
   assert.match(gameEmbed, /\(!activeLaunchParams\.get\("receipt"\) \|\| \(bridgeContext && calibrationStatus !== "loading"\)\)/);
 });
 
