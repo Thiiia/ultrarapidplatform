@@ -50,6 +50,45 @@ test("authored Number Bonds sequence v1 compatibility comes from the hosted buil
   });
 });
 
+test("published Number Bonds sidecar difficulty must match the launch receipt", () => {
+  const lesson = {
+    ...fixture.validLesson,
+    rhythmDifficultyKey: "HardSingle",
+  };
+
+  assert.throws(
+    () => evaluateAuthoredLessonRuntimeCapability(
+      manifest,
+      lesson,
+      "number-bonds",
+      {
+        songAssetId: lesson.songAssetId,
+        authorId: lesson.authorId,
+        revision: lesson.revision,
+        rhythmDifficultyKey: "EasySingle",
+      },
+    ),
+    /sidecar identity does not match its receipt/,
+  );
+});
+
+test("legacy Number Bonds sidecar without a difficulty remains compatible with a selected-difficulty receipt", () => {
+  const result = evaluateAuthoredLessonRuntimeCapability(
+    manifest,
+    fixture.validLesson,
+    "number-bonds",
+    {
+      songAssetId: fixture.validLesson.songAssetId,
+      authorId: fixture.validLesson.authorId,
+      revision: fixture.validLesson.revision,
+      rhythmDifficultyKey: "HardSingle",
+    },
+  );
+
+  assert.equal(result.implemented, true);
+  assert.equal(result.sequenceVersion, 1);
+});
+
 test("legacy Number Bonds Hit-only content uses the authored lesson adapter without requiring sequence v1", () => {
   const activities = JSON.parse(manifestText).activities as Array<Record<string, unknown>>;
   const hitOnlyManifest = parseRuntimeCapabilityManifestJson(JSON.stringify({

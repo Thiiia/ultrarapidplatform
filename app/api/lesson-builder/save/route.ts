@@ -32,6 +32,7 @@ import {
   resolveRhythmSourceRevision,
   type ResolvedRhythmSource,
 } from "@/lib/song-rhythm-bootstrap";
+import { isRhythmDifficultyKey, type RhythmDifficultyKey } from "@/lib/number-bonds-sidecar";
 
 function resolveAuthorFolder(user: { name: string | null; email: string | null }) {
   const name = user.name?.trim();
@@ -52,6 +53,7 @@ type SavePayload = {
   authorId?: unknown;
   authorName?: unknown;
   revision?: unknown;
+  rhythmDifficultyKey?: unknown;
   publicationRequestId?: unknown;
   chart?: SaveFilePayload;
   sidecar?: SaveFilePayload;
@@ -162,11 +164,13 @@ async function resolveAuthoredChartTargets({
   authorId,
   activityKey,
   authorFolder,
+  rhythmDifficultyKey,
 }: {
   songAssetId: string;
   authorId: string;
   activityKey: SongActivityKey;
   authorFolder: string;
+  rhythmDifficultyKey?: RhythmDifficultyKey | null;
 }): Promise<{
   songChartId?: string;
   chart: Omit<UploadedFileRef, "contentType">;
@@ -199,7 +203,12 @@ async function resolveAuthoredChartTargets({
       chart: { bucket: existing.chartBucket, path: writableChartPath },
       sidecar: {
         bucket: existing.sidecarBucket ?? "SidecarJsons",
-        path: normalizeAuthoredSidecarPath(writableChartPath, writableSidecarPath),
+        path: normalizeAuthoredSidecarPath(
+          writableChartPath,
+          rhythmDifficultyKey
+            ? buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorFolder, rhythmDifficultyKey }).sidecarPath
+            : writableSidecarPath,
+        ),
       },
       current: {
         chartBucket: existing.chartBucket,
@@ -211,7 +220,7 @@ async function resolveAuthoredChartTargets({
     };
   }
 
-  const paths = buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorFolder });
+  const paths = buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorFolder, rhythmDifficultyKey });
 
   return {
     chart: { bucket: "Charts", path: paths.chartPath },
@@ -275,6 +284,14 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    const rhythmDifficultyKey = payload.rhythmDifficultyKey == null
+      ? null
+      : isRhythmDifficultyKey(payload.rhythmDifficultyKey)
+        ? payload.rhythmDifficultyKey
+        : null;
+    if (payload.rhythmDifficultyKey != null && !rhythmDifficultyKey) {
+      return NextResponse.json({ error: "rhythmDifficultyKey is unsupported" }, { status: 400 });
+    }
 
     const existingSongAsset = await prisma.songAsset.findUnique({
       where: { id: songAssetId },
@@ -334,6 +351,7 @@ export async function POST(request: Request) {
         authorId: targetAuthor.id,
         activityKey,
         authorFolder,
+        rhythmDifficultyKey: activityKey === "number-bonds" ? rhythmDifficultyKey : null,
       });
     } catch (error) {
       return NextResponse.json(
@@ -407,6 +425,11 @@ export async function POST(request: Request) {
         replayedPublication.authorId !== targetAuthor.id
       ) {
         return NextResponse.json({ error: "Publication request id belongs to a different lesson" }, { status: 409 });
+      }
+      if (activityKey === "number-bonds" && rhythmDifficultyKey &&
+          replayedPublication.sidecarPath.replace(/\\/g, "/").split("/").pop() !==
+            buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorFolder, rhythmDifficultyKey }).sidecarPath.split("/").pop()) {
+        return NextResponse.json({ error: "Publication request id belongs to a different rhythm difficulty" }, { status: 409 });
       }
       if (replayedPublication.status !== "ready") {
         return NextResponse.json({ error: "Publication request is still being finalized" }, { status: 409 });
@@ -518,8 +541,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
+    const targetSidecarBasename = targets.sidecar.path.replace(/\\/g, "/").split("/").pop();
+    const previousSidecarBasename = targets.current?.sidecarPath?.replace(/\\/g, "/").split("/").pop();
     const previousSidecarContent =
-      targets.current?.sidecarBucket && targets.current.sidecarPath
+      targets.current?.sidecarBucket && targets.current.sidecarPath &&
+      previousSidecarBasename === targetSidecarBasename
         ? await readStoredUtf8Text(
           targets.current.sidecarBucket,
           targets.current.sidecarPath,
@@ -544,7 +570,13 @@ export async function POST(request: Request) {
     let authoredMode: string | null = "authored";
     try {
       const authoredClock = createLessonClock(chartContent);
-      const identity = { songAssetId, activityKey, authorId: targetAuthor.id, revision: revisionId };
+      const identity = {
+        songAssetId,
+        activityKey,
+        authorId: targetAuthor.id,
+        revision: revisionId,
+        ...(activityKey === "number-bonds" && rhythmDifficultyKey ? { rhythmDifficultyKey } : {}),
+      };
       const legacyToTickAfterSeconds = (tick: number, seconds: number) => {
         return authoredClock.toTick(authoredClock.toSeconds(tick) + seconds);
       };

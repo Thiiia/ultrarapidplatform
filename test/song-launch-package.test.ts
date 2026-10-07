@@ -681,3 +681,94 @@ test("a normal request may receive an editor blank package but never a playable 
   assert.equal(result.readiness.canLaunch, false);
   assert.equal(result.receipt, undefined);
 });
+
+test("Number Bonds launch receipt keeps the selected difficulty attached to its exact immutable sidecar", async () => {
+  const selectedPath = "Number_Bonds/revisions/revision-hard/number-bonds-waves-HardSingle.encounters.json";
+  const result = await resolveFreshSongLaunchPackage({
+    songAssetId: "waves",
+    activityKey: "number-bonds",
+    authorId: "author-1",
+    revision: "revision-hard",
+    rhythmDifficultyKey: "HardSingle",
+    loadSongAsset: async () => ({
+      id: "waves",
+      isActive: true,
+      songBucket: "Songs",
+      songPath: "audio/waves.mp3",
+    }),
+    loadSongChart: async (_songAssetId, _activityKey, _authorId, difficultyKey) => {
+      assert.equal(difficultyKey, "HardSingle");
+      return {
+        chartBucket: "Charts",
+        chartPath: "Number_Bonds/revisions/revision-hard/waves.chart",
+        sidecarBucket: "SidecarJsons",
+        sidecarPath: selectedPath,
+        authorId: "author-1",
+        revision: "revision-hard",
+        counts: { encounters: 3, equations: 1, targets: 3 },
+        hashes: HASHES,
+      };
+    },
+    createSignedUrl: async (_bucket, path) => `https://storage.example/${path}`,
+  });
+
+  assert.equal(result.receipt?.rhythmDifficultyKey, "HardSingle");
+  assert.equal(result.receipt?.sidecar.path, selectedPath);
+});
+
+test("Number Bonds launch preserves legacy generic READY content with the selected difficulty in the receipt", async () => {
+  const legacyPath = "Number_Bonds/revisions/revision-legacy/waves.json";
+  const result = await resolveFreshSongLaunchPackage({
+    songAssetId: "waves",
+    activityKey: "number-bonds",
+    authorId: "author-1",
+    rhythmDifficultyKey: "ExpertSingle",
+    loadSongAsset: async () => ({
+      id: "waves",
+      isActive: true,
+      songBucket: "Songs",
+      songPath: "audio/waves.mp3",
+    }),
+    loadSongChart: async () => ({
+      chartBucket: "Charts",
+      chartPath: "Number_Bonds/revisions/revision-legacy/waves.chart",
+      sidecarBucket: "SidecarJsons",
+      sidecarPath: legacyPath,
+      authorId: "author-1",
+      revision: "revision-legacy",
+      counts: { encounters: 3, equations: 1, targets: 3 },
+      hashes: HASHES,
+    }),
+    createSignedUrl: async (_bucket, path) => `https://storage.example/${path}`,
+  });
+
+  assert.equal(result.receipt?.rhythmDifficultyKey, "ExpertSingle");
+  assert.equal(result.receipt?.sidecar.path, legacyPath);
+});
+
+test("Number Bonds launch rejects a revision whose sidecar belongs to another difficulty", async () => {
+  await assert.rejects(resolveFreshSongLaunchPackage({
+    songAssetId: "waves",
+    activityKey: "number-bonds",
+    authorId: "author-1",
+    revision: "revision-easy",
+    rhythmDifficultyKey: "HardSingle",
+    loadSongAsset: async () => ({
+      id: "waves",
+      isActive: true,
+      songBucket: "Songs",
+      songPath: "audio/waves.mp3",
+    }),
+    loadSongChart: async () => ({
+      chartBucket: "Charts",
+      chartPath: "Number_Bonds/revisions/revision-easy/waves.chart",
+      sidecarBucket: "SidecarJsons",
+      sidecarPath: "Number_Bonds/revisions/revision-easy/number-bonds-waves-EasySingle.encounters.json",
+      authorId: "author-1",
+      revision: "revision-easy",
+      counts: { encounters: 3, equations: 1, targets: 3 },
+      hashes: HASHES,
+    }),
+    createSignedUrl: async (_bucket, path) => `https://storage.example/${path}`,
+  }), /does not match waves at HardSingle/);
+});

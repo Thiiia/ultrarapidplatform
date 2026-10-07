@@ -151,6 +151,7 @@ export const studentCopy = {
     returning: "Closing this lesson…",
     returnSyncFailed: "We could not close this lesson session. Try again before leaving.",
     retryReturn: "Try again",
+    runtimeUnavailable: "The game is temporarily unavailable while we check its version. Your lesson is still here; try again later.",
   },
 } as const;
 
@@ -158,6 +159,15 @@ export const studentCopy = {
 export function getLearnerFacingError(error: unknown, fallback: string): string {
   const raw = error instanceof Error ? error.message.trim() : String(error ?? "").trim();
   if (!raw) return fallback;
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    error.code === "RUNTIME_CAPABILITY_UNAVAILABLE"
+  ) {
+    return studentCopy.game.runtimeUnavailable;
+  }
 
   if (/operator|gameplay target/i.test(raw)) return studentCopy.mechanics.operatorHint;
   if (/equation/i.test(raw) && /assign|complete|missing|required/i.test(raw)) {

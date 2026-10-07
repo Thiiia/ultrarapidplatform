@@ -37,6 +37,17 @@ export type FreshSongLaunchPackage = {
   audio: { bucket: string; path: string; signedUrl: string };
 };
 
+export class SongLaunchRequestError extends Error {
+  constructor(
+    message: string,
+    readonly code: string | null,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "SongLaunchRequestError";
+  }
+}
+
 export async function requestFreshSongLaunchPackage({
   songAssetId,
   activityKey,
@@ -78,12 +89,16 @@ export async function requestFreshSongLaunchPackage({
     }),
   });
   const result = (await response.json().catch(() => null)) as
-    | (FreshSongLaunchPackage & { error?: string })
-    | { error?: string }
+    | (FreshSongLaunchPackage & { code?: string; error?: string })
+    | { code?: string; error?: string }
     | null;
 
   if (!response.ok || !result || !("chart" in result) || !("sidecar" in result) || !("audio" in result)) {
-    throw new Error(result?.error ?? "Unable to prepare the current song package");
+    throw new SongLaunchRequestError(
+      result?.error ?? "Unable to prepare the current song package",
+      result?.code ?? null,
+      response.status,
+    );
   }
 
   assertSongActivityMatches({

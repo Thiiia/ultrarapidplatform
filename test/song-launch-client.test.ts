@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   requestFreshSongLaunchPackage,
   requestFreshSongLaunchParams,
+  SongLaunchRequestError,
 } from "../lib/song-launch-client";
 
 test("refreshes a game package without replacing its launch attempt", async () => {
@@ -68,6 +69,28 @@ test("fails closed when the package activity does not match the requested activi
         allowBlankPackage: true,
       }),
       /Activity identity mismatch at song-package/,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("preserves the hosted runtime capability failure code for learner-facing recovery", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    code: "RUNTIME_CAPABILITY_UNAVAILABLE",
+    error: "The hosted Unity capability manifest could not be loaded.",
+  }), { status: 503 })) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      requestFreshSongLaunchPackage({ songAssetId: "song-123", activityKey: "early-algebra" }),
+      (error: unknown) => {
+        assert.ok(error instanceof SongLaunchRequestError);
+        assert.equal(error.code, "RUNTIME_CAPABILITY_UNAVAILABLE");
+        assert.equal(error.status, 503);
+        return true;
+      },
     );
   } finally {
     globalThis.fetch = originalFetch;

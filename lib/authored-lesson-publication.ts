@@ -54,7 +54,13 @@ export function prepareAuthoredLessonForPublication({
   previousSidecarContent,
 }: {
   sidecarContent: string;
-  identity: { songAssetId: string; activityKey: string; authorId: string; revision: string };
+  identity: {
+    songAssetId: string;
+    activityKey: string;
+    authorId: string;
+    revision: string;
+    rhythmDifficultyKey?: import('./number-bonds-sidecar').RhythmDifficultyKey;
+  };
   legacyToTickAfterSeconds?: (tick: number, seconds: number) => number;
   runtimeClock?: { toSeconds(tick: number): number };
   /** Previous immutable revision, used only to preserve existing legacy HIT shapes. */
@@ -158,7 +164,13 @@ export function prepareAuthoredLessonDraft({
   legacyToTickAfterSeconds,
 }: {
   sidecarContent: string;
-  identity: { songAssetId: string; activityKey: string; authorId: string; revision: string };
+  identity: {
+    songAssetId: string;
+    activityKey: string;
+    authorId: string;
+    revision: string;
+    rhythmDifficultyKey?: import('./number-bonds-sidecar').RhythmDifficultyKey;
+  };
   legacyToTickAfterSeconds?: (tick: number, seconds: number) => number;
 }): AuthoredLessonPublication {
   let raw: unknown;

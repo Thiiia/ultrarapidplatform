@@ -163,6 +163,7 @@ import {
   resolveRequestedSongActivityPackage,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
+import { numberBondsSidecarPathMatchesSelection } from "@/lib/number-bonds-sidecar";
 import styles from "../student.module.css";
 
 /* Header Icon imports */
@@ -268,6 +269,7 @@ type SongChoiceOption = {
   title?: string;
   artist?: string | null;
   authorName?: string | null;
+  rhythmDifficultyKey?: "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
   requiresRhythmSource?: boolean;
   rhythmSources?: RhythmSourceOption[];
   song: StorageFileRef & { signedUrl: string };
@@ -12926,6 +12928,21 @@ export default function LessonBuilderClient({
     const strategy = playTemplateOnly ? "published-template" : lessonLaunchStrategy(hasUnsavedChanges);
     let launchAuthorId = lastSavedAuthorId ?? selectedSongAuthorId ?? null;
     let launchRevision = lastSavedRevision;
+    const launchRhythmDifficultyKey = selectedSongLaunch.activityKey === "number-bonds"
+      ? numberBondsRhythmDifficulty
+      : selectedSongLaunch.rhythmDifficultyKey;
+
+    if (selectedSongLaunch.activityKey === "number-bonds" && strategy !== "publish-draft" &&
+        (!selectedSongStorage?.sidecar || !numberBondsSidecarPathMatchesSelection({
+          sidecarPath: selectedSongStorage.sidecar.path,
+          songAssetId: selectedSongLaunch.songAssetId,
+          rhythmDifficultyKey: numberBondsRhythmDifficulty,
+        }))) {
+      // Let the server resolve a ready immutable revision for this exact
+      // song/difficulty instead of pinning whichever difficulty was loaded
+      // most recently into the editor.
+      launchRevision = null;
+    }
 
     if (strategy === "publish-draft") {
       const didSave = await handleSaveToSupabase();
@@ -12946,6 +12963,7 @@ export default function LessonBuilderClient({
         authorId: launchAuthorId,
         authorName: launchAuthorId ? null : selectedSongLaunch.authorName ?? null,
         revision: launchRevision,
+        rhythmDifficultyKey: launchRhythmDifficultyKey,
         allowBlankPackage: !loadedSongReadyRef.current && !launchRevision,
         allowDraftPreview: navBasePath === "/student",
       });
@@ -12966,7 +12984,7 @@ export default function LessonBuilderClient({
       authorId: freshSongLaunch.authorId,
       revision: freshSongLaunch.revision,
       receipt: freshSongLaunch.receipt,
-      rhythmDifficultyKey: freshSongLaunch.rhythmDifficultyKey ?? selectedSongLaunch.rhythmDifficultyKey,
+      rhythmDifficultyKey: freshSongLaunch.rhythmDifficultyKey ?? launchRhythmDifficultyKey,
       learningDifficultyKey: freshSongLaunch.learningDifficultyKey,
       source: freshSongLaunch.source === "editor-scaffold" ? undefined : freshSongLaunch.source,
       templateProvenance: freshSongLaunch.templateProvenance,
@@ -13128,6 +13146,7 @@ export default function LessonBuilderClient({
           intent,
           songAssetId: selectedSongStorage.id,
           activityKey,
+          ...(activityKey === "number-bonds" ? { rhythmDifficultyKey: numberBondsRhythmDifficulty } : {}),
           authorId: navBasePath.startsWith("/admin/users/")
             ? navBasePath.slice("/admin/users/".length).split("/")[0]
             : lastSavedAuthorId ?? undefined,
@@ -13615,6 +13634,8 @@ export default function LessonBuilderClient({
       selectedSong.activity?.label ??
       storedActivity?.label ??
       getActivityLabel(resolvedActivityKey);
+    const selectedRhythmDifficultyKey = selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key ??
+      (resolvedActivityKey === "number-bonds" ? "ExpertSingle" : undefined);
 
     setLoadError("");
 
@@ -13629,7 +13650,7 @@ export default function LessonBuilderClient({
     setSelectedRhythmSource(selectedSong.rhythmSource ?? null);
     setNumberBondsCatalogueId(NUMBER_BONDS_STARTER_EQUATION_ID);
     setNumberBondsRhythmDifficulty(
-      selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key ?? "ExpertSingle",
+      selectedRhythmDifficultyKey ?? "ExpertSingle",
     );
     setSelectedSongAuthorName(selectedSong.authorName ?? null);
     if (selectedSong.authorName) {
@@ -13672,7 +13693,7 @@ export default function LessonBuilderClient({
       songAssetId: selectedSong.id,
       activityKey: resolvedActivityKey,
       authorName: selectedSong.authorName ?? null,
-      rhythmDifficultyKey: selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key ?? undefined,
+      rhythmDifficultyKey: selectedRhythmDifficultyKey,
       chartUrl: selectedSong.chart.signedUrl,
       sidecarUrl: selectedSong.sidecar?.signedUrl ?? null,
       audioUrl: selectedSong.song.signedUrl,
@@ -15507,7 +15528,13 @@ export default function LessonBuilderClient({
             Rhythm difficulty
             <select
               value={numberBondsRhythmDifficulty}
-              onChange={(event) => setNumberBondsRhythmDifficulty(event.currentTarget.value as SupportedRhythmDifficulty)}
+              onChange={(event) => {
+                const rhythmDifficultyKey = event.currentTarget.value as SupportedRhythmDifficulty;
+                setNumberBondsRhythmDifficulty(rhythmDifficultyKey);
+                setSelectedSongLaunch((current) => current?.activityKey === "number-bonds"
+                  ? { ...current, rhythmDifficultyKey }
+                  : current);
+              }}
               style={{ height: 34, border: "1px solid #42536A", borderRadius: 8, background: "#0C1422", color: "#FFFFFF", padding: "0 8px" }}
             >
               {SUPPORTED_RHYTHM_DIFFICULTIES.map((difficulty) => (

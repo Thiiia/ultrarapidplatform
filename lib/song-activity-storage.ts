@@ -1,3 +1,8 @@
+import {
+  buildNumberBondsEncounterSidecarFilename,
+  type RhythmDifficultyKey,
+} from "@/lib/number-bonds-sidecar";
+
 export type SongActivityKey =
   | "number-bonds"
   | "equations"
@@ -233,10 +238,12 @@ export function buildAuthoredChartStoragePaths({
   activityKey,
   songAssetId,
   authorFolder,
+  rhythmDifficultyKey,
 }: {
   activityKey: SongActivityKey;
   songAssetId: string;
   authorFolder: string;
+  rhythmDifficultyKey?: RhythmDifficultyKey | null;
 }) {
   const folders = songActivityFoldersByKey[activityKey];
   const normalizedAuthorFolder = authorFolder.trim().replace(/^\/+|\/+$/g, "");
@@ -247,7 +254,11 @@ export function buildAuthoredChartStoragePaths({
 
   return {
     chartPath: `${normalizedAuthorFolder}/${folders.chartFolder}/${songAssetId}.chart`,
-    sidecarPath: `${normalizedAuthorFolder}/${folders.sidecarFolder}/${songAssetId}.json`,
+    sidecarPath: `${normalizedAuthorFolder}/${folders.sidecarFolder}/${
+      activityKey === "number-bonds" && rhythmDifficultyKey
+        ? buildNumberBondsEncounterSidecarFilename(songAssetId, rhythmDifficultyKey)
+        : `${songAssetId}.json`
+    }`,
   };
 }
 

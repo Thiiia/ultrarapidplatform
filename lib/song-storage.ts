@@ -5,6 +5,7 @@ import {
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getNumberBondsDifficultyFromSidecarPath, type RhythmDifficultyKey } from "@/lib/number-bonds-sidecar";
 
 export type SongChoice = {
   id: string;
@@ -19,6 +20,7 @@ export type SongChoice = {
   updatedAt: string | null;
   durationSeconds: number | null;
   authorName?: string | null;
+  rhythmDifficultyKey?: RhythmDifficultyKey;
   requiresRhythmSource?: boolean;
   rhythmSources?: Array<{
     activityKey: SongActivityKey;
@@ -78,6 +80,33 @@ export function normalizeSongStoragePath(value: string) {
     .replace(/^\/+/, "")
     .trim()
     .toLowerCase();
+}
+
+export function createSongStoragePathResolver<T extends { path: string }>(storageFiles: T[]) {
+  const exactPath = new Map<string, T>();
+  storageFiles.forEach((file) => exactPath.set(file.path, file));
+  const normalizedPaths = new Map<string, T[]>();
+
+  storageFiles.forEach((file) => {
+    const normalizedPath = normalizeSongStoragePath(file.path);
+    if (!normalizedPath) return;
+
+    const matches = normalizedPaths.get(normalizedPath) ?? [];
+    matches.push(file);
+    normalizedPaths.set(normalizedPath, matches);
+  });
+
+  return (requestedPath: string): T | null => {
+    if (exactPath.has(requestedPath)) {
+      return exactPath.get(requestedPath) ?? null;
+    }
+
+    const normalizedPath = normalizeSongStoragePath(requestedPath);
+    if (!normalizedPath) return null;
+
+    const matches = normalizedPaths.get(normalizedPath) ?? [];
+    return matches.length === 1 ? matches[0] ?? null : null;
+  };
 }
 
 export function findMatchingSongAsset<T extends { songPath: string }>(
@@ -414,6 +443,9 @@ async function buildSongChoiceForAsset({
         : Promise.resolve(null),
     ]);
     const metadata = songMetadata?.metadata as Record<string, unknown> | undefined;
+    const rhythmDifficultyKey = activityKey === "number-bonds"
+      ? getNumberBondsDifficultyFromSidecarPath(chartRecord.sidecarPath, songAsset.id)
+      : null;
 
     const songContentType =
       storageSong.mimeType ??
@@ -436,6 +468,7 @@ async function buildSongChoiceForAsset({
       updatedAt: storageSong.updatedAt ?? songAsset.updatedAt.toISOString(),
       durationSeconds: songAsset.durationSeconds,
       authorName,
+      ...(rhythmDifficultyKey ? { rhythmDifficultyKey } : {}),
 
       song: {
         bucket: songAsset.songBucket,
@@ -483,6 +516,9 @@ async function buildSongChoiceForAsset({
       contentType: storageSong.mimeType ?? getContentTypeFromPath(storageSong.path),
       updatedAt: storageSong.updatedAt ?? songAsset.updatedAt.toISOString(),
       durationSeconds: songAsset.durationSeconds,
+      ...(activityKey === "number-bonds"
+        ? { rhythmDifficultyKey: getNumberBondsDifficultyFromSidecarPath(chartRecord.sidecarPath, songAsset.id) ?? undefined }
+        : {}),
       song: {
         bucket: songAsset.songBucket,
         path: storageSong.path,
@@ -771,7 +807,7 @@ export async function getEditorSongChoices(
   });
 
   const storageSongs = await listSongStorageFiles("Songs");
-  const storageSongByPath = new Map(storageSongs.map((entry) => [entry.path, entry]));
+  const findStorageSong = createSongStoragePathResolver(storageSongs);
   const authoredSongIds = new Set(chartsByAsset.values().map((chart) => chart.songAssetId));
 
   const songAssets = await prisma.songAsset.findMany({
@@ -860,7 +896,7 @@ export async function getEditorSongChoices(
       }
 
       if (authorId && !authoredSongIds.has(songAsset.id)) {
-        const storageSong = storageSongByPath.get(songAsset.songPath);
+        const storageSong = findStorageSong(songAsset.songPath);
         if (!storageSong) {
           return null;
         }
@@ -915,7 +951,7 @@ export async function getEditorSongChoices(
   const authoredSongs = chartsByAsset.size > 0
     ? await Promise.all(
         Array.from(chartsByAsset.values()).map(async (chart): Promise<SongChoice | null> => {
-          const storageSong = storageSongByPath.get(chart.songAsset.songPath);
+          const storageSong = findStorageSong(chart.songAsset.songPath);
 
           if (!storageSong) {
             console.warn("Skipping authored chart because song audio file was not found in storage", {

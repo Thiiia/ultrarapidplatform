@@ -20,6 +20,10 @@ import {
   buildAuthoredChartStoragePaths,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
+import {
+  isRhythmDifficultyKey,
+  selectNumberBondsSidecarRevision,
+} from "@/lib/number-bonds-sidecar";
 
 function resolveAuthorFolder(user: { name: string | null; email: string | null } | null) {
   if (!user) return DEV_AUTHOR_FOLDER;
@@ -127,13 +131,15 @@ export async function POST(request: Request) {
       typeof payload.revision === "string" && payload.revision.trim()
         ? payload.revision.trim()
         : null;
-    const rhythmDifficultyKey =
-      payload.rhythmDifficultyKey === "EasySingle" ||
-      payload.rhythmDifficultyKey === "MediumSingle" ||
-      payload.rhythmDifficultyKey === "HardSingle" ||
-      payload.rhythmDifficultyKey === "ExpertSingle"
-        ? payload.rhythmDifficultyKey
-        : null;
+    if (payload.rhythmDifficultyKey != null && !isRhythmDifficultyKey(payload.rhythmDifficultyKey)) {
+      return NextResponse.json({
+        code: "INVALID_DIFFICULTY_KEY",
+        error: "Choose a supported rhythm difficulty before opening the lesson.",
+      }, { status: 400 });
+    }
+    const rhythmDifficultyKey = isRhythmDifficultyKey(payload.rhythmDifficultyKey)
+      ? payload.rhythmDifficultyKey
+      : null;
     const learningDifficultyKey =
       typeof payload.learningDifficultyKey === "string" && payload.learningDifficultyKey.trim()
         ? payload.learningDifficultyKey.trim()
@@ -226,9 +232,9 @@ export async function POST(request: Request) {
             songPath: true,
           },
         }) as Promise<Record<string, unknown> | null>,
-      loadSongChart: async (assetId, resolvedActivityKey, authorId) => {
+      loadSongChart: async (assetId, resolvedActivityKey, authorId, difficultyKey) => {
         if (!authorId) return null;
-        const revision = await prisma.gameContentRevision.findFirst({
+        const revisions = await prisma.gameContentRevision.findMany({
           where: {
             songAssetId: assetId,
             activityKey: resolvedActivityKey,
@@ -238,11 +244,18 @@ export async function POST(request: Request) {
           },
           orderBy: { publishedAt: "desc" },
           select: {
-            revision: true, chartBucket: true, chartPath: true, sidecarBucket: true, sidecarPath: true,
+            revision: true, status: true, chartBucket: true, chartPath: true, sidecarBucket: true, sidecarPath: true,
             chartSha256: true, sidecarSha256: true, audioSha256: true,
             equationCount: true, encounterCount: true, targetCount: true,
           },
         });
+        const revision = resolvedActivityKey === "number-bonds" && difficultyKey
+          ? requestedRevision
+            ? revisions[0] ?? null
+            : selectNumberBondsSidecarRevision(revisions, assetId, difficultyKey, {
+                allowLegacyReadyFallback: true,
+              })
+          : revisions[0] ?? null;
         if (!revision || !revision.chartSha256 || !revision.sidecarSha256 || !revision.audioSha256 ||
           revision.equationCount == null || revision.encounterCount == null || revision.targetCount == null) return null;
         return {

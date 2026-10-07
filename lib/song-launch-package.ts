@@ -1,6 +1,11 @@
 import { resolveRequestedSongActivityKey, resolveRequestedSongActivityPackage } from "@/lib/song-activity-storage";
 import { requireMatchingRevision } from "@/lib/song-launch-identity";
 import { getUnityRuntimeActivityIssue, isCurrentUnityRuntimeActivity } from "@/lib/unity-runtime-activity";
+import {
+  isLegacyNumberBondsSidecarPathForSong,
+  numberBondsSidecarPathMatchesSelection,
+  type RhythmDifficultyKey,
+} from "@/lib/number-bonds-sidecar";
 
 type SignedStorageRef = {
   bucket: string;
@@ -50,13 +55,13 @@ type VerifiedStarterTemplate = {
 };
 
 export class SongLaunchRevisionNotFoundError extends Error {
-  constructor() {
-    super("The requested published lesson revision is unavailable. Reload the song and try again.");
+  constructor(message = "The requested published lesson revision is unavailable. Reload the song and try again.") {
+    super(message);
     this.name = "SongLaunchRevisionNotFoundError";
   }
 }
 
-export type RhythmDifficultyKey = "EasySingle" | "MediumSingle" | "HardSingle" | "ExpertSingle";
+export type { RhythmDifficultyKey } from "@/lib/number-bonds-sidecar";
 export type LessonSource = "authored" | "starter-template" | "editor-scaffold";
 export type PlayableLessonSource = Exclude<LessonSource, "editor-scaffold">;
 export type TemplateProvenance = {
@@ -200,6 +205,7 @@ export async function resolveFreshSongLaunchPackage({
     songAssetId: string,
     activityKey: string,
     authorId: string | null,
+    rhythmDifficultyKey?: RhythmDifficultyKey | null,
   ) => Promise<SongChartTargets | null>;
   // Optional fallback used when no chart has been authored yet: supplies
   // pre-built refs (e.g. blank-content URLs under the prospective storage
@@ -357,9 +363,14 @@ export async function resolveFreshSongLaunchPackage({
     };
   };
 
-  const chartTargets = await loadSongChart(canonicalSongAssetId, requestedActivityKey, authorId);
+  const chartTargets = await loadSongChart(canonicalSongAssetId, requestedActivityKey, authorId, rhythmDifficultyKey);
 
   if (!chartTargets) {
+    if (requestedActivityKey === "number-bonds" && rhythmDifficultyKey) {
+      throw new SongLaunchRevisionNotFoundError(
+        `No published Number Bonds lesson is available for ${canonicalSongAssetId} at ${rhythmDifficultyKey}. Save and publish that difficulty first.`,
+      );
+    }
     // A pinned launch must never silently substitute a different revision or
     // a blank editor scaffold for the receipt the player requested.
     if (revision) throw new SongLaunchRevisionNotFoundError();
@@ -403,6 +414,16 @@ export async function resolveFreshSongLaunchPackage({
       );
     }
     throw error;
+  }
+  if (requestedActivityKey === "number-bonds" && rhythmDifficultyKey &&
+      !numberBondsSidecarPathMatchesSelection({
+        sidecarPath: chartTargets.sidecarPath,
+        songAssetId: canonicalSongAssetId,
+        rhythmDifficultyKey,
+      }) && !isLegacyNumberBondsSidecarPathForSong(chartTargets.sidecarPath, canonicalSongAssetId)) {
+    throw new SongLaunchRevisionNotFoundError(
+      `The published Number Bonds lesson does not match ${canonicalSongAssetId} at ${rhythmDifficultyKey}. Reload the song and try again.`,
+    );
   }
   // Unity requires an immutable revision in every playable receipt, including legacy rows.
   const resolvedRevision = requireMatchingRevision(

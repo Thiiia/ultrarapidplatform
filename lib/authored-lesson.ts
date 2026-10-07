@@ -11,6 +11,7 @@ import {
   resolveAuthoredHitPadTarget,
 } from "./authored-hit-pad-layout";
 import { validateNumberBondSequenceV1 } from "./number-bonds-authored-sequence";
+import { isRhythmDifficultyKey, type RhythmDifficultyKey } from "./number-bonds-sidecar";
 
 export const AUTHORED_LESSON_VERSION = 3 as const;
 
@@ -76,6 +77,7 @@ export type AuthoredLessonPayload = {
   activityKey: string;
   authorId: string;
   revision: string;
+  rhythmDifficultyKey?: RhythmDifficultyKey;
   stopAtSeconds?: number;
   equations: AuthoredLessonEquation[];
   encounters: AuthoredLessonEncounter[];
@@ -627,6 +629,9 @@ export function parseAuthoredLessonDraft(
       };
     });
   }
+  if (payload.rhythmDifficultyKey != null && !isRhythmDifficultyKey(payload.rhythmDifficultyKey)) {
+    throw new Error("Authored lesson rhythmDifficultyKey is unsupported");
+  }
   const result: AuthoredLessonDraft = {
     version: AUTHORED_LESSON_VERSION,
     mode: "authored",
@@ -634,6 +639,7 @@ export function parseAuthoredLessonDraft(
     activityKey: requireString(payload.activityKey, "activityKey"),
     ...(payload.authorId == null ? {} : { authorId: requireString(payload.authorId, "authorId") }),
     ...(payload.revision == null ? {} : { revision: requireString(payload.revision, "revision") }),
+    ...(payload.rhythmDifficultyKey == null ? {} : { rhythmDifficultyKey: payload.rhythmDifficultyKey }),
     ...(payload.stopAtSeconds == null
       ? {}
       : typeof payload.stopAtSeconds === "number" && Number.isFinite(payload.stopAtSeconds) && payload.stopAtSeconds >= 0
@@ -718,7 +724,13 @@ export function parseAuthoredLessonDraft(
 
 export function stampAuthoredLessonIdentity(
   draft: AuthoredLessonDraft,
-  identity: { songAssetId: string; activityKey: string; authorId: string; revision: string },
+  identity: {
+    songAssetId: string;
+    activityKey: string;
+    authorId: string;
+    revision: string;
+    rhythmDifficultyKey?: RhythmDifficultyKey;
+  },
 ): AuthoredLessonPayload {
   if (draft.songAssetId !== identity.songAssetId) throw new Error("Authored lesson songAssetId does not match the saved song");
   if (draft.activityKey !== identity.activityKey) throw new Error("Authored lesson activityKey does not match the saved activity");
@@ -727,5 +739,13 @@ export function stampAuthoredLessonIdentity(
   // verified against storage state by the caller); identity.revision is the NEW
   // revision being published. They must differ on a second save, so do not
   // equate them here — just stamp the new revision as the output identity.
-  return { ...draft, authorId: identity.authorId, revision: identity.revision };
+  const rhythmDifficultyKey = identity.activityKey === "number-bonds"
+    ? identity.rhythmDifficultyKey ?? draft.rhythmDifficultyKey
+    : undefined;
+  return {
+    ...draft,
+    authorId: identity.authorId,
+    revision: identity.revision,
+    ...(rhythmDifficultyKey ? { rhythmDifficultyKey } : { rhythmDifficultyKey: undefined }),
+  };
 }

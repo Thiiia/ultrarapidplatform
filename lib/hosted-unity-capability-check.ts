@@ -182,7 +182,7 @@ export function evaluateAuthoredLessonRuntimeCapability(
   manifest: RuntimeCapabilityManifest,
   rawLesson: unknown,
   expectedActivityKey: string,
-  expectedIdentity?: Pick<SongLaunchReceipt, "songAssetId" | "authorId" | "revision">,
+  expectedIdentity?: Pick<SongLaunchReceipt, "songAssetId" | "authorId" | "revision" | "rhythmDifficultyKey">,
 ): EffectiveLessonRuntimeCapability {
   let lesson;
   try {
@@ -198,7 +198,9 @@ export function evaluateAuthoredLessonRuntimeCapability(
   }
   if (lesson.activityKey !== expectedActivityKey ||
       (expectedIdentity && (lesson.songAssetId !== expectedIdentity.songAssetId ||
-        lesson.authorId !== expectedIdentity.authorId || lesson.revision !== expectedIdentity.revision))) {
+        lesson.authorId !== expectedIdentity.authorId || lesson.revision !== expectedIdentity.revision ||
+        (expectedActivityKey === "number-bonds" && expectedIdentity.rhythmDifficultyKey != null &&
+          lesson.rhythmDifficultyKey != null && lesson.rhythmDifficultyKey !== expectedIdentity.rhythmDifficultyKey)))) {
     throw new HostedUnityCapabilityError(
       "PUBLISHED_LESSON_IDENTITY_MISMATCH",
       "The published lesson sidecar identity does not match its receipt.",

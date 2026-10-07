@@ -20,6 +20,38 @@ test("builds deterministic per-author storage paths under the author folder", ()
   });
 });
 
+test("Number Bonds difficulty paths use Unity's per-song encounter sidecar basename", () => {
+  const paths = buildAuthoredChartStoragePaths({
+    activityKey: "number-bonds",
+    songAssetId: "waves",
+    authorFolder: "dev",
+    rhythmDifficultyKey: "HardSingle",
+  });
+
+  assert.equal(paths.chartPath, "dev/Number_Bonds/waves.chart");
+  assert.equal(
+    paths.sidecarPath,
+    "dev/Number_Bonds/number-bonds-waves-HardSingle.encounters.json",
+  );
+  assert.equal(
+    buildAuthoredChartStoragePaths({
+      activityKey: "number-bonds",
+      songAssetId: "waves",
+      authorFolder: "dev",
+    }).sidecarPath,
+    "dev/Number_Bonds/waves.json",
+  );
+  assert.equal(
+    buildAuthoredChartStoragePaths({
+      activityKey: "early-algebra",
+      songAssetId: "waves",
+      authorFolder: "dev",
+      rhythmDifficultyKey: "HardSingle",
+    }).sidecarPath,
+    "dev/Early_Algebra/waves.json",
+  );
+});
+
 test("preserves actual encounter filenames and rejects invented or swapped pointers", () => {
   assert.throws(() => normalizeAuthoredSidecarPath("dev/Early_Algebra/Melika.chart", "dev/Early_Algebra/Melika.chart"), /actual JSON/);
   assert.throws(() => normalizeAuthoredSidecarPath("dev/Early_Algebra/Melika.encounters.json", "dev/Early_Algebra/Melika.chart"), /chart path/);

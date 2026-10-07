@@ -198,9 +198,11 @@ test("Number Bonds sequence v1 parses and retains the full linked 5 = 2 + 3 jour
     activityKey: parsed.activityKey,
     authorId: "runtime-contract-fixture",
     revision: "number-bonds-sequence-v1-published",
+    rhythmDifficultyKey: "HardSingle",
   });
   assert.deepEqual(stamped.numberBondGems, parsed.numberBondGems);
   assert.equal(stamped.numberBondSequenceVersion, 1);
+  assert.equal(stamped.rhythmDifficultyKey, "HardSingle");
 
   const publication = prepareAuthoredLessonForPublication({
     sidecarContent: JSON.stringify(parsed),
@@ -209,11 +211,13 @@ test("Number Bonds sequence v1 parses and retains the full linked 5 = 2 + 3 jour
       activityKey: parsed.activityKey,
       authorId: "runtime-contract-fixture",
       revision: "number-bonds-sequence-v1-published",
+      rhythmDifficultyKey: "HardSingle",
     },
     runtimeClock: { toSeconds: (tick) => tick },
   });
   const published = parseAuthoredLessonDraft(JSON.parse(publication.content));
   assert.equal(published.numberBondSequenceVersion, 1);
+  assert.equal(published.rhythmDifficultyKey, "HardSingle");
   assert.deepEqual(published.numberBondGems, parsed.numberBondGems);
 });
 
