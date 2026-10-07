@@ -8,6 +8,12 @@ import {
 } from "../lib/number-bonds-timing";
 import { validateAuthoredActivityTiming } from "../lib/activity-authoring-capabilities";
 import { createLessonClock } from "../lib/editor/lesson-timing";
+import { evaluateLessonPublishReadiness } from "../lib/guided-authored-encounter";
+import {
+  AUTHORED_HIT_MISS_WINDOW_SECONDS,
+  AUTHORED_PRESENTATION_LEAD_SECONDS,
+} from "../lib/authored-lesson";
+import type { AuthoredSavedEquation, AuthoredTimelineEvent } from "../lib/authored-lesson-serialization";
 import {
   getNumberBondSequenceCapacity,
   planNumberBondSequenceCues,
@@ -75,6 +81,61 @@ test("song-specific Number Bonds cues stay on the tempo grid across a tempo chan
   assert.equal(getNumberBondSequenceCapacity(chart, "ExpertSingle", 60), 3);
   assert.deepEqual(cues.map((cue) => cue.hitTick), [2304, 9408, 11520]);
   const gridTicks = clock.ticksPerBeat / 16;
+  const equation: AuthoredSavedEquation = {
+    id: "bond-3",
+    tokens: ["3", "=", "1", "+", "2"].map((label, index) => ({ id: `bond-token-${index}`, label })),
+  };
+  const events: AuthoredTimelineEvent[] = cues.map((cue, index) => {
+    const hitId = `bond-hit-${index}`;
+    const spinId = `bond-spin-${index}`;
+    const dragId = `bond-drag-${index}`;
+    return {
+      id: `bond-event-${index}`,
+      tick: cue.hitSeconds,
+      endTick: cue.dragEndSeconds,
+      counts: { hit: 1, spin: 1, drag: 1 },
+      assignments: { hit: equation, spin: equation, drag: equation },
+      mechanicInstances: {
+        hit: [{
+          id: hitId,
+          tick: cue.hitSeconds,
+          endTick: cue.hitSeconds,
+          equation,
+          hitBubbles: [{ tokenIndex: 0, targetId: "bond-token-0", pads: ["left"] }],
+          spinTargets: [],
+          dragTargets: [],
+        }],
+        spin: [{
+          id: spinId,
+          tick: cue.spinStartSeconds,
+          endTick: cue.spinEndSeconds,
+          equation,
+          hitBubbles: [],
+          spinTargets: [{ tokenIndex: 0, targetId: "bond-token-0" }],
+          dragTargets: [],
+        }],
+        drag: [{
+          id: dragId,
+          tick: cue.dragStartSeconds,
+          endTick: cue.dragEndSeconds,
+          equation,
+          hitBubbles: [],
+          spinTargets: [],
+          dragTargets: [{ tokenIndex: 2, targetId: "bond-token-2", sourceHitId: hitId }],
+        }],
+      },
+    };
+  });
+
+  const readiness = evaluateLessonPublishReadiness(events, {
+    activityKey: "number-bonds",
+    equationQueue: [equation],
+    clock,
+    stopAtSeconds: 60,
+    numberBondSequenceVersion: 1,
+  });
+
+  assert.equal(readiness.ready, true, readiness.blockers.map((blocker) => `${blocker.code}: ${blocker.message}`).join("\n"));
 
   for (let index = 0; index < cues.length; index += 1) {
     const cue: NumberBondSequenceCueTiming = cues[index]!;
@@ -82,10 +143,11 @@ test("song-specific Number Bonds cues stay on the tempo grid across a tempo chan
     assert.equal(cue.spinEndTick % gridTicks, 0);
     assert.equal(cue.dragStartTick % gridTicks, 0);
     assert.equal(cue.dragEndTick % gridTicks, 0);
-    assert.ok(cue.spinStartSeconds >= cue.hitSeconds + 0.75);
+    assert.ok(cue.spinStartSeconds - AUTHORED_PRESENTATION_LEAD_SECONDS > cue.hitSeconds + AUTHORED_HIT_MISS_WINDOW_SECONDS);
     assert.ok(cue.spinStartTick < cue.spinEndTick);
     assert.ok(cue.spinEndTick < cue.dragStartTick);
     assert.ok(cue.dragStartTick < cue.dragEndTick);
+    assert.ok(cue.dragStartSeconds - AUTHORED_PRESENTATION_LEAD_SECONDS > cue.spinEndSeconds);
     if (cues[index + 1]) {
       const nextCue: NumberBondSequenceCueTiming = cues[index + 1]!;
       assert.ok(cue.dragEndTick < nextCue.hitTick);
@@ -106,7 +168,11 @@ test("editor guidance delegates every timing decision to the shared readiness an
     cues.map((cue) => ({ ...cue, type: "hit" as const })),
     20,
   );
-  const editor = validateNumberBondsTiming(cues, 20).map(({ message: _message, ...issue }) => issue);
+  const editor = validateNumberBondsTiming(cues, 20).map((cue) => {
+    const { message, ...issue } = cue;
+    void message;
+    return issue;
+  });
 
   assert.deepEqual(editor, shared);
 });

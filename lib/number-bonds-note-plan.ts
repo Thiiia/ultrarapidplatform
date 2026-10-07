@@ -1,10 +1,16 @@
 import { getSongChartCues } from "./song-chart-cues";
 import { createLessonClock } from "./editor/lesson-timing";
 import {
+  AUTHORED_HIT_MISS_WINDOW_SECONDS,
+  AUTHORED_PRESENTATION_LEAD_SECONDS,
+} from "./authored-lesson";
+import {
   NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS,
   NUMBER_BONDS_MINIMUM_HIT_SPACING_SECONDS,
 } from "./number-bonds-timing";
 import type { SupportedRhythmDifficulty } from "./chart-semantics";
+
+const GENERATED_ACTION_CLEARANCE_SECONDS = 0.002;
 
 export type NumberBondSongNote = {
   tick: number;
@@ -33,9 +39,12 @@ export function getNumberBondSequenceTailSeconds(chart: string): number {
     .filter((bpm) => Number.isFinite(bpm) && bpm > 0);
   const slowestBpm = tempos.length ? Math.min(...tempos) : 120;
   const slowestBeatSeconds = 60 / slowestBpm;
-  // 0.75s after the Hit, up to 1/16-beat quantization, two half-beat actions,
-  // and the 1/16-beat transition between Spin and Drag.
-  return 0.85 + slowestBeatSeconds * 1.125;
+  // Keep both approach windows clear: Hit miss + lead before Spin, then a full
+  // lead before Drag. Reserve two half-beat actions and two 1/16-beat snaps.
+  return AUTHORED_HIT_MISS_WINDOW_SECONDS +
+    (2 * AUTHORED_PRESENTATION_LEAD_SECONDS) +
+    (2 * GENERATED_ACTION_CLEARANCE_SECONDS) +
+    slowestBeatSeconds * 1.125;
 }
 
 /** Collect playable chart notes on the same time axis as the editor timeline. */
@@ -90,6 +99,11 @@ function planSequenceCuesFromNotes(
 
   const gridTicks = Math.max(1, Math.floor(clock.ticksPerBeat / 16));
   const snapUp = (tick: number) => Math.ceil(tick / gridTicks) * gridTicks;
+  const snapTickAtOrAfterSeconds = (seconds: number, minimumTick: number) => {
+    let tick = snapUp(Math.max(minimumTick, clock.toTick(seconds)));
+    while (clock.toSeconds(tick) + 1e-8 < seconds) tick += gridTicks;
+    return tick;
+  };
   const defaultStageTicks = Math.max(gridTicks, Math.floor((clock.ticksPerBeat / 2) / gridTicks) * gridTicks);
   const cues: NumberBondSequenceCueTiming[] = [];
 
@@ -97,38 +111,54 @@ function planSequenceCuesFromNotes(
     const note = selected[index];
     const hitTick = note.tick;
     const hitSeconds = clock.toSeconds(hitTick);
-    const spinStartTick = snapUp(Math.max(hitTick + gridTicks, clock.toTick(hitSeconds + 0.75)));
+    if (!Number.isSafeInteger(hitTick)) return null;
+
+    const minimumSpinStartSeconds = hitSeconds +
+      AUTHORED_HIT_MISS_WINDOW_SECONDS +
+      AUTHORED_PRESENTATION_LEAD_SECONDS +
+      GENERATED_ACTION_CLEARANCE_SECONDS;
+    const spinStartTick = snapTickAtOrAfterSeconds(minimumSpinStartSeconds, hitTick + gridTicks);
     const nextHitTick = selected[index + 1]?.tick;
-    const availableStageTicks = nextHitTick === undefined
-      ? defaultStageTicks
-      : Math.floor((nextHitTick - spinStartTick - gridTicks) / (2 * gridTicks)) * gridTicks;
-    const stageTicks = Math.min(defaultStageTicks, availableStageTicks);
-    if (!Number.isSafeInteger(hitTick) || stageTicks < gridTicks) return null;
+    const nextHitSeconds = nextHitTick === undefined ? undefined : clock.toSeconds(nextHitTick);
+    let cue: NumberBondSequenceCueTiming | null = null;
 
-    const spinEndTick = spinStartTick + stageTicks;
-    const dragStartTick = spinEndTick + gridTicks;
-    const dragEndTick = dragStartTick + stageTicks;
-    if (nextHitTick !== undefined && dragEndTick >= nextHitTick) return null;
+    for (let stageTicks = defaultStageTicks; stageTicks >= gridTicks; stageTicks -= gridTicks) {
+      const spinEndTick = spinStartTick + stageTicks;
+      const spinEndSeconds = clock.toSeconds(spinEndTick);
+      const minimumDragStartSeconds = spinEndSeconds +
+        AUTHORED_PRESENTATION_LEAD_SECONDS +
+        GENERATED_ACTION_CLEARANCE_SECONDS;
+      const dragStartTick = snapTickAtOrAfterSeconds(minimumDragStartSeconds, spinEndTick + gridTicks);
+      const dragEndTick = dragStartTick + stageTicks;
+      const dragEndSeconds = clock.toSeconds(dragEndTick);
+      const clearsNextHit = nextHitSeconds === undefined ||
+        dragEndSeconds + AUTHORED_PRESENTATION_LEAD_SECONDS + GENERATED_ACTION_CLEARANCE_SECONDS < nextHitSeconds;
 
-    const cue: NumberBondSequenceCueTiming = {
-      note,
-      hitTick,
-      spinStartTick,
-      spinEndTick,
-      dragStartTick,
-      dragEndTick,
-      hitSeconds,
-      spinStartSeconds: clock.toSeconds(spinStartTick),
-      spinEndSeconds: clock.toSeconds(spinEndTick),
-      dragStartSeconds: clock.toSeconds(dragStartTick),
-      dragEndSeconds: clock.toSeconds(dragEndTick),
-    };
-    if (
-      !Number.isFinite(cue.dragEndSeconds) ||
-      durationSeconds - cue.dragEndSeconds + 1e-8 < NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS
-    ) {
-      return null;
+      if (
+        !Number.isFinite(dragEndSeconds) ||
+        !clearsNextHit ||
+        durationSeconds - dragEndSeconds + 1e-8 < NUMBER_BONDS_FINAL_INTERACTION_TAIL_SECONDS
+      ) {
+        continue;
+      }
+
+      cue = {
+        note,
+        hitTick,
+        spinStartTick,
+        spinEndTick,
+        dragStartTick,
+        dragEndTick,
+        hitSeconds,
+        spinStartSeconds: clock.toSeconds(spinStartTick),
+        spinEndSeconds,
+        dragStartSeconds: clock.toSeconds(dragStartTick),
+        dragEndSeconds,
+      };
+      break;
     }
+
+    if (!cue) return null;
     cues.push(cue);
   }
 
