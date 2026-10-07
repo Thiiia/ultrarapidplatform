@@ -5,9 +5,10 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FC, SVGProps } from "react";
 // import SongFlowDebugger from "@/app/components/SongFlowDebugger";
-import { resolveEmbeddedCalibrationLaunchSnapshot, resolveLaunchParams, type EmbeddedCalibrationLaunchSnapshot } from "@/lib/launch-handoff";
+import { persistLaunchParams, resolveEmbeddedCalibrationLaunchSnapshot, resolveLaunchParams, type EmbeddedCalibrationLaunchSnapshot } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
 import { createBridgeContext, getOrCreateInstallationId, parseCalibrationState, PlatformPlayerCompletionSchema, validateBridgeMessage, type BridgeContext, type CalibrationState, type PlatformPlayerCompletion } from "@/lib/platform-player-bridge";
+import { PlayerRunOutcomeBarrier } from "@/lib/player-run-outcome-barrier";
 import { getSongLaunchErrorMessage } from "@/lib/song-choice-flow";
 import { requestFreshSongLaunchParams } from "@/lib/song-launch-client";
 import { getUnityGameUrl } from "@/lib/unity-game-url";
@@ -62,6 +63,10 @@ type GameEmbedRetryRequest = {
   freshAttempt?: boolean;
   launchSearchParams?: string | null;
 };
+
+type DeferredGameEmbedAction =
+  | { type: "retry"; request: GameEmbedRetryRequest }
+  | { type: "return"; receipt: BridgeContext["receipt"] };
 
 type GameEmbedSessionProps = GameEmbedPageProps & {
   pathname: string;
@@ -382,6 +387,7 @@ function GameEmbedSession({
   const returnReceiptRef = useRef<BridgeContext["receipt"] | null>(null);
   const terminalAttemptRef = useRef(false);
   const acceptedOutcomeAttemptIdRef = useRef("");
+  const outcomeBarrierRef = useRef(new PlayerRunOutcomeBarrier<DeferredGameEmbedAction>());
   const isDemoMode = navBasePath.startsWith("/demo/");
 
   const topTabs = getTopTabs(navBasePath);
@@ -473,7 +479,10 @@ function GameEmbedSession({
       refreshLaunchAttemptId: resolvedParams.get("launchAttemptId"),
     })
       .then((freshLaunchParams) => {
-        if (!cancelled) setLaunchParams(freshLaunchParams);
+        if (!cancelled) {
+          persistLaunchParams(freshLaunchParams);
+          setLaunchParams(freshLaunchParams);
+        }
       })
       .catch((error) => {
         if (!cancelled) {
@@ -571,10 +580,15 @@ function GameEmbedSession({
       if (!result.ok) return;
       if (result.message.type === "retry") {
         terminalAttemptRef.current = true;
-        onRetry({
+        const request = {
           freshAttempt: true,
           launchSearchParams: launchParams?.toString() ?? serializedSearchParams,
-        });
+        } satisfies GameEmbedRetryRequest;
+        const deferred = outcomeBarrierRef.current.defer(
+          result.message.receipt.launchAttemptId,
+          { type: "retry", request },
+        );
+        if (!deferred) onRetry(request);
       } else if (result.message.type === "calibration-complete") {
         if (isDemoMode) {
           window.localStorage.setItem(
@@ -636,12 +650,21 @@ function GameEmbedSession({
           return;
         }
         setOutcomeSyncState("saving");
+        outcomeBarrierRef.current.begin(launchAttemptId);
         setPendingOutcome({ receipt: result.message.receipt, completion });
       } else if (isDemoMode) {
         terminalAttemptRef.current = true;
         if (iframeRef.current) iframeRef.current.src = "about:blank";
         window.location.assign(`${navBasePath}/song-choice`);
       } else {
+        const deferred = outcomeBarrierRef.current.defer(
+          result.message.receipt.launchAttemptId,
+          { type: "return", receipt: result.message.receipt },
+        );
+        if (deferred) {
+          terminalAttemptRef.current = true;
+          return;
+        }
         void handleAttemptReturn(result.message.receipt);
       }
     };
@@ -674,6 +697,14 @@ function GameEmbedSession({
           });
         }
         setPendingOutcome(null);
+        const deferredAction = outcomeBarrierRef.current.settle(
+          pendingOutcome.receipt.launchAttemptId,
+        );
+        if (deferredAction?.type === "retry") {
+          onRetry(deferredAction.request);
+        } else if (deferredAction?.type === "return") {
+          void handleAttemptReturn(deferredAction.receipt);
+        }
       })
       .catch(() => {
         if (!cancelled) {
@@ -683,7 +714,7 @@ function GameEmbedSession({
       });
 
     return () => { cancelled = true; };
-  }, [isDemoMode, pendingOutcome]);
+  }, [handleAttemptReturn, isDemoMode, onRetry, pendingOutcome]);
 
   const embeddedGameUrl = useMemo(() => {
     const params = new URLSearchParams(activeLaunchParams?.toString() ?? "");

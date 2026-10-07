@@ -20,6 +20,7 @@ test("game embed refreshes its signed song package before loading Unity", () => 
   const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
 
   assert.match(gameEmbed, /requestFreshSongLaunchParams/);
+  assert.match(gameEmbed, /persistLaunchParams\(freshLaunchParams\)/);
   assert.match(gameEmbed, /setLaunchParams\(freshLaunchParams\)/);
   assert.match(gameEmbed, /studentCopy\.game\.preparingTitle/);
   assert.match(gameEmbed, /resolveLaunchParams\(new URLSearchParams\(serializedSearchParams\)\)/);
@@ -29,9 +30,14 @@ test("game embed refreshes its signed song package before loading Unity", () => 
 
 test("game embed offers a same-song retry when bridge verification fails", () => {
   const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+  const recoveryStart = gameEmbed.indexOf("{launchErrorMessage ? (");
+  const recoveryEnd = gameEmbed.indexOf(") : needsSongChoice ?", recoveryStart);
+  assert.ok(recoveryStart >= 0 && recoveryEnd > recoveryStart);
+  const launchErrorRecovery = gameEmbed.slice(recoveryStart, recoveryEnd);
 
   assert.match(gameEmbed, /const launchErrorMessage = launchPreparationError \|\| bridgeSetup\.error;/);
-  assert.match(gameEmbed, /\{launchErrorMessage \? \([\s\S]{0,500}onClick=\{onRetry\}[\s\S]{0,300}Try again/);
+  assert.ok(launchErrorRecovery.includes("onClick={() => onRetry()}"));
+  assert.match(launchErrorRecovery, /Try again/);
   assert.doesNotMatch(gameEmbed, /\{launchPreparationError &&\s*\([\s\S]{0,300}Try again/);
 });
 
@@ -92,6 +98,16 @@ test("the demo game keeps calibration and completion state local instead of call
   assert.match(gameEmbed, /if \(!isDemoMode && launchAttemptId\)/);
   assert.match(gameEmbed, /if \(isDemoMode\) \{[\s\S]{0,500}setCompletedRun/);
   assert.match(gameEmbed, /if \(isDemoMode \|\| !pendingOutcome\) return;/);
+});
+
+test("authenticated Retry and Return wait for their outcome to persist", () => {
+  const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
+
+  assert.match(gameEmbed, /outcomeBarrierRef\.current\.begin\(launchAttemptId\)/);
+  assert.match(gameEmbed, /outcomeBarrierRef\.current\.defer\([\s\S]{0,180}result\.message\.receipt\.launchAttemptId/);
+  assert.match(gameEmbed, /outcomeBarrierRef\.current\.settle\([\s\S]{0,120}pendingOutcome\.receipt\.launchAttemptId/);
+  assert.match(gameEmbed, /deferredAction\?\.type === "retry"[\s\S]{0,180}onRetry\(deferredAction\.request\)/);
+  assert.match(gameEmbed, /deferredAction\?\.type === "return"[\s\S]{0,180}handleAttemptReturn\(deferredAction\.receipt\)/);
 });
 
 test("only the demo player opts into guest receipts before the verified iframe gate", () => {
