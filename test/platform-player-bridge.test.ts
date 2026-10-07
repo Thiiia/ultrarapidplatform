@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { createBridgeContext, needsCalibration, parseCalibrationState, PlatformPlayerBridgeMessageSchema, validateBridgeMessage } from "../lib/platform-player-bridge";
+import { createBridgeContext, LaunchAttemptReceiptSchema, needsCalibration, parseCalibrationState, PlatformPlayerBridgeMessageSchema, validateBridgeMessage } from "../lib/platform-player-bridge";
 
 const receipt = {
   receiptVersion: 1 as const, contractVersion: 1 as const, songAssetId: "song", activityKey: "early-algebra", authorId: "author", revision: "rev",
@@ -149,6 +149,7 @@ test("demo bridge accepts attempt-less guest receipts while authenticated receip
     allowGuestReceipt: true,
   });
   assert.equal(guestContext.receipt.launchAttemptId, undefined);
+  assert.equal(LaunchAttemptReceiptSchema.safeParse(guestContext.receipt).success, false);
   const guestCompletion = {
     type: "run-complete" as const,
     nonce: guestContext.nonce,
@@ -166,6 +167,7 @@ test("demo bridge accepts attempt-less guest receipts while authenticated receip
 
   const authenticatedContext = createBridgeContext(receipt, "https://game.example/", installationId);
   assert.equal(authenticatedContext.receipt.launchAttemptId, receipt.launchAttemptId);
+  assert.equal(LaunchAttemptReceiptSchema.safeParse(authenticatedContext.receipt).success, true);
 });
 
 test("bridge accepts the same receipt when Unity serializes keys in a different order", () => {

@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCurrentAppUser } from "@/lib/current-user";
-import { BridgeReceiptSchema, PlatformPlayerCompletionSchema } from "@/lib/platform-player-bridge";
+import { LaunchAttemptReceiptSchema, PlatformPlayerCompletionSchema } from "@/lib/platform-player-bridge";
 import { prisma } from "@/lib/prisma";
 import { prismaPlayerAttemptLifecycleRepository } from "@/lib/prisma-player-attempt-lifecycle";
 import { persistPlayerRunOutcome, type PlayerRunOutcomeRecord } from "@/lib/player-run-lifecycle";
 
 const LaunchAttemptIdSchema = z.string().uuid();
 const OutcomeMutationSchema = z.object({
-  receipt: BridgeReceiptSchema,
+  receipt: LaunchAttemptReceiptSchema,
   completion: PlatformPlayerCompletionSchema,
 }).strict();
 

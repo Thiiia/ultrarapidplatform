@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCurrentAppUser } from "@/lib/current-user";
-import { BridgeReceiptSchema } from "@/lib/platform-player-bridge";
+import { LaunchAttemptReceiptSchema } from "@/lib/platform-player-bridge";
 import { prismaPlayerAttemptLifecycleRepository } from "@/lib/prisma-player-attempt-lifecycle";
 import { returnPlayerLaunchAttempt } from "@/lib/player-run-lifecycle";
 
-const ReturnMutationSchema = z.object({ receipt: BridgeReceiptSchema }).strict();
+const ReturnMutationSchema = z.object({ receipt: LaunchAttemptReceiptSchema }).strict();
 
 export async function POST(request: Request) {
   try {

@@ -45,6 +45,12 @@ export const BridgeReceiptSchema = z.object({
   hashes: z.object({ chartSha256: z.string().regex(/^[a-f0-9]{64}$/i), sidecarSha256: z.string().regex(/^[a-f0-9]{64}$/i), audioSha256: z.string().regex(/^[a-f0-9]{64}$/i) }).strict(),
 }).strict();
 
+// Guest demo receipts may omit an attempt ID for the iframe bridge, but any
+// receipt used by the authenticated persistence routes must identify a run.
+export const LaunchAttemptReceiptSchema = BridgeReceiptSchema.extend({
+  launchAttemptId: z.string().uuid(),
+});
+
 const CompletionAggregateShape = {
   outcome: z.enum(["completed", "failed", "abandoned", "cancelled"]),
   completedEvents: z.number().int().min(0).max(10_000),
