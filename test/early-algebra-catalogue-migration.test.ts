@@ -136,7 +136,8 @@ test("refreshes Early Algebra math to match authored Drag steps without changing
   const refreshed = refreshEarlyAlgebraEquationContent({ songAssetId: "waves", sidecar: JSON.stringify(source) });
 
   assert.match(refreshed.equations[0].state, /^x \+/);
-  assert.match(refreshed.equations[1].state, /^2x \+/);
+  assert.match(refreshed.equations[1].state, /^x \+/);
+  assert.match(refreshed.equations[2].state, /^2x \+/);
   assert.deepEqual(refreshed.equations.map(({ id }) => id), source.equations.map(({ id }) => id));
   assert.deepEqual(refreshed.encounters.map(({ id, eventId, type, equationId, startTick, endTick }) =>
     [id, eventId, type, equationId, startTick, endTick]),
@@ -163,6 +164,49 @@ test("refreshes Early Algebra math to match authored Drag steps without changing
   assert.equal(new Set(twoStepDragIds).size, 2);
   assert.equal(new Set(threeStepDragIds).size, 3);
   assert.equal(refreshed.encounters.find(({ id }) => id === "drag-one")?.dragTargets?.[0].sourceHitId, "hit-one");
+});
+
+test("refreshes equations in song order and introduces multiplication before mixed two-step rows", () => {
+  const source = {
+    version: 3, mode: "authored", songAssetId: "waves", activityKey: "early-algebra",
+    // Deliberately keep the serialized equation list out of song order.
+    equations: [
+      { id: "two-step-after-multiplication", state: "x^2 - 12x + 36 = 0" },
+      { id: "one-step-multiplication", state: "x^2 - 12x + 36 = 0" },
+      { id: "two-step-additive", state: "x^2 - 12x + 36 = 0" },
+      { id: "one-step-additive", state: "x^2 - 12x + 36 = 0" },
+    ],
+    encounters: [
+      { id: "hit-add", eventId: "event-add-hit", type: "hit", equationId: "one-step-additive", startTick: 1, endTick: 1,
+        hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"] }] },
+      { id: "drag-add", eventId: "event-add-drag", type: "drag", equationId: "one-step-additive", startTick: 2, endTick: 3,
+        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-add" }] },
+      { id: "hit-additive-two", eventId: "event-additive-two-hit", type: "hit", equationId: "two-step-additive", startTick: 4, endTick: 4,
+        hitBubbles: [{ tokenIndex: 0, pads: ["topRight"] }] },
+      { id: "drag-additive-two-a", eventId: "event-additive-two-a", type: "drag", equationId: "two-step-additive", startTick: 5, endTick: 6,
+        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-additive-two" }] },
+      { id: "drag-additive-two-b", eventId: "event-additive-two-b", type: "drag", equationId: "two-step-additive", startTick: 7, endTick: 8,
+        dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-additive-two" }] },
+      { id: "hit-multiplication", eventId: "event-multiplication-hit", type: "hit", equationId: "one-step-multiplication", startTick: 9, endTick: 9,
+        hitBubbles: [{ tokenIndex: 0, pads: ["left"] }] },
+      { id: "drag-multiplication", eventId: "event-multiplication-drag", type: "drag", equationId: "one-step-multiplication", startTick: 10, endTick: 11,
+        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-multiplication" }] },
+      { id: "hit-mixed-two", eventId: "event-mixed-two-hit", type: "hit", equationId: "two-step-after-multiplication", startTick: 12, endTick: 12,
+        hitBubbles: [{ tokenIndex: 0, pads: ["right"] }] },
+      { id: "drag-mixed-two-a", eventId: "event-mixed-two-a", type: "drag", equationId: "two-step-after-multiplication", startTick: 13, endTick: 14,
+        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-mixed-two" }] },
+      { id: "drag-mixed-two-b", eventId: "event-mixed-two-b", type: "drag", equationId: "two-step-after-multiplication", startTick: 15, endTick: 16,
+        dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-mixed-two" }] },
+    ],
+  };
+  const refreshed = refreshEarlyAlgebraEquationContent({ songAssetId: "waves", sidecar: JSON.stringify(source) });
+  const stateById = new Map(refreshed.equations.map(({ id, state }) => [id, state]));
+
+  assert.match(stateById.get("one-step-additive") ?? "", /^x [+-] \d+ =/);
+  assert.match(stateById.get("two-step-additive") ?? "", /^x \+ \d+ \+ \d+ =/);
+  assert.match(stateById.get("one-step-multiplication") ?? "", /^[234]x =/);
+  assert.match(stateById.get("two-step-after-multiplication") ?? "", /^[234]x [+-] \d+ =/);
+  assert.deepEqual(refreshed.equations.map(({ id }) => id), source.equations.map(({ id }) => id));
 });
 
 test("preserves zero-Drag equations and encounter targets during the math-only refresh", () => {

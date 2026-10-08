@@ -63,6 +63,17 @@ const twoStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "4x - 4 = 8", operationTargets: ["4", "4x"] },
 ];
 
+// Start multi-step practice with familiar additive inverses. Introduce a
+// coefficient only after a learner has seen a one-step multiplication row.
+const twoStepAdditiveTemplates: readonly AlgebraEquationTemplate[] = [
+  { state: "x + 1 + 2 = 9", operationTargets: ["1", "2"] },
+  { state: "x + 2 + 3 = 10", operationTargets: ["2", "3"] },
+  { state: "x + 1 + 3 = 8", operationTargets: ["1", "3"] },
+  { state: "x + 2 + 4 = 12", operationTargets: ["2", "4"] },
+  { state: "x + 1 + 4 = 10", operationTargets: ["1", "4"] },
+  { state: "x + 2 + 3 = 12", operationTargets: ["2", "3"] },
+];
+
 const threeStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "2x + 1 + 2 = 11", operationTargets: ["1", "2", "2x"] },
   { state: "3x + 1 + 2 = 12", operationTargets: ["1", "2", "3x"] },
@@ -136,32 +147,79 @@ export function refreshEarlyAlgebraEquationContent(input: {
   }
 
   const templateUse = { oneStep: 0, twoStep: 0, threeStep: 0 };
+  const firstCueTickByEquationId = new Map<string, number>();
+  for (const encounter of source.encounters) {
+    const equationId = encounter.equationId;
+    if (!equationId || !Number.isFinite(encounter.startTick)) continue;
+    firstCueTickByEquationId.set(
+      equationId,
+      Math.min(firstCueTickByEquationId.get(equationId) ?? Number.MAX_SAFE_INTEGER, encounter.startTick),
+    );
+  }
+
+  // Template choice follows the first authored cue for each equation, not
+  // incidental JSON array order. Some lessons schedule equation records in a
+  // different order from the song, which used to make the difficulty jump
+  // backwards mid-run.
+  const orderedEquations = source.equations
+    .map((equation, index) => ({ equation, index }))
+    .sort((left, right) =>
+      (firstCueTickByEquationId.get(left.equation.id) ?? Number.MAX_SAFE_INTEGER) -
+        (firstCueTickByEquationId.get(right.equation.id) ?? Number.MAX_SAFE_INTEGER) ||
+      left.index - right.index,
+    );
+  const templateByEquationId = new Map<string, AlgebraEquationTemplate>();
+  let hasMultiplicativeFoundation = false;
+  let hasSeenMultiStep = false;
+  for (const { equation } of orderedEquations) {
+    const dragCount = dragTargetCounts.get(equation.id) ?? 0;
+    if (dragCount === 0) continue;
+    if (dragCount > 3) {
+      throw new Error(`Equation '${equation.id}' has ${dragCount} Drag targets; the early-algebra ladder supports at most three steps`);
+    }
+
+    let template: AlgebraEquationTemplate;
+    if (dragCount === 1) {
+      let occurrence = templateUse.oneStep++;
+      // If a song's authored schedule starts with a two-step row, use a
+      // one-step multiplication example as the next new skill instead of
+      // restarting with another additive row.
+      if (occurrence === 0 && hasSeenMultiStep) {
+        occurrence = 1;
+        templateUse.oneStep = 2;
+      }
+      template = oneStepTemplateForOccurrence(occurrence, [...input.songAssetId]
+        .reduce((total, character) => total + character.charCodeAt(0), 0));
+      if (/^\s*\d*x\s*=/.test(template.state)) hasMultiplicativeFoundation = true;
+    } else if (dragCount === 2) {
+      const candidates = hasMultiplicativeFoundation ? twoStepTemplates : twoStepAdditiveTemplates;
+      const offset = [...input.songAssetId].reduce((total, character) => total + character.charCodeAt(0), 0);
+      const startingOffset = offset % Math.min(4, candidates.length);
+      template = candidates[(templateUse.twoStep++ + startingOffset) % candidates.length];
+      hasSeenMultiStep = true;
+    } else {
+      // Three-step equations are kept as a short stretch: the coefficients and
+      // addends stay small, and the row remains within the current bubble width.
+      const candidates = threeStepTemplates;
+      const offset = [...input.songAssetId].reduce((total, character) => total + character.charCodeAt(0), 0);
+      const startingOffset = offset % Math.min(4, candidates.length);
+      template = candidates[(templateUse.threeStep++ + startingOffset) % candidates.length];
+      hasSeenMultiStep = true;
+      hasMultiplicativeFoundation = true;
+    }
+    templateByEquationId.set(equation.id, template);
+  }
+
   const plans = new Map<string, {
     equation: AuthoredLessonEquation;
     operationTargetIndexes: number[];
     playableTokenIndexes: number[];
   }>();
   const equations = source.equations.map((equation) => {
-    const dragCount = dragTargetCounts.get(equation.id) ?? 0;
-    if (dragCount > 3) {
-      throw new Error(`Equation '${equation.id}' has ${dragCount} Drag targets; the early-algebra ladder supports at most three steps`);
-    }
     // A math-only refresh cannot safely introduce a new inverse-operation step
     // when the authored chart has no Drag cue to teach and judge that step.
-    if (dragCount === 0) return equation;
-    const profile = dragCount <= 1 ? "oneStep" : dragCount === 2 ? "twoStep" : "threeStep";
-    const candidates = profile === "oneStep"
-      ? oneStepTemplates
-      : profile === "twoStep" ? twoStepTemplates : threeStepTemplates;
-    const offset = [...input.songAssetId].reduce((total, character) => total + character.charCodeAt(0), 0);
-    // Rotate songs only within the easiest four examples of each profile.
-    // The old full-list rotation could start a learner on multiplication or a
-    // later coefficient before the additive foundation had appeared.
-    const startingOffset = offset % Math.min(4, candidates.length);
-    const occurrence = templateUse[profile]++;
-    const template = profile === "oneStep"
-      ? oneStepTemplateForOccurrence(occurrence, offset)
-      : candidates[(occurrence + startingOffset) % candidates.length];
+    const template = templateByEquationId.get(equation.id);
+    if (!template) return equation;
     const tokens = tokenizeAuthoredEquationState(template.state).map((label, tokenIndex) => ({
       id: `${equation.id}-math-refresh-token-${tokenIndex}`,
       label,
