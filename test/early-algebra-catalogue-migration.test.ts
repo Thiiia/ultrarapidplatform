@@ -102,7 +102,7 @@ test("every catalogue progression has distinct equations with positive integer s
   }
 });
 
-test("refreshes Early Algebra math to match authored Drag steps without changing cue identity or timing", () => {
+test("gives each drag its own small equation row and rewrites the following cue targets", () => {
   const source = {
     version: 3, mode: "authored", songAssetId: "waves", activityKey: "early-algebra",
     equations: [
@@ -119,30 +119,28 @@ test("refreshes Early Algebra math to match authored Drag steps without changing
         hitBubbles: [{ tokenIndex: 0, pads: ["topRight"] }] },
       { id: "spin-two", eventId: "event-4", type: "spin", equationId: "two-step", startTick: 5, endTick: 6,
         spinTargets: [{ tokenIndex: 0 }] },
-      { id: "drag-two-a", eventId: "event-5", type: "drag", equationId: "two-step", startTick: 7, endTick: 8,
+      { id: "drag-two", eventId: "event-5", type: "drag", equationId: "two-step", startTick: 7, endTick: 8,
         dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-two" }] },
-      { id: "drag-two-b", eventId: "event-6", type: "drag", equationId: "two-step", startTick: 9, endTick: 10,
-        dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-two" }] },
       { id: "hit-three", eventId: "event-7", type: "hit", equationId: "three-step", startTick: 11, endTick: 11,
         hitBubbles: [{ tokenIndex: 0, pads: ["right"] }] },
-      { id: "drag-three-a", eventId: "event-8", type: "drag", equationId: "three-step", startTick: 12, endTick: 13,
+      { id: "drag-three", eventId: "event-8", type: "drag", equationId: "three-step", startTick: 12, endTick: 13,
         dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-three" }] },
-      { id: "drag-three-b", eventId: "event-9", type: "drag", equationId: "three-step", startTick: 14, endTick: 15,
-        dragTargets: [{ tokenIndex: 4, sourceHitId: "hit-three" }] },
-      { id: "drag-three-c", eventId: "event-10", type: "drag", equationId: "three-step", startTick: 16, endTick: 17,
-        dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-three" }] },
+      { id: "tail-hit", eventId: "event-9", type: "hit", equationId: "three-step", startTick: 14, endTick: 14,
+        hitBubbles: [{ tokenIndex: 0, pads: ["bottomLeft"] }] },
     ],
   };
   const refreshed = refreshEarlyAlgebraEquationContent({ songAssetId: "waves", sidecar: JSON.stringify(source) });
 
   assert.match(refreshed.equations[0].state, /^x \+/);
   assert.match(refreshed.equations[1].state, /^x \+/);
-  assert.match(refreshed.equations[2].state, /^2x \+/);
-  assert.deepEqual(refreshed.equations.map(({ id }) => id), source.equations.map(({ id }) => id));
-  assert.deepEqual(refreshed.encounters.map(({ id, eventId, type, equationId, startTick, endTick }) =>
-    [id, eventId, type, equationId, startTick, endTick]),
-  source.encounters.map(({ id, eventId, type, equationId, startTick, endTick }) =>
-    [id, eventId, type, equationId, startTick, endTick]));
+  assert.match(refreshed.equations[2].state, /^x \+/);
+  assert.deepEqual(refreshed.equations.map(({ id }) => id), [
+    "waves-early-step-01", "waves-early-step-02", "waves-early-step-03",
+  ]);
+  assert.deepEqual(refreshed.encounters.map(({ id, eventId, type, startTick, endTick }) =>
+    [id, eventId, type, startTick, endTick]),
+  source.encounters.map(({ id, eventId, type, startTick, endTick }) =>
+    [id, eventId, type, startTick, endTick]));
   assert.deepEqual(refreshed.encounters.filter(({ type }) => type === "hit").map((encounter) =>
     encounter.hitBubbles?.[0].pads), source.encounters.filter(({ type }) => type === "hit").map((encounter) =>
     encounter.hitBubbles?.[0].pads));
@@ -157,16 +155,21 @@ test("refreshes Early Algebra math to match authored Drag steps without changing
       assert.equal(equation.tokens?.[target.tokenIndex]?.id, target.targetId, encounter.id);
     }
   }
-  const twoStepDragIds = refreshed.encounters.filter((encounter) => encounter.type === "drag" && encounter.equationId === "two-step")
-    .map((encounter) => encounter.dragTargets?.[0].targetId);
-  const threeStepDragIds = refreshed.encounters.filter((encounter) => encounter.type === "drag" && encounter.equationId === "three-step")
-    .map((encounter) => encounter.dragTargets?.[0].targetId);
-  assert.equal(new Set(twoStepDragIds).size, 2);
-  assert.equal(new Set(threeStepDragIds).size, 3);
+  for (const [index, dragId] of ["drag-one", "drag-two", "drag-three"].entries()) {
+    const drag = refreshed.encounters.find(({ id }) => id === dragId)!;
+    const step = refreshed.equations[index];
+    assert.equal(drag.equationId, step.id);
+    assert.equal(refreshed.encounters.filter((encounter) => encounter.type === "drag" && encounter.equationId === step.id).length, 1);
+    assert.equal(step.tokens?.[drag.dragTargets?.[0].tokenIndex]?.id, drag.dragTargets?.[0].targetId);
+  }
+  assert.equal(refreshed.encounters.find(({ id }) => id === "hit-one")?.equationId, "waves-early-step-01");
+  assert.equal(refreshed.encounters.find(({ id }) => id === "hit-two")?.equationId, "waves-early-step-02");
+  assert.equal(refreshed.encounters.find(({ id }) => id === "hit-three")?.equationId, "waves-early-step-03");
+  assert.equal(refreshed.encounters.find(({ id }) => id === "tail-hit")?.equationId, "waves-early-step-03");
   assert.equal(refreshed.encounters.find(({ id }) => id === "drag-one")?.dragTargets?.[0].sourceHitId, "hit-one");
 });
 
-test("refreshes equations in song order from addition into a small coefficient move", () => {
+test("orders the one-step curriculum by the cue timeline instead of the source equation array", () => {
   const source = {
     version: 3, mode: "authored", songAssetId: "waves", activityKey: "early-algebra",
     // Deliberately keep the serialized equation list out of song order.
@@ -177,46 +180,33 @@ test("refreshes equations in song order from addition into a small coefficient m
       { id: "one-step-additive-two", state: "x^2 - 12x + 36 = 0" },
       { id: "one-step-additive", state: "x^2 - 12x + 36 = 0" },
     ],
-    encounters: [
-      { id: "hit-add", eventId: "event-add-hit", type: "hit", equationId: "one-step-additive", startTick: 1, endTick: 1,
-        hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"] }] },
-      { id: "drag-add", eventId: "event-add-drag", type: "drag", equationId: "one-step-additive", startTick: 2, endTick: 3,
-        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-add" }] },
-      { id: "hit-additive-two", eventId: "event-additive-two-hit", type: "hit", equationId: "one-step-additive-two", startTick: 4, endTick: 4,
-        hitBubbles: [{ tokenIndex: 0, pads: ["topRight"] }] },
-      { id: "drag-additive-two-a", eventId: "event-additive-two-a", type: "drag", equationId: "one-step-additive-two", startTick: 5, endTick: 6,
-        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-additive-two" }] },
-      { id: "hit-multiplication", eventId: "event-multiplication-hit", type: "hit", equationId: "one-step-multiplication", startTick: 9, endTick: 9,
-        hitBubbles: [{ tokenIndex: 0, pads: ["left"] }] },
-      { id: "drag-multiplication", eventId: "event-multiplication-drag", type: "drag", equationId: "one-step-multiplication", startTick: 10, endTick: 11,
-        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-multiplication" }] },
-      { id: "hit-additive-two-step", eventId: "event-additive-two-step-hit", type: "hit", equationId: "two-step-additive", startTick: 12, endTick: 12,
-        hitBubbles: [{ tokenIndex: 0, pads: ["topRight"] }] },
-      { id: "drag-additive-two-step-a", eventId: "event-additive-two-step-a", type: "drag", equationId: "two-step-additive", startTick: 13, endTick: 14,
-        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-additive-two-step" }] },
-      { id: "drag-additive-two-step-b", eventId: "event-additive-two-step-b", type: "drag", equationId: "two-step-additive", startTick: 15, endTick: 16,
-        dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-additive-two-step" }] },
-      { id: "hit-mixed-two", eventId: "event-mixed-two-hit", type: "hit", equationId: "two-step-after-multiplication", startTick: 17, endTick: 17,
-        hitBubbles: [{ tokenIndex: 0, pads: ["right"] }] },
-      { id: "drag-mixed-two-a", eventId: "event-mixed-two-a", type: "drag", equationId: "two-step-after-multiplication", startTick: 18, endTick: 19,
-        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-mixed-two" }] },
-      { id: "drag-mixed-two-b", eventId: "event-mixed-two-b", type: "drag", equationId: "two-step-after-multiplication", startTick: 20, endTick: 21,
-        dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-mixed-two" }] },
-    ],
+    encounters: ["one-step-additive", "one-step-additive-two", "one-step-multiplication", "two-step-additive", "two-step-after-multiplication"]
+      .flatMap((equationId, index) => {
+        const hitId = `hit-${index}`;
+        const startTick = (index + 1) * 3;
+        return [
+          { id: hitId, eventId: `${hitId}-event`, type: "hit", equationId, startTick, endTick: startTick,
+            hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"] }] },
+          { id: `drag-${index}`, eventId: `drag-${index}-event`, type: "drag", equationId,
+            startTick: startTick + 1, endTick: startTick + 2,
+            dragTargets: [{ tokenIndex: 2, sourceHitId: hitId }] },
+        ];
+      }),
   };
   const refreshed = refreshEarlyAlgebraEquationContent({ songAssetId: "waves", sidecar: JSON.stringify(source) });
-  const stateById = new Map(refreshed.equations.map(({ id, state }) => [id, state]));
 
-  assert.match(stateById.get("one-step-additive") ?? "", /^x [+-] \d+ =/);
-  assert.match(stateById.get("one-step-additive-two") ?? "", /^x \+/);
-  assert.match(stateById.get("one-step-multiplication") ?? "", /^2x =/);
-  assert.match(stateById.get("two-step-additive") ?? "", /^x \+ \d+ \+ \d+ =/);
-  assert.match(stateById.get("two-step-after-multiplication") ?? "", /^x \+ \d+ \+ \d+ =/);
-  assert.ok(refreshed.equations.every(({ state }) => !/\b[3-9]\s*x\b/i.test(state)));
-  assert.deepEqual(refreshed.equations.map(({ id }) => id), source.equations.map(({ id }) => id));
+  assert.equal(refreshed.equations.length, 5);
+  assert.ok(refreshed.equations.slice(0, 4).every(({ state }) => /^x \+/.test(state)));
+  assert.match(refreshed.equations[4].state, /^x -/);
+  assert.deepEqual(refreshed.equations.map(({ id }) => id), [
+    "waves-early-step-01", "waves-early-step-02", "waves-early-step-03", "waves-early-step-04", "waves-early-step-05",
+  ]);
+  assert.equal(refreshed.encounters.find(({ id }) => id === "drag-0")?.equationId, "waves-early-step-01");
+  assert.equal(refreshed.encounters.find(({ id }) => id === "drag-4")?.equationId, "waves-early-step-05");
+  assert.ok(refreshed.equations.every(({ state }) => !/\bx\s*\^\s*2/i.test(state)));
 });
 
-test("a three-step stretch removes constants then divides a small coefficient", () => {
+test("rejects a legacy multi-drag row without a fresh hit for the next equation", () => {
   const source = {
     version: 3, mode: "authored", songAssetId: "waves", activityKey: "early-algebra",
     equations: [
@@ -247,17 +237,10 @@ test("a three-step stretch removes constants then divides a small coefficient", 
         dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-later-two" }] },
     ],
   };
-  const refreshed = refreshEarlyAlgebraEquationContent({ songAssetId: "waves", sidecar: JSON.stringify(source) });
-  const stateById = new Map(refreshed.equations.map(({ id, state }) => [id, state]));
-
-  assert.match(stateById.get("three-step-stretch") ?? "", /^2x \+ \d+ \+ \d+ =/);
-  assert.match(stateById.get("later-two-step") ?? "", /^x \+ \d+ \+ \d+ =/);
-  const stretch = refreshed.equations.find(({ id }) => id === "three-step-stretch");
-  const stretchTargets = refreshed.encounters
-    .filter((encounter) => encounter.type === "drag" && encounter.equationId === "three-step-stretch")
-    .map((encounter) => stretch?.tokens?.[encounter.dragTargets?.[0]?.tokenIndex]?.label);
-  assert.ok(stretchTargets.slice(0, 2).every((label) => /^\d+$/.test(label ?? "")));
-  assert.equal(stretchTargets[2], "2x");
+  assert.throws(
+    () => refreshEarlyAlgebraEquationContent({ songAssetId: "waves", sidecar: JSON.stringify(source) }),
+    /must use a Hit from its own equation row/,
+  );
 });
 
 test("preserves zero-Drag equations and encounter targets during the math-only refresh", () => {
@@ -284,34 +267,24 @@ test("preserves zero-Drag equations and encounter targets during the math-only r
 test("all refreshed equation templates stay linear, small, solvable, and targetable", () => {
   const equations: Array<{ id: string; state: string }> = [];
   const encounters: Array<Record<string, unknown>> = [];
-  const expectedDragCounts = new Map<string, number>();
   let tick = 1;
-  for (const { prefix, equationCount, dragCount } of [
-    { prefix: "one", equationCount: 19, dragCount: 1 },
-    { prefix: "two", equationCount: 12, dragCount: 2 },
-    { prefix: "three", equationCount: 10, dragCount: 3 },
-  ]) {
-    for (let index = 0; index < equationCount; index += 1) {
-      const equationId = `${prefix}-${index}`;
-      equations.push({ id: equationId, state: "x^2 - 12x + 36 = 0" });
-      expectedDragCounts.set(equationId, dragCount);
-      for (let dragIndex = 0; dragIndex < dragCount; dragIndex += 1) {
-        const hitId = `${equationId}-hit-${dragIndex}`;
-        encounters.push({ id: hitId, eventId: `${hitId}-event`, type: "hit", equationId,
-          startTick: tick, endTick: tick, hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"] }] });
-        tick += 1;
-        encounters.push({ id: `${equationId}-drag-${dragIndex}`, eventId: `${equationId}-drag-${dragIndex}-event`,
-          type: "drag", equationId, startTick: tick, endTick: tick + 1,
-          dragTargets: [{ tokenIndex: 0, sourceHitId: hitId }] });
-        tick += 2;
-      }
-    }
+  for (let index = 0; index < 16; index += 1) {
+    const equationId = `source-${index}`;
+    equations.push({ id: equationId, state: "x^2 - 12x + 36 = 0" });
+    const hitId = `${equationId}-hit`;
+    encounters.push({ id: hitId, eventId: `${hitId}-event`, type: "hit", equationId,
+      startTick: tick, endTick: tick, hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"] }] });
+    tick += 1;
+    encounters.push({ id: `${equationId}-drag`, eventId: `${equationId}-drag-event`,
+      type: "drag", equationId, startTick: tick, endTick: tick + 1,
+      dragTargets: [{ tokenIndex: 0, sourceHitId: hitId }] });
+    tick += 2;
   }
   const refreshed = refreshEarlyAlgebraEquationContent({
     songAssetId: "waves",
     sidecar: JSON.stringify({ version: 3, mode: "authored", songAssetId: "waves", activityKey: "early-algebra", equations, encounters }),
   });
-  const oneStepStates = refreshed.equations.slice(0, 19).map(({ state }) => state);
+  const oneStepStates = refreshed.equations.map(({ state }) => state);
   const linearSide = (expression: string): [number, number] => expression.replace(/\s/g, "")
     .replace(/-/g, "+-").split("+").filter(Boolean)
     .reduce(([coefficient, constant], term) => {
@@ -322,13 +295,14 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
       return [coefficient, constant + Number(term)];
     }, [0, 0]);
 
-  assert.equal(refreshed.equations.length, 41);
+  assert.equal(refreshed.equations.length, 16);
   assert.equal(new Set(refreshed.equations.map(({ state }) => state)).size, refreshed.equations.length);
   assert.match(oneStepStates[0], /^x \+/);
   assert.match(oneStepStates[1], /^x \+/);
-  assert.match(oneStepStates[2], /^2x =/);
-  assert.match(oneStepStates[3], /^x -/);
-  assert.match(oneStepStates[5], /^2x =/);
+  assert.match(oneStepStates[2], /^x \+/);
+  assert.match(oneStepStates[3], /^x \+/);
+  assert.match(oneStepStates[4], /^x -/);
+  assert.match(oneStepStates[8], /^2x =/);
   assert.equal(new Set(oneStepStates).size, oneStepStates.length);
   for (const equation of refreshed.equations) {
     assert.ok(!/\bx\s*\^\s*2/i.test(equation.state), equation.state);
@@ -342,9 +316,7 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
     const solution = (rightConstant - leftConstant) / (leftCoefficient - rightCoefficient);
     assert.ok(Number.isSafeInteger(solution) && solution > 0 && solution <= 8, equation.state);
     const drags = refreshed.encounters.filter((encounter) => encounter.type === "drag" && encounter.equationId === equation.id);
-    assert.equal(drags.length, expectedDragCounts.get(equation.id), equation.id);
-    if (drags.length === 2) assert.ok(solution <= 2, equation.state);
-    if (drags.length === 3) assert.ok(solution <= 4, equation.state);
+    assert.equal(drags.length, 1, equation.id);
     const dragTargetIds = drags.map((encounter) => (encounter.dragTargets as Array<{ targetId?: string }>)[0]?.targetId);
     assert.equal(new Set(dragTargetIds).size, dragTargetIds.length, equation.state);
     for (const encounter of refreshed.encounters.filter((candidate) => candidate.equationId === equation.id)) {
@@ -353,10 +325,8 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
           : encounter.dragTargets as Array<{ tokenIndex: number; targetId?: string }>;
       assert.ok(targets.every((target) => equation.tokens?.[target.tokenIndex]?.id === target.targetId), encounter.id);
     }
-    if (drags.length === 3) {
-      const finalTarget = drags[2].dragTargets as Array<{ tokenIndex: number }>;
-      assert.equal(equation.tokens?.[finalTarget[0].tokenIndex]?.label, "2x", equation.state);
-    }
+    const dragTargets = drags[0].dragTargets as Array<{ tokenIndex: number; targetId?: string }>;
+    assert.equal(dragTargets[0].targetId, equation.tokens?.[dragTargets[0].tokenIndex]?.id, equation.state);
   }
 });
 
