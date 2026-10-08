@@ -26,15 +26,15 @@ const oneStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "x + 4 = 9", operationTargets: ["4"] },
   { state: "3x = 12", operationTargets: ["3x"] },
   { state: "x - 2 = 5", operationTargets: ["2"] },
-  { state: "4x = 16", operationTargets: ["4x"] },
+  { state: "4x = 12", operationTargets: ["4x"] },
   { state: "x + 3 = 11", operationTargets: ["3"] },
   { state: "x - 1 = 7", operationTargets: ["1"] },
-  { state: "2x = 14", operationTargets: ["2x"] },
+  { state: "2x = 12", operationTargets: ["2x"] },
   { state: "x + 5 = 12", operationTargets: ["5"] },
   { state: "x - 4 = 4", operationTargets: ["4"] },
-  { state: "3x = 15", operationTargets: ["3x"] },
-  { state: "x + 6 = 14", operationTargets: ["6"] },
-  { state: "x - 2 = 8", operationTargets: ["2"] },
+  { state: "3x = 12", operationTargets: ["3x"] },
+  { state: "x + 6 = 12", operationTargets: ["6"] },
+  { state: "x - 2 = 6", operationTargets: ["2"] },
   { state: "4x = 12", operationTargets: ["4x"] },
 ];
 
@@ -50,7 +50,7 @@ const twoStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "3x + 3 = 12", operationTargets: ["3", "3x"] },
   { state: "4x + 2 = 10", operationTargets: ["2", "4x"] },
   { state: "2x + 3 = 11", operationTargets: ["3", "2x"] },
-  { state: "3x + 1 = 13", operationTargets: ["1", "3x"] },
+  { state: "3x + 1 = 10", operationTargets: ["1", "3x"] },
 ];
 
 const threeStepTemplates: readonly AlgebraEquationTemplate[] = [
@@ -66,9 +66,10 @@ const threeStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "4x + 4 = 2x + 12", operationTargets: ["2x", "4", "4x"] },
 ];
 
-// The migration catalogue stays within small whole numbers. Most lessons
-// begin with one-step equations, then move to two-step examples; a short
-// stretch uses small coefficients on both sides.
+// Match the authored Drag count to a clear learning profile: one-step
+// additive/multiplicative examples, two-step inverses, then unknowns on both
+// sides for a short three-step stretch. Keep values small so the rhythm and
+// algebra demands stay legible together.
 const foundation = [
   ...oneStepTemplates.slice(0, 8).map(({ state }) => state),
   ...twoStepTemplates.slice(0, 10).map(({ state }) => state),
