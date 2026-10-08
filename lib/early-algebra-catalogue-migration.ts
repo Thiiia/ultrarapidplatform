@@ -39,13 +39,24 @@ const oneStepTemplates: readonly AlgebraEquationTemplate[] = [
 ];
 
 function oneStepTemplateForOccurrence(occurrence: number, songOffset: number) {
-  // Establish an additive inverse first, then introduce multiplication as a
-  // separate one-step inverse before returning to subtraction examples.
-  if (occurrence === 0) return oneStepTemplates[songOffset % 4];
-  if (occurrence === 1) return oneStepTemplates[10 + (songOffset % 6)];
-
-  const followUpTemplateIndexes = [5, 11, 6, 12, 7, 13, 8, 14, 9, 15, 1, 2, 3, 4];
-  return oneStepTemplates[followUpTemplateIndexes[(occurrence - 2) % followUpTemplateIndexes.length]];
+  // Keep the first one-step equation additive, even when the lesson's opening
+  // schedule already contains a two-step Drag. Introduce multiplication only
+  // after an additive one-step example has appeared.
+  const additiveTemplates = Array.from({ length: 10 }, (_, index) => index);
+  const multiplicationTemplates = Array.from({ length: 6 }, (_, index) => index + 10);
+  const firstAdditive = songOffset % 4;
+  const firstMultiplication = 10 + (songOffset % multiplicationTemplates.length);
+  const firstSubtraction = 4 + (songOffset % 6);
+  const secondMultiplication = 10 + ((songOffset + 1) % multiplicationTemplates.length);
+  const sequence = [
+    firstAdditive,
+    firstMultiplication,
+    firstSubtraction,
+    secondMultiplication,
+    ...additiveTemplates.filter((index) => index !== firstAdditive && index !== firstSubtraction),
+    ...multiplicationTemplates.filter((index) => index !== firstMultiplication && index !== secondMultiplication),
+  ];
+  return refreshedOneStepTemplates[sequence[occurrence % sequence.length]];
 }
 
 const twoStepTemplates: readonly AlgebraEquationTemplate[] = [
@@ -63,17 +74,6 @@ const twoStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "4x - 4 = 8", operationTargets: ["4", "4x"] },
 ];
 
-// Start multi-step practice with familiar additive inverses. Introduce a
-// coefficient only after a learner has seen a one-step multiplication row.
-const twoStepAdditiveTemplates: readonly AlgebraEquationTemplate[] = [
-  { state: "x + 1 + 2 = 9", operationTargets: ["1", "2"] },
-  { state: "x + 2 + 3 = 10", operationTargets: ["2", "3"] },
-  { state: "x + 1 + 3 = 8", operationTargets: ["1", "3"] },
-  { state: "x + 2 + 4 = 12", operationTargets: ["2", "4"] },
-  { state: "x + 1 + 4 = 10", operationTargets: ["1", "4"] },
-  { state: "x + 2 + 3 = 12", operationTargets: ["2", "3"] },
-];
-
 const threeStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "2x + 1 + 2 = 11", operationTargets: ["1", "2", "2x"] },
   { state: "3x + 1 + 2 = 12", operationTargets: ["1", "2", "3x"] },
@@ -87,13 +87,66 @@ const threeStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "2x + 4 + 1 = 11", operationTargets: ["4", "1", "2x"] },
 ];
 
-// Preserve the three Drag actions while keeping the math additive: undo the
-// two constants, then move the isolated unknown as the final action.
-const threeStepAdditiveTemplates: readonly AlgebraEquationTemplate[] = [
-  { state: "x + 1 + 2 = 9", operationTargets: ["1", "2", "x"] },
-  { state: "x + 1 + 3 = 10", operationTargets: ["1", "3", "x"] },
+// Math-only refreshes use a gentler number range than the older catalogue
+// migration above. Keep the refreshed learner work linear, with positive
+// integer answers and small operands while preserving each authored Drag step.
+const refreshedOneStepTemplates: readonly AlgebraEquationTemplate[] = [
+  { state: "x + 1 = 4", operationTargets: ["1"] },
+  { state: "x + 2 = 6", operationTargets: ["2"] },
+  { state: "x + 3 = 7", operationTargets: ["3"] },
+  { state: "x + 4 = 9", operationTargets: ["4"] },
+  { state: "x - 1 = 3", operationTargets: ["1"] },
+  { state: "x - 2 = 4", operationTargets: ["2"] },
+  { state: "x - 3 = 3", operationTargets: ["3"] },
+  { state: "x - 4 = 4", operationTargets: ["4"] },
+  { state: "x + 2 = 8", operationTargets: ["2"] },
+  { state: "x - 2 = 6", operationTargets: ["2"] },
+  { state: "2x = 4", operationTargets: ["2x"] },
+  { state: "2x = 6", operationTargets: ["2x"] },
+  { state: "2x = 8", operationTargets: ["2x"] },
+  { state: "2x = 10", operationTargets: ["2x"] },
+  { state: "3x = 6", operationTargets: ["3x"] },
+  { state: "3x = 9", operationTargets: ["3x"] },
+];
+
+const refreshedTwoStepTemplates: readonly AlgebraEquationTemplate[] = [
+  { state: "2x + 1 = 7", operationTargets: ["1", "2x"] },
+  { state: "2x + 2 = 8", operationTargets: ["2", "2x"] },
+  { state: "2x + 3 = 9", operationTargets: ["3", "2x"] },
+  { state: "2x + 4 = 10", operationTargets: ["4", "2x"] },
+  { state: "2x - 2 = 6", operationTargets: ["2", "2x"] },
+  { state: "3x + 1 = 7", operationTargets: ["1", "3x"] },
+  { state: "3x + 2 = 8", operationTargets: ["2", "3x"] },
+  { state: "3x + 3 = 9", operationTargets: ["3", "3x"] },
+  { state: "3x - 3 = 6", operationTargets: ["3", "3x"] },
+  { state: "2x + 1 = 9", operationTargets: ["1", "2x"] },
+  { state: "2x + 2 = 10", operationTargets: ["2", "2x"] },
+  { state: "3x + 1 = 10", operationTargets: ["1", "3x"] },
+];
+
+const refreshedTwoStepAdditiveTemplates: readonly AlgebraEquationTemplate[] = [
+  { state: "x + 1 + 2 = 5", operationTargets: ["1", "2"] },
+  { state: "x + 1 + 3 = 7", operationTargets: ["1", "3"] },
+  { state: "x + 2 + 3 = 9", operationTargets: ["2", "3"] },
+  { state: "x + 2 + 4 = 10", operationTargets: ["2", "4"] },
+  { state: "x + 1 + 4 = 9", operationTargets: ["1", "4"] },
+  { state: "x + 3 + 4 = 10", operationTargets: ["3", "4"] },
+];
+
+const refreshedThreeStepTemplates: readonly AlgebraEquationTemplate[] = [
+  { state: "2x + 1 + 2 = 9", operationTargets: ["1", "2", "2x"] },
+  { state: "2x + 1 + 3 = 10", operationTargets: ["1", "3", "2x"] },
+  { state: "2x + 2 + 3 = 9", operationTargets: ["2", "3", "2x"] },
+  { state: "3x + 1 + 2 = 9", operationTargets: ["1", "2", "3x"] },
+  { state: "3x + 1 + 3 = 10", operationTargets: ["1", "3", "3x"] },
+  { state: "2x + 1 + 4 = 9", operationTargets: ["1", "4", "2x"] },
+];
+
+const refreshedThreeStepAdditiveTemplates: readonly AlgebraEquationTemplate[] = [
+  { state: "x + 1 + 2 = 7", operationTargets: ["1", "2", "x"] },
+  { state: "x + 1 + 3 = 8", operationTargets: ["1", "3", "x"] },
   { state: "x + 2 + 3 = 10", operationTargets: ["2", "3", "x"] },
-  { state: "x + 1 + 4 = 11", operationTargets: ["1", "4", "x"] },
+  { state: "x + 1 + 4 = 9", operationTargets: ["1", "4", "x"] },
 ];
 
 // Match the authored Drag count to a clear learning profile: one-step
@@ -179,7 +232,6 @@ export function refreshEarlyAlgebraEquationContent(input: {
     );
   const templateByEquationId = new Map<string, AlgebraEquationTemplate>();
   let hasMultiplicativeFoundation = false;
-  let hasSeenMultiStep = false;
   for (const { equation } of orderedEquations) {
     const dragCount = dragTargetCounts.get(equation.id) ?? 0;
     if (dragCount === 0) continue;
@@ -189,32 +241,25 @@ export function refreshEarlyAlgebraEquationContent(input: {
 
     let template: AlgebraEquationTemplate;
     if (dragCount === 1) {
-      let occurrence = templateUse.oneStep++;
-      // If a song's authored schedule starts with a two-step row, use a
-      // one-step multiplication example as the next new skill instead of
-      // restarting with another additive row.
-      if (occurrence === 0 && hasSeenMultiStep) {
-        occurrence = 1;
-        templateUse.oneStep = 2;
-      }
+      const occurrence = templateUse.oneStep++;
       template = oneStepTemplateForOccurrence(occurrence, [...input.songAssetId]
         .reduce((total, character) => total + character.charCodeAt(0), 0));
       if (/^\s*\d*x\s*=/.test(template.state)) hasMultiplicativeFoundation = true;
     } else if (dragCount === 2) {
-      const candidates = hasMultiplicativeFoundation ? twoStepTemplates : twoStepAdditiveTemplates;
+      const candidates = hasMultiplicativeFoundation
+        ? refreshedTwoStepTemplates : refreshedTwoStepAdditiveTemplates;
       const offset = [...input.songAssetId].reduce((total, character) => total + character.charCodeAt(0), 0);
       const startingOffset = offset % Math.min(4, candidates.length);
       template = candidates[(templateUse.twoStep++ + startingOffset) % candidates.length];
-      hasSeenMultiStep = true;
     } else {
       // Three-step equations are kept as a short stretch: the coefficients and
       // addends stay small, and the row remains within the current bubble width.
       // A stretch row does not replace the one-step multiplication foundation.
-      const candidates = hasMultiplicativeFoundation ? threeStepTemplates : threeStepAdditiveTemplates;
+      const candidates = hasMultiplicativeFoundation
+        ? refreshedThreeStepTemplates : refreshedThreeStepAdditiveTemplates;
       const offset = [...input.songAssetId].reduce((total, character) => total + character.charCodeAt(0), 0);
       const startingOffset = offset % Math.min(4, candidates.length);
       template = candidates[(templateUse.threeStep++ + startingOffset) % candidates.length];
-      hasSeenMultiStep = true;
     }
     templateByEquationId.set(equation.id, template);
   }
