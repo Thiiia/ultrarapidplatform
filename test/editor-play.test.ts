@@ -48,6 +48,36 @@ test("header exposes Play wired to launch, disabled during save or without a son
   assert.equal(launches, 1);
 });
 
+test("demo header clearly launches the ready lesson and passes the template-only intent", () => {
+  const header = load("HeaderBar", {headerBackgroundColor: "black", headerHeight: 64,
+    subtleBorderColor: "gray", panelBackgroundColor: "black", pagePanelWidth: "100%",
+    algebraStyles: {header: "", headerActionButton: ""}, URIcon: () => null});
+  let launchTemplateOnly: boolean | undefined;
+  const tree = header({isDemoMode: true, isAlgebraStudio: true, canLaunch: true, isSaving: false,
+    onLaunch: (playTemplateOnly?: boolean) => { launchTemplateOnly = playTemplateOnly; },
+    selectedActivityKey: "early-algebra"});
+  const buttons: Array<ReactElement<{
+    children?: ReactNode;
+    "aria-label"?: string;
+    title?: string;
+    onClick?: () => void;
+  }>> = [];
+  function visit(value: ReactNode) {
+    Children.forEach(value, child => {
+      if (!isValidElement<{children?: ReactNode; "aria-label"?: string; title?: string; onClick?: () => void}>(child)) return;
+      if (child.type === "button") buttons.push(child);
+      visit(child.props.children);
+    });
+  }
+  visit(tree as ReactNode);
+  const play = buttons.find(button => button.props.children === studentCopy.editor.demoPlayLessonLabel);
+  assert.ok(play);
+  assert.equal(play.props["aria-label"], studentCopy.editor.demoPlayLessonLabel);
+  assert.equal(play.props.title, studentCopy.editor.demoPlayLessonTitle);
+  play.props.onClick?.();
+  assert.equal(launchTemplateOnly, true);
+});
+
 for (const saveFails of [false, true]) test(`student launch previews its saved personal draft only when save succeeds; saveFails=${saveFails}`, async () => {
   const requests: Array<Record<string, unknown>> = [];
   const routes: string[] = [];
@@ -108,6 +138,39 @@ test("launches a published template without asking it to save again", async () =
   assert.equal(saves, 0);
   assert.equal(requests[0].authorId, "template-author");
   assert.equal(requests[0].revision, "template-revision");
+});
+
+test("demo ready-lesson launch bypasses device edits and routes the published template", async () => {
+  const requests: Array<Record<string, unknown>> = [];
+  const routes: string[] = [];
+  let saves = 0;
+  const launch = load("handleLaunchGame", {
+    isNumberBondsActivity: false,
+    isDemoMode: true,
+    selectedSongLaunch: {songAssetId: "song", activityKey: "early-algebra", authorName: "dev"},
+    selectedSongAuthorId: "template-author", lastSavedAuthorId: null, lastSavedRevision: null,
+    isSaving: false, hasUnsavedChanges: true,
+    lessonPublishReadiness: {ready: false, blockers: []},
+    handleSaveToSupabase: async () => { saves += 1; return false; },
+    requestFreshSongLaunchPackage: async (request: Record<string, unknown>) => {
+      requests.push(request);
+      return {songAssetId: "song", activityKey: "early-algebra", authorId: "template-author",
+        revision: "ready-revision", chart: {signedUrl: "chart"}, sidecar: {signedUrl: "sidecar"},
+        audio: {signedUrl: "audio"}, readiness: {canLaunch: true, state: "ready", message: ""}, ...request};
+    },
+    createSongLaunchSearchParams: () => new URLSearchParams(), navBasePath: "/demo/student",
+    buildEmbeddedGameUrl: () => "game", process: {env: {}}, appendSongFlowDebug: () => {},
+    getPlayerLaunchRoute: (basePath: string) => `${basePath}/game`,
+    persistLaunchParams: () => {}, router: {push: (route: string) => routes.push(route)}, setSaveStatus: () => {},
+    setLessonReadiness: () => {}, loadedSongReadyRef: {current: true},
+  });
+  await launch(true);
+  assert.equal(saves, 0, "demo-only edits must not be published as an official lesson");
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].authorId, "template-author");
+  assert.equal(requests[0].revision, null, "the server resolves the ready revision for the selected template");
+  assert.equal(requests[0].allowDraftPreview, false);
+  assert.deepEqual(routes, ["/demo/student/game"]);
 });
 
 test("incomplete demo lesson saves locally but never calls server publish", async () => {

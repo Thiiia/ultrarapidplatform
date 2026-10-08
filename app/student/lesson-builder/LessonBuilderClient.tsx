@@ -2029,7 +2029,7 @@ function HeaderBar({
   isSaving: boolean;
   onNavigateHome: () => void;
   onOpenFile: () => void;
-  onLaunch: () => void;
+  onLaunch: (playTemplateOnly?: boolean) => void;
   onSave: () => void;
   onSaveDraft?: () => void;
   canSaveDraft?: boolean;
@@ -2364,10 +2364,18 @@ function HeaderBar({
 
           <button
             type="button"
-            onClick={onLaunch}
+            onClick={() => onLaunch(isDemoMode ? true : undefined)}
             disabled={!canLaunch || isSaving}
-            aria-label={isAlgebraStudio ? "Play lesson preview" : studentCopy.editor.playLessonLabel}
-            title={isSaving ? "Saving lesson changes" : canLaunch ? (isAlgebraStudio ? "Preview this lesson" : studentCopy.editor.playLessonLabel) : studentCopy.editor.pickSongBeforePlay}
+            aria-label={isDemoMode
+              ? studentCopy.editor.demoPlayLessonLabel
+              : isAlgebraStudio ? "Play lesson preview" : studentCopy.editor.playLessonLabel}
+            title={isSaving
+              ? "Saving lesson changes"
+              : canLaunch
+                ? isDemoMode
+                  ? studentCopy.editor.demoPlayLessonTitle
+                  : isAlgebraStudio ? "Preview this lesson" : studentCopy.editor.playLessonLabel
+                : studentCopy.editor.pickSongBeforePlay}
             className={isAlgebraStudio ? algebraStyles.headerActionButton : undefined}
             style={{
               minWidth: isAlgebraStudio ? 124 : 70,
@@ -2383,7 +2391,7 @@ function HeaderBar({
               opacity: canLaunch && !isSaving ? 1 : 0.55,
             }}
           >
-            {isAlgebraStudio ? "Play preview" : "Play"}
+            {isDemoMode ? studentCopy.editor.demoPlayLessonLabel : isAlgebraStudio ? "Play preview" : "Play"}
           </button>
 
           {isAlgebraStudio && onSaveDraft ? (
@@ -15405,7 +15413,7 @@ export default function LessonBuilderClient({
           : navBasePath === "/student"
             ? "Save personal draft"
             : "Publish official lesson"}
-        canLaunch={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && (lessonPublishReadiness.ready || isNumberBondsActivity)}
+        canLaunch={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && (isDemoMode || lessonPublishReadiness.ready || isNumberBondsActivity)}
         canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && (isDemoMode || navBasePath === "/student" || lessonPublishReadiness.ready)}
         isRctm1Mode={isRctm1Mode}
         isRctm2Mode={isRctm2Mode}

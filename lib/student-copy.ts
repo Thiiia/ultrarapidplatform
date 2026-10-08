@@ -67,6 +67,8 @@ export const studentCopy = {
     changeSongLabel: "Choose a different song or activity",
     playLesson: "Play",
     playLessonLabel: "Play this lesson",
+    demoPlayLessonLabel: "Play ready lesson",
+    demoPlayLessonTitle: "Play the ready lesson. Demo edits saved on this device are not included.",
     saveLesson: "Save lesson",
     saveLessonLabel: "Save lesson changes",
     readyToPlay: "Ready to play!",
