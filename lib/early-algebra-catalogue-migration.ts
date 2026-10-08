@@ -19,25 +19,6 @@ import { repairLegacyMigratedAuthoredLesson } from "./legacy-authored-migration"
 
 type AlgebraEquationTemplate = { state: string; operationTargets: readonly string[] };
 
-const oneStepTemplates: readonly AlgebraEquationTemplate[] = [
-  { state: "x + 2 = 7", operationTargets: ["2"] },
-  { state: "x + 3 = 11", operationTargets: ["3"] },
-  { state: "x + 4 = 9", operationTargets: ["4"] },
-  { state: "x + 5 = 12", operationTargets: ["5"] },
-  { state: "x + 6 = 12", operationTargets: ["6"] },
-  { state: "x - 1 = 7", operationTargets: ["1"] },
-  { state: "x - 2 = 6", operationTargets: ["2"] },
-  { state: "x - 2 = 5", operationTargets: ["2"] },
-  { state: "x - 3 = 4", operationTargets: ["3"] },
-  { state: "x - 4 = 4", operationTargets: ["4"] },
-  { state: "2x = 8", operationTargets: ["2x"] },
-  { state: "2x = 10", operationTargets: ["2x"] },
-  { state: "2x = 12", operationTargets: ["2x"] },
-  { state: "3x = 9", operationTargets: ["3x"] },
-  { state: "3x = 12", operationTargets: ["3x"] },
-  { state: "4x = 12", operationTargets: ["4x"] },
-];
-
 function oneStepTemplateForOccurrence(
   occurrence: number,
   songOffset: number,
@@ -90,54 +71,44 @@ function orderOneStepVariantsBySolution(
     variantsBySolution.set(solution, variants);
   }
 
-  // Keep each song's answer size moving forward. The song offset changes the
-  // operands within an answer tier without jumping to a harder tier and back.
+  // Spread rows across the answer tiers from easiest to hardest. This gives
+  // short songs a useful range instead of repeating one answer, while the
+  // offset varies operands within each tier without raising the entry point.
   const ordered: AlgebraEquationTemplate[] = [];
-  for (const [, variants] of [...variantsBySolution.entries()].sort(([left], [right]) => left - right)) {
+  const tiers = [...variantsBySolution.entries()].sort(([left], [right]) => left - right);
+  const availableTemplates = tiers.reduce((total, [, variants]) => total + variants.length, 0);
+  if (requestedCount > availableTemplates) {
+    throw new Error(`Not enough Early Algebra templates for ${requestedCount} one-step rows`);
+  }
+  const selectedPerTier = tiers.map(() => 0);
+  let remaining = requestedCount;
+  while (remaining > 0) {
+    let allocatedThisRound = 0;
+    for (let tierIndex = 0; tierIndex < tiers.length && remaining > 0; tierIndex += 1) {
+      if (selectedPerTier[tierIndex] >= tiers[tierIndex][1].length) continue;
+      selectedPerTier[tierIndex] += 1;
+      remaining -= 1;
+      allocatedThisRound += 1;
+    }
+    if (allocatedThisRound === 0) {
+      throw new Error(`Not enough Early Algebra templates for ${requestedCount} one-step rows`);
+    }
+  }
+
+  for (const [tierIndex, [, variants]] of tiers.entries()) {
     const offset = songOffset % variants.length;
     const tier = [...variants.slice(offset), ...variants.slice(0, offset)];
+    const selectedCount = selectedPerTier[tierIndex];
+    if (selectedCount === 0) continue;
     const previousTarget = ordered[ordered.length - 1]?.operationTargets[0];
     if (tier[0]?.operationTargets[0] === previousTarget) {
       const alternativeIndex = tier.findIndex(({ operationTargets }) => operationTargets[0] !== previousTarget);
       if (alternativeIndex > 0) tier.unshift(...tier.splice(alternativeIndex, 1));
     }
-    ordered.push(...tier);
+    ordered.push(...tier.slice(0, selectedCount));
   }
-  const availableStarts = ordered.length - requestedCount + 1;
-  if (availableStarts <= 0) {
-    throw new Error(`Not enough Early Algebra templates for ${requestedCount} one-step rows`);
-  }
-  const start = songOffset % availableStarts;
-  return ordered.slice(start, start + requestedCount);
+  return ordered;
 }
-
-const twoStepTemplates: readonly AlgebraEquationTemplate[] = [
-  { state: "2x + 1 = 9", operationTargets: ["1", "2x"] },
-  { state: "2x + 2 = 10", operationTargets: ["2", "2x"] },
-  { state: "2x + 3 = 11", operationTargets: ["3", "2x"] },
-  { state: "2x + 4 = 12", operationTargets: ["4", "2x"] },
-  { state: "2x - 2 = 6", operationTargets: ["2", "2x"] },
-  { state: "3x + 1 = 10", operationTargets: ["1", "3x"] },
-  { state: "3x + 2 = 11", operationTargets: ["2", "3x"] },
-  { state: "3x + 3 = 12", operationTargets: ["3", "3x"] },
-  { state: "3x - 3 = 9", operationTargets: ["3", "3x"] },
-  { state: "4x + 1 = 9", operationTargets: ["1", "4x"] },
-  { state: "4x + 2 = 10", operationTargets: ["2", "4x"] },
-  { state: "4x - 4 = 8", operationTargets: ["4", "4x"] },
-];
-
-const threeStepTemplates: readonly AlgebraEquationTemplate[] = [
-  { state: "2x + 1 + 2 = 11", operationTargets: ["1", "2", "2x"] },
-  { state: "3x + 1 + 2 = 12", operationTargets: ["1", "2", "3x"] },
-  { state: "2x + 2 + 3 = 11", operationTargets: ["2", "3", "2x"] },
-  { state: "3x + 1 + 4 = 11", operationTargets: ["1", "4", "3x"] },
-  { state: "4x + 1 + 2 = 11", operationTargets: ["1", "2", "4x"] },
-  { state: "2x + 1 + 3 = 12", operationTargets: ["1", "3", "2x"] },
-  { state: "x + 2 + 3 = 10", operationTargets: ["2", "3", "x"] },
-  { state: "3x + 2 + 3 = 11", operationTargets: ["2", "3", "3x"] },
-  { state: "4x + 1 + 3 = 12", operationTargets: ["1", "3", "4x"] },
-  { state: "2x + 4 + 1 = 11", operationTargets: ["4", "1", "2x"] },
-];
 
 // Keep numbers within 10 for the upper-primary entry point, while varying the
 // examples by song without introducing multi-step or coefficient notation.
@@ -173,32 +144,19 @@ function firstUnusedTemplate(
   throw new Error(`No distinct Early Algebra ${stepLabel} equation template is available`);
 }
 
-// Match the authored Drag count to a clear learning profile: one-step
-// additive/multiplicative examples, two-step inverses, then a short three-step
-// stretch. Keep the unknown on one side and isolate small addends in sequence,
-// so early learners can apply the balance rule before the later
-// variable-on-both-sides skill.
-const foundation = [
-  ...oneStepTemplates.slice(0, 8).map(({ state }) => state),
-  ...twoStepTemplates.slice(0, 10).map(({ state }) => state),
-];
-const intermediate = twoStepTemplates.map(({ state }) => state);
-const advanced = threeStepTemplates.map(({ state }) => state);
-const gardenProgression = [
-  ...oneStepTemplates.slice(0, 4).map(({ state }) => state),
-  ...twoStepTemplates.slice(0, 4).map(({ state }) => state),
-  ...threeStepTemplates.slice(0, 2).map(({ state }) => state),
-];
-
-const catalogue: Record<string, { states: readonly string[]; offset: number; dualPadFromEquation: number }> = {
-  garden: { states: gardenProgression, offset: 0, dualPadFromEquation: 0 },
-  geminiqueen: { states: foundation, offset: 0, dualPadFromEquation: 2 },
-  grudge: { states: intermediate, offset: 0, dualPadFromEquation: 1 },
-  jazzmaybach: { states: foundation.slice(0, 2), offset: 0, dualPadFromEquation: 1 },
-  justbecause: { states: intermediate, offset: 2, dualPadFromEquation: 1 },
-  oneone: { states: intermediate, offset: 4, dualPadFromEquation: 1 },
-  seven: { states: foundation, offset: 5, dualPadFromEquation: 2 },
-  waves: { states: foundation, offset: 0, dualPadFromEquation: 2 },
+// Catalogue migration and refresh now share the same Early Algebra scope:
+// one inverse addition or subtraction per row, with positive whole-number
+// answers no greater than 10. Richer coefficient and multi-step work belongs
+// in a later lesson, after learners have practised equality and inverse operations.
+const catalogue: Record<string, { offset: number; dualPadFromEquation: number }> = {
+  garden: { offset: 0, dualPadFromEquation: 0 },
+  geminiqueen: { offset: 0, dualPadFromEquation: 2 },
+  grudge: { offset: 0, dualPadFromEquation: 1 },
+  jazzmaybach: { offset: 0, dualPadFromEquation: 1 },
+  justbecause: { offset: 2, dualPadFromEquation: 1 },
+  oneone: { offset: 4, dualPadFromEquation: 1 },
+  seven: { offset: 5, dualPadFromEquation: 2 },
+  waves: { offset: 0, dualPadFromEquation: 2 },
 };
 
 type Clock = ReturnType<typeof createLessonClock>;
@@ -397,11 +355,19 @@ export function migrateEarlyAlgebraCatalogueSong(input: {
   if (source.encounters.some((encounter) => encounter.id.includes("-rhythm-hit-"))) {
     throw new Error(`'${input.songAssetId}' has already been migrated to the rhythm-hit catalogue`);
   }
-  if (source.equations.length > specification.states.length) {
-    throw new Error(`No authored equation for all ${source.equations.length} '${input.songAssetId}' equations`);
+  if (source.equations.length > refreshedAdditionTemplates.length + refreshedSubtractionTemplates.length) {
+    throw new Error(`No distinct Early Algebra one-step equation for all ${source.equations.length} '${input.songAssetId}' equations`);
   }
+  const songOffset = [...input.songAssetId]
+    .reduce((total, character) => total + character.charCodeAt(0), 0) + specification.offset;
+  const usedStates = new Set<string>();
   const equations = source.equations.map((equation, index) => {
-    const state = specification.states[(index + specification.offset) % specification.states.length];
+    const state = oneStepTemplateForOccurrence(
+      index,
+      songOffset,
+      usedStates,
+      source.equations.length,
+    ).state;
     return {
       id: equation.id,
       state,

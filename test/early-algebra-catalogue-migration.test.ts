@@ -45,7 +45,7 @@ test("migrates old hits to the player hex and uses the released phrase for separ
     ],
   };
   const migrated = migrateEarlyAlgebraCatalogueSong({ songAssetId: "jazzmaybach", chart, sidecar: JSON.stringify(source) });
-  assert.deepEqual(migrated.equations.map((equation) => equation.state), ["x + 2 = 7", "x + 3 = 11"]);
+  assert.deepEqual(migrated.equations.map((equation) => equation.state), ["x + 1 = 2", "x - 1 = 1"]);
   assert.ok(migrated.encounters.length > source.encounters.length);
   assert.ok(source.encounters.every(({ id }) => migrated.encounters.some((encounter) => encounter.id === id)));
   assert.equal(migrated.encounters.find((encounter) => encounter.id === "first-drag")?.endTick, 5376);
