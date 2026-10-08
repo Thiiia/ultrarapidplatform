@@ -40,8 +40,8 @@ function isUnityCapabilitiesResponse(value: unknown): value is UnityCapabilities
   return Array.isArray(activities) && activities.every(isUnityActivitySupport);
 }
 
-function formatMechanic(mechanic: string) {
-  return mechanic.replace(/[-_]/g, " ").replace(/^./, (initial) => initial.toUpperCase());
+function formatLabel(value: string) {
+  return value.replace(/[-_]/g, " ").replace(/\b\w/g, (initial) => initial.toUpperCase());
 }
 
 async function loadCapabilities(signal?: AbortSignal): Promise<UnityActivitySupport[]> {
@@ -94,75 +94,43 @@ export function UnityRuntimeCapabilitiesProvider({
   );
 }
 
-export function UnityRuntimeSupport({ activityKey }: { activityKey: string }) {
-  const sharedCapabilities = useContext(RuntimeCapabilitiesContext);
-  const [localCapabilities, setLocalCapabilities] =
-    useState<CapabilitiesState>({ status: "checking" });
+export function UnityRuntimeDiagnosticsPanel() {
+  const capabilities = useContext(RuntimeCapabilitiesContext);
 
-  useEffect(() => {
-    if (sharedCapabilities) return;
+  if (!capabilities || capabilities.status === "checking") {
+    return <p role="status" aria-live="polite">Loading the hosted Unity runtime manifest…</p>;
+  }
 
-    const controller = new AbortController();
-    setLocalCapabilities({ status: "checking" });
-    void loadCapabilities(controller.signal)
-      .then((activities) => {
-        if (!controller.signal.aborted) {
-          setLocalCapabilities({ status: "ready", activities });
-        }
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) {
-          setLocalCapabilities({ status: "unavailable" });
-        }
-      });
-
-    return () => controller.abort();
-  }, [sharedCapabilities]);
-
-  const capabilities = sharedCapabilities ?? localCapabilities;
-  const activity =
-    capabilities.status === "ready"
-      ? capabilities.activities.find((entry) => entry.activityKey === activityKey)
-      : undefined;
-  const support =
-    capabilities.status === "checking"
-      ? { status: "checking" as const }
-      : capabilities.status === "unavailable"
-        ? { status: "unavailable" as const }
-        : !activity || activity.mechanics.length === 0
-          ? { status: "unsupported" as const }
-          : { status: "ready" as const, mechanics: activity.mechanics };
-
-  const state = support.status;
-  const value =
-    support.status === "checking"
-      ? "Checking"
-      : support.status === "ready"
-        ? support.mechanics.map(formatMechanic).join(" · ")
-        : support.status === "unsupported"
-          ? "Not supported"
-          : "Unavailable";
+  if (capabilities.status === "unavailable") {
+    return (
+      <p role="alert">
+        The hosted Unity runtime manifest is unavailable. Check the deployed build and try again.
+      </p>
+    );
+  }
 
   return (
-    <div
-      className="experience-runtime-support"
-      data-state={state}
-      role="status"
-      aria-live="polite"
-      aria-busy={state === "checking"}
-      aria-label={
-        support.status === "ready"
-          ? `Unity activity actions: ${support.mechanics.map(formatMechanic).join(", ")}`
-          : support.status === "checking"
-            ? "Checking Unity activity actions"
-            : support.status === "unsupported"
-              ? "This activity has no actions in the Unity runtime manifest"
-              : "Unity activity actions are unavailable"
-      }
-      title="Actions reported by Unity's verified runtime manifest. The selected lesson is checked again when you launch it."
-    >
-      <span className="experience-runtime-support__label">UNITY</span>
-      <span className="experience-runtime-support__value">{value}</span>
+    <div>
+      <p style={{ margin: "0 0 16px", color: "#D1D5DB", lineHeight: 1.6 }}>
+        Authored actions reported by the current hosted Unity build.
+      </p>
+      <ul style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", listStyle: "none", margin: 0, padding: 0 }}>
+        {capabilities.activities.map((activity) => (
+          <li
+            key={activity.activityKey}
+            style={{ background: "#1F2937", border: "1px solid #374151", borderRadius: 12, padding: 16 }}
+          >
+            <h2 style={{ margin: "0 0 8px", fontSize: 18 }}>
+              {formatLabel(activity.activityKey)}
+            </h2>
+            <p style={{ margin: 0, color: "#D1D5DB", lineHeight: 1.5 }}>
+              {activity.mechanics.length > 0
+                ? activity.mechanics.map(formatLabel).join(" · ")
+                : "No authored actions reported"}
+            </p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

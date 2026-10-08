@@ -244,16 +244,14 @@ function StudentActivityRow({
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        <StatChip label="Total attempts" value={String(student.totalAttempts)} />
-        <StatChip
-          label="Accuracy"
-          value={student.accuracyPercent === null ? "—" : `${student.accuracyPercent}%`}
-        />
-        <StatChip label="Completed" value={String(student.completedCount)} />
+        <StatChip label="Game launches" value={String(student.totalAttempts)} />
+        <StatChip label="Events completed" value={String(student.completedEvents)} />
+        <StatChip label="Hit attempts" value={String(student.hitAttempts)} />
+        <StatChip label="Runs finished" value={String(student.completedCount)} />
         {student.unverifiedCompletedCount > 0 && (
           <StatChip label="Older unverified" value={String(student.unverifiedCompletedCount)} />
         )}
-        <StatChip label="Incomplete" value={String(student.failedCount)} />
+        <StatChip label="Not finished" value={String(student.failedCount)} />
         {student.attemptsByActivity.map((stat) => (
           <StatChip
             key={stat.activityKey}
@@ -294,7 +292,7 @@ export default function TeacherProgressClient({
             {selectedClass.name}
           </h1>
           <p style={{ margin: 0, color: "#FFFFFFB3", fontSize: 13, fontWeight: 500 }}>
-            How much each student is using UltraRapid.
+            Recent game activity and saved progress for each student.
           </p>
         </div>
 

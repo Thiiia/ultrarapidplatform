@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAppUser } from "@/lib/current-user";
 import StudentSubpageShell from "../StudentSubpageShell";
+import UnityRunHistory from "./UnityRunHistory";
 
 export default async function ProgressPage() {
   const user = await getCurrentAppUser();
@@ -18,18 +19,56 @@ export default async function ProgressPage() {
     redirect("/teacher");
   }
 
-  const progressRecords = await prisma.progress.findMany({
-    where: {
-      userId: user.id,
-    },
-    include: {
-      mission: true,
-    },
-    orderBy: {
-      updatedAt: "desc",
-    },
-    take: 6,
+  const [progressRecords, unityOutcomes] = await Promise.all([
+    prisma.progress.findMany({
+      where: {
+        userId: user.id,
+      },
+      include: {
+        mission: true,
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+      take: 6,
+    }),
+    prisma.playerRunOutcome.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      select: {
+        launchAttemptId: true,
+        outcome: true,
+        completionVersion: true,
+        missionSteps: true,
+        createdAt: true,
+        launchAttempt: {
+          select: {
+            activityKey: true,
+            songAssetId: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  const songAssetIds = Array.from(new Set(
+    unityOutcomes.map((outcome) => outcome.launchAttempt.songAssetId),
+  ));
+  const songAssets = await prisma.songAsset.findMany({
+    where: { id: { in: songAssetIds } },
+    select: { id: true, title: true },
   });
+  const songTitleById = new Map(songAssets.map((song) => [song.id, song.title]));
+  const recentUnityRuns = unityOutcomes.map((outcome) => ({
+    launchAttemptId: outcome.launchAttemptId,
+    activityKey: outcome.launchAttempt.activityKey,
+    songTitle: songTitleById.get(outcome.launchAttempt.songAssetId) ?? null,
+    outcome: outcome.outcome,
+    completionVersion: outcome.completionVersion,
+    missionSteps: outcome.missionSteps,
+    createdAt: outcome.createdAt,
+  }));
 
   const completedCount = progressRecords.filter(
     (record) => record.status === "complete",
@@ -64,14 +103,16 @@ export default async function ProgressPage() {
           } currently in progress.`,
         },
         {
-          title: "Practice score",
+          title: "Lesson practice score",
           description:
             progressRecords.length > 0
               ? `${averageScore}% average across recent lessons.`
               : "Finish a lesson to see your practice here.",
         },
       ]}
-    />
+    >
+      <UnityRunHistory runs={recentUnityRuns} />
+    </StudentSubpageShell>
   );
 }
 export const dynamic = "force-dynamic";

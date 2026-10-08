@@ -1,0 +1,217 @@
+.history {
+  margin-top: 28px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 20px;
+  padding: clamp(18px, 2.5vw, 28px);
+  background:
+    radial-gradient(circle at 92% 0%, rgb(207 255 4 / 8%), transparent 34%),
+    linear-gradient(145deg, rgb(8 39 51 / 96%), rgb(3 14 20 / 96%));
+  color: var(--ur-text-marketing, #fff);
+}
+
+.heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--ur-accent-lime, #cfff04);
+  font-family: var(--ur-font-technical, ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--ur-font-interface, "Space Grotesk", sans-serif);
+  font-size: clamp(22px, 3vw, 28px);
+  line-height: 1.2;
+}
+
+.description {
+  max-width: 52ch;
+  margin: 8px 0 0;
+  color: rgb(255 255 255 / 74%);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.runList {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.runCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px 16px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 16px;
+  padding: 16px;
+  background: rgb(255 255 255 / 4%);
+}
+
+.runHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.runTitleGroup {
+  min-width: 0;
+}
+
+.activity {
+  margin: 0 0 4px;
+  color: rgb(255 255 255 / 72%);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.songTitle {
+  overflow-wrap: anywhere;
+  margin: 0;
+  font-family: var(--ur-font-interface, "Space Grotesk", sans-serif);
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.status {
+  flex: none;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.status[data-state="finished"] {
+  border-color: rgb(207 255 4 / 42%);
+  color: var(--ur-accent-lime, #cfff04);
+}
+
+.status[data-state="practice"] {
+  border-color: rgb(255 196 46 / 42%);
+  color: #ffd166;
+}
+
+.date {
+  grid-column: 1 / -1;
+  color: rgb(255 255 255 / 58%);
+  font-size: 13px;
+}
+
+.feedback {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  padding-top: 14px;
+}
+
+.feedbackHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.feedbackHeading span {
+  color: rgb(255 255 255 / 84%);
+}
+
+.feedbackHeading strong {
+  color: var(--ur-accent-lime, #cfff04);
+  font-variant-numeric: tabular-nums;
+}
+
+.progressTrack {
+  overflow: hidden;
+  height: 10px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 17%);
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ur-accent-lime, #cfff04);
+}
+
+.tip {
+  margin: 10px 0 0;
+  color: rgb(255 255 255 / 82%);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.emptyState {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  border: 1px dashed rgb(255 255 255 / 22%);
+  border-radius: 16px;
+  padding: 20px;
+  background: rgb(255 255 255 / 3%);
+}
+
+.emptyState p {
+  margin: 0;
+  color: rgb(255 255 255 / 80%);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.emptyState a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0 18px;
+  background: var(--ur-accent-lime, #cfff04);
+  color: #06171b;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.emptyState a:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+@media (max-width: 560px) {
+  .runCard {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .runHeading {
+    flex-direction: column;
+  }
+
+  .status {
+    align-self: flex-start;
+  }
+
+  .date,
+  .feedback {
+    grid-column: 1;
+  }
+}

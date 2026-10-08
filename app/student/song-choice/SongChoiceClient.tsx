@@ -23,7 +23,6 @@ import {
 } from "@/lib/song-choice-flow";
 import { studentCopy } from "@/lib/student-copy";
 import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigation";
-import { UnityRuntimeSupport } from "@/app/components/UnityRuntimeSupport";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
 
@@ -739,7 +738,7 @@ export default function SongChoiceClient({
     }
 
     if (searchParams.get("activity")?.trim()) {
-      setLaunchError("This activity is not supported by the current lesson flow.");
+      setLaunchError(studentCopy.songChoice.activityUnavailable);
       return;
     }
 
@@ -1142,9 +1141,6 @@ export default function SongChoiceClient({
               {studentCopy.songChoice.subtitle}
             </p>
 
-            {currentActivityKey ? (
-              <UnityRuntimeSupport activityKey={currentActivityKey} />
-            ) : null}
           </div>
         </div>
 

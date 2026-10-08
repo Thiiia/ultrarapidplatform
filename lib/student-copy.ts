@@ -27,10 +27,14 @@ export const studentCopy = {
     play: "Play",
     comingSoon: "Coming soon",
     gameDescriptions: {
-      numberBonds: "Put numbers together to make a bigger number.",
+      numberBonds: "Build a whole from two smaller parts.",
       equations: "Find out when two sides are equal.",
       missingNumbers: "Find the number that makes the equation true.",
-      earlyAlgebra: "Use letters for numbers you do not know yet.",
+      earlyAlgebra: "Find the missing value and keep both sides equal.",
+    },
+    gameGoals: {
+      numberBonds: "Parts make a whole",
+      earlyAlgebra: "Keep both sides equal",
     },
   },
   songChoice: {
@@ -44,6 +48,7 @@ export const studentCopy = {
     unknownArtist: "Artist not listed",
     noSongsTitle: "No songs found",
     noSongsBody: "Try a different search.",
+    activityUnavailable: "This game option is not available right now. Choose another game.",
     back: "Back",
     continue: "Continue",
     preparing: "Getting ready…",
@@ -151,7 +156,7 @@ export const studentCopy = {
     returning: "Closing this lesson…",
     returnSyncFailed: "We could not close this lesson session. Try again before leaving.",
     retryReturn: "Try again",
-    runtimeUnavailable: "The game is temporarily unavailable while we check its version. Your lesson is still here; try again later.",
+    runtimeUnavailable: "This game is not ready right now. Your lesson is safe; try again later.",
   },
 } as const;
 

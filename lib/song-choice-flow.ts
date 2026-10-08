@@ -29,6 +29,10 @@ export function isPlayableSongLaunchPackage(
 
 const LEARNER_READINESS_MESSAGES: Array<[RegExp, string]> = [
   [
+    /^This activity is not supported by the current lesson flow\./,
+    studentCopy.songChoice.activityUnavailable,
+  ],
+  [
     /^This Number Bonds lesson has not been published yet\./,
     "This Number Bonds lesson is being built. Choose Build Number Bonds lesson to finish it, or try another song.",
   ],

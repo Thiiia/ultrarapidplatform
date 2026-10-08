@@ -1,22 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { TeacherDashboardData } from "@/lib/teacher-dashboard";
+import { learningActivities, type LearningActivity } from "@/lib/learning-activities";
 import ExperienceRoleHeader from "@/app/components/ExperienceRoleHeader";
-import {
-  UnityRuntimeCapabilitiesProvider,
-  UnityRuntimeSupport,
-} from "@/app/components/UnityRuntimeSupport";
 import { getTeacherRoleNavigationItems } from "@/app/components/experience-role-navigation";
-import { studentCopy } from "@/lib/student-copy";
+import LearningActivityCard from "@/app/components/LearningActivityCard";
 import styles from "../student/student.module.css";
 
-import numberBondsImage from "@/public/numeracy_icons/number_bonds.png";
-import missingNumbersImage from "@/public/numeracy_icons/missing_numbers.png";
-import equationsImage from "@/public/numeracy_icons/equations.png";
-import earlyAlgebraImage from "@/public/numeracy_icons/early_algebra.png";
 
 type TeacherDashboardProps = {
   dashboardData: TeacherDashboardData;
@@ -74,47 +66,12 @@ export default function TeacherDashboard({
   const profileLabel = getDisplayFirstName(displayName);
   const isDemo = navBasePath.startsWith("/demo");
 
-  const gameCards = [
-    {
-      title: "Number Bonds",
-      key: "number-bonds",
-      icon: numberBondsImage,
-      alt: "Number bonds",
-      description: studentCopy.dashboard.gameDescriptions.numberBonds,
-      disabled: false,
-    },
-    {
-      title: "Equations",
-      key: "equations",
-      icon: equationsImage,
-      alt: "Equations",
-      description: studentCopy.dashboard.gameDescriptions.equations,
-      disabled: true,
-    },
-    {
-      title: "Missing Numbers",
-      key: "missing-numbers",
-      icon: missingNumbersImage,
-      alt: "Missing numbers",
-      description: studentCopy.dashboard.gameDescriptions.missingNumbers,
-      disabled: true,
-    },
-    {
-      title: "Early Algebra",
-      key: "early-algebra",
-      icon: earlyAlgebraImage,
-      alt: "Early algebra",
-      description: studentCopy.dashboard.gameDescriptions.earlyAlgebra,
-      disabled: false,
-    },
-  ];
-
   type WizardTarget =
     | { type: "class"; classId: string; label: string }
     | { type: "student"; classId: string; studentId: string; label: string };
 
   const [selectedActivity, setSelectedActivity] = useState<
-    (typeof gameCards)[number] | null
+    LearningActivity | null
   >(null);
   const [target, setTarget] = useState<WizardTarget | null>(null);
   const [availableMissions, setAvailableMissions] = useState<
@@ -141,11 +98,7 @@ export default function TeacherDashboard({
     setAssignedSummary("");
   }
 
-  async function handleChooseActivity(game: (typeof gameCards)[number]) {
-    if (game.disabled) {
-      return;
-    }
-
+  function handleChooseActivity(game: LearningActivity) {
     setSelectedActivity(game);
     setTarget(null);
     setAssignedSummary("");
@@ -421,137 +374,27 @@ export default function TeacherDashboard({
                 )}
               </div>
 
-              <UnityRuntimeCapabilitiesProvider>
-                <div className={styles.unityActivityGrid}>
-                {gameCards.map((game) => {
-                  const isDisabled = game.disabled;
+              <div className={styles.learningActivityGrid}>
+                {learningActivities.map((game) => {
                   const isSelected = selectedActivity?.key === game.key;
 
                   return (
-                    <div
-                      key={game.title}
-                      style={{
-                        width: "100%",
-                        minHeight: 320,
-                        display: "flex",
-                        flexDirection: "column",
-                        overflow: "hidden",
-                        borderRadius: 12,
-                        boxSizing: "border-box",
-                        border: isSelected
-                          ? "2px solid var(--ur-accent-lime)"
-                          : "2px solid transparent",
-                      }}
-                    >
-                      <div
-                        style={{
-                          height: 150,
-                          width: "100%",
-                          background: "var(--ur-canvas-deep)",
-                          border: "1px solid var(--color-border)",
-                          borderBottom: "none",
-                          opacity: isDisabled ? 0.5 : 1,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: 10,
-                          boxSizing: "border-box",
-                        }}
-                      >
-                        <Image
-                          src={game.icon}
-                          alt={game.alt}
-                          width={320}
-                          height={220}
-                          unoptimized
-                          style={{
-                            objectFit: "contain",
-                            objectPosition: "center",
-                            width: "100%",
-                            height: "100%",
-                            padding: 10,
-                          }}
-                          priority={game.title === "Number Bonds"}
-                        />
-                      </div>
-
-                      <div
-                        style={{
-                          flex: 1,
-                          background: "var(--ur-canvas-top)",
-                          border: "1px solid rgba(255, 255, 255, 0.14)",
-                          borderRadius: 0,
-                          display: "flex",
-                          flexDirection: "column",
-                          padding: "12px 12px 14px",
-                          boxSizing: "border-box",
-                        }}
-                      >
-                        <div
-                          style={{
-                            color: "var(--ur-text-marketing)",
-                            fontSize: 16,
-                            fontWeight: 600,
-                            marginBottom: 8,
-                          }}
-                        >
-                          {game.title}
-                        </div>
-                        <div
-                          style={{
-                            color: "var(--color-ink-muted)",
-                            fontSize: 13,
-                            lineHeight: 1.45,
-                            marginBottom: "auto",
-                          }}
-                        >
-                          {game.description}
-                        </div>
-
-                        <UnityRuntimeSupport activityKey={game.key} />
-
-                        <button
-                          type="button"
-                          onClick={() => handleChooseActivity(game)}
-                          disabled={isDisabled}
-                          style={{
-                            width: "90%",
-                            margin: "10px auto 0",
-                            minHeight: "var(--ur-target-minimum-web)",
-                            borderRadius: 999,
-                            border: "none",
-                            background: isDisabled
-                              ? "#7A7F86"
-                              : isSelected
-                                ? "var(--ur-canvas-top)"
-                                : "var(--ur-accent-lime)",
-                            color: isDisabled
-                              ? "#D9D9D9"
-                              : isSelected
-                                ? "var(--ur-accent-lime)"
-                                : "var(--ur-canvas-deep)",
-                            fontWeight: 700,
-                            fontSize: 13,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 8,
-                            cursor: isDisabled ? "not-allowed" : "pointer",
-                            opacity: isDisabled ? 0.75 : 1,
-                          }}
-                        >
-                          {isDisabled
-                            ? studentCopy.dashboard.comingSoon
-                            : isSelected
-                              ? "Selected"
-                              : "Choose"}
-                        </button>
-                      </div>
-                    </div>
+                    <LearningActivityCard
+                      key={game.key}
+                      activityKey={game.key}
+                      title={game.title}
+                      goal={game.goal}
+                      description={game.description}
+                      icon={game.icon}
+                      selected={isSelected}
+                      actionLabel={
+                        isSelected ? `${game.title} selected` : `Choose ${game.title}`
+                      }
+                      onAction={() => handleChooseActivity(game)}
+                    />
                   );
                 })}
-                </div>
-              </UnityRuntimeCapabilitiesProvider>
+              </div>
 
               {step >= 2 && selectedActivity && (
                 <div style={{ marginTop: 24 }}>

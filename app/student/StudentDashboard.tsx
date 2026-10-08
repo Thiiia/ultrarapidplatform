@@ -1,13 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { StudentDashboardData } from "@/lib/student-dashboard";
+import { learningActivities } from "@/lib/learning-activities";
+import LearningActivityCard from "@/app/components/LearningActivityCard";
 import ExperienceRoleHeader from "@/app/components/ExperienceRoleHeader";
-import {
-  UnityRuntimeCapabilitiesProvider,
-  UnityRuntimeSupport,
-} from "@/app/components/UnityRuntimeSupport";
 import { getStudentRoleNavigationItems } from "@/app/components/experience-role-navigation";
 import { studentCopy } from "@/lib/student-copy";
 import styles from "./student.module.css";
@@ -15,11 +12,6 @@ import styles from "./student.module.css";
 import CheckIcon from "@/public/check.svg";
 import CircleCheckIcon from "@/public/circle_check.svg";
 import ControllerIcon from "@/public/controller.svg";
-import PlayIcon from "@/public/Next_Button.svg";
-import numberBondsImage from "@/public/numeracy_icons/number_bonds.png";
-import missingNumbersImage from "@/public/numeracy_icons/missing_numbers.png";
-import equationsImage from "@/public/numeracy_icons/equations.png";
-import earlyAlgebraImage from "@/public/numeracy_icons/early_algebra.png";
 
 type StudentDashboardProps = {
   dashboardData: StudentDashboardData;
@@ -81,45 +73,6 @@ export default function StudentDashboard({
   const router = useRouter();
   const displayName = dashboardData.name ?? "Student";
   const profileLabel = getDisplayFirstName(displayName);
-
-  const gameCards = [
-    {
-      title: "Number Bonds",
-      key: "number-bonds",
-      icon: numberBondsImage,
-      alt: "Number bonds",
-      description: studentCopy.dashboard.gameDescriptions.numberBonds,
-      action: "play",
-      disabled: false,
-    },
-    {
-      title: "Equations",
-      key: "equations",
-      icon: equationsImage,
-      alt: "Equations",
-      description: studentCopy.dashboard.gameDescriptions.equations,
-      action: "coming-soon",
-      disabled: true,
-    },
-    {
-      title: "Missing Numbers",
-      key: "missing-numbers",
-      icon: missingNumbersImage,
-      alt: "Missing numbers",
-      description: studentCopy.dashboard.gameDescriptions.missingNumbers,
-      action: "coming-soon",
-      disabled: true,
-    },
-    {
-      title: "Early Algebra",
-      key: "early-algebra",
-      icon: earlyAlgebraImage,
-      alt: "Early algebra",
-      description: studentCopy.dashboard.gameDescriptions.earlyAlgebra,
-      action: "play",
-      disabled: false,
-    },
-  ];
 
   function handlePlayClick(activityKey: string, activityLabel: string) {
     const selectedActivity = {
@@ -352,128 +305,20 @@ export default function StudentDashboard({
                 <span>{studentCopy.dashboard.gamesTitle}</span>
               </div>
 
-              <UnityRuntimeCapabilitiesProvider>
-                <div className={styles.unityActivityGrid}>
-                {gameCards.map((game) => {
-                  const isDisabled = game.disabled;
-
-                  return (
-                    <div
-                      key={game.title}
-                      style={{
-                        width: "100%",
-                        minHeight: 320,
-                        display: "flex",
-                        flexDirection: "column",
-                        overflow: "hidden",
-                        borderRadius: 12,
-                        boxSizing: "border-box",
-                      }}
-                    >
-                      <div
-                        style={{
-                          height: 150,
-                          width: "100%",
-                          background: "var(--ur-canvas-deep)",
-                          border: "1px solid var(--color-border)",
-                          borderBottom: "none",
-                          opacity: isDisabled ? 0.5 : 1,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: 10,
-                          boxSizing: "border-box",
-                        }}
-                      >
-                        <Image
-                          src={game.icon}
-                          alt={game.alt}
-                          width={320}
-                          height={220}
-                          unoptimized
-                          style={{
-                            objectFit: "contain",
-                            objectPosition: "center",
-                            width: "100%",
-                            height: "100%",
-                            padding: 10,
-                          }}
-                          priority={game.title === "Number Bonds"}
-                        />
-                      </div>
-
-                      <div
-                        style={{
-                          flex: 1,
-                          background: "var(--ur-canvas-top)",
-                          border: "1px solid rgba(255, 255, 255, 0.14)",
-                          borderRadius: 0,
-                          display: "flex",
-                          flexDirection: "column",
-                          padding: "12px 12px 14px",
-                          boxSizing: "border-box",
-                        }}
-                      >
-                        <div
-                          style={{
-                            color: "var(--ur-text-marketing)",
-                            fontSize: 16,
-                            fontWeight: 600,
-                            marginBottom: 8,
-                          }}
-                        >
-                          {game.title}
-                        </div>
-                        <div
-                          style={{
-                            color: "var(--color-ink-muted)",
-                            fontSize: 13,
-                            lineHeight: 1.45,
-                            marginBottom: "auto",
-                          }}
-                        >
-                          {game.description}
-                        </div>
-
-                        <UnityRuntimeSupport activityKey={game.key} />
-
-                        <button
-                          type="button"
-                          onClick={() => handlePlayClick(game.key, game.title)}
-                          disabled={isDisabled}
-                          style={{
-                            width: "90%",
-                            margin: "10px auto 0",
-                            minHeight: "var(--ur-target-minimum-web)",
-                            borderRadius: 999,
-                            border: "none",
-                            background: game.action === "play" ? "var(--ur-accent-lime)" : "#7A7F86",
-                            color: game.action === "play" ? "var(--ur-canvas-deep)" : "#D9D9D9",
-                            fontWeight: 700,
-                            fontSize: 13,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 8,
-                            cursor: isDisabled ? "not-allowed" : "pointer",
-                            opacity: isDisabled ? 0.75 : 1,
-                          }}
-                        >
-                          {game.action === "play" ? (
-                            <>
-                              <PlayIcon style={{ width: 16, height: 16, display: "block" }} />
-                              <span>{studentCopy.dashboard.play}</span>
-                            </>
-                          ) : (
-                            studentCopy.dashboard.comingSoon
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-                </div>
-              </UnityRuntimeCapabilitiesProvider>
+              <div className={styles.learningActivityGrid}>
+                {learningActivities.map((game) => (
+                  <LearningActivityCard
+                    key={game.key}
+                    activityKey={game.key}
+                    title={game.title}
+                    goal={game.goal}
+                    description={game.description}
+                    icon={game.icon}
+                    actionLabel={`Play ${game.title}`}
+                    onAction={() => handlePlayClick(game.key, game.title)}
+                  />
+                ))}
+              </div>
             </div>
           </section>
         </div>

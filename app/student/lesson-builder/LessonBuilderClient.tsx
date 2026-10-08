@@ -15392,7 +15392,6 @@ export default function LessonBuilderClient({
       />
       {isAlgebraActivity ? (
         <AlgebraStudioBar
-          activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? "early-algebra"}
           songTitle={metadata?.songTitle?.trim() || uploadedSongName || "Choose a song"}
           encounterCount={timelineEvents.length}
           actionCount={timelineEvents.reduce((total, event) => total + gameplayMechanics.reduce((count, mechanic) => count + Math.max(0, event.counts?.[mechanic] ?? 0), 0), 0)}

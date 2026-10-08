@@ -13,7 +13,8 @@ export type StudentProgressSummary = {
   lastLoginAt: Date | null;
   totalAttempts: number;
   attemptsByActivity: StudentActivityStat[];
-  accuracyPercent: number | null;
+  completedEvents: number;
+  hitAttempts: number;
   completedCount: number;
   unverifiedCompletedCount: number;
   failedCount: number;
@@ -40,9 +41,8 @@ export function summarizePlayerRunOutcomeCounts(
 }
 
 /**
- * Aggregates each student's website/game usage (launch attempts, accuracy,
- * last played game) for a teacher's class roster, using the existing
- * PlayerLaunchAttempt/PlayerRunOutcome tracking tables.
+ * Aggregates each student's game launches, saved outcome counts, and last
+ * played game for a teacher's roster using the existing player run tables.
  */
 export async function getClassStudentActivity({
   teacherId,
@@ -140,10 +140,8 @@ export async function getClassStudentActivity({
       attemptsByActivity: Array.from(attemptCountsByActivity.entries()).map(
         ([activityKey, count]) => ({ activityKey, attempts: count }),
       ),
-      accuracyPercent:
-        totalHitAttempts > 0
-          ? Math.round((totalCompletedEvents / totalHitAttempts) * 100)
-          : null,
+      completedEvents: totalCompletedEvents,
+      hitAttempts: totalHitAttempts,
       ...outcomeCounts,
       lastPlayed: mostRecentAttempt
         ? {

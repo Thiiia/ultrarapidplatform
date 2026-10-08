@@ -110,6 +110,20 @@ export default async function AdminPage() {
             </p>
           </div>
 
+          <Link
+            href="/admin/runtime"
+            style={{
+              textDecoration: "none",
+              background: "#374151",
+              color: "#FFFFFF",
+              padding: "12px 16px",
+              borderRadius: 10,
+              fontWeight: 600,
+            }}
+          >
+            Unity runtime diagnostics
+          </Link>
+
           <a
             href="/auth/logout"
             style={{

@@ -1161,11 +1161,10 @@
   .headerBrandGroup { flex: 1 1 100%; }
   .header .headerActionGroup { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; margin-left: 0; gap: 6px; }
   .header .headerActionGroup > button { width: 100%; min-width: 0 !important; min-height: 40px; height: 40px; padding-inline: 8px; font-size: 11px; white-space: nowrap; }
-  .studioBar { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; grid-template-areas: "mark title add" "runtime runtime guide"; flex-shrink: 0; gap: 8px; padding: 8px 12px; }
+  .studioBar { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; grid-template-areas: "mark title add" "guide guide guide"; flex-shrink: 0; gap: 8px; padding: 8px 12px; }
   .studioMark { grid-area: mark; width: 36px; height: 36px; }
   .studioTitle { grid-area: title; min-width: 0; }
   .addAction { grid-area: add; }
-  :global(.experience-runtime-support) { grid-area: runtime; justify-self: start; max-width: 100%; padding-inline: 9px; }
   .guideWrap { grid-area: guide; justify-self: end; order: initial; }
   .addAction { min-height: 40px; padding-inline: 10px; font-size: 12px; }
   .main:not([data-guided-start="true"]) { height: auto !important; min-height: 0 !important; flex: 1 1 auto !important; grid-template-rows: minmax(0, 1fr) minmax(228px, 45%) !important; }

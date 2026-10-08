@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin-auth";
 import {
   HostedUnityCapabilityError,
   loadHostedUnityRuntimeCapabilities,
@@ -8,6 +9,14 @@ import { getUnityGameUrl } from "@/lib/unity-game-url";
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 
 export async function GET() {
+  const admin = await requireAdmin();
+  if (!admin) {
+    return NextResponse.json(
+      { code: "FORBIDDEN" },
+      { status: 403, headers: NO_STORE_HEADERS },
+    );
+  }
+
   try {
     const { manifest } = await loadHostedUnityRuntimeCapabilities(getUnityGameUrl());
     const activities = manifest.activities.map((activity) => ({

@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { UnityRuntimeSupport } from "@/app/components/UnityRuntimeSupport";
 import styles from "./AlgebraStudio.module.css";
 
 export function AlgebraStudioBar({
-  activityKey,
   songTitle,
   encounterCount,
   actionCount,
@@ -12,7 +10,6 @@ export function AlgebraStudioBar({
   onEditFirstEncounter,
   onCreateEquation,
 }: {
-  activityKey: string;
   songTitle: string;
   encounterCount: number;
   actionCount: number;
@@ -36,7 +33,6 @@ export function AlgebraStudioBar({
         <span className={styles.countDivider} aria-hidden="true" />
         <span><strong>{actionCount}</strong> {actionCount === 1 ? "action" : "actions"}</span>
       </div>
-      <UnityRuntimeSupport activityKey={activityKey} />
       <button type="button" className={styles.addAction} onClick={onAddAction} disabled={!canAddAction} title={canAddAction ? "Set up a player move" : "Choose and load a song first"}>+ Add a move</button>
       <div className={styles.guideWrap}>
         <button type="button" className={styles.guideToggle} aria-expanded={guideOpen} aria-controls="algebra-studio-guide" onClick={() => setGuideOverride(!guideOpen)}>How it works</button>
