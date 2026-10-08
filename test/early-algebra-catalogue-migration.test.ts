@@ -45,7 +45,7 @@ test("migrates old hits to the player hex and uses the released phrase for separ
     ],
   };
   const migrated = migrateEarlyAlgebraCatalogueSong({ songAssetId: "jazzmaybach", chart, sidecar: JSON.stringify(source) });
-  assert.deepEqual(migrated.equations.map((equation) => equation.state), ["x + 1 = 2", "x - 1 = 1"]);
+  assert.deepEqual(migrated.equations.map((equation) => equation.state), ["x + 3 = 4", "x - 1 = 1"]);
   assert.ok(migrated.encounters.length > source.encounters.length);
   assert.ok(source.encounters.every(({ id }) => migrated.encounters.some((encounter) => encounter.id === id)));
   assert.equal(migrated.encounters.find((encounter) => encounter.id === "first-drag")?.endTick, 5376);
@@ -158,11 +158,13 @@ test("gives each drag its own small equation row and rewrites the following cue 
   for (const [index, dragId] of ["drag-one", "drag-two", "drag-three"].entries()) {
     const drag = refreshed.encounters.find(({ id }) => id === dragId)!;
     const step = refreshed.equations[index];
+    const dragTarget = drag.dragTargets?.[0];
+    assert.ok(dragTarget, `${dragId} should have one authored target`);
     assert.equal(drag.equationId, step.id);
     assert.equal(refreshed.encounters.filter((encounter) => encounter.type === "drag" && encounter.equationId === step.id).length, 1);
-    assert.equal(step.tokens?.[drag.dragTargets?.[0].tokenIndex]?.id, drag.dragTargets?.[0].targetId);
-    const sourceHit = refreshed.encounters.find(({ id }) => id === drag.dragTargets?.[0].sourceHitId);
-    assert.equal(sourceHit?.hitBubbles?.[0]?.targetId, drag.dragTargets?.[0].targetId, drag.id);
+    assert.equal(step.tokens?.[dragTarget.tokenIndex]?.id, dragTarget.targetId);
+    const sourceHit = refreshed.encounters.find(({ id }) => id === dragTarget.sourceHitId);
+    assert.equal(sourceHit?.hitBubbles?.[0]?.targetId, dragTarget.targetId, drag.id);
   }
   assert.equal(refreshed.encounters.find(({ id }) => id === "hit-one")?.equationId, "waves-early-step-01");
   assert.equal(refreshed.encounters.find(({ id }) => id === "hit-two")?.equationId, "waves-early-step-02");

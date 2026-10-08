@@ -1999,6 +1999,7 @@ async function jsonFromSignedUrl(signedUrl: string, signal?: AbortSignal) {
 function HeaderBar({
   selectedSongTitle,
   selectedSongArtist,
+  selectedChartName,
   selectedActivityLabel,
   isSaving,
   onNavigateHome,
@@ -2021,6 +2022,7 @@ function HeaderBar({
 }: {
   selectedSongTitle: string;
   selectedSongArtist: string;
+  selectedChartName: string;
   selectedActivityLabel: string;
   selectedActivityKey: SongActivityKey | null;
   isAlgebraStudio?: boolean;
@@ -2117,6 +2119,12 @@ function HeaderBar({
           {isAlgebraStudio ? (
             <div className={algebraStyles.headerStudioIdentity}>
               <strong>ULTRARAPID / STUDIO</strong>
+              <span
+                className={algebraStyles.headerSongChartIdentity}
+                title={`${selectedSongTitle} · ${selectedChartName}`}
+              >
+                {selectedSongTitle} · {selectedChartName}
+              </span>
               <span>PRIVATE DRAFT</span>
             </div>
           ) : null}
@@ -2175,6 +2183,20 @@ function HeaderBar({
                 title={selectedSongArtist}
               >
                 {selectedSongArtist}
+              </span>
+              <span
+                style={{
+                  width: "100%",
+                  color: "#A9B8C7",
+                  fontSize: 9,
+                  fontWeight: 500,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+                title={`Chart: ${selectedChartName}`}
+              >
+                Chart · {selectedChartName}
               </span>
             </span>
           </div>
@@ -15359,6 +15381,7 @@ export default function LessonBuilderClient({
           metadata?.songTitle?.trim() || uploadedSongName || "Pick a song"
         }
         selectedSongArtist={metadata?.artist?.trim() || "Artist not listed"}
+        selectedChartName={uploadedChartName.trim() || "Not selected"}
         selectedActivityLabel={
           selectedSongActivity?.label ?? getActivityLabel(defaultSongActivityKey)
         }

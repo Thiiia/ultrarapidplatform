@@ -826,6 +826,7 @@
 .headerStudioIdentity { display: grid; gap: 2px; min-width: 0; }
 .headerStudioIdentity strong { color: #fff; font-size: 15px; line-height: 1.1; letter-spacing: .01em; white-space: nowrap; }
 .headerStudioIdentity span { color: var(--color-ink-muted, #a9b2ac); font: 700 10px/1.2 var(--ur-font-interface), sans-serif; letter-spacing: .1em; }
+.headerStudioIdentity .headerSongChartIdentity { color: #d1ddd7; font: 600 10px/1.2 var(--ur-font-interface), sans-serif; letter-spacing: normal; max-width: min(48vw, 600px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .headerActionGroup { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .headerActionButton,
 .headerDraftButton,
@@ -1076,6 +1077,7 @@
 @media (max-width: 680px) {
   .headerInner { flex-wrap: wrap; padding-block: 8px; }
   .headerBrandGroup { flex: 1 1 100%; }
+  .headerStudioIdentity .headerSongChartIdentity { max-width: calc(100vw - 80px); }
   .header .headerActionGroup { width: 100%; margin-left: 0; justify-content: flex-end; }
   .headerActionButton, .headerDraftButton, .headerPublishButton { flex: 1 1 0; }
   .playerTerm::after { inset: 3px; border-width: 2px; }

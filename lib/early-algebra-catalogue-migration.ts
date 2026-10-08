@@ -95,17 +95,37 @@ function orderOneStepVariantsBySolution(
     }
   }
 
-  for (const [tierIndex, [, variants]] of tiers.entries()) {
-    const offset = songOffset % variants.length;
-    const tier = [...variants.slice(offset), ...variants.slice(0, offset)];
+  const selectTier = (tierIndex: number, previousTarget: string | undefined): boolean => {
+    if (tierIndex >= tiers.length) return true;
+    const [, variants] = tiers[tierIndex];
     const selectedCount = selectedPerTier[tierIndex];
-    if (selectedCount === 0) continue;
-    const previousTarget = ordered[ordered.length - 1]?.operationTargets[0];
-    if (tier[0]?.operationTargets[0] === previousTarget) {
-      const alternativeIndex = tier.findIndex(({ operationTargets }) => operationTargets[0] !== previousTarget);
-      if (alternativeIndex > 0) tier.unshift(...tier.splice(alternativeIndex, 1));
-    }
-    ordered.push(...tier.slice(0, selectedCount));
+    if (selectedCount === 0) return selectTier(tierIndex + 1, previousTarget);
+
+    const offset = songOffset % variants.length;
+    const candidates = [...variants.slice(offset), ...variants.slice(0, offset)];
+    const chosenIndexes = new Set<number>();
+    const chooseWithinTier = (remaining: number, lastTarget: string | undefined): boolean => {
+      if (remaining === 0) return selectTier(tierIndex + 1, lastTarget);
+      for (const [variantIndex, candidate] of candidates.entries()) {
+        const target = candidate.operationTargets[0];
+        if (chosenIndexes.has(variantIndex) || target === lastTarget) continue;
+        chosenIndexes.add(variantIndex);
+        ordered.push(candidate);
+        if (chooseWithinTier(remaining - 1, target)) return true;
+        ordered.pop();
+        chosenIndexes.delete(variantIndex);
+      }
+      return false;
+    };
+
+    return chooseWithinTier(selectedCount, previousTarget);
+  };
+
+  // Backtrack across answer tiers when a tier has only one available operand.
+  // This keeps adjacent rows varied even when a final singleton would otherwise
+  // repeat the preceding operand (for example, Waves' largest subtraction).
+  if (!selectTier(0, undefined)) {
+    throw new Error(`Could not order ${requestedCount} distinct Early Algebra equation variants`);
   }
   return ordered;
 }
@@ -113,21 +133,26 @@ function orderOneStepVariantsBySolution(
 // Keep numbers within 10 for the upper-primary entry point, while varying the
 // examples by song without introducing multi-step or coefficient notation.
 const refreshedAdditionTemplates: readonly AlgebraEquationTemplate[] = Array.from(
-  { length: 24 },
+  { length: 9 },
+  (_, index) => index + 1,
+).flatMap((solution) => Array.from(
+  { length: 10 - solution },
   (_, index) => {
-    const addend = (index % 4) + 1;
-    const solution = Math.floor(index / 4) + 1;
+    const addend = index + 1;
     return { state: `x + ${addend} = ${addend + solution}`, operationTargets: [String(addend)] };
   },
-);
+));
 const refreshedSubtractionTemplates: readonly AlgebraEquationTemplate[] = Array.from(
-  { length: 24 },
+  { length: 9 },
+  (_, index) => index + 2,
+).flatMap((solution) => Array.from(
+  { length: solution - 1 },
   (_, index) => {
-    const subtrahend = (index % 4) + 1;
-    const difference = Math.floor(index / 4) + 1;
+    const subtrahend = index + 1;
+    const difference = solution - subtrahend;
     return { state: `x - ${subtrahend} = ${difference}`, operationTargets: [String(subtrahend)] };
   },
-);
+));
 
 function firstUnusedTemplate(
   candidates: readonly AlgebraEquationTemplate[],

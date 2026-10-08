@@ -504,6 +504,7 @@ export default function SongChoiceClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [isCustomizePromptOpen, setIsCustomizePromptOpen] = useState(false);
+  const customizePromptDialogRef = useRef<HTMLDialogElement | null>(null);
   const [isLaunching, setIsLaunching] = useState(false);
   const [launchError, setLaunchError] = useState("");
   const [durationsById, setDurationsById] = useState<Record<string, number>>(
@@ -1038,12 +1039,15 @@ export default function SongChoiceClient({
   }
 
   useEffect(() => {
-    if (!isCustomizePromptOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsCustomizePromptOpen(false);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    const dialog = customizePromptDialogRef.current;
+    if (!dialog) return;
+
+    if (isCustomizePromptOpen && !dialog.open) {
+      dialog.showModal();
+      dialog.querySelector<HTMLElement>("[data-entry-initial-focus]")?.focus();
+    } else if (!isCustomizePromptOpen && dialog.open) {
+      dialog.close();
+    }
   }, [isCustomizePromptOpen]);
 
   return (
@@ -1613,117 +1617,119 @@ export default function SongChoiceClient({
           {launchError}
         </p>
       ) : null}
-      {isCustomizePromptOpen ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="lesson-entry-title"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.64)",
-            zIndex: 1200,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-            boxSizing: "border-box",
-          }}
-        >
-          <div
-            className="experience-dialog"
+      <dialog
+        ref={customizePromptDialogRef}
+        className="experience-dialog"
+        aria-modal="true"
+        aria-labelledby="lesson-entry-title"
+        aria-describedby="lesson-entry-description"
+        onCancel={(event) => {
+          event.preventDefault();
+          setIsCustomizePromptOpen(false);
+        }}
+        style={{
+          width: "min(420px, calc(100vw - 40px))",
+          boxSizing: "border-box",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
+          borderRadius: 16,
+          background: "var(--ur-canvas-top)",
+          color: "#FFFFFF",
+          boxShadow: "0 24px 80px rgba(0, 0, 0, 0.46)",
+          padding: "22px 20px",
+        }}
+      >
+        <div style={{ display: "grid", gap: 18 }}>
+          <h2
             style={{
-              width: "min(420px, 92vw)",
-              background: "var(--ur-canvas-top)",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-              borderRadius: 16,
-              boxShadow: "0 24px 80px rgba(0, 0, 0, 0.46)",
-              padding: "22px 20px",
-              display: "grid",
-              gap: 18,
+              margin: 0,
+              color: "#FFFFFF",
+              fontSize: 22,
+              fontWeight: 800,
+              textAlign: "center",
             }}
           >
-            <h2
-              style={{
-                margin: 0,
-                color: "#FFFFFF",
-                fontSize: 22,
-                fontWeight: 800,
-                textAlign: "center",
-              }}
-            >
-              <span id="lesson-entry-title">{studentCopy.songChoice.chooseHowToStart}</span>
-            </h2>
+            <span id="lesson-entry-title">{studentCopy.songChoice.chooseHowToStart}</span>
+          </h2>
 
-            <p style={{ margin: 0, color: "#D1D5DB", textAlign: "center", lineHeight: 1.45 }}>
-              {selectedSongCanPlay
-                ? studentCopy.songChoice.readyToPlayBody
-                : selectedSong?.requiresRhythmSource
-                  ? "This song has beat timing ready to reuse. Choose a number, then press Play to place its notes and start."
-                  : studentCopy.songChoice.needsWorkBody}
+          <p id="lesson-entry-description" style={{ margin: 0, color: "#D1D5DB", textAlign: "center", lineHeight: 1.45 }}>
+            {selectedSongCanPlay
+              ? studentCopy.songChoice.readyToPlayBody
+              : selectedSong?.requiresRhythmSource
+                ? "This song has beat timing ready to reuse. Choose a number, then press Play to place its notes and start."
+                : studentCopy.songChoice.needsWorkBody}
+          </p>
+
+          {launchError ? (
+            <p role="alert" style={{ margin: 0, color: "#FFCB6B", textAlign: "center", lineHeight: 1.45 }}>
+              {launchError}
             </p>
+          ) : null}
 
-            {launchError ? (
-              <p role="alert" style={{ margin: 0, color: "#FFCB6B", textAlign: "center", lineHeight: 1.45 }}>
-                {launchError}
-              </p>
-            ) : null}
-
-            <div
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr",
+              gap: 12,
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleCustomizeYes}
+              data-entry-initial-focus
+              className="experience-button"
+              aria-label={studentCopy.songChoice.makeCopy}
               style={{
+                width: "100%",
+                minHeight: 48,
                 display: "grid",
-                gridTemplateColumns: "1fr",
-                gap: 12,
+                gap: 4,
+                border: "none",
+                borderRadius: 999,
+                background: "#CFFF04",
+                color: "#082733",
+                padding: "10px 18px",
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: "pointer",
               }}
             >
-              <button
-                type="button"
-                onClick={handleCustomizeYes}
-                aria-label={studentCopy.songChoice.makeCopy}
-                style={{
-                  border: "none",
-                  borderRadius: 999,
-                  background: "#CFFF04",
-                  color: "#082733",
-                  padding: "10px 18px",
-                  fontSize: 14,
-                  fontWeight: 800,
-                  cursor: "pointer",
-                }}
-              >
-                <span>{studentCopy.songChoice.makeCopy}</span>
-                <small style={{ display: "block", fontWeight: 600 }}>{studentCopy.songChoice.makeCopyBody}</small>
-              </button>
+              <span>{studentCopy.songChoice.makeCopy}</span>
+              <small style={{ display: "block", fontWeight: 600 }}>{studentCopy.songChoice.makeCopyBody}</small>
+            </button>
 
-              <button
-                type="button"
-                onClick={handleCustomizeNo}
-                disabled={!selectedSongCanPlay}
-                  aria-label={studentCopy.songChoice.playLesson}
-                title={selectedSongCanPlay ? studentCopy.songChoice.playLessonBody : "Finish the lesson before playing"}
-                style={{
-                  border: "1px solid #7A8FA8",
-                  borderRadius: 999,
-                  background: selectedSongCanPlay ? "transparent" : "rgba(255,255,255,0.06)",
-                  color: selectedSongCanPlay ? "#FFFFFF" : "#7A8FA8",
-                  padding: "10px 18px",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: selectedSongCanPlay ? "pointer" : "not-allowed",
-                  opacity: selectedSongCanPlay ? 1 : 0.65,
-                }}
-              >
-                <span>{studentCopy.songChoice.playLesson}</span>
-                <small style={{ display: "block", fontWeight: 600 }}>{studentCopy.songChoice.playLessonBody}</small>
-              </button>
+            <button
+              type="button"
+              onClick={handleCustomizeNo}
+              className="experience-button experience-button--secondary"
+              disabled={!selectedSongCanPlay}
+              aria-label={studentCopy.songChoice.playLesson}
+              title={selectedSongCanPlay ? studentCopy.songChoice.playLessonBody : "Finish the lesson before playing"}
+              style={{
+                width: "100%",
+                minHeight: 48,
+                display: "grid",
+                gap: 4,
+                border: "1px solid #7A8FA8",
+                borderRadius: 999,
+                background: selectedSongCanPlay ? "transparent" : "rgba(255,255,255,0.06)",
+                color: selectedSongCanPlay ? "#FFFFFF" : "#7A8FA8",
+                padding: "10px 18px",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: selectedSongCanPlay ? "pointer" : "not-allowed",
+                opacity: selectedSongCanPlay ? 1 : 0.65,
+              }}
+            >
+              <span>{studentCopy.songChoice.playLesson}</span>
+              <small style={{ display: "block", fontWeight: 600 }}>{studentCopy.songChoice.playLessonBody}</small>
+            </button>
 
-              <button type="button" onClick={() => setIsCustomizePromptOpen(false)} aria-label={studentCopy.songChoice.chooseDifferentSong} style={{ border: 0, background: "transparent", color: "#FFFFFF", padding: 8, cursor: "pointer", textDecoration: "underline" }}>
-                {studentCopy.songChoice.chooseDifferentSong}
-              </button>
-            </div>
+            <button type="button" className="experience-button" onClick={() => setIsCustomizePromptOpen(false)} aria-label={studentCopy.songChoice.chooseDifferentSong} style={{ width: "100%", minHeight: 44, border: 0, borderRadius: 8, background: "transparent", color: "#FFFFFF", padding: 8, cursor: "pointer", textDecoration: "underline" }}>
+              {studentCopy.songChoice.chooseDifferentSong}
+            </button>
           </div>
         </div>
-      ) : null}
+      </dialog>
 
         <style jsx global>{`
           @media (prefers-reduced-motion: reduce) {
