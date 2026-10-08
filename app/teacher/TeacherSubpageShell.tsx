@@ -4,8 +4,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import ExperienceRoleHeader, {
   type ExperienceRoleHeaderAction,
-  type ExperienceRoleNavigationItem,
 } from "@/app/components/ExperienceRoleHeader";
+import { getTeacherRoleNavigationItems } from "@/app/components/experience-role-navigation";
 import styles from "../student/student.module.css";
 
 import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
@@ -22,42 +22,6 @@ type TeacherSubpageShellProps = {
   navBasePath?: string;
   children?: ReactNode;
 };
-
-function getTopTabs(navBasePath = "/teacher"): ExperienceRoleNavigationItem[] {
-  return [
-    {
-      label: "Home",
-      href: navBasePath,
-      width: 99,
-      matchNested: false,
-    },
-    {
-      label: "Assignments",
-      href: `${navBasePath}/assignments`,
-      width: 130,
-    },
-    {
-      label: "Classes",
-      href: `${navBasePath}/classes`,
-      width: 120,
-    },
-    {
-      label: "Lessons",
-      href: `${navBasePath}/lessons`,
-      width: 120,
-    },
-    {
-      label: "Lesson Builder",
-      href: `${navBasePath}/song-choice`,
-      width: 159,
-    },
-    {
-      label: "Progress",
-      href: `${navBasePath}/progress`,
-      width: 120,
-    },
-  ];
-}
 
 const utilityItems: ExperienceRoleHeaderAction[] = [
   {
@@ -184,7 +148,7 @@ export default function TeacherSubpageShell({
   navBasePath = "/teacher",
   children,
 }: TeacherSubpageShellProps) {
-  const topTabs = getTopTabs(navBasePath);
+  const topTabs = getTeacherRoleNavigationItems(navBasePath);
 
   return (
     <div

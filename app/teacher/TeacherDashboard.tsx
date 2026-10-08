@@ -2,13 +2,17 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import type { TeacherDashboardData } from "@/lib/teacher-dashboard";
+import ExperienceRoleHeader from "@/app/components/ExperienceRoleHeader";
+import {
+  UnityRuntimeCapabilitiesProvider,
+  UnityRuntimeSupport,
+} from "@/app/components/UnityRuntimeSupport";
+import { getTeacherRoleNavigationItems } from "@/app/components/experience-role-navigation";
 import { studentCopy } from "@/lib/student-copy";
 import styles from "../student/student.module.css";
 
-import URIcon from "@/public/header_icons/URIcon.svg";
 import numberBondsImage from "@/public/numeracy_icons/number_bonds.png";
 import missingNumbersImage from "@/public/numeracy_icons/missing_numbers.png";
 import equationsImage from "@/public/numeracy_icons/equations.png";
@@ -37,186 +41,24 @@ function getDisplayFirstName(value?: string | null) {
   return firstName || "Profile";
 }
 
-const pagePanelWidth = "85vw";
 const pageBackgroundStyle =
   "linear-gradient(180deg, #082733 0%, #030E14 100%)";
 
 function HeaderBar({
   profileLabel,
   navBasePath,
-  pathname,
 }: {
   profileLabel: string;
   navBasePath: string;
-  pathname: string;
 }) {
-  const topTabs = [
-    { label: "Home", href: navBasePath, width: 99 },
-    { label: "Assignments", href: `${navBasePath}/assignments`, width: 130 },
-    { label: "Classes", href: `${navBasePath}/classes`, width: 120 },
-    { label: "Progress", href: `${navBasePath}/progress`, width: 120 },
-  ];
-
   return (
-    <header
-      style={{
-        background: "#060B15FC",
-        width: "100%",
-        boxSizing: "border-box",
-        height: 70,
-        border: "none",
-        borderBottom: "1px solid #FFFFFF14",
-        borderRadius: 0,
-        display: "flex",
-        alignItems: "center",
-        overflow: "visible",
-      }}
-    >
-      <div
-        style={{
-          width: pagePanelWidth,
-          height: "100%",
-          margin: "0 auto",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 24,
-          flexWrap: "nowrap",
-          overflow: "visible",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 28,
-            flexWrap: "nowrap",
-            minWidth: 0,
-            overflow: "visible",
-          }}
-        >
-          <div
-            style={{
-              width: 164,
-              height: 35,
-              display: "inline-flex",
-              alignItems: "center",
-              flexShrink: 0,
-              overflow: "visible",
-            }}
-          >
-            <URIcon
-              aria-label="UltraRapid"
-              style={{
-                width: 156,
-                height: 35,
-                display: "block",
-                flexShrink: 0,
-                overflow: "visible",
-              }}
-            />
-          </div>
-
-          <nav
-            aria-label="Teacher dashboard navigation"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "nowrap",
-              minWidth: 0,
-              overflow: "visible",
-            }}
-          >
-            {topTabs.map((tab) => {
-              const isHomeTab = tab.label === "Home";
-              const isActive =
-                pathname === tab.href ||
-                (isHomeTab && pathname === navBasePath) ||
-                (!isHomeTab && pathname.startsWith(`${tab.href}/`));
-
-              return (
-                <Link
-                  key={tab.label}
-                  href={tab.href}
-                  aria-label={tab.label}
-                  className={`${styles.headerTabButton} ${
-                    isActive ? styles.headerTabButtonActive : ""
-                  }`}
-                  style={{
-                    width: tab.width,
-                    height: 45.5,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    textDecoration: "none",
-                    background: "#060B15FC",
-                    borderBottom: isActive
-                      ? "3px solid #CFFF04"
-                      : "3px solid transparent",
-                    color: "#FFFFFF",
-                    fontSize: 13,
-                    fontWeight: 500,
-                    lineHeight: "19.5px",
-                  }}
-                >
-                  {tab.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            flexWrap: "nowrap",
-            marginLeft: "auto",
-            alignItems: "center",
-            flexShrink: 0,
-            overflow: "visible",
-          }}
-        >
-          <Link
-            href={`${navBasePath}/profile`}
-            aria-label="Profile"
-            className={styles.utilityButton}
-            style={{
-              minWidth: 112,
-              height: 38,
-              padding: "0 16px",
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#7A8FA8",
-              fontSize: 14,
-              fontWeight: 600,
-              borderRadius: 999,
-              background: "#060B15FC",
-              border: "1px solid #7A8FA8",
-            }}
-          >
-            {profileLabel}
-          </Link>
-
-          <a
-            href="/auth/logout"
-            aria-label="Log out"
-            className={`${styles.utilityButton} ${styles.logoutButton}`}
-            style={{
-              background: "#060B15FC",
-              color: "#7A8FA8",
-              border: "1px solid #7A8FA8",
-              borderRadius: 999,
-            }}
-          >
-            Log out
-          </a>
-        </div>
-      </div>
-    </header>
+    <ExperienceRoleHeader
+      role="Teacher"
+      navigationLabel="Teacher navigation"
+      navigationItems={getTeacherRoleNavigationItems(navBasePath)}
+      identityLabel={profileLabel}
+      logoutLabel="Log out"
+    />
   );
 }
 
@@ -226,7 +68,6 @@ export default function TeacherDashboard({
   viewedUserName,
   viewedUserEmail,
 }: TeacherDashboardProps) {
-  const pathname = usePathname();
   const router = useRouter();
   const displayName =
     viewedUserName ?? dashboardData.name ?? viewedUserEmail ?? dashboardData.email;
@@ -450,7 +291,6 @@ export default function TeacherDashboard({
       <HeaderBar
         profileLabel={profileLabel}
         navBasePath={navBasePath}
-        pathname={pathname}
       />
 
       <main
@@ -581,15 +421,8 @@ export default function TeacherDashboard({
                 )}
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                  gap: 18,
-                  alignItems: "stretch",
-                  width: "100%",
-                }}
-              >
+              <UnityRuntimeCapabilitiesProvider>
+                <div className={styles.unityActivityGrid}>
                 {gameCards.map((game) => {
                   const isDisabled = game.disabled;
                   const isSelected = selectedActivity?.key === game.key;
@@ -599,20 +432,23 @@ export default function TeacherDashboard({
                       key={game.title}
                       style={{
                         width: "100%",
+                        minHeight: 320,
                         display: "flex",
                         flexDirection: "column",
                         overflow: "hidden",
                         borderRadius: 12,
                         boxSizing: "border-box",
-                        border: isSelected ? "2px solid #CFFF04" : "2px solid transparent",
+                        border: isSelected
+                          ? "2px solid var(--ur-accent-lime)"
+                          : "2px solid transparent",
                       }}
                     >
                       <div
                         style={{
                           height: 150,
                           width: "100%",
-                          background: "#222222",
-                          border: "1px solid #222222",
+                          background: "var(--ur-canvas-deep)",
+                          border: "1px solid var(--color-border)",
                           borderBottom: "none",
                           opacity: isDisabled ? 0.5 : 1,
                           display: "flex",
@@ -642,8 +478,8 @@ export default function TeacherDashboard({
                       <div
                         style={{
                           flex: 1,
-                          background: "#2B2B2B",
-                          border: "1px solid #FFFFFF14",
+                          background: "var(--ur-canvas-top)",
+                          border: "1px solid rgba(255, 255, 255, 0.14)",
                           borderRadius: 0,
                           display: "flex",
                           flexDirection: "column",
@@ -653,7 +489,7 @@ export default function TeacherDashboard({
                       >
                         <div
                           style={{
-                            color: "#FFFFFF",
+                            color: "var(--ur-text-marketing)",
                             fontSize: 16,
                             fontWeight: 600,
                             marginBottom: 8,
@@ -663,7 +499,7 @@ export default function TeacherDashboard({
                         </div>
                         <div
                           style={{
-                            color: "rgba(255,255,255,0.55)",
+                            color: "var(--color-ink-muted)",
                             fontSize: 13,
                             lineHeight: 1.45,
                             marginBottom: "auto",
@@ -672,6 +508,8 @@ export default function TeacherDashboard({
                           {game.description}
                         </div>
 
+                        <UnityRuntimeSupport activityKey={game.key} />
+
                         <button
                           type="button"
                           onClick={() => handleChooseActivity(game)}
@@ -679,19 +517,19 @@ export default function TeacherDashboard({
                           style={{
                             width: "90%",
                             margin: "10px auto 0",
-                            minHeight: 38,
+                            minHeight: "var(--ur-target-minimum-web)",
                             borderRadius: 999,
                             border: "none",
                             background: isDisabled
                               ? "#7A7F86"
                               : isSelected
-                                ? "#2B2B2B"
-                                : "#CFFF04",
+                                ? "var(--ur-canvas-top)"
+                                : "var(--ur-accent-lime)",
                             color: isDisabled
                               ? "#D9D9D9"
                               : isSelected
-                                ? "#CFFF04"
-                                : "#0B1A1F",
+                                ? "var(--ur-accent-lime)"
+                                : "var(--ur-canvas-deep)",
                             fontWeight: 700,
                             fontSize: 13,
                             display: "inline-flex",
@@ -712,7 +550,8 @@ export default function TeacherDashboard({
                     </div>
                   );
                 })}
-              </div>
+                </div>
+              </UnityRuntimeCapabilitiesProvider>
 
               {step >= 2 && selectedActivity && (
                 <div style={{ marginTop: 24 }}>

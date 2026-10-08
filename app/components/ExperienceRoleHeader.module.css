@@ -161,6 +161,35 @@
   pointer-events: none;
 }
 
+.identity,
+.profileUtility {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 112px;
+  height: 38px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--ur-radius-pill);
+  padding: 0 var(--ur-space-4);
+  background: transparent;
+  color: var(--color-ink-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.profileUtility {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.profileUtility:hover:not(:disabled),
+.profileUtility[aria-current="page"] {
+  border-color: var(--ur-accent-lime);
+  background: color-mix(in srgb, var(--ur-accent-lime) 8%, transparent);
+  color: var(--ur-accent-lime);
+}
+
 .logout {
   width: 82px;
   font-family: var(--ur-font-interface), sans-serif;

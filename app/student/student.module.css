@@ -780,6 +780,26 @@
   color: var(--ur-accent-lime);
 }
 
+.unityActivityGrid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 18px;
+}
+
+@media (max-width: 1050px) {
+  .unityActivityGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .unityActivityGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 
 .studentTypography,
 .studentTypography * {

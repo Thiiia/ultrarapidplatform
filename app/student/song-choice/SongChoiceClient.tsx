@@ -23,6 +23,7 @@ import {
 } from "@/lib/song-choice-flow";
 import { studentCopy } from "@/lib/student-copy";
 import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigation";
+import { UnityRuntimeSupport } from "@/app/components/UnityRuntimeSupport";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
 
@@ -1069,9 +1070,10 @@ export default function SongChoiceClient({
 
         <div
           style={{
-            height: "15vh",
-            minHeight: 110,
+            minHeight: 150,
             width: "100%",
+            padding: "16px 0",
+            boxSizing: "border-box",
             background: "var(--ur-canvas-top)",
             borderBottom: "1px solid #FFFFFF14",
             display: "flex",
@@ -1139,6 +1141,10 @@ export default function SongChoiceClient({
             >
               {studentCopy.songChoice.subtitle}
             </p>
+
+            {currentActivityKey ? (
+              <UnityRuntimeSupport activityKey={currentActivityKey} />
+            ) : null}
           </div>
         </div>
 

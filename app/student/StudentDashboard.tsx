@@ -1,23 +1,17 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import type { StudentDashboardData } from "@/lib/student-dashboard";
+import ExperienceRoleHeader from "@/app/components/ExperienceRoleHeader";
 import {
   UnityRuntimeCapabilitiesProvider,
   UnityRuntimeSupport,
 } from "@/app/components/UnityRuntimeSupport";
+import { getStudentRoleNavigationItems } from "@/app/components/experience-role-navigation";
 import { studentCopy } from "@/lib/student-copy";
 import styles from "./student.module.css";
 
-import URIcon from "@/public/header_icons/URIcon.svg";
-import HomeIcon from "@/public/header_icons/Home.svg";
-import HomePressedIcon from "@/public/header_icons/Home_pressed.svg";
-import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
-import MyLessonsPressedTab from "@/public/header_icons/my_lessons_tab_pressed.svg";
-import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab.svg";
-import LessonBuilderPressedTab from "@/public/header_icons/lesson_builder_tab_pressed.svg";
 import CheckIcon from "@/public/check.svg";
 import CircleCheckIcon from "@/public/circle_check.svg";
 import ControllerIcon from "@/public/controller.svg";
@@ -53,203 +47,30 @@ const pageBackgroundStyle =
 function HeaderBar({
   profileLabel,
   navBasePath,
-  pathname,
 }: {
   profileLabel: string;
   navBasePath: string;
-  pathname: string;
 }) {
-  const topTabs = [
-    {
-      label: "Home",
-      href: navBasePath,
-      Icon: HomeIcon,
-      ActiveIcon: HomePressedIcon,
-      width: 99,
-    },
-    {
-      label: studentCopy.navigation.lessons,
-      href: `${navBasePath}/lessons`,
-      Icon: MyLessonsTab,
-      ActiveIcon: MyLessonsPressedTab,
-      width: 139,
-    },
-    {
-      label: studentCopy.navigation.builder,
-      href: `${navBasePath}/song-choice`,
-      Icon: LessonBuilderTab,
-      ActiveIcon: LessonBuilderPressedTab,
-      width: 159,
-    },
-  ];
-
   return (
-    <header
-      style={{
-        background: "#2B2B2B",
-        width: "100%",
-        boxSizing: "border-box",
-        height: 70,
-        border: "none",
-        borderBottom: "1px solid #FFFFFF14",
-        borderRadius: 0,
-        display: "flex",
-        alignItems: "center",
-        overflow: "visible",
-      }}
-    >
-      <div
-        style={{
-          width: pagePanelWidth,
-          height: "100%",
-          margin: "0 auto",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 24,
-          flexWrap: "nowrap",
-          overflow: "visible",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 28,
-            flexWrap: "nowrap",
-            minWidth: 0,
-            overflow: "visible",
-          }}
-        >
-          <div
-            style={{
-              width: 164,
-              height: 35,
-              display: "inline-flex",
-              alignItems: "center",
-              flexShrink: 0,
-              overflow: "visible",
-            }}
-          >
-            <URIcon
-              aria-label="UltraRapid"
-              style={{
-                width: 156,
-                height: 35,
-                display: "block",
-                flexShrink: 0,
-                overflow: "visible",
-              }}
-            />
-          </div>
-
-          <nav
-            aria-label="Student dashboard navigation"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              minWidth: 0,
-            }}
-          >
-            {topTabs.map((tab) => {
-              const lessonBuilderPath = tab.href.replace(
-                "/song-choice",
-                "/lesson-builder",
-              );
-              const isHomeTab = tab.label === "Home";
-              const isLessonBuilderTab = tab.label === studentCopy.navigation.builder;
-              const isActive =
-                pathname === tab.href ||
-                (isHomeTab && pathname === navBasePath) ||
-                (isLessonBuilderTab &&
-                  (pathname === lessonBuilderPath ||
-                    pathname.startsWith(`${lessonBuilderPath}/`))) ||
-                (!isHomeTab && !isLessonBuilderTab && pathname.startsWith(`${tab.href}/`));
-
-              const Icon = isActive ? tab.ActiveIcon : tab.Icon;
-
-              return (
-                <Link
-                  key={tab.label}
-                  href={tab.href}
-                  aria-label={tab.label}
-                  className={`${styles.headerTabButton} ${
-                    isActive ? styles.headerTabButtonActive : ""
-                  }`}
-                  style={{
-                    width: tab.width,
-                    height: 45.5,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    textDecoration: "none",
-                    background: "#2B2B2B",
-                  }}
-                >
-                  <Icon
-                    style={{
-                      width: tab.width,
-                      height: 45.5,
-                      display: "block",
-                    }}
-                  />
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            flexWrap: "nowrap",
-            marginLeft: "auto",
-            alignItems: "center",
-            flexShrink: 0,
-            overflow: "visible",
-          }}
-        >
-          <Link
-            href={navBasePath === "/demo/student" ? `${navBasePath}/profile` : "/student/profile"}
-            aria-label="Profile"
-            className={styles.utilityButton}
-            style={{
-              minWidth: 112,
-              height: 38,
-              padding: "0 16px",
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#7A8FA8",
-              fontSize: 14,
-              fontWeight: 600,
-              borderRadius: 999,
-              background: "#2B2B2B",
-              border: "1px solid #7A8FA8",
-            }}
-          >
-            {profileLabel}
-          </Link>
-
-          <a
-            href="/auth/logout"
-            aria-label="Log out"
-            className={`${styles.utilityButton} ${styles.logoutButton}`}
-            style={{
-              background: "#2B2B2B",
-              color: "#7A8FA8",
-              border: "1px solid #7A8FA8",
-              borderRadius: 999,
-            }}
-          >
-            {studentCopy.navigation.logout}
-          </a>
-        </div>
-      </div>
-    </header>
+    <ExperienceRoleHeader
+      role="Student"
+      navigationLabel="Student navigation"
+      navigationItems={getStudentRoleNavigationItems(navBasePath)}
+      utilityItems={[
+        {
+          label: profileLabel,
+          ariaLabel: "Profile",
+          mobileLabel: "Profile",
+          href:
+            navBasePath === "/demo/student"
+              ? `${navBasePath}/profile`
+              : "/student/profile",
+          mobile: true,
+          variant: "profile",
+        },
+      ]}
+      logoutLabel={studentCopy.navigation.logout}
+    />
   );
 }
 
@@ -257,7 +78,6 @@ export default function StudentDashboard({
   dashboardData,
   navBasePath = "/student",
 }: StudentDashboardProps) {
-  const pathname = usePathname();
   const router = useRouter();
   const displayName = dashboardData.name ?? "Student";
   const profileLabel = getDisplayFirstName(displayName);
@@ -335,7 +155,6 @@ export default function StudentDashboard({
       <HeaderBar
         profileLabel={profileLabel}
         navBasePath={navBasePath}
-        pathname={pathname}
       />
 
       <div
@@ -534,17 +353,7 @@ export default function StudentDashboard({
               </div>
 
               <UnityRuntimeCapabilitiesProvider>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                  gap: 18,
-                  alignItems: "stretch",
-                  width: "100%",
-                  height: "34.5vh",
-                  minHeight: 250,
-                }}
-              >
+                <div className={styles.unityActivityGrid}>
                 {gameCards.map((game) => {
                   const isDisabled = game.disabled;
 
@@ -553,8 +362,7 @@ export default function StudentDashboard({
                       key={game.title}
                       style={{
                         width: "100%",
-                        height: "34.5vh",
-                        minHeight: 250,
+                        minHeight: 320,
                         display: "flex",
                         flexDirection: "column",
                         overflow: "hidden",
@@ -564,10 +372,10 @@ export default function StudentDashboard({
                     >
                       <div
                         style={{
-                          height: "55.5%",
+                          height: 150,
                           width: "100%",
-                          background: "#222222",
-                          border: "1px solid #222222",
+                          background: "var(--ur-canvas-deep)",
+                          border: "1px solid var(--color-border)",
                           borderBottom: "none",
                           opacity: isDisabled ? 0.5 : 1,
                           display: "flex",
@@ -597,8 +405,8 @@ export default function StudentDashboard({
                       <div
                         style={{
                           flex: 1,
-                          background: "#2B2B2B",
-                          border: "1px solid #FFFFFF14",
+                          background: "var(--ur-canvas-top)",
+                          border: "1px solid rgba(255, 255, 255, 0.14)",
                           borderRadius: 0,
                           display: "flex",
                           flexDirection: "column",
@@ -608,7 +416,7 @@ export default function StudentDashboard({
                       >
                         <div
                           style={{
-                            color: "#FFFFFF",
+                            color: "var(--ur-text-marketing)",
                             fontSize: 16,
                             fontWeight: 600,
                             marginBottom: 8,
@@ -618,7 +426,7 @@ export default function StudentDashboard({
                         </div>
                         <div
                           style={{
-                            color: "rgba(255,255,255,0.55)",
+                            color: "var(--color-ink-muted)",
                             fontSize: 13,
                             lineHeight: 1.45,
                             marginBottom: "auto",
@@ -636,18 +444,18 @@ export default function StudentDashboard({
                           style={{
                             width: "90%",
                             margin: "10px auto 0",
-                            minHeight: 38,
+                            minHeight: "var(--ur-target-minimum-web)",
                             borderRadius: 999,
                             border: "none",
-                            background: game.action === "play" ? "#CFFF04" : "#7A7F86",
-                            color: game.action === "play" ? "#0B1A1F" : "#D9D9D9",
+                            background: game.action === "play" ? "var(--ur-accent-lime)" : "#7A7F86",
+                            color: game.action === "play" ? "var(--ur-canvas-deep)" : "#D9D9D9",
                             fontWeight: 700,
                             fontSize: 13,
                             display: "inline-flex",
                             alignItems: "center",
                             justifyContent: "center",
                             gap: 8,
-                            cursor: "pointer",
+                            cursor: isDisabled ? "not-allowed" : "pointer",
                             opacity: isDisabled ? 0.75 : 1,
                           }}
                         >
@@ -664,7 +472,7 @@ export default function StudentDashboard({
                     </div>
                   );
                 })}
-              </div>
+                </div>
               </UnityRuntimeCapabilitiesProvider>
             </div>
           </section>

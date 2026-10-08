@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { FC, SVGProps } from "react";
+import type { CSSProperties, FC, SVGProps } from "react";
 import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigation";
 import styles from "./ExperienceRoleHeader.module.css";
 
@@ -22,11 +22,14 @@ export type ExperienceRoleNavigationItem = {
 
 export type ExperienceRoleHeaderAction = {
   label: string;
+  ariaLabel?: string;
+  mobileLabel?: string;
   href?: string;
   width?: number;
   Icon?: ExperienceRoleHeaderIcon;
   disabled?: boolean;
   mobile?: boolean;
+  variant?: "profile";
 };
 
 type ExperienceRoleHeaderProps = {
@@ -34,6 +37,7 @@ type ExperienceRoleHeaderProps = {
   navigationLabel: string;
   navigationItems: ExperienceRoleNavigationItem[];
   utilityItems?: ExperienceRoleHeaderAction[];
+  identityLabel?: string;
   logoutLabel: string;
 };
 
@@ -64,6 +68,7 @@ export default function ExperienceRoleHeader({
   navigationLabel,
   navigationItems,
   utilityItems = [],
+  identityLabel,
   logoutLabel,
 }: ExperienceRoleHeaderProps) {
   const pathname = usePathname();
@@ -76,7 +81,7 @@ export default function ExperienceRoleHeader({
     ...utilityItems
       .filter((item) => item.mobile && item.href)
       .map((item) => ({
-        label: item.label,
+        label: item.mobileLabel ?? item.label,
         href: item.href as string,
         current: matchesPath(pathname, item.href as string),
       })),
@@ -123,6 +128,9 @@ export default function ExperienceRoleHeader({
         </div>
 
         <div className={`experience-role-utilities ${styles.utilities}`}>
+          {identityLabel ? (
+            <span className={styles.identity}>{identityLabel}</span>
+          ) : null}
           {utilityItems.map((item) => {
             const Icon = item.Icon;
             const current = item.href
@@ -130,8 +138,8 @@ export default function ExperienceRoleHeader({
               : false;
             const className = `${styles.utilityItem} ${
               Icon ? styles.iconUtility : ""
-            }`;
-            const style = {
+            } ${item.variant === "profile" ? styles.profileUtility : ""}`;
+            const style: CSSProperties = {
               ...(item.width ? { width: item.width } : {}),
               ...(item.disabled
                 ? { background: "transparent", cursor: "default" }
@@ -148,7 +156,7 @@ export default function ExperienceRoleHeader({
                 <button
                   key={item.label}
                   type="button"
-                  aria-label={item.label}
+                  aria-label={item.ariaLabel ?? item.label}
                   className={className}
                   disabled
                   style={style}
@@ -164,7 +172,7 @@ export default function ExperienceRoleHeader({
               <Link
                 key={item.label}
                 href={item.href}
-                aria-label={item.label}
+                aria-label={item.ariaLabel ?? item.label}
                 aria-current={current ? "page" : undefined}
                 className={className}
                 style={style}
