@@ -339,6 +339,58 @@ test("preserves zero-Drag equations and encounter targets during the math-only r
   assert.deepEqual(refreshed.encounters, source.encounters);
 });
 
+test("keeps a mixed cue-only equation and its Hits out of the next Drag row", () => {
+  const cueOnlyEquation = {
+    id: "cue-only", state: "x - 6 = 6",
+    tokens: ["x", "-", "6", "=", "6"].map((label, index) => ({ id: `cue-only-token-${index}`, label })),
+  };
+  const cueOnlyHits = Array.from({ length: 7 }, (_, index) => ({
+    id: `cue-only-hit-${index + 1}`,
+    eventId: `cue-only-hit-event-${index + 1}`,
+    type: "hit" as const,
+    equationId: cueOnlyEquation.id,
+    startTick: index + 4,
+    endTick: index + 4,
+    hitBubbles: [{ tokenIndex: 0, targetId: "cue-only-token-0", pads: ["topLeft"] }],
+  }));
+  const source = {
+    version: 3, mode: "authored", songAssetId: "jazzmaybach", activityKey: "early-algebra",
+    equations: [
+      { id: "before", state: "x^2 - 12x + 36 = 0" },
+      cueOnlyEquation,
+      { id: "after", state: "x^2 - 12x + 36 = 0" },
+    ],
+    encounters: [
+      { id: "before-hit", eventId: "before-hit-event", type: "hit", equationId: "before", startTick: 1, endTick: 1,
+        hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"] }] },
+      { id: "before-drag", eventId: "before-drag-event", type: "drag", equationId: "before", startTick: 2, endTick: 3,
+        dragTargets: [{ tokenIndex: 2, sourceHitId: "before-hit" }] },
+      ...cueOnlyHits,
+      { id: "after-hit", eventId: "after-hit-event", type: "hit", equationId: "after", startTick: 11, endTick: 11,
+        hitBubbles: [{ tokenIndex: 0, pads: ["topRight"] }] },
+      { id: "after-drag", eventId: "after-drag-event", type: "drag", equationId: "after", startTick: 12, endTick: 13,
+        dragTargets: [{ tokenIndex: 2, sourceHitId: "after-hit" }] },
+    ],
+  };
+
+  const refreshed = refreshEarlyAlgebraEquationContent({
+    songAssetId: "jazzmaybach", sidecar: JSON.stringify(source),
+  });
+
+  assert.deepEqual(refreshed.equations.find(({ id }) => id === "cue-only"), cueOnlyEquation);
+  const retainedHits = refreshed.encounters.filter((encounter) => encounter.type === "hit" && encounter.equationId === "cue-only");
+  assert.equal(retainedHits.length, 7);
+  for (const cue of cueOnlyHits) {
+    assert.deepEqual(refreshed.encounters.find(({ id }) => id === cue.id), cue);
+  }
+  const afterHit = refreshed.encounters.find(({ id }) => id === "after-hit");
+  const afterDrag = refreshed.encounters.find(({ id }) => id === "after-drag");
+  assert.equal(afterHit?.equationId, "jazzmaybach-early-step-02");
+  assert.equal(afterDrag?.equationId, afterHit?.equationId);
+  assert.notEqual(afterHit?.equationId, "cue-only");
+  assert.equal(afterDrag?.type === "drag" ? afterDrag.dragTargets?.[0]?.sourceHitId : undefined, "after-hit");
+});
+
 test("all refreshed equation templates stay linear, small, solvable, and targetable", () => {
   const equations: Array<{ id: string; state: string }> = [];
   const encounters: Array<Record<string, unknown>> = [];

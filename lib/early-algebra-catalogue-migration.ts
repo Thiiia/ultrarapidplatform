@@ -183,6 +183,10 @@ export function refreshEarlyAlgebraEquationContent(input: {
     left.startTick - right.startTick || left.id.localeCompare(right.id));
   if (!orderedEncounters.some((encounter) => encounter.type === "drag")) return source;
   const totalDragSteps = orderedEncounters.filter((encounter) => encounter.type === "drag").length;
+  const draggedEquationIds = new Set(orderedEncounters
+    .filter((encounter) => encounter.type === "drag")
+    .map((encounter) => encounter.equationId));
+  const preservedEquations = source.equations.filter((equation) => !draggedEquationIds.has(equation.id));
 
   const songOffset = [...input.songAssetId]
     .reduce((total, character) => total + character.charCodeAt(0), 0);
@@ -193,6 +197,9 @@ export function refreshEarlyAlgebraEquationContent(input: {
     encounters: AuthoredLessonEncounter[];
   }> = [];
   let pendingEncounters: AuthoredLessonEncounter[] = [];
+  const refreshedById = new Map<string, AuthoredLessonEncounter>(source.encounters
+    .filter((encounter) => !draggedEquationIds.has(encounter.equationId))
+    .map((encounter) => [encounter.id, encounter]));
 
   const finishStep = () => {
     const dragEncounters = pendingEncounters.filter((encounter) => encounter.type === "drag");
@@ -227,6 +234,10 @@ export function refreshEarlyAlgebraEquationContent(input: {
   };
 
   for (const encounter of orderedEncounters) {
+    // Keep cue-only rows attached to their authored equation. In a mixed
+    // lesson, absorbing one into the next Drag step would retarget its Hits
+    // and silently drop its equation from the refreshed sidecar.
+    if (!draggedEquationIds.has(encounter.equationId)) continue;
     pendingEncounters.push(encounter);
     if (encounter.type === "drag") finishStep();
   }
@@ -238,7 +249,6 @@ export function refreshEarlyAlgebraEquationContent(input: {
     steps[steps.length - 1].encounters.push(...pendingEncounters);
   }
 
-  const refreshedById = new Map<string, AuthoredLessonEncounter>();
   for (const step of steps) {
     const tokens = step.equation.tokens ?? [];
     const targetAt = (tokenIndex: number) => ({ tokenIndex, targetId: tokens[tokenIndex].id });
@@ -275,7 +285,7 @@ export function refreshEarlyAlgebraEquationContent(input: {
     }
   }
 
-  const equations = steps.map(({ equation }) => equation);
+  const equations = [...steps.map(({ equation }) => equation), ...preservedEquations];
   const encounters = source.encounters.map((encounter) => {
     const refreshed = refreshedById.get(encounter.id);
     if (!refreshed) throw new Error(`Encounter '${encounter.id}' was not refreshed`);
