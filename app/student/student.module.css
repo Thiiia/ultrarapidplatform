@@ -800,8 +800,7 @@
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
   transition:
     border-color 180ms ease,
-    box-shadow 180ms ease,
-    transform 180ms ease;
+    box-shadow 180ms ease;
 }
 
 .learningActivityCard[data-selected="true"] {
@@ -839,7 +838,6 @@
   height: 178px;
   padding: 16px;
   object-fit: contain;
-  transition: transform 180ms ease;
 }
 
 .learningActivityContent {
@@ -889,7 +887,7 @@
 
 .learningActivityContent .learningActivityAction {
   width: 100%;
-  min-height: var(--ur-target-minimum-web);
+  min-height: 52px;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -904,13 +902,30 @@
   font-weight: 800;
   line-height: 1.2;
   text-align: left;
-  transition: background-color 180ms ease, color 180ms ease;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, filter 180ms ease;
+}
+
+.learningActivityContent .learningActivityAction:hover:not(:disabled) {
+  border-color: var(--color-lime-dark);
+  background: var(--color-lime-dark);
 }
 
 .learningActivityContent .learningActivityAction[aria-pressed="true"] {
-  border-color: rgba(207, 255, 4, 0.6);
-  background: rgba(207, 255, 4, 0.1);
-  color: var(--ur-accent-lime);
+  border-color: var(--ur-accent-purple);
+  background: var(--ur-accent-purple);
+  color: var(--ur-text-primary);
+}
+
+.learningActivityContent .learningActivityAction[aria-pressed="true"]:hover:not(:disabled) {
+  filter: brightness(1.14);
+}
+
+.learningActivityContent .learningActivityAction[aria-pressed="true"]:active:not(:disabled) {
+  filter: brightness(0.9);
+}
+
+.learningActivityContent .learningActivityAction:active:not(:disabled) {
+  filter: brightness(0.92);
 }
 
 .learningActivityAction:focus-visible {
@@ -920,13 +935,8 @@
 
 @media (hover: hover) {
   .learningActivityCard:hover {
-    transform: translateY(-3px);
     border-color: rgba(207, 255, 4, 0.54);
     box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
-  }
-
-  .learningActivityCard:hover .learningActivityArtwork img {
-    transform: scale(1.035);
   }
 }
 
@@ -955,14 +965,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .learningActivityCard,
-  .learningActivityArtwork img,
   .learningActivityContent .learningActivityAction {
     transition: none;
-  }
-
-  .learningActivityCard:hover,
-  .learningActivityCard:hover .learningActivityArtwork img {
-    transform: none;
   }
 }
 
