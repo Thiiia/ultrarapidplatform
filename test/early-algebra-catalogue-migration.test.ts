@@ -277,6 +277,21 @@ test("refreshes all 8 songs with one-step equations within 10 and an additive-to
       return Number(difference) + Number(subtrahend);
     });
     assert.ok(solutions.every((solution) => Number.isSafeInteger(solution) && solution > 0 && solution <= 10), songAssetId);
+    for (const family of ["additive", "subtractive"] as const) {
+      const familySolutions = refreshed.equations
+        .filter(({ state }) => familyFor(state) === family)
+        .map(({ state }) => {
+          if (state.startsWith("x +")) {
+            const [, addend, total] = state.match(/^x \+ (\d+) = (\d+)$/)!;
+            return Number(total) - Number(addend);
+          }
+          const [, subtrahend, difference] = state.match(/^x - (\d+) = (\d+)$/)!;
+          return Number(difference) + Number(subtrahend);
+        });
+      assert.ok(familySolutions.every((solution, index) =>
+        index === 0 || solution >= familySolutions[index - 1]),
+      `${songAssetId} ${family} solutions should not reset to an easier value`);
+    }
   }
   assert.ok(allStates.size >= 40, `expected variety across all songs, got ${allStates.size} distinct equations`);
 });
@@ -339,7 +354,7 @@ test("preserves zero-Drag equations and encounter targets during the math-only r
   assert.deepEqual(refreshed.encounters, source.encounters);
 });
 
-test("keeps a mixed cue-only equation and its Hits out of the next Drag row", () => {
+test("simplifies an over-range mixed cue-only equation without moving its Hits into a Drag row", () => {
   const cueOnlyEquation = {
     id: "cue-only", state: "x - 6 = 6",
     tokens: ["x", "-", "6", "=", "6"].map((label, index) => ({ id: `cue-only-token-${index}`, label })),
@@ -377,7 +392,9 @@ test("keeps a mixed cue-only equation and its Hits out of the next Drag row", ()
     songAssetId: "jazzmaybach", sidecar: JSON.stringify(source),
   });
 
-  assert.deepEqual(refreshed.equations.find(({ id }) => id === "cue-only"), cueOnlyEquation);
+  const refreshedCueOnly = refreshed.equations.find(({ id }) => id === "cue-only")!;
+  assert.equal(refreshedCueOnly.state, "x - 2 = 5");
+  assert.deepEqual(refreshedCueOnly.tokens?.map(({ id }) => id), cueOnlyEquation.tokens.map(({ id }) => id));
   const retainedHits = refreshed.encounters.filter((encounter) => encounter.type === "hit" && encounter.equationId === "cue-only");
   assert.equal(retainedHits.length, 7);
   for (const cue of cueOnlyHits) {

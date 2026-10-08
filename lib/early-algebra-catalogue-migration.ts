@@ -63,9 +63,52 @@ function oneStepTemplateForOccurrence(
     throw new Error(`No Early Algebra one-step family is available for row ${occurrence + 1}`);
   }
   const familyOccurrence = occurrence - (precedingCount - family.count);
-  const candidates = Array.from({ length: family.templates.length }, (_, index) =>
-    family.templates[(songOffset + index) % family.templates.length]);
+  const candidates = orderOneStepVariantsBySolution(family.templates, songOffset, family.count);
   return firstUnusedTemplate(candidates, familyOccurrence, usedStates, `${family.name} one-step`);
+}
+
+function orderOneStepVariantsBySolution(
+  templates: readonly AlgebraEquationTemplate[],
+  songOffset: number,
+  requestedCount: number,
+) {
+  const variantsBySolution = new Map<number, AlgebraEquationTemplate[]>();
+  for (const template of templates) {
+    const addition = template.state.match(/^x \+ (\d+) = (\d+)$/);
+    const subtraction = template.state.match(/^x - (\d+) = (\d+)$/);
+    if (!addition && !subtraction) {
+      throw new Error(`Early Algebra one-step template '${template.state}' is not a supported equation`);
+    }
+    const solution = addition
+      ? Number(addition[2]) - Number(addition[1])
+      : Number(subtraction![1]) + Number(subtraction![2]);
+    if (!Number.isSafeInteger(solution) || solution <= 0 || solution > 10) {
+      throw new Error(`Early Algebra one-step template '${template.state}' has an out-of-range solution`);
+    }
+    const variants = variantsBySolution.get(solution) ?? [];
+    variants.push(template);
+    variantsBySolution.set(solution, variants);
+  }
+
+  // Keep each song's answer size moving forward. The song offset changes the
+  // operands within an answer tier without jumping to a harder tier and back.
+  const ordered: AlgebraEquationTemplate[] = [];
+  for (const [, variants] of [...variantsBySolution.entries()].sort(([left], [right]) => left - right)) {
+    const offset = songOffset % variants.length;
+    const tier = [...variants.slice(offset), ...variants.slice(0, offset)];
+    const previousTarget = ordered[ordered.length - 1]?.operationTargets[0];
+    if (tier[0]?.operationTargets[0] === previousTarget) {
+      const alternativeIndex = tier.findIndex(({ operationTargets }) => operationTargets[0] !== previousTarget);
+      if (alternativeIndex > 0) tier.unshift(...tier.splice(alternativeIndex, 1));
+    }
+    ordered.push(...tier);
+  }
+  const availableStarts = ordered.length - requestedCount + 1;
+  if (availableStarts <= 0) {
+    throw new Error(`Not enough Early Algebra templates for ${requestedCount} one-step rows`);
+  }
+  const start = songOffset % availableStarts;
+  return ordered.slice(start, start + requestedCount);
 }
 
 const twoStepTemplates: readonly AlgebraEquationTemplate[] = [
@@ -165,6 +208,27 @@ function equationTokens(equation: AuthoredLessonEquation) {
     .map((label, index) => ({ id: `${equation.id}-token-${index}`, label }));
 }
 
+function simplifyOverRangeCueOnlyEquation(equation: AuthoredLessonEquation) {
+  const match = equation.state.match(/^x\s*([+-])\s*(\d+)\s*=\s*(\d+)$/);
+  if (!match) return equation;
+  const solution = match[1] === "+"
+    ? Number(match[3]) - Number(match[2])
+    : Number(match[3]) + Number(match[2]);
+  const literals = [Number(match[2]), Number(match[3])];
+  if (solution <= 10 && literals.every((value) => value <= 10)) return equation;
+
+  const state = match[1] === "+" ? "x + 2 = 5" : "x - 2 = 5";
+  const previousTokens = equationTokens(equation);
+  const labels = tokenizeAuthoredEquationState(state);
+  if (previousTokens.length !== labels.length) return equation;
+  return {
+    ...equation,
+    state,
+    // Keep cue targets stable: this rewrite changes the labels, not token slots.
+    tokens: labels.map((label, index) => ({ id: previousTokens[index].id, label })),
+  };
+}
+
 function playableIndexes(equation: AuthoredLessonEquation) {
   return equationTokens(equation).flatMap((token, index) =>
     isAuthoredEquationOperator(token.label) ? [] : [index]);
@@ -186,7 +250,9 @@ export function refreshEarlyAlgebraEquationContent(input: {
   const draggedEquationIds = new Set(orderedEncounters
     .filter((encounter) => encounter.type === "drag")
     .map((encounter) => encounter.equationId));
-  const preservedEquations = source.equations.filter((equation) => !draggedEquationIds.has(equation.id));
+  const preservedEquations = source.equations
+    .filter((equation) => !draggedEquationIds.has(equation.id))
+    .map(simplifyOverRangeCueOnlyEquation);
 
   const songOffset = [...input.songAssetId]
     .reduce((total, character) => total + character.charCodeAt(0), 0);
