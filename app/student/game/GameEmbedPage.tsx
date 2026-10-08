@@ -838,7 +838,9 @@ function GameEmbedSession({
             </div>
           )}
           {bridgeContext && calibrationStatus === "required" && (
-            <p className="mt-2 text-sm text-white/70">{studentCopy.game.calibrationRequired}</p>
+            <p className={`${styles.gameEmbedCalibrationNotice} mt-2 text-sm text-white/70`}>
+              {studentCopy.game.calibrationRequired}
+            </p>
           )}
           {bridgeStatusMessage && (
             <p className="experience-status mt-2 text-sm" data-status="error" role="alert" aria-live="assertive">{bridgeStatusMessage}</p>

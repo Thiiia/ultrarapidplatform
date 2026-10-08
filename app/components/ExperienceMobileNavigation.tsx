@@ -23,15 +23,25 @@ export default function ExperienceMobileNavigation({
         aria-label={`${label} menu`}
         data-experience-component="navigation"
       >
-        {items.map((item) => (
-          <Link
-            key={`${item.label}:${item.href}`}
-            href={item.href}
-            aria-current={item.current ? "page" : undefined}
-          >
-            {item.label}
-          </Link>
-        ))}
+        {items.map((item) =>
+          item.href === "/auth/logout" ? (
+            <a
+              key={`${item.label}:${item.href}`}
+              href={item.href}
+              aria-current={item.current ? "page" : undefined}
+            >
+              {item.label}
+            </a>
+          ) : (
+            <Link
+              key={`${item.label}:${item.href}`}
+              href={item.href}
+              aria-current={item.current ? "page" : undefined}
+            >
+              {item.label}
+            </Link>
+          ),
+        )}
       </nav>
     </details>
   );

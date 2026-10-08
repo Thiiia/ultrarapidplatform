@@ -1496,8 +1496,8 @@ export default function SongChoiceClient({
                 >
                   {songs.length === 0
                     ? currentActivityKey === "number-bonds"
-                      ? "Try Early Algebra while you wait, or ask your teacher to add a Number Bonds song."
-                      : "There are no available songs for this activity right now. Try another activity or ask your teacher to add one."
+                      ? studentCopy.songChoice.noNumberBondsSongsBody
+                      : studentCopy.songChoice.noActivitySongsBody
                     : studentCopy.songChoice.noSongsBody}
                 </p>
                 {songs.length > 0 ? (

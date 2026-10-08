@@ -780,6 +780,163 @@
   color: var(--ur-accent-lime);
 }
 
+.studentDashboard {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  background: linear-gradient(180deg, #082733 0%, #030e14 72%);
+  color: #edf7f2;
+}
+
+.studentDashboardMain {
+  width: min(1280px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 48px 0 64px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 40px;
+  box-sizing: border-box;
+}
+
+.studentDashboardIntro {
+  max-width: 760px;
+}
+
+.studentTypography .studentDashboardIntro h1 {
+  max-width: 18ch;
+  margin: 0;
+  color: #edf7f2;
+  font-family: var(--ur-font-display, "Space Grotesk", sans-serif);
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.studentDashboardIntro p {
+  max-width: 65ch;
+  margin: 12px 0 0;
+  color: #a9b2ac;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.studentDashboardGames,
+.studentDashboardLessons {
+  min-width: 0;
+}
+
+.studentDashboardSectionHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.studentDashboardSectionHeading h2 {
+  margin: 0;
+  color: #edf7f2;
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.studentDashboardSeeAll {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ur-accent-lime);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.studentDashboardSeeAll:focus-visible {
+  outline: 3px solid #edf7f2;
+  outline-offset: 3px;
+}
+
+.studentLessonList {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+}
+
+.studentLessonList li {
+  min-width: 0;
+}
+
+.studentLessonLink {
+  min-height: 96px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 20px;
+  align-content: center;
+  padding: 16px 20px;
+  border: 1px solid rgba(169, 178, 172, 0.28);
+  border-radius: 16px;
+  background: rgba(8, 39, 51, 0.72);
+  color: #edf7f2;
+  text-decoration: none;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.studentLessonLink:hover {
+  border-color: #477171;
+  background: #103336;
+}
+
+.studentLessonLink:focus-visible {
+  outline: 3px solid #edf7f2;
+  outline-offset: 3px;
+}
+
+.studentLessonStatus {
+  color: var(--ur-accent-lime);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.35;
+}
+
+.studentLessonTitle {
+  margin: 0;
+  color: #edf7f2;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.studentLessonDescription {
+  max-width: 70ch;
+  color: #a9b2ac;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.studentLessonAction {
+  min-height: 44px;
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 10px;
+  color: var(--ur-accent-lime);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .learningActivityGrid {
   display: grid;
   width: 100%;
@@ -789,32 +946,42 @@
 }
 
 .learningActivityCard {
+  position: relative;
   min-width: 0;
-  min-height: 360px;
+  min-height: 330px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 22px;
-  background: linear-gradient(180deg, #162629 0%, #102024 100%);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #103336 0%, #0b242a 100%);
+  color: inherit;
+  text-decoration: none;
   transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease;
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.learningActivityCard[href] {
+  cursor: pointer;
 }
 
 .learningActivityCard[data-selected="true"] {
   border-color: var(--ur-accent-lime);
-  box-shadow: 0 0 0 1px rgba(207, 255, 4, 0.2), 0 16px 38px rgba(0, 0, 0, 0.24);
 }
 
 .learningActivityCard:focus-within {
   border-color: var(--ur-accent-lime);
-  box-shadow: 0 0 0 2px rgba(207, 255, 4, 0.25), 0 16px 38px rgba(0, 0, 0, 0.24);
+}
+
+.learningActivityCard:focus-visible {
+  outline: 3px solid #edf7f2;
+  outline-offset: 4px;
+  border-color: var(--ur-accent-lime);
 }
 
 .learningActivityArtwork {
-  min-height: 190px;
+  min-height: 158px;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -835,8 +1002,8 @@
 
 .learningActivityArtwork img {
   width: 100%;
-  height: 178px;
-  padding: 16px;
+  height: 148px;
+  padding: 12px;
   object-fit: contain;
 }
 
@@ -846,31 +1013,24 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 12px;
-  padding: 22px;
+  gap: 8px;
+  padding: 20px;
   text-align: left;
 }
 
 .learningActivityContent .learningActivityGoal {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 11px;
-  border: 1px solid rgba(207, 255, 4, 0.32);
-  border-radius: 999px;
-  background: rgba(207, 255, 4, 0.08);
-  color: var(--ur-accent-lime);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0;
-  line-height: 1.3;
+  display: block;
+  color: #a9b2ac;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
   text-align: left;
 }
 
 .learningActivityContent .learningActivityTitle {
   margin: 0;
   color: var(--ur-text-marketing);
-  font-size: 23px;
+  font-size: 25px;
   font-weight: 700;
   line-height: 1.2;
   text-align: left;
@@ -894,7 +1054,7 @@
   gap: 12px;
   padding: 0 18px;
   border: 1px solid transparent;
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--ur-accent-lime);
   color: var(--ur-canvas-deep);
   cursor: pointer;
@@ -905,65 +1065,92 @@
   transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, filter 180ms ease;
 }
 
-.learningActivityContent .learningActivityAction:hover:not(:disabled) {
-  border-color: var(--color-lime-dark);
-  background: var(--color-lime-dark);
-}
-
 .learningActivityContent .learningActivityAction[aria-pressed="true"] {
   border-color: var(--ur-accent-purple);
   background: var(--ur-accent-purple);
   color: var(--ur-text-primary);
 }
 
-.learningActivityContent .learningActivityAction[aria-pressed="true"]:hover:not(:disabled) {
+.learningActivityContent .learningActivityAction[aria-pressed="true"]:hover {
   filter: brightness(1.14);
 }
 
-.learningActivityContent .learningActivityAction[aria-pressed="true"]:active:not(:disabled) {
+.learningActivityContent .learningActivityAction[aria-pressed="true"]:active {
   filter: brightness(0.9);
 }
 
-.learningActivityContent .learningActivityAction:active:not(:disabled) {
-  filter: brightness(0.92);
-}
-
-.learningActivityAction:focus-visible {
+.learningActivityContent .learningActivityAction:focus-visible {
   outline: 3px solid #fff;
   outline-offset: 3px;
 }
 
+.learningActivityCard:hover .learningActivityAction,
+.learningActivityCard:focus-visible .learningActivityAction {
+  background: #bde800;
+}
+
 @media (hover: hover) {
   .learningActivityCard:hover {
-    border-color: rgba(207, 255, 4, 0.54);
-    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
+    border-color: #477171;
   }
 }
 
-@media (max-width: 620px) {
+@media (max-width: 760px) {
+  .studentDashboardMain {
+    width: calc(100% - 32px);
+    padding: 32px 0 48px;
+    gap: 32px;
+  }
+
+  .studentTypography .studentDashboardIntro h1 {
+    font-size: clamp(30px, 8vw, 40px);
+  }
+
+  .studentDashboardIntro p {
+    font-size: 15px;
+  }
+
+  .studentDashboardSectionHeading h2 {
+    font-size: 22px;
+  }
+
   .learningActivityGrid {
     grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
+    gap: 14px;
   }
 
   .learningActivityCard {
-    min-height: 330px;
+    min-height: 0;
   }
 
   .learningActivityArtwork {
-    min-height: 170px;
+    min-height: 150px;
   }
 
   .learningActivityArtwork img {
-    height: 158px;
+    height: 140px;
   }
 
   .learningActivityContent {
     padding: 18px;
   }
+
+  .studentLessonLink {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+    padding: 16px;
+  }
+
+  .studentLessonAction {
+    min-height: 44px;
+    grid-column: 1;
+    grid-row: auto;
+    margin-top: 4px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .studentLessonLink,
   .learningActivityCard,
   .learningActivityContent .learningActivityAction {
     transition: none;
@@ -1435,6 +1622,18 @@
   .gameEmbedStage .gameFrame {
     border: 0 !important;
     border-radius: 0 !important;
+  }
+
+  .gameEmbedCalibrationNotice {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px !important;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 }
 

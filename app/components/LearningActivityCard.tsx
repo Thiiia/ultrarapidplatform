@@ -1,6 +1,7 @@
 "use client";
 
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
+import Link from "next/link";
 import Image, { type StaticImageData } from "next/image";
 import PlayIcon from "@/public/Next_Button.svg";
 import styles from "@/app/student/student.module.css";
@@ -13,6 +14,7 @@ type LearningActivityCardProps = {
   description: string;
   icon: StaticImageData;
   actionLabel: string;
+  href?: string;
   onAction: () => void;
   selected?: boolean;
 };
@@ -24,19 +26,21 @@ export default function LearningActivityCard({
   description,
   icon,
   actionLabel,
+  href,
   onAction,
   selected,
 }: LearningActivityCardProps) {
   const headingId = useId();
+  const goalId = useId();
   const descriptionId = useId();
-
-  return (
-    <article
-      className={styles.learningActivityCard}
-      data-activity={activityKey}
-      data-selected={selected ? "true" : "false"}
-      aria-labelledby={headingId}
-    >
+  const action = (
+    <>
+      <span>{actionLabel}</span>
+      <PlayIcon aria-hidden="true" style={{ width: 18, height: 18, flexShrink: 0 }} />
+    </>
+  );
+  const content = (actionElement: ReactNode) => (
+    <>
       <div className={styles.learningActivityArtwork} data-activity={activityKey}>
         <Image
           src={icon}
@@ -50,24 +54,55 @@ export default function LearningActivityCard({
       </div>
 
       <div className={styles.learningActivityContent}>
-        <span className={styles.learningActivityGoal}>{goal}</span>
         <h3 id={headingId} className={styles.learningActivityTitle}>
           {title}
         </h3>
+        <span id={goalId} className={styles.learningActivityGoal}>{goal}</span>
         <p id={descriptionId} className={styles.learningActivityDescription}>
           {description}
         </p>
+        {actionElement}
+      </div>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link
+        className={styles.learningActivityCard}
+        data-activity={activityKey}
+        href={href}
+        onClick={onAction}
+        aria-label={`Play ${title}`}
+        aria-describedby={`${goalId} ${descriptionId}`}
+      >
+        {content(
+          <span className={styles.learningActivityAction} aria-hidden="true">
+            {action}
+          </span>,
+        )}
+      </Link>
+    );
+  }
+
+  return (
+    <article
+      className={styles.learningActivityCard}
+      data-activity={activityKey}
+      data-selected={selected ? "true" : "false"}
+      aria-labelledby={headingId}
+    >
+      {content(
         <button
           type="button"
           className={styles.learningActivityAction}
           onClick={onAction}
-          aria-describedby={descriptionId}
-          aria-pressed={selected === undefined ? undefined : selected}
+          aria-describedby={`${goalId} ${descriptionId}`}
+          aria-pressed={selected}
         >
-          <span>{actionLabel}</span>
-          <PlayIcon aria-hidden="true" style={{ width: 18, height: 18, flexShrink: 0 }} />
-        </button>
-      </div>
+          {action}
+        </button>,
+      )}
     </article>
   );
 }
