@@ -148,7 +148,7 @@ function HeaderBar({
   ];
   return (
     <header
-      className="experience-role-header experience-role-header--wide-nav"
+      className={`${styles.gameEmbedHeader} experience-role-header experience-role-header--wide-nav`}
       style={{
         background: headerBackgroundColor,
         width: "100%",
@@ -741,7 +741,7 @@ function GameEmbedSession({
 
   return (
     <div
-      className={`${styles.studentTypography} experience-role-shell`}
+      className={`${styles.studentTypography} ${styles.gameEmbedShell} experience-role-shell`}
       data-experience-role="student"
       style={{
         ...webglViewportHostStyle,
@@ -754,6 +754,7 @@ function GameEmbedSession({
       <HeaderBar pathname={pathname} topTabs={topTabs} utilityTabs={utilityTabs} />
 
       <main
+        className={styles.gameEmbedMain}
           style={{
             width: "100%",
             flex: 1,
@@ -764,6 +765,7 @@ function GameEmbedSession({
         }}
       >
         <section
+          className={styles.gameEmbedStage}
           style={{
             width: pagePanelWidth,
             margin: "0 auto",

@@ -134,38 +134,27 @@ export default function StudentDashboard({
             boxSizing: "border-box",
           }}
         >
-          <div
-            style={{
-              fontSize: 12,
-              color: "#CFFF04",
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              marginLeft: 0,
-            }}
-          >
-            {studentCopy.dashboard.welcomeKicker}
-          </div>
-          <div
+          <h1
             style={{
               fontSize: 18,
               color: "#FFFFFF",
-              marginTop: 4,
+              fontWeight: 700,
+              margin: "4px 0 0",
               lineHeight: 1.2,
             }}
           >
             {studentCopy.dashboard.welcome(profileLabel)}
-          </div>
-          <div
+          </h1>
+          <p
             style={{
               fontSize: 14,
               color: "rgba(255,255,255,0.55)",
-              marginTop: 4,
+              margin: "4px 0 0",
               lineHeight: 1.4,
             }}
           >
             {studentCopy.dashboard.welcomeBody}
-          </div>
+          </p>
         </div>
       </div>
 
@@ -205,7 +194,7 @@ export default function StudentDashboard({
           >
             <div
               style={{
-                flex: "0 0 42%",
+                flex: "0 0 auto",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "stretch",
@@ -214,7 +203,7 @@ export default function StudentDashboard({
                 margin: "0 auto",
               }}
             >
-              <div
+              <h2
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -227,55 +216,41 @@ export default function StudentDashboard({
               >
                 <CheckIcon style={{ width: 18, height: 18, flexShrink: 0 }} />
                 <span>{studentCopy.dashboard.queueTitle}</span>
-              </div>
+              </h2>
 
               <div
                 style={{
                   width: "100%",
-                  height: "23vh",
-                  minHeight: 180,
-                  background: "#2B2B2B",
-                  borderRadius: 20,
+                  minHeight: 88,
+                  background: "rgba(255,255,255,0.04)",
+                  borderRadius: 16,
+                  border: "1px solid rgba(255,255,255,0.1)",
                   display: "flex",
-                  flexDirection: "column",
+                  flexDirection: "row",
                   alignItems: "center",
-                  justifyContent: "center",
-                  textAlign: "center",
-                  padding: "20px 18px",
+                  justifyContent: "flex-start",
+                  gap: 14,
+                  textAlign: "left",
+                  padding: "16px 18px",
                   boxSizing: "border-box",
                   margin: 0,
                 }}
               >
-                <CircleCheckIcon style={{ width: 64, height: 64, display: "block" }} />
+                <CircleCheckIcon style={{ width: 32, height: 32, flexShrink: 0, display: "block" }} />
                 <div
                   style={{
-                    marginTop: 18,
-                    color: "#FFFFFF",
-                    fontSize: 18,
-                    fontWeight: 600,
+                    minWidth: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
                   }}
                 >
-                  {studentCopy.dashboard.queueEmptyTitle}
-                </div>
-                <div
-                  style={{
-                    marginTop: 10,
-                    color: "rgba(255,255,255,0.55)",
-                    fontSize: 14,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {studentCopy.dashboard.queueEmptyBody}
-                </div>
-                <div
-                  style={{
-                    marginTop: 6,
-                    color: "rgba(255,255,255,0.55)",
-                    fontSize: 14,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {studentCopy.dashboard.queueEmptyAction}
+                  <div style={{ color: "#FFFFFF", fontSize: 16, fontWeight: 600, lineHeight: 1.25 }}>
+                    {studentCopy.dashboard.queueEmptyTitle}
+                  </div>
+                  <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 1.4 }}>
+                    {studentCopy.dashboard.queueEmptyBody}
+                  </div>
                 </div>
               </div>
             </div>
@@ -290,7 +265,7 @@ export default function StudentDashboard({
                 margin: "0 auto",
               }}
             >
-              <div
+              <h2
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -303,7 +278,7 @@ export default function StudentDashboard({
               >
                 <ControllerIcon style={{ width: 22, height: 22, flexShrink: 0 }} />
                 <span>{studentCopy.dashboard.gamesTitle}</span>
-              </div>
+              </h2>
 
               <div className={styles.learningActivityGrid}>
                 {learningActivities.map((game) => (
