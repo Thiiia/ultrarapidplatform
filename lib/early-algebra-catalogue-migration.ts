@@ -200,12 +200,12 @@ export function refreshEarlyAlgebraEquationContent(input: {
     } else {
       // Three-step equations are kept as a short stretch: the coefficients and
       // addends stay small, and the row remains within the current bubble width.
+      // A stretch row does not replace the one-step multiplication foundation.
       const candidates = threeStepTemplates;
       const offset = [...input.songAssetId].reduce((total, character) => total + character.charCodeAt(0), 0);
       const startingOffset = offset % Math.min(4, candidates.length);
       template = candidates[(templateUse.threeStep++ + startingOffset) % candidates.length];
       hasSeenMultiStep = true;
-      hasMultiplicativeFoundation = true;
     }
     templateByEquationId.set(equation.id, template);
   }

@@ -209,6 +209,44 @@ test("refreshes equations in song order and introduces multiplication before mix
   assert.deepEqual(refreshed.equations.map(({ id }) => id), source.equations.map(({ id }) => id));
 });
 
+test("a three-step stretch does not unlock mixed equations without a one-step multiplication row", () => {
+  const source = {
+    version: 3, mode: "authored", songAssetId: "waves", activityKey: "early-algebra",
+    equations: [
+      { id: "later-two-step", state: "x^2 - 12x + 36 = 0" },
+      { id: "three-step-stretch", state: "x^2 - 12x + 36 = 0" },
+      { id: "first-two-step", state: "x^2 - 12x + 36 = 0" },
+    ],
+    encounters: [
+      { id: "hit-first-two", eventId: "first-two-hit-event", type: "hit", equationId: "first-two-step", startTick: 1, endTick: 1,
+        hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"] }] },
+      { id: "first-two-drag-a", eventId: "first-two-drag-a-event", type: "drag", equationId: "first-two-step", startTick: 2, endTick: 3,
+        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-first-two" }] },
+      { id: "first-two-drag-b", eventId: "first-two-drag-b-event", type: "drag", equationId: "first-two-step", startTick: 4, endTick: 5,
+        dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-first-two" }] },
+      { id: "hit-stretch", eventId: "stretch-hit-event", type: "hit", equationId: "three-step-stretch", startTick: 6, endTick: 6,
+        hitBubbles: [{ tokenIndex: 0, pads: ["topRight"] }] },
+      { id: "stretch-drag-a", eventId: "stretch-drag-a-event", type: "drag", equationId: "three-step-stretch", startTick: 7, endTick: 8,
+        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-stretch" }] },
+      { id: "stretch-drag-b", eventId: "stretch-drag-b-event", type: "drag", equationId: "three-step-stretch", startTick: 9, endTick: 10,
+        dragTargets: [{ tokenIndex: 4, sourceHitId: "hit-stretch" }] },
+      { id: "stretch-drag-c", eventId: "stretch-drag-c-event", type: "drag", equationId: "three-step-stretch", startTick: 11, endTick: 12,
+        dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-stretch" }] },
+      { id: "hit-later-two", eventId: "later-two-hit-event", type: "hit", equationId: "later-two-step", startTick: 13, endTick: 13,
+        hitBubbles: [{ tokenIndex: 0, pads: ["right"] }] },
+      { id: "later-two-drag-a", eventId: "later-two-drag-a-event", type: "drag", equationId: "later-two-step", startTick: 14, endTick: 15,
+        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-later-two" }] },
+      { id: "later-two-drag-b", eventId: "later-two-drag-b-event", type: "drag", equationId: "later-two-step", startTick: 16, endTick: 17,
+        dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-later-two" }] },
+    ],
+  };
+  const refreshed = refreshEarlyAlgebraEquationContent({ songAssetId: "waves", sidecar: JSON.stringify(source) });
+  const stateById = new Map(refreshed.equations.map(({ id, state }) => [id, state]));
+
+  assert.match(stateById.get("three-step-stretch") ?? "", /^[234]x \+/);
+  assert.match(stateById.get("later-two-step") ?? "", /^x \+ \d+ \+ \d+ =/);
+});
+
 test("preserves zero-Drag equations and encounter targets during the math-only refresh", () => {
   const source = {
     version: 3, mode: "authored", songAssetId: "jazzmaybach", activityKey: "early-algebra",
