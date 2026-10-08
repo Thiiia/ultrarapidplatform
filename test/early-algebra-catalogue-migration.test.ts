@@ -165,6 +165,27 @@ test("refreshes Early Algebra math to match authored Drag steps without changing
   assert.equal(refreshed.encounters.find(({ id }) => id === "drag-one")?.dragTargets?.[0].sourceHitId, "hit-one");
 });
 
+test("preserves zero-Drag equations and encounter targets during the math-only refresh", () => {
+  const source = {
+    version: 3, mode: "authored", songAssetId: "jazzmaybach", activityKey: "early-algebra",
+    equations: [{
+      id: "no-drag", state: "x - 6 = 6",
+      tokens: ["x", "-", "6", "=", "6"].map((label, index) => ({ id: `no-drag-token-${index}`, label })),
+    }],
+    encounters: [{
+      id: "no-drag-hit", eventId: "no-drag-event", type: "hit", equationId: "no-drag",
+      startTick: 1, endTick: 1,
+      hitBubbles: [{ tokenIndex: 0, targetId: "no-drag-token-0", pads: ["topLeft"] }],
+    }],
+  };
+  const refreshed = refreshEarlyAlgebraEquationContent({
+    songAssetId: "jazzmaybach", sidecar: JSON.stringify(source),
+  });
+
+  assert.deepEqual(refreshed.equations, source.equations);
+  assert.deepEqual(refreshed.encounters, source.encounters);
+});
+
 test("all refreshed equation templates stay linear, small, solvable, and targetable", () => {
   const equations: Array<{ id: string; state: string }> = [];
   const encounters: Array<Record<string, unknown>> = [];
@@ -195,6 +216,7 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
     songAssetId: "waves",
     sidecar: JSON.stringify({ version: 3, mode: "authored", songAssetId: "waves", activityKey: "early-algebra", equations, encounters }),
   });
+  const oneStepStates = refreshed.equations.slice(0, 16).map(({ state }) => state);
   const linearSide = (expression: string): [number, number] => expression.replace(/\s/g, "")
     .replace(/-/g, "+-").split("+").filter(Boolean)
     .reduce(([coefficient, constant], term) => {
@@ -206,6 +228,10 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
     }, [0, 0]);
 
   assert.equal(refreshed.equations.length, 38);
+  assert.match(oneStepStates[0], /^x \+/);
+  assert.match(oneStepStates[1], /^[234]x =/);
+  assert.match(oneStepStates[2], /^x -/);
+  assert.match(oneStepStates[3], /^[234]x =/);
   for (const equation of refreshed.equations) {
     assert.ok(!/\bx\s*\^\s*2/i.test(equation.state), equation.state);
     assert.ok((equation.tokens?.length ?? 0) <= 7, equation.state);

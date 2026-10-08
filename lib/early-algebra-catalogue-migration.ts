@@ -38,6 +38,16 @@ const oneStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "4x = 12", operationTargets: ["4x"] },
 ];
 
+function oneStepTemplateForOccurrence(occurrence: number, songOffset: number) {
+  // Establish an additive inverse first, then introduce multiplication as a
+  // separate one-step inverse before returning to subtraction examples.
+  if (occurrence === 0) return oneStepTemplates[songOffset % 4];
+  if (occurrence === 1) return oneStepTemplates[10 + (songOffset % 6)];
+
+  const followUpTemplateIndexes = [5, 11, 6, 12, 7, 13, 8, 14, 9, 15, 1, 2, 3, 4];
+  return oneStepTemplates[followUpTemplateIndexes[(occurrence - 2) % followUpTemplateIndexes.length]];
+}
+
 const twoStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "2x + 1 = 9", operationTargets: ["1", "2x"] },
   { state: "2x + 2 = 10", operationTargets: ["2", "2x"] },
@@ -136,6 +146,9 @@ export function refreshEarlyAlgebraEquationContent(input: {
     if (dragCount > 3) {
       throw new Error(`Equation '${equation.id}' has ${dragCount} Drag targets; the early-algebra ladder supports at most three steps`);
     }
+    // A math-only refresh cannot safely introduce a new inverse-operation step
+    // when the authored chart has no Drag cue to teach and judge that step.
+    if (dragCount === 0) return equation;
     const profile = dragCount <= 1 ? "oneStep" : dragCount === 2 ? "twoStep" : "threeStep";
     const candidates = profile === "oneStep"
       ? oneStepTemplates
@@ -145,8 +158,10 @@ export function refreshEarlyAlgebraEquationContent(input: {
     // The old full-list rotation could start a learner on multiplication or a
     // later coefficient before the additive foundation had appeared.
     const startingOffset = offset % Math.min(4, candidates.length);
-    const candidateIndex = (templateUse[profile]++ + startingOffset) % candidates.length;
-    const template = candidates[candidateIndex];
+    const occurrence = templateUse[profile]++;
+    const template = profile === "oneStep"
+      ? oneStepTemplateForOccurrence(occurrence, offset)
+      : candidates[(occurrence + startingOffset) % candidates.length];
     const tokens = tokenizeAuthoredEquationState(template.state).map((label, tokenIndex) => ({
       id: `${equation.id}-math-refresh-token-${tokenIndex}`,
       label,
@@ -174,6 +189,10 @@ export function refreshEarlyAlgebraEquationContent(input: {
     left.startTick - right.startTick || left.id.localeCompare(right.id));
   for (const encounter of orderedEncounters) {
     const equationId = encounter.equationId ?? "";
+    if ((dragTargetCounts.get(equationId) ?? 0) === 0) {
+      refreshedById.set(encounter.id, encounter);
+      continue;
+    }
     const plan = plans.get(equationId);
     if (!plan) throw new Error(`Encounter '${encounter.id}' has no Early Algebra equation`);
     const tokens = equationTokens(plan.equation);
