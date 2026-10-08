@@ -44,16 +44,14 @@ function oneStepTemplateForOccurrence(
   usedStates: Set<string>,
   totalSteps: number,
 ) {
-  // Keep the Early Algebra refresh to one inverse operation per equation row.
-  // Build from additive to subtractive to small multiplicative examples; once
-  // the lesson reaches multiplication it does not fall back to easier forms.
-  const multiplicationCount = totalSteps >= 5 ? Math.max(1, Math.round(totalSteps * 0.2)) : 0;
-  const additiveCount = Math.ceil((totalSteps - multiplicationCount) / 2);
-  const subtractiveCount = totalSteps - multiplicationCount - additiveCount;
+  // Keep this early-algebra bridge to one inverse addition/subtraction per row.
+  // Multiplicative equations need their own progression after learners secure
+  // the balance and inverse-operation ideas used here.
+  const additiveCount = Math.ceil(totalSteps / 2);
+  const subtractiveCount = totalSteps - additiveCount;
   const families = [
     { name: "additive", templates: refreshedAdditionTemplates, count: additiveCount },
     { name: "subtractive", templates: refreshedSubtractionTemplates, count: subtractiveCount },
-    { name: "multiplicative", templates: refreshedMultiplicationTemplates, count: multiplicationCount },
   ];
   let precedingCount = 0;
   const family = families.find(({ count }) => {
@@ -98,30 +96,24 @@ const threeStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "2x + 4 + 1 = 11", operationTargets: ["4", "1", "2x"] },
 ];
 
-// One-step refreshes keep values small while varying the examples by song.
+// Keep numbers within 10 for the upper-primary entry point, while varying the
+// examples by song without introducing multi-step or coefficient notation.
 const refreshedAdditionTemplates: readonly AlgebraEquationTemplate[] = Array.from(
-  { length: 35 },
+  { length: 24 },
   (_, index) => {
-    const addend = (index % 5) + 1;
-    const solution = (Math.floor(index / 5) + index % 5) % 7 + 1;
+    const addend = (index % 4) + 1;
+    const solution = Math.floor(index / 4) + 1;
     return { state: `x + ${addend} = ${addend + solution}`, operationTargets: [String(addend)] };
   },
 );
 const refreshedSubtractionTemplates: readonly AlgebraEquationTemplate[] = Array.from(
-  { length: 36 },
+  { length: 24 },
   (_, index) => {
-    const subtrahend = (index % 6) + 1;
-    const difference = (Math.floor(index / 6) + index % 6) % 6 + 1;
+    const subtrahend = (index % 4) + 1;
+    const difference = Math.floor(index / 4) + 1;
     return { state: `x - ${subtrahend} = ${difference}`, operationTargets: [String(subtrahend)] };
   },
 );
-const refreshedMultiplicationTemplates: readonly AlgebraEquationTemplate[] = [
-  [2, 2], [3, 2], [2, 3], [4, 2], [2, 4],
-  [3, 3], [2, 5], [4, 3], [2, 6], [3, 4],
-].map(([coefficient, solution]) => ({
-  state: `${coefficient}x = ${coefficient * solution}`,
-  operationTargets: [`${coefficient}x`],
-}));
 
 function firstUnusedTemplate(
   candidates: readonly AlgebraEquationTemplate[],

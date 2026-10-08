@@ -200,8 +200,8 @@ test("orders the one-step curriculum by the cue timeline instead of the source e
   assert.equal(refreshed.equations.length, 5);
   assert.deepEqual(refreshed.equations.map(({ state }) =>
     state.startsWith("x +") ? "additive"
-      : state.startsWith("x -") ? "subtractive" : "multiplicative"),
-  ["additive", "additive", "subtractive", "subtractive", "multiplicative"]);
+      : "subtractive"),
+  ["additive", "additive", "additive", "subtractive", "subtractive"]);
   assert.deepEqual(refreshed.equations.map(({ id }) => id), [
     "waves-early-step-01", "waves-early-step-02", "waves-early-step-03", "waves-early-step-04", "waves-early-step-05",
   ]);
@@ -210,13 +210,12 @@ test("orders the one-step curriculum by the cue timeline instead of the source e
   assert.ok(refreshed.equations.every(({ state }) => !/\bx\s*\^\s*2/i.test(state)));
 });
 
-test("refreshes all 8 songs with small equations and a forward skill progression", () => {
+test("refreshes all 8 songs with one-step equations within 10 and an additive-to-subtractive progression", () => {
   const counts: Record<string, number> = {
     garden: 10, geminiqueen: 12, grudge: 7, jazzmaybach: 2,
     justbecause: 10, oneone: 8, seven: 10, waves: 18,
   };
-  const familyFor = (state: string) => state.startsWith("x +") ? "additive"
-    : state.startsWith("x -") ? "subtractive" : "multiplicative";
+  const familyFor = (state: string) => state.startsWith("x +") ? "additive" : "subtractive";
   const allStates = new Set<string>();
   for (const [songAssetId, count] of Object.entries(counts)) {
     const equationIds = Array.from({ length: count }, (_, index) => `eq-${index}`);
@@ -236,22 +235,19 @@ test("refreshes all 8 songs with small equations and a forward skill progression
       }),
     };
     const refreshed = refreshEarlyAlgebraEquationContent({ songAssetId, sidecar: JSON.stringify(source) });
-    const multiplicationCount = count >= 5 ? Math.max(1, Math.round(count * 0.2)) : 0;
-    const additiveCount = Math.ceil((count - multiplicationCount) / 2);
-    const subtractiveCount = count - multiplicationCount - additiveCount;
+    const additiveCount = Math.ceil(count / 2);
+    const subtractiveCount = count - additiveCount;
 
     assert.equal(refreshed.equations.length, count, songAssetId);
     assert.deepEqual(refreshed.equations.map(({ state }) => familyFor(state)), [
       ...Array(additiveCount).fill("additive"),
       ...Array(subtractiveCount).fill("subtractive"),
-      ...Array(multiplicationCount).fill("multiplicative"),
     ], songAssetId);
     assert.equal(new Set(refreshed.equations.map(({ state }) => state)).size, count, songAssetId);
     refreshed.equations.forEach(({ state }) => allStates.add(state));
     for (const [family, pattern] of [
       ["additive", /^x \+ (\d+) =/],
       ["subtractive", /^x - (\d+) =/],
-      ["multiplicative", /^(\d+)x =/],
     ] as const) {
       const operands = refreshed.equations.filter(({ state }) => familyFor(state) === family)
         .map(({ state }) => state.match(pattern)?.[1]);
@@ -267,7 +263,7 @@ test("refreshes all 8 songs with small equations and a forward skill progression
 
     const solutions = refreshed.equations.map(({ state }) => {
       assert.ok(state.split(/\s+/).length <= 5, `${songAssetId}: ${state}`);
-      assert.ok(state.match(/\d+/g)?.every((value) => Number(value) <= 12), `${songAssetId}: ${state}`);
+      assert.ok(state.match(/\d+/g)?.every((value) => Number(value) <= 10), `${songAssetId}: ${state}`);
       if (state.startsWith("x +")) {
         const [, addend, total] = state.match(/^x \+ (\d+) = (\d+)$/)!;
         return Number(total) - Number(addend);
@@ -276,12 +272,13 @@ test("refreshes all 8 songs with small equations and a forward skill progression
         const [, subtrahend, difference] = state.match(/^x - (\d+) = (\d+)$/)!;
         return Number(difference) + Number(subtrahend);
       }
-      const [, coefficient, product] = state.match(/^(\d+)x = (\d+)$/)!;
-      return Number(product) / Number(coefficient);
+      assert.match(state, /^x - \d+ = \d+$/, `${songAssetId}: ${state}`);
+      const [, subtrahend, difference] = state.match(/^x - (\d+) = (\d+)$/)!;
+      return Number(difference) + Number(subtrahend);
     });
-    assert.ok(solutions.every((solution) => Number.isSafeInteger(solution) && solution > 0 && solution <= 12), songAssetId);
+    assert.ok(solutions.every((solution) => Number.isSafeInteger(solution) && solution > 0 && solution <= 10), songAssetId);
   }
-  assert.ok(allStates.size >= 50, `expected variety across all songs, got ${allStates.size} distinct equations`);
+  assert.ok(allStates.size >= 40, `expected variety across all songs, got ${allStates.size} distinct equations`);
 });
 
 test("rejects a legacy multi-drag row without a fresh hit for the next equation", () => {
@@ -375,21 +372,20 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
 
   assert.equal(refreshed.equations.length, 16);
   assert.equal(new Set(refreshed.equations.map(({ state }) => state)).size, refreshed.equations.length);
-  assert.ok(oneStepStates.slice(0, 7).every((state) => /^x \+/.test(state)));
-  assert.ok(oneStepStates.slice(7, 13).every((state) => /^x -/.test(state)));
-  assert.ok(oneStepStates.slice(13).every((state) => /^[234]x =/.test(state)));
+  assert.ok(oneStepStates.slice(0, 8).every((state) => /^x \+/.test(state)));
+  assert.ok(oneStepStates.slice(8).every((state) => /^x -/.test(state)));
   assert.equal(new Set(oneStepStates).size, oneStepStates.length);
   for (const equation of refreshed.equations) {
     assert.ok(!/\bx\s*\^\s*2/i.test(equation.state), equation.state);
     assert.ok(!/\b[5-9]\s*x\b/i.test(equation.state), equation.state);
-    assert.ok((equation.tokens?.length ?? 0) <= 7, equation.state);
-    assert.ok([...equation.state.matchAll(/\d+/g)].every(([literal]) => Number(literal) <= 12), equation.state);
+    assert.ok((equation.tokens?.length ?? 0) <= 5, equation.state);
+    assert.ok([...equation.state.matchAll(/\d+/g)].every(([literal]) => Number(literal) <= 10), equation.state);
     const [left, right] = equation.state.split("=");
     const [leftCoefficient, leftConstant] = linearSide(left);
     const [rightCoefficient, rightConstant] = linearSide(right);
     assert.equal(rightCoefficient, 0, equation.state);
     const solution = (rightConstant - leftConstant) / (leftCoefficient - rightCoefficient);
-    assert.ok(Number.isSafeInteger(solution) && solution > 0 && solution <= 12, equation.state);
+    assert.ok(Number.isSafeInteger(solution) && solution > 0 && solution <= 10, equation.state);
     const drags = refreshed.encounters.filter((encounter) => encounter.type === "drag" && encounter.equationId === equation.id);
     assert.equal(drags.length, 1, equation.id);
     const dragTargetIds = drags.map((encounter) => (encounter.dragTargets as Array<{ targetId?: string }>)[0]?.targetId);
