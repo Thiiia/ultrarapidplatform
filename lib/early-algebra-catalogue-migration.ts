@@ -54,22 +54,23 @@ const twoStepTemplates: readonly AlgebraEquationTemplate[] = [
 ];
 
 const threeStepTemplates: readonly AlgebraEquationTemplate[] = [
-  { state: "3x + 2 = x + 8", operationTargets: ["x", "2", "3x"] },
-  { state: "3x + 1 = x + 7", operationTargets: ["x", "1", "3x"] },
-  { state: "4x + 2 = 2x + 10", operationTargets: ["2x", "2", "4x"] },
-  { state: "4x + 1 = 2x + 9", operationTargets: ["2x", "1", "4x"] },
-  { state: "3x + 4 = x + 12", operationTargets: ["x", "4", "3x"] },
-  { state: "4x + 3 = 2x + 11", operationTargets: ["2x", "3", "4x"] },
-  { state: "3x + 3 = x + 11", operationTargets: ["x", "3", "3x"] },
-  { state: "4x + 2 = x + 11", operationTargets: ["x", "2", "4x"] },
-  { state: "3x + 2 = x + 10", operationTargets: ["x", "2", "3x"] },
-  { state: "4x + 4 = 2x + 12", operationTargets: ["2x", "4", "4x"] },
+  { state: "2x + 1 + 2 = 11", operationTargets: ["1", "2", "2x"] },
+  { state: "3x + 1 + 2 = 12", operationTargets: ["1", "2", "3x"] },
+  { state: "2x + 2 + 3 = 11", operationTargets: ["2", "3", "2x"] },
+  { state: "3x + 1 + 4 = 11", operationTargets: ["1", "4", "3x"] },
+  { state: "4x + 1 + 2 = 11", operationTargets: ["1", "2", "4x"] },
+  { state: "2x + 1 + 3 = 12", operationTargets: ["1", "3", "2x"] },
+  { state: "x + 2 + 3 = 10", operationTargets: ["2", "3", "x"] },
+  { state: "3x + 2 + 3 = 11", operationTargets: ["2", "3", "3x"] },
+  { state: "4x + 1 + 3 = 12", operationTargets: ["1", "3", "4x"] },
+  { state: "2x + 4 + 1 = 11", operationTargets: ["4", "1", "2x"] },
 ];
 
 // Match the authored Drag count to a clear learning profile: one-step
-// additive/multiplicative examples, two-step inverses, then unknowns on both
-// sides for a short three-step stretch. Keep values small so the rhythm and
-// algebra demands stay legible together.
+// additive/multiplicative examples, two-step inverses, then a short three-step
+// stretch. Keep the unknown on one side and isolate small addends in sequence,
+// so early learners can apply the balance rule before the later
+// variable-on-both-sides skill.
 const foundation = [
   ...oneStepTemplates.slice(0, 8).map(({ state }) => state),
   ...twoStepTemplates.slice(0, 10).map(({ state }) => state),

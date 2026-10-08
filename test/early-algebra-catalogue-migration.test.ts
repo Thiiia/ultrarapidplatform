@@ -211,6 +211,7 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
     const [left, right] = equation.state.split("=");
     const [leftCoefficient, leftConstant] = linearSide(left);
     const [rightCoefficient, rightConstant] = linearSide(right);
+    assert.equal(rightCoefficient, 0, equation.state);
     const solution = (rightConstant - leftConstant) / (leftCoefficient - rightCoefficient);
     assert.ok(Number.isSafeInteger(solution) && solution > 0 && solution <= 8, equation.state);
     const drags = refreshed.encounters.filter((encounter) => encounter.type === "drag" && encounter.equationId === equation.id);
