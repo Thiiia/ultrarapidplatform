@@ -137,7 +137,7 @@ test("refreshes Early Algebra math to match authored Drag steps without changing
 
   assert.match(refreshed.equations[0].state, /^x \+/);
   assert.match(refreshed.equations[1].state, /^x \+/);
-  assert.match(refreshed.equations[2].state, /^2x \+/);
+  assert.match(refreshed.equations[2].state, /^x \+/);
   assert.deepEqual(refreshed.equations.map(({ id }) => id), source.equations.map(({ id }) => id));
   assert.deepEqual(refreshed.encounters.map(({ id, eventId, type, equationId, startTick, endTick }) =>
     [id, eventId, type, equationId, startTick, endTick]),
@@ -209,7 +209,7 @@ test("refreshes equations in song order and introduces multiplication before mix
   assert.deepEqual(refreshed.equations.map(({ id }) => id), source.equations.map(({ id }) => id));
 });
 
-test("a three-step stretch does not unlock mixed equations without a one-step multiplication row", () => {
+test("a three-step stretch stays additive until a one-step multiplication row appears", () => {
   const source = {
     version: 3, mode: "authored", songAssetId: "waves", activityKey: "early-algebra",
     equations: [
@@ -243,7 +243,7 @@ test("a three-step stretch does not unlock mixed equations without a one-step mu
   const refreshed = refreshEarlyAlgebraEquationContent({ songAssetId: "waves", sidecar: JSON.stringify(source) });
   const stateById = new Map(refreshed.equations.map(({ id, state }) => [id, state]));
 
-  assert.match(stateById.get("three-step-stretch") ?? "", /^[234]x \+/);
+  assert.match(stateById.get("three-step-stretch") ?? "", /^x \+ \d+ \+ \d+ =/);
   assert.match(stateById.get("later-two-step") ?? "", /^x \+ \d+ \+ \d+ =/);
 });
 

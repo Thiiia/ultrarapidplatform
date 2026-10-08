@@ -87,6 +87,15 @@ const threeStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "2x + 4 + 1 = 11", operationTargets: ["4", "1", "2x"] },
 ];
 
+// Preserve the three Drag actions while keeping the math additive: undo the
+// two constants, then move the isolated unknown as the final action.
+const threeStepAdditiveTemplates: readonly AlgebraEquationTemplate[] = [
+  { state: "x + 1 + 2 = 9", operationTargets: ["1", "2", "x"] },
+  { state: "x + 1 + 3 = 10", operationTargets: ["1", "3", "x"] },
+  { state: "x + 2 + 3 = 10", operationTargets: ["2", "3", "x"] },
+  { state: "x + 1 + 4 = 11", operationTargets: ["1", "4", "x"] },
+];
+
 // Match the authored Drag count to a clear learning profile: one-step
 // additive/multiplicative examples, two-step inverses, then a short three-step
 // stretch. Keep the unknown on one side and isolate small addends in sequence,
@@ -201,7 +210,7 @@ export function refreshEarlyAlgebraEquationContent(input: {
       // Three-step equations are kept as a short stretch: the coefficients and
       // addends stay small, and the row remains within the current bubble width.
       // A stretch row does not replace the one-step multiplication foundation.
-      const candidates = threeStepTemplates;
+      const candidates = hasMultiplicativeFoundation ? threeStepTemplates : threeStepAdditiveTemplates;
       const offset = [...input.songAssetId].reduce((total, character) => total + character.charCodeAt(0), 0);
       const startingOffset = offset % Math.min(4, candidates.length);
       template = candidates[(templateUse.threeStep++ + startingOffset) % candidates.length];
