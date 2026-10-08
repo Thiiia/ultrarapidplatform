@@ -21,6 +21,8 @@ const capture = process.argv.includes("--capture");
 const verifyLive = process.argv.includes("--verify-live");
 const hitPadUpgrade = process.argv.includes("--hitpad-upgrade");
 const mathOnly = process.argv.includes("--math-only");
+const saveIntent = argument("--intent") ?? "draft";
+const platformSessionCookie = process.env.ULTRARAPID_PLATFORM_SESSION_COOKIE?.trim();
 
 type Source = { chart: string; sidecar: string; authorId: string; revision: string };
 
@@ -61,6 +63,11 @@ async function live(songAssetId: string): Promise<Source> {
 async function main() {
   if ([capture, apply, verifyLive].filter(Boolean).length > 1) throw new Error("Capture, verify, and apply must run separately");
   if (mathOnly && hitPadUpgrade) throw new Error("Math-only refresh cannot be combined with hit-pad upgrade");
+  if (saveIntent !== "draft" && saveIntent !== "publish") throw new Error("Intent must be draft or publish");
+  if (saveIntent === "publish" && !apply) throw new Error("Publishing requires --apply");
+  if (apply && !platformSessionCookie) {
+    throw new Error("Authenticated apply requires ULTRARAPID_PLATFORM_SESSION_COOKIE in the local environment; no live content was changed");
+  }
   if (capture) {
     await mkdir(snapshotDir, { recursive: true });
     for (const songAssetId of songs) {
@@ -131,8 +138,13 @@ async function main() {
       const publicationRequestId = randomUUID();
       const saved = await fetch(`${origin}/api/lesson-builder/save`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": publicationRequestId },
-        body: JSON.stringify({ songAssetId, activityKey: "early-algebra", authorId: source.authorId,
+        headers: {
+          "Content-Type": "application/json",
+          "Origin": origin,
+          "Cookie": platformSessionCookie!,
+          "Idempotency-Key": publicationRequestId,
+        },
+        body: JSON.stringify({ intent: saveIntent, songAssetId, activityKey: "early-algebra", authorId: source.authorId,
           revision: source.revision, publicationRequestId,
           chart: { content: source.chart }, sidecar: { content } }),
       });
@@ -144,7 +156,7 @@ async function main() {
       break;
     }
   }
-  console.log(JSON.stringify({ mode: apply ? "apply" : verifyLive ? "verify-live" : "dry-run", outputDir, results }, null, 2));
+  console.log(JSON.stringify({ mode: apply ? "apply" : verifyLive ? "verify-live" : "dry-run", intent: apply ? saveIntent : undefined, outputDir, results }, null, 2));
   if (results.some((item) => "error" in item)) process.exitCode = 1;
 }
 
