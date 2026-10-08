@@ -38,21 +38,36 @@ const oneStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "4x = 12", operationTargets: ["4x"] },
 ];
 
-function oneStepTemplateForOccurrence(occurrence: number, songOffset: number, usedStates: Set<string>) {
-  // Start with one-step addition, then subtraction, then division of a small
-  // coefficient. Song offsets vary the examples without changing that order.
-  const additions = Array.from({ length: 8 }, (_, index) => (songOffset + index) % 8);
-  const subtractions = Array.from({ length: 8 }, (_, index) => 8 + ((songOffset + index) % 8));
-  const multiplications = Array.from({ length: 3 }, (_, index) => 16 + ((songOffset + index) % 3));
-  const sequence = [
-    ...additions.slice(0, 4),
-    ...subtractions.slice(0, 4),
-    ...multiplications,
-    ...additions.slice(4),
-    ...subtractions.slice(4),
+function oneStepTemplateForOccurrence(
+  occurrence: number,
+  songOffset: number,
+  usedStates: Set<string>,
+  totalSteps: number,
+) {
+  // Keep the Early Algebra refresh to one inverse operation per equation row.
+  // Build from additive to subtractive to small multiplicative examples; once
+  // the lesson reaches multiplication it does not fall back to easier forms.
+  const multiplicationCount = totalSteps >= 5 ? Math.max(1, Math.round(totalSteps * 0.2)) : 0;
+  const additiveCount = Math.ceil((totalSteps - multiplicationCount) / 2);
+  const subtractiveCount = totalSteps - multiplicationCount - additiveCount;
+  const families = [
+    { name: "additive", templates: refreshedAdditionTemplates, count: additiveCount },
+    { name: "subtractive", templates: refreshedSubtractionTemplates, count: subtractiveCount },
+    { name: "multiplicative", templates: refreshedMultiplicationTemplates, count: multiplicationCount },
   ];
-  const candidates = sequence.map((index) => refreshedOneStepTemplates[index]);
-  return firstUnusedTemplate(candidates, occurrence, usedStates, "one-step");
+  let precedingCount = 0;
+  const family = families.find(({ count }) => {
+    const containsOccurrence = occurrence < precedingCount + count;
+    precedingCount += count;
+    return containsOccurrence;
+  });
+  if (!family || family.templates.length === 0) {
+    throw new Error(`No Early Algebra one-step family is available for row ${occurrence + 1}`);
+  }
+  const familyOccurrence = occurrence - (precedingCount - family.count);
+  const candidates = Array.from({ length: family.templates.length }, (_, index) =>
+    family.templates[(songOffset + index) % family.templates.length]);
+  return firstUnusedTemplate(candidates, familyOccurrence, usedStates, `${family.name} one-step`);
 }
 
 const twoStepTemplates: readonly AlgebraEquationTemplate[] = [
@@ -83,28 +98,30 @@ const threeStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "2x + 4 + 1 = 11", operationTargets: ["4", "1", "2x"] },
 ];
 
-// One-step refreshes use small whole numbers and keep the unknown on one side.
-const refreshedOneStepTemplates: readonly AlgebraEquationTemplate[] = [
-  { state: "x + 1 = 3", operationTargets: ["1"] },
-  { state: "x + 2 = 5", operationTargets: ["2"] },
-  { state: "x + 3 = 6", operationTargets: ["3"] },
-  { state: "x + 4 = 8", operationTargets: ["4"] },
-  { state: "x + 1 = 4", operationTargets: ["1"] },
-  { state: "x + 2 = 6", operationTargets: ["2"] },
-  { state: "x + 3 = 8", operationTargets: ["3"] },
-  { state: "x + 4 = 9", operationTargets: ["4"] },
-  { state: "x - 1 = 3", operationTargets: ["1"] },
-  { state: "x - 2 = 4", operationTargets: ["2"] },
-  { state: "x - 3 = 4", operationTargets: ["3"] },
-  { state: "x - 4 = 4", operationTargets: ["4"] },
-  { state: "x - 1 = 4", operationTargets: ["1"] },
-  { state: "x - 2 = 6", operationTargets: ["2"] },
-  { state: "x - 3 = 5", operationTargets: ["3"] },
-  { state: "x - 1 = 6", operationTargets: ["1"] },
-  { state: "2x = 4", operationTargets: ["2x"] },
-  { state: "2x = 6", operationTargets: ["2x"] },
-  { state: "2x = 8", operationTargets: ["2x"] },
-];
+// One-step refreshes keep values small while varying the examples by song.
+const refreshedAdditionTemplates: readonly AlgebraEquationTemplate[] = Array.from(
+  { length: 35 },
+  (_, index) => {
+    const addend = (index % 5) + 1;
+    const solution = (Math.floor(index / 5) + index % 5) % 7 + 1;
+    return { state: `x + ${addend} = ${addend + solution}`, operationTargets: [String(addend)] };
+  },
+);
+const refreshedSubtractionTemplates: readonly AlgebraEquationTemplate[] = Array.from(
+  { length: 36 },
+  (_, index) => {
+    const subtrahend = (index % 6) + 1;
+    const difference = (Math.floor(index / 6) + index % 6) % 6 + 1;
+    return { state: `x - ${subtrahend} = ${difference}`, operationTargets: [String(subtrahend)] };
+  },
+);
+const refreshedMultiplicationTemplates: readonly AlgebraEquationTemplate[] = [
+  [2, 2], [3, 2], [2, 3], [4, 2], [2, 4],
+  [3, 3], [2, 5], [4, 3], [2, 6], [3, 4],
+].map(([coefficient, solution]) => ({
+  state: `${coefficient}x = ${coefficient * solution}`,
+  operationTargets: [`${coefficient}x`],
+}));
 
 function firstUnusedTemplate(
   candidates: readonly AlgebraEquationTemplate[],
@@ -173,6 +190,7 @@ export function refreshEarlyAlgebraEquationContent(input: {
   const orderedEncounters = [...source.encounters].sort((left, right) =>
     left.startTick - right.startTick || left.id.localeCompare(right.id));
   if (!orderedEncounters.some((encounter) => encounter.type === "drag")) return source;
+  const totalDragSteps = orderedEncounters.filter((encounter) => encounter.type === "drag").length;
 
   const songOffset = [...input.songAssetId]
     .reduce((total, character) => total + character.charCodeAt(0), 0);
@@ -196,7 +214,12 @@ export function refreshEarlyAlgebraEquationContent(input: {
       throw new Error(`Drag encounter '${dragEncounters[0].id}' must use a Hit from its own equation row`);
     }
 
-    const template = oneStepTemplateForOccurrence(steps.length, songOffset, usedStates);
+    const template = oneStepTemplateForOccurrence(
+      steps.length,
+      songOffset,
+      usedStates,
+      totalDragSteps,
+    );
     const id = `${input.songAssetId}-early-step-${String(steps.length + 1).padStart(2, "0")}`;
     const tokens = tokenizeAuthoredEquationState(template.state).map((label, tokenIndex) => ({
       id: `${id}-token-${tokenIndex}`,
@@ -228,13 +251,17 @@ export function refreshEarlyAlgebraEquationContent(input: {
     const tokens = step.equation.tokens ?? [];
     const targetAt = (tokenIndex: number) => ({ tokenIndex, targetId: tokens[tokenIndex].id });
     const playableTokenIndexes = playableIndexes(step.equation);
+    const dragSourceHitId = step.encounters.find((encounter) => encounter.type === "drag")
+      ?.dragTargets?.[0]?.sourceHitId;
     let hitProgress = 0;
 
     for (const encounter of step.encounters) {
       const refreshed = { ...encounter, equationId: step.equation.id };
       if (encounter.type === "hit") {
         const hitBubbles = (encounter.hitBubbles ?? []).map((bubble, bubbleIndex) => {
-          const tokenIndex = playableTokenIndexes[(hitProgress + bubbleIndex) % playableTokenIndexes.length];
+          const tokenIndex = encounter.id === dragSourceHitId && bubbleIndex === 0
+            ? step.operationTargetIndex
+            : playableTokenIndexes[(hitProgress + bubbleIndex) % playableTokenIndexes.length];
           return { ...bubble, ...targetAt(tokenIndex) };
         });
         hitProgress += hitBubbles.length;
