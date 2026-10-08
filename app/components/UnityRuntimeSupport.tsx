@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createContext, useContext, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 
 type UnityActivitySupport = {
   activityKey: string;
@@ -19,19 +24,20 @@ type CapabilitiesState =
 
 const RuntimeCapabilitiesContext = createContext<CapabilitiesState | null>(null);
 
-function isUnityCapabilitiesResponse(value: unknown): value is UnityCapabilitiesResponse {
-  if (!value || typeof value !== "object" || !("activities" in value) || !Array.isArray(value.activities)) {
+function isUnityActivitySupport(value: unknown): value is UnityActivitySupport {
+  if (!value || typeof value !== "object") {
     return false;
   }
-  return value.activities.every((activity) =>
-    Boolean(activity) &&
-    typeof activity === "object" &&
-    "activityKey" in activity &&
-    typeof activity.activityKey === "string" &&
-    "mechanics" in activity &&
+  const activity = value as { activityKey?: unknown; mechanics?: unknown };
+  return typeof activity.activityKey === "string" &&
     Array.isArray(activity.mechanics) &&
-    activity.mechanics.every((mechanic) => typeof mechanic === "string"),
-  );
+    activity.mechanics.every((mechanic: unknown) => typeof mechanic === "string");
+}
+
+function isUnityCapabilitiesResponse(value: unknown): value is UnityCapabilitiesResponse {
+  if (!value || typeof value !== "object") return false;
+  const activities = (value as { activities?: unknown }).activities;
+  return Array.isArray(activities) && activities.every(isUnityActivitySupport);
 }
 
 function formatMechanic(mechanic: string) {
@@ -146,14 +152,14 @@ export function UnityRuntimeSupport({ activityKey }: { activityKey: string }) {
       aria-busy={state === "checking"}
       aria-label={
         support.status === "ready"
-          ? `Unity runtime supports lesson actions: ${support.mechanics.map(formatMechanic).join(", ")}`
+          ? `Unity activity actions: ${support.mechanics.map(formatMechanic).join(", ")}`
           : support.status === "checking"
-            ? "Checking Unity runtime lesson actions"
+            ? "Checking Unity activity actions"
             : support.status === "unsupported"
-              ? "Unity runtime does not advertise this activity"
-              : "Unity runtime lesson actions are unavailable"
+              ? "This activity has no actions in the Unity runtime manifest"
+              : "Unity activity actions are unavailable"
       }
-      title="Actions from the digest-verified Unity manifest. Lesson-specific playability is checked when launched."
+      title="Actions reported by Unity's verified runtime manifest. The selected lesson is checked again when you launch it."
     >
       <span className="experience-runtime-support__label">UNITY</span>
       <span className="experience-runtime-support__value">{value}</span>
