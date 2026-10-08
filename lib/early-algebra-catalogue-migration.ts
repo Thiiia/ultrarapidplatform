@@ -21,36 +21,36 @@ type AlgebraEquationTemplate = { state: string; operationTargets: readonly strin
 
 const oneStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "x + 2 = 7", operationTargets: ["2"] },
-  { state: "x - 3 = 4", operationTargets: ["3"] },
-  { state: "2x = 10", operationTargets: ["2x"] },
-  { state: "x + 4 = 9", operationTargets: ["4"] },
-  { state: "3x = 12", operationTargets: ["3x"] },
-  { state: "x - 2 = 5", operationTargets: ["2"] },
-  { state: "4x = 12", operationTargets: ["4x"] },
   { state: "x + 3 = 11", operationTargets: ["3"] },
-  { state: "x - 1 = 7", operationTargets: ["1"] },
-  { state: "2x = 12", operationTargets: ["2x"] },
+  { state: "x + 4 = 9", operationTargets: ["4"] },
   { state: "x + 5 = 12", operationTargets: ["5"] },
-  { state: "x - 4 = 4", operationTargets: ["4"] },
-  { state: "3x = 12", operationTargets: ["3x"] },
   { state: "x + 6 = 12", operationTargets: ["6"] },
+  { state: "x - 1 = 7", operationTargets: ["1"] },
   { state: "x - 2 = 6", operationTargets: ["2"] },
+  { state: "x - 2 = 5", operationTargets: ["2"] },
+  { state: "x - 3 = 4", operationTargets: ["3"] },
+  { state: "x - 4 = 4", operationTargets: ["4"] },
+  { state: "2x = 8", operationTargets: ["2x"] },
+  { state: "2x = 10", operationTargets: ["2x"] },
+  { state: "2x = 12", operationTargets: ["2x"] },
+  { state: "3x = 9", operationTargets: ["3x"] },
+  { state: "3x = 12", operationTargets: ["3x"] },
   { state: "4x = 12", operationTargets: ["4x"] },
 ];
 
 const twoStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "2x + 1 = 9", operationTargets: ["1", "2x"] },
-  { state: "3x + 2 = 11", operationTargets: ["2", "3x"] },
   { state: "2x + 2 = 10", operationTargets: ["2", "2x"] },
-  { state: "4x + 1 = 9", operationTargets: ["1", "4x"] },
-  { state: "2x - 2 = 6", operationTargets: ["2", "2x"] },
-  { state: "3x - 3 = 9", operationTargets: ["3", "3x"] },
-  { state: "4x - 4 = 8", operationTargets: ["4", "4x"] },
-  { state: "2x + 4 = 12", operationTargets: ["4", "2x"] },
-  { state: "3x + 3 = 12", operationTargets: ["3", "3x"] },
-  { state: "4x + 2 = 10", operationTargets: ["2", "4x"] },
   { state: "2x + 3 = 11", operationTargets: ["3", "2x"] },
+  { state: "2x + 4 = 12", operationTargets: ["4", "2x"] },
+  { state: "2x - 2 = 6", operationTargets: ["2", "2x"] },
   { state: "3x + 1 = 10", operationTargets: ["1", "3x"] },
+  { state: "3x + 2 = 11", operationTargets: ["2", "3x"] },
+  { state: "3x + 3 = 12", operationTargets: ["3", "3x"] },
+  { state: "3x - 3 = 9", operationTargets: ["3", "3x"] },
+  { state: "4x + 1 = 9", operationTargets: ["1", "4x"] },
+  { state: "4x + 2 = 10", operationTargets: ["2", "4x"] },
+  { state: "4x - 4 = 8", operationTargets: ["4", "4x"] },
 ];
 
 const threeStepTemplates: readonly AlgebraEquationTemplate[] = [
@@ -141,7 +141,11 @@ export function refreshEarlyAlgebraEquationContent(input: {
       ? oneStepTemplates
       : profile === "twoStep" ? twoStepTemplates : threeStepTemplates;
     const offset = [...input.songAssetId].reduce((total, character) => total + character.charCodeAt(0), 0);
-    const candidateIndex = (templateUse[profile]++ + offset) % candidates.length;
+    // Rotate songs only within the easiest four examples of each profile.
+    // The old full-list rotation could start a learner on multiplication or a
+    // later coefficient before the additive foundation had appeared.
+    const startingOffset = offset % Math.min(4, candidates.length);
+    const candidateIndex = (templateUse[profile]++ + startingOffset) % candidates.length;
     const template = candidates[candidateIndex];
     const tokens = tokenizeAuthoredEquationState(template.state).map((label, tokenIndex) => ({
       id: `${equation.id}-math-refresh-token-${tokenIndex}`,

@@ -45,7 +45,7 @@ test("migrates old hits to the player hex and uses the released phrase for separ
     ],
   };
   const migrated = migrateEarlyAlgebraCatalogueSong({ songAssetId: "jazzmaybach", chart, sidecar: JSON.stringify(source) });
-  assert.deepEqual(migrated.equations.map((equation) => equation.state), ["x + 2 = 7", "x - 3 = 4"]);
+  assert.deepEqual(migrated.equations.map((equation) => equation.state), ["x + 2 = 7", "x + 3 = 11"]);
   assert.ok(migrated.encounters.length > source.encounters.length);
   assert.ok(source.encounters.every(({ id }) => migrated.encounters.some((encounter) => encounter.id === id)));
   assert.equal(migrated.encounters.find((encounter) => encounter.id === "first-drag")?.endTick, 5376);
@@ -135,6 +135,8 @@ test("refreshes Early Algebra math to match authored Drag steps without changing
   };
   const refreshed = refreshEarlyAlgebraEquationContent({ songAssetId: "waves", sidecar: JSON.stringify(source) });
 
+  assert.match(refreshed.equations[0].state, /^x \+/);
+  assert.match(refreshed.equations[1].state, /^2x \+/);
   assert.deepEqual(refreshed.equations.map(({ id }) => id), source.equations.map(({ id }) => id));
   assert.deepEqual(refreshed.encounters.map(({ id, eventId, type, equationId, startTick, endTick }) =>
     [id, eventId, type, equationId, startTick, endTick]),
