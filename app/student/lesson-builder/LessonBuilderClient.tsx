@@ -114,7 +114,7 @@ import {
 import { getSongChartCues } from "@/lib/song-chart-cues";
 import { getLearnerFacingError, studentCopy } from "@/lib/student-copy";
 import GuidedTemplateStart from "./GuidedTemplateStart";
-import { AlgebraStudioBar, type AlgebraAppearance } from "./AlgebraStudioBar";
+import { AlgebraStudioBar } from "./AlgebraStudioBar";
 import { AlgebraEmptyState } from "./AlgebraEmptyState";
 import { AlgebraActionDraft } from "./AlgebraActionDraft";
 import algebraStyles from "./AlgebraStudio.module.css";
@@ -10515,18 +10515,9 @@ export default function LessonBuilderClient({
   const [entryIntent, setEntryIntent] = useState<PlayerLessonEntryIntent>("play");
   const [guidedStarted, setGuidedStarted] = useState(false);
   const [advancedMode, setAdvancedMode] = useState(false);
-  const [algebraAppearance, setAlgebraAppearance] = useState<AlgebraAppearance>("glass");
   const [algebraActionDraft, setAlgebraActionDraft] = useState<GuidedEncounterInput | null>(null);
   const [pendingAlgebraActionDraft, setPendingAlgebraActionDraft] = useState<GuidedEncounterInput | null>(null);
   const [isLessonLoaded, setIsLessonLoaded] = useState(false);
-  useEffect(() => {
-    try {
-      const savedAppearance = window.localStorage.getItem("ultrarapid-algebra-editor-appearance");
-      if (savedAppearance === "glass" || savedAppearance === "focus") setAlgebraAppearance(savedAppearance);
-    } catch {
-      // Private browsing may block local storage; the editor still works.
-    }
-  }, []);
   const [advancedConfirmOpen, setAdvancedConfirmOpen] = useState(false);
   const [isReadinessOpen, setIsReadinessOpen] = useState(false);
   const [timingRepairPreviewState, setTimingRepairPreviewState] = useState<{
@@ -15331,7 +15322,6 @@ export default function LessonBuilderClient({
   return (
     <div
       className={`${styles.studentTypography} ${isAlgebraActivity ? algebraStyles.shell : ""}`}
-      data-appearance={isAlgebraActivity ? algebraAppearance : undefined}
       style={{
         minHeight: "100vh",
         background: isAlgebraActivity ? undefined : pageBackgroundColor,
@@ -15402,18 +15392,14 @@ export default function LessonBuilderClient({
       />
       {isAlgebraActivity ? (
         <AlgebraStudioBar
+          activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? "early-algebra"}
           songTitle={metadata?.songTitle?.trim() || uploadedSongName || "Choose a song"}
           encounterCount={timelineEvents.length}
           actionCount={timelineEvents.reduce((total, event) => total + gameplayMechanics.reduce((count, mechanic) => count + Math.max(0, event.counts?.[mechanic] ?? 0), 0), 0)}
-          appearance={algebraAppearance}
           canAddAction={isLessonLoaded && Boolean(selectedSongStorage || selectedSongLaunch)}
           onEditFirstEncounter={handlePersonalizeStarterEncounter}
           onCreateEquation={handleAddToStarterTemplate}
           onAddAction={() => openAlgebraActionDraft("hit")}
-          onAppearanceChange={(appearance) => {
-            setAlgebraAppearance(appearance);
-            try { window.localStorage.setItem("ultrarapid-algebra-editor-appearance", appearance); } catch { /* Continue without persistence. */ }
-          }}
         />
       ) : null}
 

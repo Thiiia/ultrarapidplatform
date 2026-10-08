@@ -111,6 +111,50 @@
   color: var(--ur-feedback-timing);
 }
 
+.experience-runtime-support {
+  display: inline-flex;
+  min-width: 0;
+  min-height: var(--ur-target-minimum-web);
+  align-items: center;
+  gap: var(--ur-space-2);
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--ur-accent-lime) 24%, transparent);
+  border-radius: var(--ur-radius-pill);
+  padding: 0.35rem var(--ur-space-3);
+  background: color-mix(in srgb, var(--ur-canvas-deep) 50%, transparent);
+  color: var(--ur-text-marketing);
+  font-family: var(--ur-font-interface), sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.experience-runtime-support__label {
+  flex: none;
+  color: var(--ur-accent-lime);
+  font-family: var(--ur-font-technical), monospace;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+}
+
+.experience-runtime-support__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.experience-runtime-support[data-state="unavailable"],
+.experience-runtime-support[data-state="unsupported"] {
+  border-color: color-mix(in srgb, var(--ur-feedback-warning) 42%, transparent);
+}
+
+.experience-runtime-support[data-state="unavailable"] .experience-runtime-support__value,
+.experience-runtime-support[data-state="unsupported"] .experience-runtime-support__value {
+  color: var(--ur-feedback-warning);
+}
+
 .experience-dialog {
   max-width: min(42rem, calc(100vw - 2rem));
   border: 1px solid var(--color-border-strong);

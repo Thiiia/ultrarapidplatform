@@ -1,24 +1,21 @@
 import { useState } from "react";
+import { UnityRuntimeSupport } from "@/app/components/UnityRuntimeSupport";
 import styles from "./AlgebraStudio.module.css";
 
-export type AlgebraAppearance = "glass" | "focus";
-
 export function AlgebraStudioBar({
+  activityKey,
   songTitle,
   encounterCount,
   actionCount,
-  appearance,
-  onAppearanceChange,
   onAddAction,
   canAddAction,
   onEditFirstEncounter,
   onCreateEquation,
 }: {
+  activityKey: string;
   songTitle: string;
   encounterCount: number;
   actionCount: number;
-  appearance: AlgebraAppearance;
-  onAppearanceChange: (appearance: AlgebraAppearance) => void;
   onAddAction: () => void;
   canAddAction: boolean;
   onEditFirstEncounter: () => void;
@@ -39,6 +36,7 @@ export function AlgebraStudioBar({
         <span className={styles.countDivider} aria-hidden="true" />
         <span><strong>{actionCount}</strong> {actionCount === 1 ? "action" : "actions"}</span>
       </div>
+      <UnityRuntimeSupport activityKey={activityKey} />
       <button type="button" className={styles.addAction} onClick={onAddAction} disabled={!canAddAction} title={canAddAction ? "Set up a player move" : "Choose and load a song first"}>+ Add a move</button>
       <div className={styles.guideWrap}>
         <button type="button" className={styles.guideToggle} aria-expanded={guideOpen} aria-controls="algebra-studio-guide" onClick={() => setGuideOverride(!guideOpen)}>How it works</button>
@@ -57,11 +55,6 @@ export function AlgebraStudioBar({
             </div>
           </div>
         ) : null}
-      </div>
-      <div className={styles.appearance} role="group" aria-label="Editor appearance">
-        <span className={styles.appearanceLabel}>LOOK</span>
-        <button type="button" aria-pressed={appearance === "glass"} onClick={() => onAppearanceChange("glass")}>Prism</button>
-        <button type="button" aria-pressed={appearance === "focus"} onClick={() => onAppearanceChange("focus")}>Focus</button>
       </div>
     </div>
   );

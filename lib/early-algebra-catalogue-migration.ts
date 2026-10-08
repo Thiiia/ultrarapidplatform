@@ -17,37 +17,75 @@ import { musicalAnchorTicks } from "./authored-lesson-retiming";
 import { createLessonClock } from "./editor/lesson-timing";
 import { repairLegacyMigratedAuthoredLesson } from "./legacy-authored-migration";
 
-// Deliberate progressions: one-step equations first, then two-step and
-// variable-on-both-sides equations. Each state has an integer solution.
+type AlgebraEquationTemplate = { state: string; operationTargets: readonly string[] };
+
+const oneStepTemplates: readonly AlgebraEquationTemplate[] = [
+  { state: "x + 2 = 7", operationTargets: ["2"] },
+  { state: "x - 3 = 4", operationTargets: ["3"] },
+  { state: "2x = 10", operationTargets: ["2x"] },
+  { state: "x + 4 = 9", operationTargets: ["4"] },
+  { state: "3x = 12", operationTargets: ["3x"] },
+  { state: "x - 2 = 5", operationTargets: ["2"] },
+  { state: "4x = 16", operationTargets: ["4x"] },
+  { state: "x + 3 = 11", operationTargets: ["3"] },
+  { state: "x - 1 = 7", operationTargets: ["1"] },
+  { state: "2x = 14", operationTargets: ["2x"] },
+  { state: "x + 5 = 12", operationTargets: ["5"] },
+  { state: "x - 4 = 4", operationTargets: ["4"] },
+  { state: "3x = 15", operationTargets: ["3x"] },
+  { state: "x + 6 = 14", operationTargets: ["6"] },
+  { state: "x - 2 = 8", operationTargets: ["2"] },
+  { state: "4x = 12", operationTargets: ["4x"] },
+];
+
+const twoStepTemplates: readonly AlgebraEquationTemplate[] = [
+  { state: "2x + 1 = 9", operationTargets: ["1", "2x"] },
+  { state: "3x + 2 = 11", operationTargets: ["2", "3x"] },
+  { state: "2x + 2 = 10", operationTargets: ["2", "2x"] },
+  { state: "4x + 1 = 9", operationTargets: ["1", "4x"] },
+  { state: "2x - 2 = 6", operationTargets: ["2", "2x"] },
+  { state: "3x - 3 = 9", operationTargets: ["3", "3x"] },
+  { state: "4x - 4 = 8", operationTargets: ["4", "4x"] },
+  { state: "2x + 4 = 12", operationTargets: ["4", "2x"] },
+  { state: "3x + 3 = 12", operationTargets: ["3", "3x"] },
+  { state: "4x + 2 = 10", operationTargets: ["2", "4x"] },
+  { state: "2x + 3 = 11", operationTargets: ["3", "2x"] },
+  { state: "3x + 1 = 13", operationTargets: ["1", "3x"] },
+];
+
+const threeStepTemplates: readonly AlgebraEquationTemplate[] = [
+  { state: "3x + 2 = x + 8", operationTargets: ["x", "2", "3x"] },
+  { state: "3x + 1 = x + 7", operationTargets: ["x", "1", "3x"] },
+  { state: "4x + 2 = 2x + 10", operationTargets: ["2x", "2", "4x"] },
+  { state: "4x + 1 = 2x + 9", operationTargets: ["2x", "1", "4x"] },
+  { state: "3x + 4 = x + 12", operationTargets: ["x", "4", "3x"] },
+  { state: "4x + 3 = 2x + 11", operationTargets: ["2x", "3", "4x"] },
+  { state: "3x + 3 = x + 11", operationTargets: ["x", "3", "3x"] },
+  { state: "4x + 2 = x + 11", operationTargets: ["x", "2", "4x"] },
+  { state: "3x + 2 = x + 10", operationTargets: ["x", "2", "3x"] },
+  { state: "4x + 4 = 2x + 12", operationTargets: ["2x", "4", "4x"] },
+];
+
+// The migration catalogue stays within small whole numbers. Most lessons
+// begin with one-step equations, then move to two-step examples; a short
+// stretch uses small coefficients on both sides.
 const foundation = [
-  "x + 4 = 11", "x - 6 = 8", "3x = 21", "2x + 5 = 19",
-  "4x - 7 = 25", "5x + 6 = 31", "6x - 9 = 27", "3x + 8 = 26",
-  "7x - 5 = 51", "4x + 9 = 2x + 21", "5x - 4 = 2x + 20",
-  "6x + 3 = 3x + 30", "8x - 10 = 5x + 14",
-  "7x + 2 = 4x + 20", "9x - 5 = 6x + 22",
-  "2x + 13 = x + 23", "3x - 4 = x + 4", "4x + 6 = x + 33",
+  ...oneStepTemplates.slice(0, 8).map(({ state }) => state),
+  ...twoStepTemplates.slice(0, 10).map(({ state }) => state),
 ];
-const intermediate = [
-  "4x + 7 = 35", "6x - 5 = 31", "5x + 9 = 3x + 25",
-  "7x - 11 = 3x + 13", "8x + 5 = 2x + 47",
-  "9x - 8 = 5x + 20", "3x + 17 = 2x + 26",
-  "11x - 9 = 6x + 36", "12x + 4 = 8x + 28",
-  "6x + 15 = 2x + 47", "10x - 12 = 7x + 9",
-  "7x + 18 = 4x + 36",
-];
-const advanced = [
-  "7x + 9 = 3x + 29", "11x - 5 = 4x + 44",
-  "9x + 14 = 5x + 50", "12x - 8 = 3x + 46",
-  "14x + 6 = 8x + 66", "15x - 13 = 6x + 50",
-  "13x + 11 = 5x + 75", "16x - 7 = 7x + 92",
-  "18x + 4 = 10x + 100", "17x - 12 = 9x + 20",
+const intermediate = twoStepTemplates.map(({ state }) => state);
+const advanced = threeStepTemplates.map(({ state }) => state);
+const gardenProgression = [
+  ...oneStepTemplates.slice(0, 4).map(({ state }) => state),
+  ...twoStepTemplates.slice(0, 4).map(({ state }) => state),
+  ...threeStepTemplates.slice(0, 2).map(({ state }) => state),
 ];
 
 const catalogue: Record<string, { states: readonly string[]; offset: number; dualPadFromEquation: number }> = {
-  garden: { states: advanced, offset: 0, dualPadFromEquation: 0 },
+  garden: { states: gardenProgression, offset: 0, dualPadFromEquation: 0 },
   geminiqueen: { states: foundation, offset: 0, dualPadFromEquation: 2 },
   grudge: { states: intermediate, offset: 0, dualPadFromEquation: 1 },
-  jazzmaybach: { states: ["x + 4 = 10", "3x + 7 = 31"], offset: 0, dualPadFromEquation: 1 },
+  jazzmaybach: { states: foundation.slice(0, 2), offset: 0, dualPadFromEquation: 1 },
   justbecause: { states: intermediate, offset: 2, dualPadFromEquation: 1 },
   oneone: { states: intermediate, offset: 4, dualPadFromEquation: 1 },
   seven: { states: foundation, offset: 5, dualPadFromEquation: 2 },
@@ -64,6 +102,111 @@ function equationTokens(equation: AuthoredLessonEquation) {
 function playableIndexes(equation: AuthoredLessonEquation) {
   return equationTokens(equation).flatMap((token, index) =>
     isAuthoredEquationOperator(token.label) ? [] : [index]);
+}
+
+/** Replace equation content while keeping the authored chart and encounter schedule intact. */
+export function refreshEarlyAlgebraEquationContent(input: {
+  songAssetId: string;
+  sidecar: string;
+}) {
+  const source = parseAuthoredLessonDraft(repairLegacyMigratedAuthoredLesson(JSON.parse(input.sidecar)));
+  if (source.activityKey !== "early-algebra" || source.songAssetId !== input.songAssetId) {
+    throw new Error(`Catalogue identity mismatch for '${input.songAssetId}'`);
+  }
+
+  const dragTargetCounts = new Map<string, number>();
+  for (const encounter of source.encounters) {
+    if (encounter.type !== "drag") continue;
+    const targetCount = encounter.dragTargets?.length ?? 0;
+    if (targetCount === 0) throw new Error(`Drag encounter '${encounter.id}' has no authored target`);
+    const equationId = encounter.equationId ?? "";
+    dragTargetCounts.set(equationId, (dragTargetCounts.get(equationId) ?? 0) + targetCount);
+  }
+
+  const templateUse = { oneStep: 0, twoStep: 0, threeStep: 0 };
+  const plans = new Map<string, {
+    equation: AuthoredLessonEquation;
+    operationTargetIndexes: number[];
+    playableTokenIndexes: number[];
+  }>();
+  const equations = source.equations.map((equation) => {
+    const dragCount = dragTargetCounts.get(equation.id) ?? 0;
+    if (dragCount > 3) {
+      throw new Error(`Equation '${equation.id}' has ${dragCount} Drag targets; the early-algebra ladder supports at most three steps`);
+    }
+    const profile = dragCount <= 1 ? "oneStep" : dragCount === 2 ? "twoStep" : "threeStep";
+    const candidates = profile === "oneStep"
+      ? oneStepTemplates
+      : profile === "twoStep" ? twoStepTemplates : threeStepTemplates;
+    const offset = [...input.songAssetId].reduce((total, character) => total + character.charCodeAt(0), 0);
+    const candidateIndex = (templateUse[profile]++ + offset) % candidates.length;
+    const template = candidates[candidateIndex];
+    const tokens = tokenizeAuthoredEquationState(template.state).map((label, tokenIndex) => ({
+      id: `${equation.id}-math-refresh-token-${tokenIndex}`,
+      label,
+    }));
+    const operationTargetIndexes = template.operationTargets.map((label) => {
+      const index = tokens.findIndex((token) => token.label === label);
+      if (index < 0 || isAuthoredEquationOperator(label)) {
+        throw new Error(`Math template '${template.state}' has an invalid operation target '${label}'`);
+      }
+      return index;
+    });
+    const refreshed = { id: equation.id, state: template.state, tokens };
+    plans.set(equation.id, {
+      equation: refreshed,
+      operationTargetIndexes,
+      playableTokenIndexes: playableIndexes(refreshed),
+    });
+    return refreshed;
+  });
+
+  const dragProgress = new Map<string, number>();
+  const hitProgress = new Map<string, number>();
+  const refreshedById = new Map<string, AuthoredLessonEncounter>();
+  const orderedEncounters = [...source.encounters].sort((left, right) =>
+    left.startTick - right.startTick || left.id.localeCompare(right.id));
+  for (const encounter of orderedEncounters) {
+    const equationId = encounter.equationId ?? "";
+    const plan = plans.get(equationId);
+    if (!plan) throw new Error(`Encounter '${encounter.id}' has no Early Algebra equation`);
+    const tokens = equationTokens(plan.equation);
+    const targetAt = (index: number) => ({ tokenIndex: index, targetId: tokens[index].id });
+    if (encounter.type === "hit") {
+      const nextHit = hitProgress.get(equationId) ?? 0;
+      const hitBubbles = (encounter.hitBubbles ?? []).map((bubble, bubbleIndex) => {
+        const playableIndex = plan.playableTokenIndexes[(nextHit + bubbleIndex) % plan.playableTokenIndexes.length];
+        return { ...bubble, ...targetAt(playableIndex) };
+      });
+      hitProgress.set(equationId, nextHit + hitBubbles.length);
+      refreshedById.set(encounter.id, { ...encounter, hitBubbles });
+      continue;
+    }
+    if (encounter.type === "spin") {
+      const pendingStep = dragProgress.get(equationId) ?? 0;
+      const spinTargets = (encounter.spinTargets ?? []).map((target, index) => ({
+        ...target,
+        ...targetAt(plan.operationTargetIndexes[Math.min(pendingStep + index, plan.operationTargetIndexes.length - 1)]),
+      }));
+      if (spinTargets.length === 0) throw new Error(`Spin encounter '${encounter.id}' has no authored target`);
+      refreshedById.set(encounter.id, { ...encounter, spinTargets });
+      continue;
+    }
+    const nextStep = dragProgress.get(equationId) ?? 0;
+    const dragTargets = (encounter.dragTargets ?? []).map((target, index) => ({
+      ...target,
+      ...targetAt(plan.operationTargetIndexes[Math.min(nextStep + index, plan.operationTargetIndexes.length - 1)]),
+    }));
+    dragProgress.set(equationId, nextStep + dragTargets.length);
+    refreshedById.set(encounter.id, { ...encounter, dragTargets });
+  }
+
+  const encounters = source.encounters.map((encounter) => {
+    const refreshed = refreshedById.get(encounter.id);
+    if (!refreshed) throw new Error(`Encounter '${encounter.id}' was not refreshed`);
+    return refreshed;
+  });
+  return parseAuthoredLessonDraft({ ...source, equations, encounters });
 }
 
 function targetFor(equation: AuthoredLessonEquation, kind: "hit" | "spin" | "drag", occurrence: number) {

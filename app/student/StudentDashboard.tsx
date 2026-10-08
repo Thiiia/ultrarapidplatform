@@ -4,6 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { StudentDashboardData } from "@/lib/student-dashboard";
+import {
+  UnityRuntimeCapabilitiesProvider,
+  UnityRuntimeSupport,
+} from "@/app/components/UnityRuntimeSupport";
 import { studentCopy } from "@/lib/student-copy";
 import styles from "./student.module.css";
 
@@ -45,13 +49,6 @@ function getDisplayFirstName(value?: string | null) {
 const pagePanelWidth = "85vw";
 const pageBackgroundStyle =
   "linear-gradient(180deg, #082733 0%, #030E14 100%)";
-
-const activityKeyByTitle: Record<string, string> = {
-  "Number Bonds": "number-bonds",
-  Equations: "equations",
-  "Missing Numbers": "missing-numbers",
-  "Early Algebra": "early-algebra",
-};
 
 function HeaderBar({
   profileLabel,
@@ -268,6 +265,7 @@ export default function StudentDashboard({
   const gameCards = [
     {
       title: "Number Bonds",
+      key: "number-bonds",
       icon: numberBondsImage,
       alt: "Number bonds",
       description: studentCopy.dashboard.gameDescriptions.numberBonds,
@@ -276,6 +274,7 @@ export default function StudentDashboard({
     },
     {
       title: "Equations",
+      key: "equations",
       icon: equationsImage,
       alt: "Equations",
       description: studentCopy.dashboard.gameDescriptions.equations,
@@ -284,6 +283,7 @@ export default function StudentDashboard({
     },
     {
       title: "Missing Numbers",
+      key: "missing-numbers",
       icon: missingNumbersImage,
       alt: "Missing numbers",
       description: studentCopy.dashboard.gameDescriptions.missingNumbers,
@@ -292,6 +292,7 @@ export default function StudentDashboard({
     },
     {
       title: "Early Algebra",
+      key: "early-algebra",
       icon: earlyAlgebraImage,
       alt: "Early algebra",
       description: studentCopy.dashboard.gameDescriptions.earlyAlgebra,
@@ -300,8 +301,7 @@ export default function StudentDashboard({
     },
   ];
 
-  function handlePlayClick(activityLabel: string) {
-    const activityKey = activityKeyByTitle[activityLabel] ?? "number-bonds";
+  function handlePlayClick(activityKey: string, activityLabel: string) {
     const selectedActivity = {
       key: activityKey,
       label: activityLabel,
@@ -533,6 +533,7 @@ export default function StudentDashboard({
                 <span>{studentCopy.dashboard.gamesTitle}</span>
               </div>
 
+              <UnityRuntimeCapabilitiesProvider>
               <div
                 style={{
                   display: "grid",
@@ -626,9 +627,11 @@ export default function StudentDashboard({
                           {game.description}
                         </div>
 
+                        <UnityRuntimeSupport activityKey={game.key} />
+
                         <button
                           type="button"
-                          onClick={() => handlePlayClick(game.title)}
+                          onClick={() => handlePlayClick(game.key, game.title)}
                           disabled={isDisabled}
                           style={{
                             width: "90%",
@@ -662,6 +665,7 @@ export default function StudentDashboard({
                   );
                 })}
               </div>
+              </UnityRuntimeCapabilitiesProvider>
             </div>
           </section>
         </div>

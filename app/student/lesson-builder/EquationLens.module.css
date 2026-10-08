@@ -111,10 +111,6 @@
   58% { transform: translate(1px,1px) scale(.98); }
   100% { opacity: 1; transform: translate(0) scale(1); }
 }
-:global([data-appearance="focus"]) .bubble { background: #17323b; backdrop-filter: none; box-shadow: none; }
-:global([data-appearance="focus"]) .refraction { display: none; }
-:global([data-appearance="focus"]) .membrane { display: none; }
-:global([data-appearance="focus"]) .lens { background: none; box-shadow: none; border-color: var(--lens-accent); }
 @media (prefers-reduced-transparency: reduce) {
   .bubble { background: #17323b; backdrop-filter: none; box-shadow: none; }
   .refraction { display: none; }

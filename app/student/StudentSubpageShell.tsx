@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { FC, ReactNode, SVGProps } from "react";
+import type { ReactNode } from "react";
 import { studentCopy } from "@/lib/student-copy";
-import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigation";
+import ExperienceRoleHeader, {
+  type ExperienceRoleHeaderAction,
+  type ExperienceRoleNavigationItem,
+} from "@/app/components/ExperienceRoleHeader";
 import styles from "./student.module.css";
 
 /* Header Icon imports */
-import URIcon from "@/public/header_icons/URIcon.svg";
 import PlayTab from "@/public/header_icons/play_tab.svg";
 import PlayPressedTab from "@/public/header_icons/play_tab_pressed.svg";
 import HomeIcon from "@/public/header_icons/Home.svg";
@@ -20,27 +21,7 @@ import LessonBuilderPressedTab from "@/public/header_icons/lesson_builder_tab_pr
 import ProgressTab from "@/public/header_icons/progress_tab.svg";
 import ProgressPressedTab from "@/public/header_icons/progress_tab_pressed.svg";
 
-/* Utility Icon Imports */
-// import NotificationsIcon from "@/public/utility_icons/notifications_icon.svg";
-// import SettingsIcon from "@/public/utility_icons/settings_icon.svg";
 import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
-
-type TabIcon = FC<SVGProps<SVGSVGElement>>;
-
-type HeaderTab = {
-  label: string;
-  href: string;
-  Icon: TabIcon;
-  ActiveIcon: TabIcon;
-  width: number;
-};
-
-type UtilityTab = {
-  label: string;
-  href: string;
-  Icon: TabIcon;
-  width: number;
-};
 
 type StudentSubpageCard = {
   title: string;
@@ -55,7 +36,7 @@ type StudentSubpageShellProps = {
   children?: ReactNode;
 };
 
-function getTopTabs(navBasePath = "/student"): HeaderTab[] {
+function getTopTabs(navBasePath = "/student"): ExperienceRoleNavigationItem[] {
   return [
     {
       label: "Home",
@@ -63,6 +44,7 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
       Icon: HomeIcon,
       ActiveIcon: HomePressedIcon,
       width: 99,
+      matchNested: false,
     },
     {
       label: studentCopy.navigation.lessons,
@@ -77,6 +59,7 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
       Icon: LessonBuilderTab,
       ActiveIcon: LessonBuilderPressedTab,
       width: 159,
+      activePaths: [`${navBasePath}/lesson-builder`],
     },
     {
       label: studentCopy.navigation.progress,
@@ -91,19 +74,19 @@ function getTopTabs(navBasePath = "/student"): HeaderTab[] {
       Icon: PlayTab,
       ActiveIcon: PlayPressedTab,
       width: 99,
+      matchNested: false,
     },
   ];
 }
 
-function getUtilityTabs(navBasePath = "/student"): UtilityTab[] {
+function getUtilityItems(navBasePath = "/student"): ExperienceRoleHeaderAction[] {
   return [
-    // { label: "Notifications", href: "/student/notifications", Icon: NotificationsIcon, width: 38 },
-    // { label: "Settings", href: "/student/settings", Icon: SettingsIcon, width: 38 },
     {
       label: "Profile",
       href: navBasePath === "/demo/student" ? `${navBasePath}/profile` : "/student/profile",
       Icon: ProfileIcon,
       width: 134.45,
+      mobile: true,
     },
   ];
 }
@@ -156,212 +139,6 @@ function DashboardSection({ title, children }: SectionProps) {
         {children}
       </section>
     </div>
-  );
-}
-
-function HeaderBar({
-  pathname,
-  topTabs,
-  navBasePath,
-}: {
-  pathname: string;
-  topTabs: HeaderTab[];
-  navBasePath: string;
-}) {
-  const utilityTabs = getUtilityTabs(navBasePath);
-  const mobileItems = [
-    ...topTabs.map((tab) => ({
-      label: tab.label,
-      href: tab.href,
-      current: pathname === tab.href,
-    })),
-    ...utilityTabs.map((tab) => ({
-      label: tab.label,
-      href: tab.href,
-      current: pathname === tab.href,
-    })),
-    { label: studentCopy.navigation.logout, href: "/auth/logout", current: false },
-  ];
-  return (
-    <header
-      className="experience-role-header"
-      style={{
-        background: headerStyles.backgroundColor,
-        width: "100%",
-        boxSizing: "border-box",
-        height: 70,
-        border: "none",
-        borderBottom: `1px solid ${headerStyles.borderBottomColor}`,
-        borderRadius: 0,
-        display: "flex",
-        alignItems: "center",
-        overflow: "visible",
-      }}
-    >
-      <div
-        className="experience-role-header-inner"
-        style={{
-          width: pagePanelWidth,
-          height: "100%",
-          margin: "0 auto",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 24,
-          flexWrap: "nowrap",
-          overflow: "visible",
-        }}
-      >
-        <div
-          className="experience-role-brand-group"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 28,
-            flexWrap: "nowrap",
-            minWidth: 0,
-            overflow: "visible",
-          }}
-        >
-          <div
-            style={{
-              width: 164,
-              height: 35,
-              display: "inline-flex",
-              alignItems: "center",
-              flexShrink: 0,
-              overflow: "visible",
-            }}
-          >
-            <URIcon
-              aria-label="UltraRapid"
-              style={{
-                width: 156,
-                height: 35,
-                display: "block",
-                flexShrink: 0,
-                overflow: "visible",
-              }}
-            />
-          </div>
-
-          <nav
-            aria-label="Student navigation"
-            className="experience-navigation experience-desktop-navigation"
-            data-experience-component="navigation"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "nowrap",
-              minWidth: 0,
-              overflow: "visible",
-            }}
-          >
-            {topTabs.map((tab) => {
-const cleanTabHref = tab.href.split("?")[0];
-const isHomeTab = tab.label === "Home";
-const isPlayTab = tab.label === "Play";
-const isLessonBuilderTab = tab.label === studentCopy.navigation.builder;
-
-const lessonBuilderPath = cleanTabHref.replace(
-  "/song-choice",
-  "/lesson-builder",
-);
-
-const isActive =
-  pathname === cleanTabHref ||
-  (isLessonBuilderTab &&
-    (pathname === lessonBuilderPath ||
-      pathname.startsWith(`${lessonBuilderPath}/`))) ||
-  (!isHomeTab &&
-    !isPlayTab &&
-    !isLessonBuilderTab &&
-    cleanTabHref !== "/" &&
-    pathname.startsWith(`${cleanTabHref}/`));
-
-              const Icon = isActive ? tab.ActiveIcon : tab.Icon;
-
-              return (
-                <Link
-                  key={tab.label}
-                  href={tab.href}
-                  aria-label={tab.label}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`${styles.headerTabButton} ${
-                    isActive ? styles.headerTabButtonActive : ""
-                  }`}
-                  style={{
-                    width: tab.width,
-                    height: 45.5,
-                    opacity: 1,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Icon
-                    style={{
-                      width: tab.width,
-                      height: 45.5,
-                      display: "block",
-                    }}
-                  />
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        <div
-          className="experience-role-utilities"
-          style={{
-            display: "flex",
-            gap: 6,
-            flexWrap: "nowrap",
-            marginLeft: "auto",
-            alignItems: "center",
-            flexShrink: 0,
-            overflow: "visible",
-          }}
-        >
-          {utilityTabs.map((tab) => {
-            const iconWidth = tab.width;
-            const iconHeight = 38;
-
-            return (
-              <Link
-                key={tab.label}
-                href={tab.href}
-                aria-label={tab.label}
-                className={styles.utilityButton}
-                style={{
-                  width: tab.width,
-                  height: 38,
-                }}
-              >
-                <tab.Icon
-                  style={{
-                    width: iconWidth,
-                    height: iconHeight,
-                    display: "block",
-                  }}
-                />
-              </Link>
-            );
-          })}
-
-          <a
-            href="/auth/logout"
-            aria-label="Log out"
-            className={`${styles.utilityButton} ${styles.logoutButton}`}
-          >
-            {studentCopy.navigation.logout}
-          </a>
-        </div>
-        <ExperienceMobileNavigation items={mobileItems} label="Student" />
-      </div>
-    </header>
   );
 }
 
@@ -430,7 +207,6 @@ export default function StudentSubpageShell({
   children,
   navBasePath = "/student",
 }: StudentSubpageShellProps) {
-  const pathname = usePathname();
   const topTabs = getTopTabs(navBasePath);
 
   return (
@@ -447,7 +223,13 @@ export default function StudentSubpageShell({
         overflowX: "hidden",
       }}
     >
-      <HeaderBar pathname={pathname} topTabs={topTabs} navBasePath={navBasePath} />
+      <ExperienceRoleHeader
+        role="Student"
+        navigationLabel="Student navigation"
+        navigationItems={topTabs}
+        utilityItems={getUtilityItems(navBasePath)}
+        logoutLabel={studentCopy.navigation.logout}
+      />
 
       <DashboardSection title={title}>
         <div className={styles.subpageCardGrid}>

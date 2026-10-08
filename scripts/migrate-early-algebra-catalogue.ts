@@ -3,7 +3,11 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { prepareAuthoredLessonForPublication } from "../lib/authored-lesson-publication";
-import { migrateEarlyAlgebraCatalogueSong, upgradeEarlyAlgebraCatalogueHitPads } from "../lib/early-algebra-catalogue-migration";
+import {
+  migrateEarlyAlgebraCatalogueSong,
+  refreshEarlyAlgebraEquationContent,
+  upgradeEarlyAlgebraCatalogueHitPads,
+} from "../lib/early-algebra-catalogue-migration";
 import { createLessonClock } from "../lib/editor/lesson-timing";
 import { validateLessonContent } from "../lib/lesson-content";
 
@@ -16,6 +20,7 @@ const apply = process.argv.includes("--apply");
 const capture = process.argv.includes("--capture");
 const verifyLive = process.argv.includes("--verify-live");
 const hitPadUpgrade = process.argv.includes("--hitpad-upgrade");
+const mathOnly = process.argv.includes("--math-only");
 
 type Source = { chart: string; sidecar: string; authorId: string; revision: string };
 
@@ -55,6 +60,7 @@ async function live(songAssetId: string): Promise<Source> {
 
 async function main() {
   if ([capture, apply, verifyLive].filter(Boolean).length > 1) throw new Error("Capture, verify, and apply must run separately");
+  if (mathOnly && hitPadUpgrade) throw new Error("Math-only refresh cannot be combined with hit-pad upgrade");
   if (capture) {
     await mkdir(snapshotDir, { recursive: true });
     for (const songAssetId of songs) {
@@ -80,9 +86,11 @@ async function main() {
       if (source.revision !== reference.revision || source.sidecar !== reference.sidecar || source.chart !== reference.chart) {
         throw new Error(`${songAssetId}: current published revision differs from the reviewed snapshot`);
       }
-      const draft = hitPadUpgrade
-        ? upgradeEarlyAlgebraCatalogueHitPads({ songAssetId, sidecar: source.sidecar })
-        : migrateEarlyAlgebraCatalogueSong({ songAssetId, chart: source.chart, sidecar: source.sidecar });
+      const draft = mathOnly
+        ? refreshEarlyAlgebraEquationContent({ songAssetId, sidecar: source.sidecar })
+        : hitPadUpgrade
+          ? upgradeEarlyAlgebraCatalogueHitPads({ songAssetId, sidecar: source.sidecar })
+          : migrateEarlyAlgebraCatalogueSong({ songAssetId, chart: source.chart, sidecar: source.sidecar });
       const publication = prepareAuthoredLessonForPublication({
         sidecarContent: JSON.stringify(draft),
         identity: { songAssetId, activityKey: "early-algebra", authorId: source.authorId, revision: randomUUID() },
@@ -100,6 +108,16 @@ async function main() {
         newHits: draft.encounters.filter((item) => item.type === "hit").length,
         dualPadHits: draft.encounters.filter((item) => item.type === "hit" && item.hitBubbles?.[0]?.pads?.length === 2).length,
         equations: draft.equations.length,
+        ...(mathOnly ? {
+          equationStates: draft.equations.map(({ id, state }) => ({ id, state })),
+          maxTokenCount: Math.max(...draft.equations.map((equation) => equation.tokens?.length ?? 0)),
+          quadraticCount: draft.equations.filter((equation) => /\bx\s*\^\s*2/i.test(equation.state)).length,
+          largestLiteral: Math.max(...draft.equations.flatMap((equation) =>
+            [...equation.state.matchAll(/\d+/g)].map(([value]) => Number(value)))),
+          zeroDragEquationIds: draft.equations.filter((equation) =>
+            !draft.encounters.some((encounter) => encounter.type === "drag" && encounter.equationId === equation.id),
+          ).map(({ id }) => id),
+        } : {}),
       };
       prepared.push({ songAssetId, source, content: JSON.stringify(draft, null, 2), summary });
       if (!apply) results.push({ ...summary, applied: false });
