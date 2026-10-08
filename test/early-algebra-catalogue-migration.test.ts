@@ -207,7 +207,7 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
   for (const equation of refreshed.equations) {
     assert.ok(!/\bx\s*\^\s*2/i.test(equation.state), equation.state);
     assert.ok((equation.tokens?.length ?? 0) <= 7, equation.state);
-    assert.ok([...equation.state.matchAll(/\d+/g)].every(([, literal]) => Number(literal) <= 16), equation.state);
+    assert.ok([...equation.state.matchAll(/\d+/g)].every(([literal]) => Number(literal) <= 16), equation.state);
     const [left, right] = equation.state.split("=");
     const [leftCoefficient, leftConstant] = linearSide(left);
     const [rightCoefficient, rightConstant] = linearSide(right);
