@@ -40,15 +40,15 @@ const oneStepTemplates: readonly AlgebraEquationTemplate[] = [
 
 function oneStepTemplateForOccurrence(occurrence: number, songOffset: number, usedStates: Set<string>) {
   // Keep the refreshed ladder within familiar additive inverse-operation
-  // work: each song gets its own order, with two additions before introducing
-  // subtraction and another addition to reinforce the balance step.
+  // work first. Introduce dividing a doubled unknown only after two addition
+  // examples have established the balance step.
   const firstAddition = songOffset % 8;
-  const firstSubtraction = 8 + (songOffset % 8);
   const additions = Array.from({ length: 8 }, (_, index) => (firstAddition + index) % 8);
   const subtractions = Array.from({ length: 8 }, (_, index) => 8 + ((songOffset + index) % 8));
+  const multiplications = Array.from({ length: 3 }, (_, index) => 16 + ((songOffset + index) % 3));
   const sequence = [
-    additions[0], additions[1], subtractions[0], additions[2], subtractions[1], additions[3],
-    ...additions.slice(4), ...subtractions.slice(2),
+    additions[0], additions[1], multiplications[0], subtractions[0], additions[2], multiplications[1],
+    subtractions[1], additions[3], ...additions.slice(4), ...subtractions.slice(2), multiplications[2],
   ];
   const candidates = sequence.map((index) => refreshedOneStepTemplates[index]);
   return firstUnusedTemplate(candidates, occurrence, usedStates, "one-step");
@@ -82,9 +82,9 @@ const threeStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "2x + 4 + 1 = 11", operationTargets: ["4", "1", "2x"] },
 ];
 
-// Math-only refreshes stay within additive inverse operations and small whole
-// numbers. They keep positive integer answers and preserve each authored Drag
-// step so chart timing and mechanic links remain unchanged.
+// Math-only refreshes use small whole numbers and preserve each authored Drag
+// step. Additive inverses come first; coefficient work stays at 2x, with the
+// three-step stretch ending in division after both constants are removed.
 const refreshedOneStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "x + 1 = 3", operationTargets: ["1"] },
   { state: "x + 2 = 5", operationTargets: ["2"] },
@@ -102,6 +102,9 @@ const refreshedOneStepTemplates: readonly AlgebraEquationTemplate[] = [
   { state: "x - 2 = 6", operationTargets: ["2"] },
   { state: "x - 3 = 5", operationTargets: ["3"] },
   { state: "x - 1 = 6", operationTargets: ["1"] },
+  { state: "2x = 4", operationTargets: ["2x"] },
+  { state: "2x = 6", operationTargets: ["2x"] },
+  { state: "2x = 8", operationTargets: ["2x"] },
 ];
 
 const refreshedTwoStepTemplates: readonly AlgebraEquationTemplate[] = [
@@ -120,16 +123,16 @@ const refreshedTwoStepTemplates: readonly AlgebraEquationTemplate[] = [
 ];
 
 const refreshedThreeStepTemplates: readonly AlgebraEquationTemplate[] = [
-  { state: "x + 1 + 2 = 6", operationTargets: ["1", "2", "x"] },
-  { state: "x + 1 + 3 = 8", operationTargets: ["1", "3", "x"] },
-  { state: "x + 2 + 3 = 8", operationTargets: ["2", "3", "x"] },
-  { state: "x + 1 + 4 = 7", operationTargets: ["1", "4", "x"] },
-  { state: "x + 2 + 4 = 9", operationTargets: ["2", "4", "x"] },
-  { state: "x + 3 + 4 = 10", operationTargets: ["3", "4", "x"] },
-  { state: "x + 1 + 5 = 8", operationTargets: ["1", "5", "x"] },
-  { state: "x + 2 + 5 = 10", operationTargets: ["2", "5", "x"] },
-  { state: "x + 1 + 6 = 10", operationTargets: ["1", "6", "x"] },
-  { state: "x + 3 + 5 = 11", operationTargets: ["3", "5", "x"] },
+  { state: "2x + 1 + 2 = 7", operationTargets: ["1", "2", "2x"] },
+  { state: "2x + 1 + 3 = 8", operationTargets: ["1", "3", "2x"] },
+  { state: "2x + 2 + 3 = 9", operationTargets: ["2", "3", "2x"] },
+  { state: "2x + 1 + 4 = 11", operationTargets: ["1", "4", "2x"] },
+  { state: "2x + 2 + 4 = 12", operationTargets: ["2", "4", "2x"] },
+  { state: "2x + 1 + 2 = 9", operationTargets: ["1", "2", "2x"] },
+  { state: "2x + 1 + 3 = 10", operationTargets: ["1", "3", "2x"] },
+  { state: "2x + 2 + 3 = 11", operationTargets: ["2", "3", "2x"] },
+  { state: "2x + 1 + 2 = 11", operationTargets: ["1", "2", "2x"] },
+  { state: "2x + 1 + 3 = 12", operationTargets: ["1", "3", "2x"] },
 ];
 
 function firstUnusedTemplate(
@@ -250,8 +253,8 @@ export function refreshEarlyAlgebraEquationContent(input: {
       const startingOffset = offset % Math.min(4, candidates.length);
       template = firstUnusedTemplate(candidates, templateUse.twoStep++ + startingOffset, usedEquationStates, "two-step");
     } else {
-      // Keep three-target rows additive too; multiplication notation belongs
-      // after learners have secured equality and inverse operations.
+      // The last of three Drag targets must perform a real inverse operation:
+      // move both constants, then divide the doubled unknown by two.
       const candidates = refreshedThreeStepTemplates;
       const offset = [...input.songAssetId].reduce((total, character) => total + character.charCodeAt(0), 0);
       const startingOffset = offset % Math.min(4, candidates.length);

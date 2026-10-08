@@ -137,7 +137,7 @@ test("refreshes Early Algebra math to match authored Drag steps without changing
 
   assert.match(refreshed.equations[0].state, /^x \+/);
   assert.match(refreshed.equations[1].state, /^x \+/);
-  assert.match(refreshed.equations[2].state, /^x \+/);
+  assert.match(refreshed.equations[2].state, /^2x \+/);
   assert.deepEqual(refreshed.equations.map(({ id }) => id), source.equations.map(({ id }) => id));
   assert.deepEqual(refreshed.encounters.map(({ id, eventId, type, equationId, startTick, endTick }) =>
     [id, eventId, type, equationId, startTick, endTick]),
@@ -166,7 +166,7 @@ test("refreshes Early Algebra math to match authored Drag steps without changing
   assert.equal(refreshed.encounters.find(({ id }) => id === "drag-one")?.dragTargets?.[0].sourceHitId, "hit-one");
 });
 
-test("refreshes equations in song order with small additive inverse operations", () => {
+test("refreshes equations in song order from addition into a small coefficient move", () => {
   const source = {
     version: 3, mode: "authored", songAssetId: "waves", activityKey: "early-algebra",
     // Deliberately keep the serialized equation list out of song order.
@@ -174,6 +174,7 @@ test("refreshes equations in song order with small additive inverse operations",
       { id: "two-step-after-multiplication", state: "x^2 - 12x + 36 = 0" },
       { id: "one-step-multiplication", state: "x^2 - 12x + 36 = 0" },
       { id: "two-step-additive", state: "x^2 - 12x + 36 = 0" },
+      { id: "one-step-additive-two", state: "x^2 - 12x + 36 = 0" },
       { id: "one-step-additive", state: "x^2 - 12x + 36 = 0" },
     ],
     encounters: [
@@ -181,21 +182,25 @@ test("refreshes equations in song order with small additive inverse operations",
         hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"] }] },
       { id: "drag-add", eventId: "event-add-drag", type: "drag", equationId: "one-step-additive", startTick: 2, endTick: 3,
         dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-add" }] },
-      { id: "hit-additive-two", eventId: "event-additive-two-hit", type: "hit", equationId: "two-step-additive", startTick: 4, endTick: 4,
+      { id: "hit-additive-two", eventId: "event-additive-two-hit", type: "hit", equationId: "one-step-additive-two", startTick: 4, endTick: 4,
         hitBubbles: [{ tokenIndex: 0, pads: ["topRight"] }] },
-      { id: "drag-additive-two-a", eventId: "event-additive-two-a", type: "drag", equationId: "two-step-additive", startTick: 5, endTick: 6,
+      { id: "drag-additive-two-a", eventId: "event-additive-two-a", type: "drag", equationId: "one-step-additive-two", startTick: 5, endTick: 6,
         dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-additive-two" }] },
-      { id: "drag-additive-two-b", eventId: "event-additive-two-b", type: "drag", equationId: "two-step-additive", startTick: 7, endTick: 8,
-        dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-additive-two" }] },
       { id: "hit-multiplication", eventId: "event-multiplication-hit", type: "hit", equationId: "one-step-multiplication", startTick: 9, endTick: 9,
         hitBubbles: [{ tokenIndex: 0, pads: ["left"] }] },
       { id: "drag-multiplication", eventId: "event-multiplication-drag", type: "drag", equationId: "one-step-multiplication", startTick: 10, endTick: 11,
         dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-multiplication" }] },
-      { id: "hit-mixed-two", eventId: "event-mixed-two-hit", type: "hit", equationId: "two-step-after-multiplication", startTick: 12, endTick: 12,
+      { id: "hit-additive-two-step", eventId: "event-additive-two-step-hit", type: "hit", equationId: "two-step-additive", startTick: 12, endTick: 12,
+        hitBubbles: [{ tokenIndex: 0, pads: ["topRight"] }] },
+      { id: "drag-additive-two-step-a", eventId: "event-additive-two-step-a", type: "drag", equationId: "two-step-additive", startTick: 13, endTick: 14,
+        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-additive-two-step" }] },
+      { id: "drag-additive-two-step-b", eventId: "event-additive-two-step-b", type: "drag", equationId: "two-step-additive", startTick: 15, endTick: 16,
+        dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-additive-two-step" }] },
+      { id: "hit-mixed-two", eventId: "event-mixed-two-hit", type: "hit", equationId: "two-step-after-multiplication", startTick: 17, endTick: 17,
         hitBubbles: [{ tokenIndex: 0, pads: ["right"] }] },
-      { id: "drag-mixed-two-a", eventId: "event-mixed-two-a", type: "drag", equationId: "two-step-after-multiplication", startTick: 13, endTick: 14,
+      { id: "drag-mixed-two-a", eventId: "event-mixed-two-a", type: "drag", equationId: "two-step-after-multiplication", startTick: 18, endTick: 19,
         dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-mixed-two" }] },
-      { id: "drag-mixed-two-b", eventId: "event-mixed-two-b", type: "drag", equationId: "two-step-after-multiplication", startTick: 15, endTick: 16,
+      { id: "drag-mixed-two-b", eventId: "event-mixed-two-b", type: "drag", equationId: "two-step-after-multiplication", startTick: 20, endTick: 21,
         dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-mixed-two" }] },
     ],
   };
@@ -203,14 +208,15 @@ test("refreshes equations in song order with small additive inverse operations",
   const stateById = new Map(refreshed.equations.map(({ id, state }) => [id, state]));
 
   assert.match(stateById.get("one-step-additive") ?? "", /^x [+-] \d+ =/);
+  assert.match(stateById.get("one-step-additive-two") ?? "", /^x \+/);
+  assert.match(stateById.get("one-step-multiplication") ?? "", /^2x =/);
   assert.match(stateById.get("two-step-additive") ?? "", /^x \+ \d+ \+ \d+ =/);
-  assert.match(stateById.get("one-step-multiplication") ?? "", /^x \+ \d+ =/);
   assert.match(stateById.get("two-step-after-multiplication") ?? "", /^x \+ \d+ \+ \d+ =/);
-  assert.ok(refreshed.equations.every(({ state }) => !/\b[2-9]\s*x\b/i.test(state)));
+  assert.ok(refreshed.equations.every(({ state }) => !/\b[3-9]\s*x\b/i.test(state)));
   assert.deepEqual(refreshed.equations.map(({ id }) => id), source.equations.map(({ id }) => id));
 });
 
-test("a three-step stretch stays within small additive inverse operations", () => {
+test("a three-step stretch removes constants then divides a small coefficient", () => {
   const source = {
     version: 3, mode: "authored", songAssetId: "waves", activityKey: "early-algebra",
     equations: [
@@ -244,8 +250,14 @@ test("a three-step stretch stays within small additive inverse operations", () =
   const refreshed = refreshEarlyAlgebraEquationContent({ songAssetId: "waves", sidecar: JSON.stringify(source) });
   const stateById = new Map(refreshed.equations.map(({ id, state }) => [id, state]));
 
-  assert.match(stateById.get("three-step-stretch") ?? "", /^x \+ \d+ \+ \d+ =/);
+  assert.match(stateById.get("three-step-stretch") ?? "", /^2x \+ \d+ \+ \d+ =/);
   assert.match(stateById.get("later-two-step") ?? "", /^x \+ \d+ \+ \d+ =/);
+  const stretch = refreshed.equations.find(({ id }) => id === "three-step-stretch");
+  const stretchTargets = refreshed.encounters
+    .filter((encounter) => encounter.type === "drag" && encounter.equationId === "three-step-stretch")
+    .map((encounter) => stretch?.tokens?.[encounter.dragTargets?.[0]?.tokenIndex]?.label);
+  assert.ok(stretchTargets.slice(0, 2).every((label) => /^\d+$/.test(label ?? "")));
+  assert.equal(stretchTargets[2], "2x");
 });
 
 test("preserves zero-Drag equations and encounter targets during the math-only refresh", () => {
@@ -275,7 +287,7 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
   const expectedDragCounts = new Map<string, number>();
   let tick = 1;
   for (const { prefix, equationCount, dragCount } of [
-    { prefix: "one", equationCount: 16, dragCount: 1 },
+    { prefix: "one", equationCount: 19, dragCount: 1 },
     { prefix: "two", equationCount: 12, dragCount: 2 },
     { prefix: "three", equationCount: 10, dragCount: 3 },
   ]) {
@@ -299,7 +311,7 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
     songAssetId: "waves",
     sidecar: JSON.stringify({ version: 3, mode: "authored", songAssetId: "waves", activityKey: "early-algebra", equations, encounters }),
   });
-  const oneStepStates = refreshed.equations.slice(0, 16).map(({ state }) => state);
+  const oneStepStates = refreshed.equations.slice(0, 19).map(({ state }) => state);
   const linearSide = (expression: string): [number, number] => expression.replace(/\s/g, "")
     .replace(/-/g, "+-").split("+").filter(Boolean)
     .reduce(([coefficient, constant], term) => {
@@ -310,16 +322,17 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
       return [coefficient, constant + Number(term)];
     }, [0, 0]);
 
-  assert.equal(refreshed.equations.length, 38);
+  assert.equal(refreshed.equations.length, 41);
   assert.equal(new Set(refreshed.equations.map(({ state }) => state)).size, refreshed.equations.length);
   assert.match(oneStepStates[0], /^x \+/);
   assert.match(oneStepStates[1], /^x \+/);
-  assert.match(oneStepStates[2], /^x -/);
-  assert.match(oneStepStates[3], /^x \+/);
+  assert.match(oneStepStates[2], /^2x =/);
+  assert.match(oneStepStates[3], /^x -/);
+  assert.match(oneStepStates[5], /^2x =/);
   assert.equal(new Set(oneStepStates).size, oneStepStates.length);
   for (const equation of refreshed.equations) {
     assert.ok(!/\bx\s*\^\s*2/i.test(equation.state), equation.state);
-    assert.ok(!/\b[2-9]\s*x\b/i.test(equation.state), equation.state);
+    assert.ok(!/\b[3-9]\s*x\b/i.test(equation.state), equation.state);
     assert.ok((equation.tokens?.length ?? 0) <= 7, equation.state);
     assert.ok([...equation.state.matchAll(/\d+/g)].every(([literal]) => Number(literal) <= 12), equation.state);
     const [left, right] = equation.state.split("=");
@@ -331,6 +344,7 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
     const drags = refreshed.encounters.filter((encounter) => encounter.type === "drag" && encounter.equationId === equation.id);
     assert.equal(drags.length, expectedDragCounts.get(equation.id), equation.id);
     if (drags.length === 2) assert.ok(solution <= 2, equation.state);
+    if (drags.length === 3) assert.ok(solution <= 4, equation.state);
     const dragTargetIds = drags.map((encounter) => (encounter.dragTargets as Array<{ targetId?: string }>)[0]?.targetId);
     assert.equal(new Set(dragTargetIds).size, dragTargetIds.length, equation.state);
     for (const encounter of refreshed.encounters.filter((candidate) => candidate.equationId === equation.id)) {
@@ -338,6 +352,10 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
         : encounter.type === "spin" ? encounter.spinTargets as Array<{ tokenIndex: number; targetId?: string }>
           : encounter.dragTargets as Array<{ tokenIndex: number; targetId?: string }>;
       assert.ok(targets.every((target) => equation.tokens?.[target.tokenIndex]?.id === target.targetId), encounter.id);
+    }
+    if (drags.length === 3) {
+      const finalTarget = drags[2].dragTargets as Array<{ tokenIndex: number }>;
+      assert.equal(equation.tokens?.[finalTarget[0].tokenIndex]?.label, "2x", equation.state);
     }
   }
 });
