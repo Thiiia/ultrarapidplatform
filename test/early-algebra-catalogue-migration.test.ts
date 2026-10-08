@@ -166,7 +166,7 @@ test("refreshes Early Algebra math to match authored Drag steps without changing
   assert.equal(refreshed.encounters.find(({ id }) => id === "drag-one")?.dragTargets?.[0].sourceHitId, "hit-one");
 });
 
-test("refreshes equations in song order and introduces multiplication before mixed two-step rows", () => {
+test("refreshes equations in song order with small additive inverse operations", () => {
   const source = {
     version: 3, mode: "authored", songAssetId: "waves", activityKey: "early-algebra",
     // Deliberately keep the serialized equation list out of song order.
@@ -204,12 +204,13 @@ test("refreshes equations in song order and introduces multiplication before mix
 
   assert.match(stateById.get("one-step-additive") ?? "", /^x [+-] \d+ =/);
   assert.match(stateById.get("two-step-additive") ?? "", /^x \+ \d+ \+ \d+ =/);
-  assert.match(stateById.get("one-step-multiplication") ?? "", /^[234]x =/);
-  assert.match(stateById.get("two-step-after-multiplication") ?? "", /^[234]x [+-] \d+ =/);
+  assert.match(stateById.get("one-step-multiplication") ?? "", /^x \+ \d+ =/);
+  assert.match(stateById.get("two-step-after-multiplication") ?? "", /^x \+ \d+ \+ \d+ =/);
+  assert.ok(refreshed.equations.every(({ state }) => !/\b[2-9]\s*x\b/i.test(state)));
   assert.deepEqual(refreshed.equations.map(({ id }) => id), source.equations.map(({ id }) => id));
 });
 
-test("a three-step stretch stays additive until a one-step multiplication row appears", () => {
+test("a three-step stretch stays within small additive inverse operations", () => {
   const source = {
     version: 3, mode: "authored", songAssetId: "waves", activityKey: "early-algebra",
     equations: [
@@ -310,12 +311,15 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
     }, [0, 0]);
 
   assert.equal(refreshed.equations.length, 38);
+  assert.equal(new Set(refreshed.equations.map(({ state }) => state)).size, refreshed.equations.length);
   assert.match(oneStepStates[0], /^x \+/);
-  assert.match(oneStepStates[1], /^[234]x =/);
+  assert.match(oneStepStates[1], /^x \+/);
   assert.match(oneStepStates[2], /^x -/);
-  assert.match(oneStepStates[3], /^[234]x =/);
+  assert.match(oneStepStates[3], /^x \+/);
+  assert.equal(new Set(oneStepStates).size, oneStepStates.length);
   for (const equation of refreshed.equations) {
     assert.ok(!/\bx\s*\^\s*2/i.test(equation.state), equation.state);
+    assert.ok(!/\b[2-9]\s*x\b/i.test(equation.state), equation.state);
     assert.ok((equation.tokens?.length ?? 0) <= 7, equation.state);
     assert.ok([...equation.state.matchAll(/\d+/g)].every(([literal]) => Number(literal) <= 12), equation.state);
     const [left, right] = equation.state.split("=");
@@ -326,6 +330,7 @@ test("all refreshed equation templates stay linear, small, solvable, and targeta
     assert.ok(Number.isSafeInteger(solution) && solution > 0 && solution <= 8, equation.state);
     const drags = refreshed.encounters.filter((encounter) => encounter.type === "drag" && encounter.equationId === equation.id);
     assert.equal(drags.length, expectedDragCounts.get(equation.id), equation.id);
+    if (drags.length === 2) assert.ok(solution <= 2, equation.state);
     const dragTargetIds = drags.map((encounter) => (encounter.dragTargets as Array<{ targetId?: string }>)[0]?.targetId);
     assert.equal(new Set(dragTargetIds).size, dragTargetIds.length, equation.state);
     for (const encounter of refreshed.encounters.filter((candidate) => candidate.equationId === equation.id)) {
