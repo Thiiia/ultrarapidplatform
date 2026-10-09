@@ -10273,10 +10273,15 @@ function TimelineControlsRow({
   onTogglePlay: () => void;
   onFastForward: () => void;
 }) {
-  const controls = [
-    { label: "⏪", ariaLabel: "Rewind", onClick: onRewind },
-    { label: isPlaying ? "⏸" : "▶", ariaLabel: isPlaying ? "Pause" : "Play", onClick: onTogglePlay },
-    { label: "⏩", ariaLabel: "Fast forward", onClick: onFastForward },
+  type TransportIcon = "rewind" | "play" | "pause" | "forward";
+  const controls: Array<{
+    icon: TransportIcon;
+    ariaLabel: string;
+    onClick: () => void;
+  }> = [
+    { icon: "rewind", ariaLabel: "Rewind", onClick: onRewind },
+    { icon: isPlaying ? "pause" : "play", ariaLabel: isPlaying ? "Pause" : "Play", onClick: onTogglePlay },
+    { icon: "forward", ariaLabel: "Fast forward", onClick: onFastForward },
   ];
 
   return (
@@ -10302,18 +10307,40 @@ function TimelineControlsRow({
           aria-label={control.ariaLabel}
           onClick={control.onClick}
           style={{
-            width: 38,
-            height: 30,
-            borderRadius: 10,
+            width: 44,
+            minWidth: 44,
+            height: 44,
+            minHeight: 44,
+            flex: "0 0 44px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            borderRadius: 12,
             border: `1px solid ${subtleBorderColor}`,
             background: "#191919",
             color: "#FFFFFF",
-            fontSize: 13,
-            fontWeight: 900,
             cursor: "pointer",
           }}
         >
-          {control.label}
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            width={18}
+            height={18}
+            focusable="false"
+            style={{ display: "block", flex: "0 0 auto", fill: "currentColor" }}
+          >
+            {control.icon === "rewind" ? (
+              <path d="M11 5v14l-9-7 9-7Zm10 0v14l-9-7 9-7Z" />
+            ) : control.icon === "forward" ? (
+              <path d="m13 5 9 7-9 7V5ZM3 5l9 7-9 7V5Z" />
+            ) : control.icon === "pause" ? (
+              <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+            ) : (
+              <path d="M7 4.5v15L19 12 7 4.5Z" />
+            )}
+          </svg>
         </button>
       ))}
       <div
@@ -10321,7 +10348,8 @@ function TimelineControlsRow({
         style={{
           marginLeft: 8,
           minWidth: 74,
-          height: 30,
+          height: 44,
+          flex: "0 0 74px",
           borderRadius: 10,
           border: `1px solid ${subtleBorderColor}`,
           background: "#191919",
@@ -16315,7 +16343,7 @@ export default function LessonBuilderClient({
             position: "relative",
             zIndex: 2,
             display: "grid",
-            gridTemplateRows: "4.5vh 22.5vh",
+            gridTemplateRows: "48px minmax(0, 1fr)",
           }}
         >
           <TimelineControlsRow
