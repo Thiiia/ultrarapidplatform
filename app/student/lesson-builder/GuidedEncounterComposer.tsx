@@ -617,7 +617,9 @@ export function GuidedEncounterComposer({
     >
       <header className="algebra-composer__header">
         <div>
-          <div className="algebra-composer__eyebrow">{isNumberBonds ? "CUE WORKSHOP" : activityKey === "early-algebra" ? "MISSION WORKSHOP" : "ACTION WORKSHOP"}</div>
+          {activityKey === "early-algebra" ? null : (
+            <div className="algebra-composer__eyebrow">{isNumberBonds ? "CUE WORKSHOP" : "ACTION WORKSHOP"}</div>
+          )}
           <h3 className="algebra-composer__title">{heading}</h3>
         </div>
         <div className="algebra-composer__actions">

@@ -5934,9 +5934,11 @@ function EquationTimeline({
                     position: "absolute",
                     left: markerLeft + 6,
                     top: 7,
-                    color: "#FFFFFF99",
-                    fontSize: 10,
-                    fontWeight: 900,
+                    color: "#FFFFFFB8",
+                    fontFamily: "var(--ur-font-technical), ui-monospace, monospace",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    fontVariantNumeric: "tabular-nums",
                     whiteSpace: "nowrap",
                     pointerEvents: "none",
                   }}
@@ -16314,7 +16316,6 @@ export default function LessonBuilderClient({
             zIndex: 2,
             display: "grid",
             gridTemplateRows: "4.5vh 22.5vh",
-            transition: "grid-template-rows 1100ms cubic-bezier(0.16, 1, 0.3, 1)",
           }}
         >
           <TimelineControlsRow

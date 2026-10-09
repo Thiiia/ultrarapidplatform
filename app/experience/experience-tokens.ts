@@ -144,7 +144,6 @@ export const experienceTokens = {
   easings:   {
       "cubicOut": "cubic-bezier(0, 0, 0.2, 1)",
       "cubicIn": "cubic-bezier(0.4, 0, 1, 1)",
-      "outBack": "cubic-bezier(0.34, 1.56, 0.64, 1)",
       "sineInOut": "cubic-bezier(0.37, 0, 0.63, 1)",
       "quartOut": "cubic-bezier(0.22, 1, 0.36, 1)",
       "cubicSettle": "cubic-bezier(0.22, 0.61, 0.36, 1)"

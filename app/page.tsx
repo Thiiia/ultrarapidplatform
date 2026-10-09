@@ -85,7 +85,7 @@ export default async function HomePage() {
             zIndex: 1,
             pointerEvents: "none",
             background:
-              "linear-gradient(180deg, rgba(3, 14, 20, 0.82) 0%, rgba(0, 0, 0, 0.30) 48%, rgba(0, 0, 0, 0.72) 100%)",
+              "linear-gradient(180deg, rgba(3, 14, 20, 0.72) 0%, rgba(0, 0, 0, 0.38) 48%, rgba(0, 0, 0, 0.50) 100%)",
             opacity: 0,
             animation: "landingUiFadeIn 900ms ease-out 300ms forwards",
           }}
