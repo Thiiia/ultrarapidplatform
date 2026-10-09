@@ -78,6 +78,10 @@
 .guideWrap { position: relative; flex: none; }
 .guideToggle { min-height: 44px; padding: 8px 13px; border: 1px solid #bda7ec84; border-radius: 13px; background: #9879d524; color: #f5edff; font-size: 13px; font-weight: 800; cursor: pointer; }
 .guideToggle[aria-expanded="true"] { background: #9879d54d; border-color: #d7baff; }
+.starterChoices { display: flex; width: 100%; min-width: 0; min-height: 40px; align-items: center; align-content: center; flex-wrap: wrap; column-gap: 8px; row-gap: 6px; }
+.starterAction { box-sizing: border-box; min-height: 40px; padding: 8px 12px; font-size: 12px; line-height: 1.25; white-space: nowrap; }
+.starterAction:hover:not(:disabled) { filter: brightness(1.08); }
+.starterAction:focus-visible { outline: 2px solid #fff; outline-offset: 3px; box-shadow: 0 0 0 6px #cfff0440; }
 .guidePopover { position: absolute; top: calc(100% + 12px); right: 0; width: min(390px, calc(100vw - 24px)); box-sizing: border-box; display: grid; gap: 13px; padding: 20px; border: 1px solid #c1a5ffad; border-radius: 18px; background: #11182e; color: #fff; box-shadow: 0 20px 50px #0009; font-size: 14px; line-height: 1.5; }
 .guidePopover > strong { font-size: 19px; line-height: 1.2; }
 .guidePopover p { margin: 0; color: #d4d8ec; }

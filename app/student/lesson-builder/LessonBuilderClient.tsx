@@ -118,6 +118,7 @@ import { AlgebraStudioBar } from "./AlgebraStudioBar";
 import { AlgebraEmptyState } from "./AlgebraEmptyState";
 import { AlgebraActionDraft } from "./AlgebraActionDraft";
 import algebraStyles from "./AlgebraStudio.module.css";
+import studentStyles from "../student.module.css";
 import { GuidedEncounterComposer } from "./GuidedEncounterComposer";
 import { NumberBondsMissionComposer } from "./NumberBondsMissionComposer";
 import { EncounterReadinessPanel } from "./EncounterReadinessPanel";
@@ -555,7 +556,7 @@ type Rctm2Point = {
 /* VERIFIED_TIMELINE_HIDDEN_SCROLL_DRAG_HANDLE_PATCH */
 /* VERIFIED_TIMELINE_UPLOAD_BUTTONS_PATCH: row 3 subrow 2 supports song/chart/sidecar uploads and updates timeline data. */
 const pagePanelWidth = "92vw";
-const headerHeight = "5vh";
+const headerHeight = "max(48px, 5vh)";
 const viewerRowHeight = "61vh";
 const timelineRowHeight = "25vh";
 const headerBackgroundColor = "#060B15FC";
@@ -2815,6 +2816,9 @@ function SongFilePickerModal({
           color: "#FFFFFF",
           padding: 16,
           boxSizing: "border-box",
+          minWidth: 0,
+          maxHeight: "calc(100vh - 40px)",
+          overflowY: "auto",
           fontFamily: "Space Grotesk, sans-serif",
           display: "grid",
           gap: 12,
@@ -2851,6 +2855,9 @@ function SongFilePickerModal({
             onChange={(event) => onAuthorChange(event.target.value)}
             disabled={isLoadingAuthors || authors.length === 0}
             style={{
+              width: "100%",
+              minWidth: 0,
+              boxSizing: "border-box",
               height: 34,
               borderRadius: 10,
               border: `1px solid ${subtleBorderColor}`,
@@ -2885,6 +2892,9 @@ function SongFilePickerModal({
             onChange={(event) => onActivityChange(event.target.value as SongActivityKey)}
             disabled={!authorName}
             style={{
+              width: "100%",
+              minWidth: 0,
+              boxSizing: "border-box",
               height: 34,
               borderRadius: 10,
               border: `1px solid ${subtleBorderColor}`,
@@ -2913,6 +2923,9 @@ function SongFilePickerModal({
             onChange={(event) => onSelectSong(event.target.value)}
             disabled={isLoading || songs.length === 0}
             style={{
+              width: "100%",
+              minWidth: 0,
+              boxSizing: "border-box",
               height: 34,
               borderRadius: 10,
               border: `1px solid ${subtleBorderColor}`,
@@ -2948,6 +2961,9 @@ function SongFilePickerModal({
               onChange={(event) => onSelectRhythmSource(event.target.value)}
               disabled={rhythmSources.length === 0}
               style={{
+                width: "100%",
+                minWidth: 0,
+                boxSizing: "border-box",
                 height: 38,
                 borderRadius: 10,
                 border: "1px solid #CFFF0466",
@@ -2987,12 +3003,18 @@ function SongFilePickerModal({
               alignItems: "center",
               justifyContent: "space-between",
               gap: 12,
+              width: "100%",
+              minWidth: 0,
+              maxWidth: "100%",
+              boxSizing: "border-box",
+              maxHeight: "min(160px, 24vh)",
+              overflowY: "auto",
               color: "#FF9B9B",
               fontSize: 12,
               fontWeight: 600,
             }}
           >
-            <span>{error}</span>
+            <span style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere" }}>{error}</span>
             {onRetry ? (
               <button
                 type="button"
@@ -15641,13 +15663,14 @@ export default function LessonBuilderClient({
         {needsReadinessCheck && !isNumberBondsActivity && !isGuidedStart && !isRctm1Mode &&
           (!isRctm2Mode || (selectedSongActivity?.key ?? selectedSongLaunch?.activityKey) === "number-bonds") ? (
           <div
-            style={{
-              position: isAlgebraActivity ? "absolute" : "fixed",
-              right: isAlgebraActivity ? "clamp(12px, 4.5vw, 72px)" : "clamp(18px, calc(8vw + 150px), 260px)",
-              top: isAlgebraActivity ? 10 : 8,
+            className={!isAlgebraActivity ? studentStyles.editorReadinessDock : undefined}
+            style={isAlgebraActivity ? {
+              position: "absolute",
+              right: "clamp(12px, 4.5vw, 72px)",
+              top: 10,
               width: "min(320px, calc(100vw - 36px))",
-              zIndex: isAlgebraActivity ? 4 : 1002,
-            }}
+              zIndex: 4,
+            } : undefined}
           >
             <EncounterReadinessPanel
               readiness={lessonPublishReadiness}
@@ -15932,7 +15955,7 @@ export default function LessonBuilderClient({
                     gridTemplateRows: centerContextEvent
                       ? isFocusedGuidedEditor
                         ? "auto minmax(0, 1fr) 0"
-                        : "7% 80% 13%"
+                        : "auto minmax(0, 1fr) auto"
                       : "0 100% 0",
                     background: isAlgebraActivity ? "transparent" : row2Column2BackgroundColor,
                     overflow: "hidden",
@@ -15950,26 +15973,23 @@ export default function LessonBuilderClient({
                         boxSizing: "border-box",
                         color: "#FFFFFF",
                         fontFamily: "Space Grotesk, sans-serif",
-                        fontSize: 11,
+                        fontSize: 12,
+                        lineHeight: 1.35,
                         fontWeight: 800,
                       }}
                     >
                       {shouldShowStarterTemplate ? (
                         <div
+                          role="group"
                           aria-label="Starting lesson choices"
-                          style={{
-                            display: "flex",
-                            width: "100%",
-                            alignItems: "center",
-                            gap: 8,
-                            flexWrap: "wrap",
-                          }}
+                          className={algebraStyles.starterChoices}
                         >
                             <span style={{ color: "#CFFF04" }}>{studentCopy.editor.starterLabel}</span>
                           <span style={{ color: "#FFFFFFB3", fontWeight: 700 }}>
                             {studentCopy.editor.starterBody}
                           </span>
                           <button
+                            className={algebraStyles.starterAction}
                             type="button"
                             onClick={handlePersonalizeStarterEncounter}
                             style={{
@@ -15979,14 +15999,13 @@ export default function LessonBuilderClient({
                               color: "#CFFF04",
                               cursor: "pointer",
                               fontFamily: "Space Grotesk, sans-serif",
-                              fontSize: 10,
                               fontWeight: 900,
-                              padding: "4px 8px",
                             }}
                           >
                             {studentCopy.editor.changeFirstMove}
                           </button>
                           <button
+                            className={algebraStyles.starterAction}
                             type="button"
                             onClick={handleAddToStarterTemplate}
                             style={{
@@ -15996,14 +16015,13 @@ export default function LessonBuilderClient({
                               color: "#FFFFFF",
                               cursor: "pointer",
                               fontFamily: "Space Grotesk, sans-serif",
-                              fontSize: 10,
                               fontWeight: 900,
-                              padding: "4px 8px",
                             }}
                           >
                             {studentCopy.editor.addEquation}
                           </button>
                           <button
+                            className={algebraStyles.starterAction}
                             type="button"
                             onClick={handleKeepStarterTemplate}
                             style={{
@@ -16012,9 +16030,7 @@ export default function LessonBuilderClient({
                               color: "#FFFFFF99",
                               cursor: "pointer",
                               fontFamily: "Space Grotesk, sans-serif",
-                              fontSize: 10,
                               fontWeight: 800,
-                              padding: "4px 2px",
                             }}
                           >
                             {studentCopy.editor.keepIt}

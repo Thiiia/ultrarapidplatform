@@ -74,8 +74,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Unable to load song choices",
+        error: "Unable to load song choices. Please try again.",
       },
       { status: 500 },
     );
