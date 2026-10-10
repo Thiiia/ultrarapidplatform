@@ -669,22 +669,39 @@ export default function TeacherDashboard({
 
                     <div style={{ borderTop: "1px solid #FFFFFF14", marginTop: 6, paddingTop: 14 }}>
                       {isCreatingNew ? (
-                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                          <input
-                            value={newMissionTitle}
-                            onChange={(event) => setNewMissionTitle(event.target.value)}
-                            placeholder="New assignment title"
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+                          <label
+                            htmlFor="teacher-assignment-title"
                             style={{
                               flex: "1 1 220px",
-                              height: 38,
-                              background: "#191919",
-                              color: "#FFFFFF",
-                              border: "1px solid #FFFFFF1F",
-                              borderRadius: 10,
-                              padding: "0 12px",
-                              fontSize: 13,
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 6,
+                              color: "rgba(255,255,255,0.72)",
+                              fontSize: 12,
+                              fontWeight: 600,
                             }}
-                          />
+                          >
+                            Assignment title
+                            <input
+                              id="teacher-assignment-title"
+                              name="title"
+                              value={newMissionTitle}
+                              onChange={(event) => setNewMissionTitle(event.target.value)}
+                              placeholder="New assignment title"
+                              style={{
+                                boxSizing: "border-box",
+                                width: "100%",
+                                height: 38,
+                                background: "#191919",
+                                color: "#FFFFFF",
+                                border: "1px solid #FFFFFF1F",
+                                borderRadius: 10,
+                                padding: "0 12px",
+                                fontSize: 13,
+                              }}
+                            />
+                          </label>
                           <button
                             type="button"
                             onClick={handleCreateAndAssign}
