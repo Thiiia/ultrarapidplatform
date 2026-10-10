@@ -1,0 +1,783 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "garden",
+  "activityKey": "early-algebra",
+  "authorId": "cmtqk9pzl0000yerq79b2h8y8",
+  "revision": "eb171cbc-fb04-44ce-a1d0-0e3b66d80cbe",
+  "equations": [
+    {
+      "id": "garden-early-step-01",
+      "state": "x + 5 = 6",
+      "tokens": [
+        {
+          "id": "garden-early-step-01-token-0",
+          "label": "x"
+        },
+        {
+          "id": "garden-early-step-01-token-1",
+          "label": "+"
+        },
+        {
+          "id": "garden-early-step-01-token-2",
+          "label": "5"
+        },
+        {
+          "id": "garden-early-step-01-token-3",
+          "label": "="
+        },
+        {
+          "id": "garden-early-step-01-token-4",
+          "label": "6"
+        }
+      ]
+    },
+    {
+      "id": "garden-early-step-02",
+      "state": "x + 2 = 4",
+      "tokens": [
+        {
+          "id": "garden-early-step-02-token-0",
+          "label": "x"
+        },
+        {
+          "id": "garden-early-step-02-token-1",
+          "label": "+"
+        },
+        {
+          "id": "garden-early-step-02-token-2",
+          "label": "2"
+        },
+        {
+          "id": "garden-early-step-02-token-3",
+          "label": "="
+        },
+        {
+          "id": "garden-early-step-02-token-4",
+          "label": "4"
+        }
+      ]
+    },
+    {
+      "id": "garden-early-step-03",
+      "state": "x + 3 = 6",
+      "tokens": [
+        {
+          "id": "garden-early-step-03-token-0",
+          "label": "x"
+        },
+        {
+          "id": "garden-early-step-03-token-1",
+          "label": "+"
+        },
+        {
+          "id": "garden-early-step-03-token-2",
+          "label": "3"
+        },
+        {
+          "id": "garden-early-step-03-token-3",
+          "label": "="
+        },
+        {
+          "id": "garden-early-step-03-token-4",
+          "label": "6"
+        }
+      ]
+    },
+    {
+      "id": "garden-early-step-04",
+      "state": "x + 2 = 6",
+      "tokens": [
+        {
+          "id": "garden-early-step-04-token-0",
+          "label": "x"
+        },
+        {
+          "id": "garden-early-step-04-token-1",
+          "label": "+"
+        },
+        {
+          "id": "garden-early-step-04-token-2",
+          "label": "2"
+        },
+        {
+          "id": "garden-early-step-04-token-3",
+          "label": "="
+        },
+        {
+          "id": "garden-early-step-04-token-4",
+          "label": "6"
+        }
+      ]
+    },
+    {
+      "id": "garden-early-step-05",
+      "state": "x + 1 = 6",
+      "tokens": [
+        {
+          "id": "garden-early-step-05-token-0",
+          "label": "x"
+        },
+        {
+          "id": "garden-early-step-05-token-1",
+          "label": "+"
+        },
+        {
+          "id": "garden-early-step-05-token-2",
+          "label": "1"
+        },
+        {
+          "id": "garden-early-step-05-token-3",
+          "label": "="
+        },
+        {
+          "id": "garden-early-step-05-token-4",
+          "label": "6"
+        }
+      ]
+    },
+    {
+      "id": "garden-early-step-06",
+      "state": "x - 1 = 1",
+      "tokens": [
+        {
+          "id": "garden-early-step-06-token-0",
+          "label": "x"
+        },
+        {
+          "id": "garden-early-step-06-token-1",
+          "label": "-"
+        },
+        {
+          "id": "garden-early-step-06-token-2",
+          "label": "1"
+        },
+        {
+          "id": "garden-early-step-06-token-3",
+          "label": "="
+        },
+        {
+          "id": "garden-early-step-06-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "garden-early-step-07",
+      "state": "x - 2 = 1",
+      "tokens": [
+        {
+          "id": "garden-early-step-07-token-0",
+          "label": "x"
+        },
+        {
+          "id": "garden-early-step-07-token-1",
+          "label": "-"
+        },
+        {
+          "id": "garden-early-step-07-token-2",
+          "label": "2"
+        },
+        {
+          "id": "garden-early-step-07-token-3",
+          "label": "="
+        },
+        {
+          "id": "garden-early-step-07-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "garden-early-step-08",
+      "state": "x - 3 = 1",
+      "tokens": [
+        {
+          "id": "garden-early-step-08-token-0",
+          "label": "x"
+        },
+        {
+          "id": "garden-early-step-08-token-1",
+          "label": "-"
+        },
+        {
+          "id": "garden-early-step-08-token-2",
+          "label": "3"
+        },
+        {
+          "id": "garden-early-step-08-token-3",
+          "label": "="
+        },
+        {
+          "id": "garden-early-step-08-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "garden-early-step-09",
+      "state": "x - 2 = 3",
+      "tokens": [
+        {
+          "id": "garden-early-step-09-token-0",
+          "label": "x"
+        },
+        {
+          "id": "garden-early-step-09-token-1",
+          "label": "-"
+        },
+        {
+          "id": "garden-early-step-09-token-2",
+          "label": "2"
+        },
+        {
+          "id": "garden-early-step-09-token-3",
+          "label": "="
+        },
+        {
+          "id": "garden-early-step-09-token-4",
+          "label": "3"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "garden-eq01-source01-hit1",
+      "eventId": "garden-eq01-source01-hit-event1",
+      "type": "hit",
+      "equationId": "garden-early-step-01",
+      "startTick": 8160,
+      "endTick": 8160,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-01-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq01-source01-drag",
+      "eventId": "garden-eq01-source01-drag-event",
+      "type": "drag",
+      "equationId": "garden-early-step-01",
+      "startTick": 11520,
+      "endTick": 13440,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-01-token-2",
+          "sourceHitId": "garden-eq01-source01-hit1"
+        }
+      ]
+    },
+    {
+      "id": "garden-eq02-source02-hit1",
+      "eventId": "garden-eq02-source02-hit-event1",
+      "type": "hit",
+      "equationId": "garden-early-step-02",
+      "startTick": 35040,
+      "endTick": 35040,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "garden-early-step-02-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq02-source02-hit2",
+      "eventId": "garden-eq02-source02-hit-event2",
+      "type": "hit",
+      "equationId": "garden-early-step-02",
+      "startTick": 37440,
+      "endTick": 37440,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-02-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq02-source02-hit3",
+      "eventId": "garden-eq02-source02-hit-event3",
+      "type": "hit",
+      "equationId": "garden-early-step-02",
+      "startTick": 39840,
+      "endTick": 39840,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-early-step-02-token-4",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq03-source03-hit1",
+      "eventId": "garden-eq03-source03-hit-event1",
+      "type": "hit",
+      "equationId": "garden-early-step-02",
+      "startTick": 59040,
+      "endTick": 59040,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-02-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq03-source03-spin",
+      "eventId": "garden-eq03-source03-spin-drag-event",
+      "type": "spin",
+      "equationId": "garden-early-step-02",
+      "startTick": 62400,
+      "endTick": 64320,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-02-token-2"
+        }
+      ]
+    },
+    {
+      "id": "garden-eq03-source03-drag",
+      "eventId": "garden-eq03-source03-spin-drag-event",
+      "type": "drag",
+      "equationId": "garden-early-step-02",
+      "startTick": 66240,
+      "endTick": 68160,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-02-token-2",
+          "sourceHitId": "garden-eq03-source03-hit1"
+        }
+      ]
+    },
+    {
+      "id": "garden-eq04-source04-hit1",
+      "eventId": "garden-eq04-source04-hit-event1",
+      "type": "hit",
+      "equationId": "garden-early-step-03",
+      "startTick": 85920,
+      "endTick": 85920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "garden-early-step-03-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq04-source04-hit2",
+      "eventId": "garden-eq04-source04-hit-event2",
+      "type": "hit",
+      "equationId": "garden-early-step-03",
+      "startTick": 88320,
+      "endTick": 88320,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-03-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq04-source04-drag",
+      "eventId": "garden-eq04-source04-drag-event",
+      "type": "drag",
+      "equationId": "garden-early-step-03",
+      "startTick": 91680,
+      "endTick": 93600,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-03-token-2",
+          "sourceHitId": "garden-eq04-source04-hit2"
+        }
+      ]
+    },
+    {
+      "id": "garden-eq05-source05-hit1",
+      "eventId": "garden-eq05-source05-hit-event1",
+      "type": "hit",
+      "equationId": "garden-early-step-04",
+      "startTick": 103200,
+      "endTick": 103200,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-04-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq05-source05-spin",
+      "eventId": "garden-eq05-source05-spin-drag-event",
+      "type": "spin",
+      "equationId": "garden-early-step-04",
+      "startTick": 106560,
+      "endTick": 108480,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-04-token-2"
+        }
+      ]
+    },
+    {
+      "id": "garden-eq05-source05-drag",
+      "eventId": "garden-eq05-source05-spin-drag-event",
+      "type": "drag",
+      "equationId": "garden-early-step-04",
+      "startTick": 110400,
+      "endTick": 112320,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-04-token-2",
+          "sourceHitId": "garden-eq05-source05-hit1"
+        }
+      ]
+    },
+    {
+      "id": "garden-eq06-source06-hit1",
+      "eventId": "garden-eq06-source06-hit-event1",
+      "type": "hit",
+      "equationId": "garden-early-step-05",
+      "startTick": 119880,
+      "endTick": 119880,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-05-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq06-source06-drag",
+      "eventId": "garden-eq06-source06-drag-event",
+      "type": "drag",
+      "equationId": "garden-early-step-05",
+      "startTick": 123240,
+      "endTick": 125160,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-05-token-2",
+          "sourceHitId": "garden-eq06-source06-hit1"
+        }
+      ]
+    },
+    {
+      "id": "garden-eq07-source07-hit1",
+      "eventId": "garden-eq07-source07-hit-event1",
+      "type": "hit",
+      "equationId": "garden-early-step-06",
+      "startTick": 136800,
+      "endTick": 136800,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "garden-early-step-06-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq07-source07-hit2",
+      "eventId": "garden-eq07-source07-hit-event2",
+      "type": "hit",
+      "equationId": "garden-early-step-06",
+      "startTick": 139200,
+      "endTick": 139200,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-06-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq07-source07-hit3",
+      "eventId": "garden-eq07-source07-hit-event3",
+      "type": "hit",
+      "equationId": "garden-early-step-06",
+      "startTick": 141600,
+      "endTick": 141600,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-early-step-06-token-4",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq08-source08-hit1",
+      "eventId": "garden-eq08-source08-hit-event1",
+      "type": "hit",
+      "equationId": "garden-early-step-06",
+      "startTick": 153720,
+      "endTick": 153720,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-06-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq08-source08-drag",
+      "eventId": "garden-eq08-source08-drag-event",
+      "type": "drag",
+      "equationId": "garden-early-step-06",
+      "startTick": 157080,
+      "endTick": 159000,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-06-token-2",
+          "sourceHitId": "garden-eq08-source08-hit1"
+        }
+      ]
+    },
+    {
+      "id": "garden-eq09-source09-hit1",
+      "eventId": "garden-eq09-source09-hit-event1",
+      "type": "hit",
+      "equationId": "garden-early-step-07",
+      "startTick": 170640,
+      "endTick": 170640,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-07-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq09-source09-drag",
+      "eventId": "garden-eq09-source09-drag-event",
+      "type": "drag",
+      "equationId": "garden-early-step-07",
+      "startTick": 174000,
+      "endTick": 175920,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-07-token-2",
+          "sourceHitId": "garden-eq09-source09-hit1"
+        }
+      ]
+    },
+    {
+      "id": "garden-eq10-source10-hit1",
+      "eventId": "garden-eq10-source10-hit-event1",
+      "type": "hit",
+      "equationId": "garden-early-step-08",
+      "startTick": 187680,
+      "endTick": 187680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "garden-early-step-08-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq10-source10-hit2",
+      "eventId": "garden-eq10-source10-hit-event2",
+      "type": "hit",
+      "equationId": "garden-early-step-08",
+      "startTick": 190080,
+      "endTick": 190080,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-08-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq10-source10-hit3",
+      "eventId": "garden-eq10-source10-hit-event3",
+      "type": "hit",
+      "equationId": "garden-early-step-08",
+      "startTick": 192480,
+      "endTick": 192480,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-early-step-08-token-4",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq10-source10-hit4",
+      "eventId": "garden-eq10-source10-hit-event4",
+      "type": "hit",
+      "equationId": "garden-early-step-08",
+      "startTick": 194880,
+      "endTick": 194880,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "garden-early-step-08-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq11-source11-hit1",
+      "eventId": "garden-eq11-source11-hit-event1",
+      "type": "hit",
+      "equationId": "garden-early-step-08",
+      "startTick": 210720,
+      "endTick": 210720,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-08-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq11-source11-drag",
+      "eventId": "garden-eq11-source11-drag-event",
+      "type": "drag",
+      "equationId": "garden-early-step-08",
+      "startTick": 214080,
+      "endTick": 216000,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-08-token-2",
+          "sourceHitId": "garden-eq11-source11-hit1"
+        }
+      ]
+    },
+    {
+      "id": "garden-eq12-source12-hit1",
+      "eventId": "garden-eq12-source12-hit-event1",
+      "type": "hit",
+      "equationId": "garden-early-step-09",
+      "startTick": 236640,
+      "endTick": 236640,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-09-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "garden-eq12-source12-spin",
+      "eventId": "garden-eq12-source12-spin-drag-event",
+      "type": "spin",
+      "equationId": "garden-early-step-09",
+      "startTick": 240000,
+      "endTick": 241920,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-09-token-2"
+        }
+      ]
+    },
+    {
+      "id": "garden-eq12-source12-drag",
+      "eventId": "garden-eq12-source12-spin-drag-event",
+      "type": "drag",
+      "equationId": "garden-early-step-09",
+      "startTick": 243840,
+      "endTick": 245760,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-early-step-09-token-2",
+          "sourceHitId": "garden-eq12-source12-hit1"
+        }
+      ]
+    }
+  ]
+}

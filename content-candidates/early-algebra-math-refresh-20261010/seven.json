@@ -1,0 +1,811 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "seven",
+  "activityKey": "early-algebra",
+  "authorId": "cmtqk9pzl0000yerq79b2h8y8",
+  "revision": "c3f14f88-dd94-45fb-a997-2791015cb874",
+  "equations": [
+    {
+      "id": "seven-early-step-01",
+      "state": "x + 6 = 7",
+      "tokens": [
+        {
+          "id": "seven-early-step-01-token-0",
+          "label": "x"
+        },
+        {
+          "id": "seven-early-step-01-token-1",
+          "label": "+"
+        },
+        {
+          "id": "seven-early-step-01-token-2",
+          "label": "6"
+        },
+        {
+          "id": "seven-early-step-01-token-3",
+          "label": "="
+        },
+        {
+          "id": "seven-early-step-01-token-4",
+          "label": "7"
+        }
+      ]
+    },
+    {
+      "id": "seven-early-step-02",
+      "state": "x + 2 = 4",
+      "tokens": [
+        {
+          "id": "seven-early-step-02-token-0",
+          "label": "x"
+        },
+        {
+          "id": "seven-early-step-02-token-1",
+          "label": "+"
+        },
+        {
+          "id": "seven-early-step-02-token-2",
+          "label": "2"
+        },
+        {
+          "id": "seven-early-step-02-token-3",
+          "label": "="
+        },
+        {
+          "id": "seven-early-step-02-token-4",
+          "label": "4"
+        }
+      ]
+    },
+    {
+      "id": "seven-early-step-03",
+      "state": "x + 7 = 10",
+      "tokens": [
+        {
+          "id": "seven-early-step-03-token-0",
+          "label": "x"
+        },
+        {
+          "id": "seven-early-step-03-token-1",
+          "label": "+"
+        },
+        {
+          "id": "seven-early-step-03-token-2",
+          "label": "7"
+        },
+        {
+          "id": "seven-early-step-03-token-3",
+          "label": "="
+        },
+        {
+          "id": "seven-early-step-03-token-4",
+          "label": "10"
+        }
+      ]
+    },
+    {
+      "id": "seven-early-step-04",
+      "state": "x + 6 = 10",
+      "tokens": [
+        {
+          "id": "seven-early-step-04-token-0",
+          "label": "x"
+        },
+        {
+          "id": "seven-early-step-04-token-1",
+          "label": "+"
+        },
+        {
+          "id": "seven-early-step-04-token-2",
+          "label": "6"
+        },
+        {
+          "id": "seven-early-step-04-token-3",
+          "label": "="
+        },
+        {
+          "id": "seven-early-step-04-token-4",
+          "label": "10"
+        }
+      ]
+    },
+    {
+      "id": "seven-early-step-05",
+      "state": "x + 1 = 6",
+      "tokens": [
+        {
+          "id": "seven-early-step-05-token-0",
+          "label": "x"
+        },
+        {
+          "id": "seven-early-step-05-token-1",
+          "label": "+"
+        },
+        {
+          "id": "seven-early-step-05-token-2",
+          "label": "1"
+        },
+        {
+          "id": "seven-early-step-05-token-3",
+          "label": "="
+        },
+        {
+          "id": "seven-early-step-05-token-4",
+          "label": "6"
+        }
+      ]
+    },
+    {
+      "id": "seven-early-step-06",
+      "state": "x + 2 = 8",
+      "tokens": [
+        {
+          "id": "seven-early-step-06-token-0",
+          "label": "x"
+        },
+        {
+          "id": "seven-early-step-06-token-1",
+          "label": "+"
+        },
+        {
+          "id": "seven-early-step-06-token-2",
+          "label": "2"
+        },
+        {
+          "id": "seven-early-step-06-token-3",
+          "label": "="
+        },
+        {
+          "id": "seven-early-step-06-token-4",
+          "label": "8"
+        }
+      ]
+    },
+    {
+      "id": "seven-early-step-07",
+      "state": "x - 1 = 1",
+      "tokens": [
+        {
+          "id": "seven-early-step-07-token-0",
+          "label": "x"
+        },
+        {
+          "id": "seven-early-step-07-token-1",
+          "label": "-"
+        },
+        {
+          "id": "seven-early-step-07-token-2",
+          "label": "1"
+        },
+        {
+          "id": "seven-early-step-07-token-3",
+          "label": "="
+        },
+        {
+          "id": "seven-early-step-07-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "seven-early-step-08",
+      "state": "x - 2 = 1",
+      "tokens": [
+        {
+          "id": "seven-early-step-08-token-0",
+          "label": "x"
+        },
+        {
+          "id": "seven-early-step-08-token-1",
+          "label": "-"
+        },
+        {
+          "id": "seven-early-step-08-token-2",
+          "label": "2"
+        },
+        {
+          "id": "seven-early-step-08-token-3",
+          "label": "="
+        },
+        {
+          "id": "seven-early-step-08-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "seven-early-step-09",
+      "state": "x - 3 = 1",
+      "tokens": [
+        {
+          "id": "seven-early-step-09-token-0",
+          "label": "x"
+        },
+        {
+          "id": "seven-early-step-09-token-1",
+          "label": "-"
+        },
+        {
+          "id": "seven-early-step-09-token-2",
+          "label": "3"
+        },
+        {
+          "id": "seven-early-step-09-token-3",
+          "label": "="
+        },
+        {
+          "id": "seven-early-step-09-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "seven-early-step-10",
+      "state": "x - 2 = 3",
+      "tokens": [
+        {
+          "id": "seven-early-step-10-token-0",
+          "label": "x"
+        },
+        {
+          "id": "seven-early-step-10-token-1",
+          "label": "-"
+        },
+        {
+          "id": "seven-early-step-10-token-2",
+          "label": "2"
+        },
+        {
+          "id": "seven-early-step-10-token-3",
+          "label": "="
+        },
+        {
+          "id": "seven-early-step-10-token-4",
+          "label": "3"
+        }
+      ]
+    },
+    {
+      "id": "seven-early-step-11",
+      "state": "x - 1 = 5",
+      "tokens": [
+        {
+          "id": "seven-early-step-11-token-0",
+          "label": "x"
+        },
+        {
+          "id": "seven-early-step-11-token-1",
+          "label": "-"
+        },
+        {
+          "id": "seven-early-step-11-token-2",
+          "label": "1"
+        },
+        {
+          "id": "seven-early-step-11-token-3",
+          "label": "="
+        },
+        {
+          "id": "seven-early-step-11-token-4",
+          "label": "5"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "seven-eq01-source01-hit1",
+      "eventId": "seven-eq01-source01-hit-event1",
+      "type": "hit",
+      "equationId": "seven-early-step-01",
+      "startTick": 7680,
+      "endTick": 7680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-01-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq01-source01-drag",
+      "eventId": "seven-eq01-source01-drag-event",
+      "type": "drag",
+      "equationId": "seven-early-step-01",
+      "startTick": 11040,
+      "endTick": 12960,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-01-token-2",
+          "sourceHitId": "seven-eq01-source01-hit1"
+        }
+      ]
+    },
+    {
+      "id": "seven-eq02-source02-hit1",
+      "eventId": "seven-eq02-source02-hit-event1",
+      "type": "hit",
+      "equationId": "seven-early-step-02",
+      "startTick": 24480,
+      "endTick": 24480,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-02-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq02-source02-spin",
+      "eventId": "seven-eq02-source02-spin-drag-event",
+      "type": "spin",
+      "equationId": "seven-early-step-02",
+      "startTick": 27840,
+      "endTick": 29760,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-02-token-2"
+        }
+      ]
+    },
+    {
+      "id": "seven-eq02-source02-drag",
+      "eventId": "seven-eq02-source02-spin-drag-event",
+      "type": "drag",
+      "equationId": "seven-early-step-02",
+      "startTick": 31680,
+      "endTick": 33600,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-02-token-2",
+          "sourceHitId": "seven-eq02-source02-hit1"
+        }
+      ]
+    },
+    {
+      "id": "seven-eq03-source03-hit1",
+      "eventId": "seven-eq03-source03-hit-event1",
+      "type": "hit",
+      "equationId": "seven-early-step-03",
+      "startTick": 41760,
+      "endTick": 41760,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "seven-early-step-03-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq03-source03-hit2",
+      "eventId": "seven-eq03-source03-hit-event2",
+      "type": "hit",
+      "equationId": "seven-early-step-03",
+      "startTick": 44160,
+      "endTick": 44160,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-03-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq03-source03-drag",
+      "eventId": "seven-eq03-source03-drag-event",
+      "type": "drag",
+      "equationId": "seven-early-step-03",
+      "startTick": 47520,
+      "endTick": 49440,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-03-token-2",
+          "sourceHitId": "seven-eq03-source03-hit2"
+        }
+      ]
+    },
+    {
+      "id": "seven-eq04-source04-hit1",
+      "eventId": "seven-eq04-source04-hit-event1",
+      "type": "hit",
+      "equationId": "seven-early-step-04",
+      "startTick": 60960,
+      "endTick": 60960,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-04-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq04-source04-drag",
+      "eventId": "seven-eq04-source04-drag-event",
+      "type": "drag",
+      "equationId": "seven-early-step-04",
+      "startTick": 64320,
+      "endTick": 66240,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-04-token-2",
+          "sourceHitId": "seven-eq04-source04-hit1"
+        }
+      ]
+    },
+    {
+      "id": "seven-eq05-source05-hit1",
+      "eventId": "seven-eq05-source05-hit-event1",
+      "type": "hit",
+      "equationId": "seven-early-step-05",
+      "startTick": 78240,
+      "endTick": 78240,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-05-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq05-source05-spin",
+      "eventId": "seven-eq05-source05-spin-drag-event",
+      "type": "spin",
+      "equationId": "seven-early-step-05",
+      "startTick": 81600,
+      "endTick": 83520,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-05-token-2"
+        }
+      ]
+    },
+    {
+      "id": "seven-eq05-source05-drag",
+      "eventId": "seven-eq05-source05-spin-drag-event",
+      "type": "drag",
+      "equationId": "seven-early-step-05",
+      "startTick": 85440,
+      "endTick": 87360,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-05-token-2",
+          "sourceHitId": "seven-eq05-source05-hit1"
+        }
+      ]
+    },
+    {
+      "id": "seven-eq06-source06-hit1",
+      "eventId": "seven-eq06-source06-hit-event1",
+      "type": "hit",
+      "equationId": "seven-early-step-06",
+      "startTick": 93600,
+      "endTick": 93600,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "seven-early-step-06-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq06-source06-hit2",
+      "eventId": "seven-eq06-source06-hit-event2",
+      "type": "hit",
+      "equationId": "seven-early-step-06",
+      "startTick": 96000,
+      "endTick": 96000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-06-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq06-source06-hit3",
+      "eventId": "seven-eq06-source06-hit-event3",
+      "type": "hit",
+      "equationId": "seven-early-step-06",
+      "startTick": 98400,
+      "endTick": 98400,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "seven-early-step-06-token-4",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq06-source06-hit4",
+      "eventId": "seven-eq06-source06-hit-event4",
+      "type": "hit",
+      "equationId": "seven-early-step-06",
+      "startTick": 100800,
+      "endTick": 100800,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "seven-early-step-06-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq07-source07-hit1",
+      "eventId": "seven-eq07-source07-hit-event1",
+      "type": "hit",
+      "equationId": "seven-early-step-06",
+      "startTick": 103080,
+      "endTick": 103080,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-06-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq07-source07-drag",
+      "eventId": "seven-eq07-source07-drag-event",
+      "type": "drag",
+      "equationId": "seven-early-step-06",
+      "startTick": 106440,
+      "endTick": 108360,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-06-token-2",
+          "sourceHitId": "seven-eq07-source07-hit1"
+        }
+      ]
+    },
+    {
+      "id": "seven-eq08-source08-hit1",
+      "eventId": "seven-eq08-source08-hit-event1",
+      "type": "hit",
+      "equationId": "seven-early-step-07",
+      "startTick": 112800,
+      "endTick": 112800,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-07-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq08-source08-drag",
+      "eventId": "seven-eq08-source08-drag-event",
+      "type": "drag",
+      "equationId": "seven-early-step-07",
+      "startTick": 116160,
+      "endTick": 118080,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-07-token-2",
+          "sourceHitId": "seven-eq08-source08-hit1"
+        }
+      ]
+    },
+    {
+      "id": "seven-eq09-source09-hit1",
+      "eventId": "seven-eq09-source09-hit-event1",
+      "type": "hit",
+      "equationId": "seven-early-step-08",
+      "startTick": 130080,
+      "endTick": 130080,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-08-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq09-source09-spin",
+      "eventId": "seven-eq09-source09-spin-drag-event",
+      "type": "spin",
+      "equationId": "seven-early-step-08",
+      "startTick": 133440,
+      "endTick": 135360,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-08-token-2"
+        }
+      ]
+    },
+    {
+      "id": "seven-eq09-source09-drag",
+      "eventId": "seven-eq09-source09-spin-drag-event",
+      "type": "drag",
+      "equationId": "seven-early-step-08",
+      "startTick": 137280,
+      "endTick": 139200,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-08-token-2",
+          "sourceHitId": "seven-eq09-source09-hit1"
+        }
+      ]
+    },
+    {
+      "id": "seven-eq10-source10-hit1",
+      "eventId": "seven-eq10-source10-hit-event1",
+      "type": "hit",
+      "equationId": "seven-early-step-09",
+      "startTick": 147360,
+      "endTick": 147360,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "seven-early-step-09-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq10-source10-hit2",
+      "eventId": "seven-eq10-source10-hit-event2",
+      "type": "hit",
+      "equationId": "seven-early-step-09",
+      "startTick": 149760,
+      "endTick": 149760,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-09-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq10-source10-drag",
+      "eventId": "seven-eq10-source10-drag-event",
+      "type": "drag",
+      "equationId": "seven-early-step-09",
+      "startTick": 153120,
+      "endTick": 155040,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-09-token-2",
+          "sourceHitId": "seven-eq10-source10-hit2"
+        }
+      ]
+    },
+    {
+      "id": "seven-eq11-source11-hit1",
+      "eventId": "seven-eq11-source11-hit-event1",
+      "type": "hit",
+      "equationId": "seven-early-step-10",
+      "startTick": 156600,
+      "endTick": 156600,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-10-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq11-source11-drag",
+      "eventId": "seven-eq11-source11-drag-event",
+      "type": "drag",
+      "equationId": "seven-early-step-10",
+      "startTick": 159960,
+      "endTick": 161880,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-10-token-2",
+          "sourceHitId": "seven-eq11-source11-hit1"
+        }
+      ]
+    },
+    {
+      "id": "seven-eq12-source12-hit1",
+      "eventId": "seven-eq12-source12-hit-event1",
+      "type": "hit",
+      "equationId": "seven-early-step-11",
+      "startTick": 166560,
+      "endTick": 166560,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-11-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seven-eq12-source12-drag",
+      "eventId": "seven-eq12-source12-drag-event",
+      "type": "drag",
+      "equationId": "seven-early-step-11",
+      "startTick": 169920,
+      "endTick": 171840,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-early-step-11-token-2",
+          "sourceHitId": "seven-eq12-source12-hit1"
+        }
+      ]
+    }
+  ]
+}

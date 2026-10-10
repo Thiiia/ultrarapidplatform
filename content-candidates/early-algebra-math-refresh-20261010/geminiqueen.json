@@ -1,0 +1,864 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "geminiqueen",
+  "activityKey": "early-algebra",
+  "authorId": "cmtqk9pzl0000yerq79b2h8y8",
+  "revision": "35d7c908-8d24-435f-8063-bb6b2281fd12",
+  "equations": [
+    {
+      "id": "geminiqueen-early-step-01",
+      "state": "x + 6 = 7",
+      "tokens": [
+        {
+          "id": "geminiqueen-early-step-01-token-0",
+          "label": "x"
+        },
+        {
+          "id": "geminiqueen-early-step-01-token-1",
+          "label": "+"
+        },
+        {
+          "id": "geminiqueen-early-step-01-token-2",
+          "label": "6"
+        },
+        {
+          "id": "geminiqueen-early-step-01-token-3",
+          "label": "="
+        },
+        {
+          "id": "geminiqueen-early-step-01-token-4",
+          "label": "7"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-early-step-02",
+      "state": "x + 8 = 10",
+      "tokens": [
+        {
+          "id": "geminiqueen-early-step-02-token-0",
+          "label": "x"
+        },
+        {
+          "id": "geminiqueen-early-step-02-token-1",
+          "label": "+"
+        },
+        {
+          "id": "geminiqueen-early-step-02-token-2",
+          "label": "8"
+        },
+        {
+          "id": "geminiqueen-early-step-02-token-3",
+          "label": "="
+        },
+        {
+          "id": "geminiqueen-early-step-02-token-4",
+          "label": "10"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-early-step-03",
+      "state": "x + 7 = 10",
+      "tokens": [
+        {
+          "id": "geminiqueen-early-step-03-token-0",
+          "label": "x"
+        },
+        {
+          "id": "geminiqueen-early-step-03-token-1",
+          "label": "+"
+        },
+        {
+          "id": "geminiqueen-early-step-03-token-2",
+          "label": "7"
+        },
+        {
+          "id": "geminiqueen-early-step-03-token-3",
+          "label": "="
+        },
+        {
+          "id": "geminiqueen-early-step-03-token-4",
+          "label": "10"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-early-step-04",
+      "state": "x + 6 = 10",
+      "tokens": [
+        {
+          "id": "geminiqueen-early-step-04-token-0",
+          "label": "x"
+        },
+        {
+          "id": "geminiqueen-early-step-04-token-1",
+          "label": "+"
+        },
+        {
+          "id": "geminiqueen-early-step-04-token-2",
+          "label": "6"
+        },
+        {
+          "id": "geminiqueen-early-step-04-token-3",
+          "label": "="
+        },
+        {
+          "id": "geminiqueen-early-step-04-token-4",
+          "label": "10"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-early-step-05",
+      "state": "x - 1 = 1",
+      "tokens": [
+        {
+          "id": "geminiqueen-early-step-05-token-0",
+          "label": "x"
+        },
+        {
+          "id": "geminiqueen-early-step-05-token-1",
+          "label": "-"
+        },
+        {
+          "id": "geminiqueen-early-step-05-token-2",
+          "label": "1"
+        },
+        {
+          "id": "geminiqueen-early-step-05-token-3",
+          "label": "="
+        },
+        {
+          "id": "geminiqueen-early-step-05-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-early-step-06",
+      "state": "x - 2 = 1",
+      "tokens": [
+        {
+          "id": "geminiqueen-early-step-06-token-0",
+          "label": "x"
+        },
+        {
+          "id": "geminiqueen-early-step-06-token-1",
+          "label": "-"
+        },
+        {
+          "id": "geminiqueen-early-step-06-token-2",
+          "label": "2"
+        },
+        {
+          "id": "geminiqueen-early-step-06-token-3",
+          "label": "="
+        },
+        {
+          "id": "geminiqueen-early-step-06-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-early-step-07",
+      "state": "x - 3 = 1",
+      "tokens": [
+        {
+          "id": "geminiqueen-early-step-07-token-0",
+          "label": "x"
+        },
+        {
+          "id": "geminiqueen-early-step-07-token-1",
+          "label": "-"
+        },
+        {
+          "id": "geminiqueen-early-step-07-token-2",
+          "label": "3"
+        },
+        {
+          "id": "geminiqueen-early-step-07-token-3",
+          "label": "="
+        },
+        {
+          "id": "geminiqueen-early-step-07-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-early-step-08",
+      "state": "x - 4 = 1",
+      "tokens": [
+        {
+          "id": "geminiqueen-early-step-08-token-0",
+          "label": "x"
+        },
+        {
+          "id": "geminiqueen-early-step-08-token-1",
+          "label": "-"
+        },
+        {
+          "id": "geminiqueen-early-step-08-token-2",
+          "label": "4"
+        },
+        {
+          "id": "geminiqueen-early-step-08-token-3",
+          "label": "="
+        },
+        {
+          "id": "geminiqueen-early-step-08-token-4",
+          "label": "1"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "geminiqueen-eq01-source01-hit1",
+      "eventId": "geminiqueen-eq01-source01-hit-event1",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-01",
+      "startTick": 10080,
+      "endTick": 10080,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-01-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq01-source01-drag",
+      "eventId": "geminiqueen-eq01-source01-drag-event",
+      "type": "drag",
+      "equationId": "geminiqueen-early-step-01",
+      "startTick": 13440,
+      "endTick": 15360,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-01-token-2",
+          "sourceHitId": "geminiqueen-eq01-source01-hit1"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq02-source02-hit1",
+      "eventId": "geminiqueen-eq02-source02-hit-event1",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-02",
+      "startTick": 24000,
+      "endTick": 24000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-02-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq02-source02-spin",
+      "eventId": "geminiqueen-eq02-source02-spin-drag-event",
+      "type": "spin",
+      "equationId": "geminiqueen-early-step-02",
+      "startTick": 27360,
+      "endTick": 29280,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-02-token-2"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq02-source02-drag",
+      "eventId": "geminiqueen-eq02-source02-spin-drag-event",
+      "type": "drag",
+      "equationId": "geminiqueen-early-step-02",
+      "startTick": 31200,
+      "endTick": 33120,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-02-token-2",
+          "sourceHitId": "geminiqueen-eq02-source02-hit1"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq03-source03-hit1",
+      "eventId": "geminiqueen-eq03-source03-hit-event1",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-03",
+      "startTick": 37920,
+      "endTick": 37920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "geminiqueen-early-step-03-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq03-source03-hit2",
+      "eventId": "geminiqueen-eq03-source03-hit-event2",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-03",
+      "startTick": 40320,
+      "endTick": 40320,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-03-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq03-source03-hit3",
+      "eventId": "geminiqueen-eq03-source03-hit-event3",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-03",
+      "startTick": 42720,
+      "endTick": 42720,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "geminiqueen-early-step-03-token-4",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq03-source03-hit4",
+      "eventId": "geminiqueen-eq03-source03-hit-event4",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-03",
+      "startTick": 45120,
+      "endTick": 45120,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "geminiqueen-early-step-03-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq04-source04-hit1",
+      "eventId": "geminiqueen-eq04-source04-hit-event1",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-03",
+      "startTick": 55680,
+      "endTick": 55680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-03-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq04-source04-spin",
+      "eventId": "geminiqueen-eq04-source04-spin-drag-event",
+      "type": "spin",
+      "equationId": "geminiqueen-early-step-03",
+      "startTick": 59040,
+      "endTick": 60960,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-03-token-2"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq04-source04-drag",
+      "eventId": "geminiqueen-eq04-source04-spin-drag-event",
+      "type": "drag",
+      "equationId": "geminiqueen-early-step-03",
+      "startTick": 62880,
+      "endTick": 64800,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-03-token-2",
+          "sourceHitId": "geminiqueen-eq04-source04-hit1"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq05-source05-hit1",
+      "eventId": "geminiqueen-eq05-source05-hit-event1",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-04",
+      "startTick": 69600,
+      "endTick": 69600,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "geminiqueen-early-step-04-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq05-source05-hit2",
+      "eventId": "geminiqueen-eq05-source05-hit-event2",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-04",
+      "startTick": 72000,
+      "endTick": 72000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-04-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq05-source05-drag",
+      "eventId": "geminiqueen-eq05-source05-drag-event",
+      "type": "drag",
+      "equationId": "geminiqueen-early-step-04",
+      "startTick": 75360,
+      "endTick": 77280,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-04-token-2",
+          "sourceHitId": "geminiqueen-eq05-source05-hit2"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq06-source06-hit1",
+      "eventId": "geminiqueen-eq06-source06-hit-event1",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-05",
+      "startTick": 83520,
+      "endTick": 83520,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-05-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq06-source06-drag",
+      "eventId": "geminiqueen-eq06-source06-drag-event",
+      "type": "drag",
+      "equationId": "geminiqueen-early-step-05",
+      "startTick": 86880,
+      "endTick": 88800,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-05-token-2",
+          "sourceHitId": "geminiqueen-eq06-source06-hit1"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq07-source07-hit1",
+      "eventId": "geminiqueen-eq07-source07-hit-event1",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-06",
+      "startTick": 101280,
+      "endTick": 101280,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "geminiqueen-early-step-06-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq07-source07-hit2",
+      "eventId": "geminiqueen-eq07-source07-hit-event2",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-06",
+      "startTick": 103680,
+      "endTick": 103680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-06-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq07-source07-hit3",
+      "eventId": "geminiqueen-eq07-source07-hit-event3",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-06",
+      "startTick": 106080,
+      "endTick": 106080,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "geminiqueen-early-step-06-token-4",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq07-source07-hit4",
+      "eventId": "geminiqueen-eq07-source07-hit-event4",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-06",
+      "startTick": 108480,
+      "endTick": 108480,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "geminiqueen-early-step-06-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq08-source08-hit1",
+      "eventId": "geminiqueen-eq08-source08-hit-event1",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-06",
+      "startTick": 115200,
+      "endTick": 115200,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-06-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq08-source08-spin",
+      "eventId": "geminiqueen-eq08-source08-spin-drag-event",
+      "type": "spin",
+      "equationId": "geminiqueen-early-step-06",
+      "startTick": 118560,
+      "endTick": 120480,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-06-token-2"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq08-source08-drag",
+      "eventId": "geminiqueen-eq08-source08-spin-drag-event",
+      "type": "drag",
+      "equationId": "geminiqueen-early-step-06",
+      "startTick": 122400,
+      "endTick": 124320,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-06-token-2",
+          "sourceHitId": "geminiqueen-eq08-source08-hit1"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq09-source09-hit1",
+      "eventId": "geminiqueen-eq09-source09-hit-event1",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-07",
+      "startTick": 129120,
+      "endTick": 129120,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "geminiqueen-early-step-07-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq09-source09-hit2",
+      "eventId": "geminiqueen-eq09-source09-hit-event2",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-07",
+      "startTick": 131520,
+      "endTick": 131520,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-07-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq09-source09-hit3",
+      "eventId": "geminiqueen-eq09-source09-hit-event3",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-07",
+      "startTick": 133920,
+      "endTick": 133920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "geminiqueen-early-step-07-token-4",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq09-source09-hit4",
+      "eventId": "geminiqueen-eq09-source09-hit-event4",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-07",
+      "startTick": 136320,
+      "endTick": 136320,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "geminiqueen-early-step-07-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq10-source10-hit1",
+      "eventId": "geminiqueen-eq10-source10-hit-event1",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-07",
+      "startTick": 147360,
+      "endTick": 147360,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-07-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq10-source10-hit2",
+      "eventId": "geminiqueen-eq10-source10-hit-event2",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-07",
+      "startTick": 149760,
+      "endTick": 149760,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-07-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq10-source10-drag",
+      "eventId": "geminiqueen-eq10-source10-drag-event",
+      "type": "drag",
+      "equationId": "geminiqueen-early-step-07",
+      "startTick": 153120,
+      "endTick": 155040,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-07-token-2",
+          "sourceHitId": "geminiqueen-eq10-source10-hit2"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq11-source11-hit1",
+      "eventId": "geminiqueen-eq11-source11-hit-event1",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-08",
+      "startTick": 161280,
+      "endTick": 161280,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "geminiqueen-early-step-08-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq11-source11-hit2",
+      "eventId": "geminiqueen-eq11-source11-hit-event2",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-08",
+      "startTick": 163680,
+      "endTick": 163680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-08-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq11-source11-hit3",
+      "eventId": "geminiqueen-eq11-source11-hit-event3",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-08",
+      "startTick": 166080,
+      "endTick": 166080,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "geminiqueen-early-step-08-token-4",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq11-source11-hit4",
+      "eventId": "geminiqueen-eq11-source11-hit-event4",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-08",
+      "startTick": 168480,
+      "endTick": 168480,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "geminiqueen-early-step-08-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq12-source12-hit1",
+      "eventId": "geminiqueen-eq12-source12-hit-event1",
+      "type": "hit",
+      "equationId": "geminiqueen-early-step-08",
+      "startTick": 172320,
+      "endTick": 172320,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-08-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq12-source12-spin",
+      "eventId": "geminiqueen-eq12-source12-spin-drag-event",
+      "type": "spin",
+      "equationId": "geminiqueen-early-step-08",
+      "startTick": 175680,
+      "endTick": 177600,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-08-token-2"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq12-source12-drag",
+      "eventId": "geminiqueen-eq12-source12-spin-drag-event",
+      "type": "drag",
+      "equationId": "geminiqueen-early-step-08",
+      "startTick": 179520,
+      "endTick": 181440,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-early-step-08-token-2",
+          "sourceHitId": "geminiqueen-eq12-source12-hit1"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,756 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "grudge",
+  "activityKey": "early-algebra",
+  "authorId": "cmtqk9pzl0000yerq79b2h8y8",
+  "revision": "62bed83e-2e57-4c6c-9be0-b259bec21653",
+  "equations": [
+    {
+      "id": "grudge-early-step-01",
+      "state": "x + 9 = 10",
+      "tokens": [
+        {
+          "id": "grudge-early-step-01-token-0",
+          "label": "x"
+        },
+        {
+          "id": "grudge-early-step-01-token-1",
+          "label": "+"
+        },
+        {
+          "id": "grudge-early-step-01-token-2",
+          "label": "9"
+        },
+        {
+          "id": "grudge-early-step-01-token-3",
+          "label": "="
+        },
+        {
+          "id": "grudge-early-step-01-token-4",
+          "label": "10"
+        }
+      ]
+    },
+    {
+      "id": "grudge-early-step-02",
+      "state": "x + 7 = 9",
+      "tokens": [
+        {
+          "id": "grudge-early-step-02-token-0",
+          "label": "x"
+        },
+        {
+          "id": "grudge-early-step-02-token-1",
+          "label": "+"
+        },
+        {
+          "id": "grudge-early-step-02-token-2",
+          "label": "7"
+        },
+        {
+          "id": "grudge-early-step-02-token-3",
+          "label": "="
+        },
+        {
+          "id": "grudge-early-step-02-token-4",
+          "label": "9"
+        }
+      ]
+    },
+    {
+      "id": "grudge-early-step-03",
+      "state": "x + 2 = 5",
+      "tokens": [
+        {
+          "id": "grudge-early-step-03-token-0",
+          "label": "x"
+        },
+        {
+          "id": "grudge-early-step-03-token-1",
+          "label": "+"
+        },
+        {
+          "id": "grudge-early-step-03-token-2",
+          "label": "2"
+        },
+        {
+          "id": "grudge-early-step-03-token-3",
+          "label": "="
+        },
+        {
+          "id": "grudge-early-step-03-token-4",
+          "label": "5"
+        }
+      ]
+    },
+    {
+      "id": "grudge-early-step-04",
+      "state": "x + 3 = 7",
+      "tokens": [
+        {
+          "id": "grudge-early-step-04-token-0",
+          "label": "x"
+        },
+        {
+          "id": "grudge-early-step-04-token-1",
+          "label": "+"
+        },
+        {
+          "id": "grudge-early-step-04-token-2",
+          "label": "3"
+        },
+        {
+          "id": "grudge-early-step-04-token-3",
+          "label": "="
+        },
+        {
+          "id": "grudge-early-step-04-token-4",
+          "label": "7"
+        }
+      ]
+    },
+    {
+      "id": "grudge-early-step-05",
+      "state": "x + 4 = 9",
+      "tokens": [
+        {
+          "id": "grudge-early-step-05-token-0",
+          "label": "x"
+        },
+        {
+          "id": "grudge-early-step-05-token-1",
+          "label": "+"
+        },
+        {
+          "id": "grudge-early-step-05-token-2",
+          "label": "4"
+        },
+        {
+          "id": "grudge-early-step-05-token-3",
+          "label": "="
+        },
+        {
+          "id": "grudge-early-step-05-token-4",
+          "label": "9"
+        }
+      ]
+    },
+    {
+      "id": "grudge-early-step-06",
+      "state": "x - 1 = 1",
+      "tokens": [
+        {
+          "id": "grudge-early-step-06-token-0",
+          "label": "x"
+        },
+        {
+          "id": "grudge-early-step-06-token-1",
+          "label": "-"
+        },
+        {
+          "id": "grudge-early-step-06-token-2",
+          "label": "1"
+        },
+        {
+          "id": "grudge-early-step-06-token-3",
+          "label": "="
+        },
+        {
+          "id": "grudge-early-step-06-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-early-step-07",
+      "state": "x - 2 = 1",
+      "tokens": [
+        {
+          "id": "grudge-early-step-07-token-0",
+          "label": "x"
+        },
+        {
+          "id": "grudge-early-step-07-token-1",
+          "label": "-"
+        },
+        {
+          "id": "grudge-early-step-07-token-2",
+          "label": "2"
+        },
+        {
+          "id": "grudge-early-step-07-token-3",
+          "label": "="
+        },
+        {
+          "id": "grudge-early-step-07-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-early-step-08",
+      "state": "x - 3 = 1",
+      "tokens": [
+        {
+          "id": "grudge-early-step-08-token-0",
+          "label": "x"
+        },
+        {
+          "id": "grudge-early-step-08-token-1",
+          "label": "-"
+        },
+        {
+          "id": "grudge-early-step-08-token-2",
+          "label": "3"
+        },
+        {
+          "id": "grudge-early-step-08-token-3",
+          "label": "="
+        },
+        {
+          "id": "grudge-early-step-08-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-early-step-09",
+      "state": "x - 4 = 1",
+      "tokens": [
+        {
+          "id": "grudge-early-step-09-token-0",
+          "label": "x"
+        },
+        {
+          "id": "grudge-early-step-09-token-1",
+          "label": "-"
+        },
+        {
+          "id": "grudge-early-step-09-token-2",
+          "label": "4"
+        },
+        {
+          "id": "grudge-early-step-09-token-3",
+          "label": "="
+        },
+        {
+          "id": "grudge-early-step-09-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-early-step-10",
+      "state": "x - 5 = 1",
+      "tokens": [
+        {
+          "id": "grudge-early-step-10-token-0",
+          "label": "x"
+        },
+        {
+          "id": "grudge-early-step-10-token-1",
+          "label": "-"
+        },
+        {
+          "id": "grudge-early-step-10-token-2",
+          "label": "5"
+        },
+        {
+          "id": "grudge-early-step-10-token-3",
+          "label": "="
+        },
+        {
+          "id": "grudge-early-step-10-token-4",
+          "label": "1"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "grudge-eq01-source01-hit1",
+      "eventId": "grudge-eq01-source01-hit-event1",
+      "type": "hit",
+      "equationId": "grudge-early-step-01",
+      "startTick": 5400,
+      "endTick": 5400,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-01-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq01-source01-drag",
+      "eventId": "grudge-eq01-source01-drag-event",
+      "type": "drag",
+      "equationId": "grudge-early-step-01",
+      "startTick": 8760,
+      "endTick": 10680,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-01-token-2",
+          "sourceHitId": "grudge-eq01-source01-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq02-source02-hit1",
+      "eventId": "grudge-eq02-source02-hit-event1",
+      "type": "hit",
+      "equationId": "grudge-early-step-02",
+      "startTick": 15960,
+      "endTick": 15960,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-02-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq02-source02-drag",
+      "eventId": "grudge-eq02-source02-drag-event",
+      "type": "drag",
+      "equationId": "grudge-early-step-02",
+      "startTick": 19320,
+      "endTick": 21240,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-02-token-2",
+          "sourceHitId": "grudge-eq02-source02-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq03-source03-hit1",
+      "eventId": "grudge-eq03-source03-hit-event1",
+      "type": "hit",
+      "equationId": "grudge-early-step-03",
+      "startTick": 26520,
+      "endTick": 26520,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "grudge-early-step-03-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq03-source03-hit2",
+      "eventId": "grudge-eq03-source03-hit-event2",
+      "type": "hit",
+      "equationId": "grudge-early-step-03",
+      "startTick": 28920,
+      "endTick": 28920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-03-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq04-source04-hit1",
+      "eventId": "grudge-eq04-source04-hit-event1",
+      "type": "hit",
+      "equationId": "grudge-early-step-03",
+      "startTick": 38040,
+      "endTick": 38040,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-early-step-03-token-4",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq04-source04-hit2",
+      "eventId": "grudge-eq04-source04-hit-event2",
+      "type": "hit",
+      "equationId": "grudge-early-step-03",
+      "startTick": 40440,
+      "endTick": 40440,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-03-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq04-source04-drag",
+      "eventId": "grudge-eq04-source04-drag-event",
+      "type": "drag",
+      "equationId": "grudge-early-step-03",
+      "startTick": 43800,
+      "endTick": 45720,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-03-token-2",
+          "sourceHitId": "grudge-eq04-source04-hit2"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq05-source05-hit1",
+      "eventId": "grudge-eq05-source05-hit-event1",
+      "type": "hit",
+      "equationId": "grudge-early-step-04",
+      "startTick": 48360,
+      "endTick": 48360,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-04-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq05-source05-drag",
+      "eventId": "grudge-eq05-source05-drag-event",
+      "type": "drag",
+      "equationId": "grudge-early-step-04",
+      "startTick": 51720,
+      "endTick": 53640,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-04-token-2",
+          "sourceHitId": "grudge-eq05-source05-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq06-source06-hit1",
+      "eventId": "grudge-eq06-source06-hit-event1",
+      "type": "hit",
+      "equationId": "grudge-early-step-05",
+      "startTick": 58680,
+      "endTick": 58680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-05-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq06-source06-spin",
+      "eventId": "grudge-eq06-source06-spin-drag-event",
+      "type": "spin",
+      "equationId": "grudge-early-step-05",
+      "startTick": 62040,
+      "endTick": 63960,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-05-token-2"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq06-source06-drag",
+      "eventId": "grudge-eq06-source06-spin-drag-event",
+      "type": "drag",
+      "equationId": "grudge-early-step-05",
+      "startTick": 65880,
+      "endTick": 67800,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-05-token-2",
+          "sourceHitId": "grudge-eq06-source06-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq07-source07-hit1",
+      "eventId": "grudge-eq07-source07-hit-event1",
+      "type": "hit",
+      "equationId": "grudge-early-step-06",
+      "startTick": 74520,
+      "endTick": 74520,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "grudge-early-step-06-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq07-source07-hit2",
+      "eventId": "grudge-eq07-source07-hit-event2",
+      "type": "hit",
+      "equationId": "grudge-early-step-06",
+      "startTick": 76920,
+      "endTick": 76920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-06-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq07-source07-hit3",
+      "eventId": "grudge-eq07-source07-hit-event3",
+      "type": "hit",
+      "equationId": "grudge-early-step-06",
+      "startTick": 79320,
+      "endTick": 79320,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-early-step-06-token-4",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq07-source07-hit4",
+      "eventId": "grudge-eq07-source07-hit-event4",
+      "type": "hit",
+      "equationId": "grudge-early-step-06",
+      "startTick": 81720,
+      "endTick": 81720,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "grudge-early-step-06-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq08-source08-hit1",
+      "eventId": "grudge-eq08-source08-hit-event1",
+      "type": "hit",
+      "equationId": "grudge-early-step-06",
+      "startTick": 89880,
+      "endTick": 89880,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-06-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq08-source08-spin",
+      "eventId": "grudge-eq08-source08-spin-drag-event",
+      "type": "spin",
+      "equationId": "grudge-early-step-06",
+      "startTick": 93240,
+      "endTick": 95160,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-06-token-2"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq08-source08-drag",
+      "eventId": "grudge-eq08-source08-spin-drag-event",
+      "type": "drag",
+      "equationId": "grudge-early-step-06",
+      "startTick": 97080,
+      "endTick": 99000,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-06-token-2",
+          "sourceHitId": "grudge-eq08-source08-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq09-source09-hit1",
+      "eventId": "grudge-eq09-source09-hit-event1",
+      "type": "hit",
+      "equationId": "grudge-early-step-07",
+      "startTick": 99840,
+      "endTick": 99840,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-07-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq09-source09-drag",
+      "eventId": "grudge-eq09-source09-drag-event",
+      "type": "drag",
+      "equationId": "grudge-early-step-07",
+      "startTick": 103200,
+      "endTick": 105120,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-07-token-2",
+          "sourceHitId": "grudge-eq09-source09-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq10-source10-hit1",
+      "eventId": "grudge-eq10-source10-hit-event1",
+      "type": "hit",
+      "equationId": "grudge-early-step-08",
+      "startTick": 106200,
+      "endTick": 106200,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-08-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq10-source10-drag",
+      "eventId": "grudge-eq10-source10-drag-event",
+      "type": "drag",
+      "equationId": "grudge-early-step-08",
+      "startTick": 109560,
+      "endTick": 111480,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-08-token-2",
+          "sourceHitId": "grudge-eq10-source10-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq11-source11-hit1",
+      "eventId": "grudge-eq11-source11-hit-event1",
+      "type": "hit",
+      "equationId": "grudge-early-step-09",
+      "startTick": 114360,
+      "endTick": 114360,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-09-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq11-source11-drag",
+      "eventId": "grudge-eq11-source11-drag-event",
+      "type": "drag",
+      "equationId": "grudge-early-step-09",
+      "startTick": 117720,
+      "endTick": 119640,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-09-token-2",
+          "sourceHitId": "grudge-eq11-source11-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq12-source12-hit1",
+      "eventId": "grudge-eq12-source12-hit-event1",
+      "type": "hit",
+      "equationId": "grudge-early-step-10",
+      "startTick": 122520,
+      "endTick": 122520,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-10-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq12-source12-drag",
+      "eventId": "grudge-eq12-source12-drag-event",
+      "type": "drag",
+      "equationId": "grudge-early-step-10",
+      "startTick": 125880,
+      "endTick": 127800,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-early-step-10-token-2",
+          "sourceHitId": "grudge-eq12-source12-hit1"
+        }
+      ]
+    }
+  ]
+}

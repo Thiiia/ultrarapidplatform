@@ -1,0 +1,769 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "justbecause",
+  "activityKey": "early-algebra",
+  "authorId": "cmtqk9pzl0000yerq79b2h8y8",
+  "revision": "dc33a284-c050-477c-a749-282ff95946da",
+  "equations": [
+    {
+      "id": "justbecause-early-step-01",
+      "state": "x + 4 = 5",
+      "tokens": [
+        {
+          "id": "justbecause-early-step-01-token-0",
+          "label": "x"
+        },
+        {
+          "id": "justbecause-early-step-01-token-1",
+          "label": "+"
+        },
+        {
+          "id": "justbecause-early-step-01-token-2",
+          "label": "4"
+        },
+        {
+          "id": "justbecause-early-step-01-token-3",
+          "label": "="
+        },
+        {
+          "id": "justbecause-early-step-01-token-4",
+          "label": "5"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-early-step-02",
+      "state": "x + 7 = 9",
+      "tokens": [
+        {
+          "id": "justbecause-early-step-02-token-0",
+          "label": "x"
+        },
+        {
+          "id": "justbecause-early-step-02-token-1",
+          "label": "+"
+        },
+        {
+          "id": "justbecause-early-step-02-token-2",
+          "label": "7"
+        },
+        {
+          "id": "justbecause-early-step-02-token-3",
+          "label": "="
+        },
+        {
+          "id": "justbecause-early-step-02-token-4",
+          "label": "9"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-early-step-03",
+      "state": "x + 1 = 4",
+      "tokens": [
+        {
+          "id": "justbecause-early-step-03-token-0",
+          "label": "x"
+        },
+        {
+          "id": "justbecause-early-step-03-token-1",
+          "label": "+"
+        },
+        {
+          "id": "justbecause-early-step-03-token-2",
+          "label": "1"
+        },
+        {
+          "id": "justbecause-early-step-03-token-3",
+          "label": "="
+        },
+        {
+          "id": "justbecause-early-step-03-token-4",
+          "label": "4"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-early-step-04",
+      "state": "x + 2 = 6",
+      "tokens": [
+        {
+          "id": "justbecause-early-step-04-token-0",
+          "label": "x"
+        },
+        {
+          "id": "justbecause-early-step-04-token-1",
+          "label": "+"
+        },
+        {
+          "id": "justbecause-early-step-04-token-2",
+          "label": "2"
+        },
+        {
+          "id": "justbecause-early-step-04-token-3",
+          "label": "="
+        },
+        {
+          "id": "justbecause-early-step-04-token-4",
+          "label": "6"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-early-step-05",
+      "state": "x + 3 = 8",
+      "tokens": [
+        {
+          "id": "justbecause-early-step-05-token-0",
+          "label": "x"
+        },
+        {
+          "id": "justbecause-early-step-05-token-1",
+          "label": "+"
+        },
+        {
+          "id": "justbecause-early-step-05-token-2",
+          "label": "3"
+        },
+        {
+          "id": "justbecause-early-step-05-token-3",
+          "label": "="
+        },
+        {
+          "id": "justbecause-early-step-05-token-4",
+          "label": "8"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-early-step-06",
+      "state": "x - 1 = 1",
+      "tokens": [
+        {
+          "id": "justbecause-early-step-06-token-0",
+          "label": "x"
+        },
+        {
+          "id": "justbecause-early-step-06-token-1",
+          "label": "-"
+        },
+        {
+          "id": "justbecause-early-step-06-token-2",
+          "label": "1"
+        },
+        {
+          "id": "justbecause-early-step-06-token-3",
+          "label": "="
+        },
+        {
+          "id": "justbecause-early-step-06-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-early-step-07",
+      "state": "x - 2 = 1",
+      "tokens": [
+        {
+          "id": "justbecause-early-step-07-token-0",
+          "label": "x"
+        },
+        {
+          "id": "justbecause-early-step-07-token-1",
+          "label": "-"
+        },
+        {
+          "id": "justbecause-early-step-07-token-2",
+          "label": "2"
+        },
+        {
+          "id": "justbecause-early-step-07-token-3",
+          "label": "="
+        },
+        {
+          "id": "justbecause-early-step-07-token-4",
+          "label": "1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-early-step-08",
+      "state": "x - 1 = 3",
+      "tokens": [
+        {
+          "id": "justbecause-early-step-08-token-0",
+          "label": "x"
+        },
+        {
+          "id": "justbecause-early-step-08-token-1",
+          "label": "-"
+        },
+        {
+          "id": "justbecause-early-step-08-token-2",
+          "label": "1"
+        },
+        {
+          "id": "justbecause-early-step-08-token-3",
+          "label": "="
+        },
+        {
+          "id": "justbecause-early-step-08-token-4",
+          "label": "3"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-early-step-09",
+      "state": "x - 3 = 2",
+      "tokens": [
+        {
+          "id": "justbecause-early-step-09-token-0",
+          "label": "x"
+        },
+        {
+          "id": "justbecause-early-step-09-token-1",
+          "label": "-"
+        },
+        {
+          "id": "justbecause-early-step-09-token-2",
+          "label": "3"
+        },
+        {
+          "id": "justbecause-early-step-09-token-3",
+          "label": "="
+        },
+        {
+          "id": "justbecause-early-step-09-token-4",
+          "label": "2"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "justbecause-eq01-source01-hit1",
+      "eventId": "justbecause-eq01-source01-hit-event1",
+      "type": "hit",
+      "equationId": "justbecause-early-step-01",
+      "startTick": 6720,
+      "endTick": 6720,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-01-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq01-source01-drag",
+      "eventId": "justbecause-eq01-source01-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-early-step-01",
+      "startTick": 10080,
+      "endTick": 12000,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-01-token-2",
+          "sourceHitId": "justbecause-eq01-source01-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq02-source02-hit1",
+      "eventId": "justbecause-eq02-source02-hit-event1",
+      "type": "hit",
+      "equationId": "justbecause-early-step-02",
+      "startTick": 24480,
+      "endTick": 24480,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-02-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq02-source02-drag",
+      "eventId": "justbecause-eq02-source02-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-early-step-02",
+      "startTick": 27840,
+      "endTick": 29760,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-02-token-2",
+          "sourceHitId": "justbecause-eq02-source02-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq03-source03-hit1",
+      "eventId": "justbecause-eq03-source03-hit-event1",
+      "type": "hit",
+      "equationId": "justbecause-early-step-03",
+      "startTick": 34200,
+      "endTick": 34200,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-03-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq03-source03-drag",
+      "eventId": "justbecause-eq03-source03-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-early-step-03",
+      "startTick": 37560,
+      "endTick": 39480,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-03-token-2",
+          "sourceHitId": "justbecause-eq03-source03-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq04-source04-hit1",
+      "eventId": "justbecause-eq04-source04-hit-event1",
+      "type": "hit",
+      "equationId": "justbecause-early-step-04",
+      "startTick": 44160,
+      "endTick": 44160,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "justbecause-early-step-04-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq04-source04-hit2",
+      "eventId": "justbecause-eq04-source04-hit-event2",
+      "type": "hit",
+      "equationId": "justbecause-early-step-04",
+      "startTick": 46560,
+      "endTick": 46560,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-04-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq04-source04-hit3",
+      "eventId": "justbecause-eq04-source04-hit-event3",
+      "type": "hit",
+      "equationId": "justbecause-early-step-04",
+      "startTick": 48960,
+      "endTick": 48960,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-early-step-04-token-4",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq05-source05-hit1",
+      "eventId": "justbecause-eq05-source05-hit-event1",
+      "type": "hit",
+      "equationId": "justbecause-early-step-04",
+      "startTick": 62160,
+      "endTick": 62160,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "justbecause-early-step-04-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq05-source05-hit2",
+      "eventId": "justbecause-eq05-source05-hit-event2",
+      "type": "hit",
+      "equationId": "justbecause-early-step-04",
+      "startTick": 64560,
+      "endTick": 64560,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-04-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq05-source05-drag",
+      "eventId": "justbecause-eq05-source05-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-early-step-04",
+      "startTick": 67920,
+      "endTick": 69840,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-04-token-2",
+          "sourceHitId": "justbecause-eq05-source05-hit2"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq06-source06-hit1",
+      "eventId": "justbecause-eq06-source06-hit-event1",
+      "type": "hit",
+      "equationId": "justbecause-early-step-05",
+      "startTick": 79680,
+      "endTick": 79680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-05-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq06-source06-drag",
+      "eventId": "justbecause-eq06-source06-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-early-step-05",
+      "startTick": 83040,
+      "endTick": 84960,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-05-token-2",
+          "sourceHitId": "justbecause-eq06-source06-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq07-source07-hit1",
+      "eventId": "justbecause-eq07-source07-hit-event1",
+      "type": "hit",
+      "equationId": "justbecause-early-step-06",
+      "startTick": 97440,
+      "endTick": 97440,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-06-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq07-source07-drag",
+      "eventId": "justbecause-eq07-source07-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-early-step-06",
+      "startTick": 100800,
+      "endTick": 102720,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-06-token-2",
+          "sourceHitId": "justbecause-eq07-source07-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq08-source08-hit1",
+      "eventId": "justbecause-eq08-source08-hit-event1",
+      "type": "hit",
+      "equationId": "justbecause-early-step-07",
+      "startTick": 114720,
+      "endTick": 114720,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-07-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq08-source08-spin",
+      "eventId": "justbecause-eq08-source08-spin-drag-event",
+      "type": "spin",
+      "equationId": "justbecause-early-step-07",
+      "startTick": 118080,
+      "endTick": 120000,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-07-token-2"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq08-source08-drag",
+      "eventId": "justbecause-eq08-source08-spin-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-early-step-07",
+      "startTick": 121920,
+      "endTick": 123840,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-07-token-2",
+          "sourceHitId": "justbecause-eq08-source08-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq09-source09-hit1",
+      "eventId": "justbecause-eq09-source09-hit-event1",
+      "type": "hit",
+      "equationId": "justbecause-early-step-08",
+      "startTick": 124920,
+      "endTick": 124920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-08-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq09-source09-drag",
+      "eventId": "justbecause-eq09-source09-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-early-step-08",
+      "startTick": 128280,
+      "endTick": 130200,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-08-token-2",
+          "sourceHitId": "justbecause-eq09-source09-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq10-source10-hit1",
+      "eventId": "justbecause-eq10-source10-hit-event1",
+      "type": "hit",
+      "equationId": "justbecause-early-step-09",
+      "startTick": 134880,
+      "endTick": 134880,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "justbecause-early-step-09-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq10-source10-hit2",
+      "eventId": "justbecause-eq10-source10-hit-event2",
+      "type": "hit",
+      "equationId": "justbecause-early-step-09",
+      "startTick": 137280,
+      "endTick": 137280,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-09-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq10-source10-hit3",
+      "eventId": "justbecause-eq10-source10-hit-event3",
+      "type": "hit",
+      "equationId": "justbecause-early-step-09",
+      "startTick": 139680,
+      "endTick": 139680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-early-step-09-token-4",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq11-source11-hit1",
+      "eventId": "justbecause-eq11-source11-hit-event1",
+      "type": "hit",
+      "equationId": "justbecause-early-step-09",
+      "startTick": 153120,
+      "endTick": 153120,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "justbecause-early-step-09-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq11-source11-hit2",
+      "eventId": "justbecause-eq11-source11-hit-event2",
+      "type": "hit",
+      "equationId": "justbecause-early-step-09",
+      "startTick": 155520,
+      "endTick": 155520,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-09-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq11-source11-hit3",
+      "eventId": "justbecause-eq11-source11-hit-event3",
+      "type": "hit",
+      "equationId": "justbecause-early-step-09",
+      "startTick": 157920,
+      "endTick": 157920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-early-step-09-token-4",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq11-source11-hit4",
+      "eventId": "justbecause-eq11-source11-hit-event4",
+      "type": "hit",
+      "equationId": "justbecause-early-step-09",
+      "startTick": 160320,
+      "endTick": 160320,
+      "hitBubbles": [
+        {
+          "tokenIndex": 0,
+          "targetId": "justbecause-early-step-09-token-0",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq12-source12-hit1",
+      "eventId": "justbecause-eq12-source12-hit-event1",
+      "type": "hit",
+      "equationId": "justbecause-early-step-09",
+      "startTick": 168480,
+      "endTick": 168480,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-09-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq12-source12-spin",
+      "eventId": "justbecause-eq12-source12-spin-drag-event",
+      "type": "spin",
+      "equationId": "justbecause-early-step-09",
+      "startTick": 171840,
+      "endTick": 173760,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-09-token-2"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq12-source12-drag",
+      "eventId": "justbecause-eq12-source12-spin-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-early-step-09",
+      "startTick": 175680,
+      "endTick": 177600,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-early-step-09-token-2",
+          "sourceHitId": "justbecause-eq12-source12-hit1"
+        }
+      ]
+    }
+  ]
+}
