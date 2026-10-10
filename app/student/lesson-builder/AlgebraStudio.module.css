@@ -1200,3 +1200,45 @@
   .emptyActions { flex-direction: column; }
   .emptyActions button { width: 100%; min-height: 38px; flex: none; }
 }
+
+/* Give the authored lesson workspace room to scroll on phones instead of
+   compressing the playable preview and its controls into a few dozen pixels. */
+@media (max-width: 680px) {
+  .shell {
+    height: auto !important;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .main:not([data-guided-start="true"]) {
+    height: auto !important;
+    min-height: 0 !important;
+    flex: 0 0 auto !important;
+    grid-template-rows: minmax(560px, 68dvh) minmax(300px, 36dvh) !important;
+  }
+
+  .main[data-guided-start="true"] {
+    height: auto !important;
+    min-height: 560px !important;
+    flex: 0 0 auto !important;
+    grid-template-rows: minmax(560px, 68dvh) !important;
+  }
+
+  .composerBody { grid-template-columns: minmax(0, 1fr) !important; }
+  .composer :global(.algebra-composer__preview) {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+  }
+  .composer :global(.algebra-composer__gesture) { justify-self: center; }
+
+  .timeline .timelineTracks {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(169, 217, 208, .55) transparent;
+  }
+  .timeline .timelineTracks::-webkit-scrollbar { display: block; height: 6px; }
+  .timeline .timelineTracks::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(169, 217, 208, .55);
+  }
+}

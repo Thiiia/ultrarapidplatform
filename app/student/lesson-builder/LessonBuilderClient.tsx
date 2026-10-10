@@ -5799,7 +5799,7 @@ function EquationTimeline({
       <div
         ref={timelineTrackRef}
         aria-label="Timeline tracks"
-        className="ur-hidden-horizontal-scroll"
+        className={`${algebraStyles.timelineTracks} ur-hidden-horizontal-scroll`}
         style={{
           position: "relative",
           minWidth: 0,

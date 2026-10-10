@@ -8,11 +8,11 @@ import { canonicalPlayerJson } from "@/lib/player-run-lifecycle";
 import { getCurrentAppUser } from "@/lib/current-user";
 import { canPreviewOwnLessonDraft } from "@/lib/lesson-save-authorization";
 import {
+  createSongStorageSignedUrl,
   DEV_AUTHOR_FOLDER,
   findAuthorByName,
   findDevAuthor,
 } from "@/lib/song-storage";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { resolveRequestedAuthor } from "@/lib/song-author";
 import { assertHostedUnitySupportsPublishedLesson, HostedUnityCapabilityError } from "@/lib/hosted-unity-capability-check";
 import { getUnityGameUrl } from "@/lib/unity-game-url";
@@ -41,22 +41,6 @@ function readRequiredString(value: unknown, label: string) {
 
   return value.trim();
 }
-
-async function createSignedUrl(bucket: string, path: string) {
-  const info = await getSupabaseAdmin().storage.from(bucket).info(path);
-  if (info.error || !info.data) throw new Error(`Required asset unavailable: ${bucket}/${path}`);
-  const { data, error } = await getSupabaseAdmin()
-    .storage
-    .from(bucket)
-    .createSignedUrl(path, 5 * 60);
-
-  if (error || !data?.signedUrl) {
-    throw new Error(`Unable to load required song asset: ${error?.message ?? "Unknown error"}`);
-  }
-
-  return data.signedUrl;
-}
-
 
 /**
  * Absolute URL of the blank chart/sidecar endpoint. Used in place of a signed
@@ -293,7 +277,7 @@ export async function POST(request: Request) {
           },
         };
       },
-      createSignedUrl,
+      createSignedUrl: createSongStorageSignedUrl,
     });
 
     if (refreshAttempt && (!songPackage.receipt ||

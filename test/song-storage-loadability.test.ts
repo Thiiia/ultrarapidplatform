@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  createSongStorageSignedUrl,
   filterAuthorableNumberBondsSongs,
   isEditorSongChoiceLoadable,
   type SongChoice,
@@ -18,6 +19,26 @@ test("editor excludes an authored choice missing its chart or sidecar URL", () =
   assert.equal(isEditorSongChoiceLoadable(complete), true);
   assert.equal(isEditorSongChoiceLoadable({ ...complete, sidecar: { ...complete.sidecar!, signedUrl: "" } }), false);
   assert.equal(isEditorSongChoiceLoadable({ ...complete, chart: { ...complete.chart, signedUrl: "" } }), false);
+});
+
+test("signed song assets remain valid through calibration and the lesson intro", async () => {
+  const requestedTtls: number[] = [];
+  const supabaseAdmin = {
+    storage: {
+      from: () => ({
+        info: async () => ({ data: {}, error: null }),
+        createSignedUrl: async (_path: string, expiresIn: number) => {
+          requestedTtls.push(expiresIn);
+          return { data: { signedUrl: "https://storage.example/lesson-asset" }, error: null };
+        },
+      }),
+    },
+  } as unknown as Parameters<typeof createSongStorageSignedUrl>[2];
+
+  const signedUrl = await createSongStorageSignedUrl("Charts", "lesson/chart.chart", supabaseAdmin);
+
+  assert.equal(signedUrl, "https://storage.example/lesson-asset");
+  assert.deepEqual(requestedTtls, [60 * 60]);
 });
 
 test("Number Bonds song choice requires an Early Algebra rhythm, including for legacy lessons", () => {

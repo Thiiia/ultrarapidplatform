@@ -140,14 +140,18 @@ function isNonNull<T>(value: T | null): value is T {
   return value !== null;
 }
 
-async function createSignedUrl(bucket: string, path: string) {
-  const supabaseAdmin = getSupabaseAdmin();
+export const SONG_ASSET_SIGNED_URL_TTL_SECONDS = 60 * 60;
 
+export async function createSongStorageSignedUrl(
+  bucket: string,
+  path: string,
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin> = getSupabaseAdmin(),
+) {
   const info = await supabaseAdmin.storage.from(bucket).info(path);
   if (info.error || !info.data) throw new Error(`Required asset unavailable: ${bucket}/${path}`);
   const { data, error } = await supabaseAdmin.storage
     .from(bucket)
-    .createSignedUrl(path, 60 * 60);
+    .createSignedUrl(path, SONG_ASSET_SIGNED_URL_TTL_SECONDS);
 
   if (error || !data?.signedUrl) {
     throw new Error(
@@ -410,7 +414,7 @@ async function buildSongChoiceForAsset({
 }): Promise<SongChoice | null> {
   try {
     const [songSignedUrl, chartSignedUrl, sidecarSignedUrl, songMetadata] = await Promise.all([
-      createSignedUrl(songAsset.songBucket, storageSong.path).catch((error) => {
+      createSongStorageSignedUrl(songAsset.songBucket, storageSong.path).catch((error) => {
         console.warn("Unable to generate signed URL for song asset while listing songs", {
           songAssetId: songAsset.id,
           songPath: storageSong.path,
@@ -419,7 +423,7 @@ async function buildSongChoiceForAsset({
         return "";
       }),
       signChartAssets && chartRecord.chartBucket && chartRecord.chartPath
-        ? createSignedUrl(chartRecord.chartBucket, chartRecord.chartPath).catch((error) => {
+        ? createSongStorageSignedUrl(chartRecord.chartBucket, chartRecord.chartPath).catch((error) => {
             console.warn("Unable to generate signed URL for chart while listing songs", {
               songAssetId: songAsset.id,
               chartPath: chartRecord.chartPath,
@@ -429,7 +433,7 @@ async function buildSongChoiceForAsset({
           })
         : Promise.resolve(""),
       signChartAssets && chartRecord.sidecarBucket && chartRecord.sidecarPath
-        ? createSignedUrl(chartRecord.sidecarBucket, chartRecord.sidecarPath).catch((error) => {
+        ? createSongStorageSignedUrl(chartRecord.sidecarBucket, chartRecord.sidecarPath).catch((error) => {
             console.warn("Unable to generate signed URL for sidecar while listing songs", {
               songAssetId: songAsset.id,
               sidecarPath: chartRecord.sidecarPath,
@@ -861,7 +865,7 @@ export async function getEditorSongChoices(
         if (!sourceActivityKey) return;
 
         try {
-          const signedUrl = await createSignedUrl(revision.chartBucket, revision.chartPath);
+          const signedUrl = await createSongStorageSignedUrl(revision.chartBucket, revision.chartPath);
           rhythmSourcesBySong.set(songAssetId, [{
             activityKey: sourceActivityKey,
             revision: revision.revision,
