@@ -1,0 +1,414 @@
+{
+  "activityKey": "number-bonds",
+  "packageState": "local-candidates-not-uploaded",
+  "generatedFrom": "Unity StreamingAssets authored Number Bonds v3 sequence-v1 sidecars, copied to Platform draft staging. Local authorId/revision fields removed; Platform publish flow must stamp new immutable identities.",
+  "runtimeContract": {
+    "authoredLessonVersion": 3,
+    "numberBondSequenceVersion": 1,
+    "encounterTypes": [
+      "hit",
+      "spin",
+      "drag"
+    ]
+  },
+  "coverage": {
+    "songs": 8,
+    "rhythmDifficulties": [
+      "EasySingle",
+      "MediumSingle",
+      "HardSingle",
+      "ExpertSingle"
+    ],
+    "candidateRevisions": 32,
+    "equations": 32,
+    "encounters": 576
+  },
+  "timingPolicy": {
+    "minimumHitSpacingSeconds": 7.5,
+    "finalInteractionTailSeconds": 12
+  },
+  "timingAdjustments": [
+    {
+      "candidateFile": "number-bonds-geminiqueen-EasySingle.encounters.json",
+      "songAssetId": "geminiqueen",
+      "rhythmDifficultyKey": "EasySingle",
+      "finalGemHitTickFrom": 163200,
+      "to": 162240
+    },
+    {
+      "candidateFile": "number-bonds-geminiqueen-HardSingle.encounters.json",
+      "songAssetId": "geminiqueen",
+      "rhythmDifficultyKey": "HardSingle",
+      "finalGemHitTickFrom": 164160,
+      "to": 162240
+    },
+    {
+      "candidateFile": "number-bonds-grudge-ExpertSingle.encounters.json",
+      "songAssetId": "grudge",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "finalGemHitTickFrom": 138240,
+      "to": 136320
+    },
+    {
+      "candidateFile": "number-bonds-grudge-MediumSingle.encounters.json",
+      "songAssetId": "grudge",
+      "rhythmDifficultyKey": "MediumSingle",
+      "finalGemHitTickFrom": 138240,
+      "to": 136320
+    }
+  ],
+  "candidates": [
+    {
+      "candidateFile": "number-bonds-garden-EasySingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-garden-EasySingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Garden.chart",
+      "songAssetId": "garden",
+      "rhythmDifficultyKey": "EasySingle",
+      "equation": "4 + 3 = 7",
+      "whole": 7,
+      "encounterCount": 21,
+      "hitCount": 7
+    },
+    {
+      "candidateFile": "number-bonds-garden-ExpertSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-garden-ExpertSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Garden.chart",
+      "songAssetId": "garden",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "equation": "4 + 3 = 7",
+      "whole": 7,
+      "encounterCount": 21,
+      "hitCount": 7
+    },
+    {
+      "candidateFile": "number-bonds-garden-HardSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-garden-HardSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Garden.chart",
+      "songAssetId": "garden",
+      "rhythmDifficultyKey": "HardSingle",
+      "equation": "4 + 3 = 7",
+      "whole": 7,
+      "encounterCount": 21,
+      "hitCount": 7
+    },
+    {
+      "candidateFile": "number-bonds-garden-MediumSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-garden-MediumSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Garden.chart",
+      "songAssetId": "garden",
+      "rhythmDifficultyKey": "MediumSingle",
+      "equation": "4 + 3 = 7",
+      "whole": 7,
+      "encounterCount": 21,
+      "hitCount": 7
+    },
+    {
+      "candidateFile": "number-bonds-geminiqueen-EasySingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-geminiqueen-EasySingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/GEMINI QUEEN.chart",
+      "songAssetId": "geminiqueen",
+      "rhythmDifficultyKey": "EasySingle",
+      "equation": "1 + 3 = 4",
+      "whole": 4,
+      "encounterCount": 12,
+      "hitCount": 4
+    },
+    {
+      "candidateFile": "number-bonds-geminiqueen-ExpertSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-geminiqueen-ExpertSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/GEMINI QUEEN.chart",
+      "songAssetId": "geminiqueen",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "equation": "1 + 3 = 4",
+      "whole": 4,
+      "encounterCount": 12,
+      "hitCount": 4
+    },
+    {
+      "candidateFile": "number-bonds-geminiqueen-HardSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-geminiqueen-HardSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/GEMINI QUEEN.chart",
+      "songAssetId": "geminiqueen",
+      "rhythmDifficultyKey": "HardSingle",
+      "equation": "1 + 3 = 4",
+      "whole": 4,
+      "encounterCount": 12,
+      "hitCount": 4
+    },
+    {
+      "candidateFile": "number-bonds-geminiqueen-MediumSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-geminiqueen-MediumSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/GEMINI QUEEN.chart",
+      "songAssetId": "geminiqueen",
+      "rhythmDifficultyKey": "MediumSingle",
+      "equation": "1 + 3 = 4",
+      "whole": 4,
+      "encounterCount": 12,
+      "hitCount": 4
+    },
+    {
+      "candidateFile": "number-bonds-grudge-EasySingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-grudge-EasySingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Oogie Grudge.chart",
+      "songAssetId": "grudge",
+      "rhythmDifficultyKey": "EasySingle",
+      "equation": "3 + 4 = 7",
+      "whole": 7,
+      "encounterCount": 21,
+      "hitCount": 7
+    },
+    {
+      "candidateFile": "number-bonds-grudge-ExpertSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-grudge-ExpertSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Oogie Grudge.chart",
+      "songAssetId": "grudge",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "equation": "3 + 4 = 7",
+      "whole": 7,
+      "encounterCount": 21,
+      "hitCount": 7
+    },
+    {
+      "candidateFile": "number-bonds-grudge-HardSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-grudge-HardSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Oogie Grudge.chart",
+      "songAssetId": "grudge",
+      "rhythmDifficultyKey": "HardSingle",
+      "equation": "3 + 4 = 7",
+      "whole": 7,
+      "encounterCount": 21,
+      "hitCount": 7
+    },
+    {
+      "candidateFile": "number-bonds-grudge-MediumSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-grudge-MediumSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Oogie Grudge.chart",
+      "songAssetId": "grudge",
+      "rhythmDifficultyKey": "MediumSingle",
+      "equation": "3 + 4 = 7",
+      "whole": 7,
+      "encounterCount": 21,
+      "hitCount": 7
+    },
+    {
+      "candidateFile": "number-bonds-jazzmaybach-EasySingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-jazzmaybach-EasySingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Melika.chart",
+      "songAssetId": "jazzmaybach",
+      "rhythmDifficultyKey": "EasySingle",
+      "equation": "2 + 3 = 5",
+      "whole": 5,
+      "encounterCount": 15,
+      "hitCount": 5
+    },
+    {
+      "candidateFile": "number-bonds-jazzmaybach-ExpertSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-jazzmaybach-ExpertSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Melika.chart",
+      "songAssetId": "jazzmaybach",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "equation": "2 + 3 = 5",
+      "whole": 5,
+      "encounterCount": 15,
+      "hitCount": 5
+    },
+    {
+      "candidateFile": "number-bonds-jazzmaybach-HardSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-jazzmaybach-HardSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Melika.chart",
+      "songAssetId": "jazzmaybach",
+      "rhythmDifficultyKey": "HardSingle",
+      "equation": "2 + 3 = 5",
+      "whole": 5,
+      "encounterCount": 15,
+      "hitCount": 5
+    },
+    {
+      "candidateFile": "number-bonds-jazzmaybach-MediumSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-jazzmaybach-MediumSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Melika.chart",
+      "songAssetId": "jazzmaybach",
+      "rhythmDifficultyKey": "MediumSingle",
+      "equation": "2 + 3 = 5",
+      "whole": 5,
+      "encounterCount": 15,
+      "hitCount": 5
+    },
+    {
+      "candidateFile": "number-bonds-justbecause-EasySingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-justbecause-EasySingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Oogie - just because.chart",
+      "songAssetId": "justbecause",
+      "rhythmDifficultyKey": "EasySingle",
+      "equation": "2 + 4 = 6",
+      "whole": 6,
+      "encounterCount": 18,
+      "hitCount": 6
+    },
+    {
+      "candidateFile": "number-bonds-justbecause-ExpertSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-justbecause-ExpertSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Oogie - just because.chart",
+      "songAssetId": "justbecause",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "equation": "2 + 4 = 6",
+      "whole": 6,
+      "encounterCount": 18,
+      "hitCount": 6
+    },
+    {
+      "candidateFile": "number-bonds-justbecause-HardSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-justbecause-HardSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Oogie - just because.chart",
+      "songAssetId": "justbecause",
+      "rhythmDifficultyKey": "HardSingle",
+      "equation": "2 + 4 = 6",
+      "whole": 6,
+      "encounterCount": 18,
+      "hitCount": 6
+    },
+    {
+      "candidateFile": "number-bonds-justbecause-MediumSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-justbecause-MediumSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Oogie - just because.chart",
+      "songAssetId": "justbecause",
+      "rhythmDifficultyKey": "MediumSingle",
+      "equation": "2 + 4 = 6",
+      "whole": 6,
+      "encounterCount": 18,
+      "hitCount": 6
+    },
+    {
+      "candidateFile": "number-bonds-oneone-EasySingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-oneone-EasySingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/one one.chart",
+      "songAssetId": "oneone",
+      "rhythmDifficultyKey": "EasySingle",
+      "equation": "3 + 5 = 8",
+      "whole": 8,
+      "encounterCount": 24,
+      "hitCount": 8
+    },
+    {
+      "candidateFile": "number-bonds-oneone-ExpertSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-oneone-ExpertSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/one one.chart",
+      "songAssetId": "oneone",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "equation": "3 + 5 = 8",
+      "whole": 8,
+      "encounterCount": 24,
+      "hitCount": 8
+    },
+    {
+      "candidateFile": "number-bonds-oneone-HardSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-oneone-HardSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/one one.chart",
+      "songAssetId": "oneone",
+      "rhythmDifficultyKey": "HardSingle",
+      "equation": "3 + 5 = 8",
+      "whole": 8,
+      "encounterCount": 24,
+      "hitCount": 8
+    },
+    {
+      "candidateFile": "number-bonds-oneone-MediumSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-oneone-MediumSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/one one.chart",
+      "songAssetId": "oneone",
+      "rhythmDifficultyKey": "MediumSingle",
+      "equation": "3 + 5 = 8",
+      "whole": 8,
+      "encounterCount": 24,
+      "hitCount": 8
+    },
+    {
+      "candidateFile": "number-bonds-seven-EasySingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-seven-EasySingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/EF - seven.chart",
+      "songAssetId": "seven",
+      "rhythmDifficultyKey": "EasySingle",
+      "equation": "2 + 3 = 5",
+      "whole": 5,
+      "encounterCount": 15,
+      "hitCount": 5
+    },
+    {
+      "candidateFile": "number-bonds-seven-ExpertSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-seven-ExpertSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/EF - seven.chart",
+      "songAssetId": "seven",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "equation": "2 + 3 = 5",
+      "whole": 5,
+      "encounterCount": 15,
+      "hitCount": 5
+    },
+    {
+      "candidateFile": "number-bonds-seven-HardSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-seven-HardSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/EF - seven.chart",
+      "songAssetId": "seven",
+      "rhythmDifficultyKey": "HardSingle",
+      "equation": "2 + 3 = 5",
+      "whole": 5,
+      "encounterCount": 15,
+      "hitCount": 5
+    },
+    {
+      "candidateFile": "number-bonds-seven-MediumSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-seven-MediumSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/EF - seven.chart",
+      "songAssetId": "seven",
+      "rhythmDifficultyKey": "MediumSingle",
+      "equation": "2 + 3 = 5",
+      "whole": 5,
+      "encounterCount": 15,
+      "hitCount": 5
+    },
+    {
+      "candidateFile": "number-bonds-waves-EasySingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-waves-EasySingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Grafix - Waves.chart",
+      "songAssetId": "waves",
+      "rhythmDifficultyKey": "EasySingle",
+      "equation": "3 + 3 = 6",
+      "whole": 6,
+      "encounterCount": 18,
+      "hitCount": 6
+    },
+    {
+      "candidateFile": "number-bonds-waves-ExpertSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-waves-ExpertSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Grafix - Waves.chart",
+      "songAssetId": "waves",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "equation": "3 + 3 = 6",
+      "whole": 6,
+      "encounterCount": 18,
+      "hitCount": 6
+    },
+    {
+      "candidateFile": "number-bonds-waves-HardSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-waves-HardSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Grafix - Waves.chart",
+      "songAssetId": "waves",
+      "rhythmDifficultyKey": "HardSingle",
+      "equation": "3 + 3 = 6",
+      "whole": 6,
+      "encounterCount": 18,
+      "hitCount": 6
+    },
+    {
+      "candidateFile": "number-bonds-waves-MediumSingle.encounters.json",
+      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-waves-MediumSingle.encounters.json",
+      "chartFile": "Assets/StreamingAssets/Charts/Grafix - Waves.chart",
+      "songAssetId": "waves",
+      "rhythmDifficultyKey": "MediumSingle",
+      "equation": "3 + 3 = 6",
+      "whole": 6,
+      "encounterCount": 18,
+      "hitCount": 6
+    }
+  ]
+}

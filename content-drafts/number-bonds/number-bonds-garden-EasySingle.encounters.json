@@ -1,0 +1,467 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "garden",
+  "activityKey": "number-bonds",
+  "stopAtSeconds": 192.052,
+  "equations": [
+    {
+      "id": "garden-bond-equation",
+      "state": "4 + 3 = 7",
+      "tokens": [
+        {
+          "id": "garden-bond-part-a",
+          "label": "4"
+        },
+        {
+          "id": "garden-bond-plus",
+          "label": "+"
+        },
+        {
+          "id": "garden-bond-part-b",
+          "label": "3"
+        },
+        {
+          "id": "garden-bond-equals",
+          "label": "="
+        },
+        {
+          "id": "garden-bond-whole",
+          "label": "7"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "nb-garden-easysingle-01-hit",
+      "eventId": "nb-garden-easysingle-01-hit-event",
+      "type": "hit",
+      "equationId": "garden-bond-equation",
+      "startTick": 8640,
+      "endTick": 8640,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-01-spin",
+      "eventId": "nb-garden-easysingle-01-spin-event",
+      "type": "spin",
+      "equationId": "garden-bond-equation",
+      "startTick": 10805,
+      "endTick": 11045,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "sourceHitId": "nb-garden-easysingle-01-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-01-drag",
+      "eventId": "nb-garden-easysingle-01-drag-event",
+      "type": "drag",
+      "equationId": "garden-bond-equation",
+      "startTick": 12984,
+      "endTick": 13224,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "garden-bond-part-a",
+          "sourceHitId": "nb-garden-easysingle-01-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-02-hit",
+      "eventId": "nb-garden-easysingle-02-hit-event",
+      "type": "hit",
+      "equationId": "garden-bond-equation",
+      "startTick": 40320,
+      "endTick": 40320,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-02-spin",
+      "eventId": "nb-garden-easysingle-02-spin-event",
+      "type": "spin",
+      "equationId": "garden-bond-equation",
+      "startTick": 42485,
+      "endTick": 42725,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "sourceHitId": "nb-garden-easysingle-02-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-02-drag",
+      "eventId": "nb-garden-easysingle-02-drag-event",
+      "type": "drag",
+      "equationId": "garden-bond-equation",
+      "startTick": 44664,
+      "endTick": 44904,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "garden-bond-part-a",
+          "sourceHitId": "nb-garden-easysingle-02-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-03-hit",
+      "eventId": "nb-garden-easysingle-03-hit-event",
+      "type": "hit",
+      "equationId": "garden-bond-equation",
+      "startTick": 75720,
+      "endTick": 75720,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-03-spin",
+      "eventId": "nb-garden-easysingle-03-spin-event",
+      "type": "spin",
+      "equationId": "garden-bond-equation",
+      "startTick": 77885,
+      "endTick": 78125,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "sourceHitId": "nb-garden-easysingle-03-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-03-drag",
+      "eventId": "nb-garden-easysingle-03-drag-event",
+      "type": "drag",
+      "equationId": "garden-bond-equation",
+      "startTick": 80064,
+      "endTick": 80304,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "garden-bond-part-a",
+          "sourceHitId": "nb-garden-easysingle-03-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-04-hit",
+      "eventId": "nb-garden-easysingle-04-hit-event",
+      "type": "hit",
+      "equationId": "garden-bond-equation",
+      "startTick": 120480,
+      "endTick": 120480,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-04-spin",
+      "eventId": "nb-garden-easysingle-04-spin-event",
+      "type": "spin",
+      "equationId": "garden-bond-equation",
+      "startTick": 122645,
+      "endTick": 122885,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "sourceHitId": "nb-garden-easysingle-04-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-04-drag",
+      "eventId": "nb-garden-easysingle-04-drag-event",
+      "type": "drag",
+      "equationId": "garden-bond-equation",
+      "startTick": 124824,
+      "endTick": 125064,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "garden-bond-part-a",
+          "sourceHitId": "nb-garden-easysingle-04-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-05-hit",
+      "eventId": "nb-garden-easysingle-05-hit-event",
+      "type": "hit",
+      "equationId": "garden-bond-equation",
+      "startTick": 154200,
+      "endTick": 154200,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-05-spin",
+      "eventId": "nb-garden-easysingle-05-spin-event",
+      "type": "spin",
+      "equationId": "garden-bond-equation",
+      "startTick": 156365,
+      "endTick": 156605,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "sourceHitId": "nb-garden-easysingle-05-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-05-drag",
+      "eventId": "nb-garden-easysingle-05-drag-event",
+      "type": "drag",
+      "equationId": "garden-bond-equation",
+      "startTick": 158544,
+      "endTick": 158784,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-bond-part-b",
+          "sourceHitId": "nb-garden-easysingle-05-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-06-hit",
+      "eventId": "nb-garden-easysingle-06-hit-event",
+      "type": "hit",
+      "equationId": "garden-bond-equation",
+      "startTick": 188160,
+      "endTick": 188160,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-06-spin",
+      "eventId": "nb-garden-easysingle-06-spin-event",
+      "type": "spin",
+      "equationId": "garden-bond-equation",
+      "startTick": 190325,
+      "endTick": 190565,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "sourceHitId": "nb-garden-easysingle-06-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-06-drag",
+      "eventId": "nb-garden-easysingle-06-drag-event",
+      "type": "drag",
+      "equationId": "garden-bond-equation",
+      "startTick": 192504,
+      "endTick": 192744,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-bond-part-b",
+          "sourceHitId": "nb-garden-easysingle-06-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-07-hit",
+      "eventId": "nb-garden-easysingle-07-hit-event",
+      "type": "hit",
+      "equationId": "garden-bond-equation",
+      "startTick": 222000,
+      "endTick": 222000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-07-spin",
+      "eventId": "nb-garden-easysingle-07-spin-event",
+      "type": "spin",
+      "equationId": "garden-bond-equation",
+      "startTick": 224165,
+      "endTick": 224405,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "garden-bond-whole",
+          "sourceHitId": "nb-garden-easysingle-07-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-garden-easysingle-07-drag",
+      "eventId": "nb-garden-easysingle-07-drag-event",
+      "type": "drag",
+      "equationId": "garden-bond-equation",
+      "startTick": 226344,
+      "endTick": 226584,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "garden-bond-part-b",
+          "sourceHitId": "nb-garden-easysingle-07-hit"
+        }
+      ]
+    }
+  ],
+  "numberBondSequenceVersion": 1,
+  "numberBondGems": [
+    {
+      "gemId": "nb-garden-easysingle-01-gem",
+      "unitIndex": 0,
+      "spinEncounterId": "nb-garden-easysingle-01-spin",
+      "dragEncounterId": "nb-garden-easysingle-01-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-garden-easysingle-02-gem",
+      "unitIndex": 1,
+      "spinEncounterId": "nb-garden-easysingle-02-spin",
+      "dragEncounterId": "nb-garden-easysingle-02-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-garden-easysingle-03-gem",
+      "unitIndex": 2,
+      "spinEncounterId": "nb-garden-easysingle-03-spin",
+      "dragEncounterId": "nb-garden-easysingle-03-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 2
+      }
+    },
+    {
+      "gemId": "nb-garden-easysingle-04-gem",
+      "unitIndex": 3,
+      "spinEncounterId": "nb-garden-easysingle-04-spin",
+      "dragEncounterId": "nb-garden-easysingle-04-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 3
+      }
+    },
+    {
+      "gemId": "nb-garden-easysingle-05-gem",
+      "unitIndex": 4,
+      "spinEncounterId": "nb-garden-easysingle-05-spin",
+      "dragEncounterId": "nb-garden-easysingle-05-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-garden-easysingle-06-gem",
+      "unitIndex": 5,
+      "spinEncounterId": "nb-garden-easysingle-06-spin",
+      "dragEncounterId": "nb-garden-easysingle-06-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-garden-easysingle-07-gem",
+      "unitIndex": 6,
+      "spinEncounterId": "nb-garden-easysingle-07-spin",
+      "dragEncounterId": "nb-garden-easysingle-07-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 2
+      }
+    }
+  ]
+}

@@ -1,0 +1,406 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "waves",
+  "activityKey": "number-bonds",
+  "stopAtSeconds": 267.586,
+  "equations": [
+    {
+      "id": "waves-bond-equation",
+      "state": "3 + 3 = 6",
+      "tokens": [
+        {
+          "id": "waves-bond-part-a",
+          "label": "3"
+        },
+        {
+          "id": "waves-bond-plus",
+          "label": "+"
+        },
+        {
+          "id": "waves-bond-part-b",
+          "label": "3"
+        },
+        {
+          "id": "waves-bond-equals",
+          "label": "="
+        },
+        {
+          "id": "waves-bond-whole",
+          "label": "6"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "nb-waves-hardsingle-01-hit",
+      "eventId": "nb-waves-hardsingle-01-hit-event",
+      "type": "hit",
+      "equationId": "waves-bond-equation",
+      "startTick": 8640,
+      "endTick": 8640,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "waves-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-01-spin",
+      "eventId": "nb-waves-hardsingle-01-spin-event",
+      "type": "spin",
+      "equationId": "waves-bond-equation",
+      "startTick": 10973,
+      "endTick": 11213,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "waves-bond-whole",
+          "sourceHitId": "nb-waves-hardsingle-01-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-01-drag",
+      "eventId": "nb-waves-hardsingle-01-drag-event",
+      "type": "drag",
+      "equationId": "waves-bond-equation",
+      "startTick": 13302,
+      "endTick": 13542,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "waves-bond-part-a",
+          "sourceHitId": "nb-waves-hardsingle-01-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-02-hit",
+      "eventId": "nb-waves-hardsingle-02-hit-event",
+      "type": "hit",
+      "equationId": "waves-bond-equation",
+      "startTick": 72000,
+      "endTick": 72000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "waves-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-02-spin",
+      "eventId": "nb-waves-hardsingle-02-spin-event",
+      "type": "spin",
+      "equationId": "waves-bond-equation",
+      "startTick": 74333,
+      "endTick": 74573,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "waves-bond-whole",
+          "sourceHitId": "nb-waves-hardsingle-02-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-02-drag",
+      "eventId": "nb-waves-hardsingle-02-drag-event",
+      "type": "drag",
+      "equationId": "waves-bond-equation",
+      "startTick": 76662,
+      "endTick": 76902,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "waves-bond-part-a",
+          "sourceHitId": "nb-waves-hardsingle-02-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-03-hit",
+      "eventId": "nb-waves-hardsingle-03-hit-event",
+      "type": "hit",
+      "equationId": "waves-bond-equation",
+      "startTick": 138240,
+      "endTick": 138240,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "waves-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-03-spin",
+      "eventId": "nb-waves-hardsingle-03-spin-event",
+      "type": "spin",
+      "equationId": "waves-bond-equation",
+      "startTick": 140573,
+      "endTick": 140813,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "waves-bond-whole",
+          "sourceHitId": "nb-waves-hardsingle-03-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-03-drag",
+      "eventId": "nb-waves-hardsingle-03-drag-event",
+      "type": "drag",
+      "equationId": "waves-bond-equation",
+      "startTick": 142902,
+      "endTick": 143142,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "waves-bond-part-a",
+          "sourceHitId": "nb-waves-hardsingle-03-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-04-hit",
+      "eventId": "nb-waves-hardsingle-04-hit-event",
+      "type": "hit",
+      "equationId": "waves-bond-equation",
+      "startTick": 207360,
+      "endTick": 207360,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "waves-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-04-spin",
+      "eventId": "nb-waves-hardsingle-04-spin-event",
+      "type": "spin",
+      "equationId": "waves-bond-equation",
+      "startTick": 209693,
+      "endTick": 209933,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "waves-bond-whole",
+          "sourceHitId": "nb-waves-hardsingle-04-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-04-drag",
+      "eventId": "nb-waves-hardsingle-04-drag-event",
+      "type": "drag",
+      "equationId": "waves-bond-equation",
+      "startTick": 212022,
+      "endTick": 212262,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "waves-bond-part-b",
+          "sourceHitId": "nb-waves-hardsingle-04-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-05-hit",
+      "eventId": "nb-waves-hardsingle-05-hit-event",
+      "type": "hit",
+      "equationId": "waves-bond-equation",
+      "startTick": 276480,
+      "endTick": 276480,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "waves-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-05-spin",
+      "eventId": "nb-waves-hardsingle-05-spin-event",
+      "type": "spin",
+      "equationId": "waves-bond-equation",
+      "startTick": 278813,
+      "endTick": 279053,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "waves-bond-whole",
+          "sourceHitId": "nb-waves-hardsingle-05-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-05-drag",
+      "eventId": "nb-waves-hardsingle-05-drag-event",
+      "type": "drag",
+      "equationId": "waves-bond-equation",
+      "startTick": 281142,
+      "endTick": 281382,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "waves-bond-part-b",
+          "sourceHitId": "nb-waves-hardsingle-05-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-06-hit",
+      "eventId": "nb-waves-hardsingle-06-hit-event",
+      "type": "hit",
+      "equationId": "waves-bond-equation",
+      "startTick": 345600,
+      "endTick": 345600,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "waves-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-06-spin",
+      "eventId": "nb-waves-hardsingle-06-spin-event",
+      "type": "spin",
+      "equationId": "waves-bond-equation",
+      "startTick": 347933,
+      "endTick": 348173,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "waves-bond-whole",
+          "sourceHitId": "nb-waves-hardsingle-06-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-waves-hardsingle-06-drag",
+      "eventId": "nb-waves-hardsingle-06-drag-event",
+      "type": "drag",
+      "equationId": "waves-bond-equation",
+      "startTick": 350262,
+      "endTick": 350502,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "waves-bond-part-b",
+          "sourceHitId": "nb-waves-hardsingle-06-hit"
+        }
+      ]
+    }
+  ],
+  "numberBondSequenceVersion": 1,
+  "numberBondGems": [
+    {
+      "gemId": "nb-waves-hardsingle-01-gem",
+      "unitIndex": 0,
+      "spinEncounterId": "nb-waves-hardsingle-01-spin",
+      "dragEncounterId": "nb-waves-hardsingle-01-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-waves-hardsingle-02-gem",
+      "unitIndex": 1,
+      "spinEncounterId": "nb-waves-hardsingle-02-spin",
+      "dragEncounterId": "nb-waves-hardsingle-02-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-waves-hardsingle-03-gem",
+      "unitIndex": 2,
+      "spinEncounterId": "nb-waves-hardsingle-03-spin",
+      "dragEncounterId": "nb-waves-hardsingle-03-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 2
+      }
+    },
+    {
+      "gemId": "nb-waves-hardsingle-04-gem",
+      "unitIndex": 3,
+      "spinEncounterId": "nb-waves-hardsingle-04-spin",
+      "dragEncounterId": "nb-waves-hardsingle-04-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-waves-hardsingle-05-gem",
+      "unitIndex": 4,
+      "spinEncounterId": "nb-waves-hardsingle-05-spin",
+      "dragEncounterId": "nb-waves-hardsingle-05-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-waves-hardsingle-06-gem",
+      "unitIndex": 5,
+      "spinEncounterId": "nb-waves-hardsingle-06-spin",
+      "dragEncounterId": "nb-waves-hardsingle-06-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 2
+      }
+    }
+  ]
+}

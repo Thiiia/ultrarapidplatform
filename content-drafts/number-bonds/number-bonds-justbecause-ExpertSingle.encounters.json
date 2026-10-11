@@ -1,0 +1,406 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "justbecause",
+  "activityKey": "number-bonds",
+  "stopAtSeconds": 181.821,
+  "equations": [
+    {
+      "id": "justbecause-bond-equation",
+      "state": "2 + 4 = 6",
+      "tokens": [
+        {
+          "id": "justbecause-bond-part-a",
+          "label": "2"
+        },
+        {
+          "id": "justbecause-bond-plus",
+          "label": "+"
+        },
+        {
+          "id": "justbecause-bond-part-b",
+          "label": "4"
+        },
+        {
+          "id": "justbecause-bond-equals",
+          "label": "="
+        },
+        {
+          "id": "justbecause-bond-whole",
+          "label": "6"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "nb-justbecause-expertsingle-01-hit",
+      "eventId": "nb-justbecause-expertsingle-01-hit-event",
+      "type": "hit",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 6240,
+      "endTick": 6240,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-01-spin",
+      "eventId": "nb-justbecause-expertsingle-01-spin-event",
+      "type": "spin",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 7972,
+      "endTick": 8212,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-bond-whole",
+          "sourceHitId": "nb-justbecause-expertsingle-01-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-01-drag",
+      "eventId": "nb-justbecause-expertsingle-01-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 9763,
+      "endTick": 10003,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "justbecause-bond-part-a",
+          "sourceHitId": "nb-justbecause-expertsingle-01-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-02-hit",
+      "eventId": "nb-justbecause-expertsingle-02-hit-event",
+      "type": "hit",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 44160,
+      "endTick": 44160,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-02-spin",
+      "eventId": "nb-justbecause-expertsingle-02-spin-event",
+      "type": "spin",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 45892,
+      "endTick": 46132,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-bond-whole",
+          "sourceHitId": "nb-justbecause-expertsingle-02-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-02-drag",
+      "eventId": "nb-justbecause-expertsingle-02-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 47683,
+      "endTick": 47923,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "justbecause-bond-part-a",
+          "sourceHitId": "nb-justbecause-expertsingle-02-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-03-hit",
+      "eventId": "nb-justbecause-expertsingle-03-hit-event",
+      "type": "hit",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 71040,
+      "endTick": 71040,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-03-spin",
+      "eventId": "nb-justbecause-expertsingle-03-spin-event",
+      "type": "spin",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 72772,
+      "endTick": 73012,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-bond-whole",
+          "sourceHitId": "nb-justbecause-expertsingle-03-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-03-drag",
+      "eventId": "nb-justbecause-expertsingle-03-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 74563,
+      "endTick": 74803,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-bond-part-b",
+          "sourceHitId": "nb-justbecause-expertsingle-03-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-04-hit",
+      "eventId": "nb-justbecause-expertsingle-04-hit-event",
+      "type": "hit",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 107520,
+      "endTick": 107520,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-04-spin",
+      "eventId": "nb-justbecause-expertsingle-04-spin-event",
+      "type": "spin",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 109252,
+      "endTick": 109492,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-bond-whole",
+          "sourceHitId": "nb-justbecause-expertsingle-04-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-04-drag",
+      "eventId": "nb-justbecause-expertsingle-04-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 111043,
+      "endTick": 111283,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-bond-part-b",
+          "sourceHitId": "nb-justbecause-expertsingle-04-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-05-hit",
+      "eventId": "nb-justbecause-expertsingle-05-hit-event",
+      "type": "hit",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 134400,
+      "endTick": 134400,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-05-spin",
+      "eventId": "nb-justbecause-expertsingle-05-spin-event",
+      "type": "spin",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 136132,
+      "endTick": 136372,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-bond-whole",
+          "sourceHitId": "nb-justbecause-expertsingle-05-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-05-drag",
+      "eventId": "nb-justbecause-expertsingle-05-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 137923,
+      "endTick": 138163,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-bond-part-b",
+          "sourceHitId": "nb-justbecause-expertsingle-05-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-06-hit",
+      "eventId": "nb-justbecause-expertsingle-06-hit-event",
+      "type": "hit",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 170880,
+      "endTick": 170880,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-06-spin",
+      "eventId": "nb-justbecause-expertsingle-06-spin-event",
+      "type": "spin",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 172612,
+      "endTick": 172852,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "justbecause-bond-whole",
+          "sourceHitId": "nb-justbecause-expertsingle-06-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-justbecause-expertsingle-06-drag",
+      "eventId": "nb-justbecause-expertsingle-06-drag-event",
+      "type": "drag",
+      "equationId": "justbecause-bond-equation",
+      "startTick": 174403,
+      "endTick": 174643,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "justbecause-bond-part-b",
+          "sourceHitId": "nb-justbecause-expertsingle-06-hit"
+        }
+      ]
+    }
+  ],
+  "numberBondSequenceVersion": 1,
+  "numberBondGems": [
+    {
+      "gemId": "nb-justbecause-expertsingle-01-gem",
+      "unitIndex": 0,
+      "spinEncounterId": "nb-justbecause-expertsingle-01-spin",
+      "dragEncounterId": "nb-justbecause-expertsingle-01-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-justbecause-expertsingle-02-gem",
+      "unitIndex": 1,
+      "spinEncounterId": "nb-justbecause-expertsingle-02-spin",
+      "dragEncounterId": "nb-justbecause-expertsingle-02-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-justbecause-expertsingle-03-gem",
+      "unitIndex": 2,
+      "spinEncounterId": "nb-justbecause-expertsingle-03-spin",
+      "dragEncounterId": "nb-justbecause-expertsingle-03-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-justbecause-expertsingle-04-gem",
+      "unitIndex": 3,
+      "spinEncounterId": "nb-justbecause-expertsingle-04-spin",
+      "dragEncounterId": "nb-justbecause-expertsingle-04-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-justbecause-expertsingle-05-gem",
+      "unitIndex": 4,
+      "spinEncounterId": "nb-justbecause-expertsingle-05-spin",
+      "dragEncounterId": "nb-justbecause-expertsingle-05-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 2
+      }
+    },
+    {
+      "gemId": "nb-justbecause-expertsingle-06-gem",
+      "unitIndex": 5,
+      "spinEncounterId": "nb-justbecause-expertsingle-06-spin",
+      "dragEncounterId": "nb-justbecause-expertsingle-06-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 3
+      }
+    }
+  ]
+}

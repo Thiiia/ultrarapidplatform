@@ -1,0 +1,345 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "seven",
+  "activityKey": "number-bonds",
+  "stopAtSeconds": 152.996,
+  "equations": [
+    {
+      "id": "seven-bond-equation",
+      "state": "2 + 3 = 5",
+      "tokens": [
+        {
+          "id": "seven-bond-part-a",
+          "label": "2"
+        },
+        {
+          "id": "seven-bond-plus",
+          "label": "+"
+        },
+        {
+          "id": "seven-bond-part-b",
+          "label": "3"
+        },
+        {
+          "id": "seven-bond-equals",
+          "label": "="
+        },
+        {
+          "id": "seven-bond-whole",
+          "label": "5"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "nb-seven-expertsingle-01-hit",
+      "eventId": "nb-seven-expertsingle-01-hit-event",
+      "type": "hit",
+      "equationId": "seven-bond-equation",
+      "startTick": 7680,
+      "endTick": 7680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "seven-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-01-spin",
+      "eventId": "nb-seven-expertsingle-01-spin-event",
+      "type": "spin",
+      "equationId": "seven-bond-equation",
+      "startTick": 9718,
+      "endTick": 9958,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "seven-bond-whole",
+          "sourceHitId": "nb-seven-expertsingle-01-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-01-drag",
+      "eventId": "nb-seven-expertsingle-01-drag-event",
+      "type": "drag",
+      "equationId": "seven-bond-equation",
+      "startTick": 11783,
+      "endTick": 12023,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "seven-bond-part-a",
+          "sourceHitId": "nb-seven-expertsingle-01-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-02-hit",
+      "eventId": "nb-seven-expertsingle-02-hit-event",
+      "type": "hit",
+      "equationId": "seven-bond-equation",
+      "startTick": 46080,
+      "endTick": 46080,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "seven-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-02-spin",
+      "eventId": "nb-seven-expertsingle-02-spin-event",
+      "type": "spin",
+      "equationId": "seven-bond-equation",
+      "startTick": 48118,
+      "endTick": 48358,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "seven-bond-whole",
+          "sourceHitId": "nb-seven-expertsingle-02-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-02-drag",
+      "eventId": "nb-seven-expertsingle-02-drag-event",
+      "type": "drag",
+      "equationId": "seven-bond-equation",
+      "startTick": 50183,
+      "endTick": 50423,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "seven-bond-part-a",
+          "sourceHitId": "nb-seven-expertsingle-02-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-03-hit",
+      "eventId": "nb-seven-expertsingle-03-hit-event",
+      "type": "hit",
+      "equationId": "seven-bond-equation",
+      "startTick": 84480,
+      "endTick": 84480,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "seven-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-03-spin",
+      "eventId": "nb-seven-expertsingle-03-spin-event",
+      "type": "spin",
+      "equationId": "seven-bond-equation",
+      "startTick": 86518,
+      "endTick": 86758,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "seven-bond-whole",
+          "sourceHitId": "nb-seven-expertsingle-03-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-03-drag",
+      "eventId": "nb-seven-expertsingle-03-drag-event",
+      "type": "drag",
+      "equationId": "seven-bond-equation",
+      "startTick": 88583,
+      "endTick": 88823,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-bond-part-b",
+          "sourceHitId": "nb-seven-expertsingle-03-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-04-hit",
+      "eventId": "nb-seven-expertsingle-04-hit-event",
+      "type": "hit",
+      "equationId": "seven-bond-equation",
+      "startTick": 122880,
+      "endTick": 122880,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "seven-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-04-spin",
+      "eventId": "nb-seven-expertsingle-04-spin-event",
+      "type": "spin",
+      "equationId": "seven-bond-equation",
+      "startTick": 124918,
+      "endTick": 125158,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "seven-bond-whole",
+          "sourceHitId": "nb-seven-expertsingle-04-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-04-drag",
+      "eventId": "nb-seven-expertsingle-04-drag-event",
+      "type": "drag",
+      "equationId": "seven-bond-equation",
+      "startTick": 126983,
+      "endTick": 127223,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-bond-part-b",
+          "sourceHitId": "nb-seven-expertsingle-04-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-05-hit",
+      "eventId": "nb-seven-expertsingle-05-hit-event",
+      "type": "hit",
+      "equationId": "seven-bond-equation",
+      "startTick": 161280,
+      "endTick": 161280,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "seven-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-05-spin",
+      "eventId": "nb-seven-expertsingle-05-spin-event",
+      "type": "spin",
+      "equationId": "seven-bond-equation",
+      "startTick": 163318,
+      "endTick": 163558,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "seven-bond-whole",
+          "sourceHitId": "nb-seven-expertsingle-05-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-seven-expertsingle-05-drag",
+      "eventId": "nb-seven-expertsingle-05-drag-event",
+      "type": "drag",
+      "equationId": "seven-bond-equation",
+      "startTick": 165383,
+      "endTick": 165623,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "seven-bond-part-b",
+          "sourceHitId": "nb-seven-expertsingle-05-hit"
+        }
+      ]
+    }
+  ],
+  "numberBondSequenceVersion": 1,
+  "numberBondGems": [
+    {
+      "gemId": "nb-seven-expertsingle-01-gem",
+      "unitIndex": 0,
+      "spinEncounterId": "nb-seven-expertsingle-01-spin",
+      "dragEncounterId": "nb-seven-expertsingle-01-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-seven-expertsingle-02-gem",
+      "unitIndex": 1,
+      "spinEncounterId": "nb-seven-expertsingle-02-spin",
+      "dragEncounterId": "nb-seven-expertsingle-02-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-seven-expertsingle-03-gem",
+      "unitIndex": 2,
+      "spinEncounterId": "nb-seven-expertsingle-03-spin",
+      "dragEncounterId": "nb-seven-expertsingle-03-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-seven-expertsingle-04-gem",
+      "unitIndex": 3,
+      "spinEncounterId": "nb-seven-expertsingle-04-spin",
+      "dragEncounterId": "nb-seven-expertsingle-04-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-seven-expertsingle-05-gem",
+      "unitIndex": 4,
+      "spinEncounterId": "nb-seven-expertsingle-05-spin",
+      "dragEncounterId": "nb-seven-expertsingle-05-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 2
+      }
+    }
+  ]
+}

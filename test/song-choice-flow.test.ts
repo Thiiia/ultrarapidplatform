@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   buildSongSelectionCacheKey,
   getPlayerLaunchRoute,
+  getSongChoiceRoute,
   getSongLaunchErrorMessage,
   isPlayableSongLaunchPackage,
 } from "../lib/song-choice-flow";
@@ -66,6 +67,18 @@ test("song package cache keys include activity identity", () => {
 test("all player entry points use the route-local game flow", () => {
   assert.equal(getPlayerLaunchRoute("/demo/student"), "/demo/student/game");
   assert.equal(getPlayerLaunchRoute("/student"), "/student/game");
+});
+
+test("returning to song choice preserves the active activity", () => {
+  assert.equal(
+    getSongChoiceRoute("/demo/teacher", "early-algebra"),
+    "/demo/teacher/song-choice?activity=early-algebra",
+  );
+  assert.equal(
+    getSongChoiceRoute("/student", "number-bonds"),
+    "/student/song-choice?activity=number-bonds",
+  );
+  assert.equal(getSongChoiceRoute("/demo/teacher", null), "/demo/teacher/song-choice");
 });
 
 test("explicit route activity wins over stale session and selected-song payload", () => {

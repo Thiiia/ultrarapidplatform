@@ -1,0 +1,64 @@
+{
+  "activityKey": "early-algebra",
+  "packageState": "local-draft-candidates-not-uploaded",
+  "generatedFrom": "Latest hosted Early Algebra editor sidecars fetched read-only on 2026-10-10.",
+  "sourceRevisions": [
+    {
+      "song": "Garden",
+      "sourceReadyRevision": "eb171cbc-fb04-44ce-a1d0-0e3b66d80cbe",
+      "candidateFile": "garden.json",
+      "equationCount": 6,
+      "encounterCount": 32
+    },
+    {
+      "song": "GEMINI QUEEN",
+      "sourceReadyRevision": "35d7c908-8d24-435f-8063-bb6b2281fd12",
+      "candidateFile": "gemini-queen.json",
+      "equationCount": 6,
+      "encounterCount": 38
+    },
+    {
+      "song": "grudge",
+      "sourceReadyRevision": "62bed83e-2e57-4c6c-9be0-b259bec21653",
+      "candidateFile": "grudge.json",
+      "equationCount": 6,
+      "encounterCount": 29
+    },
+    {
+      "song": "jazz in the maybach",
+      "sourceReadyRevision": "b346a2c3-c8ad-4395-8397-ef0dc55e218a",
+      "candidateFile": "jazz-in-the-maybach.json",
+      "equationCount": 6,
+      "encounterCount": 31
+    },
+    {
+      "song": "just because",
+      "sourceReadyRevision": "dc33a284-c050-477c-a749-282ff95946da",
+      "candidateFile": "just-because.json",
+      "equationCount": 6,
+      "encounterCount": 31
+    },
+    {
+      "song": "one & one",
+      "sourceReadyRevision": "b44f2b55-bb10-43eb-9576-4e2df8a551df",
+      "candidateFile": "one-and-one.json",
+      "equationCount": 6,
+      "encounterCount": 32
+    },
+    {
+      "song": "Seven",
+      "sourceReadyRevision": "c3f14f88-dd94-45fb-a997-2791015cb874",
+      "candidateFile": "seven.json",
+      "equationCount": 6,
+      "encounterCount": 31
+    },
+    {
+      "song": "Waves",
+      "sourceReadyRevision": "d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa",
+      "candidateFile": "waves.json",
+      "equationCount": 6,
+      "encounterCount": 45
+    }
+  ],
+  "equationTargeting": "Every candidate encounter targets the numeric operand token at index 2."
+}

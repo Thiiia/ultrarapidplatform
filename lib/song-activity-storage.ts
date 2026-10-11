@@ -1,5 +1,6 @@
 import {
-  buildNumberBondsEncounterSidecarFilename,
+  buildDifficultyEncounterSidecarFilename,
+  isRhythmDifficultyActivityKey,
   type RhythmDifficultyKey,
 } from "@/lib/number-bonds-sidecar";
 
@@ -255,8 +256,8 @@ export function buildAuthoredChartStoragePaths({
   return {
     chartPath: `${normalizedAuthorFolder}/${folders.chartFolder}/${songAssetId}.chart`,
     sidecarPath: `${normalizedAuthorFolder}/${folders.sidecarFolder}/${
-      activityKey === "number-bonds" && rhythmDifficultyKey
-        ? buildNumberBondsEncounterSidecarFilename(songAssetId, rhythmDifficultyKey)
+      isRhythmDifficultyActivityKey(activityKey) && rhythmDifficultyKey
+        ? buildDifficultyEncounterSidecarFilename(activityKey, songAssetId, rhythmDifficultyKey)
         : `${songAssetId}.json`
     }`,
   };

@@ -5,7 +5,11 @@ import {
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { getNumberBondsDifficultyFromSidecarPath, type RhythmDifficultyKey } from "@/lib/number-bonds-sidecar";
+import {
+  getActivityDifficultyFromSidecarPath,
+  isRhythmDifficultyActivityKey,
+  type RhythmDifficultyKey,
+} from "@/lib/number-bonds-sidecar";
 
 export type SongChoice = {
   id: string;
@@ -447,8 +451,8 @@ async function buildSongChoiceForAsset({
         : Promise.resolve(null),
     ]);
     const metadata = songMetadata?.metadata as Record<string, unknown> | undefined;
-    const rhythmDifficultyKey = activityKey === "number-bonds"
-      ? getNumberBondsDifficultyFromSidecarPath(chartRecord.sidecarPath, songAsset.id)
+    const rhythmDifficultyKey = isRhythmDifficultyActivityKey(activityKey)
+      ? getActivityDifficultyFromSidecarPath(chartRecord.sidecarPath, songAsset.id, activityKey)
       : null;
 
     const songContentType =
@@ -520,8 +524,8 @@ async function buildSongChoiceForAsset({
       contentType: storageSong.mimeType ?? getContentTypeFromPath(storageSong.path),
       updatedAt: storageSong.updatedAt ?? songAsset.updatedAt.toISOString(),
       durationSeconds: songAsset.durationSeconds,
-      ...(activityKey === "number-bonds"
-        ? { rhythmDifficultyKey: getNumberBondsDifficultyFromSidecarPath(chartRecord.sidecarPath, songAsset.id) ?? undefined }
+      ...(isRhythmDifficultyActivityKey(activityKey)
+        ? { rhythmDifficultyKey: getActivityDifficultyFromSidecarPath(chartRecord.sidecarPath, songAsset.id, activityKey) ?? undefined }
         : {}),
       song: {
         bucket: songAsset.songBucket,

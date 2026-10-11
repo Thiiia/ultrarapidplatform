@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildEarlyAlgebraEncounterSidecarFilename,
   buildNumberBondsEncounterSidecarFilename,
+  earlyAlgebraSidecarPathMatchesSelection,
+  getEarlyAlgebraDifficultyFromSidecarPath,
   getNumberBondsDifficultyFromSidecarPath,
+  isLegacyEarlyAlgebraSidecarPathForSong,
   isLegacyNumberBondsSidecarPathForSong,
+  selectEarlyAlgebraSidecarRevision,
   selectNumberBondsSidecarRevision,
   type RhythmDifficultyKey,
 } from "../lib/number-bonds-sidecar";
@@ -40,6 +45,31 @@ test("Number Bonds sidecar basenames map every supported song and difficulty", (
       );
     }
   }
+});
+
+test("Early Algebra sidecar identity maps song and difficulty without accepting another activity", () => {
+  const filename = buildEarlyAlgebraEncounterSidecarFilename("Garden", "HardSingle");
+  assert.equal(filename, "early-algebra-garden-HardSingle.encounters.json");
+  assert.equal(getEarlyAlgebraDifficultyFromSidecarPath(`Early_Algebra/revisions/r1/${filename}`, "garden"), "HardSingle");
+  assert.equal(getEarlyAlgebraDifficultyFromSidecarPath("Early_Algebra/garden.json", "garden"), null);
+  assert.equal(getEarlyAlgebraDifficultyFromSidecarPath("Number_Bonds/number-bonds-garden-HardSingle.encounters.json", "garden"), null);
+  assert.equal(earlyAlgebraSidecarPathMatchesSelection({
+    sidecarPath: `Early_Algebra/${filename}`,
+    songAssetId: "garden",
+    rhythmDifficultyKey: "HardSingle",
+  }), true);
+  assert.equal(isLegacyEarlyAlgebraSidecarPathForSong("Early_Algebra/revisions/r1/garden.encounters.json", "garden"), true);
+});
+
+test("Early Algebra launch selection prefers the exact difficulty and only falls back to a READY legacy revision", () => {
+  const legacy = { revision: "legacy", status: "ready", sidecarPath: "Early_Algebra/revisions/legacy/garden.json" };
+  const easy = { revision: "easy", status: "ready", sidecarPath: "Early_Algebra/revisions/easy/early-algebra-garden-EasySingle.encounters.json" };
+  const hard = { revision: "hard", status: "ready", sidecarPath: "Early_Algebra/revisions/hard/early-algebra-garden-HardSingle.encounters.json" };
+  const draftLegacy = { revision: "draft", status: "draft", sidecarPath: "Early_Algebra/revisions/draft/garden.json" };
+
+  assert.equal(selectEarlyAlgebraSidecarRevision([easy, hard], "garden", "HardSingle"), hard);
+  assert.equal(selectEarlyAlgebraSidecarRevision([legacy, draftLegacy], "garden", "ExpertSingle", { allowLegacyReadyFallback: true }), legacy);
+  assert.equal(selectEarlyAlgebraSidecarRevision([draftLegacy], "garden", "ExpertSingle", { allowLegacyReadyFallback: true }), null);
 });
 
 test("sidecar identity rejects another song, difficulty spelling, or activity sidecar", () => {

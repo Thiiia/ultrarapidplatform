@@ -12,7 +12,7 @@ import { PlayerRunOutcomeBarrier } from "@/lib/player-run-outcome-barrier";
 import { clearPendingPlayerOutcome, getPendingPlayerOutcome, rememberPendingPlayerOutcome, type PendingPlayerOutcome } from "@/lib/pending-player-outcome-store";
 import { parseStoredPlayerOutcome, recoverPendingPlayerOutcome, recoverRoutePlayerOutcome } from "@/lib/pending-player-outcome-recovery";
 import { demoCalibrationStorageKey } from "@/lib/player-calibration-reset";
-import { getSongLaunchErrorMessage } from "@/lib/song-choice-flow";
+import { getSongChoiceRoute, getSongLaunchErrorMessage } from "@/lib/song-choice-flow";
 import { requestFreshSongLaunchParams, SongLaunchRequestError } from "@/lib/song-launch-client";
 import { getUnityGameUrl } from "@/lib/unity-game-url";
 import { studentCopy } from "@/lib/student-copy";
@@ -426,6 +426,7 @@ function GameEmbedSession({
   );
   const songAssetId = resolvedParams.get("songAssetId");
   const activityKey = resolvedParams.get("activityKey");
+  const songChoiceRoute = getSongChoiceRoute(navBasePath, activityKey);
   const needsSongChoice = !songAssetId || !activityKey;
   const activeLaunchParams = launchParams ?? (
     !songAssetId || !activityKey ? resolvedParams : null
@@ -483,12 +484,12 @@ function GameEmbedSession({
         keepalive: true,
       });
       if (!response.ok) throw new Error("launch return sync failed");
-      window.location.assign(`${navBasePath}/song-choice`);
+      window.location.assign(songChoiceRoute);
     } catch {
       setReturnSyncState("failed");
       setBridgeStatusMessage(studentCopy.game.returnSyncFailed);
     }
-  }, [navBasePath]);
+  }, [songChoiceRoute]);
 
   const markOutcomeSaved = useCallback((completion: CompletionSummary, launchAttemptId: string, recovered = false) => {
     try {
@@ -829,7 +830,7 @@ function GameEmbedSession({
       } else if (isDemoMode) {
         terminalAttemptRef.current = true;
         if (iframeRef.current) iframeRef.current.src = "about:blank";
-        window.location.assign(`${navBasePath}/song-choice`);
+        window.location.assign(songChoiceRoute);
       } else {
         const deferred = outcomeBarrierRef.current.defer(
           result.message.receipt.launchAttemptId,
@@ -847,7 +848,7 @@ function GameEmbedSession({
       cancelled = true;
       window.removeEventListener("message", onMessage);
     };
-  }, [bridgeContext, handleAttemptReturn, isDemoMode, launchParams, navBasePath, onRetry, outcomeLookupSettledAttemptId, serializedSearchParams]);
+  }, [bridgeContext, handleAttemptReturn, isDemoMode, launchParams, onRetry, outcomeLookupSettledAttemptId, serializedSearchParams, songChoiceRoute]);
 
   useEffect(() => {
     if (isDemoMode || !pendingOutcome) return;
@@ -964,7 +965,7 @@ function GameEmbedSession({
                     {outcomeSyncState === "saving" ? studentCopy.game.savingResult : studentCopy.game.waitingToSave}
                   </span>
                 ) : (
-                  <Link className="experience-button" href={`${navBasePath}/song-choice`} style={{ border: "none", borderRadius: 999, background: "var(--ur-accent-lime)", color: "var(--ur-canvas-deep)", padding: "10px 18px", textDecoration: "none", fontWeight: 800 }}>
+                  <Link className="experience-button" href={songChoiceRoute} style={{ border: "none", borderRadius: 999, background: "var(--ur-accent-lime)", color: "var(--ur-canvas-deep)", padding: "10px 18px", textDecoration: "none", fontWeight: 800 }}>
                     {studentCopy.game.chooseAnotherSong}
                   </Link>
                 )}
@@ -1017,12 +1018,12 @@ function GameEmbedSession({
                     <button type="button" className="experience-button" onClick={() => outcomeRecoveryBlocked ? window.location.reload() : onRetry()} style={{ border: "none", borderRadius: 999, background: "var(--ur-accent-lime)", color: "var(--ur-canvas-deep)", padding: "10px 18px", fontWeight: 800, cursor: "pointer" }}>
                       {outcomeRecoveryBlocked ? studentCopy.game.syncAgain : "Try again"}
                     </button>
-                    <Link className="experience-button experience-button--secondary" href={`${navBasePath}/song-choice`} style={{ borderRadius: 999, color: "var(--ur-text-marketing)", padding: "9px 16px", textDecoration: "none", fontWeight: 700 }}>
+                    <Link className="experience-button experience-button--secondary" href={songChoiceRoute} style={{ borderRadius: 999, color: "var(--ur-text-marketing)", padding: "9px 16px", textDecoration: "none", fontWeight: 700 }}>
                       {studentCopy.game.chooseAnotherSong}
                     </Link>
                   </div>
                 ) : needsSongChoice ? (
-                  <Link className="experience-button" href={`${navBasePath}/song-choice`} style={{ border: "none", borderRadius: 999, background: "var(--ur-accent-lime)", color: "var(--ur-canvas-deep)", padding: "10px 18px", textDecoration: "none", fontWeight: 800 }}>
+                  <Link className="experience-button" href={songChoiceRoute} style={{ border: "none", borderRadius: 999, background: "var(--ur-accent-lime)", color: "var(--ur-canvas-deep)", padding: "10px 18px", textDecoration: "none", fontWeight: 800 }}>
                     {studentCopy.game.chooseSong}
                   </Link>
                 ) : null}

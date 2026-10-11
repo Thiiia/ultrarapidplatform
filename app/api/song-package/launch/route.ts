@@ -21,7 +21,9 @@ import {
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import {
+  isRhythmDifficultyActivityKey,
   isRhythmDifficultyKey,
+  selectEarlyAlgebraSidecarRevision,
   selectNumberBondsSidecarRevision,
 } from "@/lib/number-bonds-sidecar";
 
@@ -233,12 +235,12 @@ export async function POST(request: Request) {
             equationCount: true, encounterCount: true, targetCount: true,
           },
         });
-        const revision = resolvedActivityKey === "number-bonds" && difficultyKey
+        const revision = isRhythmDifficultyActivityKey(resolvedActivityKey) && difficultyKey
           ? requestedRevision
             ? revisions[0] ?? null
-            : selectNumberBondsSidecarRevision(revisions, assetId, difficultyKey, {
-                allowLegacyReadyFallback: true,
-              })
+            : resolvedActivityKey === "number-bonds"
+              ? selectNumberBondsSidecarRevision(revisions, assetId, difficultyKey, { allowLegacyReadyFallback: true })
+              : selectEarlyAlgebraSidecarRevision(revisions, assetId, difficultyKey, { allowLegacyReadyFallback: true })
           : revisions[0] ?? null;
         if (!revision || !revision.chartSha256 || !revision.sidecarSha256 || !revision.audioSha256 ||
           revision.equationCount == null || revision.encounterCount == null || revision.targetCount == null) return null;
@@ -262,6 +264,7 @@ export async function POST(request: Request) {
           activityKey: blankActivityKey,
           songAssetId: assetId,
           authorFolder,
+          ...(isRhythmDifficultyActivityKey(blankActivityKey) ? { rhythmDifficultyKey } : {}),
         });
 
         return {

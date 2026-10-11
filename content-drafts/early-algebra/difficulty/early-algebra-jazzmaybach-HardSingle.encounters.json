@@ -1,0 +1,693 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "jazzmaybach",
+  "activityKey": "early-algebra",
+  "equations": [
+    {
+      "id": "Year6_001_moveconstant",
+      "state": "x+1=3",
+      "tokens": [
+        {
+          "id": "Year6_001_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_001_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_001_moveconstant-token-2",
+          "label": "1"
+        },
+        {
+          "id": "Year6_001_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_001_moveconstant-token-4",
+          "label": "3"
+        }
+      ]
+    },
+    {
+      "id": "Year6_004_moveconstant",
+      "state": "x+4=8",
+      "tokens": [
+        {
+          "id": "Year6_004_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_004_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_004_moveconstant-token-2",
+          "label": "4"
+        },
+        {
+          "id": "Year6_004_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_004_moveconstant-token-4",
+          "label": "8"
+        }
+      ]
+    },
+    {
+      "id": "Year6_007_moveconstant",
+      "state": "x-2=3",
+      "tokens": [
+        {
+          "id": "Year6_007_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_007_moveconstant-token-1",
+          "label": "-"
+        },
+        {
+          "id": "Year6_007_moveconstant-token-2",
+          "label": "2"
+        },
+        {
+          "id": "Year6_007_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_007_moveconstant-token-4",
+          "label": "3"
+        }
+      ]
+    },
+    {
+      "id": "Year6_005_moveconstant",
+      "state": "x+5=9",
+      "tokens": [
+        {
+          "id": "Year6_005_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_005_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_005_moveconstant-token-2",
+          "label": "5"
+        },
+        {
+          "id": "Year6_005_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_005_moveconstant-token-4",
+          "label": "9"
+        }
+      ]
+    },
+    {
+      "id": "Year6_010_moveconstant",
+      "state": "x+1=6",
+      "tokens": [
+        {
+          "id": "Year6_010_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_010_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_010_moveconstant-token-2",
+          "label": "1"
+        },
+        {
+          "id": "Year6_010_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_010_moveconstant-token-4",
+          "label": "6"
+        }
+      ]
+    },
+    {
+      "id": "Year6_012_moveconstant",
+      "state": "x-1=5",
+      "tokens": [
+        {
+          "id": "Year6_012_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_012_moveconstant-token-1",
+          "label": "-"
+        },
+        {
+          "id": "Year6_012_moveconstant-token-2",
+          "label": "1"
+        },
+        {
+          "id": "Year6_012_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_012_moveconstant-token-4",
+          "label": "5"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "jazzmaybach-eq01-source01-hit1",
+      "eventId": "jazzmaybach-eq01-source01-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_001_moveconstant",
+      "startTick": 6240,
+      "endTick": 6240,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_001_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq01-source01-drag",
+      "eventId": "jazzmaybach-eq01-source01-drag-event",
+      "type": "drag",
+      "equationId": "Year6_001_moveconstant",
+      "startTick": 9600,
+      "endTick": 11520,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_001_moveconstant-token-2",
+          "sourceHitId": "jazzmaybach-eq01-source01-hit1"
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq02-source02-hit1",
+      "eventId": "jazzmaybach-eq02-source02-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_001_moveconstant",
+      "startTick": 17280,
+      "endTick": 17280,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_001_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq02-source02-hit2",
+      "eventId": "jazzmaybach-eq02-source02-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_001_moveconstant",
+      "startTick": 19200,
+      "endTick": 19200,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_001_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq03-source03-hit1",
+      "eventId": "jazzmaybach-eq03-source03-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 37920,
+      "endTick": 37920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq03-source03-drag",
+      "eventId": "jazzmaybach-eq03-source03-drag-event",
+      "type": "drag",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 41280,
+      "endTick": 43200,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "sourceHitId": "jazzmaybach-eq03-source03-hit1"
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq04-source04-hit1",
+      "eventId": "jazzmaybach-eq04-source04-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 48000,
+      "endTick": 48000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq04-source04-drag",
+      "eventId": "jazzmaybach-eq04-source04-drag-event",
+      "type": "drag",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 51360,
+      "endTick": 53280,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "sourceHitId": "jazzmaybach-eq04-source04-hit1"
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq05-source05-hit1",
+      "eventId": "jazzmaybach-eq05-source05-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_007_moveconstant",
+      "startTick": 59040,
+      "endTick": 59040,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_007_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq05-source05-hit2",
+      "eventId": "jazzmaybach-eq05-source05-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_007_moveconstant",
+      "startTick": 61440,
+      "endTick": 61440,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_007_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq05-source05-hit3",
+      "eventId": "jazzmaybach-eq05-source05-hit-event3",
+      "type": "hit",
+      "equationId": "Year6_007_moveconstant",
+      "startTick": 63360,
+      "endTick": 63360,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_007_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq05-source05-hit4",
+      "eventId": "jazzmaybach-eq05-source05-hit-event4",
+      "type": "hit",
+      "equationId": "Year6_007_moveconstant",
+      "startTick": 65280,
+      "endTick": 65280,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_007_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq06-source06-hit1",
+      "eventId": "jazzmaybach-eq06-source06-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_007_moveconstant",
+      "startTick": 78720,
+      "endTick": 78720,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_007_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq06-source06-hit2",
+      "eventId": "jazzmaybach-eq06-source06-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_007_moveconstant",
+      "startTick": 80640,
+      "endTick": 80640,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_007_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq06-source06-hit3",
+      "eventId": "jazzmaybach-eq06-source06-hit-event3",
+      "type": "hit",
+      "equationId": "Year6_007_moveconstant",
+      "startTick": 84480,
+      "endTick": 84480,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_007_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq07-source07-hit1",
+      "eventId": "jazzmaybach-eq07-source07-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 97920,
+      "endTick": 97920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq07-source07-spin",
+      "eventId": "jazzmaybach-eq07-source07-spin-drag-event",
+      "type": "spin",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 101280,
+      "endTick": 103200,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2"
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq07-source07-drag",
+      "eventId": "jazzmaybach-eq07-source07-spin-drag-event",
+      "type": "drag",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 105120,
+      "endTick": 107040,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "sourceHitId": "jazzmaybach-eq07-source07-hit1"
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq08-source08-hit1",
+      "eventId": "jazzmaybach-eq08-source08-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 109440,
+      "endTick": 109440,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq08-source08-spin",
+      "eventId": "jazzmaybach-eq08-source08-spin-drag-event",
+      "type": "spin",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 112800,
+      "endTick": 114720,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2"
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq08-source08-drag",
+      "eventId": "jazzmaybach-eq08-source08-spin-drag-event",
+      "type": "drag",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 116640,
+      "endTick": 118560,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "sourceHitId": "jazzmaybach-eq08-source08-hit1"
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq09-source09-hit1",
+      "eventId": "jazzmaybach-eq09-source09-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_010_moveconstant",
+      "startTick": 128640,
+      "endTick": 128640,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_010_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq09-source09-drag",
+      "eventId": "jazzmaybach-eq09-source09-drag-event",
+      "type": "drag",
+      "equationId": "Year6_010_moveconstant",
+      "startTick": 132000,
+      "endTick": 133920,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_010_moveconstant-token-2",
+          "sourceHitId": "jazzmaybach-eq09-source09-hit1"
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq10-source10-hit1",
+      "eventId": "jazzmaybach-eq10-source10-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_010_moveconstant",
+      "startTick": 141120,
+      "endTick": 141120,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_010_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq10-source10-hit2",
+      "eventId": "jazzmaybach-eq10-source10-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_010_moveconstant",
+      "startTick": 144000,
+      "endTick": 144000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_010_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq10-source10-hit3",
+      "eventId": "jazzmaybach-eq10-source10-hit-event3",
+      "type": "hit",
+      "equationId": "Year6_010_moveconstant",
+      "startTick": 145920,
+      "endTick": 145920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_010_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq11-source11-hit1",
+      "eventId": "jazzmaybach-eq11-source11-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_012_moveconstant",
+      "startTick": 159360,
+      "endTick": 159360,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_012_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq11-source11-drag",
+      "eventId": "jazzmaybach-eq11-source11-drag-event",
+      "type": "drag",
+      "equationId": "Year6_012_moveconstant",
+      "startTick": 162720,
+      "endTick": 164640,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_012_moveconstant-token-2",
+          "sourceHitId": "jazzmaybach-eq11-source11-hit1"
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq12-source12-hit1",
+      "eventId": "jazzmaybach-eq12-source12-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_012_moveconstant",
+      "startTick": 170880,
+      "endTick": 170880,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_012_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq12-source12-hit2",
+      "eventId": "jazzmaybach-eq12-source12-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_012_moveconstant",
+      "startTick": 172800,
+      "endTick": 172800,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_012_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jazzmaybach-eq12-source12-drag",
+      "eventId": "jazzmaybach-eq12-source12-drag-event",
+      "type": "drag",
+      "equationId": "Year6_012_moveconstant",
+      "startTick": 176160,
+      "endTick": 178080,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_012_moveconstant-token-2",
+          "sourceHitId": "jazzmaybach-eq12-source12-hit2"
+        }
+      ]
+    }
+  ],
+  "rhythmDifficultyKey": "HardSingle"
+}

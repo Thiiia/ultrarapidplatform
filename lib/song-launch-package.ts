@@ -2,7 +2,9 @@ import { resolveRequestedSongActivityKey, resolveRequestedSongActivityPackage } 
 import { requireMatchingRevision } from "@/lib/song-launch-identity";
 import { getUnityRuntimeActivityIssue, isCurrentUnityRuntimeActivity } from "@/lib/unity-runtime-activity";
 import {
+  isLegacyEarlyAlgebraSidecarPathForSong,
   isLegacyNumberBondsSidecarPathForSong,
+  earlyAlgebraSidecarPathMatchesSelection,
   numberBondsSidecarPathMatchesSelection,
   type RhythmDifficultyKey,
 } from "@/lib/number-bonds-sidecar";
@@ -366,9 +368,9 @@ export async function resolveFreshSongLaunchPackage({
   const chartTargets = await loadSongChart(canonicalSongAssetId, requestedActivityKey, authorId, rhythmDifficultyKey);
 
   if (!chartTargets) {
-    if (requestedActivityKey === "number-bonds" && rhythmDifficultyKey) {
+    if ((requestedActivityKey === "number-bonds" || requestedActivityKey === "early-algebra") && rhythmDifficultyKey) {
       throw new SongLaunchRevisionNotFoundError(
-        `No published Number Bonds lesson is available for ${canonicalSongAssetId} at ${rhythmDifficultyKey}. Save and publish that difficulty first.`,
+        `No published ${requestedActivityKey === "number-bonds" ? "Number Bonds" : "Early Algebra"} lesson is available for ${canonicalSongAssetId} at ${rhythmDifficultyKey}. Save and publish that difficulty first.`,
       );
     }
     // A pinned launch must never silently substitute a different revision or
@@ -415,14 +417,20 @@ export async function resolveFreshSongLaunchPackage({
     }
     throw error;
   }
-  if (requestedActivityKey === "number-bonds" && rhythmDifficultyKey &&
-      !numberBondsSidecarPathMatchesSelection({
-        sidecarPath: chartTargets.sidecarPath,
-        songAssetId: canonicalSongAssetId,
-        rhythmDifficultyKey,
-      }) && !isLegacyNumberBondsSidecarPathForSong(chartTargets.sidecarPath, canonicalSongAssetId)) {
+  const hasDifficultyKeyedActivity = requestedActivityKey === "number-bonds" || requestedActivityKey === "early-algebra";
+  const difficultySidecarMatches = !rhythmDifficultyKey || !hasDifficultyKeyedActivity
+    ? true
+    : requestedActivityKey === "number-bonds"
+      ? numberBondsSidecarPathMatchesSelection({ sidecarPath: chartTargets.sidecarPath, songAssetId: canonicalSongAssetId, rhythmDifficultyKey })
+      : earlyAlgebraSidecarPathMatchesSelection({ sidecarPath: chartTargets.sidecarPath, songAssetId: canonicalSongAssetId, rhythmDifficultyKey });
+  const legacyDifficultySidecar = hasDifficultyKeyedActivity
+    ? requestedActivityKey === "number-bonds"
+      ? isLegacyNumberBondsSidecarPathForSong(chartTargets.sidecarPath, canonicalSongAssetId)
+      : isLegacyEarlyAlgebraSidecarPathForSong(chartTargets.sidecarPath, canonicalSongAssetId)
+    : false;
+  if (rhythmDifficultyKey && hasDifficultyKeyedActivity && !difficultySidecarMatches && !legacyDifficultySidecar) {
     throw new SongLaunchRevisionNotFoundError(
-      `The published Number Bonds lesson does not match ${canonicalSongAssetId} at ${rhythmDifficultyKey}. Reload the song and try again.`,
+      `The published ${requestedActivityKey === "number-bonds" ? "Number Bonds" : "Early Algebra"} lesson does not match ${canonicalSongAssetId} at ${rhythmDifficultyKey}. Reload the song and try again.`,
     );
   }
   // Unity requires an immutable revision in every playable receipt, including legacy rows.

@@ -1,0 +1,284 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "geminiqueen",
+  "activityKey": "number-bonds",
+  "stopAtSeconds": 131.703,
+  "equations": [
+    {
+      "id": "geminiqueen-bond-equation",
+      "state": "1 + 3 = 4",
+      "tokens": [
+        {
+          "id": "geminiqueen-bond-part-a",
+          "label": "1"
+        },
+        {
+          "id": "geminiqueen-bond-plus",
+          "label": "+"
+        },
+        {
+          "id": "geminiqueen-bond-part-b",
+          "label": "3"
+        },
+        {
+          "id": "geminiqueen-bond-equals",
+          "label": "="
+        },
+        {
+          "id": "geminiqueen-bond-whole",
+          "label": "4"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "nb-geminiqueen-expertsingle-01-hit",
+      "eventId": "nb-geminiqueen-expertsingle-01-hit-event",
+      "type": "hit",
+      "equationId": "geminiqueen-bond-equation",
+      "startTick": 8640,
+      "endTick": 8640,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "geminiqueen-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-geminiqueen-expertsingle-01-spin",
+      "eventId": "nb-geminiqueen-expertsingle-01-spin-event",
+      "type": "spin",
+      "equationId": "geminiqueen-bond-equation",
+      "startTick": 10894,
+      "endTick": 11134,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "geminiqueen-bond-whole",
+          "sourceHitId": "nb-geminiqueen-expertsingle-01-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-geminiqueen-expertsingle-01-drag",
+      "eventId": "nb-geminiqueen-expertsingle-01-drag-event",
+      "type": "drag",
+      "equationId": "geminiqueen-bond-equation",
+      "startTick": 13153,
+      "endTick": 13393,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "geminiqueen-bond-part-a",
+          "sourceHitId": "nb-geminiqueen-expertsingle-01-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-geminiqueen-expertsingle-02-hit",
+      "eventId": "nb-geminiqueen-expertsingle-02-hit-event",
+      "type": "hit",
+      "equationId": "geminiqueen-bond-equation",
+      "startTick": 62400,
+      "endTick": 62400,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "geminiqueen-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-geminiqueen-expertsingle-02-spin",
+      "eventId": "nb-geminiqueen-expertsingle-02-spin-event",
+      "type": "spin",
+      "equationId": "geminiqueen-bond-equation",
+      "startTick": 64761,
+      "endTick": 65001,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "geminiqueen-bond-whole",
+          "sourceHitId": "nb-geminiqueen-expertsingle-02-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-geminiqueen-expertsingle-02-drag",
+      "eventId": "nb-geminiqueen-expertsingle-02-drag-event",
+      "type": "drag",
+      "equationId": "geminiqueen-bond-equation",
+      "startTick": 67115,
+      "endTick": 67355,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-bond-part-b",
+          "sourceHitId": "nb-geminiqueen-expertsingle-02-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-geminiqueen-expertsingle-03-hit",
+      "eventId": "nb-geminiqueen-expertsingle-03-hit-event",
+      "type": "hit",
+      "equationId": "geminiqueen-bond-equation",
+      "startTick": 105120,
+      "endTick": 105120,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "geminiqueen-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-geminiqueen-expertsingle-03-spin",
+      "eventId": "nb-geminiqueen-expertsingle-03-spin-event",
+      "type": "spin",
+      "equationId": "geminiqueen-bond-equation",
+      "startTick": 107462,
+      "endTick": 107702,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "geminiqueen-bond-whole",
+          "sourceHitId": "nb-geminiqueen-expertsingle-03-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-geminiqueen-expertsingle-03-drag",
+      "eventId": "nb-geminiqueen-expertsingle-03-drag-event",
+      "type": "drag",
+      "equationId": "geminiqueen-bond-equation",
+      "startTick": 109816,
+      "endTick": 110056,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-bond-part-b",
+          "sourceHitId": "nb-geminiqueen-expertsingle-03-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-geminiqueen-expertsingle-04-hit",
+      "eventId": "nb-geminiqueen-expertsingle-04-hit-event",
+      "type": "hit",
+      "equationId": "geminiqueen-bond-equation",
+      "startTick": 161280,
+      "endTick": 161280,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "geminiqueen-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-geminiqueen-expertsingle-04-spin",
+      "eventId": "nb-geminiqueen-expertsingle-04-spin-event",
+      "type": "spin",
+      "equationId": "geminiqueen-bond-equation",
+      "startTick": 163630,
+      "endTick": 163870,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "geminiqueen-bond-whole",
+          "sourceHitId": "nb-geminiqueen-expertsingle-04-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-geminiqueen-expertsingle-04-drag",
+      "eventId": "nb-geminiqueen-expertsingle-04-drag-event",
+      "type": "drag",
+      "equationId": "geminiqueen-bond-equation",
+      "startTick": 165972,
+      "endTick": 166212,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "geminiqueen-bond-part-b",
+          "sourceHitId": "nb-geminiqueen-expertsingle-04-hit"
+        }
+      ]
+    }
+  ],
+  "numberBondSequenceVersion": 1,
+  "numberBondGems": [
+    {
+      "gemId": "nb-geminiqueen-expertsingle-01-gem",
+      "unitIndex": 0,
+      "spinEncounterId": "nb-geminiqueen-expertsingle-01-spin",
+      "dragEncounterId": "nb-geminiqueen-expertsingle-01-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-geminiqueen-expertsingle-02-gem",
+      "unitIndex": 1,
+      "spinEncounterId": "nb-geminiqueen-expertsingle-02-spin",
+      "dragEncounterId": "nb-geminiqueen-expertsingle-02-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-geminiqueen-expertsingle-03-gem",
+      "unitIndex": 2,
+      "spinEncounterId": "nb-geminiqueen-expertsingle-03-spin",
+      "dragEncounterId": "nb-geminiqueen-expertsingle-03-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-geminiqueen-expertsingle-04-gem",
+      "unitIndex": 3,
+      "spinEncounterId": "nb-geminiqueen-expertsingle-04-spin",
+      "dragEncounterId": "nb-geminiqueen-expertsingle-04-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 2
+      }
+    }
+  ]
+}

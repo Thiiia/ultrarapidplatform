@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import type { ChangeEvent, DragEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent, ReactNode } from "react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useId } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useId } from "react";
 import { createPortal } from "react-dom";
 import WaveSurfer from "wavesurfer.js";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
@@ -164,7 +164,7 @@ import {
   resolveRequestedSongActivityPackage,
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
-import { numberBondsSidecarPathMatchesSelection } from "@/lib/number-bonds-sidecar";
+import { activitySidecarPathMatchesSelection, isRhythmDifficultyActivityKey } from "@/lib/number-bonds-sidecar";
 import styles from "../student.module.css";
 
 /* Header Icon imports */
@@ -2019,6 +2019,8 @@ function HeaderBar({
   onToggleRctm1Mode,
   onToggleRctm2Mode,
   selectedActivityKey,
+  rhythmDifficultyKey,
+  onChangeRhythmDifficulty,
   isAlgebraStudio = false,
 }: {
   selectedSongTitle: string;
@@ -2026,6 +2028,8 @@ function HeaderBar({
   selectedChartName: string;
   selectedActivityLabel: string;
   selectedActivityKey: SongActivityKey | null;
+  rhythmDifficultyKey?: SupportedRhythmDifficulty;
+  onChangeRhythmDifficulty?: (difficulty: SupportedRhythmDifficulty) => void;
   isAlgebraStudio?: boolean;
   isSaving: boolean;
   onNavigateHome: () => void;
@@ -2332,6 +2336,22 @@ function HeaderBar({
             />
             {studentCopy.editor.changeSong}
           </button>
+
+          {selectedActivityKey === "early-algebra" ? (
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, height: isAlgebraStudio ? 42 : 30, padding: "0 8px", border: `1px solid ${isAlgebraStudio ? "rgba(169,217,208,.3)" : subtleBorderColor}`, borderRadius: 12, color: isAlgebraStudio ? "#D8E6E0" : "#DCE6F2", fontSize: 10, fontWeight: 800, whiteSpace: "nowrap" }}>
+              <span>Rhythm</span>
+              <select
+                aria-label="Rhythm difficulty"
+                value={rhythmDifficultyKey ?? "ExpertSingle"}
+                onChange={(event) => onChangeRhythmDifficulty?.(event.currentTarget.value as SupportedRhythmDifficulty)}
+                style={{ maxWidth: 88, border: 0, outline: "none", background: "transparent", color: "inherit", fontSize: 10, fontWeight: 800 }}
+              >
+                {SUPPORTED_RHYTHM_DIFFICULTIES.map((difficulty) => (
+                  <option key={difficulty} value={difficulty}>{difficulty.replace("Single", "")}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
 
           {onSaveDraft && !isAlgebraStudio ? (
             <button
@@ -5168,9 +5188,64 @@ function getTimelineMarkerShapeStyles(mechanic: GameplayMechanic) {
   };
 }
 
+const EMPTY_CHART_HIT_CUES: ReadonlyArray<{ tick: number; lane: number; seconds: number }> = [];
+const SONG_PREVIEW_RATES = [0.5, 0.75, 1] as const;
+
+const ChartCueMarkerLane = memo(function ChartCueMarkerLane({
+  cues,
+  pixelsPerSecond,
+  trackWidth,
+}: {
+  cues: ReadonlyArray<{ tick: number; lane: number; seconds: number }>;
+  pixelsPerSecond: number;
+  trackWidth: number;
+}) {
+  const cuesByTime = new Map<number, Set<number>>();
+
+  for (const cue of cues) {
+    const seconds = Math.round(cue.seconds * 1000) / 1000;
+    const lanes = cuesByTime.get(seconds) ?? new Set<number>();
+    lanes.add(cue.lane);
+    cuesByTime.set(seconds, lanes);
+  }
+
+  return (
+    <>
+      {[...cuesByTime.entries()].map(([seconds, lanes]) => {
+        const markerLeft = Math.min(
+          trackWidth,
+          Math.max(0, seconds * pixelsPerSecond),
+        );
+
+        return (
+          <span
+            key={`chart-cue-${seconds}`}
+            aria-hidden="true"
+            data-chart-cue-marker="true"
+            title={`Chart cue at ${seconds.toFixed(2)} seconds${lanes.size > 1 ? ` · ${lanes.size} notes` : ""}`}
+            style={{
+              position: "absolute",
+              left: markerLeft,
+              top: 3,
+              bottom: 3,
+              width: Math.min(4, 2 + lanes.size - 1),
+              borderRadius: 999,
+              background: "#CFFF04",
+              opacity: 0.48,
+              transform: "translateX(-50%)",
+              pointerEvents: "none",
+            }}
+          />
+        );
+      })}
+    </>
+  );
+});
+
 /* VERIFIED_LAYOUT_PATCH_2026_06_23: row2 shrinks; timeline has no horizontal scrollbar; draggable playhead controls song time; shared equation tiles. */
 function EquationTimeline({
   events,
+  chartHitCues,
   hideSpinouts = false,
   activityKey,
   activeEventId,
@@ -5187,6 +5262,7 @@ function EquationTimeline({
   isAdvancedMode,
 }: {
   events: TimelineEventSlot[];
+  chartHitCues: ReadonlyArray<{ tick: number; seconds: number; lane: number }>;
   hideSpinouts?: boolean;
   activityKey: SongActivityKey | null;
   activeEventId: string | null;
@@ -5347,7 +5423,9 @@ function EquationTimeline({
     { key: "equations", label: isNumberBondsTimeline ? "Bond" : "Equations", color: "#CFFF04" },
     ...mechanicsForTimeline.map((mechanic) => ({
       key: mechanic,
-      label: mechanic === "hit" ? (isNumberBondsTimeline ? "Notes" : "Hits") : mechanic === "spin" ? "Spins" : "Drags",
+      label: mechanic === "hit"
+        ? `${isNumberBondsTimeline ? "Notes" : "Hits"}${chartHitCues.length ? " + chart" : ""}`
+        : mechanic === "spin" ? "Spins" : "Drags",
       color: mechanic === "hit"
         ? (isAlgebraTimeline ? "#00FF57" : "#2EA7FF")
         : mechanic === "spin"
@@ -6202,6 +6280,13 @@ function EquationTimeline({
                   boxSizing: "border-box",
                 }}
               >
+                {mechanic === "hit" ? (
+                  <ChartCueMarkerLane
+                    cues={chartHitCues}
+                    pixelsPerSecond={pixelsPerSecond}
+                    trackWidth={trackWidth}
+                  />
+                ) : null}
                 {events.map((eventSlot, eventIndex) => {
                   const instances = eventSlot.mechanicInstances?.[mechanic] ?? [];
                   const fallbackCount = Math.max(
@@ -10279,35 +10364,55 @@ function TimelineInstructionPanel({ choice }: { choice: CenterChoice }) {
 function TimelineControlsRow({
   isPlaying,
   currentSongSeconds,
+  chartCueProgressText,
+  hasAudioSource,
+  songPreviewRate,
+  hasPreviousChartCue,
+  hasNextChartCue,
   isAdvancedMode,
   activeEventNumber,
   activeEventHasEquation,
   onRewind,
+  onPreviousChartCue,
+  onPreviewRateChange,
   onTogglePlay,
+  onNextChartCue,
   onFastForward,
 }: {
   isPlaying: boolean;
   currentSongSeconds: number;
+  chartCueProgressText: string | null;
+  hasAudioSource: boolean;
+  songPreviewRate: number;
+  hasPreviousChartCue: boolean;
+  hasNextChartCue: boolean;
   isAdvancedMode: boolean;
   activeEventNumber: number | null;
   activeEventHasEquation: boolean;
   onRewind: () => void;
+  onPreviousChartCue: () => void;
+  onPreviewRateChange: (rate: number) => void;
   onTogglePlay: () => void;
+  onNextChartCue: () => void;
   onFastForward: () => void;
 }) {
-  type TransportIcon = "rewind" | "play" | "pause" | "forward";
+  type TransportIcon = "rewind" | "previousCue" | "play" | "pause" | "nextCue" | "forward";
   const controls: Array<{
     icon: TransportIcon;
     ariaLabel: string;
     onClick: () => void;
+    disabled?: boolean;
   }> = [
     { icon: "rewind", ariaLabel: "Rewind", onClick: onRewind },
+    { icon: "previousCue", ariaLabel: "Previous chart cue", onClick: onPreviousChartCue, disabled: !hasPreviousChartCue },
     { icon: isPlaying ? "pause" : "play", ariaLabel: isPlaying ? "Pause" : "Play", onClick: onTogglePlay },
+    { icon: "nextCue", ariaLabel: "Next chart cue", onClick: onNextChartCue, disabled: !hasNextChartCue },
     { icon: "forward", ariaLabel: "Fast forward", onClick: onFastForward },
   ];
 
   return (
     <div
+      role="group"
       aria-label="Song controls"
       style={{
         minHeight: 0,
@@ -10317,8 +10422,8 @@ function TimelineControlsRow({
         boxSizing: "border-box",
         display: "flex",
         alignItems: "center",
-        gap: 10,
-        padding: "0 16px",
+        gap: 4,
+        padding: "0 4px",
         fontFamily: "Space Grotesk, sans-serif",
       }}
     >
@@ -10327,22 +10432,24 @@ function TimelineControlsRow({
           key={control.ariaLabel}
           type="button"
           aria-label={control.ariaLabel}
+          title={control.ariaLabel}
+          disabled={control.disabled}
           onClick={control.onClick}
           style={{
-            width: 44,
-            minWidth: 44,
-            height: 44,
-            minHeight: 44,
-            flex: "0 0 44px",
+            width: control.icon === "play" || control.icon === "pause" ? 44 : 40,
+            minWidth: control.icon === "play" || control.icon === "pause" ? 44 : 40,
+            height: control.icon === "previousCue" || control.icon === "nextCue" ? 40 : 44,
+            minHeight: control.icon === "previousCue" || control.icon === "nextCue" ? 40 : 44,
+            flex: `0 0 ${control.icon === "play" || control.icon === "pause" ? 44 : 40}px`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             padding: 0,
             borderRadius: 12,
             border: `1px solid ${subtleBorderColor}`,
-            background: "#191919",
-            color: "#FFFFFF",
-            cursor: "pointer",
+            background: control.disabled ? "#19191988" : "#191919",
+            color: control.disabled ? "#FFFFFF66" : "#FFFFFF",
+            cursor: control.disabled ? "not-allowed" : "pointer",
           }}
         >
           <svg
@@ -10355,8 +10462,12 @@ function TimelineControlsRow({
           >
             {control.icon === "rewind" ? (
               <path d="M11 5v14l-9-7 9-7Zm10 0v14l-9-7 9-7Z" />
+            ) : control.icon === "previousCue" ? (
+              <path d="M6 5h2v14H6zm13 0v14L8 12l11-7z" />
             ) : control.icon === "forward" ? (
               <path d="m13 5 9 7-9 7V5ZM3 5l9 7-9 7V5Z" />
+            ) : control.icon === "nextCue" ? (
+              <path d="M16 5h2v14h-2zM5 5v14l11-7L5 5z" />
             ) : control.icon === "pause" ? (
               <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
             ) : (
@@ -10366,24 +10477,59 @@ function TimelineControlsRow({
         </button>
       ))}
       <div
-        aria-label="Current song time"
+        role="group"
+        aria-label="Current song time and chart cue position"
         style={{
-          marginLeft: 8,
-          minWidth: 74,
+          marginLeft: 2,
+          minWidth: 82,
+          boxSizing: "border-box",
           height: 44,
-          flex: "0 0 74px",
+          flex: "0 0 82px",
           borderRadius: 10,
           border: `1px solid ${subtleBorderColor}`,
           background: "#191919",
           color: "#FFFFFF",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 13,
+          gap: 1,
+          fontSize: 12,
           fontWeight: 900,
         }}
       >
-        {formatSongTime(currentSongSeconds, isAdvancedMode)}
+        <span>{formatSongTime(currentSongSeconds, isAdvancedMode)}</span>
+        {chartCueProgressText ? (
+          <span aria-live="polite" style={{ color: "#CFFF04", fontSize: 8, lineHeight: 1.1, fontWeight: 800 }}>
+            {chartCueProgressText}
+          </span>
+        ) : null}
+        <select
+          aria-label="Audio preview speed"
+          title="Slow preview playback; chart cues stay on the song-time clock"
+          value={songPreviewRate}
+          disabled={!hasAudioSource}
+          onChange={(event) => onPreviewRateChange(Number(event.currentTarget.value))}
+          style={{
+            width: 56,
+            height: 13,
+            minHeight: 13,
+            boxSizing: "border-box",
+            padding: "0 2px",
+            borderRadius: 4,
+            border: `1px solid ${subtleBorderColor}`,
+            background: "#191919",
+            color: hasAudioSource ? "#CFFF04" : "#FFFFFF55",
+            fontSize: 8,
+            lineHeight: "11px",
+            fontWeight: 800,
+            cursor: hasAudioSource ? "pointer" : "not-allowed",
+          }}
+        >
+          <option value={0.5}>0.5×</option>
+          <option value={0.75}>0.75×</option>
+          <option value={1}>1×</option>
+        </select>
       </div>
       <div
         aria-live="polite"
@@ -10580,6 +10726,7 @@ export default function LessonBuilderClient({
   );
   const [isSongPlaying, setIsSongPlaying] = useState(false);
   const [audioObjectUrl, setAudioObjectUrl] = useState("");
+  const [songPreviewRate, setSongPreviewRate] = useState<number>(1);
   const [audioDurationSeconds, setAudioDurationSeconds] = useState(0);
   const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
   const [row2ColumnWidths, setRow2ColumnWidths] = useState<number[]>([220, 600, 230]);
@@ -11390,6 +11537,29 @@ export default function LessonBuilderClient({
     : isAlgebraActivity
       ? songChartCues
       : undefined;
+  const editorChartCueTimes = useMemo(() => {
+    const uniqueTimes = new Set<number>();
+
+    for (const cue of activityChartHitCues ?? []) {
+      if (Number.isFinite(cue.seconds) && cue.seconds >= 0) {
+        uniqueTimes.add(Math.round(cue.seconds * 1000) / 1000);
+      }
+    }
+
+    return [...uniqueTimes].sort((left, right) => left - right);
+  }, [activityChartHitCues]);
+  const previousEditorChartCueIndex = editorChartCueTimes.reduce(
+    (previousIndex, seconds, index) => seconds < currentSongSeconds - 0.05 ? index : previousIndex,
+    -1,
+  );
+  const nextEditorChartCueIndex = editorChartCueTimes.findIndex(
+    (seconds) => seconds > currentSongSeconds + 0.05,
+  );
+  const chartCueProgressText = editorChartCueTimes.length === 0
+    ? null
+    : nextEditorChartCueIndex >= 0
+      ? `Next ${String(nextEditorChartCueIndex + 1).padStart(2, "0")}/${editorChartCueTimes.length}`
+      : `End ${editorChartCueTimes.length}/${editorChartCueTimes.length}`;
   const numberBondSongCapacity = useMemo(() => getNumberBondSequenceCapacity(
     numberBondChart,
     numberBondDifficulty,
@@ -13006,15 +13176,16 @@ export default function LessonBuilderClient({
     const strategy = playTemplateOnly ? "published-template" : lessonLaunchStrategy(hasUnsavedChanges);
     let launchAuthorId = lastSavedAuthorId ?? selectedSongAuthorId ?? null;
     let launchRevision = lastSavedRevision;
-    const launchRhythmDifficultyKey = selectedSongLaunch.activityKey === "number-bonds"
+    const launchRhythmDifficultyKey = isRhythmDifficultyActivityKey(selectedSongLaunch.activityKey)
       ? numberBondsRhythmDifficulty
       : selectedSongLaunch.rhythmDifficultyKey;
 
-    if (selectedSongLaunch.activityKey === "number-bonds" && strategy !== "publish-draft" &&
-        (!selectedSongStorage?.sidecar || !numberBondsSidecarPathMatchesSelection({
+    if (isRhythmDifficultyActivityKey(selectedSongLaunch.activityKey) && launchRhythmDifficultyKey && strategy !== "publish-draft" &&
+        (!selectedSongStorage?.sidecar || !activitySidecarPathMatchesSelection({
           sidecarPath: selectedSongStorage.sidecar.path,
           songAssetId: selectedSongLaunch.songAssetId,
-          rhythmDifficultyKey: numberBondsRhythmDifficulty,
+          rhythmDifficultyKey: launchRhythmDifficultyKey,
+          activityKey: selectedSongLaunch.activityKey,
         }))) {
       // Let the server resolve a ready immutable revision for this exact
       // song/difficulty instead of pinning whichever difficulty was loaded
@@ -13224,7 +13395,7 @@ export default function LessonBuilderClient({
           intent,
           songAssetId: selectedSongStorage.id,
           activityKey,
-          ...(activityKey === "number-bonds" ? { rhythmDifficultyKey: numberBondsRhythmDifficulty } : {}),
+          ...(isRhythmDifficultyActivityKey(activityKey) ? { rhythmDifficultyKey: numberBondsRhythmDifficulty } : {}),
           authorId: navBasePath.startsWith("/admin/users/")
             ? navBasePath.slice("/admin/users/".length).split("/")[0]
             : lastSavedAuthorId ?? undefined,
@@ -13713,7 +13884,7 @@ export default function LessonBuilderClient({
       storedActivity?.label ??
       getActivityLabel(resolvedActivityKey);
     const selectedRhythmDifficultyKey = selectedSong.rhythmDifficultyKey ?? selectedSong.rhythm_difficulty_key ??
-      (resolvedActivityKey === "number-bonds" ? "ExpertSingle" : undefined);
+      (isRhythmDifficultyActivityKey(resolvedActivityKey) ? "ExpertSingle" : undefined);
 
     setLoadError("");
 
@@ -14422,8 +14593,27 @@ export default function LessonBuilderClient({
     setCurrentSongSeconds(nextSeconds);
   }
 
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.playbackRate = songPreviewRate;
+    }
+  }, [audioObjectUrl, songPreviewRate]);
+
+  function handleSongPreviewRateChange(rate: number) {
+    if (SONG_PREVIEW_RATES.some((supportedRate) => supportedRate === rate)) {
+      setSongPreviewRate(rate);
+    }
+  }
+
   function handleRewindSong() {
     seekSong(currentSongSeconds - 8);
+  }
+
+  function handlePreviousChartCue() {
+    if (previousEditorChartCueIndex >= 0) {
+      seekSong(editorChartCueTimes[previousEditorChartCueIndex]);
+    }
   }
 
   function handleToggleSongPlayback() {
@@ -14439,6 +14629,12 @@ export default function LessonBuilderClient({
 
   function handleFastForwardSong() {
     seekSong(currentSongSeconds + 8);
+  }
+
+  function handleNextChartCue() {
+    if (nextEditorChartCueIndex >= 0) {
+      seekSong(editorChartCueTimes[nextEditorChartCueIndex]);
+    }
   }
 
   useEffect(() => {
@@ -15446,6 +15642,13 @@ export default function LessonBuilderClient({
           selectedSongActivity?.label ?? getActivityLabel(defaultSongActivityKey)
         }
         selectedActivityKey={selectedSongActivity?.key ?? null}
+        rhythmDifficultyKey={numberBondsRhythmDifficulty}
+        onChangeRhythmDifficulty={(rhythmDifficultyKey) => {
+          setNumberBondsRhythmDifficulty(rhythmDifficultyKey);
+          setSelectedSongLaunch((current) => current && isRhythmDifficultyActivityKey(current.activityKey)
+            ? { ...current, rhythmDifficultyKey }
+            : current);
+        }}
         isAlgebraStudio={isAlgebraActivity}
         isSaving={isSaving}
         onNavigateHome={() => requestNavigation(() => router.push(navBasePath))}
@@ -16365,15 +16568,24 @@ export default function LessonBuilderClient({
           <TimelineControlsRow
             isPlaying={isSongPlaying}
             currentSongSeconds={currentSongSeconds}
+            chartCueProgressText={chartCueProgressText}
+            hasAudioSource={Boolean(audioObjectUrl)}
+            songPreviewRate={songPreviewRate}
+            hasPreviousChartCue={previousEditorChartCueIndex >= 0}
+            hasNextChartCue={nextEditorChartCueIndex >= 0}
             isAdvancedMode={isAdvancedMode}
             activeEventNumber={centerContextEventIndex >= 0 ? centerContextEventIndex + 1 : null}
             activeEventHasEquation={Boolean(centerContextEventEquation)}
             onRewind={handleRewindSong}
+            onPreviousChartCue={handlePreviousChartCue}
+            onPreviewRateChange={handleSongPreviewRateChange}
             onTogglePlay={handleToggleSongPlayback}
+            onNextChartCue={handleNextChartCue}
             onFastForward={handleFastForwardSong}
           />
           <EquationTimeline
             events={timelineEvents}
+            chartHitCues={activityChartHitCues ?? EMPTY_CHART_HIT_CUES}
             hideSpinouts={isRctm2Mode}
             activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
             activeEventId={activeEventId}

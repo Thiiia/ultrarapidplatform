@@ -1,0 +1,811 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "geminiqueen",
+  "activityKey": "early-algebra",
+  "equations": [
+    {
+      "id": "Year6_002_moveconstant",
+      "state": "x+2=5",
+      "tokens": [
+        {
+          "id": "Year6_002_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_002_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_002_moveconstant-token-2",
+          "label": "2"
+        },
+        {
+          "id": "Year6_002_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_002_moveconstant-token-4",
+          "label": "5"
+        }
+      ]
+    },
+    {
+      "id": "Year6_003_moveconstant",
+      "state": "x+3=7",
+      "tokens": [
+        {
+          "id": "Year6_003_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_003_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_003_moveconstant-token-2",
+          "label": "3"
+        },
+        {
+          "id": "Year6_003_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_003_moveconstant-token-4",
+          "label": "7"
+        }
+      ]
+    },
+    {
+      "id": "Year6_007_moveconstant",
+      "state": "x-2=3",
+      "tokens": [
+        {
+          "id": "Year6_007_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_007_moveconstant-token-1",
+          "label": "-"
+        },
+        {
+          "id": "Year6_007_moveconstant-token-2",
+          "label": "2"
+        },
+        {
+          "id": "Year6_007_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_007_moveconstant-token-4",
+          "label": "3"
+        }
+      ]
+    },
+    {
+      "id": "Year6_004_moveconstant",
+      "state": "x+4=8",
+      "tokens": [
+        {
+          "id": "Year6_004_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_004_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_004_moveconstant-token-2",
+          "label": "4"
+        },
+        {
+          "id": "Year6_004_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_004_moveconstant-token-4",
+          "label": "8"
+        }
+      ]
+    },
+    {
+      "id": "Year6_008_moveconstant",
+      "state": "x-3=4",
+      "tokens": [
+        {
+          "id": "Year6_008_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_008_moveconstant-token-1",
+          "label": "-"
+        },
+        {
+          "id": "Year6_008_moveconstant-token-2",
+          "label": "3"
+        },
+        {
+          "id": "Year6_008_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_008_moveconstant-token-4",
+          "label": "4"
+        }
+      ]
+    },
+    {
+      "id": "Year6_011_moveconstant",
+      "state": "x+2=7",
+      "tokens": [
+        {
+          "id": "Year6_011_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_011_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_011_moveconstant-token-2",
+          "label": "2"
+        },
+        {
+          "id": "Year6_011_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_011_moveconstant-token-4",
+          "label": "7"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "geminiqueen-eq01-source01-hit1",
+      "eventId": "geminiqueen-eq01-source01-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_002_moveconstant",
+      "startTick": 10080,
+      "endTick": 10080,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_002_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq01-source01-drag",
+      "eventId": "geminiqueen-eq01-source01-drag-event",
+      "type": "drag",
+      "equationId": "Year6_002_moveconstant",
+      "startTick": 13440,
+      "endTick": 15360,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_002_moveconstant-token-2",
+          "sourceHitId": "geminiqueen-eq01-source01-hit1"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq02-source02-hit1",
+      "eventId": "geminiqueen-eq02-source02-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_002_moveconstant",
+      "startTick": 24000,
+      "endTick": 24000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_002_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq02-source02-spin",
+      "eventId": "geminiqueen-eq02-source02-spin-drag-event",
+      "type": "spin",
+      "equationId": "Year6_002_moveconstant",
+      "startTick": 27360,
+      "endTick": 29280,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_002_moveconstant-token-2"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq02-source02-drag",
+      "eventId": "geminiqueen-eq02-source02-spin-drag-event",
+      "type": "drag",
+      "equationId": "Year6_002_moveconstant",
+      "startTick": 31200,
+      "endTick": 33120,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_002_moveconstant-token-2",
+          "sourceHitId": "geminiqueen-eq02-source02-hit1"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq03-source03-hit1",
+      "eventId": "geminiqueen-eq03-source03-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_003_moveconstant",
+      "startTick": 37920,
+      "endTick": 37920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_003_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq03-source03-hit2",
+      "eventId": "geminiqueen-eq03-source03-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_003_moveconstant",
+      "startTick": 40320,
+      "endTick": 40320,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_003_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq03-source03-hit3",
+      "eventId": "geminiqueen-eq03-source03-hit-event3",
+      "type": "hit",
+      "equationId": "Year6_003_moveconstant",
+      "startTick": 42720,
+      "endTick": 42720,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_003_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq03-source03-hit4",
+      "eventId": "geminiqueen-eq03-source03-hit-event4",
+      "type": "hit",
+      "equationId": "Year6_003_moveconstant",
+      "startTick": 45120,
+      "endTick": 45120,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_003_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq04-source04-hit1",
+      "eventId": "geminiqueen-eq04-source04-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_003_moveconstant",
+      "startTick": 55680,
+      "endTick": 55680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_003_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq04-source04-spin",
+      "eventId": "geminiqueen-eq04-source04-spin-drag-event",
+      "type": "spin",
+      "equationId": "Year6_003_moveconstant",
+      "startTick": 59040,
+      "endTick": 60960,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_003_moveconstant-token-2"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq04-source04-drag",
+      "eventId": "geminiqueen-eq04-source04-spin-drag-event",
+      "type": "drag",
+      "equationId": "Year6_003_moveconstant",
+      "startTick": 62880,
+      "endTick": 64800,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_003_moveconstant-token-2",
+          "sourceHitId": "geminiqueen-eq04-source04-hit1"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq05-source05-hit1",
+      "eventId": "geminiqueen-eq05-source05-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_007_moveconstant",
+      "startTick": 69600,
+      "endTick": 69600,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_007_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq05-source05-hit2",
+      "eventId": "geminiqueen-eq05-source05-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_007_moveconstant",
+      "startTick": 72000,
+      "endTick": 72000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_007_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq05-source05-drag",
+      "eventId": "geminiqueen-eq05-source05-drag-event",
+      "type": "drag",
+      "equationId": "Year6_007_moveconstant",
+      "startTick": 75360,
+      "endTick": 77280,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_007_moveconstant-token-2",
+          "sourceHitId": "geminiqueen-eq05-source05-hit2"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq06-source06-hit1",
+      "eventId": "geminiqueen-eq06-source06-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_007_moveconstant",
+      "startTick": 83520,
+      "endTick": 83520,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_007_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq06-source06-drag",
+      "eventId": "geminiqueen-eq06-source06-drag-event",
+      "type": "drag",
+      "equationId": "Year6_007_moveconstant",
+      "startTick": 86880,
+      "endTick": 88800,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_007_moveconstant-token-2",
+          "sourceHitId": "geminiqueen-eq06-source06-hit1"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq07-source07-hit1",
+      "eventId": "geminiqueen-eq07-source07-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 101280,
+      "endTick": 101280,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq07-source07-hit2",
+      "eventId": "geminiqueen-eq07-source07-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 103680,
+      "endTick": 103680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq07-source07-hit3",
+      "eventId": "geminiqueen-eq07-source07-hit-event3",
+      "type": "hit",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 106080,
+      "endTick": 106080,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq07-source07-hit4",
+      "eventId": "geminiqueen-eq07-source07-hit-event4",
+      "type": "hit",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 108480,
+      "endTick": 108480,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq08-source08-hit1",
+      "eventId": "geminiqueen-eq08-source08-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 115200,
+      "endTick": 115200,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq08-source08-spin",
+      "eventId": "geminiqueen-eq08-source08-spin-drag-event",
+      "type": "spin",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 118560,
+      "endTick": 120480,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq08-source08-drag",
+      "eventId": "geminiqueen-eq08-source08-spin-drag-event",
+      "type": "drag",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 122400,
+      "endTick": 124320,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "sourceHitId": "geminiqueen-eq08-source08-hit1"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq09-source09-hit1",
+      "eventId": "geminiqueen-eq09-source09-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_008_moveconstant",
+      "startTick": 128640,
+      "endTick": 128640,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_008_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq09-source09-hit2",
+      "eventId": "geminiqueen-eq09-source09-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_008_moveconstant",
+      "startTick": 131040,
+      "endTick": 131040,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_008_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq09-source09-hit3",
+      "eventId": "geminiqueen-eq09-source09-hit-event3",
+      "type": "hit",
+      "equationId": "Year6_008_moveconstant",
+      "startTick": 134400,
+      "endTick": 134400,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_008_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq09-source09-hit4",
+      "eventId": "geminiqueen-eq09-source09-hit-event4",
+      "type": "hit",
+      "equationId": "Year6_008_moveconstant",
+      "startTick": 138240,
+      "endTick": 138240,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_008_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq10-source10-hit1",
+      "eventId": "geminiqueen-eq10-source10-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_008_moveconstant",
+      "startTick": 145920,
+      "endTick": 145920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_008_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq10-source10-hit2",
+      "eventId": "geminiqueen-eq10-source10-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_008_moveconstant",
+      "startTick": 149760,
+      "endTick": 149760,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_008_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq10-source10-drag",
+      "eventId": "geminiqueen-eq10-source10-drag-event",
+      "type": "drag",
+      "equationId": "Year6_008_moveconstant",
+      "startTick": 153120,
+      "endTick": 155040,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_008_moveconstant-token-2",
+          "sourceHitId": "geminiqueen-eq10-source10-hit2"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq11-source11-hit1",
+      "eventId": "geminiqueen-eq11-source11-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_011_moveconstant",
+      "startTick": 161280,
+      "endTick": 161280,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_011_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq11-source11-hit2",
+      "eventId": "geminiqueen-eq11-source11-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_011_moveconstant",
+      "startTick": 163680,
+      "endTick": 163680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_011_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq11-source11-hit3",
+      "eventId": "geminiqueen-eq11-source11-hit-event3",
+      "type": "hit",
+      "equationId": "Year6_011_moveconstant",
+      "startTick": 166080,
+      "endTick": 166080,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_011_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq11-source11-hit4",
+      "eventId": "geminiqueen-eq11-source11-hit-event4",
+      "type": "hit",
+      "equationId": "Year6_011_moveconstant",
+      "startTick": 168960,
+      "endTick": 168960,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_011_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq12-source12-hit1",
+      "eventId": "geminiqueen-eq12-source12-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_011_moveconstant",
+      "startTick": 172800,
+      "endTick": 172800,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_011_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq12-source12-spin",
+      "eventId": "geminiqueen-eq12-source12-spin-drag-event",
+      "type": "spin",
+      "equationId": "Year6_011_moveconstant",
+      "startTick": 176160,
+      "endTick": 178080,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_011_moveconstant-token-2"
+        }
+      ]
+    },
+    {
+      "id": "geminiqueen-eq12-source12-drag",
+      "eventId": "geminiqueen-eq12-source12-spin-drag-event",
+      "type": "drag",
+      "equationId": "Year6_011_moveconstant",
+      "startTick": 180000,
+      "endTick": 181920,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_011_moveconstant-token-2",
+          "sourceHitId": "geminiqueen-eq12-source12-hit1"
+        }
+      ]
+    }
+  ],
+  "rhythmDifficultyKey": "ExpertSingle"
+}

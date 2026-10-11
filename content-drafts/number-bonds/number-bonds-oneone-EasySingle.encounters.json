@@ -1,0 +1,528 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "oneone",
+  "activityKey": "number-bonds",
+  "stopAtSeconds": 146.517,
+  "equations": [
+    {
+      "id": "oneone-bond-equation",
+      "state": "3 + 5 = 8",
+      "tokens": [
+        {
+          "id": "oneone-bond-part-a",
+          "label": "3"
+        },
+        {
+          "id": "oneone-bond-plus",
+          "label": "+"
+        },
+        {
+          "id": "oneone-bond-part-b",
+          "label": "5"
+        },
+        {
+          "id": "oneone-bond-equals",
+          "label": "="
+        },
+        {
+          "id": "oneone-bond-whole",
+          "label": "8"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "nb-oneone-easysingle-01-hit",
+      "eventId": "nb-oneone-easysingle-01-hit-event",
+      "type": "hit",
+      "equationId": "oneone-bond-equation",
+      "startTick": 7680,
+      "endTick": 7680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-01-spin",
+      "eventId": "nb-oneone-easysingle-01-spin-event",
+      "type": "spin",
+      "equationId": "oneone-bond-equation",
+      "startTick": 9780,
+      "endTick": 10020,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "sourceHitId": "nb-oneone-easysingle-01-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-01-drag",
+      "eventId": "nb-oneone-easysingle-01-drag-event",
+      "type": "drag",
+      "equationId": "oneone-bond-equation",
+      "startTick": 11900,
+      "endTick": 12140,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "oneone-bond-part-a",
+          "sourceHitId": "nb-oneone-easysingle-01-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-02-hit",
+      "eventId": "nb-oneone-easysingle-02-hit-event",
+      "type": "hit",
+      "equationId": "oneone-bond-equation",
+      "startTick": 26880,
+      "endTick": 26880,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-02-spin",
+      "eventId": "nb-oneone-easysingle-02-spin-event",
+      "type": "spin",
+      "equationId": "oneone-bond-equation",
+      "startTick": 28980,
+      "endTick": 29220,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "sourceHitId": "nb-oneone-easysingle-02-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-02-drag",
+      "eventId": "nb-oneone-easysingle-02-drag-event",
+      "type": "drag",
+      "equationId": "oneone-bond-equation",
+      "startTick": 31100,
+      "endTick": 31340,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "oneone-bond-part-a",
+          "sourceHitId": "nb-oneone-easysingle-02-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-03-hit",
+      "eventId": "nb-oneone-easysingle-03-hit-event",
+      "type": "hit",
+      "equationId": "oneone-bond-equation",
+      "startTick": 48000,
+      "endTick": 48000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-03-spin",
+      "eventId": "nb-oneone-easysingle-03-spin-event",
+      "type": "spin",
+      "equationId": "oneone-bond-equation",
+      "startTick": 50100,
+      "endTick": 50340,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "sourceHitId": "nb-oneone-easysingle-03-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-03-drag",
+      "eventId": "nb-oneone-easysingle-03-drag-event",
+      "type": "drag",
+      "equationId": "oneone-bond-equation",
+      "startTick": 52220,
+      "endTick": 52460,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "oneone-bond-part-a",
+          "sourceHitId": "nb-oneone-easysingle-03-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-04-hit",
+      "eventId": "nb-oneone-easysingle-04-hit-event",
+      "type": "hit",
+      "equationId": "oneone-bond-equation",
+      "startTick": 67440,
+      "endTick": 67440,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-04-spin",
+      "eventId": "nb-oneone-easysingle-04-spin-event",
+      "type": "spin",
+      "equationId": "oneone-bond-equation",
+      "startTick": 69540,
+      "endTick": 69780,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "sourceHitId": "nb-oneone-easysingle-04-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-04-drag",
+      "eventId": "nb-oneone-easysingle-04-drag-event",
+      "type": "drag",
+      "equationId": "oneone-bond-equation",
+      "startTick": 71660,
+      "endTick": 71900,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "oneone-bond-part-b",
+          "sourceHitId": "nb-oneone-easysingle-04-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-05-hit",
+      "eventId": "nb-oneone-easysingle-05-hit-event",
+      "type": "hit",
+      "equationId": "oneone-bond-equation",
+      "startTick": 98280,
+      "endTick": 98280,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-05-spin",
+      "eventId": "nb-oneone-easysingle-05-spin-event",
+      "type": "spin",
+      "equationId": "oneone-bond-equation",
+      "startTick": 100380,
+      "endTick": 100620,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "sourceHitId": "nb-oneone-easysingle-05-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-05-drag",
+      "eventId": "nb-oneone-easysingle-05-drag-event",
+      "type": "drag",
+      "equationId": "oneone-bond-equation",
+      "startTick": 102500,
+      "endTick": 102740,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "oneone-bond-part-b",
+          "sourceHitId": "nb-oneone-easysingle-05-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-06-hit",
+      "eventId": "nb-oneone-easysingle-06-hit-event",
+      "type": "hit",
+      "equationId": "oneone-bond-equation",
+      "startTick": 117600,
+      "endTick": 117600,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-06-spin",
+      "eventId": "nb-oneone-easysingle-06-spin-event",
+      "type": "spin",
+      "equationId": "oneone-bond-equation",
+      "startTick": 119700,
+      "endTick": 119940,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "sourceHitId": "nb-oneone-easysingle-06-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-06-drag",
+      "eventId": "nb-oneone-easysingle-06-drag-event",
+      "type": "drag",
+      "equationId": "oneone-bond-equation",
+      "startTick": 121820,
+      "endTick": 122060,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "oneone-bond-part-b",
+          "sourceHitId": "nb-oneone-easysingle-06-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-07-hit",
+      "eventId": "nb-oneone-easysingle-07-hit-event",
+      "type": "hit",
+      "equationId": "oneone-bond-equation",
+      "startTick": 139080,
+      "endTick": 139080,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-07-spin",
+      "eventId": "nb-oneone-easysingle-07-spin-event",
+      "type": "spin",
+      "equationId": "oneone-bond-equation",
+      "startTick": 141180,
+      "endTick": 141420,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "sourceHitId": "nb-oneone-easysingle-07-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-07-drag",
+      "eventId": "nb-oneone-easysingle-07-drag-event",
+      "type": "drag",
+      "equationId": "oneone-bond-equation",
+      "startTick": 143300,
+      "endTick": 143540,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "oneone-bond-part-b",
+          "sourceHitId": "nb-oneone-easysingle-07-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-08-hit",
+      "eventId": "nb-oneone-easysingle-08-hit-event",
+      "type": "hit",
+      "equationId": "oneone-bond-equation",
+      "startTick": 158400,
+      "endTick": 158400,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-08-spin",
+      "eventId": "nb-oneone-easysingle-08-spin-event",
+      "type": "spin",
+      "equationId": "oneone-bond-equation",
+      "startTick": 160500,
+      "endTick": 160740,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "oneone-bond-whole",
+          "sourceHitId": "nb-oneone-easysingle-08-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-oneone-easysingle-08-drag",
+      "eventId": "nb-oneone-easysingle-08-drag-event",
+      "type": "drag",
+      "equationId": "oneone-bond-equation",
+      "startTick": 162620,
+      "endTick": 162860,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "oneone-bond-part-b",
+          "sourceHitId": "nb-oneone-easysingle-08-hit"
+        }
+      ]
+    }
+  ],
+  "numberBondSequenceVersion": 1,
+  "numberBondGems": [
+    {
+      "gemId": "nb-oneone-easysingle-01-gem",
+      "unitIndex": 0,
+      "spinEncounterId": "nb-oneone-easysingle-01-spin",
+      "dragEncounterId": "nb-oneone-easysingle-01-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-oneone-easysingle-02-gem",
+      "unitIndex": 1,
+      "spinEncounterId": "nb-oneone-easysingle-02-spin",
+      "dragEncounterId": "nb-oneone-easysingle-02-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-oneone-easysingle-03-gem",
+      "unitIndex": 2,
+      "spinEncounterId": "nb-oneone-easysingle-03-spin",
+      "dragEncounterId": "nb-oneone-easysingle-03-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 2
+      }
+    },
+    {
+      "gemId": "nb-oneone-easysingle-04-gem",
+      "unitIndex": 3,
+      "spinEncounterId": "nb-oneone-easysingle-04-spin",
+      "dragEncounterId": "nb-oneone-easysingle-04-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-oneone-easysingle-05-gem",
+      "unitIndex": 4,
+      "spinEncounterId": "nb-oneone-easysingle-05-spin",
+      "dragEncounterId": "nb-oneone-easysingle-05-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-oneone-easysingle-06-gem",
+      "unitIndex": 5,
+      "spinEncounterId": "nb-oneone-easysingle-06-spin",
+      "dragEncounterId": "nb-oneone-easysingle-06-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 2
+      }
+    },
+    {
+      "gemId": "nb-oneone-easysingle-07-gem",
+      "unitIndex": 6,
+      "spinEncounterId": "nb-oneone-easysingle-07-spin",
+      "dragEncounterId": "nb-oneone-easysingle-07-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 3
+      }
+    },
+    {
+      "gemId": "nb-oneone-easysingle-08-gem",
+      "unitIndex": 7,
+      "spinEncounterId": "nb-oneone-easysingle-08-spin",
+      "dragEncounterId": "nb-oneone-easysingle-08-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 4
+      }
+    }
+  ]
+}

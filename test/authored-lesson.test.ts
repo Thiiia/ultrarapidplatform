@@ -50,6 +50,18 @@ test('authored payload is stamped with the selected identity and revision', () =
   assert.equal(stamped.encounters[0].eventId, 'event-a');
 });
 
+test('Early Algebra authored identity keeps the selected chart difficulty', () => {
+  const draft = parseAuthoredLessonDraft(authored);
+  const stamped = stampAuthoredLessonIdentity(draft, {
+    songAssetId: 'song-a',
+    activityKey: 'early-algebra',
+    authorId: 'author-a',
+    revision: 'rev-hard',
+    rhythmDifficultyKey: 'HardSingle',
+  });
+  assert.equal(stamped.rhythmDifficultyKey, 'HardSingle');
+});
+
 test('authored Hit preserves the versioned physical player pad layout', () => {
   const parsed = parseAuthoredLessonDraft({
     ...authored,

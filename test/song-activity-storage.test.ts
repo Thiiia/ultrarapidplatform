@@ -48,7 +48,7 @@ test("Number Bonds difficulty paths use Unity's per-song encounter sidecar basen
       authorFolder: "dev",
       rhythmDifficultyKey: "HardSingle",
     }).sidecarPath,
-    "dev/Early_Algebra/waves.json",
+    "dev/Early_Algebra/early-algebra-waves-HardSingle.encounters.json",
   );
 });
 

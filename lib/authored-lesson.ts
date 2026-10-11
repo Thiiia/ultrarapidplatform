@@ -739,7 +739,7 @@ export function stampAuthoredLessonIdentity(
   // verified against storage state by the caller); identity.revision is the NEW
   // revision being published. They must differ on a second save, so do not
   // equate them here — just stamp the new revision as the output identity.
-  const rhythmDifficultyKey = identity.activityKey === "number-bonds"
+  const rhythmDifficultyKey = identity.activityKey === "number-bonds" || identity.activityKey === "early-algebra"
     ? identity.rhythmDifficultyKey ?? draft.rhythmDifficultyKey
     : undefined;
   return {

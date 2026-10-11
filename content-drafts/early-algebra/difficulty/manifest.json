@@ -1,0 +1,714 @@
+{
+  "schemaVersion": 1,
+  "activityKey": "early-algebra",
+  "generatedAtUtc": "2026-10-10T22:42:41.268Z",
+  "sourceCandidateDirectory": "content-drafts/early-algebra/*.json",
+  "chartTimingPolicy": {
+    "hitCueSource": "selected chart difficulty note ticks",
+    "minimumHitSpacingMs": 1500,
+    "linkedSpinDrag": "shift by the exact source Hit delta"
+  },
+  "equationPolicy": {
+    "form": "x + n = m or x - n = m",
+    "integerSolutionsOnly": true,
+    "solutionRange": [
+      2,
+      9
+    ]
+  },
+  "baselineRevisionBySong": {
+    "garden": "eb171cbc-fb04-44ce-a1d0-0e3b66d80cbe",
+    "geminiqueen": "35d7c908-8d24-435f-8063-bb6b2281fd12",
+    "waves": "d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa",
+    "jazzmaybach": "b346a2c3-c8ad-4395-8397-ef0dc55e218a",
+    "justbecause": "dc33a284-c050-477c-a749-282ff95946da",
+    "grudge": "62bed83e-2e57-4c6c-9be0-b259bec21653",
+    "oneone": "b44f2b55-bb10-43eb-9576-4e2df8a551df",
+    "seven": "c3f14f88-dd94-45fb-a997-2791015cb874"
+  },
+  "variants": [
+    {
+      "songAssetId": "garden",
+      "rhythmDifficultyKey": "EasySingle",
+      "filename": "early-algebra-garden-EasySingle.encounters.json",
+      "chartSourceRevision": "eb171cbc-fb04-44ce-a1d0-0e3b66d80cbe",
+      "chartPath": "dev/Early_Algebra/revisions/eb171cbc-fb04-44ce-a1d0-0e3b66d80cbe/Garden.chart",
+      "chartUniqueNoteOnsets": 103,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        6
+      ],
+      "hitCount": 20,
+      "spinCount": 3,
+      "dragCount": 9,
+      "exactChartNoteHits": 20,
+      "maximumHitShiftMs": 1858,
+      "meanAbsoluteHitShiftMs": 599,
+      "minimumHitGapMs": 1858,
+      "baselineExactChartNoteHits": 0
+    },
+    {
+      "songAssetId": "geminiqueen",
+      "rhythmDifficultyKey": "EasySingle",
+      "filename": "early-algebra-geminiqueen-EasySingle.encounters.json",
+      "chartSourceRevision": "35d7c908-8d24-435f-8063-bb6b2281fd12",
+      "chartPath": "dev/Early_Algebra/revisions/35d7c908-8d24-435f-8063-bb6b2281fd12/GEMINI QUEEN.chart",
+      "chartUniqueNoteOnsets": 126,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        3,
+        7
+      ],
+      "hitCount": 26,
+      "spinCount": 4,
+      "dragCount": 8,
+      "exactChartNoteHits": 26,
+      "maximumHitShiftMs": 1960,
+      "meanAbsoluteHitShiftMs": 619,
+      "minimumHitGapMs": 1704,
+      "baselineExactChartNoteHits": 2
+    },
+    {
+      "songAssetId": "waves",
+      "rhythmDifficultyKey": "EasySingle",
+      "filename": "early-algebra-waves-EasySingle.encounters.json",
+      "chartSourceRevision": "d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa",
+      "chartPath": "dev/Early_Algebra/revisions/d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa/Grafix - Waves.chart",
+      "chartUniqueNoteOnsets": 201,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        7
+      ],
+      "hitCount": 27,
+      "spinCount": 5,
+      "dragCount": 13,
+      "exactChartNoteHits": 27,
+      "maximumHitShiftMs": 1724,
+      "meanAbsoluteHitShiftMs": 568,
+      "minimumHitGapMs": 1552,
+      "baselineExactChartNoteHits": 2
+    },
+    {
+      "songAssetId": "jazzmaybach",
+      "rhythmDifficultyKey": "EasySingle",
+      "filename": "early-algebra-jazzmaybach-EasySingle.encounters.json",
+      "chartSourceRevision": "b346a2c3-c8ad-4395-8397-ef0dc55e218a",
+      "chartPath": "dev/Early_Algebra/revisions/b346a2c3-c8ad-4395-8397-ef0dc55e218a/Melika.chart",
+      "chartUniqueNoteOnsets": 93,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        6
+      ],
+      "hitCount": 21,
+      "spinCount": 2,
+      "dragCount": 8,
+      "exactChartNoteHits": 21,
+      "maximumHitShiftMs": 1585,
+      "meanAbsoluteHitShiftMs": 563,
+      "minimumHitGapMs": 1951,
+      "baselineExactChartNoteHits": 1
+    },
+    {
+      "songAssetId": "justbecause",
+      "rhythmDifficultyKey": "EasySingle",
+      "filename": "early-algebra-justbecause-EasySingle.encounters.json",
+      "chartSourceRevision": "dc33a284-c050-477c-a749-282ff95946da",
+      "chartPath": "dev/Early_Algebra/revisions/dc33a284-c050-477c-a749-282ff95946da/Oogie - just because.chart",
+      "chartUniqueNoteOnsets": 88,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        3,
+        7
+      ],
+      "hitCount": 20,
+      "spinCount": 2,
+      "dragCount": 9,
+      "exactChartNoteHits": 20,
+      "maximumHitShiftMs": 2206,
+      "meanAbsoluteHitShiftMs": 569,
+      "minimumHitGapMs": 1858,
+      "baselineExactChartNoteHits": 1
+    },
+    {
+      "songAssetId": "grudge",
+      "rhythmDifficultyKey": "EasySingle",
+      "filename": "early-algebra-grudge-EasySingle.encounters.json",
+      "chartSourceRevision": "62bed83e-2e57-4c6c-9be0-b259bec21653",
+      "chartPath": "dev/Early_Algebra/revisions/62bed83e-2e57-4c6c-9be0-b259bec21653/Oogie Grudge.chart",
+      "chartUniqueNoteOnsets": 83,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        9
+      ],
+      "hitCount": 17,
+      "spinCount": 2,
+      "dragCount": 10,
+      "exactChartNoteHits": 17,
+      "maximumHitShiftMs": 1050,
+      "meanAbsoluteHitShiftMs": 485,
+      "minimumHitGapMs": 2400,
+      "baselineExactChartNoteHits": 1
+    },
+    {
+      "songAssetId": "oneone",
+      "rhythmDifficultyKey": "EasySingle",
+      "filename": "early-algebra-oneone-EasySingle.encounters.json",
+      "chartSourceRevision": "b44f2b55-bb10-43eb-9576-4e2df8a551df",
+      "chartPath": "dev/Early_Algebra/revisions/b44f2b55-bb10-43eb-9576-4e2df8a551df/one one.chart",
+      "chartUniqueNoteOnsets": 86,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        7
+      ],
+      "hitCount": 21,
+      "spinCount": 2,
+      "dragCount": 9,
+      "exactChartNoteHits": 21,
+      "maximumHitShiftMs": 1341,
+      "meanAbsoluteHitShiftMs": 406,
+      "minimumHitGapMs": 1533,
+      "baselineExactChartNoteHits": 2
+    },
+    {
+      "songAssetId": "seven",
+      "rhythmDifficultyKey": "EasySingle",
+      "filename": "early-algebra-seven-EasySingle.encounters.json",
+      "chartSourceRevision": "c3f14f88-dd94-45fb-a997-2791015cb874",
+      "chartPath": "dev/Early_Algebra/revisions/c3f14f88-dd94-45fb-a997-2791015cb874/EF - seven.chart",
+      "chartUniqueNoteOnsets": 71,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        3,
+        9
+      ],
+      "hitCount": 17,
+      "spinCount": 3,
+      "dragCount": 11,
+      "exactChartNoteHits": 17,
+      "maximumHitShiftMs": 1776,
+      "meanAbsoluteHitShiftMs": 580,
+      "minimumHitGapMs": 2171,
+      "baselineExactChartNoteHits": 2
+    },
+    {
+      "songAssetId": "garden",
+      "rhythmDifficultyKey": "MediumSingle",
+      "filename": "early-algebra-garden-MediumSingle.encounters.json",
+      "chartSourceRevision": "eb171cbc-fb04-44ce-a1d0-0e3b66d80cbe",
+      "chartPath": "dev/Early_Algebra/revisions/eb171cbc-fb04-44ce-a1d0-0e3b66d80cbe/Garden.chart",
+      "chartUniqueNoteOnsets": 117,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        6
+      ],
+      "hitCount": 20,
+      "spinCount": 3,
+      "dragCount": 9,
+      "exactChartNoteHits": 20,
+      "maximumHitShiftMs": 1858,
+      "meanAbsoluteHitShiftMs": 608,
+      "minimumHitGapMs": 1858,
+      "baselineExactChartNoteHits": 1
+    },
+    {
+      "songAssetId": "geminiqueen",
+      "rhythmDifficultyKey": "MediumSingle",
+      "filename": "early-algebra-geminiqueen-MediumSingle.encounters.json",
+      "chartSourceRevision": "35d7c908-8d24-435f-8063-bb6b2281fd12",
+      "chartPath": "dev/Early_Algebra/revisions/35d7c908-8d24-435f-8063-bb6b2281fd12/GEMINI QUEEN.chart",
+      "chartUniqueNoteOnsets": 170,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        3,
+        7
+      ],
+      "hitCount": 26,
+      "spinCount": 4,
+      "dragCount": 8,
+      "exactChartNoteHits": 26,
+      "maximumHitShiftMs": 1363,
+      "meanAbsoluteHitShiftMs": 336,
+      "minimumHitGapMs": 1533,
+      "baselineExactChartNoteHits": 7
+    },
+    {
+      "songAssetId": "waves",
+      "rhythmDifficultyKey": "MediumSingle",
+      "filename": "early-algebra-waves-MediumSingle.encounters.json",
+      "chartSourceRevision": "d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa",
+      "chartPath": "dev/Early_Algebra/revisions/d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa/Grafix - Waves.chart",
+      "chartUniqueNoteOnsets": 282,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        7
+      ],
+      "hitCount": 27,
+      "spinCount": 5,
+      "dragCount": 13,
+      "exactChartNoteHits": 27,
+      "maximumHitShiftMs": 1724,
+      "meanAbsoluteHitShiftMs": 402,
+      "minimumHitGapMs": 1552,
+      "baselineExactChartNoteHits": 7
+    },
+    {
+      "songAssetId": "jazzmaybach",
+      "rhythmDifficultyKey": "MediumSingle",
+      "filename": "early-algebra-jazzmaybach-MediumSingle.encounters.json",
+      "chartSourceRevision": "b346a2c3-c8ad-4395-8397-ef0dc55e218a",
+      "chartPath": "dev/Early_Algebra/revisions/b346a2c3-c8ad-4395-8397-ef0dc55e218a/Melika.chart",
+      "chartUniqueNoteOnsets": 106,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        6
+      ],
+      "hitCount": 21,
+      "spinCount": 2,
+      "dragCount": 8,
+      "exactChartNoteHits": 21,
+      "maximumHitShiftMs": 1585,
+      "meanAbsoluteHitShiftMs": 563,
+      "minimumHitGapMs": 1951,
+      "baselineExactChartNoteHits": 1
+    },
+    {
+      "songAssetId": "justbecause",
+      "rhythmDifficultyKey": "MediumSingle",
+      "filename": "early-algebra-justbecause-MediumSingle.encounters.json",
+      "chartSourceRevision": "dc33a284-c050-477c-a749-282ff95946da",
+      "chartPath": "dev/Early_Algebra/revisions/dc33a284-c050-477c-a749-282ff95946da/Oogie - just because.chart",
+      "chartUniqueNoteOnsets": 96,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        3,
+        7
+      ],
+      "hitCount": 20,
+      "spinCount": 2,
+      "dragCount": 9,
+      "exactChartNoteHits": 20,
+      "maximumHitShiftMs": 2206,
+      "meanAbsoluteHitShiftMs": 580,
+      "minimumHitGapMs": 1858,
+      "baselineExactChartNoteHits": 1
+    },
+    {
+      "songAssetId": "grudge",
+      "rhythmDifficultyKey": "MediumSingle",
+      "filename": "early-algebra-grudge-MediumSingle.encounters.json",
+      "chartSourceRevision": "62bed83e-2e57-4c6c-9be0-b259bec21653",
+      "chartPath": "dev/Early_Algebra/revisions/62bed83e-2e57-4c6c-9be0-b259bec21653/Oogie Grudge.chart",
+      "chartUniqueNoteOnsets": 112,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        9
+      ],
+      "hitCount": 17,
+      "spinCount": 2,
+      "dragCount": 10,
+      "exactChartNoteHits": 17,
+      "maximumHitShiftMs": 1050,
+      "meanAbsoluteHitShiftMs": 432,
+      "minimumHitGapMs": 2400,
+      "baselineExactChartNoteHits": 1
+    },
+    {
+      "songAssetId": "oneone",
+      "rhythmDifficultyKey": "MediumSingle",
+      "filename": "early-algebra-oneone-MediumSingle.encounters.json",
+      "chartSourceRevision": "b44f2b55-bb10-43eb-9576-4e2df8a551df",
+      "chartPath": "dev/Early_Algebra/revisions/b44f2b55-bb10-43eb-9576-4e2df8a551df/one one.chart",
+      "chartUniqueNoteOnsets": 99,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        7
+      ],
+      "hitCount": 21,
+      "spinCount": 2,
+      "dragCount": 9,
+      "exactChartNoteHits": 21,
+      "maximumHitShiftMs": 1341,
+      "meanAbsoluteHitShiftMs": 388,
+      "minimumHitGapMs": 1533,
+      "baselineExactChartNoteHits": 3
+    },
+    {
+      "songAssetId": "seven",
+      "rhythmDifficultyKey": "MediumSingle",
+      "filename": "early-algebra-seven-MediumSingle.encounters.json",
+      "chartSourceRevision": "c3f14f88-dd94-45fb-a997-2791015cb874",
+      "chartPath": "dev/Early_Algebra/revisions/c3f14f88-dd94-45fb-a997-2791015cb874/EF - seven.chart",
+      "chartUniqueNoteOnsets": 79,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        3,
+        9
+      ],
+      "hitCount": 17,
+      "spinCount": 3,
+      "dragCount": 11,
+      "exactChartNoteHits": 17,
+      "maximumHitShiftMs": 1776,
+      "meanAbsoluteHitShiftMs": 534,
+      "minimumHitGapMs": 1579,
+      "baselineExactChartNoteHits": 3
+    },
+    {
+      "songAssetId": "garden",
+      "rhythmDifficultyKey": "HardSingle",
+      "filename": "early-algebra-garden-HardSingle.encounters.json",
+      "chartSourceRevision": "eb171cbc-fb04-44ce-a1d0-0e3b66d80cbe",
+      "chartPath": "dev/Early_Algebra/revisions/eb171cbc-fb04-44ce-a1d0-0e3b66d80cbe/Garden.chart",
+      "chartUniqueNoteOnsets": 135,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        6
+      ],
+      "hitCount": 20,
+      "spinCount": 3,
+      "dragCount": 9,
+      "exactChartNoteHits": 20,
+      "maximumHitShiftMs": 1858,
+      "meanAbsoluteHitShiftMs": 655,
+      "minimumHitGapMs": 2229,
+      "baselineExactChartNoteHits": 1
+    },
+    {
+      "songAssetId": "geminiqueen",
+      "rhythmDifficultyKey": "HardSingle",
+      "filename": "early-algebra-geminiqueen-HardSingle.encounters.json",
+      "chartSourceRevision": "35d7c908-8d24-435f-8063-bb6b2281fd12",
+      "chartPath": "dev/Early_Algebra/revisions/35d7c908-8d24-435f-8063-bb6b2281fd12/GEMINI QUEEN.chart",
+      "chartUniqueNoteOnsets": 232,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        3,
+        7
+      ],
+      "hitCount": 26,
+      "spinCount": 4,
+      "dragCount": 8,
+      "exactChartNoteHits": 26,
+      "maximumHitShiftMs": 1363,
+      "meanAbsoluteHitShiftMs": 290,
+      "minimumHitGapMs": 1704,
+      "baselineExactChartNoteHits": 12
+    },
+    {
+      "songAssetId": "waves",
+      "rhythmDifficultyKey": "HardSingle",
+      "filename": "early-algebra-waves-HardSingle.encounters.json",
+      "chartSourceRevision": "d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa",
+      "chartPath": "dev/Early_Algebra/revisions/d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa/Grafix - Waves.chart",
+      "chartUniqueNoteOnsets": 381,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        7
+      ],
+      "hitCount": 27,
+      "spinCount": 5,
+      "dragCount": 13,
+      "exactChartNoteHits": 27,
+      "maximumHitShiftMs": 1552,
+      "meanAbsoluteHitShiftMs": 275,
+      "minimumHitGapMs": 1552,
+      "baselineExactChartNoteHits": 12
+    },
+    {
+      "songAssetId": "jazzmaybach",
+      "rhythmDifficultyKey": "HardSingle",
+      "filename": "early-algebra-jazzmaybach-HardSingle.encounters.json",
+      "chartSourceRevision": "b346a2c3-c8ad-4395-8397-ef0dc55e218a",
+      "chartPath": "dev/Early_Algebra/revisions/b346a2c3-c8ad-4395-8397-ef0dc55e218a/Melika.chart",
+      "chartUniqueNoteOnsets": 136,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        6
+      ],
+      "hitCount": 21,
+      "spinCount": 2,
+      "dragCount": 8,
+      "exactChartNoteHits": 21,
+      "maximumHitShiftMs": 976,
+      "meanAbsoluteHitShiftMs": 465,
+      "minimumHitGapMs": 1951,
+      "baselineExactChartNoteHits": 3
+    },
+    {
+      "songAssetId": "justbecause",
+      "rhythmDifficultyKey": "HardSingle",
+      "filename": "early-algebra-justbecause-HardSingle.encounters.json",
+      "chartSourceRevision": "dc33a284-c050-477c-a749-282ff95946da",
+      "chartPath": "dev/Early_Algebra/revisions/dc33a284-c050-477c-a749-282ff95946da/Oogie - just because.chart",
+      "chartUniqueNoteOnsets": 106,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        3,
+        7
+      ],
+      "hitCount": 20,
+      "spinCount": 2,
+      "dragCount": 9,
+      "exactChartNoteHits": 20,
+      "maximumHitShiftMs": 929,
+      "meanAbsoluteHitShiftMs": 464,
+      "minimumHitGapMs": 1858,
+      "baselineExactChartNoteHits": 1
+    },
+    {
+      "songAssetId": "grudge",
+      "rhythmDifficultyKey": "HardSingle",
+      "filename": "early-algebra-grudge-HardSingle.encounters.json",
+      "chartSourceRevision": "62bed83e-2e57-4c6c-9be0-b259bec21653",
+      "chartPath": "dev/Early_Algebra/revisions/62bed83e-2e57-4c6c-9be0-b259bec21653/Oogie Grudge.chart",
+      "chartUniqueNoteOnsets": 155,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        9
+      ],
+      "hitCount": 17,
+      "spinCount": 2,
+      "dragCount": 10,
+      "exactChartNoteHits": 17,
+      "maximumHitShiftMs": 1050,
+      "meanAbsoluteHitShiftMs": 397,
+      "minimumHitGapMs": 2400,
+      "baselineExactChartNoteHits": 1
+    },
+    {
+      "songAssetId": "oneone",
+      "rhythmDifficultyKey": "HardSingle",
+      "filename": "early-algebra-oneone-HardSingle.encounters.json",
+      "chartSourceRevision": "b44f2b55-bb10-43eb-9576-4e2df8a551df",
+      "chartPath": "dev/Early_Algebra/revisions/b44f2b55-bb10-43eb-9576-4e2df8a551df/one one.chart",
+      "chartUniqueNoteOnsets": 128,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        7
+      ],
+      "hitCount": 21,
+      "spinCount": 2,
+      "dragCount": 9,
+      "exactChartNoteHits": 21,
+      "maximumHitShiftMs": 766,
+      "meanAbsoluteHitShiftMs": 328,
+      "minimumHitGapMs": 1533,
+      "baselineExactChartNoteHits": 3
+    },
+    {
+      "songAssetId": "seven",
+      "rhythmDifficultyKey": "HardSingle",
+      "filename": "early-algebra-seven-HardSingle.encounters.json",
+      "chartSourceRevision": "c3f14f88-dd94-45fb-a997-2791015cb874",
+      "chartPath": "dev/Early_Algebra/revisions/c3f14f88-dd94-45fb-a997-2791015cb874/EF - seven.chart",
+      "chartUniqueNoteOnsets": 93,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        3,
+        9
+      ],
+      "hitCount": 17,
+      "spinCount": 3,
+      "dragCount": 11,
+      "exactChartNoteHits": 17,
+      "maximumHitShiftMs": 1184,
+      "meanAbsoluteHitShiftMs": 377,
+      "minimumHitGapMs": 1579,
+      "baselineExactChartNoteHits": 4
+    },
+    {
+      "songAssetId": "garden",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "filename": "early-algebra-garden-ExpertSingle.encounters.json",
+      "chartSourceRevision": "eb171cbc-fb04-44ce-a1d0-0e3b66d80cbe",
+      "chartPath": "dev/Early_Algebra/revisions/eb171cbc-fb04-44ce-a1d0-0e3b66d80cbe/Garden.chart",
+      "chartUniqueNoteOnsets": 166,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        6
+      ],
+      "hitCount": 20,
+      "spinCount": 3,
+      "dragCount": 9,
+      "exactChartNoteHits": 20,
+      "maximumHitShiftMs": 1858,
+      "meanAbsoluteHitShiftMs": 650,
+      "minimumHitGapMs": 2229,
+      "baselineExactChartNoteHits": 3
+    },
+    {
+      "songAssetId": "geminiqueen",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "filename": "early-algebra-geminiqueen-ExpertSingle.encounters.json",
+      "chartSourceRevision": "35d7c908-8d24-435f-8063-bb6b2281fd12",
+      "chartPath": "dev/Early_Algebra/revisions/35d7c908-8d24-435f-8063-bb6b2281fd12/GEMINI QUEEN.chart",
+      "chartUniqueNoteOnsets": 306,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        3,
+        7
+      ],
+      "hitCount": 26,
+      "spinCount": 4,
+      "dragCount": 8,
+      "exactChartNoteHits": 26,
+      "maximumHitShiftMs": 1363,
+      "meanAbsoluteHitShiftMs": 157,
+      "minimumHitGapMs": 1704,
+      "baselineExactChartNoteHits": 19
+    },
+    {
+      "songAssetId": "waves",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "filename": "early-algebra-waves-ExpertSingle.encounters.json",
+      "chartSourceRevision": "d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa",
+      "chartPath": "dev/Early_Algebra/revisions/d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa/Grafix - Waves.chart",
+      "chartUniqueNoteOnsets": 510,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        7
+      ],
+      "hitCount": 27,
+      "spinCount": 5,
+      "dragCount": 13,
+      "exactChartNoteHits": 27,
+      "maximumHitShiftMs": 1552,
+      "meanAbsoluteHitShiftMs": 236,
+      "minimumHitGapMs": 1552,
+      "baselineExactChartNoteHits": 15
+    },
+    {
+      "songAssetId": "jazzmaybach",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "filename": "early-algebra-jazzmaybach-ExpertSingle.encounters.json",
+      "chartSourceRevision": "b346a2c3-c8ad-4395-8397-ef0dc55e218a",
+      "chartPath": "dev/Early_Algebra/revisions/b346a2c3-c8ad-4395-8397-ef0dc55e218a/Melika.chart",
+      "chartUniqueNoteOnsets": 182,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        6
+      ],
+      "hitCount": 21,
+      "spinCount": 2,
+      "dragCount": 8,
+      "exactChartNoteHits": 21,
+      "maximumHitShiftMs": 976,
+      "meanAbsoluteHitShiftMs": 372,
+      "minimumHitGapMs": 1951,
+      "baselineExactChartNoteHits": 6
+    },
+    {
+      "songAssetId": "justbecause",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "filename": "early-algebra-justbecause-ExpertSingle.encounters.json",
+      "chartSourceRevision": "dc33a284-c050-477c-a749-282ff95946da",
+      "chartPath": "dev/Early_Algebra/revisions/dc33a284-c050-477c-a749-282ff95946da/Oogie - just because.chart",
+      "chartUniqueNoteOnsets": 129,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        3,
+        7
+      ],
+      "hitCount": 20,
+      "spinCount": 2,
+      "dragCount": 9,
+      "exactChartNoteHits": 20,
+      "maximumHitShiftMs": 929,
+      "meanAbsoluteHitShiftMs": 453,
+      "minimumHitGapMs": 1858,
+      "baselineExactChartNoteHits": 3
+    },
+    {
+      "songAssetId": "grudge",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "filename": "early-algebra-grudge-ExpertSingle.encounters.json",
+      "chartSourceRevision": "62bed83e-2e57-4c6c-9be0-b259bec21653",
+      "chartPath": "dev/Early_Algebra/revisions/62bed83e-2e57-4c6c-9be0-b259bec21653/Oogie Grudge.chart",
+      "chartUniqueNoteOnsets": 206,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        9
+      ],
+      "hitCount": 17,
+      "spinCount": 2,
+      "dragCount": 10,
+      "exactChartNoteHits": 17,
+      "maximumHitShiftMs": 1050,
+      "meanAbsoluteHitShiftMs": 344,
+      "minimumHitGapMs": 2400,
+      "baselineExactChartNoteHits": 1
+    },
+    {
+      "songAssetId": "oneone",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "filename": "early-algebra-oneone-ExpertSingle.encounters.json",
+      "chartSourceRevision": "b44f2b55-bb10-43eb-9576-4e2df8a551df",
+      "chartPath": "dev/Early_Algebra/revisions/b44f2b55-bb10-43eb-9576-4e2df8a551df/one one.chart",
+      "chartUniqueNoteOnsets": 177,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        2,
+        7
+      ],
+      "hitCount": 21,
+      "spinCount": 2,
+      "dragCount": 9,
+      "exactChartNoteHits": 21,
+      "maximumHitShiftMs": 670,
+      "meanAbsoluteHitShiftMs": 255,
+      "minimumHitGapMs": 1533,
+      "baselineExactChartNoteHits": 5
+    },
+    {
+      "songAssetId": "seven",
+      "rhythmDifficultyKey": "ExpertSingle",
+      "filename": "early-algebra-seven-ExpertSingle.encounters.json",
+      "chartSourceRevision": "c3f14f88-dd94-45fb-a997-2791015cb874",
+      "chartPath": "dev/Early_Algebra/revisions/c3f14f88-dd94-45fb-a997-2791015cb874/EF - seven.chart",
+      "chartUniqueNoteOnsets": 113,
+      "equationCount": 6,
+      "equationSolutionRange": [
+        3,
+        9
+      ],
+      "hitCount": 17,
+      "spinCount": 3,
+      "dragCount": 11,
+      "exactChartNoteHits": 17,
+      "maximumHitShiftMs": 789,
+      "meanAbsoluteHitShiftMs": 348,
+      "minimumHitGapMs": 1579,
+      "baselineExactChartNoteHits": 4
+    }
+  ],
+  "totals": {
+    "songs": 8,
+    "difficulties": 4,
+    "sidecars": 32,
+    "hitCues": 676,
+    "spinCues": 92,
+    "dragCues": 308,
+    "baselineExactChartNoteHits": 128,
+    "exactChartNoteHits": 676
+  },
+  "status": "local candidate set; no hosted revisions changed"
+}

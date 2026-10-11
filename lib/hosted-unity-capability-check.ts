@@ -5,6 +5,7 @@ import {
   type RuntimeCapabilityManifest,
 } from "./runtime-capability-manifest";
 import type { SongLaunchReceipt } from "./song-launch-package";
+import { isRhythmDifficultyActivityKey } from "./number-bonds-sidecar";
 
 const MAX_METADATA_BYTES = 64 * 1024;
 const MAX_SIDECAR_BYTES = 2 * 1024 * 1024;
@@ -199,7 +200,7 @@ export function evaluateAuthoredLessonRuntimeCapability(
   if (lesson.activityKey !== expectedActivityKey ||
       (expectedIdentity && (lesson.songAssetId !== expectedIdentity.songAssetId ||
         lesson.authorId !== expectedIdentity.authorId || lesson.revision !== expectedIdentity.revision ||
-        (expectedActivityKey === "number-bonds" && expectedIdentity.rhythmDifficultyKey != null &&
+        (isRhythmDifficultyActivityKey(expectedActivityKey) && expectedIdentity.rhythmDifficultyKey != null &&
           lesson.rhythmDifficultyKey != null && lesson.rhythmDifficultyKey !== expectedIdentity.rhythmDifficultyKey)))) {
     throw new HostedUnityCapabilityError(
       "PUBLISHED_LESSON_IDENTITY_MISMATCH",

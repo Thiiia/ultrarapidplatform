@@ -1,0 +1,651 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "grudge",
+  "activityKey": "early-algebra",
+  "equations": [
+    {
+      "id": "Year6_001_moveconstant",
+      "state": "x+1=3",
+      "tokens": [
+        {
+          "id": "Year6_001_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_001_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_001_moveconstant-token-2",
+          "label": "1"
+        },
+        {
+          "id": "Year6_001_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_001_moveconstant-token-4",
+          "label": "3"
+        }
+      ]
+    },
+    {
+      "id": "Year6_003_moveconstant",
+      "state": "x+3=7",
+      "tokens": [
+        {
+          "id": "Year6_003_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_003_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_003_moveconstant-token-2",
+          "label": "3"
+        },
+        {
+          "id": "Year6_003_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_003_moveconstant-token-4",
+          "label": "7"
+        }
+      ]
+    },
+    {
+      "id": "Year6_006_moveconstant",
+      "state": "x-1=2",
+      "tokens": [
+        {
+          "id": "Year6_006_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_006_moveconstant-token-1",
+          "label": "-"
+        },
+        {
+          "id": "Year6_006_moveconstant-token-2",
+          "label": "1"
+        },
+        {
+          "id": "Year6_006_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_006_moveconstant-token-4",
+          "label": "2"
+        }
+      ]
+    },
+    {
+      "id": "Year6_005_moveconstant",
+      "state": "x+5=9",
+      "tokens": [
+        {
+          "id": "Year6_005_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_005_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_005_moveconstant-token-2",
+          "label": "5"
+        },
+        {
+          "id": "Year6_005_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_005_moveconstant-token-4",
+          "label": "9"
+        }
+      ]
+    },
+    {
+      "id": "Year6_009_moveconstant",
+      "state": "x-4=5",
+      "tokens": [
+        {
+          "id": "Year6_009_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_009_moveconstant-token-1",
+          "label": "-"
+        },
+        {
+          "id": "Year6_009_moveconstant-token-2",
+          "label": "4"
+        },
+        {
+          "id": "Year6_009_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_009_moveconstant-token-4",
+          "label": "5"
+        }
+      ]
+    },
+    {
+      "id": "Year6_012_moveconstant",
+      "state": "x-1=5",
+      "tokens": [
+        {
+          "id": "Year6_012_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_012_moveconstant-token-1",
+          "label": "-"
+        },
+        {
+          "id": "Year6_012_moveconstant-token-2",
+          "label": "1"
+        },
+        {
+          "id": "Year6_012_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_012_moveconstant-token-4",
+          "label": "5"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "grudge-eq01-source01-hit1",
+      "eventId": "grudge-eq01-source01-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_001_moveconstant",
+      "startTick": 5280,
+      "endTick": 5280,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_001_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq01-source01-drag",
+      "eventId": "grudge-eq01-source01-drag-event",
+      "type": "drag",
+      "equationId": "Year6_001_moveconstant",
+      "startTick": 8640,
+      "endTick": 10560,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_001_moveconstant-token-2",
+          "sourceHitId": "grudge-eq01-source01-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq02-source02-hit1",
+      "eventId": "grudge-eq02-source02-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_001_moveconstant",
+      "startTick": 15840,
+      "endTick": 15840,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_001_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq02-source02-drag",
+      "eventId": "grudge-eq02-source02-drag-event",
+      "type": "drag",
+      "equationId": "Year6_001_moveconstant",
+      "startTick": 19200,
+      "endTick": 21120,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_001_moveconstant-token-2",
+          "sourceHitId": "grudge-eq02-source02-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq03-source03-hit1",
+      "eventId": "grudge-eq03-source03-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_003_moveconstant",
+      "startTick": 26400,
+      "endTick": 26400,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_003_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq03-source03-hit2",
+      "eventId": "grudge-eq03-source03-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_003_moveconstant",
+      "startTick": 28800,
+      "endTick": 28800,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_003_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq04-source04-hit1",
+      "eventId": "grudge-eq04-source04-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_003_moveconstant",
+      "startTick": 37920,
+      "endTick": 37920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_003_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq04-source04-hit2",
+      "eventId": "grudge-eq04-source04-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_003_moveconstant",
+      "startTick": 40320,
+      "endTick": 40320,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_003_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq04-source04-drag",
+      "eventId": "grudge-eq04-source04-drag-event",
+      "type": "drag",
+      "equationId": "Year6_003_moveconstant",
+      "startTick": 43680,
+      "endTick": 45600,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_003_moveconstant-token-2",
+          "sourceHitId": "grudge-eq04-source04-hit2"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq05-source05-hit1",
+      "eventId": "grudge-eq05-source05-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_006_moveconstant",
+      "startTick": 48000,
+      "endTick": 48000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_006_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq05-source05-drag",
+      "eventId": "grudge-eq05-source05-drag-event",
+      "type": "drag",
+      "equationId": "Year6_006_moveconstant",
+      "startTick": 51360,
+      "endTick": 53280,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_006_moveconstant-token-2",
+          "sourceHitId": "grudge-eq05-source05-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq06-source06-hit1",
+      "eventId": "grudge-eq06-source06-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_006_moveconstant",
+      "startTick": 59040,
+      "endTick": 59040,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_006_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq06-source06-spin",
+      "eventId": "grudge-eq06-source06-spin-drag-event",
+      "type": "spin",
+      "equationId": "Year6_006_moveconstant",
+      "startTick": 62400,
+      "endTick": 64320,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_006_moveconstant-token-2"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq06-source06-drag",
+      "eventId": "grudge-eq06-source06-spin-drag-event",
+      "type": "drag",
+      "equationId": "Year6_006_moveconstant",
+      "startTick": 66240,
+      "endTick": 68160,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_006_moveconstant-token-2",
+          "sourceHitId": "grudge-eq06-source06-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq07-source07-hit1",
+      "eventId": "grudge-eq07-source07-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 74880,
+      "endTick": 74880,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq07-source07-hit2",
+      "eventId": "grudge-eq07-source07-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 76800,
+      "endTick": 76800,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq07-source07-hit3",
+      "eventId": "grudge-eq07-source07-hit-event3",
+      "type": "hit",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 78720,
+      "endTick": 78720,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq07-source07-hit4",
+      "eventId": "grudge-eq07-source07-hit-event4",
+      "type": "hit",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 81000,
+      "endTick": 81000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq08-source08-hit1",
+      "eventId": "grudge-eq08-source08-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 90240,
+      "endTick": 90240,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq08-source08-spin",
+      "eventId": "grudge-eq08-source08-spin-drag-event",
+      "type": "spin",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 93600,
+      "endTick": 95520,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq08-source08-drag",
+      "eventId": "grudge-eq08-source08-spin-drag-event",
+      "type": "drag",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 97440,
+      "endTick": 99360,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "sourceHitId": "grudge-eq08-source08-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq09-source09-hit1",
+      "eventId": "grudge-eq09-source09-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_009_moveconstant",
+      "startTick": 99840,
+      "endTick": 99840,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_009_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq09-source09-drag",
+      "eventId": "grudge-eq09-source09-drag-event",
+      "type": "drag",
+      "equationId": "Year6_009_moveconstant",
+      "startTick": 103200,
+      "endTick": 105120,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_009_moveconstant-token-2",
+          "sourceHitId": "grudge-eq09-source09-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq10-source10-hit1",
+      "eventId": "grudge-eq10-source10-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_009_moveconstant",
+      "startTick": 105600,
+      "endTick": 105600,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_009_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq10-source10-drag",
+      "eventId": "grudge-eq10-source10-drag-event",
+      "type": "drag",
+      "equationId": "Year6_009_moveconstant",
+      "startTick": 108960,
+      "endTick": 110880,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_009_moveconstant-token-2",
+          "sourceHitId": "grudge-eq10-source10-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq11-source11-hit1",
+      "eventId": "grudge-eq11-source11-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_012_moveconstant",
+      "startTick": 115200,
+      "endTick": 115200,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_012_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq11-source11-drag",
+      "eventId": "grudge-eq11-source11-drag-event",
+      "type": "drag",
+      "equationId": "Year6_012_moveconstant",
+      "startTick": 118560,
+      "endTick": 120480,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_012_moveconstant-token-2",
+          "sourceHitId": "grudge-eq11-source11-hit1"
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq12-source12-hit1",
+      "eventId": "grudge-eq12-source12-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_012_moveconstant",
+      "startTick": 122880,
+      "endTick": 122880,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_012_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grudge-eq12-source12-drag",
+      "eventId": "grudge-eq12-source12-drag-event",
+      "type": "drag",
+      "equationId": "Year6_012_moveconstant",
+      "startTick": 126240,
+      "endTick": 128160,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_012_moveconstant-token-2",
+          "sourceHitId": "grudge-eq12-source12-hit1"
+        }
+      ]
+    }
+  ],
+  "rhythmDifficultyKey": "HardSingle"
+}

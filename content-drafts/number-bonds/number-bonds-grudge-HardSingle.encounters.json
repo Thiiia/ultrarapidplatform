@@ -1,0 +1,467 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "grudge",
+  "activityKey": "number-bonds",
+  "stopAtSeconds": 188.3,
+  "equations": [
+    {
+      "id": "grudge-bond-equation",
+      "state": "3 + 4 = 7",
+      "tokens": [
+        {
+          "id": "grudge-bond-part-a",
+          "label": "3"
+        },
+        {
+          "id": "grudge-bond-plus",
+          "label": "+"
+        },
+        {
+          "id": "grudge-bond-part-b",
+          "label": "4"
+        },
+        {
+          "id": "grudge-bond-equals",
+          "label": "="
+        },
+        {
+          "id": "grudge-bond-whole",
+          "label": "7"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "nb-grudge-hardsingle-01-hit",
+      "eventId": "nb-grudge-hardsingle-01-hit-event",
+      "type": "hit",
+      "equationId": "grudge-bond-equation",
+      "startTick": 4800,
+      "endTick": 4800,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-01-spin",
+      "eventId": "nb-grudge-hardsingle-01-spin-event",
+      "type": "spin",
+      "equationId": "grudge-bond-equation",
+      "startTick": 6141,
+      "endTick": 6381,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "sourceHitId": "nb-grudge-hardsingle-01-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-01-drag",
+      "eventId": "nb-grudge-hardsingle-01-drag-event",
+      "type": "drag",
+      "equationId": "grudge-bond-equation",
+      "startTick": 7582,
+      "endTick": 7822,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "grudge-bond-part-a",
+          "sourceHitId": "nb-grudge-hardsingle-01-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-02-hit",
+      "eventId": "nb-grudge-hardsingle-02-hit-event",
+      "type": "hit",
+      "equationId": "grudge-bond-equation",
+      "startTick": 23040,
+      "endTick": 23040,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-02-spin",
+      "eventId": "nb-grudge-hardsingle-02-spin-event",
+      "type": "spin",
+      "equationId": "grudge-bond-equation",
+      "startTick": 24381,
+      "endTick": 24621,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "sourceHitId": "nb-grudge-hardsingle-02-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-02-drag",
+      "eventId": "nb-grudge-hardsingle-02-drag-event",
+      "type": "drag",
+      "equationId": "grudge-bond-equation",
+      "startTick": 25822,
+      "endTick": 26062,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "grudge-bond-part-a",
+          "sourceHitId": "nb-grudge-hardsingle-02-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-03-hit",
+      "eventId": "nb-grudge-hardsingle-03-hit-event",
+      "type": "hit",
+      "equationId": "grudge-bond-equation",
+      "startTick": 41760,
+      "endTick": 41760,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-03-spin",
+      "eventId": "nb-grudge-hardsingle-03-spin-event",
+      "type": "spin",
+      "equationId": "grudge-bond-equation",
+      "startTick": 43101,
+      "endTick": 43341,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "sourceHitId": "nb-grudge-hardsingle-03-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-03-drag",
+      "eventId": "nb-grudge-hardsingle-03-drag-event",
+      "type": "drag",
+      "equationId": "grudge-bond-equation",
+      "startTick": 44542,
+      "endTick": 44782,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "grudge-bond-part-a",
+          "sourceHitId": "nb-grudge-hardsingle-03-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-04-hit",
+      "eventId": "nb-grudge-hardsingle-04-hit-event",
+      "type": "hit",
+      "equationId": "grudge-bond-equation",
+      "startTick": 70440,
+      "endTick": 70440,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-04-spin",
+      "eventId": "nb-grudge-hardsingle-04-spin-event",
+      "type": "spin",
+      "equationId": "grudge-bond-equation",
+      "startTick": 71781,
+      "endTick": 72021,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "sourceHitId": "nb-grudge-hardsingle-04-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-04-drag",
+      "eventId": "nb-grudge-hardsingle-04-drag-event",
+      "type": "drag",
+      "equationId": "grudge-bond-equation",
+      "startTick": 73222,
+      "endTick": 73462,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-bond-part-b",
+          "sourceHitId": "nb-grudge-hardsingle-04-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-05-hit",
+      "eventId": "nb-grudge-hardsingle-05-hit-event",
+      "type": "hit",
+      "equationId": "grudge-bond-equation",
+      "startTick": 91680,
+      "endTick": 91680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-05-spin",
+      "eventId": "nb-grudge-hardsingle-05-spin-event",
+      "type": "spin",
+      "equationId": "grudge-bond-equation",
+      "startTick": 93021,
+      "endTick": 93261,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "sourceHitId": "nb-grudge-hardsingle-05-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-05-drag",
+      "eventId": "nb-grudge-hardsingle-05-drag-event",
+      "type": "drag",
+      "equationId": "grudge-bond-equation",
+      "startTick": 94462,
+      "endTick": 94702,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-bond-part-b",
+          "sourceHitId": "nb-grudge-hardsingle-05-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-06-hit",
+      "eventId": "nb-grudge-hardsingle-06-hit-event",
+      "type": "hit",
+      "equationId": "grudge-bond-equation",
+      "startTick": 113160,
+      "endTick": 113160,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-06-spin",
+      "eventId": "nb-grudge-hardsingle-06-spin-event",
+      "type": "spin",
+      "equationId": "grudge-bond-equation",
+      "startTick": 114501,
+      "endTick": 114741,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "sourceHitId": "nb-grudge-hardsingle-06-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-06-drag",
+      "eventId": "nb-grudge-hardsingle-06-drag-event",
+      "type": "drag",
+      "equationId": "grudge-bond-equation",
+      "startTick": 115942,
+      "endTick": 116182,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-bond-part-b",
+          "sourceHitId": "nb-grudge-hardsingle-06-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-07-hit",
+      "eventId": "nb-grudge-hardsingle-07-hit-event",
+      "type": "hit",
+      "equationId": "grudge-bond-equation",
+      "startTick": 136320,
+      "endTick": 136320,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-07-spin",
+      "eventId": "nb-grudge-hardsingle-07-spin-event",
+      "type": "spin",
+      "equationId": "grudge-bond-equation",
+      "startTick": 137661,
+      "endTick": 137901,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "grudge-bond-whole",
+          "sourceHitId": "nb-grudge-hardsingle-07-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-grudge-hardsingle-07-drag",
+      "eventId": "nb-grudge-hardsingle-07-drag-event",
+      "type": "drag",
+      "equationId": "grudge-bond-equation",
+      "startTick": 139102,
+      "endTick": 139342,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "grudge-bond-part-b",
+          "sourceHitId": "nb-grudge-hardsingle-07-hit"
+        }
+      ]
+    }
+  ],
+  "numberBondSequenceVersion": 1,
+  "numberBondGems": [
+    {
+      "gemId": "nb-grudge-hardsingle-01-gem",
+      "unitIndex": 0,
+      "spinEncounterId": "nb-grudge-hardsingle-01-spin",
+      "dragEncounterId": "nb-grudge-hardsingle-01-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-grudge-hardsingle-02-gem",
+      "unitIndex": 1,
+      "spinEncounterId": "nb-grudge-hardsingle-02-spin",
+      "dragEncounterId": "nb-grudge-hardsingle-02-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-grudge-hardsingle-03-gem",
+      "unitIndex": 2,
+      "spinEncounterId": "nb-grudge-hardsingle-03-spin",
+      "dragEncounterId": "nb-grudge-hardsingle-03-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 2
+      }
+    },
+    {
+      "gemId": "nb-grudge-hardsingle-04-gem",
+      "unitIndex": 3,
+      "spinEncounterId": "nb-grudge-hardsingle-04-spin",
+      "dragEncounterId": "nb-grudge-hardsingle-04-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-grudge-hardsingle-05-gem",
+      "unitIndex": 4,
+      "spinEncounterId": "nb-grudge-hardsingle-05-spin",
+      "dragEncounterId": "nb-grudge-hardsingle-05-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-grudge-hardsingle-06-gem",
+      "unitIndex": 5,
+      "spinEncounterId": "nb-grudge-hardsingle-06-spin",
+      "dragEncounterId": "nb-grudge-hardsingle-06-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 2
+      }
+    },
+    {
+      "gemId": "nb-grudge-hardsingle-07-gem",
+      "unitIndex": 6,
+      "spinEncounterId": "nb-grudge-hardsingle-07-spin",
+      "dragEncounterId": "nb-grudge-hardsingle-07-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 3
+      }
+    }
+  ]
+}

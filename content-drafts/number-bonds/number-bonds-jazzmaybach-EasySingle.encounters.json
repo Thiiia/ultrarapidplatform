@@ -1,0 +1,345 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "jazzmaybach",
+  "activityKey": "number-bonds",
+  "stopAtSeconds": 192.055,
+  "equations": [
+    {
+      "id": "jazzmaybach-bond-equation",
+      "state": "2 + 3 = 5",
+      "tokens": [
+        {
+          "id": "jazzmaybach-bond-part-a",
+          "label": "2"
+        },
+        {
+          "id": "jazzmaybach-bond-plus",
+          "label": "+"
+        },
+        {
+          "id": "jazzmaybach-bond-part-b",
+          "label": "3"
+        },
+        {
+          "id": "jazzmaybach-bond-equals",
+          "label": "="
+        },
+        {
+          "id": "jazzmaybach-bond-whole",
+          "label": "5"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "nb-jazzmaybach-easysingle-01-hit",
+      "eventId": "nb-jazzmaybach-easysingle-01-hit-event",
+      "type": "hit",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 6720,
+      "endTick": 6720,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "jazzmaybach-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-01-spin",
+      "eventId": "nb-jazzmaybach-easysingle-01-spin-event",
+      "type": "spin",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 8369,
+      "endTick": 8609,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "jazzmaybach-bond-whole",
+          "sourceHitId": "nb-jazzmaybach-easysingle-01-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-01-drag",
+      "eventId": "nb-jazzmaybach-easysingle-01-drag-event",
+      "type": "drag",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 10086,
+      "endTick": 10326,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "jazzmaybach-bond-part-a",
+          "sourceHitId": "nb-jazzmaybach-easysingle-01-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-02-hit",
+      "eventId": "nb-jazzmaybach-easysingle-02-hit-event",
+      "type": "hit",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 48000,
+      "endTick": 48000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "jazzmaybach-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-02-spin",
+      "eventId": "nb-jazzmaybach-easysingle-02-spin-event",
+      "type": "spin",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 49649,
+      "endTick": 49889,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "jazzmaybach-bond-whole",
+          "sourceHitId": "nb-jazzmaybach-easysingle-02-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-02-drag",
+      "eventId": "nb-jazzmaybach-easysingle-02-drag-event",
+      "type": "drag",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 51366,
+      "endTick": 51606,
+      "dragTargets": [
+        {
+          "tokenIndex": 0,
+          "targetId": "jazzmaybach-bond-part-a",
+          "sourceHitId": "nb-jazzmaybach-easysingle-02-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-03-hit",
+      "eventId": "nb-jazzmaybach-easysingle-03-hit-event",
+      "type": "hit",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 86400,
+      "endTick": 86400,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "jazzmaybach-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-03-spin",
+      "eventId": "nb-jazzmaybach-easysingle-03-spin-event",
+      "type": "spin",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 88049,
+      "endTick": 88289,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "jazzmaybach-bond-whole",
+          "sourceHitId": "nb-jazzmaybach-easysingle-03-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-03-drag",
+      "eventId": "nb-jazzmaybach-easysingle-03-drag-event",
+      "type": "drag",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 89766,
+      "endTick": 90006,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "jazzmaybach-bond-part-b",
+          "sourceHitId": "nb-jazzmaybach-easysingle-03-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-04-hit",
+      "eventId": "nb-jazzmaybach-easysingle-04-hit-event",
+      "type": "hit",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 126000,
+      "endTick": 126000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "jazzmaybach-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-04-spin",
+      "eventId": "nb-jazzmaybach-easysingle-04-spin-event",
+      "type": "spin",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 127649,
+      "endTick": 127889,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "jazzmaybach-bond-whole",
+          "sourceHitId": "nb-jazzmaybach-easysingle-04-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-04-drag",
+      "eventId": "nb-jazzmaybach-easysingle-04-drag-event",
+      "type": "drag",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 129366,
+      "endTick": 129606,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "jazzmaybach-bond-part-b",
+          "sourceHitId": "nb-jazzmaybach-easysingle-04-hit"
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-05-hit",
+      "eventId": "nb-jazzmaybach-easysingle-05-hit-event",
+      "type": "hit",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 168360,
+      "endTick": 168360,
+      "hitBubbles": [
+        {
+          "tokenIndex": 4,
+          "targetId": "jazzmaybach-bond-whole",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-05-spin",
+      "eventId": "nb-jazzmaybach-easysingle-05-spin-event",
+      "type": "spin",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 170009,
+      "endTick": 170249,
+      "spinTargets": [
+        {
+          "tokenIndex": 4,
+          "targetId": "jazzmaybach-bond-whole",
+          "sourceHitId": "nb-jazzmaybach-easysingle-05-hit",
+          "pads": [
+            "topLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nb-jazzmaybach-easysingle-05-drag",
+      "eventId": "nb-jazzmaybach-easysingle-05-drag-event",
+      "type": "drag",
+      "equationId": "jazzmaybach-bond-equation",
+      "startTick": 171726,
+      "endTick": 171966,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "jazzmaybach-bond-part-b",
+          "sourceHitId": "nb-jazzmaybach-easysingle-05-hit"
+        }
+      ]
+    }
+  ],
+  "numberBondSequenceVersion": 1,
+  "numberBondGems": [
+    {
+      "gemId": "nb-jazzmaybach-easysingle-01-gem",
+      "unitIndex": 0,
+      "spinEncounterId": "nb-jazzmaybach-easysingle-01-spin",
+      "dragEncounterId": "nb-jazzmaybach-easysingle-01-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-jazzmaybach-easysingle-02-gem",
+      "unitIndex": 1,
+      "spinEncounterId": "nb-jazzmaybach-easysingle-02-spin",
+      "dragEncounterId": "nb-jazzmaybach-easysingle-02-drag",
+      "destination": {
+        "part": "part-a",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-jazzmaybach-easysingle-03-gem",
+      "unitIndex": 2,
+      "spinEncounterId": "nb-jazzmaybach-easysingle-03-spin",
+      "dragEncounterId": "nb-jazzmaybach-easysingle-03-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 0
+      }
+    },
+    {
+      "gemId": "nb-jazzmaybach-easysingle-04-gem",
+      "unitIndex": 3,
+      "spinEncounterId": "nb-jazzmaybach-easysingle-04-spin",
+      "dragEncounterId": "nb-jazzmaybach-easysingle-04-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 1
+      }
+    },
+    {
+      "gemId": "nb-jazzmaybach-easysingle-05-gem",
+      "unitIndex": 4,
+      "spinEncounterId": "nb-jazzmaybach-easysingle-05-spin",
+      "dragEncounterId": "nb-jazzmaybach-easysingle-05-drag",
+      "destination": {
+        "part": "part-b",
+        "slotIndex": 2
+      }
+    }
+  ]
+}

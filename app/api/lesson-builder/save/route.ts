@@ -32,7 +32,11 @@ import {
   resolveRhythmSourceRevision,
   type ResolvedRhythmSource,
 } from "@/lib/song-rhythm-bootstrap";
-import { isRhythmDifficultyKey, type RhythmDifficultyKey } from "@/lib/number-bonds-sidecar";
+import {
+  isRhythmDifficultyActivityKey,
+  isRhythmDifficultyKey,
+  type RhythmDifficultyKey,
+} from "@/lib/number-bonds-sidecar";
 
 function resolveAuthorFolder(user: { name: string | null; email: string | null }) {
   const name = user.name?.trim();
@@ -351,7 +355,7 @@ export async function POST(request: Request) {
         authorId: targetAuthor.id,
         activityKey,
         authorFolder,
-        rhythmDifficultyKey: activityKey === "number-bonds" ? rhythmDifficultyKey : null,
+        rhythmDifficultyKey: isRhythmDifficultyActivityKey(activityKey) ? rhythmDifficultyKey : null,
       });
     } catch (error) {
       return NextResponse.json(
@@ -426,7 +430,7 @@ export async function POST(request: Request) {
       ) {
         return NextResponse.json({ error: "Publication request id belongs to a different lesson" }, { status: 409 });
       }
-      if (activityKey === "number-bonds" && rhythmDifficultyKey &&
+      if (isRhythmDifficultyActivityKey(activityKey) && rhythmDifficultyKey &&
           replayedPublication.sidecarPath.replace(/\\/g, "/").split("/").pop() !==
             buildAuthoredChartStoragePaths({ activityKey, songAssetId, authorFolder, rhythmDifficultyKey }).sidecarPath.split("/").pop()) {
         return NextResponse.json({ error: "Publication request id belongs to a different rhythm difficulty" }, { status: 409 });
@@ -575,7 +579,7 @@ export async function POST(request: Request) {
         activityKey,
         authorId: targetAuthor.id,
         revision: revisionId,
-        ...(activityKey === "number-bonds" && rhythmDifficultyKey ? { rhythmDifficultyKey } : {}),
+        ...(isRhythmDifficultyActivityKey(activityKey) && rhythmDifficultyKey ? { rhythmDifficultyKey } : {}),
       };
       const legacyToTickAfterSeconds = (tick: number, seconds: number) => {
         return authoredClock.toTick(authoredClock.toSeconds(tick) + seconds);

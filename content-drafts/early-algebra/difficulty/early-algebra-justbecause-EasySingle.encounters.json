@@ -1,0 +1,690 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "justbecause",
+  "activityKey": "early-algebra",
+  "equations": [
+    {
+      "id": "Year6_002_moveconstant",
+      "state": "x+2=5",
+      "tokens": [
+        {
+          "id": "Year6_002_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_002_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_002_moveconstant-token-2",
+          "label": "2"
+        },
+        {
+          "id": "Year6_002_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_002_moveconstant-token-4",
+          "label": "5"
+        }
+      ]
+    },
+    {
+      "id": "Year6_004_moveconstant",
+      "state": "x+4=8",
+      "tokens": [
+        {
+          "id": "Year6_004_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_004_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_004_moveconstant-token-2",
+          "label": "4"
+        },
+        {
+          "id": "Year6_004_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_004_moveconstant-token-4",
+          "label": "8"
+        }
+      ]
+    },
+    {
+      "id": "Year6_006_moveconstant",
+      "state": "x-1=2",
+      "tokens": [
+        {
+          "id": "Year6_006_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_006_moveconstant-token-1",
+          "label": "-"
+        },
+        {
+          "id": "Year6_006_moveconstant-token-2",
+          "label": "1"
+        },
+        {
+          "id": "Year6_006_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_006_moveconstant-token-4",
+          "label": "2"
+        }
+      ]
+    },
+    {
+      "id": "Year6_005_moveconstant",
+      "state": "x+5=9",
+      "tokens": [
+        {
+          "id": "Year6_005_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_005_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_005_moveconstant-token-2",
+          "label": "5"
+        },
+        {
+          "id": "Year6_005_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_005_moveconstant-token-4",
+          "label": "9"
+        }
+      ]
+    },
+    {
+      "id": "Year6_008_moveconstant",
+      "state": "x-3=4",
+      "tokens": [
+        {
+          "id": "Year6_008_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_008_moveconstant-token-1",
+          "label": "-"
+        },
+        {
+          "id": "Year6_008_moveconstant-token-2",
+          "label": "3"
+        },
+        {
+          "id": "Year6_008_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_008_moveconstant-token-4",
+          "label": "4"
+        }
+      ]
+    },
+    {
+      "id": "Year6_010_moveconstant",
+      "state": "x+1=6",
+      "tokens": [
+        {
+          "id": "Year6_010_moveconstant-token-0",
+          "label": "x"
+        },
+        {
+          "id": "Year6_010_moveconstant-token-1",
+          "label": "+"
+        },
+        {
+          "id": "Year6_010_moveconstant-token-2",
+          "label": "1"
+        },
+        {
+          "id": "Year6_010_moveconstant-token-3",
+          "label": "="
+        },
+        {
+          "id": "Year6_010_moveconstant-token-4",
+          "label": "6"
+        }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "justbecause-eq01-source01-hit1",
+      "eventId": "justbecause-eq01-source01-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_002_moveconstant",
+      "startTick": 7200,
+      "endTick": 7200,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_002_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq01-source01-drag",
+      "eventId": "justbecause-eq01-source01-drag-event",
+      "type": "drag",
+      "equationId": "Year6_002_moveconstant",
+      "startTick": 10560,
+      "endTick": 12480,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_002_moveconstant-token-2",
+          "sourceHitId": "justbecause-eq01-source01-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq02-source02-hit1",
+      "eventId": "justbecause-eq02-source02-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_002_moveconstant",
+      "startTick": 24960,
+      "endTick": 24960,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_002_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq02-source02-drag",
+      "eventId": "justbecause-eq02-source02-drag-event",
+      "type": "drag",
+      "equationId": "Year6_002_moveconstant",
+      "startTick": 28320,
+      "endTick": 30240,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_002_moveconstant-token-2",
+          "sourceHitId": "justbecause-eq02-source02-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq03-source03-hit1",
+      "eventId": "justbecause-eq03-source03-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 34560,
+      "endTick": 34560,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq03-source03-drag",
+      "eventId": "justbecause-eq03-source03-drag-event",
+      "type": "drag",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 37920,
+      "endTick": 39840,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "sourceHitId": "justbecause-eq03-source03-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq04-source04-hit1",
+      "eventId": "justbecause-eq04-source04-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 44160,
+      "endTick": 44160,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq04-source04-hit2",
+      "eventId": "justbecause-eq04-source04-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 46080,
+      "endTick": 46080,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq04-source04-hit3",
+      "eventId": "justbecause-eq04-source04-hit-event3",
+      "type": "hit",
+      "equationId": "Year6_004_moveconstant",
+      "startTick": 48000,
+      "endTick": 48000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_004_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq05-source05-hit1",
+      "eventId": "justbecause-eq05-source05-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_006_moveconstant",
+      "startTick": 62640,
+      "endTick": 62640,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_006_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq05-source05-hit2",
+      "eventId": "justbecause-eq05-source05-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_006_moveconstant",
+      "startTick": 65040,
+      "endTick": 65040,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_006_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq05-source05-drag",
+      "eventId": "justbecause-eq05-source05-drag-event",
+      "type": "drag",
+      "equationId": "Year6_006_moveconstant",
+      "startTick": 68400,
+      "endTick": 70320,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_006_moveconstant-token-2",
+          "sourceHitId": "justbecause-eq05-source05-hit2"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq06-source06-hit1",
+      "eventId": "justbecause-eq06-source06-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_006_moveconstant",
+      "startTick": 80160,
+      "endTick": 80160,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_006_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq06-source06-drag",
+      "eventId": "justbecause-eq06-source06-drag-event",
+      "type": "drag",
+      "equationId": "Year6_006_moveconstant",
+      "startTick": 83520,
+      "endTick": 85440,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_006_moveconstant-token-2",
+          "sourceHitId": "justbecause-eq06-source06-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq07-source07-hit1",
+      "eventId": "justbecause-eq07-source07-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 97920,
+      "endTick": 97920,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq07-source07-drag",
+      "eventId": "justbecause-eq07-source07-drag-event",
+      "type": "drag",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 101280,
+      "endTick": 103200,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "sourceHitId": "justbecause-eq07-source07-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq08-source08-hit1",
+      "eventId": "justbecause-eq08-source08-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 115200,
+      "endTick": 115200,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq08-source08-spin",
+      "eventId": "justbecause-eq08-source08-spin-drag-event",
+      "type": "spin",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 118560,
+      "endTick": 120480,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq08-source08-drag",
+      "eventId": "justbecause-eq08-source08-spin-drag-event",
+      "type": "drag",
+      "equationId": "Year6_005_moveconstant",
+      "startTick": 122400,
+      "endTick": 124320,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_005_moveconstant-token-2",
+          "sourceHitId": "justbecause-eq08-source08-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq09-source09-hit1",
+      "eventId": "justbecause-eq09-source09-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_008_moveconstant",
+      "startTick": 124080,
+      "endTick": 124080,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_008_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq09-source09-drag",
+      "eventId": "justbecause-eq09-source09-drag-event",
+      "type": "drag",
+      "equationId": "Year6_008_moveconstant",
+      "startTick": 127440,
+      "endTick": 129360,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_008_moveconstant-token-2",
+          "sourceHitId": "justbecause-eq09-source09-hit1"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq10-source10-hit1",
+      "eventId": "justbecause-eq10-source10-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_008_moveconstant",
+      "startTick": 135360,
+      "endTick": 135360,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_008_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "bottom"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq10-source10-hit2",
+      "eventId": "justbecause-eq10-source10-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_008_moveconstant",
+      "startTick": 138120,
+      "endTick": 138120,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_008_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq10-source10-hit3",
+      "eventId": "justbecause-eq10-source10-hit-event3",
+      "type": "hit",
+      "equationId": "Year6_008_moveconstant",
+      "startTick": 141960,
+      "endTick": 141960,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_008_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq11-source11-hit1",
+      "eventId": "justbecause-eq11-source11-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_010_moveconstant",
+      "startTick": 153600,
+      "endTick": 153600,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_010_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperLeft"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq11-source11-hit2",
+      "eventId": "justbecause-eq11-source11-hit-event2",
+      "type": "hit",
+      "equationId": "Year6_010_moveconstant",
+      "startTick": 156000,
+      "endTick": 156000,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_010_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "top"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq11-source11-hit3",
+      "eventId": "justbecause-eq11-source11-hit-event3",
+      "type": "hit",
+      "equationId": "Year6_010_moveconstant",
+      "startTick": 158280,
+      "endTick": 158280,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_010_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "upperRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq11-source11-hit4",
+      "eventId": "justbecause-eq11-source11-hit-event4",
+      "type": "hit",
+      "equationId": "Year6_010_moveconstant",
+      "startTick": 160680,
+      "endTick": 160680,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_010_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq12-source12-hit1",
+      "eventId": "justbecause-eq12-source12-hit-event1",
+      "type": "hit",
+      "equationId": "Year6_010_moveconstant",
+      "startTick": 168960,
+      "endTick": 168960,
+      "hitBubbles": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_010_moveconstant-token-2",
+          "padLayoutVersion": 2,
+          "pads": [
+            "lowerRight"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq12-source12-spin",
+      "eventId": "justbecause-eq12-source12-spin-drag-event",
+      "type": "spin",
+      "equationId": "Year6_010_moveconstant",
+      "startTick": 172320,
+      "endTick": 174240,
+      "spinTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_010_moveconstant-token-2"
+        }
+      ]
+    },
+    {
+      "id": "justbecause-eq12-source12-drag",
+      "eventId": "justbecause-eq12-source12-spin-drag-event",
+      "type": "drag",
+      "equationId": "Year6_010_moveconstant",
+      "startTick": 176160,
+      "endTick": 178080,
+      "dragTargets": [
+        {
+          "tokenIndex": 2,
+          "targetId": "Year6_010_moveconstant-token-2",
+          "sourceHitId": "justbecause-eq12-source12-hit1"
+        }
+      ]
+    }
+  ],
+  "rhythmDifficultyKey": "EasySingle"
+}

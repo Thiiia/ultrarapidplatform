@@ -7,6 +7,14 @@ export function getPlayerLaunchRoute(navBasePath: string): string {
   return `${navBasePath}/game`;
 }
 
+export function getSongChoiceRoute(navBasePath: string, activityKey?: string | null): string {
+  const route = `${navBasePath}/song-choice`;
+  if (!activityKey?.trim()) return route;
+
+  const searchParams = new URLSearchParams({ activity: activityKey.trim() });
+  return `${route}?${searchParams.toString()}`;
+}
+
 export function buildSongSelectionCacheKey(songId: string, activityKey: string) {
   return `${activityKey}:${songId}`;
 }
