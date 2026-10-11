@@ -4,6 +4,7 @@ import { getUnityRuntimeActivityIssue, isCurrentUnityRuntimeActivity } from "@/l
 import {
   isLegacyEarlyAlgebraSidecarPathForSong,
   isLegacyNumberBondsSidecarPathForSong,
+  isLegacySidecarCompanionForChart,
   earlyAlgebraSidecarPathMatchesSelection,
   numberBondsSidecarPathMatchesSelection,
   type RhythmDifficultyKey,
@@ -424,9 +425,10 @@ export async function resolveFreshSongLaunchPackage({
       ? numberBondsSidecarPathMatchesSelection({ sidecarPath: chartTargets.sidecarPath, songAssetId: canonicalSongAssetId, rhythmDifficultyKey })
       : earlyAlgebraSidecarPathMatchesSelection({ sidecarPath: chartTargets.sidecarPath, songAssetId: canonicalSongAssetId, rhythmDifficultyKey });
   const legacyDifficultySidecar = hasDifficultyKeyedActivity
-    ? requestedActivityKey === "number-bonds"
-      ? isLegacyNumberBondsSidecarPathForSong(chartTargets.sidecarPath, canonicalSongAssetId)
-      : isLegacyEarlyAlgebraSidecarPathForSong(chartTargets.sidecarPath, canonicalSongAssetId)
+    ? isLegacySidecarCompanionForChart(chartTargets.sidecarPath, chartTargets.chartPath) ||
+      (requestedActivityKey === "number-bonds"
+        ? isLegacyNumberBondsSidecarPathForSong(chartTargets.sidecarPath, canonicalSongAssetId)
+        : isLegacyEarlyAlgebraSidecarPathForSong(chartTargets.sidecarPath, canonicalSongAssetId))
     : false;
   if (rhythmDifficultyKey && hasDifficultyKeyedActivity && !difficultySidecarMatches && !legacyDifficultySidecar) {
     throw new SongLaunchRevisionNotFoundError(

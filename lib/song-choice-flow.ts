@@ -65,9 +65,30 @@ export function getSongLaunchErrorMessage(error: unknown) {
     typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
       ? error.code
       : null;
+  const errorStatus =
+    typeof error === "object" && error !== null && "status" in error && typeof error.status === "number"
+      ? error.status
+      : null;
+  const launchErrors = studentCopy.songChoice.launchErrors;
 
   if (errorCode === "RUNTIME_CAPABILITY_UNAVAILABLE") {
     return studentCopy.game.runtimeUnavailable;
+  }
+
+  switch (errorCode) {
+    case "PACKAGE_UNAVAILABLE":
+      return launchErrors.preparationUnavailable;
+    case "REVISION_NOT_FOUND":
+      return launchErrors.revisionUnavailable;
+    case "ATTEMPT_NOT_AUTHENTICATED":
+      return launchErrors.sessionSignIn;
+    case "ATTEMPT_NOT_FOUND":
+    case "ATTEMPT_TERMINAL":
+      return launchErrors.sessionEnded;
+    case "ATTEMPT_FORBIDDEN":
+      return launchErrors.sessionUnavailable;
+    case "ATTEMPT_IDENTITY_MISMATCH":
+      return launchErrors.lessonChanged;
   }
 
   const learnerMessage = LEARNER_READINESS_MESSAGES.find(([pattern]) => pattern.test(rawMessage))?.[1];
@@ -75,9 +96,25 @@ export function getSongLaunchErrorMessage(error: unknown) {
     return learnerMessage;
   }
 
-  if (!rawMessage) {
-    return "We couldn’t load this song’s lesson files. Try again or choose another song.";
+  if (/failed to fetch|fetch failed|load failed|networkerror|network request failed/i.test(rawMessage)) {
+    return launchErrors.connectionInterrupted;
   }
 
-  return "We couldn’t load this song’s lesson files. Try again or choose another song.";
+  const signedAssetStatus = rawMessage.match(/^Unable to load (?:text |JSON )?file:\s*(\d{3})\b/i)?.[1];
+  const status = signedAssetStatus ? Number(signedAssetStatus) : errorStatus;
+
+  if (status === 401 || status === 403 || status === 410) {
+    return launchErrors.lessonLinkUnavailable;
+  }
+  if (status === 404) {
+    return launchErrors.lessonContentMissing;
+  }
+  if (status === 429 || (status !== null && status >= 500)) {
+    return launchErrors.preparationUnavailable;
+  }
+  if (/sidecar did not contain valid JSON|invalid JSON|unexpected token/i.test(rawMessage)) {
+    return launchErrors.lessonDataUnreadable;
+  }
+
+  return launchErrors.unableToOpen;
 }

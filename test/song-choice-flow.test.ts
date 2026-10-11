@@ -36,7 +36,7 @@ test("only complete playable packages enable song choice continuation", () => {
 test("song choice replaces infrastructure details with recoverable player copy", () => {
   assert.equal(
     getSongLaunchErrorMessage(new Error("Missing SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL.")),
-    "We couldn’t load this song’s lesson files. Try again or choose another song.",
+    studentCopy.songChoice.launchErrors.unableToOpen,
   );
   assert.equal(
     getSongLaunchErrorMessage(new Error("No authored lesson or verified starter template is available. The blank chart is available for editing.")),
@@ -45,6 +45,48 @@ test("song choice replaces infrastructure details with recoverable player copy",
   assert.equal(
     getSongLaunchErrorMessage(new Error("This Number Bonds lesson has not been published yet. Open Lesson Builder.")),
     "This Number Bonds lesson is being built. Choose Build Number Bonds lesson to finish it, or try another song.",
+  );
+});
+
+test("song launch errors distinguish connection, temporary service, and lesson asset failures", () => {
+  assert.equal(
+    getSongLaunchErrorMessage(new TypeError("Failed to fetch")),
+    studentCopy.songChoice.launchErrors.connectionInterrupted,
+  );
+  assert.equal(
+    getSongLaunchErrorMessage(new TypeError("Cannot read properties of undefined")),
+    studentCopy.songChoice.launchErrors.unableToOpen,
+  );
+  assert.equal(
+    getSongLaunchErrorMessage(Object.assign(new Error("Package unavailable"), { code: "PACKAGE_UNAVAILABLE", status: 503 })),
+    studentCopy.songChoice.launchErrors.preparationUnavailable,
+  );
+  assert.equal(
+    getSongLaunchErrorMessage(new Error("Unable to load text file: 403")),
+    studentCopy.songChoice.launchErrors.lessonLinkUnavailable,
+  );
+  assert.equal(
+    getSongLaunchErrorMessage(new Error("Unable to load JSON file: 404")),
+    studentCopy.songChoice.launchErrors.lessonContentMissing,
+  );
+  assert.equal(
+    getSongLaunchErrorMessage(new Error("The lesson sidecar did not contain valid JSON. Unexpected token.")),
+    studentCopy.songChoice.launchErrors.lessonDataUnreadable,
+  );
+});
+
+test("song launch errors preserve actionable lesson-session recovery", () => {
+  assert.equal(
+    getSongLaunchErrorMessage(Object.assign(new Error("expired"), { code: "ATTEMPT_NOT_FOUND", status: 404 })),
+    studentCopy.songChoice.launchErrors.sessionEnded,
+  );
+  assert.equal(
+    getSongLaunchErrorMessage(Object.assign(new Error("wrong owner"), { code: "ATTEMPT_FORBIDDEN", status: 403 })),
+    studentCopy.songChoice.launchErrors.sessionUnavailable,
+  );
+  assert.equal(
+    getSongLaunchErrorMessage(Object.assign(new Error("stale lesson"), { code: "REVISION_NOT_FOUND", status: 404 })),
+    studentCopy.songChoice.launchErrors.revisionUnavailable,
   );
 });
 

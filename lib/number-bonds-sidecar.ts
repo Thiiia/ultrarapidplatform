@@ -95,7 +95,24 @@ export function isLegacyDifficultySidecarPathForSong(
     basename === `${normalizedSongAssetId}.encounters.json`;
 }
 
-export function selectDifficultySidecarRevision<T extends { sidecarPath: string; status?: string }>(
+export function isLegacySidecarCompanionForChart(
+  sidecarPath: string | null | undefined,
+  chartPath: string | null | undefined,
+) {
+  if (!sidecarPath || !chartPath) return false;
+
+  const sidecarBasename = sidecarPath.replace(/\\/g, "/").split("/").pop();
+  const chartBasename = chartPath.replace(/\\/g, "/").split("/").pop();
+  if (!sidecarBasename || !chartBasename || !/\.chart$/i.test(chartBasename)) return false;
+
+  const sidecarStem = sidecarBasename.replace(/(?:\.encounters)?\.json$/i, "");
+  const chartStem = chartBasename.replace(/\.chart$/i, "");
+  if (!sidecarStem || !chartStem || /-(?:easy|medium|hard|expert)single$/i.test(sidecarStem)) return false;
+
+  return sidecarStem.toLowerCase() === chartStem.toLowerCase();
+}
+
+export function selectDifficultySidecarRevision<T extends { sidecarPath: string; chartPath?: string; status?: string }>(
   revisions: readonly T[],
   songAssetId: string,
   rhythmDifficultyKey: RhythmDifficultyKey,
@@ -113,7 +130,8 @@ export function selectDifficultySidecarRevision<T extends { sidecarPath: string;
 
   return revisions.find((revision) =>
     revision.status === "ready" &&
-    isLegacyDifficultySidecarPathForSong(revision.sidecarPath, songAssetId, activityKey),
+    (isLegacyDifficultySidecarPathForSong(revision.sidecarPath, songAssetId, activityKey) ||
+      isLegacySidecarCompanionForChart(revision.sidecarPath, revision.chartPath)),
   ) ?? null;
 }
 
@@ -168,25 +186,29 @@ export function isLegacyNumberBondsSidecarPathForSong(sidecarPath: string | null
   return isLegacyDifficultySidecarPathForSong(sidecarPath, songAssetId, "number-bonds");
 }
 
-export function isLegacyEarlyAlgebraSidecarPathForSong(sidecarPath: string | null | undefined, _songAssetId: string) {
+export function isLegacyEarlyAlgebraSidecarPathForSong(sidecarPath: string | null | undefined, songAssetId: string) {
   if (!sidecarPath) return false;
+  const normalizedSongAssetId = songAssetId.trim().toLowerCase();
+  if (!/^[a-z0-9_-]+$/.test(normalizedSongAssetId)) return false;
+
   const normalizedPath = sidecarPath.replace(/\\/g, "/").toLowerCase();
   const basename = normalizedPath.split("/").pop();
   const belongsToEarlyAlgebra = normalizedPath.split("/").some((segment) =>
     segment === "early_algebra" || segment === "early-algebra",
   );
-  return belongsToEarlyAlgebra && Boolean(basename) && !basename!.startsWith("early-algebra-") &&
-    (basename!.endsWith(".json") || basename!.endsWith(".encounters.json"));
+  const belongsToSong = basename === `${normalizedSongAssetId}.json` ||
+    basename === `${normalizedSongAssetId}.encounters.json`;
+  return belongsToEarlyAlgebra && belongsToSong;
 }
 
-export function selectNumberBondsSidecarRevision<T extends { sidecarPath: string; status?: string }>(
+export function selectNumberBondsSidecarRevision<T extends { sidecarPath: string; chartPath?: string; status?: string }>(
   revisions: readonly T[], songAssetId: string, rhythmDifficultyKey: RhythmDifficultyKey,
   options: { allowLegacyReadyFallback?: boolean } = {},
 ) {
   return selectDifficultySidecarRevision(revisions, songAssetId, rhythmDifficultyKey, "number-bonds", options);
 }
 
-export function selectEarlyAlgebraSidecarRevision<T extends { sidecarPath: string; status?: string }>(
+export function selectEarlyAlgebraSidecarRevision<T extends { sidecarPath: string; chartPath?: string; status?: string }>(
   revisions: readonly T[], songAssetId: string, rhythmDifficultyKey: RhythmDifficultyKey,
   options: { allowLegacyReadyFallback?: boolean } = {},
 ) {

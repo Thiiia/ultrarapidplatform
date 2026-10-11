@@ -275,6 +275,57 @@ test("hash-complete legacy packages still require an immutable revision", async 
   }), /immutable revision/);
 });
 
+test("plays Early Algebra at each rhythm difficulty when a READY legacy sidecar is paired with its chart", async () => {
+  for (const rhythmDifficultyKey of ["EasySingle", "MediumSingle", "HardSingle", "ExpertSingle"] as const) {
+    const resolved = await resolveFreshSongLaunchPackage({
+      songAssetId: "garden",
+      activityKey: "early-algebra",
+      authorId: "demo-author",
+      rhythmDifficultyKey,
+      loadSongAsset: async () => ({
+        id: "garden", isActive: true, songBucket: "Songs", songPath: "songs/garden.mp3",
+      }),
+      loadSongChart: async () => ({
+        chartBucket: "Charts",
+        chartPath: "dev/Early_Algebra/revisions/rev-garden/Garden.chart",
+        sidecarBucket: "SidecarJsons",
+        sidecarPath: "dev/Early_Algebra/revisions/rev-garden/Garden.encounters.json",
+        authorId: "demo-author",
+        revision: "rev-garden",
+        counts: { encounters: 32, equations: 9, targets: 32 },
+        hashes: HASHES,
+      }),
+      createSignedUrl: async (_bucket, path) => `https://storage.example/${path}`,
+    });
+
+    assert.equal(resolved.readiness.canLaunch, true, rhythmDifficultyKey);
+    assert.equal(resolved.receipt?.rhythmDifficultyKey, rhythmDifficultyKey);
+  }
+});
+
+test("does not let an unpaired legacy sidecar satisfy a selected rhythm difficulty", async () => {
+  await assert.rejects(resolveFreshSongLaunchPackage({
+    songAssetId: "garden",
+    activityKey: "early-algebra",
+    authorId: "demo-author",
+    rhythmDifficultyKey: "ExpertSingle",
+    loadSongAsset: async () => ({
+      id: "garden", isActive: true, songBucket: "Songs", songPath: "songs/garden.mp3",
+    }),
+    loadSongChart: async () => ({
+      chartBucket: "Charts",
+      chartPath: "dev/Early_Algebra/revisions/rev-garden/Garden.chart",
+      sidecarBucket: "SidecarJsons",
+      sidecarPath: "dev/Early_Algebra/revisions/rev-garden/Other.encounters.json",
+      authorId: "demo-author",
+      revision: "rev-garden",
+      counts: { encounters: 32, equations: 9, targets: 32 },
+      hashes: HASHES,
+    }),
+    createSignedUrl: async (_bucket, path) => `https://storage.example/${path}`,
+  }), /does not match garden at ExpertSingle/);
+});
+
 test("revisioned authored packages still require immutable artifact hashes", async () => {
   await assert.rejects(resolveFreshSongLaunchPackage({
     songAssetId: "song-revisioned", activityKey: "early-algebra", authorId: "author-ready", revision: "rev-ready",

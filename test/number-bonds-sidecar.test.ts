@@ -8,6 +8,7 @@ import {
   getNumberBondsDifficultyFromSidecarPath,
   isLegacyEarlyAlgebraSidecarPathForSong,
   isLegacyNumberBondsSidecarPathForSong,
+  isLegacySidecarCompanionForChart,
   selectEarlyAlgebraSidecarRevision,
   selectNumberBondsSidecarRevision,
   type RhythmDifficultyKey,
@@ -59,6 +60,7 @@ test("Early Algebra sidecar identity maps song and difficulty without accepting 
     rhythmDifficultyKey: "HardSingle",
   }), true);
   assert.equal(isLegacyEarlyAlgebraSidecarPathForSong("Early_Algebra/revisions/r1/garden.encounters.json", "garden"), true);
+  assert.equal(isLegacyEarlyAlgebraSidecarPathForSong("Early_Algebra/revisions/r1/another-song.encounters.json", "garden"), false);
 });
 
 test("Early Algebra launch selection prefers the exact difficulty and only falls back to a READY legacy revision", () => {
@@ -70,6 +72,41 @@ test("Early Algebra launch selection prefers the exact difficulty and only falls
   assert.equal(selectEarlyAlgebraSidecarRevision([easy, hard], "garden", "HardSingle"), hard);
   assert.equal(selectEarlyAlgebraSidecarRevision([legacy, draftLegacy], "garden", "ExpertSingle", { allowLegacyReadyFallback: true }), legacy);
   assert.equal(selectEarlyAlgebraSidecarRevision([draftLegacy], "garden", "ExpertSingle", { allowLegacyReadyFallback: true }), null);
+});
+
+test("Early Algebra accepts READY title-named legacy sidecars only when paired with their chart", () => {
+  const publishedPairs = [
+    ["garden", "Garden.chart", "Garden.encounters.json"],
+    ["geminiqueen", "GEMINI QUEEN.chart", "GEMINI QUEEN.encounters.json"],
+    ["grudge", "Oogie Grudge.chart", "Oogie Grudge.encounters.json"],
+    ["jazzmaybach", "Melika.chart", "Melika.encounters.json"],
+    ["justbecause", "Oogie - just because.chart", "Oogie - just because.encounters.json"],
+    ["oneone", "one one.chart", "one one.encounters.json"],
+    ["seven", "EF - seven.chart", "EF - seven.encounters.json"],
+    ["waves", "Grafix - Waves.chart", "Grafix - Waves.encounters.json"],
+  ] as const;
+
+  for (const [songAssetId, chartFile, sidecarFile] of publishedPairs) {
+    const revision = {
+      revision: `${songAssetId}-legacy`,
+      status: "ready",
+      chartPath: `dev/Early_Algebra/revisions/${songAssetId}/${chartFile}`,
+      sidecarPath: `dev/Early_Algebra/revisions/${songAssetId}/${sidecarFile}`,
+    };
+
+    assert.equal(isLegacySidecarCompanionForChart(revision.sidecarPath, revision.chartPath), true, songAssetId);
+    for (const rhythmDifficultyKey of difficulties) {
+      assert.equal(
+        selectEarlyAlgebraSidecarRevision([revision], songAssetId, rhythmDifficultyKey, { allowLegacyReadyFallback: true }),
+        revision,
+        `${songAssetId} should use its READY chart companion for ${rhythmDifficultyKey}`,
+      );
+    }
+  }
+
+  assert.equal(isLegacySidecarCompanionForChart("Garden.encounters.json", "Another Song.chart"), false);
+  assert.equal(isLegacySidecarCompanionForChart("early-algebra-garden-HardSingle.encounters.json", "Garden.chart"), false);
+  assert.equal(isLegacySidecarCompanionForChart("Garden.encounters.json", "Garden.txt"), false);
 });
 
 test("sidecar identity rejects another song, difficulty spelling, or activity sidecar", () => {
