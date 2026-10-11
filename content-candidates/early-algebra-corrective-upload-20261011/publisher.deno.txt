@@ -1,0 +1,44 @@
+// Deno source kept outside the Platform TypeScript compilation. Temporary,
+// fixed-artifact publication worker. bundle.json is generated only
+// for the authenticated deployment; it includes a short expiry and proof hash.
+// No caller-supplied bucket, path, bytes, or database query is accepted.
+import bundle from "./bundle.json" with { type: "json" };
+
+const sha256 = async (bytes: Uint8Array) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))).map(value => value.toString(16).padStart(2, "0")).join("");
+const reply = (status: number, value: unknown) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+
+Deno.serve(async (request: Request) => {
+  if (request.method !== "POST") return reply(405, { code: "METHOD_NOT_ALLOWED" });
+  if (Date.now() > bundle.expiresAt) return reply(410, { code: "PUBLICATION_EXPIRED" });
+  if (await sha256(new TextEncoder().encode(request.headers.get("x-publication-proof") ?? "")) !== bundle.proofSha256) return reply(403, { code: "PUBLICATION_PROOF_REQUIRED" });
+  const url = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !serviceKey) return reply(503, { code: "SERVER_STORAGE_UNAVAILABLE" });
+  const headers = { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey };
+  const prepared: Array<{ artifact: typeof bundle.artifacts[number]; bytes: Uint8Array }> = [];
+  for (const artifact of bundle.artifacts) {
+    if (!["Charts", "SidecarJsons"].includes(artifact.bucket) || !/^dev\/Early_Algebra\/revisions\/[0-9a-f-]{36}\/[^/]+$/.test(artifact.path)) return reply(422, { code: "BUNDLE_PATH_INVALID" });
+    const bytes = Uint8Array.from(atob(artifact.base64), char => char.charCodeAt(0));
+    if (bytes.length !== artifact.size || await sha256(bytes) !== artifact.sha256) return reply(422, { code: "BUNDLE_HASH_INVALID" });
+    prepared.push({ artifact, bytes });
+  }
+  const results = [];
+  for (const { artifact, bytes } of prepared) {
+    const objectPath = `${artifact.bucket}/${artifact.path.split("/").map(encodeURIComponent).join("/")}`;
+    const download = `${url}/storage/v1/object/authenticated/${objectPath}`;
+    let existing = await fetch(download, { headers });
+    let uploaded = false;
+    if (!existing.ok) {
+      // Never replace a prior immutable object. A conflicting object is checked
+      // by the hash verification below, including a concurrent upload race.
+      const upload = await fetch(`${url}/storage/v1/object/${objectPath}`, { method: "POST", headers: { ...headers, "Content-Type": artifact.contentType, "x-upsert": "false" }, body: bytes });
+      uploaded = upload.ok;
+      existing = await fetch(download, { headers });
+    }
+    if (!existing.ok) return reply(502, { code: "ARTIFACT_UPLOAD_FAILED", bucket: artifact.bucket, path: artifact.path, status: existing.status });
+    const actual = new Uint8Array(await existing.arrayBuffer());
+    if (actual.length !== artifact.size || await sha256(actual) !== artifact.sha256) return reply(409, { code: "IMMUTABLE_ARTIFACT_CONFLICT", bucket: artifact.bucket, path: artifact.path });
+    results.push({ bucket: artifact.bucket, path: artifact.path, sha256: artifact.sha256, bytes: actual.length, uploaded });
+  }
+  return reply(200, { verified: results.length, artifacts: results });
+});

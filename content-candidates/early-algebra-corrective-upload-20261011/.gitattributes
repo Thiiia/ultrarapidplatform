@@ -1,0 +1,3 @@
+# Preserve the exact uploaded bytes recorded in manifest.csv.
+charts/**/*.chart -text
+sidecars/**/*.json -text

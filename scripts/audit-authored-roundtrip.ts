@@ -155,6 +155,7 @@ async function audit(options: AuditOptions) {
   const readinessBefore = evaluateLessonPublishReadiness(hydrated.events, {
     activityKey: options.activityKey,
     equationQueue: hydrated.equations,
+    stopAtSeconds: lesson.stopAtSeconds,
   });
 
   let serialization: {
@@ -180,6 +181,7 @@ async function audit(options: AuditOptions) {
     readinessAfterNoOp = evaluateLessonPublishReadiness(rehydrated.events, {
       activityKey: options.activityKey,
       equationQueue: rehydrated.equations,
+      stopAtSeconds: reparsed.stopAtSeconds,
     });
     const before = lesson.encounters.map(semanticSnapshot);
     const after = reparsed.encounters.map(semanticSnapshot);
