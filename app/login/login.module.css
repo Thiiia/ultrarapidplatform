@@ -1,0 +1,146 @@
+.page {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: clamp(1rem, 4vw, 3rem);
+  background: #030e14;
+  color: #f4f5ed;
+  font-family: var(--font-space-grotesk), sans-serif;
+}
+
+.card {
+  display: grid;
+  width: min(100%, 34rem);
+  border: 1px solid #214346;
+  border-radius: 1rem;
+  background: #082733;
+  padding: clamp(1.5rem, 5vw, 3rem);
+}
+
+.brand {
+  width: fit-content;
+  color: #cfff04;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+}
+
+.title {
+  max-width: 15ch;
+  margin-top: 2.5rem;
+  color: #f4f5ed;
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: clamp(2rem, 7vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+
+.intro {
+  margin-top: 1.1rem;
+  color: #a9b2ac;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.error {
+  margin-top: 1.25rem;
+  border: 1px solid rgb(255 71 71 / 42%);
+  border-radius: 0.7rem;
+  background: rgb(255 71 71 / 9%);
+  color: #ffd6d6;
+  padding: 0.8rem 0.9rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.actions {
+  display: grid;
+  justify-items: start;
+  gap: 0.9rem;
+  margin-top: 1.5rem;
+}
+
+.primaryAction {
+  display: flex;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #cfff04;
+  border-radius: 0.75rem;
+  background: #cfff04;
+  color: #071b1d;
+  padding: 0.75rem 1.1rem;
+  cursor: pointer;
+  font-weight: 700;
+  text-align: left;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.primaryAction:hover {
+  transform: translateY(-1px);
+  background: #ddff52;
+}
+
+.accessPrompt {
+  color: #a9b2ac;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.accessPrompt a,
+.homeLink {
+  color: #f4f5ed;
+  text-decoration: underline;
+  text-decoration-color: rgb(207 255 4 / 65%);
+  text-underline-offset: 0.22em;
+}
+
+.accessPrompt a:hover,
+.homeLink:hover {
+  color: #cfff04;
+}
+
+.securityNote {
+  margin-top: 2rem;
+  border-top: 1px solid #214346;
+  padding-top: 1rem;
+  color: #a9b2ac;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.page a:focus-visible,
+.page button:focus-visible {
+  outline: 3px solid #cfff04;
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .page {
+    place-items: start center;
+    padding: 1rem;
+  }
+
+  .card {
+    margin-block: auto;
+    padding: 1.5rem;
+  }
+
+  .title {
+    margin-top: 2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryAction {
+    transition: none;
+  }
+
+  .primaryAction:hover {
+    transform: none;
+  }
+}

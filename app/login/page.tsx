@@ -1,61 +1,59 @@
 import Link from "next/link";
+import styles from "./login.module.css";
 
 type LoginPageProps = {
   searchParams?: Promise<{
-    error?: string;
+    error?: string | string[];
   }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const error = params?.error;
+  const rawError = Array.isArray(params?.error) ? params.error[0] : params?.error;
+  const errorMessage =
+    rawError === "no_user_record"
+      ? "This sign-in isn't linked to an Ultra Rapid school account yet. Ask your teacher or school administrator to check your access."
+      : rawError
+        ? "We couldn't complete sign-in. Try again, or contact your school administrator if the problem continues."
+        : null;
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        background: "#111827",
-        padding: 24,
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 460,
-          background: "#1F2937",
-          border: "1px solid #374151",
-          borderRadius: 16,
-          padding: 32,
-          color: "#FFFFFF",
-        }}
-      >
-        <h1 style={{ margin: "0 0 12px 0", fontSize: 32 }}>Sign in</h1>
-
-        <p style={{ margin: "0 0 24px 0", color: "#D1D5DB", lineHeight: 1.5 }}>
-          Sign in securely to access your dashboard.
+    <main className={styles.page}>
+      <section className={styles.card} aria-labelledby="platform-login-title">
+        <Link className={styles.brand} href="/" aria-label="Ultra Rapid home">
+          ULTRA RAPID
+        </Link>
+        <h1 className={styles.title} id="platform-login-title">
+          Sign in to Ultra Rapid.
+        </h1>
+        <p className={styles.intro}>
+          Continue to your school&apos;s secure sign-in page. Your school may ask for an email or
+          username and password, or use another sign-in method.
         </p>
 
-        {error && (
-          <div
-            style={{
-              marginBottom: 20,
-              padding: 12,
-              borderRadius: 10,
-              background: "#7F1D1D",
-              border: "1px solid #B91C1C",
-              color: "#FEE2E2",
-            }}
-          >
-            {error === "no_user_record"
-              ? "Your account is not provisioned yet."
-              : "There was a problem signing you in."}
-          </div>
-        )}
+        {errorMessage ? (
+          <p className={styles.error} role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
 
-        <a href="/auth/login?returnTo=/api/post-login">Continue to sign in</a>
-      </div>
+        <div className={styles.actions}>
+          <a className={styles.primaryAction} href="/auth/login?returnTo=%2Fapi%2Fpost-login">
+            Continue securely <span aria-hidden="true">→</span>
+          </a>
+          <p className={styles.accessPrompt}>
+            Need school access?{" "}
+            <a href="https://ultrarapid.io/access">Explore School Access</a>
+          </p>
+          <Link className={styles.homeLink} href="/">
+            Back to home
+          </Link>
+        </div>
+
+        <p className={styles.securityNote}>
+          Enter your password on the secure sign-in page, not on this screen.
+        </p>
+      </section>
     </main>
   );
 }
