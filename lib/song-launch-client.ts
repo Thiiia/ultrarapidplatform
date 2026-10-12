@@ -48,6 +48,65 @@ export class SongLaunchRequestError extends Error {
   }
 }
 
+export async function requestSongLaunchReadiness(input: {
+  songAssetId: string;
+  activityKey: string;
+  authorId?: string | null;
+  authorName?: string | null;
+  revision?: string | null;
+  rhythmDifficultyKey?: RhythmDifficultyKey;
+}): Promise<LessonReadiness> {
+  const response = await fetch("/api/song-package/launch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...input, readinessOnly: true }),
+  });
+  const result = (await response.json().catch(() => null)) as
+    | {
+      songAssetId?: string;
+      activityKey?: string;
+      authorId?: string;
+      revision?: string;
+      rhythmDifficultyKey?: RhythmDifficultyKey;
+      readiness?: LessonReadiness;
+      code?: string;
+      error?: string;
+    }
+    | null;
+
+  if (!response.ok || !result || !result.readiness || typeof result.readiness.canLaunch !== "boolean") {
+    throw new SongLaunchRequestError(
+      result?.error ?? "Unable to check whether this lesson is ready",
+      result?.code ?? null,
+      response.status,
+    );
+  }
+
+  if (result.songAssetId !== input.songAssetId || typeof result.activityKey !== "string") {
+    throw new SongLaunchRequestError(
+      "The readiness response does not match the selected song.",
+      "READINESS_IDENTITY_MISMATCH",
+      response.status,
+    );
+  }
+  assertSongActivityMatches({
+    expectedActivityKey: input.activityKey,
+    actualActivityKey: result.activityKey,
+    boundary: "song-package-readiness",
+  });
+  if ((input.authorId && result.authorId !== input.authorId) ||
+      (input.revision && result.revision !== input.revision) ||
+      (input.rhythmDifficultyKey && result.rhythmDifficultyKey !== input.rhythmDifficultyKey)) {
+    throw new SongLaunchRequestError(
+      "The readiness response does not match the selected lesson revision and difficulty.",
+      "READINESS_IDENTITY_MISMATCH",
+      response.status,
+    );
+  }
+
+  return result.readiness;
+}
+
 export async function requestFreshSongLaunchPackage({
   songAssetId,
   activityKey,

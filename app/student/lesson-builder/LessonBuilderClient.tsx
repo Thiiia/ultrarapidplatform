@@ -68,8 +68,11 @@ import { readDemoLessonDraft, saveDemoLessonDraft } from "@/lib/demo-lesson-draf
 import { createSongLaunchSearchParams } from "@/lib/platform-launch";
 import {
   requestFreshSongLaunchPackage,
+  requestSongLaunchReadiness,
   type FreshSongLaunchPackage,
 } from "@/lib/song-launch-client";
+import { getDemoTemplateUnavailableReadiness } from "@/lib/demo-template-readiness";
+import { shouldShowDemoDraftReentryTutorial } from "@/lib/demo-tutorial";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import { getPlayerLaunchRoute } from "@/lib/song-choice-flow";
 import {
@@ -2005,13 +2008,17 @@ function HeaderBar({
   isSaving,
   onNavigateHome,
   onOpenFile,
+  onChooseAnotherSong,
   onLaunch,
   onSave,
   onSaveDraft,
   canSaveDraft = false,
   saveActionLabel = studentCopy.editor.saveLessonLabel,
   isDemoMode = false,
+  isDemoReadinessUnknown = false,
+  demoLaunchPhase = "idle",
   canLaunch,
+  launchUnavailableMessage = null,
   canPublish = true,
   isRctm1Mode,
   isRctm2Mode,
@@ -2034,13 +2041,17 @@ function HeaderBar({
   isSaving: boolean;
   onNavigateHome: () => void;
   onOpenFile: () => void;
+  onChooseAnotherSong?: () => void;
   onLaunch: (playTemplateOnly?: boolean) => void;
   onSave: () => void;
   onSaveDraft?: () => void;
   canSaveDraft?: boolean;
   saveActionLabel?: string;
   isDemoMode?: boolean;
+  isDemoReadinessUnknown?: boolean;
+  demoLaunchPhase?: "idle" | "checking" | "preparing";
   canLaunch: boolean;
+  launchUnavailableMessage?: string | null;
   canPublish?: boolean;
   isRctm1Mode: boolean;
   isRctm2Mode: boolean;
@@ -2048,6 +2059,15 @@ function HeaderBar({
   onToggleRctm1Mode: () => void;
   onToggleRctm2Mode: () => void;
 }) {
+  const isDemoLaunchUnavailable = Boolean(isDemoMode && !canLaunch && launchUnavailableMessage);
+  const isDemoLaunchPending = isDemoMode && demoLaunchPhase !== "idle";
+  const isCheckingDemoLesson = isDemoMode && demoLaunchPhase === "checking";
+  const isPreparingDemoLesson = isDemoMode && demoLaunchPhase === "preparing";
+  const launchButtonEnabled = canLaunch && !isSaving && !isDemoLaunchPending;
+  const showDemoSongRecovery = Boolean(
+    isDemoLaunchUnavailable && onChooseAnotherSong,
+  );
+
   return (
     <header
       className={isAlgebraStudio ? algebraStyles.header : undefined}
@@ -2307,12 +2327,13 @@ function HeaderBar({
         >
           <button
             type="button"
-            onClick={onOpenFile}
-            aria-label={studentCopy.editor.changeSongLabel}
-            title={studentCopy.editor.changeSongLabel}
+            onClick={showDemoSongRecovery ? () => onChooseAnotherSong?.() : onOpenFile}
+            disabled={isDemoLaunchPending}
+            aria-label={showDemoSongRecovery ? "Choose another song from the lesson library" : studentCopy.editor.changeSongLabel}
+            title={showDemoSongRecovery ? "Return to song choice" : studentCopy.editor.changeSongLabel}
             style={{
-              minWidth: isAlgebraStudio ? 96 : 64,
-              height: isAlgebraStudio ? 42 : 30,
+              minWidth: showDemoSongRecovery ? 96 : isAlgebraStudio ? 96 : 64,
+              height: showDemoSongRecovery ? 44 : isAlgebraStudio ? 42 : 30,
               borderRadius: 12,
               border: `1px solid ${isAlgebraStudio ? "rgba(169,217,208,.3)" : subtleBorderColor}`,
               background: isAlgebraStudio ? "rgba(255,255,255,.06)" : panelBackgroundColor,
@@ -2320,7 +2341,8 @@ function HeaderBar({
               color: "#F4F5ED",
               fontSize: isAlgebraStudio ? 12 : 10,
               fontWeight: 800,
-              cursor: "pointer",
+              cursor: isDemoLaunchPending ? "not-allowed" : "pointer",
+              opacity: isDemoLaunchPending ? 0.6 : 1,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -2328,13 +2350,15 @@ function HeaderBar({
               fontFamily: "Space Grotesk, sans-serif",
             }}
           >
-            <img
-              src="/file.svg"
-              alt=""
-              aria-hidden="true"
-              style={{ width: 12, height: 12, display: "block" }}
-            />
-            {studentCopy.editor.changeSong}
+            {showDemoSongRecovery ? null : (
+              <img
+                src="/file.svg"
+                alt=""
+                aria-hidden="true"
+                style={{ width: 12, height: 12, display: "block" }}
+              />
+            )}
+            {showDemoSongRecovery ? "Choose song" : studentCopy.editor.changeSong}
           </button>
 
           {selectedActivityKey === "early-algebra" ? (
@@ -2342,6 +2366,7 @@ function HeaderBar({
               <span>Rhythm</span>
               <select
                 aria-label="Rhythm difficulty"
+                disabled={isDemoLaunchPending}
                 value={rhythmDifficultyKey ?? "ExpertSingle"}
                 onChange={(event) => onChangeRhythmDifficulty?.(event.currentTarget.value as SupportedRhythmDifficulty)}
                 style={{ maxWidth: 88, border: 0, outline: "none", background: "transparent", color: "inherit", fontSize: 10, fontWeight: 800 }}
@@ -2386,33 +2411,56 @@ function HeaderBar({
           <button
             type="button"
             onClick={() => onLaunch(isDemoMode ? true : undefined)}
-            disabled={!canLaunch || isSaving}
-            aria-label={isDemoMode
-              ? studentCopy.editor.demoPlayLessonLabel
+            disabled={!launchButtonEnabled}
+            aria-label={isDemoLaunchUnavailable
+              ? `Lesson unavailable for the selected song and difficulty. ${launchUnavailableMessage}`
+              : isCheckingDemoLesson
+              ? "Checking whether a published lesson is ready for this song and difficulty."
+              : isPreparingDemoLesson
+              ? "Preparing the published lesson for play."
+              : isDemoMode && isDemoReadinessUnknown
+              ? "Check published lesson availability, then play if it is ready."
+              : isDemoMode
+              ? studentCopy.editor.demoPlayLessonAriaLabel
               : isAlgebraStudio ? "Play lesson preview" : studentCopy.editor.playLessonLabel}
             title={isSaving
               ? "Saving lesson changes"
-              : canLaunch
+              : isCheckingDemoLesson
+                ? "Checking the published lesson for this song and difficulty"
+                : isPreparingDemoLesson
+                  ? "Preparing the lesson for play"
+                  : canLaunch
                 ? isDemoMode
-                  ? studentCopy.editor.demoPlayLessonTitle
+                  ? isDemoReadinessUnknown
+                    ? "Check lesson availability, then play if ready"
+                    : studentCopy.editor.demoPlayLessonTitle
                   : isAlgebraStudio ? "Preview this lesson" : studentCopy.editor.playLessonLabel
-                : studentCopy.editor.pickSongBeforePlay}
+                : launchUnavailableMessage ?? studentCopy.editor.pickSongBeforePlay}
             className={isAlgebraStudio ? algebraStyles.headerActionButton : undefined}
             style={{
-              minWidth: isAlgebraStudio ? 124 : 70,
+              minWidth: isAlgebraStudio ? 124 : isDemoMode ? 112 : 70,
               height: isAlgebraStudio ? 42 : 30,
               borderRadius: 12,
               border: `1px solid ${isAlgebraStudio ? "rgba(207,255,4,.58)" : subtleBorderColor}`,
-              background: canLaunch && !isSaving ? "#CFFF04" : "rgba(207,255,4,0.12)",
-              color: canLaunch && !isSaving ? "#07120D" : "#A9B2AC",
+              background: launchButtonEnabled ? "#CFFF04" : "rgba(207,255,4,0.12)",
+              color: launchButtonEnabled ? "#07120D" : "#A9B2AC",
               fontFamily: "Space Grotesk, sans-serif",
               fontSize: isAlgebraStudio ? 13 : 11,
               fontWeight: 800,
-              cursor: canLaunch && !isSaving ? "pointer" : "not-allowed",
-              opacity: canLaunch && !isSaving ? 1 : 0.55,
+              whiteSpace: "nowrap",
+              cursor: launchButtonEnabled ? "pointer" : "not-allowed",
+              opacity: launchButtonEnabled ? 1 : 0.55,
             }}
           >
-            {isDemoMode ? studentCopy.editor.demoPlayLessonLabel : isAlgebraStudio ? "Play preview" : "Play"}
+            {isDemoLaunchUnavailable
+              ? "Unavailable"
+              : isCheckingDemoLesson
+              ? "Checking…"
+              : isPreparingDemoLesson
+              ? "Preparing…"
+              : isDemoMode && isDemoReadinessUnknown
+              ? "Check & play"
+              : isDemoMode ? studentCopy.editor.demoPlayLessonLabel : isAlgebraStudio ? "Play preview" : "Play"}
           </button>
 
           {isAlgebraStudio && onSaveDraft ? (
@@ -10739,6 +10787,8 @@ export default function LessonBuilderClient({
   const [lessonReadiness, setLessonReadiness] = useState<
     FreshSongLaunchPackage["readiness"] | null
   >(null);
+  const [demoLaunchPhase, setDemoLaunchPhase] = useState<"idle" | "checking" | "preparing">("idle");
+  const demoLaunchInFlightRef = useRef(false);
   const [saveStatus, setSaveStatus] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [entryIntent, setEntryIntent] = useState<PlayerLessonEntryIntent>("play");
@@ -10813,6 +10863,7 @@ export default function LessonBuilderClient({
   // Demo tutorial: it starts only after the player chooses to personalise,
   // never while they are still choosing between playing and editing.
   const [tutorialStep, setTutorialStep] = useState<"welcome" | "build" | "save" | "add" | null>(null);
+  const demoReentryTutorialSourceRef = useRef<string | null>(null);
   const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
   const [isFilePickerLoading, setIsFilePickerLoading] = useState(false);
   const [filePickerError, setFilePickerError] = useState("");
@@ -10953,6 +11004,27 @@ export default function LessonBuilderClient({
       revision: lastSavedRevision,
     });
   }, [lastSavedAuthorId, lastSavedRevision, selectedSongActivity, selectedSongAuthorId, selectedSongAuthorName, selectedSongStorage]);
+
+  useEffect(() => {
+    if (!isDemoMode || !isLessonLoaded || !selectedSongStorage) return;
+
+    const activityKey = selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null;
+    const hasRestoredDraft = Boolean(
+      activityKey && readDemoLessonDraft(window.localStorage, selectedSongStorage.id, activityKey),
+    );
+    if (!shouldShowDemoDraftReentryTutorial({
+      isDemoMode,
+      entryIntent,
+      hasRestoredDraft,
+      activityKey,
+    })) return;
+
+    const sourceKey = `${selectedSongStorage.id}:${activityKey}`;
+    if (demoReentryTutorialSourceRef.current === sourceKey) return;
+
+    demoReentryTutorialSourceRef.current = sourceKey;
+    setTutorialStep("welcome");
+  }, [entryIntent, isDemoMode, isLessonLoaded, selectedSongActivity?.key, selectedSongLaunch?.activityKey, selectedSongStorage]);
 
   useEffect(() => {
     if (!isLessonLoaded || entryIntent !== "personalize" || guidedStarted || !workspaceSource) return;
@@ -13206,7 +13278,31 @@ export default function LessonBuilderClient({
       launchRevision = didSave.revision;
     }
 
+    const isDemoPublishedLaunch = isDemoMode && playTemplateOnly;
+    if (isDemoPublishedLaunch) {
+      if (demoLaunchInFlightRef.current) return;
+      demoLaunchInFlightRef.current = true;
+      setDemoLaunchPhase(lessonReadiness === null ? "checking" : "preparing");
+    }
+
     try {
+      if (isDemoPublishedLaunch && lessonReadiness === null) {
+        const readiness = await requestSongLaunchReadiness({
+          songAssetId: selectedSongLaunch.songAssetId,
+          activityKey: selectedSongLaunch.activityKey,
+          authorId: launchAuthorId,
+          authorName: launchAuthorId ? null : selectedSongLaunch.authorName ?? null,
+          revision: launchRevision,
+          rhythmDifficultyKey: launchRhythmDifficultyKey,
+        });
+        setLessonReadiness(readiness);
+        if (!readiness.canLaunch) {
+          setSaveStatus(readiness.message);
+          return;
+        }
+        setDemoLaunchPhase("preparing");
+      }
+
       const freshSongLaunch = await requestFreshSongLaunchPackage({
         ...selectedSongLaunch,
         authorId: launchAuthorId,
@@ -13263,7 +13359,30 @@ export default function LessonBuilderClient({
       persistLaunchParams(launchParams);
       router.push(launchRoute);
     } catch (error) {
+      const unavailableDemoTemplate = isDemoMode
+        ? getDemoTemplateUnavailableReadiness(error, {
+            songTitle: metadata?.songTitle ?? selectedSongLaunch.songAssetId,
+            rhythmDifficultyKey: launchRhythmDifficultyKey,
+          })
+        : null;
+      if (unavailableDemoTemplate) {
+        const hadUnsavedDemoChanges = isDemoMode && hasUnsavedChanges;
+        const demoDraftSaved = hadUnsavedDemoChanges ? await handleSaveToSupabase() : null;
+        setLessonReadiness(unavailableDemoTemplate);
+        const draftStatus = hadUnsavedDemoChanges
+          ? demoDraftSaved
+            ? "Your changes are saved on this device only; they have not been published."
+            : "Your changes could not be saved. Keep this page open before leaving."
+          : "";
+        setSaveStatus([unavailableDemoTemplate.message, draftStatus].filter(Boolean).join(" "));
+        return;
+      }
       setSaveStatus(getLearnerFacingError(error, `${studentCopy.game.prepareErrorTitle}. Try again, or choose another song.`));
+    } finally {
+      if (isDemoPublishedLaunch) {
+        demoLaunchInFlightRef.current = false;
+        setDemoLaunchPhase("idle");
+      }
     }
   }
 
@@ -14090,7 +14209,7 @@ export default function LessonBuilderClient({
         loadedSongReadyRef.current = true;
         setIsLessonLoaded(true);
         setSaveStatus(demoDraft ? "Restored your local demo draft." : studentCopy.editor.lessonLoaded);
-        setLessonReadiness({
+        setLessonReadiness(isDemoMode ? null : {
           state: "ready",
           source: "authored",
           canLaunch: true,
@@ -15644,6 +15763,7 @@ export default function LessonBuilderClient({
         selectedActivityKey={selectedSongActivity?.key ?? null}
         rhythmDifficultyKey={numberBondsRhythmDifficulty}
         onChangeRhythmDifficulty={(rhythmDifficultyKey) => {
+          setLessonReadiness(null);
           setNumberBondsRhythmDifficulty(rhythmDifficultyKey);
           setSelectedSongLaunch((current) => current && isRhythmDifficultyActivityKey(current.activityKey)
             ? { ...current, rhythmDifficultyKey }
@@ -15653,6 +15773,7 @@ export default function LessonBuilderClient({
         isSaving={isSaving}
         onNavigateHome={() => requestNavigation(() => router.push(navBasePath))}
         onOpenFile={handleOpenFilePicker}
+        onChooseAnotherSong={handleBackToSongChoice}
         onLaunch={handleLaunchGame}
         onSave={() => {
           void handlePublishChanges({ showNotice: true });
@@ -15663,12 +15784,17 @@ export default function LessonBuilderClient({
         }}
         canSaveDraft={Boolean(selectedSongStorage) && isLessonLoaded && !loadError}
         isDemoMode={isDemoMode}
+        isDemoReadinessUnknown={isDemoMode && lessonReadiness === null}
+        demoLaunchPhase={demoLaunchPhase}
         saveActionLabel={isDemoMode
           ? "Save demo changes"
           : navBasePath === "/student"
             ? "Save personal draft"
             : "Publish official lesson"}
-        canLaunch={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && (isDemoMode || lessonPublishReadiness.ready || isNumberBondsActivity)}
+        canLaunch={Boolean(selectedSongLaunch) && isLessonLoaded && !loadError && (isDemoMode
+          ? lessonReadiness?.canLaunch !== false
+          : lessonPublishReadiness.ready || isNumberBondsActivity)}
+        launchUnavailableMessage={isDemoMode && lessonReadiness?.canLaunch === false ? lessonReadiness.message : null}
         canPublish={Boolean(selectedSongStorage) && isLessonLoaded && !loadError && (isDemoMode || navBasePath === "/student" || lessonPublishReadiness.ready)}
         isRctm1Mode={isRctm1Mode}
         isRctm2Mode={isRctm2Mode}
@@ -16721,7 +16847,7 @@ export default function LessonBuilderClient({
             }}
           >
             <TutorialBubble
-              text={"Let’s make an equation. Click the number and symbol buttons on the left to build one."}
+              text={studentCopy.editor.demoReentryTutorial}
               onSkip={() => setTutorialStep(null)}
             />
           </div>

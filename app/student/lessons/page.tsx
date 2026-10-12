@@ -1,9 +1,26 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getCurrentAppUser } from "@/lib/current-user";
-import { getStudentDashboardData } from "@/lib/student-dashboard";
+import {
+  getStudentDashboardData,
+  getStudentLessonDetail,
+} from "@/lib/student-dashboard";
 import StudentSubpageShell from "../StudentSubpageShell";
+import StudentLessonDetail from "./StudentLessonDetail";
 
-export default async function MyLessonsPage() {
+type MyLessonsPageProps = {
+  searchParams: Promise<{
+    assignmentId?: string | string[];
+    missionId?: string | string[];
+  }>;
+};
+
+export default async function MyLessonsPage({ searchParams }: MyLessonsPageProps) {
+  const query = await searchParams;
+  const assignmentId = typeof query.assignmentId === "string" ? query.assignmentId : null;
+  const missionId = typeof query.missionId === "string" ? query.missionId : null;
+
+  if (assignmentId && missionId) notFound();
+
   const user = await getCurrentAppUser();
 
   if (!user) {
@@ -16,6 +33,21 @@ export default async function MyLessonsPage() {
 
   if (user.role !== "student") {
     redirect("/teacher");
+  }
+
+  if (assignmentId || missionId) {
+    const detail = await getStudentLessonDetail(user.id, {
+      assignmentId,
+      missionId,
+    });
+
+    if (!detail) notFound();
+
+    return (
+      <StudentSubpageShell title="My Lessons" cards={[]}>
+        <StudentLessonDetail detail={detail} navBasePath="/student" />
+      </StudentSubpageShell>
+    );
   }
 
   const dashboardData = await getStudentDashboardData(user.id);

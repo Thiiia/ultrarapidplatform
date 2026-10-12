@@ -1,9 +1,20 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getStudentDashboardData } from "@/lib/student-dashboard";
+import {
+  getStudentDashboardData,
+  getStudentLessonDetail,
+} from "@/lib/student-dashboard";
 import StudentSubpageShell from "@/app/student/StudentSubpageShell";
+import StudentLessonDetail from "@/app/student/lessons/StudentLessonDetail";
 
 export const dynamic = "force-dynamic";
+
+type DemoStudentLessonsPageProps = {
+  searchParams: Promise<{
+    assignmentId?: string | string[];
+    missionId?: string | string[];
+  }>;
+};
 
 async function getDemoStudentUserId() {
   const demoStudentUserId = process.env.DEMO_STUDENT_USER_ID;
@@ -22,14 +33,39 @@ async function getDemoStudentUserId() {
   return user.id;
 }
 
-export default async function DemoStudentLessonsPage() {
+export default async function DemoStudentLessonsPage({
+  searchParams,
+}: DemoStudentLessonsPageProps) {
+  const query = await searchParams;
+  const assignmentId = typeof query.assignmentId === "string" ? query.assignmentId : null;
+  const missionId = typeof query.missionId === "string" ? query.missionId : null;
+
+  if (assignmentId && missionId) notFound();
+
   const demoStudentUserId = await getDemoStudentUserId();
 
   if (!demoStudentUserId) {
     notFound();
   }
 
-  const dashboardData = await getStudentDashboardData(demoStudentUserId);
+  if (assignmentId || missionId) {
+    const detail = await getStudentLessonDetail(demoStudentUserId, {
+      assignmentId,
+      missionId,
+    });
+
+    if (!detail) notFound();
+
+    return (
+      <StudentSubpageShell title="My Lessons" cards={[]} navBasePath="/demo/student">
+        <StudentLessonDetail detail={detail} navBasePath="/demo/student" />
+      </StudentSubpageShell>
+    );
+  }
+
+  const dashboardData = await getStudentDashboardData(demoStudentUserId, {
+    navBasePath: "/demo/student",
+  });
 
   if (!dashboardData) {
     notFound();

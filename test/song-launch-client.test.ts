@@ -3,8 +3,62 @@ import test from "node:test";
 import {
   requestFreshSongLaunchPackage,
   requestFreshSongLaunchParams,
+  requestSongLaunchReadiness,
   SongLaunchRequestError,
 } from "../lib/song-launch-client";
+
+test("checks the selected difficulty without requesting playable launch assets", async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody: Record<string, unknown> | null = null;
+  globalThis.fetch = (async (_input, init) => {
+    requestBody = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({
+      songAssetId: "song-123",
+      activityKey: "early-algebra",
+      authorId: "author-7",
+      revision: "rev-7",
+      rhythmDifficultyKey: "HardSingle",
+      readiness: { state: "ready", source: "authored", canLaunch: true, message: "Ready" },
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+
+  try {
+    const readiness = await requestSongLaunchReadiness({
+      songAssetId: "song-123",
+      activityKey: "early-algebra",
+      authorId: "author-7",
+      rhythmDifficultyKey: "HardSingle",
+    });
+
+    assert.equal((requestBody as Record<string, unknown> | null)?.readinessOnly, true);
+    assert.equal((requestBody as Record<string, unknown> | null)?.rhythmDifficultyKey, "HardSingle");
+    assert.equal(readiness.canLaunch, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("preserves a missing published revision as a repairable preflight error", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    code: "REVISION_NOT_FOUND",
+    error: "No published lesson is available at this difficulty.",
+  }), { status: 404 })) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      requestSongLaunchReadiness({ songAssetId: "song-123", activityKey: "early-algebra" }),
+      (error: unknown) => {
+        assert.ok(error instanceof SongLaunchRequestError);
+        assert.equal(error.code, "REVISION_NOT_FOUND");
+        assert.equal(error.status, 404);
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test("refreshes a game package without replacing its launch attempt", async () => {
   const originalFetch = globalThis.fetch;

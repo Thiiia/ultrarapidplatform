@@ -5,6 +5,7 @@ import {
   type SongActivityKey,
 } from "@/lib/song-activity-storage";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { hasPlayableRevisionMetadata } from "@/lib/playable-revision-metadata";
 import {
   getActivityDifficultyFromSidecarPath,
   isRhythmDifficultyActivityKey,
@@ -578,12 +579,7 @@ export async function getSongChoices(
       activityKey: preferredActivityKey,
       authorId: devAuthor.id,
       status: "ready",
-      chartSha256: { not: null },
-      sidecarSha256: { not: null },
-      audioSha256: { not: null },
-      equationCount: { not: null },
-      encounterCount: { not: null },
-      targetCount: { not: null },
+      publishedAt: { not: null },
     },
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
     select: {
@@ -592,19 +588,32 @@ export async function getSongChoices(
       chartPath: true,
       sidecarBucket: true,
       sidecarPath: true,
+      chartSha256: true,
+      sidecarSha256: true,
+      audioSha256: true,
+      equationCount: true,
+      encounterCount: true,
+      targetCount: true,
     },
   });
 
   // The revision is the immutable read authority. Do not reconstruct paths
   // from the requested activity folder: a Number Bonds revision may safely
   // reference shared rhythm bytes stored under an older activity folder.
+  // Select the latest published READY row before validating it; skipping an
+  // incomplete latest row here could silently serve stale lesson content.
   const latestRevisionBySongAsset = new Map<string, (typeof readyRevisions)[number]>();
   for (const revision of readyRevisions) {
     if (!latestRevisionBySongAsset.has(revision.songAssetId)) {
       latestRevisionBySongAsset.set(revision.songAssetId, revision);
     }
   }
-  const playableSongAssetIds = [...latestRevisionBySongAsset.keys()];
+  const playableRevisionBySongAsset = new Map(
+    [...latestRevisionBySongAsset.entries()].filter(([, revision]) =>
+      hasPlayableRevisionMetadata(revision),
+    ),
+  );
+  const playableSongAssetIds = [...playableRevisionBySongAsset.keys()];
   if (playableSongAssetIds.length === 0) {
     return [];
   }
@@ -624,7 +633,7 @@ export async function getSongChoices(
         updatedAt: songAsset.updatedAt.toISOString(),
       };
 
-      const revision = latestRevisionBySongAsset.get(songAsset.id);
+      const revision = playableRevisionBySongAsset.get(songAsset.id);
       if (!revision) return null;
 
       return buildSongChoiceForAsset({

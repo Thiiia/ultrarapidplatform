@@ -1,9 +1,44 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import test from "node:test";
 import { Children, isValidElement, type ReactNode } from "react";
 
-import { GuidedEncounterComposer } from "../app/student/lesson-builder/GuidedEncounterComposer";
 import type { EncounterReadiness, GuidedEncounterInput } from "../lib/guided-authored-encounter";
+
+const require = createRequire(import.meta.url);
+type ModuleHookContext = { format?: string; [key: string]: unknown };
+type ModuleHookResult = { format?: string; shortCircuit?: boolean; source?: string };
+type SynchronousModuleHooks = {
+  registerHooks?: (hooks: {
+    load: (
+      url: string,
+      context: ModuleHookContext,
+      nextLoad: (url: string, context: ModuleHookContext) => ModuleHookResult,
+    ) => ModuleHookResult;
+  }) => unknown;
+};
+const moduleApi = require("node:module") as SynchronousModuleHooks;
+
+if (moduleApi.registerHooks) {
+  moduleApi.registerHooks({
+    load(url, context, nextLoad) {
+      if (url.endsWith(".module.css")) {
+        return {
+          format: "commonjs",
+          shortCircuit: true,
+          source: "module.exports = new Proxy({}, { get: (_styles, name) => String(name) });",
+        };
+      }
+      return nextLoad(url, context);
+    },
+  });
+} else {
+  require.extensions[".css"] = (module) => {
+    module.exports = new Proxy({}, { get: (_styles, name) => String(name) });
+  };
+}
+
+const { GuidedEncounterComposer } = require("../app/student/lesson-builder/GuidedEncounterComposer") as typeof import("../app/student/lesson-builder/GuidedEncounterComposer");
 
 const tokens = [
   { id: "t-0", label: "4x" },

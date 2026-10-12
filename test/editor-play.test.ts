@@ -5,7 +5,11 @@ import { createRequire } from "node:module";
 import vm from "node:vm";
 import ts from "typescript";
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
+import { SUPPORTED_RHYTHM_DIFFICULTIES } from "../lib/chart-semantics";
+import { isRhythmDifficultyActivityKey } from "../lib/number-bonds-sidecar";
 import { getLearnerFacingError, studentCopy } from "../lib/student-copy";
+import { getDemoTemplateUnavailableReadiness } from "../lib/demo-template-readiness";
+import { SongLaunchRequestError } from "../lib/song-launch-client";
 
 const source = readFileSync(new URL("../app/student/lesson-builder/LessonBuilderClient.tsx", import.meta.url), "utf8");
 const ast = ts.createSourceFile("editor.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -20,7 +24,21 @@ function load(name: string, globals: Record<string, unknown>) {
   const code = ts.transpileModule(found.getText(ast), {compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
   }}).outputText;
-  const context = vm.createContext({require: createRequire(import.meta.url), exports: {}, studentCopy, getLearnerFacingError, ...globals});
+  const context = vm.createContext({
+    require: createRequire(import.meta.url),
+    exports: {},
+    studentCopy,
+    getLearnerFacingError,
+    getDemoTemplateUnavailableReadiness,
+    SUPPORTED_RHYTHM_DIFFICULTIES,
+    isRhythmDifficultyActivityKey,
+    numberBondsRhythmDifficulty: "ExpertSingle",
+    selectedSongStorage: null,
+    lessonReadiness: null,
+    demoLaunchInFlightRef: {current: false},
+    setDemoLaunchPhase: () => {},
+    ...globals,
+  });
   vm.runInContext(code, context);
   return context[name];
 }
@@ -72,11 +90,90 @@ test("demo header clearly launches the ready lesson and passes the template-only
   visit(tree as ReactNode);
   const play = buttons.find(button => button.props.children === studentCopy.editor.demoPlayLessonLabel);
   assert.ok(play);
-  assert.equal(play.props["aria-label"], studentCopy.editor.demoPlayLessonLabel);
+  assert.equal(play.props["aria-label"], studentCopy.editor.demoPlayLessonAriaLabel);
   assert.equal(play.props.title, studentCopy.editor.demoPlayLessonTitle);
   play.props.onClick?.();
   assert.equal(launchTemplateOnly, true);
 });
+
+test("an unavailable demo lesson offers a route back to song choice", () => {
+  const header = load("HeaderBar", {headerBackgroundColor: "black", headerHeight: 64,
+    subtleBorderColor: "gray", panelBackgroundColor: "black", pagePanelWidth: "100%",
+    algebraStyles: {header: "", headerActionButton: ""}, URIcon: () => null});
+  let songChoiceOpened = false;
+  let filePickerOpened = false;
+  const tree = header({isDemoMode: true, isAlgebraStudio: true, canLaunch: false,
+    launchUnavailableMessage: "No published lesson is ready.", isSaving: false,
+    onLaunch: () => assert.fail("an unavailable lesson must not launch"),
+    onChooseAnotherSong: () => { songChoiceOpened = true; },
+    onOpenFile: () => { filePickerOpened = true; }, selectedActivityKey: "early-algebra"});
+  const buttons: Array<ReactElement<{
+    children?: ReactNode;
+    "aria-label"?: string;
+    onClick?: () => void;
+    disabled?: boolean;
+  }>> = [];
+  function visit(value: ReactNode) {
+    Children.forEach(value, child => {
+      if (!isValidElement<{
+        children?: ReactNode;
+        "aria-label"?: string;
+        onClick?: () => void;
+        disabled?: boolean;
+      }>(child)) return;
+      if (child.type === "button") buttons.push(child);
+      visit(child.props.children);
+    });
+  }
+  visit(tree as ReactNode);
+  const recovery = buttons.find(button => Children.toArray(button.props.children).includes("Choose song"));
+  const play = buttons.find(button => button.props.children === "Unavailable");
+  assert.ok(recovery);
+  assert.ok(play);
+  assert.equal(play.props.disabled, true);
+  assert.match(play.props["aria-label"] ?? "", /Lesson unavailable for the selected song and difficulty/);
+  recovery.props.onClick?.();
+  assert.equal(songChoiceOpened, true);
+  assert.equal(filePickerOpened, false);
+});
+
+for (const localSaveSucceeds of [true, false]) {
+  test(`missing demo revision saves device edits truthfully before showing recovery; save=${localSaveSucceeds}`, async () => {
+    const events: string[] = [];
+    const readinessUpdates: Array<{canLaunch: boolean; state: string; message: string}> = [];
+    let status = "";
+    const launch = load("handleLaunchGame", {
+      isNumberBondsActivity: false,
+      isDemoMode: true,
+      selectedSongLaunch: {songAssetId: "garden", activityKey: "early-algebra", rhythmDifficultyKey: "ExpertSingle"},
+      selectedSongStorage: {sidecar: null},
+      metadata: {songTitle: "Garden"},
+      selectedSongAuthorId: "demo-author", lastSavedAuthorId: null, lastSavedRevision: null,
+      isSaving: false, hasUnsavedChanges: true,
+      lessonPublishReadiness: {ready: true, blockers: []},
+      handleSaveToSupabase: async () => { events.push("save-device-draft"); return localSaveSucceeds; },
+      requestSongLaunchReadiness: async () => {
+        throw new SongLaunchRequestError("revision missing", "REVISION_NOT_FOUND", 404);
+      },
+      navBasePath: "/demo/student",
+      setLessonReadiness: (value: {canLaunch: boolean; state: string; message: string}) => {
+        events.push("readiness");
+        readinessUpdates.push(value);
+      },
+      setSaveStatus: (value: string) => { events.push("status"); status = value; },
+      loadedSongReadyRef: {current: true},
+    });
+
+    await launch(true);
+
+    assert.deepEqual(events, ["save-device-draft", "readiness", "status"]);
+    assert.equal(readinessUpdates.at(-1)?.canLaunch, false);
+    assert.match(status, /No published lesson is ready for Garden at Expert/);
+    assert.match(status, localSaveSucceeds
+      ? /saved on this device only; they have not been published/i
+      : /could not be saved\. Keep this page open/i);
+  });
+}
 
 for (const saveFails of [false, true]) test(`student launch previews its saved personal draft only when save succeeds; saveFails=${saveFails}`, async () => {
   const requests: Array<Record<string, unknown>> = [];
@@ -112,7 +209,7 @@ for (const saveFails of [false, true]) test(`student launch previews its saved p
   }
 });
 
-test("launches a published template without asking it to save again", async () => {
+test("launches a ready template at the selected difficulty without asking it to save again", async () => {
   const requests: Array<Record<string, unknown>> = [];
   let saves = 0;
   const launch = load("handleLaunchGame", {
@@ -137,7 +234,8 @@ test("launches a published template without asking it to save again", async () =
   await launch();
   assert.equal(saves, 0);
   assert.equal(requests[0].authorId, "template-author");
-  assert.equal(requests[0].revision, "template-revision");
+  assert.equal(requests[0].rhythmDifficultyKey, "ExpertSingle");
+  assert.equal(requests[0].revision, null, "the server resolves the ready revision for the selected difficulty");
 });
 
 test("demo ready-lesson launch bypasses device edits and routes the published template", async () => {
@@ -151,6 +249,7 @@ test("demo ready-lesson launch bypasses device edits and routes the published te
     selectedSongAuthorId: "template-author", lastSavedAuthorId: null, lastSavedRevision: null,
     isSaving: false, hasUnsavedChanges: true,
     lessonPublishReadiness: {ready: false, blockers: []},
+    requestSongLaunchReadiness: async () => ({canLaunch: true, state: "ready", message: ""}),
     handleSaveToSupabase: async () => { saves += 1; return false; },
     requestFreshSongLaunchPackage: async (request: Record<string, unknown>) => {
       requests.push(request);

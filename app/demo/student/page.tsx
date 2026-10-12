@@ -12,7 +12,9 @@ export default async function DemoStudentPage() {
     notFound();
   }
 
-  const dashboardData = await getStudentDashboardData(demoStudentUserId);
+  const dashboardData = await getStudentDashboardData(demoStudentUserId, {
+    navBasePath: "/demo/student",
+  });
 
   if (!dashboardData) {
     console.error("No student dashboard data found for DEMO_STUDENT_USER_ID.");

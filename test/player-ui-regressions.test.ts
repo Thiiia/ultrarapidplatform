@@ -20,8 +20,8 @@ test("game embed refreshes its signed song package before loading Unity", () => 
   const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
 
   assert.match(gameEmbed, /requestFreshSongLaunchParams/);
-  assert.match(gameEmbed, /persistLaunchParams\(freshLaunchParams\)/);
-  assert.match(gameEmbed, /setLaunchParams\(freshLaunchParams\)/);
+  assert.match(gameEmbed, /refreshAttempt: \(\) => requestFreshSongLaunchParams\(launchRequest\)/);
+  assert.match(gameEmbed, /if \(recovery\.kind === "launched"\)[\s\S]{0,180}persistLaunchParams\(recovery\.value\)[\s\S]{0,80}setLaunchParams\(recovery\.value\)/);
   assert.match(gameEmbed, /studentCopy\.game\.preparingTitle/);
   assert.match(gameEmbed, /resolveLaunchParams\(new URLSearchParams\(serializedSearchParams\)\)/);
   assert.match(gameEmbed, /studentCopy\.game\.chooseSongTitle/);
@@ -36,7 +36,7 @@ test("game embed offers a same-song retry when bridge verification fails", () =>
   const launchErrorRecovery = gameEmbed.slice(recoveryStart, recoveryEnd);
 
   assert.match(gameEmbed, /const launchErrorMessage = launchPreparationError \|\| bridgeSetup\.error;/);
-  assert.ok(launchErrorRecovery.includes("onClick={() => onRetry()}"));
+  assert.match(launchErrorRecovery, /onClick=\{\(\) => outcomeRecoveryBlocked \? window\.location\.reload\(\) : onRetry\(\)\}/);
   assert.match(launchErrorRecovery, /Try again/);
   assert.doesNotMatch(gameEmbed, /\{launchPreparationError &&\s*\([\s\S]{0,300}Try again/);
 });
@@ -95,8 +95,8 @@ test("the demo game keeps calibration and completion state local instead of call
 
   assert.match(gameEmbed, /const isDemoMode = navBasePath\.startsWith\("\/demo\/"\)/);
   assert.match(gameEmbed, /if \(isDemoMode\) \{[\s\S]{0,700}demoCalibrationStorageKey[\s\S]{0,700}setCalibrationStatus/);
-  assert.match(gameEmbed, /if \(!isDemoMode && launchAttemptId\)/);
-  assert.match(gameEmbed, /if \(isDemoMode\) \{[\s\S]{0,500}setCompletedRun/);
+  assert.match(gameEmbed, /else if \(!isDemoMode\) \{\s*return;/);
+  assert.match(gameEmbed, /if \(isDemoMode\) \{\s*setOutcomeSyncState\("idle"\);\s*setPendingOutcome\(null\);[\s\S]{0,350}setCompletedRun/);
   assert.match(gameEmbed, /if \(isDemoMode \|\| !pendingOutcome\) return;/);
 });
 
@@ -104,10 +104,11 @@ test("authenticated Retry and Return wait for their outcome to persist", () => {
   const gameEmbed = source("app/student/game/GameEmbedPage.tsx");
 
   assert.match(gameEmbed, /outcomeBarrierRef\.current\.begin\(launchAttemptId\)/);
-  assert.match(gameEmbed, /outcomeBarrierRef\.current\.defer\([\s\S]{0,180}result\.message\.receipt\.launchAttemptId/);
-  assert.match(gameEmbed, /outcomeBarrierRef\.current\.settle\([\s\S]{0,120}pendingOutcome\.receipt\.launchAttemptId/);
-  assert.match(gameEmbed, /deferredAction\?\.type === "retry"[\s\S]{0,180}onRetry\(deferredAction\.request\)/);
-  assert.match(gameEmbed, /deferredAction\?\.type === "return"[\s\S]{0,180}handleAttemptReturn\(deferredAction\.receipt\)/);
+  assert.match(gameEmbed, /outcomeBarrierRef\.current\.defer\(\s*result\.message\.receipt\.launchAttemptId,\s*\{ type: "retry", request \}/);
+  assert.match(gameEmbed, /outcomeBarrierRef\.current\.defer\(\s*result\.message\.receipt\.launchAttemptId,\s*\{ type: "return", receipt: result\.message\.receipt \}/);
+  assert.match(gameEmbed, /outcomeBarrierRef\.current\.settle\(launchAttemptId\)/);
+  assert.match(gameEmbed, /deferredAction\?\.type === "retry"\) \{\s*onRetry\(deferredAction\.request\)/);
+  assert.match(gameEmbed, /deferredAction\?\.type === "return"\) \{\s*void handleAttemptReturn\(deferredAction\.receipt\)/);
 });
 
 test("only the demo player opts into guest receipts before the verified iframe gate", () => {
@@ -148,11 +149,13 @@ test("song choice offers Play only for a ready lesson and guards the fresh launc
 
 test("an empty Number Bonds catalogue explains the rhythm prerequisite and offers recovery", () => {
   const songChoice = source("app/student/song-choice/SongChoiceClient.tsx");
+  const studentCopy = source("lib/student-copy.ts");
 
   assert.match(songChoice, /songs\.length === 0[\s\S]{0,180}No Number Bonds songs are ready yet/);
-  assert.match(songChoice, /Number Bonds needs a song with a verified rhythm/);
+  assert.match(songChoice, /studentCopy\.songChoice\.noNumberBondsSongsBody/);
+  assert.match(studentCopy, /noNumberBondsSongsBody: "Try Early Algebra, or ask your teacher to add a Number Bonds song\."/);
   assert.match(songChoice, /Browse Early Algebra songs/);
-  assert.match(songChoice, /setSearchQuery\(""\)/);
+  assert.match(songChoice, /router\.push\(`\$\{navBasePath\}\/song-choice\?activity=early-algebra`\)/);
 });
 
 test("song choice keeps direct entry activity-bound and makes previews interactive", () => {

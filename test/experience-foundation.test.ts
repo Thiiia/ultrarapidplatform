@@ -9,6 +9,7 @@ const rootLayout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "
 const primitives = readFileSync(new URL("../app/experience/experience-primitives.css", import.meta.url), "utf8");
 const studentShell = readFileSync(new URL("../app/student/StudentSubpageShell.tsx", import.meta.url), "utf8");
 const teacherShell = readFileSync(new URL("../app/teacher/TeacherSubpageShell.tsx", import.meta.url), "utf8");
+const roleHeader = readFileSync(new URL("../app/components/ExperienceRoleHeader.tsx", import.meta.url), "utf8");
 const rosterImport = readFileSync(new URL("../app/admin/schools/[schoolId]/roster-import/RosterImportClient.tsx", import.meta.url), "utf8");
 const songChoice = readFileSync(new URL("../app/student/song-choice/SongChoiceClient.tsx", import.meta.url), "utf8");
 const mobileNavigation = readFileSync(new URL("../app/components/ExperienceMobileNavigation.tsx", import.meta.url), "utf8");
@@ -58,12 +59,14 @@ test("shared experience primitives expose semantic states for every common contr
 test("student and teacher shells mark active navigation and consume the generated foundation", () => {
   for (const [role, shell] of [["student", studentShell], ["teacher", teacherShell]] as const) {
     assert.ok(shell.includes(`data-experience-role="${role}"`));
-    assert.ok(shell.includes('className="experience-navigation'));
-    assert.ok(shell.includes("aria-current={isActive ? \"page\" : undefined}"));
-    assert.ok(shell.includes("<ExperienceMobileNavigation items={mobileItems}"));
+    assert.ok(shell.includes("<ExperienceRoleHeader"));
+    assert.ok(shell.includes("navigationItems={topTabs}"));
     assert.ok(shell.includes("var(--ur-canvas-top)"));
     assert.ok(shell.includes("var(--ur-canvas-deep)"));
   }
+  assert.match(roleHeader, /className=\{`experience-navigation experience-desktop-navigation \$\{styles\.navigation\}`\}/);
+  assert.match(roleHeader, /aria-current=\{current \? "page" : undefined\}/);
+  assert.match(roleHeader, /<ExperienceMobileNavigation items=\{mobileItems\}/);
 });
 
 test("role navigation collapses to an accessible menu at phone and tablet widths", () => {
@@ -89,6 +92,6 @@ test("roster import separates preview, server-confirmed apply, and accessible er
   assert.match(rosterImport, /role="alert" aria-live="assertive"/);
 });
 
-test("song choice keeps the dialog semantics on the shared dialog primitive", () => {
-  assert.match(songChoice, /role="dialog"\s+aria-modal="true"\s+aria-labelledby="lesson-entry-title"[\s\S]{0,1000}className="experience-dialog"/);
+test("song choice keeps its native modal dialog labelled and described", () => {
+  assert.match(songChoice, /<dialog[\s\S]{0,220}className="experience-dialog"[\s\S]{0,220}aria-modal="true"\s+aria-labelledby="lesson-entry-title"\s+aria-describedby="lesson-entry-description"/);
 });

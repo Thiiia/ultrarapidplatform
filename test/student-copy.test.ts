@@ -3,7 +3,22 @@ import test from "node:test";
 import { getLearnerFacingError, studentCopy } from "../lib/student-copy";
 
 test("learner copy keeps infrastructure terms out of visible messages", () => {
-  const visibleCopy = JSON.stringify(studentCopy);
+  const visibleStrings: string[] = [];
+  function collectVisibleStrings(value: unknown) {
+    if (typeof value === "string") {
+      visibleStrings.push(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(collectVisibleStrings);
+      return;
+    }
+    if (value && typeof value === "object") {
+      Object.values(value).forEach(collectVisibleStrings);
+    }
+  }
+  collectVisibleStrings(studentCopy);
+  const visibleCopy = visibleStrings.join("\n");
 
   assert.doesNotMatch(visibleCopy, /Unity|Supabase|workspace|sidecar|\.chart|publish|revision/i);
   assert.match(studentCopy.dashboard.welcome("Mia"), /Welcome back, Mia/);

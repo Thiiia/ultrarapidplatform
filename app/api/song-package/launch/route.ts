@@ -7,6 +7,7 @@ import { canRefreshPlayerLaunchAttempt, parsePlayerLaunchRefreshRequest, resolve
 import { canonicalPlayerJson } from "@/lib/player-run-lifecycle";
 import { getCurrentAppUser } from "@/lib/current-user";
 import { canPreviewOwnLessonDraft } from "@/lib/lesson-save-authorization";
+import { hasPlayableRevisionMetadata } from "@/lib/playable-revision-metadata";
 import {
   createSongStorageSignedUrl,
   DEV_AUTHOR_FOLDER,
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
     refreshLaunchAttemptId?: unknown;
     refreshOnly?: unknown;
     allowDraftPreview?: unknown;
+    readinessOnly?: unknown;
   };
   try {
     const parsed: unknown = await request.json();
@@ -226,6 +228,7 @@ export async function POST(request: Request) {
             activityKey: resolvedActivityKey,
             authorId,
             status: allowDraftPreview ? { in: ["ready", "draft"] } : "ready",
+            ...(!allowDraftPreview ? { publishedAt: { not: null } } : {}),
             ...(requestedRevision ? { revision: requestedRevision } : {}),
           },
           orderBy: { publishedAt: "desc" },
@@ -242,8 +245,7 @@ export async function POST(request: Request) {
               ? selectNumberBondsSidecarRevision(revisions, assetId, difficultyKey, { allowLegacyReadyFallback: true })
               : selectEarlyAlgebraSidecarRevision(revisions, assetId, difficultyKey, { allowLegacyReadyFallback: true })
           : revisions[0] ?? null;
-        if (!revision || !revision.chartSha256 || !revision.sidecarSha256 || !revision.audioSha256 ||
-          revision.equationCount == null || revision.encounterCount == null || revision.targetCount == null) return null;
+        if (!revision || !hasPlayableRevisionMetadata(revision)) return null;
         return {
           chartBucket: revision.chartBucket,
           chartPath: revision.chartPath,
@@ -304,6 +306,17 @@ export async function POST(request: Request) {
         expectedActivityKey: songPackage.activityKey,
         receipt: songPackage.receipt,
       });
+    }
+
+    if (payload.readinessOnly === true) {
+      return NextResponse.json({
+        songAssetId: songPackage.songAssetId,
+        activityKey: songPackage.activityKey,
+        authorId: songPackage.authorId,
+        revision: songPackage.revision,
+        rhythmDifficultyKey: songPackage.rhythmDifficultyKey,
+        readiness: songPackage.readiness,
+      }, { headers: { "Cache-Control": "no-store" } });
     }
 
     if (shouldCreatePlayerLaunchAttempt({
