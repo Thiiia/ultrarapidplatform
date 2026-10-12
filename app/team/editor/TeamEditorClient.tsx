@@ -3813,6 +3813,15 @@ function ChartWaveform({
   onSeek: (time: number) => void;
 }) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const scrubbingPointerIdRef = useRef<number | null>(null);
+  const suppressPointerClickRef = useRef(false);
+  const seekToPointerPosition = (element: HTMLDivElement, clientX: number) => {
+    if (duration <= 0) return;
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    onSeek(ratio * duration);
+  };
   const progress = duration > 0 ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
   const divisionsPerQuarter = snapSubdivision === "eighth"
     ? 2
@@ -3867,6 +3876,7 @@ function ChartWaveform({
     const viewport = viewportRef.current;
     if (
       !viewport ||
+      scrubbingPointerIdRef.current !== null ||
       (!isAudioPlaying && !viewport.contains(document.activeElement)) ||
       duration <= 0 ||
       timelineZoom <= 1
@@ -3886,12 +3896,36 @@ function ChartWaveform({
     <div ref={viewportRef} style={{ width: "100%", minWidth: 0, height: 120, overflowX: "auto", overflowY: "hidden", borderRadius: 18, scrollbarColor: "#53606A #101010" }}>
       <div
         role="slider"
-        aria-label="Song waveform position. Use arrow keys to move by a fraction of a second, or Page Up and Page Down to move five seconds."
+        aria-label="Song waveform position. Click or drag to seek. Use arrow keys to move by a fraction of a second, or Page Up and Page Down to move five seconds."
         aria-valuemin={0}
         aria-valuemax={Math.max(1, duration)}
         aria-valuenow={Math.min(duration, Math.max(0, currentTime))}
         aria-valuetext={`${formatEditorTime(currentTime)}, chart tick ${currentTick}`}
         tabIndex={duration > 0 ? 0 : -1}
+        onPointerDown={(event) => {
+          if (duration <= 0 || event.button !== 0 || event.pointerType === "touch") return;
+          scrubbingPointerIdRef.current = event.pointerId;
+          suppressPointerClickRef.current = false;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          event.currentTarget.focus();
+          seekToPointerPosition(event.currentTarget, event.clientX);
+        }}
+        onPointerMove={(event) => {
+          if (scrubbingPointerIdRef.current !== event.pointerId) return;
+          suppressPointerClickRef.current = true;
+          seekToPointerPosition(event.currentTarget, event.clientX);
+        }}
+        onPointerUp={(event) => {
+          if (scrubbingPointerIdRef.current !== event.pointerId) return;
+          seekToPointerPosition(event.currentTarget, event.clientX);
+          scrubbingPointerIdRef.current = null;
+          suppressPointerClickRef.current = true;
+        }}
+        onPointerCancel={(event) => {
+          if (scrubbingPointerIdRef.current !== event.pointerId) return;
+          scrubbingPointerIdRef.current = null;
+          suppressPointerClickRef.current = false;
+        }}
         onKeyDown={(event) => {
           if (duration <= 0) return;
           const fineStep = event.shiftKey ? 1 : 0.1;
@@ -3926,10 +3960,12 @@ function ChartWaveform({
         }}
         onClick={(event) => {
           if (duration <= 0) return;
+          if (event.detail > 0 && suppressPointerClickRef.current) {
+            suppressPointerClickRef.current = false;
+            return;
+          }
           event.currentTarget.focus();
-          const rect = event.currentTarget.getBoundingClientRect();
-          const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-          onSeek(ratio * duration);
+          seekToPointerPosition(event.currentTarget, event.clientX);
         }}
         style={{
           position: "relative",

@@ -2,17 +2,20 @@
 export type ChartSnapSubdivision = "off" | "quarter" | "eighth" | "sixteenth";
 
 export function createLessonClock(chart: string) {
-  const parsedResolution = Number(chart.match(/\bResolution\s*=\s*"?(\d+)/)?.[1] ?? 192);
-  const usesDefaultResolution = !Number.isFinite(parsedResolution) || parsedResolution <= 0;
+  const song = chart.match(/\[Song\]\s*\{([\s\S]*?)\}/i)?.[1] ?? "";
+  const resolutionMatch = song.match(/^\s*Resolution\s*=\s*(?:"(\d+)"|(\d+))\s*$/im);
+  const parsedResolution = Number(resolutionMatch?.[1] ?? resolutionMatch?.[2] ?? NaN);
+  const usesDefaultResolution = !Number.isSafeInteger(parsedResolution) || parsedResolution <= 0;
   const resolution = usesDefaultResolution ? 192 : parsedResolution;
-  const parsedOffset = Number(chart.match(/\bOffset\s*=\s*"?(-?[\d.]+)/)?.[1] ?? 0);
+  const offsetMatch = song.match(/^\s*Offset\s*=\s*(?:"(-?(?:\d+(?:\.\d*)?|\.\d+))"|(-?(?:\d+(?:\.\d*)?|\.\d+)))\s*$/im);
+  const parsedOffset = Number(offsetMatch?.[1] ?? offsetMatch?.[2] ?? 0);
   const offset = Number.isFinite(parsedOffset) ? parsedOffset : 0;
   const sync = chart.match(/\[SyncTrack\]\s*\{([\s\S]*?)\}/)?.[1] ?? '';
   const tempos: Array<{ tick: number; bpm: number; explicit: boolean }> = Array.from(
-    sync.matchAll(/^\s*(\d+)\s*=\s*B\s+(\d+)/gm),
+    sync.matchAll(/^\s*(\d+)\s*=\s*B\s+(\d+)\s*$/gm),
     (m) => ({ tick: Number(m[1]), bpm: Number(m[2]) / 1000, explicit: true }),
   )
-    .filter((tempo) => Number.isFinite(tempo.tick) && Number.isFinite(tempo.bpm) && tempo.bpm > 0)
+    .filter((tempo) => Number.isSafeInteger(tempo.tick) && tempo.tick >= 0 && Number.isFinite(tempo.bpm) && tempo.bpm > 0)
     .sort((a,b) => a.tick-b.tick);
   if (!tempos.length || tempos[0].tick !== 0) tempos.unshift({tick: 0, bpm: 120, explicit: false});
   let seconds = 0;
@@ -31,13 +34,18 @@ export function createLessonClock(chart: string) {
       return (segments.findLast(s => s.tick <= tick) ?? segments[0]).explicit;
     },
     toTick(value: number) {
+      if (!Number.isFinite(value)) return 0;
       const time = value + offset;
       const segment = segments.findLast(s => s.seconds <= time) ?? segments[0];
-      return Math.max(0, Math.round(segment.tick + (time-segment.seconds) * segment.bpm * resolution / 60));
+      const tick = segment.tick + (time-segment.seconds) * segment.bpm * resolution / 60;
+      if (!Number.isFinite(tick)) return 0;
+      return Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.round(tick)));
     },
     toSeconds(tick: number) {
+      if (!Number.isFinite(tick)) return 0;
       const segment = segments.findLast(s => s.tick <= tick) ?? segments[0];
-      return segment.seconds + (tick-segment.tick) * 60 / (segment.bpm * resolution) - offset;
+      const seconds = segment.seconds + (tick-segment.tick) * 60 / (segment.bpm * resolution) - offset;
+      return Number.isFinite(seconds) ? seconds : 0;
     },
   };
 }
