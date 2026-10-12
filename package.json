@@ -20,6 +20,7 @@
     "@mui/material": "^7.3.9",
     "@prisma/client": "^6.19.2",
     "@supabase/supabase-js": "^2.106.1",
+    "@tonejs/midi": "2.0.28",
     "@vercel/analytics": "^2.0.1",
     "clsx": "^2.1.1",
     "csv-parse": "^7.0.2",

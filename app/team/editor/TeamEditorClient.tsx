@@ -12,6 +12,16 @@ import {
 import { chartToProject } from "@/lib/editor/chart-to-project";
 import { appendChartActionsToEvent } from "@/lib/editor/chart-event-placement";
 import {
+  analyzeChartFile,
+  CHART_NOTE_DIFFICULTIES,
+  parseChartLaneNotes,
+  removeChartLaneNote,
+  replaceChartOffset,
+  upsertChartLaneNote,
+  type ChartLaneNote,
+  type ChartNoteDifficulty,
+} from "@/lib/editor/chart-insights";
+import {
   createLessonClock,
   snapChartTickToGrid,
   type ChartSnapSubdivision,
@@ -1421,6 +1431,157 @@ function EditorToolbarButton({
   );
 }
 
+type ChartImportInfo = {
+  sourceFileName: string;
+  trackName: string;
+  noteCount: number;
+  warnings: string[];
+};
+
+type PendingMidiImport = {
+  file: File;
+  preview: import("@/lib/editor/midi-chart-import").MidiChartPreview;
+};
+
+const CHART_LANE_COLORS = ["#CFFF04", "#FF6678", "#FFD55A", "#58B2FF", "#FF9A55"] as const;
+const CHART_LANE_NAMES = ["Green", "Red", "Yellow", "Blue", "Orange"] as const;
+
+function MidiChartImportDialog({
+  pendingImport,
+  selectedTrackIndex,
+  isImporting,
+  error,
+  onTrackChange,
+  onCancel,
+  onImport,
+}: {
+  pendingImport: PendingMidiImport;
+  selectedTrackIndex: number;
+  isImporting: boolean;
+  error: string;
+  onTrackChange: (trackIndex: number) => void;
+  onCancel: () => void;
+  onImport: () => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const selectedTrack = pendingImport.preview.tracks.find(
+    (track) => track.trackIndex === selectedTrackIndex,
+  );
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+    return () => {
+      if (dialog.open) dialog.close();
+    };
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="midi-import-title"
+      onCancel={(event) => {
+        event.preventDefault();
+        onCancel();
+      }}
+      style={{
+        width: "min(680px, calc(100vw - 32px))",
+        maxHeight: "min(80vh, 720px)",
+        padding: 0,
+        border: `1px solid ${subtleBorderColor}`,
+        borderRadius: 18,
+        background: "#202626",
+        color: "#FFFFFF",
+        boxShadow: "0 24px 80px rgba(0,0,0,0.58)",
+        fontFamily: "Space Grotesk, sans-serif",
+      }}
+    >
+      <div style={{ padding: 22, display: "grid", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "start" }}>
+          <div>
+            <h2 id="midi-import-title" style={{ margin: 0, fontSize: 20, fontWeight: 900 }}>
+              Choose a MIDI chart track
+            </h2>
+            <p style={{ margin: "7px 0 0", color: "#D7E2DF", fontSize: 13, lineHeight: 1.5 }}>
+              {pendingImport.file.name} · Type {pendingImport.preview.midiFormat} MIDI · {pendingImport.preview.ppq} ticks per beat
+            </p>
+          </div>
+          <button type="button" onClick={onCancel} aria-label="Close MIDI import preview" style={audioTransportButtonStyle(false)}>
+            Close
+          </button>
+        </div>
+
+        <div style={{ display: "grid", gap: 8, maxHeight: 280, overflowY: "auto" }}>
+          {pendingImport.preview.tracks.map((track) => {
+            const checked = track.trackIndex === selectedTrackIndex;
+            return (
+              <label
+                key={track.trackIndex}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "20px minmax(0, 1fr)",
+                  alignItems: "start",
+                  gap: 10,
+                  padding: 12,
+                  borderRadius: 12,
+                  border: `1px solid ${checked ? "rgba(207,255,4,0.72)" : subtleBorderColor}`,
+                  background: checked ? "rgba(207,255,4,0.08)" : "#171D1D",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="midi-chart-track"
+                  value={track.trackIndex}
+                  checked={checked}
+                  onChange={() => onTrackChange(track.trackIndex)}
+                  style={{ marginTop: 3, accentColor: "#CFFF04" }}
+                />
+                <span style={{ display: "grid", gap: 5 }}>
+                  <strong style={{ fontSize: 14 }}>{track.name}</strong>
+                  <span style={{ color: "#D7E2DF", fontSize: 12 }}>
+                    {track.noteCount} playable notes · Easy {track.difficultyCounts.EasySingle} · Medium {track.difficultyCounts.MediumSingle} · Hard {track.difficultyCounts.HardSingle} · Expert {track.difficultyCounts.ExpertSingle}
+                  </span>
+                  {checked && track.warnings.map((warning) => (
+                    <span key={warning} style={{ color: "#F0D28B", fontSize: 12, lineHeight: 1.45 }}>
+                      {warning}
+                    </span>
+                  ))}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+
+        <div style={{ padding: 12, borderRadius: 12, background: "#171D1D", color: "#D7E2DF", fontSize: 12, lineHeight: 1.5 }}>
+          Tempo changes and time signatures are carried into the chart. Import starts at offset 0.000s because MIDI does not store the .chart audio offset; tune it against the song before saving.
+          {pendingImport.preview.warnings.map((warning) => <div key={warning} style={{ marginTop: 6, color: "#F0D28B" }}>{warning}</div>)}
+          {selectedTrack?.warnings.length === 0 && pendingImport.preview.warnings.length === 0 ? (
+            <div style={{ marginTop: 6 }}>All five-lane notes in this track are supported.</div>
+          ) : null}
+        </div>
+
+        {error ? <div role="alert" style={{ color: "#FFB4A9", fontSize: 13 }}>{error}</div> : null}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <button type="button" onClick={onCancel} disabled={isImporting} style={audioTransportButtonStyle(isImporting)}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onImport}
+            disabled={isImporting || !selectedTrack}
+            style={{ ...audioTransportButtonStyle(isImporting || !selectedTrack), background: "#CFFF04", color: "#101010", padding: "0 16px" }}
+          >
+            {isImporting ? "Importing track…" : "Import selected track"}
+          </button>
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
 function EditorActionBar({
   saveStatus,
   isSaving,
@@ -1437,7 +1598,7 @@ function EditorActionBar({
   isSaving: boolean;
   onSave: () => void;
   onUploadSong: (file: File) => void;
-  onUploadChart: (file: File) => void;
+  onUploadChart: (file: File, importInfo?: ChartImportInfo) => void;
   onUploadSidecar: (file: File) => void;
   songs: SelectedSongPayload[];
   onSelectSupabaseSong: (song: SelectedSongPayload) => void;
@@ -1449,6 +1610,73 @@ function EditorActionBar({
   const sidecarInputRef = useRef<HTMLInputElement | null>(null);
   const [isSongPickerOpen, setIsSongPickerOpen] = useState(false);
   const [songSearchQuery, setSongSearchQuery] = useState("");
+  const [pendingMidiImport, setPendingMidiImport] = useState<PendingMidiImport | null>(null);
+  const [selectedMidiTrackIndex, setSelectedMidiTrackIndex] = useState(0);
+  const [isInspectingMidi, setIsInspectingMidi] = useState(false);
+  const [isImportingMidi, setIsImportingMidi] = useState(false);
+  const [midiImportError, setMidiImportError] = useState("");
+  const [chartUploadMessage, setChartUploadMessage] = useState("");
+
+  async function inspectMidiFile(file: File) {
+    setIsInspectingMidi(true);
+    setMidiImportError("");
+    setChartUploadMessage("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("action", "inspect");
+      const response = await fetch("/api/chart/convert", { method: "POST", body: formData });
+      const payload = await response.json() as { preview?: PendingMidiImport["preview"]; error?: string };
+      if (!response.ok || !payload.preview) {
+        throw new Error(payload.error || "The MIDI chart could not be inspected.");
+      }
+      setSelectedMidiTrackIndex(payload.preview.tracks[0]?.trackIndex ?? -1);
+      setPendingMidiImport({ file, preview: payload.preview });
+    } catch (error) {
+      setChartUploadMessage(error instanceof Error ? error.message : "The MIDI chart could not be inspected.");
+    } finally {
+      setIsInspectingMidi(false);
+    }
+  }
+
+  async function importMidiTrack() {
+    if (!pendingMidiImport || selectedMidiTrackIndex < 0) return;
+    setIsImportingMidi(true);
+    setMidiImportError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", pendingMidiImport.file);
+      formData.append("trackIndex", String(selectedMidiTrackIndex));
+      const response = await fetch("/api/chart/convert", { method: "POST", body: formData });
+      const payload = await response.json() as {
+        chartText?: string;
+        fileName?: string;
+        trackName?: string;
+        noteCount?: number;
+        warnings?: string[];
+        error?: string;
+      };
+      if (!response.ok || !payload.chartText || !payload.fileName || !payload.trackName) {
+        throw new Error(payload.error || "The selected MIDI track could not be converted.");
+      }
+
+      onUploadChart(
+        new File([payload.chartText], payload.fileName, { type: "text/plain" }),
+        {
+          sourceFileName: pendingMidiImport.file.name,
+          trackName: payload.trackName,
+          noteCount: payload.noteCount ?? 0,
+          warnings: payload.warnings ?? [],
+        },
+      );
+      setChartUploadMessage("Imported " + payload.trackName + " with " + (payload.noteCount ?? 0) + " playable notes.");
+      setPendingMidiImport(null);
+    } catch (error) {
+      setMidiImportError(error instanceof Error ? error.message : "The selected MIDI track could not be converted.");
+    } finally {
+      setIsImportingMidi(false);
+    }
+  }
 
   const filteredSongs = useMemo(() => {
     const query = songSearchQuery.trim().toLowerCase();
@@ -1499,13 +1727,14 @@ function EditorActionBar({
       <input
         ref={chartInputRef}
         type="file"
-        accept=".chart,text/plain"
+        accept=".chart,.mid,.midi,text/plain"
         style={{ display: "none" }}
         onChange={(event) => {
           const file = event.target.files?.[0];
 
           if (file) {
-            onUploadChart(file);
+            if (/\.(mid|midi)$/i.test(file.name)) void inspectMidiFile(file);
+            else onUploadChart(file);
           }
 
           event.target.value = "";
@@ -1552,8 +1781,8 @@ function EditorActionBar({
             Upload Song
           </EditorToolbarButton>
 
-          <EditorToolbarButton onClick={() => chartInputRef.current?.click()}>
-            Upload .chart
+          <EditorToolbarButton onClick={() => chartInputRef.current?.click()} disabled={isInspectingMidi || isImportingMidi}>
+            {isInspectingMidi ? "Reading chart…" : "Import Chart"}
           </EditorToolbarButton>
 
           <EditorToolbarButton onClick={() => sidecarInputRef.current?.click()}>
@@ -1585,7 +1814,7 @@ function EditorActionBar({
             aria-live="polite"
             style={{
               maxWidth: 280,
-              color: saveStatus === "Saved" ? "#CFFF04" : "#FFFFFF99",
+              color: saveStatus === "Saved" ? "#CFFF04" : chartUploadMessage ? "#F0D28B" : "#FFFFFF99",
               fontSize: 12,
               fontWeight: 700,
               textAlign: "right",
@@ -1594,7 +1823,7 @@ function EditorActionBar({
               whiteSpace: "nowrap",
             }}
           >
-            {saveStatus}
+            {chartUploadMessage || saveStatus}
           </div>
 
           <EditorToolbarButton
@@ -1849,6 +2078,22 @@ function EditorActionBar({
             </div>
           </div>
         </div>
+      ) : null}
+
+      {pendingMidiImport ? (
+        <MidiChartImportDialog
+          pendingImport={pendingMidiImport}
+          selectedTrackIndex={selectedMidiTrackIndex}
+          isImporting={isImportingMidi}
+          error={midiImportError}
+          onTrackChange={setSelectedMidiTrackIndex}
+          onCancel={() => {
+            if (isImportingMidi) return;
+            setPendingMidiImport(null);
+            setMidiImportError("");
+          }}
+          onImport={() => void importMidiTrack()}
+        />
       ) : null}
     </section>
   );
@@ -3695,6 +3940,49 @@ type AudioWaveformState = {
   peaks: number[];
 };
 
+const MAX_WAVEFORM_AUDIO_BYTES = 32 * 1024 * 1024;
+
+async function readWaveformAudio(response: Response) {
+  const contentLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_WAVEFORM_AUDIO_BYTES) {
+    throw new Error("Audio is too large to build a waveform preview.");
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > MAX_WAVEFORM_AUDIO_BYTES) {
+      throw new Error("Audio is too large to build a waveform preview.");
+    }
+    return buffer;
+  }
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_WAVEFORM_AUDIO_BYTES) {
+        await reader.cancel();
+        throw new Error("Audio is too large to build a waveform preview.");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let cursor = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, cursor);
+    cursor += chunk.byteLength;
+  }
+  return bytes.buffer;
+}
+
 function useAudioWaveformPeaks(audioUrl: string): AudioWaveformState {
   const [waveform, setWaveform] = useState<AudioWaveformState>({
     sourceUrl: "",
@@ -3720,7 +4008,7 @@ function useAudioWaveformPeaks(audioUrl: string): AudioWaveformState {
           throw new Error(`Audio request failed (${response.status})`);
         }
 
-        const encodedAudio = await response.arrayBuffer();
+        const encodedAudio = await readWaveformAudio(response);
         if (disposed) return;
 
         try {
@@ -3792,6 +4080,9 @@ function ChartWaveform({
   duration,
   currentTick,
   chartClock,
+  chartNotes,
+  chartDifficulty,
+  loopRange,
   hasChart,
   snapSubdivision,
   timelineZoom,
@@ -3805,6 +4096,9 @@ function ChartWaveform({
   duration: number;
   currentTick: number;
   chartClock: ReturnType<typeof createLessonClock>;
+  chartNotes: ChartLaneNote[];
+  chartDifficulty: ChartNoteDifficulty;
+  loopRange: { start: number; end: number } | null;
   hasChart: boolean;
   snapSubdivision: ChartSnapSubdivision;
   timelineZoom: number;
@@ -3813,6 +4107,7 @@ function ChartWaveform({
   onSeek: (time: number) => void;
 }) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const [visibleTimeRange, setVisibleTimeRange] = useState({ start: 0, end: Number.POSITIVE_INFINITY });
   const scrubbingPointerIdRef = useRef<number | null>(null);
   const suppressPointerClickRef = useRef(false);
   const seekToPointerPosition = (element: HTMLDivElement, clientX: number) => {
@@ -3841,6 +4136,17 @@ function ChartWaveform({
     (interval) => interval >= rawTimeLabelInterval,
   ) ?? 600;
   const timeLabels: Array<{ seconds: number; position: number }> = [];
+  const visibleChartNotes = useMemo(() => chartNotes.flatMap((note) => {
+    if (!hasChart || duration <= 0) return [];
+    const seconds = chartClock.toSeconds(note.tick);
+    if (!Number.isFinite(seconds) || seconds < 0 || seconds > duration) return [];
+    const noteEndSeconds = note.length > 0
+      ? chartClock.toSeconds(note.tick + note.length)
+      : seconds;
+    const visibleEnd = Math.max(seconds, noteEndSeconds);
+    if (visibleEnd < visibleTimeRange.start - 1 || seconds > visibleTimeRange.end + 1) return [];
+    return [{ note, seconds, endSeconds: visibleEnd }];
+  }), [chartClock, chartNotes, duration, hasChart, visibleTimeRange]);
 
   if (duration > 0) {
     for (let seconds = 0; seconds <= duration && timeLabels.length < 800; seconds += timeLabelInterval) {
@@ -3893,14 +4199,25 @@ function ChartWaveform({
   }, [currentTime, duration, isAudioPlaying, timelineZoom]);
 
   return (
-    <div ref={viewportRef} style={{ width: "100%", minWidth: 0, height: 120, overflowX: "auto", overflowY: "hidden", borderRadius: 18, scrollbarColor: "#53606A #101010" }}>
+    <div
+      ref={viewportRef}
+      onScroll={(event) => {
+        const viewport = event.currentTarget;
+        if (duration <= 0 || viewport.scrollWidth <= 0) return;
+        setVisibleTimeRange({
+          start: (viewport.scrollLeft / viewport.scrollWidth) * duration,
+          end: ((viewport.scrollLeft + viewport.clientWidth) / viewport.scrollWidth) * duration,
+        });
+      }}
+      style={{ width: "100%", minWidth: 0, height: 120, overflowX: "auto", overflowY: "hidden", borderRadius: 18, scrollbarColor: "#53606A #101010" }}
+    >
       <div
         role="slider"
-        aria-label="Song waveform position. Click or drag to seek. Use arrow keys to move by a fraction of a second, or Page Up and Page Down to move five seconds."
+        aria-label={`Song waveform and ${chartDifficulty} chart notes. Click or drag to seek. Use arrow keys to move by a fraction of a second, or Page Up and Page Down to move five seconds.`}
         aria-valuemin={0}
         aria-valuemax={Math.max(1, duration)}
         aria-valuenow={Math.min(duration, Math.max(0, currentTime))}
-        aria-valuetext={`${formatEditorTime(currentTime)}, chart tick ${currentTick}`}
+        aria-valuetext={`${formatEditorTime(currentTime)}, chart tick ${currentTick}, ${chartNotes.length} ${chartDifficulty} notes`}
         tabIndex={duration > 0 ? 0 : -1}
         onPointerDown={(event) => {
           if (duration <= 0 || event.button !== 0 || event.pointerType === "touch") return;
@@ -4015,11 +4332,29 @@ function ChartWaveform({
         />
       ))}
 
+      {loopRange && duration > 0 ? (
+        <span
+          aria-hidden="true"
+          title={`A–B loop ${formatEditorTime(loopRange.start)} to ${formatEditorTime(loopRange.end)}`}
+          style={{
+            position: "absolute",
+            left: `${(loopRange.start / duration) * 100}%`,
+            width: `${Math.max(0, ((loopRange.end - loopRange.start) / duration) * 100)}%`,
+            top: 24,
+            bottom: 3,
+            background: "rgba(207,255,4,0.08)",
+            borderLeft: "1px solid rgba(207,255,4,0.6)",
+            borderRight: "1px solid rgba(207,255,4,0.6)",
+            pointerEvents: "none",
+          }}
+        />
+      ) : null}
+
       <div
         aria-hidden="true"
         style={{
           position: "absolute",
-          inset: "28px 14px 12px",
+          inset: "28px 14px 44px",
           display: "flex",
           alignItems: "center",
           gap: 2,
@@ -4073,7 +4408,7 @@ function ChartWaveform({
               position: "absolute",
               left: `${left}%`,
               top: 25,
-              bottom: 7,
+              bottom: 43,
               width: isActive ? 4 : 2,
               background: isActive ? "#CFFF04" : "rgba(46, 167, 255, 0.9)",
               boxShadow: isActive ? "0 0 12px rgba(207, 255, 4, 0.55)" : "0 0 8px rgba(46, 167, 255, 0.38)",
@@ -4083,6 +4418,41 @@ function ChartWaveform({
           />
         );
       })}
+
+      {hasChart && chartNotes.length > 0 ? (
+        <div aria-hidden="true" style={{ position: "absolute", inset: "81px 0 4px", pointerEvents: "none" }}>
+          {[0, 1, 2, 3, 4].map((lane) => (
+            <span
+              key={`lane-${lane}`}
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: `${lane * 7}px`,
+                height: 1,
+                background: "rgba(255,255,255,0.08)",
+              }}
+            />
+          ))}
+          {visibleChartNotes.map(({ note, seconds, endSeconds }, index) => (
+            <span
+              key={`${note.tick}-${note.lane}-${index}`}
+              title={`${chartDifficulty} lane ${note.lane + 1} at tick ${note.tick}`}
+              style={{
+                position: "absolute",
+                left: `${(seconds / duration) * 100}%`,
+                top: `${(4 - note.lane) * 7 + 2}px`,
+                width: `${note.length > 0 ? Math.max(0.08, ((endSeconds - seconds) / duration) * 100) : 0.08}%`,
+                minWidth: 2,
+                height: 4,
+                borderRadius: 4,
+                background: CHART_LANE_COLORS[note.lane],
+                boxShadow: `0 0 6px ${CHART_LANE_COLORS[note.lane]}66`,
+              }}
+            />
+          ))}
+        </div>
+      ) : null}
 
       <div
         aria-hidden="true"
@@ -4160,6 +4530,8 @@ function ChartEditorViewer({
   timelineEvents,
   chartFile,
   chartClock,
+  onChartChange,
+  onChartOffsetChange,
   snapSubdivision,
   sidecar,
   onTogglePlay,
@@ -4179,6 +4551,8 @@ function ChartEditorViewer({
   timelineEvents: TimelineEventSlot[];
   chartFile: string;
   chartClock: ReturnType<typeof createLessonClock>;
+  onChartChange: (chartText: string, statusMessage: string) => void;
+  onChartOffsetChange: (offsetSeconds: number) => void;
   snapSubdivision: ChartSnapSubdivision;
   sidecar: SidecarPayload;
   onTogglePlay: () => void;
@@ -4191,9 +4565,39 @@ function ChartEditorViewer({
   const waveform = useAudioWaveformPeaks(audioUrl);
   const [previewRate, setPreviewRate] = useState(1);
   const [timelineZoom, setTimelineZoom] = useState(1);
+  const [chartDifficulty, setChartDifficulty] = useState<ChartNoteDifficulty>("ExpertSingle");
+  const [loopStart, setLoopStart] = useState<number | null>(null);
+  const [loopEnd, setLoopEnd] = useState<number | null>(null);
+  const [loopEnabled, setLoopEnabled] = useState(false);
+  const [loopMessage, setLoopMessage] = useState("");
+  const [offsetDraft, setOffsetDraft] = useState(chartClock.offsetSeconds.toFixed(3));
+  const [offsetError, setOffsetError] = useState("");
+  const [selectedChartNote, setSelectedChartNote] = useState<{ difficulty: ChartNoteDifficulty; tick: number; lane: number } | null>(null);
+  const [noteSustainDraft, setNoteSustainDraft] = useState("0");
+  const [chartNoteError, setChartNoteError] = useState("");
   const [tapTempoResult, setTapTempoResult] = useState<{ audioUrl: string; bpm: number } | null>(null);
   const tapTempo = tapTempoResult?.audioUrl === audioUrl ? tapTempoResult.bpm : null;
   const tapTimesRef = useRef<number[]>([]);
+  const chartAnalysis = useMemo(() => analyzeChartFile(chartFile), [chartFile]);
+  const chartNotes = useMemo(
+    () => parseChartLaneNotes(chartFile, chartDifficulty),
+    [chartDifficulty, chartFile],
+  );
+  const selectedChartNoteValue = selectedChartNote?.difficulty === chartDifficulty
+    ? chartNotes.find((note) => note.tick === selectedChartNote.tick && note.lane === selectedChartNote.lane) ?? null
+    : null;
+  const nearbyChartNotes = useMemo(() => {
+    let low = 0;
+    let high = chartNotes.length;
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if (chartNotes[middle].tick < currentTick) low = middle + 1;
+      else high = middle;
+    }
+    return chartNotes.slice(Math.max(0, low - 3), Math.min(chartNotes.length, low + 5));
+  }, [chartNotes, currentTick]);
+  const hasValidLoop = loopStart !== null && loopEnd !== null && loopEnd - loopStart >= 0.1;
+  const visibleLoopRange = hasValidLoop ? { start: loopStart, end: loopEnd } : null;
   const currentEvent = getEventAtOrBeforeTick(timelineEvents, currentTick);
   const exactEvents = getEventsAtTick(timelineEvents, currentTick);
   const sidecarEventsAtTick = sidecar.events.filter((event) => event.tick === currentTick);
@@ -4207,6 +4611,159 @@ function ChartEditorViewer({
   useEffect(() => {
     tapTimesRef.current = [];
   }, [audioUrl]);
+
+  useEffect(() => {
+    setLoopStart(null);
+    setLoopEnd(null);
+    setLoopEnabled(false);
+    setLoopMessage("");
+  }, [audioUrl]);
+
+  useEffect(() => {
+    setOffsetDraft(chartClock.offsetSeconds.toFixed(3));
+    setOffsetError("");
+  }, [chartFile, chartClock.offsetSeconds]);
+
+  useEffect(() => {
+    setNoteSustainDraft(String(selectedChartNoteValue?.length ?? 0));
+    setChartNoteError("");
+  }, [selectedChartNoteValue?.tick, selectedChartNoteValue?.lane, selectedChartNoteValue?.length]);
+
+  useEffect(() => {
+    if (!selectedChartNoteValue && selectedChartNote) setSelectedChartNote(null);
+  }, [selectedChartNote, selectedChartNoteValue]);
+
+  useEffect(() => {
+    const populatedDifficulty = [...CHART_NOTE_DIFFICULTIES]
+      .reverse()
+      .find((difficulty) => chartAnalysis.noteCounts[difficulty] > 0);
+    if (!populatedDifficulty) return;
+    setChartDifficulty((current) => chartAnalysis.noteCounts[current] > 0 ? current : populatedDifficulty);
+  }, [chartAnalysis]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !loopEnabled || loopStart === null || loopEnd === null || !hasValidLoop) return;
+    const returnToLoopStart = () => {
+      if (audio.currentTime < loopEnd) return;
+      audio.currentTime = loopStart;
+      onTimeUpdate(loopStart);
+    };
+    audio.addEventListener("timeupdate", returnToLoopStart);
+    return () => audio.removeEventListener("timeupdate", returnToLoopStart);
+  }, [audioRef, audioUrl, hasValidLoop, loopEnabled, loopEnd, loopStart, onTimeUpdate]);
+
+  function markLoopStart() {
+    const point = Math.max(0, Math.min(duration, currentTime));
+    setLoopStart(point);
+    if (loopEnd !== null && loopEnd - point < 0.1) {
+      setLoopEnd(null);
+      setLoopEnabled(false);
+      setLoopMessage("A set. Place B at least 0.1 seconds after it.");
+      return;
+    }
+    setLoopMessage("A set at " + formatEditorTime(point) + ". Now place B later in the song.");
+  }
+
+  function markLoopEnd() {
+    const point = Math.max(0, Math.min(duration, currentTime));
+    if (loopStart === null) {
+      setLoopMessage("Set A before setting B.");
+      return;
+    }
+    if (point - loopStart < 0.1) {
+      setLoopMessage("Place B at least 0.1 seconds after A.");
+      return;
+    }
+    setLoopEnd(point);
+    setLoopMessage("Loop region set from " + formatEditorTime(loopStart) + " to " + formatEditorTime(point) + ".");
+  }
+
+  function applyOffsetDraft() {
+    const nextOffset = Number(offsetDraft);
+    if (!Number.isFinite(nextOffset) || Math.abs(nextOffset) > 600) {
+      setOffsetError("Enter an offset between −600 and +600 seconds.");
+      return;
+    }
+    setOffsetError("");
+    onChartOffsetChange(nextOffset);
+  }
+
+  function nudgeChartOffset(deltaSeconds: number) {
+    const nextOffset = Math.round((chartClock.offsetSeconds + deltaSeconds) * 1000) / 1000;
+    setOffsetDraft(nextOffset.toFixed(3));
+    setOffsetError("");
+    onChartOffsetChange(nextOffset);
+  }
+
+  function handleAudioEnded() {
+    const audio = audioRef.current;
+    if (loopEnabled && hasValidLoop && loopStart !== null && audio) {
+      audio.currentTime = loopStart;
+      onTimeUpdate(loopStart);
+      void audio.play().catch(() => {
+        setLoopEnabled(false);
+        setLoopMessage("Loop paused because the browser blocked playback. Press Play to resume.");
+        onPlaybackEnded();
+      });
+      return;
+    }
+    onTimeUpdate(duration);
+    onPlaybackEnded();
+  }
+
+  function addChartNote(lane: ChartLaneNote["lane"]) {
+    const tick = snapChartTickToGrid(currentTick, chartClock.ticksPerBeat, snapSubdivision);
+    const existing = chartNotes.find((note) => note.tick === tick && note.lane === lane);
+    if (existing) {
+      setSelectedChartNote({ difficulty: chartDifficulty, tick, lane });
+      setChartNoteError("A note already exists at this tick and lane. It is selected below.");
+      return;
+    }
+    try {
+      const nextChart = upsertChartLaneNote(chartFile, chartDifficulty, { tick, lane, length: 0 });
+      setSelectedChartNote({ difficulty: chartDifficulty, tick, lane });
+      setChartNoteError("");
+      onChartChange(nextChart, `Added lane ${lane + 1} note at tick ${tick}. Save the lesson to keep the chart edit.`);
+    } catch (error) {
+      setChartNoteError(error instanceof Error ? error.message : "Unable to add this chart note.");
+    }
+  }
+
+  function applySelectedNoteLength() {
+    if (!selectedChartNoteValue || !selectedChartNote) return;
+    const length = Number(noteSustainDraft);
+    if (!Number.isSafeInteger(length) || length < 0) {
+      setChartNoteError("Enter a non-negative whole number of sustain ticks.");
+      return;
+    }
+    try {
+      const nextChart = upsertChartLaneNote(chartFile, chartDifficulty, {
+        tick: selectedChartNote.tick,
+        lane: selectedChartNote.lane,
+        length,
+      });
+      setChartNoteError("");
+      onChartChange(nextChart, `Updated lane ${selectedChartNote.lane + 1} sustain to ${length} ticks. Save the lesson to keep the chart edit.`);
+    } catch (error) {
+      setChartNoteError(error instanceof Error ? error.message : "Unable to update this chart note.");
+    }
+  }
+
+  function deleteSelectedChartNote() {
+    if (!selectedChartNoteValue || !selectedChartNote) return;
+    try {
+      const nextChart = removeChartLaneNote(chartFile, chartDifficulty, {
+        tick: selectedChartNote.tick,
+        lane: selectedChartNote.lane,
+      });
+      setSelectedChartNote(null);
+      setChartNoteError("");
+      onChartChange(nextChart, `Removed lane ${selectedChartNote.lane + 1} note at tick ${selectedChartNote.tick}. Save the lesson to keep the chart edit.`);
+    } catch (error) {
+      setChartNoteError(error instanceof Error ? error.message : "Unable to remove this chart note.");
+    }
+  }
 
   function handleTapTempo() {
     const now = performance.now();
@@ -4261,7 +4818,22 @@ function ChartEditorViewer({
             </div>
           </div>
           <div style={{ color: "#FFFFFF99", fontSize: 12, fontWeight: 800 }}>
-            {timelineEvents.length} events
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              Chart difficulty
+              <select
+                aria-label="Chart note difficulty"
+                value={chartDifficulty}
+                onChange={(event) => setChartDifficulty(event.currentTarget.value as ChartNoteDifficulty)}
+                style={audioTransportSelectStyle}
+              >
+                {CHART_NOTE_DIFFICULTIES.map((difficulty) => (
+                  <option key={difficulty} value={difficulty}>
+                    {difficulty.replace("Single", "")} · {chartAnalysis.noteCounts[difficulty]} notes
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span style={{ marginLeft: 12 }}>{timelineEvents.length} lesson events</span>
           </div>
         </div>
 
@@ -4285,6 +4857,54 @@ function ChartEditorViewer({
           >
             <div style={{ fontSize: 13, fontWeight: 900, color: "#CFFF04", marginBottom: 10 }}>
               Current timing data
+            </div>
+
+            <div
+              role="group"
+              aria-label="Chart audio offset calibration"
+              style={{
+                display: "grid",
+                gap: 8,
+                padding: 12,
+                marginBottom: 14,
+                borderRadius: 14,
+                border: `1px solid ${subtleBorderColor}`,
+                background: "#171D1D",
+              }}
+            >
+              <label htmlFor="chart-offset-seconds" style={{ color: "#FFFFFFCC", fontSize: 12, fontWeight: 900 }}>
+                Chart audio offset
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto auto", gap: 6 }}>
+                <input
+                  id="chart-offset-seconds"
+                  type="number"
+                  min={-600}
+                  max={600}
+                  step={0.001}
+                  value={offsetDraft}
+                  disabled={!chartFile.trim()}
+                  aria-describedby="chart-offset-help chart-offset-error"
+                  onChange={(event) => {
+                    setOffsetDraft(event.currentTarget.value);
+                    setOffsetError("");
+                  }}
+                  style={{ ...audioTransportSelectStyle, minWidth: 0 }}
+                />
+                <button type="button" disabled={!chartFile.trim()} onClick={() => nudgeChartOffset(-0.01)} style={audioTransportButtonStyle(!chartFile.trim())}>
+                  −10 ms
+                </button>
+                <button type="button" disabled={!chartFile.trim()} onClick={() => nudgeChartOffset(0.01)} style={audioTransportButtonStyle(!chartFile.trim())}>
+                  +10 ms
+                </button>
+              </div>
+              <div id="chart-offset-help" style={{ color: "#FFFFFF99", fontSize: 11, lineHeight: 1.45 }}>
+                Adjusts chart notes against the audio. Increasing this value moves chart notes earlier. Save the lesson to keep the change.
+              </div>
+              {offsetError ? <div id="chart-offset-error" role="alert" style={{ color: "#FFB4A9", fontSize: 11 }}>{offsetError}</div> : <span id="chart-offset-error" />}
+              <button type="button" disabled={!chartFile.trim()} onClick={applyOffsetDraft} style={{ ...audioTransportButtonStyle(!chartFile.trim()), justifySelf: "start", minHeight: 34, padding: "0 12px" }}>
+                Apply offset
+              </button>
             </div>
 
             {exactEvents.length > 0 ? (
@@ -4321,6 +4941,76 @@ function ChartEditorViewer({
                 No chart or sidecar event data is available at this timing yet.
               </div>
             )}
+
+            <section aria-label="Chart note authoring" style={{ display: "grid", gap: 9, marginTop: 18, paddingTop: 14, borderTop: `1px solid ${subtleBorderColor}` }}>
+              <div>
+                <div style={{ color: "#CFFF04", fontSize: 13, fontWeight: 900 }}>Edit chart notes</div>
+                <div style={{ color: "#FFFFFF99", fontSize: 11, lineHeight: 1.45, marginTop: 4 }}>
+                  Add a note at the playhead on {chartDifficulty.replace("Single", "")}. Snap: {snapSubdivision}. Current tick {snapChartTickToGrid(currentTick, chartClock.ticksPerBeat, snapSubdivision)}.
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 5 }}>
+                {CHART_LANE_NAMES.map((laneName, lane) => (
+                  <button
+                    key={laneName}
+                    type="button"
+                    disabled={!chartFile.trim()}
+                    title={`Add ${laneName.toLowerCase()} lane note at the playhead`}
+                    aria-label={`Add ${laneName.toLowerCase()} lane note at tick ${snapChartTickToGrid(currentTick, chartClock.ticksPerBeat, snapSubdivision)}`}
+                    onClick={() => addChartNote(lane as ChartLaneNote["lane"])}
+                    style={{ ...audioTransportButtonStyle(!chartFile.trim()), minWidth: 0, minHeight: 36, padding: "0 4px", color: CHART_LANE_COLORS[lane], borderColor: CHART_LANE_COLORS[lane] }}
+                  >
+                    {lane + 1}
+                  </button>
+                ))}
+              </div>
+
+              <details>
+                <summary style={{ cursor: "pointer", color: "#FFFFFFCC", fontSize: 11, fontWeight: 800 }}>
+                  Nearby {chartDifficulty.replace("Single", "")} notes · {chartNotes.length} total
+                </summary>
+                <div style={{ display: "grid", gap: 5, marginTop: 8 }}>
+                  {nearbyChartNotes.length ? nearbyChartNotes.map((note) => {
+                    const isSelected = selectedChartNote?.difficulty === chartDifficulty && selectedChartNote.tick === note.tick && selectedChartNote.lane === note.lane;
+                    return (
+                      <button
+                        key={`${note.tick}-${note.lane}`}
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => {
+                          setSelectedChartNote({ difficulty: chartDifficulty, tick: note.tick, lane: note.lane });
+                          onSeek(chartClock.toSeconds(note.tick));
+                        }}
+                        style={{ ...audioTransportButtonStyle(false), minHeight: 34, padding: "4px 8px", display: "flex", justifyContent: "space-between", gap: 6, color: isSelected ? CHART_LANE_COLORS[note.lane] : "#FFFFFFCC", borderColor: isSelected ? CHART_LANE_COLORS[note.lane] : subtleBorderColor, textAlign: "left" }}
+                      >
+                        <span>{formatEditorTime(chartClock.toSeconds(note.tick))} · lane {note.lane + 1}</span>
+                        <span>{note.length > 0 ? `${note.length} tick sustain` : "tap"}</span>
+                      </button>
+                    );
+                  }) : <div style={{ color: "#FFFFFF99", fontSize: 11 }}>No notes in this difficulty yet.</div>}
+                </div>
+              </details>
+
+              {selectedChartNoteValue && selectedChartNote ? (
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto auto", alignItems: "end", gap: 6, padding: 10, borderRadius: 12, background: "#171D1D" }}>
+                  <label htmlFor="chart-note-sustain" style={{ display: "grid", gap: 4, color: "#FFFFFFB3", fontSize: 10, fontWeight: 800 }}>
+                    Sustain length · ticks (0 = tap)
+                    <input
+                      id="chart-note-sustain"
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={noteSustainDraft}
+                      onChange={(event) => { setNoteSustainDraft(event.currentTarget.value); setChartNoteError(""); }}
+                      style={{ ...audioTransportSelectStyle, minWidth: 0 }}
+                    />
+                  </label>
+                  <button type="button" onClick={applySelectedNoteLength} style={{ ...audioTransportButtonStyle(false), minHeight: 36, padding: "0 9px" }}>Apply</button>
+                  <button type="button" onClick={deleteSelectedChartNote} style={{ ...audioTransportButtonStyle(false), minHeight: 36, padding: "0 9px", color: "#FFB4A9", borderColor: "rgba(255,116,116,0.4)" }}>Delete</button>
+                </div>
+              ) : null}
+              {chartNoteError ? <div role="status" style={{ color: "#F0D28B", fontSize: 11, lineHeight: 1.4 }}>{chartNoteError}</div> : null}
+            </section>
           </div>
 
           <div
@@ -4335,6 +5025,24 @@ function ChartEditorViewer({
             <div style={{ fontSize: 13, fontWeight: 900, color: "#CFFF04", marginBottom: 10 }}>
               Raw data at current tick
             </div>
+            <details open={chartAnalysis.diagnostics.some((diagnostic) => diagnostic.severity === "error")} style={{ marginBottom: 14 }}>
+              <summary style={{ cursor: "pointer", color: chartAnalysis.diagnostics.some((diagnostic) => diagnostic.severity === "error") ? "#FFB4A9" : "#CFFF04", fontSize: 12, fontWeight: 900 }}>
+                Chart check · {chartAnalysis.diagnostics.filter((diagnostic) => diagnostic.severity === "error").length} errors · {chartAnalysis.diagnostics.filter((diagnostic) => diagnostic.severity === "warning").length} notes
+              </summary>
+              <div style={{ display: "grid", gap: 8, paddingTop: 10 }}>
+                {chartAnalysis.diagnostics.length ? chartAnalysis.diagnostics.map((diagnostic, index) => (
+                  <div key={`${diagnostic.code}-${diagnostic.tick ?? "none"}-${index}`} style={{ padding: 9, borderRadius: 10, background: "#171D1D", border: `1px solid ${diagnostic.severity === "error" ? "rgba(255,116,116,0.28)" : subtleBorderColor}` }}>
+                    {diagnostic.tick !== undefined ? (
+                      <button type="button" onClick={() => onSeek(chartClock.toSeconds(diagnostic.tick!))} style={{ float: "right", ...audioTransportButtonStyle(false), minHeight: 28, padding: "0 8px", fontSize: 10 }}>
+                        Go to tick {diagnostic.tick}
+                      </button>
+                    ) : null}
+                    <div style={{ color: diagnostic.severity === "error" ? "#FFB4A9" : diagnostic.severity === "warning" ? "#F0D28B" : "#CFFF04", fontSize: 12, fontWeight: 900 }}>{diagnostic.title}</div>
+                    <div style={{ color: "#FFFFFFB3", fontSize: 11, lineHeight: 1.45, marginTop: 4 }}>{diagnostic.detail}</div>
+                  </div>
+                )) : <div style={{ color: "#CFFF04", fontSize: 12 }}>No chart structure issues found.</div>}
+              </div>
+            </details>
             <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 800, marginBottom: 8 }}>
               Sidecar JSON
             </div>
@@ -4395,10 +5103,7 @@ function ChartEditorViewer({
           preload="metadata"
           onTimeUpdate={(event) => onTimeUpdate(event.currentTarget.currentTime)}
           onLoadedMetadata={(event) => onDurationChange(event.currentTarget.duration || 0)}
-          onEnded={() => {
-            onTimeUpdate(duration);
-            onPlaybackEnded();
-          }}
+          onEnded={handleAudioEnded}
         />
         <div style={{ display: "grid", gap: 8, alignContent: "center" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 1fr", gap: 6 }}>
@@ -4477,6 +5182,24 @@ function ChartEditorViewer({
               <option value={4}>4× detail</option>
             </select>
           </label>
+
+          <div role="group" aria-label="A–B loop controls" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 6 }}>
+            <button type="button" disabled={!audioUrl} onClick={markLoopStart} aria-label="Set loop start A at current time" title="Set loop start A at the playhead" style={audioTransportButtonStyle(!audioUrl)}>
+              A {loopStart === null ? "—" : formatEditorTime(loopStart)}
+            </button>
+            <button type="button" disabled={!audioUrl} onClick={markLoopEnd} aria-label="Set loop end B at current time" title="Set loop end B at the playhead" style={audioTransportButtonStyle(!audioUrl)}>
+              B {loopEnd === null ? "—" : formatEditorTime(loopEnd)}
+            </button>
+            <button type="button" disabled={!audioUrl || !hasValidLoop} aria-pressed={loopEnabled} onClick={() => setLoopEnabled((enabled) => !enabled)} style={audioTransportButtonStyle(!audioUrl || !hasValidLoop)}>
+              {loopEnabled ? "Loop on" : "Loop"}
+            </button>
+            <button type="button" disabled={loopStart === null && loopEnd === null} onClick={() => { setLoopStart(null); setLoopEnd(null); setLoopEnabled(false); setLoopMessage("Loop markers cleared."); }} style={audioTransportButtonStyle(loopStart === null && loopEnd === null)}>
+              Clear
+            </button>
+          </div>
+          <div aria-live="polite" style={{ minHeight: 16, color: loopEnabled ? "#CFFF04" : "#FFFFFF99", fontSize: 10, lineHeight: 1.4 }}>
+            {loopMessage || (hasValidLoop ? `A–B region: ${formatEditorTime(loopStart!)} to ${formatEditorTime(loopEnd!)}` : "Set A and B to rehearse a short section.")}
+          </div>
         </div>
 
         <ChartWaveform
@@ -4486,6 +5209,9 @@ function ChartEditorViewer({
           duration={duration}
           currentTick={currentTick}
           chartClock={chartClock}
+          chartNotes={chartNotes}
+          chartDifficulty={chartDifficulty}
+          loopRange={visibleLoopRange}
           hasChart={Boolean(chartFile.trim())}
           snapSubdivision={snapSubdivision}
           timelineZoom={timelineZoom}
@@ -5003,6 +5729,8 @@ function CenterEditorPanel({
   currentChartTick,
   chartFile,
   chartClock,
+  onChartChange,
+  onChartOffsetChange,
   snapSubdivision,
   sidecar,
   onCustomTokenLabelChange,
@@ -5035,6 +5763,8 @@ function CenterEditorPanel({
   currentChartTick: number;
   chartFile: string;
   chartClock: ReturnType<typeof createLessonClock>;
+  onChartChange: (chartText: string, statusMessage: string) => void;
+  onChartOffsetChange: (offsetSeconds: number) => void;
   snapSubdivision: ChartSnapSubdivision;
   sidecar: SidecarPayload;
   onCustomTokenLabelChange: (value: string) => void;
@@ -5107,6 +5837,8 @@ function CenterEditorPanel({
             timelineEvents={timelineEvents}
             chartFile={chartFile}
             chartClock={chartClock}
+            onChartChange={onChartChange}
+            onChartOffsetChange={onChartOffsetChange}
             snapSubdivision={snapSubdivision}
             sidecar={sidecar}
             onTogglePlay={onToggleAudio}
@@ -5306,13 +6038,15 @@ export default function LessonBuilderClient({
     }));
   }
 
-  async function handleUploadChartFile(file: File) {
+  async function handleUploadChartFile(file: File, importInfo?: ChartImportInfo) {
     try {
       const nextChartFile = await file.text();
 
       setChartFile(nextChartFile);
       setUploadedChartName(file.name);
-      setSaveStatus(`Loaded chart: ${file.name}`);
+      setSaveStatus(importInfo
+        ? `Imported ${importInfo.trackName} from ${importInfo.sourceFileName}: ${importInfo.noteCount} playable notes${importInfo.warnings.length ? ` · ${importInfo.warnings.length} import notes reviewed` : ""}`
+        : `Loaded chart: ${file.name}`);
 
       try {
         setProject(
@@ -5329,6 +6063,30 @@ export default function LessonBuilderClient({
       setSaveStatus(
         error instanceof Error ? error.message : "Unable to load .chart file",
       );
+    }
+  }
+
+  function handleChartOffsetChange(offsetSeconds: number) {
+    try {
+      const nextChartFile = replaceChartOffset(chartFile, offsetSeconds);
+      setChartFile(nextChartFile);
+
+      try {
+        setProject(
+          chartToProject({
+            chartFile: nextChartFile,
+            analysisMetadata: metadata,
+            rawResults: sidecar,
+          }),
+        );
+      } catch {
+        setSaveStatus("Offset updated. Review the chart preview, then save the lesson to keep the change.");
+        return;
+      }
+
+      setSaveStatus("Chart audio offset updated. Save the lesson to keep the change.");
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : "Unable to adjust the chart audio offset.");
     }
   }
 
@@ -6108,6 +6866,7 @@ export default function LessonBuilderClient({
           currentChartTick={currentChartTick}
           chartFile={chartFile}
           chartClock={chartClock}
+          onChartOffsetChange={handleChartOffsetChange}
           snapSubdivision={snapSubdivision}
           sidecar={sidecar}
           onCustomTokenLabelChange={setCustomTokenLabel}

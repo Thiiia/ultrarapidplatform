@@ -1,3 +1,10 @@
+import {
+  convertMidiTrackToChart,
+  inspectMidiChartSource,
+  MAX_MIDI_CHART_FILE_BYTES,
+  type MidiChartPreview,
+} from "@/lib/editor/midi-chart-import";
+
 type ChartSourceFormat = "chart" | "mid" | "eof"
 
 export type ChartConversionResult = {
@@ -5,6 +12,14 @@ export type ChartConversionResult = {
   fileName: string
   sourceFormat: ChartSourceFormat
   warnings?: string[]
+  trackName?: string
+  noteCount?: number
+}
+
+export type ChartSourceInspection = {
+  sourceFormat: "mid"
+  fileName: string
+  preview: MidiChartPreview
 }
 
 function getChartSourceFormat(fileName: string): ChartSourceFormat | null {
@@ -22,7 +37,8 @@ function getNormalizedChartFileName(fileName: string) {
 }
 
 export async function convertUploadedChartSourceToChartText(
-  file: File
+  file: File,
+  trackIndex?: number,
 ): Promise<ChartConversionResult> {
   const sourceFormat = getChartSourceFormat(file.name)
 
@@ -33,6 +49,9 @@ export async function convertUploadedChartSourceToChartText(
   }
 
   if (sourceFormat === "chart") {
+    if (file.size > MAX_MIDI_CHART_FILE_BYTES) {
+      throw new Error("Chart files must be 8 MB or smaller to import into the editor.")
+    }
     const chartText = await file.text()
 
     if (!chartText.trim()) {
@@ -46,14 +65,26 @@ export async function convertUploadedChartSourceToChartText(
     }
   }
 
-  // These branches are the server-side hooks for future converters.
-  // Keep the browser/editor workflow stable by converting everything
-  // into .chart text before it reaches the editor.
-
   if (sourceFormat === "mid") {
-    throw new Error(
-      "MIDI-to-.chart conversion is not available yet. Import a .chart file instead."
+    if (file.size > MAX_MIDI_CHART_FILE_BYTES) {
+      throw new Error("MIDI files must be 8 MB or smaller to import into the chart editor.")
+    }
+    if (!Number.isSafeInteger(trackIndex) || (trackIndex ?? -1) < 0) {
+      throw new Error("Choose a supported MIDI track before importing.")
+    }
+    const converted = convertMidiTrackToChart(
+      await file.arrayBuffer(),
+      file.name,
+      trackIndex as number,
     )
+    return {
+      chartText: converted.chartText,
+      fileName: converted.fileName,
+      sourceFormat: "mid",
+      warnings: converted.warnings,
+      trackName: converted.trackName,
+      noteCount: converted.noteCount,
+    }
   }
 
   if (sourceFormat === "eof") {
@@ -63,4 +94,19 @@ export async function convertUploadedChartSourceToChartText(
   }
 
   throw new Error("Unsupported chart source.")
+}
+
+export async function inspectUploadedChartSource(file: File): Promise<ChartSourceInspection> {
+  if (!/\.(mid|midi)$/i.test(file.name)) {
+    throw new Error("Choose a .mid or .midi file to preview its chart tracks.")
+  }
+  if (file.size > MAX_MIDI_CHART_FILE_BYTES) {
+    throw new Error("MIDI files must be 8 MB or smaller to import into the chart editor.")
+  }
+
+  return {
+    sourceFormat: "mid",
+    fileName: file.name,
+    preview: inspectMidiChartSource(await file.arrayBuffer()),
+  }
 }
