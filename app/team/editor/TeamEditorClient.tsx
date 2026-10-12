@@ -12,6 +12,13 @@ import {
 import { chartToProject } from "@/lib/editor/chart-to-project";
 import { appendChartActionsToEvent } from "@/lib/editor/chart-event-placement";
 import {
+  createChartHistory,
+  recordChartEdit,
+  redoChartEdit,
+  undoChartEdit,
+  type ChartHistory,
+} from "@/lib/editor/chart-history";
+import {
   analyzeChartFile,
   CHART_NOTE_DIFFICULTIES,
   parseChartLaneNotes,
@@ -4082,6 +4089,7 @@ function ChartWaveform({
   chartClock,
   chartNotes,
   chartDifficulty,
+  selectedChartNote,
   loopRange,
   hasChart,
   snapSubdivision,
@@ -4098,6 +4106,7 @@ function ChartWaveform({
   chartClock: ReturnType<typeof createLessonClock>;
   chartNotes: ChartLaneNote[];
   chartDifficulty: ChartNoteDifficulty;
+  selectedChartNote: { difficulty: ChartNoteDifficulty; tick: number; lane: number } | null;
   loopRange: { start: number; end: number } | null;
   hasChart: boolean;
   snapSubdivision: ChartSnapSubdivision;
@@ -4435,21 +4444,27 @@ function ChartWaveform({
             />
           ))}
           {visibleChartNotes.map(({ note, seconds, endSeconds }, index) => (
-            <span
-              key={`${note.tick}-${note.lane}-${index}`}
-              title={`${chartDifficulty} lane ${note.lane + 1} at tick ${note.tick}`}
-              style={{
-                position: "absolute",
-                left: `${(seconds / duration) * 100}%`,
-                top: `${(4 - note.lane) * 7 + 2}px`,
-                width: `${note.length > 0 ? Math.max(0.08, ((endSeconds - seconds) / duration) * 100) : 0.08}%`,
-                minWidth: 2,
-                height: 4,
-                borderRadius: 4,
-                background: CHART_LANE_COLORS[note.lane],
-                boxShadow: `0 0 6px ${CHART_LANE_COLORS[note.lane]}66`,
-              }}
-            />
+            (() => {
+              const isSelected = selectedChartNote?.difficulty === chartDifficulty && selectedChartNote.tick === note.tick && selectedChartNote.lane === note.lane;
+              return (
+                <span
+                  key={`${note.tick}-${note.lane}-${index}`}
+                  title={`${chartDifficulty} lane ${note.lane + 1} at tick ${note.tick}`}
+                  style={{
+                    position: "absolute",
+                    left: `${(seconds / duration) * 100}%`,
+                    top: `${(4 - note.lane) * 7 + (isSelected ? 0 : 2)}px`,
+                    width: `${note.length > 0 ? Math.max(0.08, ((endSeconds - seconds) / duration) * 100) : 0.08}%`,
+                    minWidth: 2,
+                    height: isSelected ? 8 : 4,
+                    borderRadius: 4,
+                    background: CHART_LANE_COLORS[note.lane],
+                    border: isSelected ? "1px solid #FFFFFF" : undefined,
+                    boxShadow: isSelected ? `0 0 10px ${CHART_LANE_COLORS[note.lane]}` : `0 0 6px ${CHART_LANE_COLORS[note.lane]}66`,
+                  }}
+                />
+              );
+            })()
           ))}
         </div>
       ) : null}
@@ -4530,6 +4545,10 @@ function ChartEditorViewer({
   timelineEvents,
   chartFile,
   chartClock,
+  canUndoChartEdit,
+  canRedoChartEdit,
+  onUndoChartEdit,
+  onRedoChartEdit,
   onChartChange,
   onChartOffsetChange,
   snapSubdivision,
@@ -4551,6 +4570,10 @@ function ChartEditorViewer({
   timelineEvents: TimelineEventSlot[];
   chartFile: string;
   chartClock: ReturnType<typeof createLessonClock>;
+  canUndoChartEdit: boolean;
+  canRedoChartEdit: boolean;
+  onUndoChartEdit: () => void;
+  onRedoChartEdit: () => void;
   onChartChange: (chartText: string, statusMessage: string) => void;
   onChartOffsetChange: (offsetSeconds: number) => void;
   snapSubdivision: ChartSnapSubdivision;
@@ -4565,20 +4588,35 @@ function ChartEditorViewer({
   const waveform = useAudioWaveformPeaks(audioUrl);
   const [previewRate, setPreviewRate] = useState(1);
   const [timelineZoom, setTimelineZoom] = useState(1);
-  const [chartDifficulty, setChartDifficulty] = useState<ChartNoteDifficulty>("ExpertSingle");
-  const [loopStart, setLoopStart] = useState<number | null>(null);
-  const [loopEnd, setLoopEnd] = useState<number | null>(null);
-  const [loopEnabled, setLoopEnabled] = useState(false);
-  const [loopMessage, setLoopMessage] = useState("");
-  const [offsetDraft, setOffsetDraft] = useState(chartClock.offsetSeconds.toFixed(3));
+  const [chartDifficultySelection, setChartDifficultySelection] = useState<ChartNoteDifficulty | null>(null);
+  const [loopState, setLoopState] = useState<{
+    audioUrl: string;
+    start: number | null;
+    end: number | null;
+    enabled: boolean;
+    message: string;
+  }>({ audioUrl: "", start: null, end: null, enabled: false, message: "" });
+  const [offsetDraftState, setOffsetDraftState] = useState({
+    chartSource: chartFile,
+    value: chartClock.offsetSeconds.toFixed(3),
+  });
   const [offsetError, setOffsetError] = useState("");
   const [selectedChartNote, setSelectedChartNote] = useState<{ difficulty: ChartNoteDifficulty; tick: number; lane: number } | null>(null);
-  const [noteSustainDraft, setNoteSustainDraft] = useState("0");
+  const [noteSustainDraftState, setNoteSustainDraftState] = useState<{ key: string; value: string }>({ key: "", value: "0" });
   const [chartNoteError, setChartNoteError] = useState("");
   const [tapTempoResult, setTapTempoResult] = useState<{ audioUrl: string; bpm: number } | null>(null);
   const tapTempo = tapTempoResult?.audioUrl === audioUrl ? tapTempoResult.bpm : null;
   const tapTimesRef = useRef<number[]>([]);
+  const chartHistoryActionsRef = useRef({
+    canUndo: canUndoChartEdit,
+    canRedo: canRedoChartEdit,
+    undo: onUndoChartEdit,
+    redo: onRedoChartEdit,
+  });
   const chartAnalysis = useMemo(() => analyzeChartFile(chartFile), [chartFile]);
+  const chartDifficulty = chartDifficultySelection ?? [...CHART_NOTE_DIFFICULTIES]
+    .reverse()
+    .find((difficulty) => chartAnalysis.noteCounts[difficulty] > 0) ?? "ExpertSingle";
   const chartNotes = useMemo(
     () => parseChartLaneNotes(chartFile, chartDifficulty),
     [chartDifficulty, chartFile],
@@ -4586,6 +4624,12 @@ function ChartEditorViewer({
   const selectedChartNoteValue = selectedChartNote?.difficulty === chartDifficulty
     ? chartNotes.find((note) => note.tick === selectedChartNote.tick && note.lane === selectedChartNote.lane) ?? null
     : null;
+  const selectedChartNoteKey = selectedChartNoteValue && selectedChartNote
+    ? `${chartDifficulty}:${selectedChartNote.tick}:${selectedChartNote.lane}`
+    : "";
+  const noteSustainDraft = noteSustainDraftState.key === selectedChartNoteKey
+    ? noteSustainDraftState.value
+    : String(selectedChartNoteValue?.length ?? 0);
   const nearbyChartNotes = useMemo(() => {
     let low = 0;
     let high = chartNotes.length;
@@ -4596,12 +4640,28 @@ function ChartEditorViewer({
     }
     return chartNotes.slice(Math.max(0, low - 3), Math.min(chartNotes.length, low + 5));
   }, [chartNotes, currentTick]);
+  const currentLoopState = loopState.audioUrl === audioUrl
+    ? loopState
+    : { audioUrl, start: null, end: null, enabled: false, message: "" };
+  const { start: loopStart, end: loopEnd, enabled: loopEnabled, message: loopMessage } = currentLoopState;
+  const offsetDraft = offsetDraftState.chartSource === chartFile
+    ? offsetDraftState.value
+    : chartClock.offsetSeconds.toFixed(3);
   const hasValidLoop = loopStart !== null && loopEnd !== null && loopEnd - loopStart >= 0.1;
   const visibleLoopRange = hasValidLoop ? { start: loopStart, end: loopEnd } : null;
   const currentEvent = getEventAtOrBeforeTick(timelineEvents, currentTick);
   const exactEvents = getEventsAtTick(timelineEvents, currentTick);
   const sidecarEventsAtTick = sidecar.events.filter((event) => event.tick === currentTick);
   const chartLinesAtTick = getChartLinesForTick(chartFile, currentTick);
+
+  function updateLoopState(next: Partial<Pick<typeof loopState, "start" | "end" | "enabled" | "message">>) {
+    setLoopState((current) => {
+      const base = current.audioUrl === audioUrl
+        ? current
+        : { audioUrl, start: null, end: null, enabled: false, message: "" };
+      return { ...base, ...next, audioUrl };
+    });
+  }
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -4613,33 +4673,41 @@ function ChartEditorViewer({
   }, [audioUrl]);
 
   useEffect(() => {
-    setLoopStart(null);
-    setLoopEnd(null);
-    setLoopEnabled(false);
-    setLoopMessage("");
-  }, [audioUrl]);
+    chartHistoryActionsRef.current = {
+      canUndo: canUndoChartEdit,
+      canRedo: canRedoChartEdit,
+      undo: onUndoChartEdit,
+      redo: onRedoChartEdit,
+    };
+  }, [canRedoChartEdit, canUndoChartEdit, onRedoChartEdit, onUndoChartEdit]);
 
   useEffect(() => {
-    setOffsetDraft(chartClock.offsetSeconds.toFixed(3));
-    setOffsetError("");
-  }, [chartFile, chartClock.offsetSeconds]);
+    function handleChartHistoryShortcut(event: KeyboardEvent) {
+      if ((!event.metaKey && !event.ctrlKey) || event.altKey) return;
 
-  useEffect(() => {
-    setNoteSustainDraft(String(selectedChartNoteValue?.length ?? 0));
-    setChartNoteError("");
-  }, [selectedChartNoteValue?.tick, selectedChartNoteValue?.lane, selectedChartNoteValue?.length]);
+      const target = event.target;
+      if (target instanceof HTMLElement && (
+        target.isContentEditable ||
+        target.closest("input, textarea, select, [contenteditable='true']")
+      )) return;
 
-  useEffect(() => {
-    if (!selectedChartNoteValue && selectedChartNote) setSelectedChartNote(null);
-  }, [selectedChartNote, selectedChartNoteValue]);
+      const key = event.key.toLowerCase();
+      const redo = (key === "z" && event.shiftKey) || (key === "y" && event.ctrlKey && !event.metaKey);
+      const undo = key === "z" && !event.shiftKey;
+      const actions = chartHistoryActionsRef.current;
 
-  useEffect(() => {
-    const populatedDifficulty = [...CHART_NOTE_DIFFICULTIES]
-      .reverse()
-      .find((difficulty) => chartAnalysis.noteCounts[difficulty] > 0);
-    if (!populatedDifficulty) return;
-    setChartDifficulty((current) => chartAnalysis.noteCounts[current] > 0 ? current : populatedDifficulty);
-  }, [chartAnalysis]);
+      if (redo && actions.canRedo) {
+        event.preventDefault();
+        actions.redo();
+      } else if (undo && actions.canUndo) {
+        event.preventDefault();
+        actions.undo();
+      }
+    }
+
+    window.addEventListener("keydown", handleChartHistoryShortcut);
+    return () => window.removeEventListener("keydown", handleChartHistoryShortcut);
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -4655,28 +4723,24 @@ function ChartEditorViewer({
 
   function markLoopStart() {
     const point = Math.max(0, Math.min(duration, currentTime));
-    setLoopStart(point);
     if (loopEnd !== null && loopEnd - point < 0.1) {
-      setLoopEnd(null);
-      setLoopEnabled(false);
-      setLoopMessage("A set. Place B at least 0.1 seconds after it.");
+      updateLoopState({ start: point, end: null, enabled: false, message: "A set. Place B at least 0.1 seconds after it." });
       return;
     }
-    setLoopMessage("A set at " + formatEditorTime(point) + ". Now place B later in the song.");
+    updateLoopState({ start: point, message: "A set at " + formatEditorTime(point) + ". Now place B later in the song." });
   }
 
   function markLoopEnd() {
     const point = Math.max(0, Math.min(duration, currentTime));
     if (loopStart === null) {
-      setLoopMessage("Set A before setting B.");
+      updateLoopState({ message: "Set A before setting B." });
       return;
     }
     if (point - loopStart < 0.1) {
-      setLoopMessage("Place B at least 0.1 seconds after A.");
+      updateLoopState({ message: "Place B at least 0.1 seconds after A." });
       return;
     }
-    setLoopEnd(point);
-    setLoopMessage("Loop region set from " + formatEditorTime(loopStart) + " to " + formatEditorTime(point) + ".");
+    updateLoopState({ end: point, message: "Loop region set from " + formatEditorTime(loopStart) + " to " + formatEditorTime(point) + "." });
   }
 
   function applyOffsetDraft() {
@@ -4691,7 +4755,7 @@ function ChartEditorViewer({
 
   function nudgeChartOffset(deltaSeconds: number) {
     const nextOffset = Math.round((chartClock.offsetSeconds + deltaSeconds) * 1000) / 1000;
-    setOffsetDraft(nextOffset.toFixed(3));
+    setOffsetDraftState({ chartSource: chartFile, value: nextOffset.toFixed(3) });
     setOffsetError("");
     onChartOffsetChange(nextOffset);
   }
@@ -4702,8 +4766,7 @@ function ChartEditorViewer({
       audio.currentTime = loopStart;
       onTimeUpdate(loopStart);
       void audio.play().catch(() => {
-        setLoopEnabled(false);
-        setLoopMessage("Loop paused because the browser blocked playback. Press Play to resume.");
+        updateLoopState({ enabled: false, message: "Loop paused because the browser blocked playback. Press Play to resume." });
         onPlaybackEnded();
       });
       return;
@@ -4747,6 +4810,35 @@ function ChartEditorViewer({
       onChartChange(nextChart, `Updated lane ${selectedChartNote.lane + 1} sustain to ${length} ticks. Save the lesson to keep the chart edit.`);
     } catch (error) {
       setChartNoteError(error instanceof Error ? error.message : "Unable to update this chart note.");
+    }
+  }
+
+  function moveSelectedChartNoteToPlayhead() {
+    if (!selectedChartNoteValue || !selectedChartNote) return;
+    const tick = snapChartTickToGrid(currentTick, chartClock.ticksPerBeat, snapSubdivision);
+    if (tick === selectedChartNote.tick) {
+      setChartNoteError("The selected note is already at the current snapped tick.");
+      return;
+    }
+    if (chartNotes.some((note) => note.tick === tick && note.lane === selectedChartNote.lane)) {
+      setChartNoteError("That lane already has a note at the destination tick.");
+      return;
+    }
+    try {
+      const withoutSelected = removeChartLaneNote(chartFile, chartDifficulty, {
+        tick: selectedChartNote.tick,
+        lane: selectedChartNote.lane,
+      });
+      const nextChart = upsertChartLaneNote(withoutSelected, chartDifficulty, {
+        tick,
+        lane: selectedChartNote.lane,
+        length: selectedChartNoteValue.length,
+      });
+      setSelectedChartNote({ difficulty: chartDifficulty, tick, lane: selectedChartNote.lane });
+      setChartNoteError("");
+      onChartChange(nextChart, `Moved lane ${selectedChartNote.lane + 1} note to tick ${tick}. Save the lesson to keep the chart edit.`);
+    } catch (error) {
+      setChartNoteError(error instanceof Error ? error.message : "Unable to move this chart note.");
     }
   }
 
@@ -4804,6 +4896,8 @@ function ChartEditorViewer({
           style={{
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "flex-start",
+            flexWrap: "wrap",
             gap: 16,
             color: textColor,
           }}
@@ -4817,13 +4911,40 @@ function ChartEditorViewer({
                 : ""}
             </div>
           </div>
-          <div style={{ color: "#FFFFFF99", fontSize: 12, fontWeight: 800 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", flexWrap: "wrap", gap: 8, color: "#FFFFFF99", fontSize: 12, fontWeight: 800 }}>
+            <div role="group" aria-label="Chart edit history" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <button
+                type="button"
+                disabled={!canUndoChartEdit}
+                onClick={onUndoChartEdit}
+                title="Undo the last chart edit (Ctrl/⌘ Z)"
+                aria-label="Undo last chart edit"
+                style={{ ...audioTransportButtonStyle(!canUndoChartEdit), minHeight: 44, padding: "0 12px" }}
+              >
+                Undo
+              </button>
+              <button
+                type="button"
+                disabled={!canRedoChartEdit}
+                onClick={onRedoChartEdit}
+                title="Redo the last chart edit (Ctrl/⌘ Shift Z, or Ctrl Y on Windows)"
+                aria-label="Redo last chart edit"
+                style={{ ...audioTransportButtonStyle(!canRedoChartEdit), minHeight: 44, padding: "0 12px" }}
+              >
+                Redo
+              </button>
+              <span aria-hidden="true" style={{ fontSize: 10, whiteSpace: "nowrap" }}>Ctrl/⌘ Z · Shift+Z redo</span>
+            </div>
             <label style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
               Chart difficulty
               <select
                 aria-label="Chart note difficulty"
                 value={chartDifficulty}
-                onChange={(event) => setChartDifficulty(event.currentTarget.value as ChartNoteDifficulty)}
+                onChange={(event) => {
+                  setChartDifficultySelection(event.currentTarget.value as ChartNoteDifficulty);
+                  setSelectedChartNote(null);
+                  setChartNoteError("");
+                }}
                 style={audioTransportSelectStyle}
               >
                 {CHART_NOTE_DIFFICULTIES.map((difficulty) => (
@@ -4886,7 +5007,7 @@ function ChartEditorViewer({
                   disabled={!chartFile.trim()}
                   aria-describedby="chart-offset-help chart-offset-error"
                   onChange={(event) => {
-                    setOffsetDraft(event.currentTarget.value);
+                    setOffsetDraftState({ chartSource: chartFile, value: event.currentTarget.value });
                     setOffsetError("");
                   }}
                   style={{ ...audioTransportSelectStyle, minWidth: 0 }}
@@ -5001,12 +5122,15 @@ function ChartEditorViewer({
                       min={0}
                       step={1}
                       value={noteSustainDraft}
-                      onChange={(event) => { setNoteSustainDraft(event.currentTarget.value); setChartNoteError(""); }}
+                      onChange={(event) => { setNoteSustainDraftState({ key: selectedChartNoteKey, value: event.currentTarget.value }); setChartNoteError(""); }}
                       style={{ ...audioTransportSelectStyle, minWidth: 0 }}
                     />
                   </label>
-                  <button type="button" onClick={applySelectedNoteLength} style={{ ...audioTransportButtonStyle(false), minHeight: 36, padding: "0 9px" }}>Apply</button>
-                  <button type="button" onClick={deleteSelectedChartNote} style={{ ...audioTransportButtonStyle(false), minHeight: 36, padding: "0 9px", color: "#FFB4A9", borderColor: "rgba(255,116,116,0.4)" }}>Delete</button>
+                  <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6 }}>
+                    <button type="button" onClick={applySelectedNoteLength} style={{ ...audioTransportButtonStyle(false), minHeight: 36, padding: "0 9px" }}>Apply length</button>
+                    <button type="button" onClick={moveSelectedChartNoteToPlayhead} style={{ ...audioTransportButtonStyle(false), minHeight: 36, padding: "0 9px" }}>Move to playhead</button>
+                    <button type="button" onClick={deleteSelectedChartNote} style={{ ...audioTransportButtonStyle(false), minHeight: 36, padding: "0 9px", color: "#FFB4A9", borderColor: "rgba(255,116,116,0.4)" }}>Delete</button>
+                  </div>
                 </div>
               ) : null}
               {chartNoteError ? <div role="status" style={{ color: "#F0D28B", fontSize: 11, lineHeight: 1.4 }}>{chartNoteError}</div> : null}
@@ -5190,10 +5314,10 @@ function ChartEditorViewer({
             <button type="button" disabled={!audioUrl} onClick={markLoopEnd} aria-label="Set loop end B at current time" title="Set loop end B at the playhead" style={audioTransportButtonStyle(!audioUrl)}>
               B {loopEnd === null ? "—" : formatEditorTime(loopEnd)}
             </button>
-            <button type="button" disabled={!audioUrl || !hasValidLoop} aria-pressed={loopEnabled} onClick={() => setLoopEnabled((enabled) => !enabled)} style={audioTransportButtonStyle(!audioUrl || !hasValidLoop)}>
+            <button type="button" disabled={!audioUrl || !hasValidLoop} aria-pressed={loopEnabled} onClick={() => updateLoopState({ enabled: !loopEnabled })} style={audioTransportButtonStyle(!audioUrl || !hasValidLoop)}>
               {loopEnabled ? "Loop on" : "Loop"}
             </button>
-            <button type="button" disabled={loopStart === null && loopEnd === null} onClick={() => { setLoopStart(null); setLoopEnd(null); setLoopEnabled(false); setLoopMessage("Loop markers cleared."); }} style={audioTransportButtonStyle(loopStart === null && loopEnd === null)}>
+            <button type="button" disabled={loopStart === null && loopEnd === null} onClick={() => updateLoopState({ start: null, end: null, enabled: false, message: "Loop markers cleared." })} style={audioTransportButtonStyle(loopStart === null && loopEnd === null)}>
               Clear
             </button>
           </div>
@@ -5211,6 +5335,7 @@ function ChartEditorViewer({
           chartClock={chartClock}
           chartNotes={chartNotes}
           chartDifficulty={chartDifficulty}
+          selectedChartNote={selectedChartNote}
           loopRange={visibleLoopRange}
           hasChart={Boolean(chartFile.trim())}
           snapSubdivision={snapSubdivision}
@@ -5729,6 +5854,10 @@ function CenterEditorPanel({
   currentChartTick,
   chartFile,
   chartClock,
+  canUndoChartEdit,
+  canRedoChartEdit,
+  onUndoChartEdit,
+  onRedoChartEdit,
   onChartChange,
   onChartOffsetChange,
   snapSubdivision,
@@ -5763,6 +5892,10 @@ function CenterEditorPanel({
   currentChartTick: number;
   chartFile: string;
   chartClock: ReturnType<typeof createLessonClock>;
+  canUndoChartEdit: boolean;
+  canRedoChartEdit: boolean;
+  onUndoChartEdit: () => void;
+  onRedoChartEdit: () => void;
   onChartChange: (chartText: string, statusMessage: string) => void;
   onChartOffsetChange: (offsetSeconds: number) => void;
   snapSubdivision: ChartSnapSubdivision;
@@ -5837,6 +5970,10 @@ function CenterEditorPanel({
             timelineEvents={timelineEvents}
             chartFile={chartFile}
             chartClock={chartClock}
+            canUndoChartEdit={canUndoChartEdit}
+            canRedoChartEdit={canRedoChartEdit}
+            onUndoChartEdit={onUndoChartEdit}
+            onRedoChartEdit={onRedoChartEdit}
             onChartChange={onChartChange}
             onChartOffsetChange={onChartOffsetChange}
             snapSubdivision={snapSubdivision}
@@ -5900,6 +6037,7 @@ export default function LessonBuilderClient({
   const setStoreSidecar = useEditorStore((s) => s.setSidecar);
 
   const [chartFile, setChartFile] = useState("");
+  const [chartHistory, setChartHistory] = useState(() => createChartHistory(""));
   const [metadata, setMetadata] =
     useState<LessonBuilderPayload["analysisMetadata"]>();
   const [uploadedSongName, setUploadedSongName] = useState("");
@@ -5946,6 +6084,9 @@ export default function LessonBuilderClient({
   );
 
   const chartClock = useMemo(() => createLessonClock(chartFile), [chartFile]);
+  const activeChartHistory = chartHistory.current === chartFile
+    ? chartHistory
+    : createChartHistory(chartFile);
   const currentChartTick = useMemo(
     () => chartFile.trim()
       ? chartClock.toTick(audioCurrentTime)
@@ -6043,6 +6184,7 @@ export default function LessonBuilderClient({
       const nextChartFile = await file.text();
 
       setChartFile(nextChartFile);
+      setChartHistory(createChartHistory(nextChartFile));
       setUploadedChartName(file.name);
       setSaveStatus(importInfo
         ? `Imported ${importInfo.trackName} from ${importInfo.sourceFileName}: ${importInfo.noteCount} playable notes${importInfo.warnings.length ? ` · ${importInfo.warnings.length} import notes reviewed` : ""}`
@@ -6066,25 +6208,52 @@ export default function LessonBuilderClient({
     }
   }
 
+  function applyChartDraft(nextChartFile: string, statusMessage: string, nextHistory: ChartHistory) {
+    setChartFile(nextChartFile);
+    setChartHistory(nextHistory);
+    try {
+      setProject(
+        chartToProject({
+          chartFile: nextChartFile,
+          analysisMetadata: metadata,
+          rawResults: sidecar,
+        }),
+      );
+      setSaveStatus(statusMessage);
+    } catch {
+      setSaveStatus(statusMessage + " Chart preview could not be rebuilt; review the chart before saving.");
+    }
+  }
+
+  function handleChartDraftChange(nextChartFile: string, statusMessage: string) {
+    const history = chartHistory.current === chartFile
+      ? chartHistory
+      : createChartHistory(chartFile);
+    applyChartDraft(nextChartFile, statusMessage, recordChartEdit(history, nextChartFile));
+  }
+
+  function handleUndoChartEdit() {
+    const history = chartHistory.current === chartFile
+      ? chartHistory
+      : createChartHistory(chartFile);
+    const nextHistory = undoChartEdit(history);
+    if (nextHistory === history) return;
+    applyChartDraft(nextHistory.current, "Undid the last chart edit. Save the lesson to keep the change.", nextHistory);
+  }
+
+  function handleRedoChartEdit() {
+    const history = chartHistory.current === chartFile
+      ? chartHistory
+      : createChartHistory(chartFile);
+    const nextHistory = redoChartEdit(history);
+    if (nextHistory === history) return;
+    applyChartDraft(nextHistory.current, "Redid the chart edit. Save the lesson to keep the change.", nextHistory);
+  }
+
   function handleChartOffsetChange(offsetSeconds: number) {
     try {
       const nextChartFile = replaceChartOffset(chartFile, offsetSeconds);
-      setChartFile(nextChartFile);
-
-      try {
-        setProject(
-          chartToProject({
-            chartFile: nextChartFile,
-            analysisMetadata: metadata,
-            rawResults: sidecar,
-          }),
-        );
-      } catch {
-        setSaveStatus("Offset updated. Review the chart preview, then save the lesson to keep the change.");
-        return;
-      }
-
-      setSaveStatus("Chart audio offset updated. Save the lesson to keep the change.");
+      handleChartDraftChange(nextChartFile, "Chart audio offset updated. Save the lesson to keep the change.");
     } catch (error) {
       setSaveStatus(error instanceof Error ? error.message : "Unable to adjust the chart audio offset.");
     }
@@ -6193,6 +6362,7 @@ export default function LessonBuilderClient({
       const nextChartName = song.chart.path.split("/").pop() ?? "selected.chart";
 
       setChartFile(loadedPackage.chartText);
+      setChartHistory(createChartHistory(loadedPackage.chartText));
       setUploadedChartName(nextChartName);
       loadSidecarIntoTimeline(normalizedSidecar, null);
 
@@ -6683,6 +6853,7 @@ export default function LessonBuilderClient({
           );
 
           setChartFile(nextChartFile);
+          setChartHistory(createChartHistory(nextChartFile));
           setUploadedChartName(nextChartName);
           loadSidecarIntoTimeline(normalizedSidecar, null);
 
@@ -6732,6 +6903,7 @@ export default function LessonBuilderClient({
 
       if (payload?.chartFile) {
         setChartFile(payload.chartFile);
+        setChartHistory(createChartHistory(payload.chartFile));
 
         if (payload.analysisMetadata?.uploadedFileName) {
           setUploadedChartName(payload.analysisMetadata.uploadedFileName);
@@ -6866,6 +7038,11 @@ export default function LessonBuilderClient({
           currentChartTick={currentChartTick}
           chartFile={chartFile}
           chartClock={chartClock}
+          canUndoChartEdit={activeChartHistory.past.length > 0}
+          canRedoChartEdit={activeChartHistory.future.length > 0}
+          onUndoChartEdit={handleUndoChartEdit}
+          onRedoChartEdit={handleRedoChartEdit}
+          onChartChange={handleChartDraftChange}
           onChartOffsetChange={handleChartOffsetChange}
           snapSubdivision={snapSubdivision}
           sidecar={sidecar}

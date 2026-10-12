@@ -104,3 +104,13 @@ test("chart note authoring rejects invalid tick and lane values", () => {
   assert.throws(() => upsertChartLaneNote(chart, "ExpertSingle", { tick: -1, lane: 0, length: 0 }), /non-negative/);
   assert.throws(() => upsertChartLaneNote(chart, "ExpertSingle", { tick: 0, lane: 5, length: 0 }), /between 0 and 4/);
 });
+
+test("a chart note can move to a new tick without losing its sustain", () => {
+  const removed = removeChartLaneNote(chart, "ExpertSingle", { tick: 192, lane: 3 });
+  const moved = upsertChartLaneNote(removed, "ExpertSingle", { tick: 240, lane: 3, length: 48 });
+  assert.deepEqual(parseChartLaneNotes(moved, "ExpertSingle"), [
+    { tick: 192, lane: 0, length: 24 },
+    { tick: 240, lane: 3, length: 48 },
+    { tick: 384, lane: 4, length: 0 },
+  ]);
+});

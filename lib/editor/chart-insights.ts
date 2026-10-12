@@ -113,7 +113,7 @@ function mutateChartLaneNote(
   }
 
   const newline = chartText.includes("\r\n") ? "\r\n" : "\n";
-  const sectionPattern = new RegExp("(\\[" + difficulty + "\\][ \\t]*\\{)([\\s\\S]*?)(\\})", "ig");
+  const sectionPattern = new RegExp("(\\[" + difficulty + "\\]\\s*\\{)([\\s\\S]*?)(\\})", "ig");
   const sections = [...chartText.matchAll(sectionPattern)];
   if (sections.length > 1) {
     throw new Error("This chart has more than one " + difficulty + " section; merge them before editing notes.");

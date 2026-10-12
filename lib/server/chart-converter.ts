@@ -44,7 +44,7 @@ export async function convertUploadedChartSourceToChartText(
 
   if (!sourceFormat) {
     throw new Error(
-      "Unsupported chart format. Import a .chart file; MIDI and EOF conversion are not available yet."
+      "Unsupported chart format. Import a .chart file or a supported five-lane .mid/.midi file. EOF conversion is not available yet."
     )
   }
 
