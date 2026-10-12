@@ -1,10 +1,20 @@
 /** Editor positions are audio seconds; companion positions are chart ticks. */
+export type ChartSnapSubdivision = "off" | "quarter" | "eighth" | "sixteenth";
+
 export function createLessonClock(chart: string) {
-  const resolution = Number(chart.match(/\bResolution\s*=\s*"?(\d+)/)?.[1] ?? 192);
-  const offset = Number(chart.match(/\bOffset\s*=\s*"?(-?[\d.]+)/)?.[1] ?? 0);
+  const parsedResolution = Number(chart.match(/\bResolution\s*=\s*"?(\d+)/)?.[1] ?? 192);
+  const usesDefaultResolution = !Number.isFinite(parsedResolution) || parsedResolution <= 0;
+  const resolution = usesDefaultResolution ? 192 : parsedResolution;
+  const parsedOffset = Number(chart.match(/\bOffset\s*=\s*"?(-?[\d.]+)/)?.[1] ?? 0);
+  const offset = Number.isFinite(parsedOffset) ? parsedOffset : 0;
   const sync = chart.match(/\[SyncTrack\]\s*\{([\s\S]*?)\}/)?.[1] ?? '';
-  const tempos = Array.from(sync.matchAll(/^\s*(\d+)\s*=\s*B\s+(\d+)/gm), m => ({tick: Number(m[1]), bpm: Number(m[2]) / 1000})).sort((a,b) => a.tick-b.tick);
-  if (!tempos.length || tempos[0].tick !== 0) tempos.unshift({tick: 0, bpm: 120});
+  const tempos: Array<{ tick: number; bpm: number; explicit: boolean }> = Array.from(
+    sync.matchAll(/^\s*(\d+)\s*=\s*B\s+(\d+)/gm),
+    (m) => ({ tick: Number(m[1]), bpm: Number(m[2]) / 1000, explicit: true }),
+  )
+    .filter((tempo) => Number.isFinite(tempo.tick) && Number.isFinite(tempo.bpm) && tempo.bpm > 0)
+    .sort((a,b) => a.tick-b.tick);
+  if (!tempos.length || tempos[0].tick !== 0) tempos.unshift({tick: 0, bpm: 120, explicit: false});
   let seconds = 0;
   const segments = tempos.map((tempo, i) => {
     if (i) seconds += (tempo.tick-tempos[i-1].tick) * 60 / (tempos[i-1].bpm * resolution);
@@ -12,6 +22,14 @@ export function createLessonClock(chart: string) {
   });
   return {
     ticksPerBeat: resolution,
+    usesDefaultResolution,
+    offsetSeconds: offset,
+    tempoAt(tick: number) {
+      return (segments.findLast(s => s.tick <= tick) ?? segments[0]).bpm;
+    },
+    isTempoExplicitAt(tick: number) {
+      return (segments.findLast(s => s.tick <= tick) ?? segments[0]).explicit;
+    },
     toTick(value: number) {
       const time = value + offset;
       const segment = segments.findLast(s => s.seconds <= time) ?? segments[0];
@@ -22,6 +40,28 @@ export function createLessonClock(chart: string) {
       return segment.seconds + (tick-segment.tick) * 60 / (segment.bpm * resolution) - offset;
     },
   };
+}
+
+/** Snap an audio-derived chart tick to a musical subdivision without changing its clock. */
+export function snapChartTickToGrid(
+  tick: number,
+  ticksPerBeat: number,
+  subdivision: ChartSnapSubdivision,
+) {
+  if (!Number.isFinite(tick)) return 0;
+
+  const safeTick = Math.max(0, Math.round(tick));
+  if (subdivision === "off" || !Number.isFinite(ticksPerBeat) || ticksPerBeat <= 0) {
+    return safeTick;
+  }
+
+  const divisionsPerQuarter = {
+    quarter: 1,
+    eighth: 2,
+    sixteenth: 4,
+  }[subdivision];
+  const gridTicks = Math.max(1, Math.round(ticksPerBeat / divisionsPerQuarter));
+  return Math.max(0, Math.round(safeTick / gridTicks) * gridTicks);
 }
 
 export function mapLessonTimes<T extends {tick: number; endTick?: number}>(rows: T[], convert: (value: number) => number): T[] {

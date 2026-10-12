@@ -10,6 +10,12 @@ import {
   type SidecarPayload as StoreSidecarPayload,
 } from "@/lib/editor/editor-store";
 import { chartToProject } from "@/lib/editor/chart-to-project";
+import { appendChartActionsToEvent } from "@/lib/editor/chart-event-placement";
+import {
+  createLessonClock,
+  snapChartTickToGrid,
+  type ChartSnapSubdivision,
+} from "@/lib/editor/lesson-timing";
 import {
   projectToChart,
   projectToSidecarJson,
@@ -282,24 +288,6 @@ function formatEditorTime(seconds: number) {
   ).padStart(3, "0")}`;
 }
 
-function getMaxTimelineTick(events: TimelineEventSlot[]) {
-  return events.reduce((maxTick, eventSlot) => Math.max(maxTick, eventSlot.tick), 0);
-}
-
-function getChartEditorTick(
-  currentTime: number,
-  duration: number,
-  events: TimelineEventSlot[],
-) {
-  const maxTick = getMaxTimelineTick(events);
-
-  if (duration > 0 && maxTick > 0) {
-    return Math.max(0, Math.round((currentTime / duration) * maxTick));
-  }
-
-  return Math.max(0, Math.round(currentTime * 1000));
-}
-
 function getEventAtOrBeforeTick(events: TimelineEventSlot[], tick: number) {
   return [...events]
     .filter((eventSlot) => eventSlot.tick <= tick)
@@ -315,15 +303,13 @@ function getChartLinesForTick(chartText: string, tick: number) {
     return [];
   }
 
-  const tickText = String(tick);
-
   return chartText
     .split(/\r?\n/)
-    .filter((line) => line.includes(tickText))
+    .filter((line) => Number(line.match(/^\s*(-?\d+)\s*=/)?.[1]) === tick)
     .slice(0, 8);
 }
 
-function normalizePromptedCount(value: string | null) {
+function normalizeEventCount(value: string | null) {
   const parsed = Number(value);
 
   if (!Number.isFinite(parsed) || parsed < 0) {
@@ -3703,89 +3689,367 @@ function EditorWorkspaceTabs({
   );
 }
 
+type AudioWaveformState = {
+  sourceUrl: string;
+  status: "idle" | "loading" | "ready" | "error";
+  peaks: number[];
+};
+
+function useAudioWaveformPeaks(audioUrl: string): AudioWaveformState {
+  const [waveform, setWaveform] = useState<AudioWaveformState>({
+    sourceUrl: "",
+    status: "idle",
+    peaks: [],
+  });
+
+  useEffect(() => {
+    if (!audioUrl) {
+      setWaveform({ sourceUrl: "", status: "idle", peaks: [] });
+      return;
+    }
+
+    const abortController = new AbortController();
+    let disposed = false;
+    let audioContext: AudioContext | null = null;
+    setWaveform({ sourceUrl: audioUrl, status: "loading", peaks: [] });
+
+    void (async () => {
+      try {
+        const response = await fetch(audioUrl, { signal: abortController.signal });
+        if (!response.ok) {
+          throw new Error(`Audio request failed (${response.status})`);
+        }
+
+        const encodedAudio = await response.arrayBuffer();
+        if (disposed) return;
+
+        try {
+          // A lower decode rate is sufficient for the visual waveform and
+          // reduces temporary PCM memory while the browser builds its peaks.
+          audioContext = new AudioContext({ sampleRate: 11025 });
+        } catch {
+          audioContext = new AudioContext();
+        }
+
+        const decodedAudio = await audioContext.decodeAudioData(encodedAudio);
+        const channelData = Array.from(
+          { length: decodedAudio.numberOfChannels },
+          (_, channel) => decodedAudio.getChannelData(channel),
+        );
+        const peakCount = 512;
+        const peaks = Array.from({ length: peakCount }, (_, peakIndex) => {
+          const start = Math.floor((peakIndex * decodedAudio.length) / peakCount);
+          const end = Math.max(start + 1, Math.floor(((peakIndex + 1) * decodedAudio.length) / peakCount));
+          let peak = 0;
+
+          for (const channel of channelData) {
+            for (let sampleIndex = start; sampleIndex < end; sampleIndex += 1) {
+              peak = Math.max(peak, Math.abs(channel[sampleIndex] ?? 0));
+            }
+          }
+
+          return peak;
+        });
+
+        if (!disposed) {
+          setWaveform({ sourceUrl: audioUrl, status: "ready", peaks });
+        }
+      } catch {
+        if (!disposed && !abortController.signal.aborted) {
+          setWaveform({ sourceUrl: audioUrl, status: "error", peaks: [] });
+        }
+      } finally {
+        if (audioContext && audioContext.state !== "closed") {
+          void audioContext.close().catch(() => undefined);
+        }
+      }
+    })();
+
+    return () => {
+      disposed = true;
+      abortController.abort();
+      if (audioContext && audioContext.state !== "closed") {
+        void audioContext.close().catch(() => undefined);
+      }
+    };
+  }, [audioUrl]);
+
+  if (waveform.sourceUrl !== audioUrl) {
+    return {
+      sourceUrl: audioUrl,
+      status: audioUrl ? "loading" : "idle",
+      peaks: [],
+    };
+  }
+
+  return waveform;
+}
+
 function ChartWaveform({
   events,
+  activeEventId,
   currentTime,
   duration,
   currentTick,
+  chartClock,
+  hasChart,
+  snapSubdivision,
+  timelineZoom,
+  isAudioPlaying,
+  waveform,
   onSeek,
 }: {
   events: TimelineEventSlot[];
+  activeEventId: string | null;
   currentTime: number;
   duration: number;
   currentTick: number;
+  chartClock: ReturnType<typeof createLessonClock>;
+  hasChart: boolean;
+  snapSubdivision: ChartSnapSubdivision;
+  timelineZoom: number;
+  isAudioPlaying: boolean;
+  waveform: AudioWaveformState;
   onSeek: (time: number) => void;
 }) {
+  const viewportRef = useRef<HTMLDivElement | null>(null);
   const progress = duration > 0 ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
-  const maxTick = getMaxTimelineTick(events);
-  const bars = Array.from({ length: 120 }, (_, index) => {
-    const wave = Math.sin(index * 0.43) * 0.5 + Math.sin(index * 0.13) * 0.35;
-    return Math.max(14, Math.round(34 + Math.abs(wave) * 72));
-  });
+  const divisionsPerQuarter = snapSubdivision === "eighth"
+    ? 2
+    : snapSubdivision === "sixteenth"
+      ? 4
+      : 1;
+  const gridTicks = Math.max(1, Math.round(chartClock.ticksPerBeat / divisionsPerQuarter));
+  const firstChartTick = duration > 0 ? Math.max(0, chartClock.toTick(0)) : 0;
+  const lastChartTick = duration > 0 ? chartClock.toTick(duration) : 0;
+  const candidateGridCount = Math.max(0, Math.ceil((lastChartTick - firstChartTick) / gridTicks));
+  const displayEvery = Math.max(1, Math.ceil(candidateGridCount / 420));
+  const displayGridTicks = gridTicks * displayEvery;
+  const firstVisibleGridTick = Math.ceil(firstChartTick / displayGridTicks) * displayGridTicks;
+  const gridLines: Array<{ tick: number; position: number }> = [];
+  const rawTimeLabelInterval = duration > 0 ? duration / (8 * timelineZoom) : 1;
+  const timeLabelInterval = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600].find(
+    (interval) => interval >= rawTimeLabelInterval,
+  ) ?? 600;
+  const timeLabels: Array<{ seconds: number; position: number }> = [];
+
+  if (duration > 0) {
+    for (let seconds = 0; seconds <= duration && timeLabels.length < 800; seconds += timeLabelInterval) {
+      timeLabels.push({ seconds, position: (seconds / duration) * 100 });
+    }
+  }
+
+  if (hasChart && duration > 0) {
+    for (
+      let tick = firstVisibleGridTick;
+      tick <= lastChartTick && gridLines.length < 420;
+      tick += displayGridTicks
+    ) {
+      const seconds = chartClock.toSeconds(tick);
+      if (seconds >= 0 && seconds <= duration) {
+        gridLines.push({ tick, position: (seconds / duration) * 100 });
+      }
+    }
+  }
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || duration <= 0 || timelineZoom <= 1) return;
+
+    const playheadPosition = (currentTime / duration) * viewport.scrollWidth;
+    viewport.scrollTo({
+      left: Math.max(0, playheadPosition - viewport.clientWidth / 2),
+      behavior: "auto",
+    });
+  }, [timelineZoom]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (
+      !viewport ||
+      (!isAudioPlaying && !viewport.contains(document.activeElement)) ||
+      duration <= 0 ||
+      timelineZoom <= 1
+    ) return;
+
+    const playheadPosition = (currentTime / duration) * viewport.scrollWidth;
+    const trailingEdge = viewport.scrollLeft + viewport.clientWidth * 0.82;
+    if (playheadPosition > trailingEdge || playheadPosition < viewport.scrollLeft) {
+      viewport.scrollTo({
+        left: Math.max(0, playheadPosition - viewport.clientWidth * 0.18),
+        behavior: "auto",
+      });
+    }
+  }, [currentTime, duration, isAudioPlaying, timelineZoom]);
 
   return (
-    <div
-      onClick={(event) => {
-        if (duration <= 0) return;
-        const rect = event.currentTarget.getBoundingClientRect();
-        const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-        onSeek(ratio * duration);
-      }}
-      style={{
-        position: "relative",
-        height: 120,
-        borderRadius: 18,
-        border: `1px solid ${subtleBorderColor}`,
-        background: "#101010",
-        overflow: "hidden",
-        cursor: duration > 0 ? "pointer" : "default",
-      }}
-    >
+    <div ref={viewportRef} style={{ width: "100%", minWidth: 0, height: 120, overflowX: "auto", overflowY: "hidden", borderRadius: 18, scrollbarColor: "#53606A #101010" }}>
       <div
+        role="slider"
+        aria-label="Song waveform position. Use arrow keys to move by a fraction of a second, or Page Up and Page Down to move five seconds."
+        aria-valuemin={0}
+        aria-valuemax={Math.max(1, duration)}
+        aria-valuenow={Math.min(duration, Math.max(0, currentTime))}
+        aria-valuetext={`${formatEditorTime(currentTime)}, chart tick ${currentTick}`}
+        tabIndex={duration > 0 ? 0 : -1}
+        onKeyDown={(event) => {
+          if (duration <= 0) return;
+          const fineStep = event.shiftKey ? 1 : 0.1;
+          switch (event.key) {
+            case "ArrowLeft":
+            case "ArrowDown":
+              event.preventDefault();
+              onSeek(currentTime - fineStep);
+              break;
+            case "ArrowRight":
+            case "ArrowUp":
+              event.preventDefault();
+              onSeek(currentTime + fineStep);
+              break;
+            case "PageDown":
+              event.preventDefault();
+              onSeek(currentTime - 5);
+              break;
+            case "PageUp":
+              event.preventDefault();
+              onSeek(currentTime + 5);
+              break;
+            case "Home":
+              event.preventDefault();
+              onSeek(0);
+              break;
+            case "End":
+              event.preventDefault();
+              onSeek(duration);
+              break;
+          }
+        }}
+        onClick={(event) => {
+          if (duration <= 0) return;
+          event.currentTarget.focus();
+          const rect = event.currentTarget.getBoundingClientRect();
+          const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+          onSeek(ratio * duration);
+        }}
         style={{
-          position: "absolute",
-          inset: "12px 14px",
-          display: "flex",
-          alignItems: "center",
-          gap: 3,
+          position: "relative",
+          width: `${timelineZoom * 100}%`,
+          height: 120,
+          borderRadius: 18,
+          border: `1px solid ${subtleBorderColor}`,
+          background: "#101010",
+          overflow: "hidden",
+          cursor: duration > 0 ? "pointer" : "default",
         }}
       >
-        {bars.map((height, index) => (
+      {timeLabels.map(({ seconds, position }) => (
+        <span
+          key={`time-${seconds}`}
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            left: `${position}%`,
+            top: 7,
+            transform: seconds === 0 ? undefined : "translateX(-50%)",
+            color: "#FFFFFF99",
+            fontFamily: "Space Grotesk, sans-serif",
+            fontSize: 10,
+            fontWeight: 800,
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+          }}
+        >
+          {formatEditorTime(seconds)}
+        </span>
+      ))}
+
+      {gridLines.map(({ tick, position }) => (
+        <span
+          key={`grid-${tick}`}
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            left: `${position}%`,
+            top: 26,
+            bottom: 10,
+            width: 1,
+            background: "rgba(255,255,255,0.12)",
+            pointerEvents: "none",
+          }}
+        />
+      ))}
+
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: "28px 14px 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          pointerEvents: "none",
+        }}
+      >
+        {waveform.status === "ready" ? waveform.peaks.map((peak, index) => (
           <span
             key={index}
             style={{
               flex: 1,
-              height,
-              maxHeight: "100%",
+              height: `${Math.max(7, Math.min(100, peak * 100))}%`,
+              minHeight: 4,
               borderRadius: 999,
-              background: "rgba(207, 255, 4, 0.38)",
-              opacity: index / bars.length <= progress ? 1 : 0.32,
+              background: "#CFFF04",
+              opacity: index / waveform.peaks.length <= progress ? 0.92 : 0.38,
             }}
           />
-        ))}
+        )) : (
+          <span
+            style={{
+              margin: "auto",
+              color: waveform.status === "error" ? "#FFFFFFB3" : "#FFFFFF80",
+              fontFamily: "Space Grotesk, sans-serif",
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            {waveform.status === "loading"
+              ? "Building waveform preview…"
+              : waveform.status === "error"
+                ? "Waveform unavailable; audio playback still works."
+                : "Choose a song to preview its waveform."}
+          </span>
+        )}
       </div>
 
       {events.map((eventSlot) => {
-        const left = maxTick > 0 ? (eventSlot.tick / maxTick) * 100 : 0;
+        if (duration <= 0 || !hasChart) return null;
+        const seconds = chartClock.toSeconds(eventSlot.tick);
+        if (!Number.isFinite(seconds) || seconds < 0 || seconds > duration) return null;
+        const left = (seconds / duration) * 100;
+        const isActive = eventSlot.id === activeEventId;
 
         return (
           <span
             key={eventSlot.id}
-            title={`Event at tick ${eventSlot.tick}`}
+            aria-hidden="true"
+            title={`Lesson event at ${formatEditorTime(seconds)} · tick ${eventSlot.tick}`}
             style={{
               position: "absolute",
-              left: `${Math.min(100, Math.max(0, left))}%`,
-              top: 8,
-              bottom: 8,
-              width: 2,
-              background: "rgba(255, 255, 255, 0.32)",
+              left: `${left}%`,
+              top: 25,
+              bottom: 7,
+              width: isActive ? 4 : 2,
+              background: isActive ? "#CFFF04" : "rgba(46, 167, 255, 0.9)",
+              boxShadow: isActive ? "0 0 12px rgba(207, 255, 4, 0.55)" : "0 0 8px rgba(46, 167, 255, 0.38)",
               transform: "translateX(-50%)",
+              pointerEvents: "none",
             }}
           />
         );
       })}
 
       <div
+        aria-hidden="true"
         style={{
           position: "absolute",
           left: `${progress * 100}%`,
@@ -3795,65 +4059,140 @@ function ChartWaveform({
           background: "#FFFFFF",
           boxShadow: "0 0 18px rgba(255,255,255,0.48)",
           transform: "translateX(-50%)",
+          pointerEvents: "none",
         }}
       />
 
       <div
+        aria-hidden="true"
         style={{
           position: "absolute",
           left: `min(calc(${progress * 100}% + 10px), calc(100% - 160px))`,
-          top: 10,
+          top: 31,
           padding: "6px 8px",
           borderRadius: 10,
-          background: "rgba(0,0,0,0.74)",
+          background: "rgba(0,0,0,0.86)",
           color: "#FFFFFF",
           fontSize: 11,
           fontWeight: 800,
           fontFamily: "Space Grotesk, sans-serif",
           whiteSpace: "nowrap",
+          pointerEvents: "none",
         }}
       >
         {formatEditorTime(currentTime)} · Tick {currentTick}
+      </div>
       </div>
     </div>
   );
 }
 
+function audioTransportButtonStyle(disabled: boolean) {
+  return {
+    minHeight: 36,
+    borderRadius: 10,
+    border: `1px solid ${subtleBorderColor}`,
+    background: "#202020",
+    color: disabled ? "#FFFFFF80" : "#FFFFFF",
+    fontFamily: "Space Grotesk, sans-serif",
+    fontWeight: 900,
+    cursor: disabled ? "not-allowed" : "pointer",
+  };
+}
+
+const audioTransportSelectStyle = {
+  width: "100%",
+  minHeight: 36,
+  borderRadius: 10,
+  border: `1px solid ${subtleBorderColor}`,
+  background: "#202020",
+  color: "#FFFFFF",
+  padding: "0 8px",
+  fontFamily: "Space Grotesk, sans-serif",
+  fontSize: 11,
+  fontWeight: 800,
+};
+
 function ChartEditorViewer({
   audioUrl,
   audioRef,
   isAudioPlaying,
+  activeEventId,
   currentTime,
   duration,
   currentTick,
   timelineEvents,
   chartFile,
+  chartClock,
+  snapSubdivision,
   sidecar,
   onTogglePlay,
   onTimeUpdate,
   onDurationChange,
+  onPlaybackEnded,
   onSeek,
   onSelectEvent,
 }: {
   audioUrl: string;
   audioRef: RefObject<HTMLAudioElement | null>;
   isAudioPlaying: boolean;
+  activeEventId: string | null;
   currentTime: number;
   duration: number;
   currentTick: number;
   timelineEvents: TimelineEventSlot[];
   chartFile: string;
+  chartClock: ReturnType<typeof createLessonClock>;
+  snapSubdivision: ChartSnapSubdivision;
   sidecar: SidecarPayload;
   onTogglePlay: () => void;
   onTimeUpdate: (time: number) => void;
   onDurationChange: (duration: number) => void;
+  onPlaybackEnded: () => void;
   onSeek: (time: number) => void;
   onSelectEvent: (eventId: string) => void;
 }) {
+  const waveform = useAudioWaveformPeaks(audioUrl);
+  const [previewRate, setPreviewRate] = useState(1);
+  const [timelineZoom, setTimelineZoom] = useState(1);
+  const [tapTempoResult, setTapTempoResult] = useState<{ audioUrl: string; bpm: number } | null>(null);
+  const tapTempo = tapTempoResult?.audioUrl === audioUrl ? tapTempoResult.bpm : null;
+  const tapTimesRef = useRef<number[]>([]);
   const currentEvent = getEventAtOrBeforeTick(timelineEvents, currentTick);
   const exactEvents = getEventsAtTick(timelineEvents, currentTick);
   const sidecarEventsAtTick = sidecar.events.filter((event) => event.tick === currentTick);
   const chartLinesAtTick = getChartLinesForTick(chartFile, currentTick);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio) audio.playbackRate = previewRate;
+  }, [audioRef, audioUrl, previewRate]);
+
+  useEffect(() => {
+    tapTimesRef.current = [];
+  }, [audioUrl]);
+
+  function handleTapTempo() {
+    const now = performance.now();
+    const previousTaps = tapTimesRef.current;
+    const activeTaps = previousTaps.length && now - previousTaps[previousTaps.length - 1] > 3500
+      ? []
+      : previousTaps;
+    const nextTaps = [...activeTaps, now].slice(-7);
+    tapTimesRef.current = nextTaps;
+
+    if (nextTaps.length < 4) {
+      setTapTempoResult(null);
+      return;
+    }
+
+    const intervals = nextTaps.slice(1).map((tap, index) => tap - nextTaps[index]).sort((left, right) => left - right);
+    const medianInterval = intervals[Math.floor(intervals.length / 2)];
+    const estimatedBpm = Math.round((60000 / medianInterval) / previewRate);
+    setTapTempoResult(estimatedBpm >= 30 && estimatedBpm <= 300
+      ? { audioUrl, bpm: estimatedBpm }
+      : null);
+  }
 
   return (
     <>
@@ -3880,6 +4219,9 @@ function ChartEditorViewer({
             <div style={{ fontSize: 18, fontWeight: 900 }}>Chart Editor</div>
             <div style={{ color: "#FFFFFF99", fontSize: 12, fontWeight: 700 }}>
               {formatEditorTime(currentTime)} / {formatEditorTime(duration)} · Tick {currentTick}
+              {chartFile.trim()
+                ? ` · ${chartClock.tempoAt(currentTick).toFixed(1)} BPM${chartClock.isTempoExplicitAt(currentTick) ? "" : " (default)"} · ${chartClock.ticksPerBeat} ticks/beat${chartClock.usesDefaultResolution ? " (default)" : ""} · Offset ${chartClock.offsetSeconds >= 0 ? "+" : ""}${chartClock.offsetSeconds.toFixed(3)}s`
+                : ""}
             </div>
           </div>
           <div style={{ color: "#FFFFFF99", fontSize: 12, fontWeight: 800 }}>
@@ -4005,7 +4347,7 @@ function ChartEditorViewer({
           boxSizing: "border-box",
           padding: 16,
           display: "grid",
-          gridTemplateColumns: "120px minmax(0, 1fr)",
+          gridTemplateColumns: "minmax(190px, 236px) minmax(0, 1fr)",
           gap: 16,
           alignItems: "center",
           fontFamily: "Space Grotesk, sans-serif",
@@ -4014,33 +4356,105 @@ function ChartEditorViewer({
         <audio
           ref={audioRef}
           src={audioUrl || undefined}
+          preload="metadata"
           onTimeUpdate={(event) => onTimeUpdate(event.currentTarget.currentTime)}
           onLoadedMetadata={(event) => onDurationChange(event.currentTarget.duration || 0)}
-          onEnded={() => onTimeUpdate(duration)}
-        />
-        <button
-          type="button"
-          disabled={!audioUrl}
-          onClick={onTogglePlay}
-          style={{
-            minHeight: 54,
-            borderRadius: 16,
-            border: "1px solid #CFFF04",
-            background: audioUrl ? "#CFFF04" : "#2B2B2B",
-            color: audioUrl ? "#000000" : "#FFFFFF80",
-            fontFamily: "Space Grotesk, sans-serif",
-            fontWeight: 900,
-            cursor: audioUrl ? "pointer" : "not-allowed",
+          onEnded={() => {
+            onTimeUpdate(duration);
+            onPlaybackEnded();
           }}
-        >
-          {isAudioPlaying ? "Pause" : "Play"}
-        </button>
+        />
+        <div style={{ display: "grid", gap: 8, alignContent: "center" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 1fr", gap: 6 }}>
+            <button
+              type="button"
+              disabled={!audioUrl}
+              aria-label="Rewind five seconds"
+              title="Rewind five seconds"
+              onClick={() => onSeek(currentTime - 5)}
+              style={audioTransportButtonStyle(!audioUrl)}
+            >
+              −5s
+            </button>
+            <button
+              type="button"
+              disabled={!audioUrl}
+              aria-label={isAudioPlaying ? "Pause song preview" : "Play song preview"}
+              onClick={onTogglePlay}
+              style={{
+                ...audioTransportButtonStyle(!audioUrl),
+                background: audioUrl ? "#CFFF04" : "#2B2B2B",
+                color: audioUrl ? "#000000" : "#FFFFFF80",
+              }}
+            >
+              {isAudioPlaying ? "Pause" : "Play"}
+            </button>
+            <button
+              type="button"
+              disabled={!audioUrl}
+              aria-label="Forward five seconds"
+              title="Forward five seconds"
+              onClick={() => onSeek(currentTime + 5)}
+              style={audioTransportButtonStyle(!audioUrl)}
+            >
+              +5s
+            </button>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 6 }}>
+            <label style={{ display: "grid", gap: 4, color: "#FFFFFF99", fontSize: 10, fontWeight: 800 }}>
+              Preview speed
+              <select
+                aria-label="Preview speed"
+                value={previewRate}
+                onChange={(event) => setPreviewRate(Number(event.currentTarget.value))}
+                style={audioTransportSelectStyle}
+              >
+                <option value={0.5}>0.5×</option>
+                <option value={0.75}>0.75×</option>
+                <option value={1}>1×</option>
+                <option value={1.25}>1.25×</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              disabled={!audioUrl || !isAudioPlaying}
+              title={isAudioPlaying ? "Tap four times to estimate tempo. This does not change the chart." : "Play the song, then tap four times to estimate tempo."}
+              aria-label={tapTempo ? `Tap to remeasure tempo. Current estimate ${tapTempo} beats per minute.` : "Play the song, then tap four times to estimate tempo. This does not change the chart."}
+              onClick={handleTapTempo}
+              style={{ ...audioTransportButtonStyle(!audioUrl || !isAudioPlaying), alignSelf: "end", minHeight: 36, fontSize: 10 }}
+            >
+              {tapTempo ? `${tapTempo} BPM` : "Tap tempo"}
+            </button>
+          </div>
+
+          <label style={{ display: "grid", gridTemplateColumns: "1fr 1fr", alignItems: "center", gap: 8, color: "#FFFFFF99", fontSize: 10, fontWeight: 800 }}>
+            Timeline zoom
+            <select
+              aria-label="Timeline zoom"
+              value={timelineZoom}
+              onChange={(event) => setTimelineZoom(Number(event.currentTarget.value))}
+              style={audioTransportSelectStyle}
+            >
+              <option value={1}>Fit song</option>
+              <option value={2}>2× detail</option>
+              <option value={4}>4× detail</option>
+            </select>
+          </label>
+        </div>
 
         <ChartWaveform
           events={timelineEvents}
+          activeEventId={activeEventId}
           currentTime={currentTime}
           duration={duration}
           currentTick={currentTick}
+          chartClock={chartClock}
+          hasChart={Boolean(chartFile.trim())}
+          snapSubdivision={snapSubdivision}
+          timelineZoom={timelineZoom}
+          isAudioPlaying={isAudioPlaying}
+          waveform={waveform}
           onSeek={onSeek}
         />
       </section>
@@ -4049,21 +4463,40 @@ function ChartEditorViewer({
 }
 
 function ChartEventsPanel({
+  currentTime,
   currentTick,
   events,
   activeEventId,
+  snapSubdivision,
   onAddEvent,
   onDeleteEvent,
   onSelectEvent,
+  onSnapSubdivisionChange,
 }: {
+  currentTime: number;
   currentTick: number;
   events: TimelineEventSlot[];
   activeEventId: string | null;
-  onAddEvent: () => void;
+  snapSubdivision: ChartSnapSubdivision;
+  onAddEvent: (counts: MechanicCounts) => void;
   onDeleteEvent: (eventId: string) => void;
   onSelectEvent: (eventId: string) => void;
+  onSnapSubdivisionChange: (subdivision: ChartSnapSubdivision) => void;
 }) {
   const sortedEvents = [...events].sort((left, right) => left.tick - right.tick);
+  const [draftCounts, setDraftCounts] = useState<MechanicCounts>(makeEmptyMechanicCounts());
+  const hasDraftCount = draftCounts.hit + draftCounts.spin + draftCounts.drag > 0;
+  const mechanicLabels: Record<GameplayMechanic, string> = {
+    hit: "Hits",
+    spin: "Spins",
+    drag: "Drags",
+  };
+
+  function handleAddDraftEvent() {
+    if (!hasDraftCount) return;
+    onAddEvent(draftCounts);
+    setDraftCounts(makeEmptyMechanicCounts());
+  }
 
   return (
     <section
@@ -4094,27 +4527,79 @@ function ChartEventsPanel({
       </div>
 
       <div style={{ padding: 12, borderBottom: `1px solid ${subtleBorderColor}` }}>
-        <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 800, marginBottom: 8 }}>
-          Current tick: {currentTick}
+        <div style={{ color: "#FFFFFFB3", fontSize: 10, fontWeight: 800, lineHeight: 1.4, marginBottom: 10 }}>
+          Playhead · {formatEditorTime(currentTime)} · tick {currentTick}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6, marginBottom: 10 }}>
+          {(["hit", "spin", "drag"] as const).map((mechanic) => (
+            <label key={mechanic} style={{ display: "grid", gap: 4, color: "#FFFFFF99", fontSize: 9, fontWeight: 800 }}>
+              {mechanicLabels[mechanic]}
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={99}
+                step={1}
+                value={draftCounts[mechanic]}
+                aria-label={`New event ${mechanicLabels[mechanic].toLowerCase()} count`}
+                onChange={(event) => setDraftCounts((current) => ({
+                  ...current,
+                  [mechanic]: Math.min(99, normalizeEventCount(event.currentTarget.value)),
+                }))}
+                style={{
+                  minWidth: 0,
+                  width: "100%",
+                  height: 34,
+                  boxSizing: "border-box",
+                  padding: "0 6px",
+                  borderRadius: 8,
+                  border: `1px solid ${subtleBorderColor}`,
+                  background: "#111111",
+                  color: "#FFFFFF",
+                  fontFamily: "Space Grotesk, sans-serif",
+                  fontSize: 12,
+                  fontWeight: 800,
+                }}
+              />
+            </label>
+          ))}
         </div>
         <button
           type="button"
-          onClick={onAddEvent}
+          disabled={!hasDraftCount}
+          onClick={handleAddDraftEvent}
           style={{
             width: "100%",
             minHeight: 42,
-            background: "#CFFF04",
-            color: "#000000",
-            border: "1px solid #CFFF04",
+            background: hasDraftCount ? "#CFFF04" : "#2B2B2B",
+            color: hasDraftCount ? "#000000" : "#FFFFFF80",
+            border: `1px solid ${hasDraftCount ? "#CFFF04" : subtleBorderColor}`,
             borderRadius: 10,
             fontFamily: "Space Grotesk, sans-serif",
             fontSize: 12,
             fontWeight: 900,
-            cursor: "pointer",
+            cursor: hasDraftCount ? "pointer" : "not-allowed",
           }}
         >
           Add Event Here
         </button>
+        <label style={{ display: "grid", gap: 6, marginTop: 12, color: "#FFFFFFB3", fontSize: 11, fontWeight: 800 }}>
+          Snap new events
+          <select
+            aria-label="Snap new events to a chart subdivision"
+            value={snapSubdivision}
+            onChange={(event) => onSnapSubdivisionChange(event.currentTarget.value as ChartSnapSubdivision)}
+            style={audioTransportSelectStyle}
+          >
+            <option value="off">Off</option>
+            <option value="quarter">Quarter note</option>
+            <option value="eighth">Eighth note</option>
+            <option value="sixteenth">Sixteenth note</option>
+          </select>
+        </label>
+        <div style={{ color: "#FFFFFF80", fontSize: 10, lineHeight: 1.4, marginTop: 8 }}>
+          New events snap to the nearest selected division. Adding at an existing tick keeps its equation and adds the new actions.
+        </div>
       </div>
 
       <div style={{ padding: 12, display: "grid", gap: 10, overflowY: "auto" }}>
@@ -4481,6 +4966,8 @@ function CenterEditorPanel({
   audioDuration,
   currentChartTick,
   chartFile,
+  chartClock,
+  snapSubdivision,
   sidecar,
   onCustomTokenLabelChange,
   onSelectEvent,
@@ -4494,6 +4981,7 @@ function CenterEditorPanel({
   onToggleAudio,
   onAudioTimeUpdate,
   onAudioDurationChange,
+  onAudioPlaybackEnd,
   onAudioSeek,
 }: {
   workspaceMode: EditorWorkspaceMode;
@@ -4510,6 +4998,8 @@ function CenterEditorPanel({
   audioDuration: number;
   currentChartTick: number;
   chartFile: string;
+  chartClock: ReturnType<typeof createLessonClock>;
+  snapSubdivision: ChartSnapSubdivision;
   sidecar: SidecarPayload;
   onCustomTokenLabelChange: (value: string) => void;
   onSelectEvent: (eventId: string) => void;
@@ -4536,6 +5026,7 @@ function CenterEditorPanel({
   onToggleAudio: () => void;
   onAudioTimeUpdate: (time: number) => void;
   onAudioDurationChange: (duration: number) => void;
+  onAudioPlaybackEnd: () => void;
   onAudioSeek: (time: number) => void;
 }) {
   const activeEvent =
@@ -4573,15 +5064,19 @@ function CenterEditorPanel({
             audioUrl={audioUrl}
             audioRef={audioRef}
             isAudioPlaying={isAudioPlaying}
+            activeEventId={activeEventId}
             currentTime={audioCurrentTime}
             duration={audioDuration}
             currentTick={currentChartTick}
             timelineEvents={timelineEvents}
             chartFile={chartFile}
+            chartClock={chartClock}
+            snapSubdivision={snapSubdivision}
             sidecar={sidecar}
             onTogglePlay={onToggleAudio}
             onTimeUpdate={onAudioTimeUpdate}
             onDurationChange={onAudioDurationChange}
+            onPlaybackEnded={onAudioPlaybackEnd}
             onSeek={onAudioSeek}
             onSelectEvent={onSelectEvent}
           />
@@ -4649,6 +5144,7 @@ export default function LessonBuilderClient({
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [snapSubdivision, setSnapSubdivision] = useState<ChartSnapSubdivision>("off");
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventSlot[]>([]);
@@ -4681,9 +5177,12 @@ export default function LessonBuilderClient({
     [timelineEvents],
   );
 
+  const chartClock = useMemo(() => createLessonClock(chartFile), [chartFile]);
   const currentChartTick = useMemo(
-    () => getChartEditorTick(audioCurrentTime, audioDuration, timelineEvents),
-    [audioCurrentTime, audioDuration, timelineEvents],
+    () => chartFile.trim()
+      ? chartClock.toTick(audioCurrentTime)
+      : Math.max(0, Math.round(audioCurrentTime * 1000)),
+    [audioCurrentTime, chartClock, chartFile],
   );
 
   const payloadForProject: LessonBuilderPayload = useMemo(
@@ -4973,6 +5472,10 @@ export default function LessonBuilderClient({
   }
 
   function handleSelectEvent(eventId: string) {
+    const selectedEvent = timelineEvents.find((eventSlot) => eventSlot.id === eventId);
+    if (selectedEvent && chartFile.trim()) {
+      handleAudioSeek(chartClock.toSeconds(selectedEvent.tick));
+    }
     setActiveEventId(eventId);
     setMode("event");
   }
@@ -5089,29 +5592,41 @@ export default function LessonBuilderClient({
     });
   }
 
-  function handleAddChartEventAtCurrentTick() {
-    const hit = normalizePromptedCount(window.prompt("How many hits should this event have?", "0"));
-    const spin = normalizePromptedCount(window.prompt("How many spins should this event have?", "0"));
-    const drag = normalizePromptedCount(window.prompt("How many drags should this event have?", "0"));
-
+  function handleAddChartEventAtCurrentTick(counts: MechanicCounts) {
+    const hit = normalizeEventCount(String(counts.hit));
+    const spin = normalizeEventCount(String(counts.spin));
+    const drag = normalizeEventCount(String(counts.drag));
     if (hit + spin + drag <= 0) {
       setSaveStatus("Event was not added because all counts were 0.");
       return;
     }
 
-    const tick = currentChartTick;
+    const tick = chartFile.trim()
+      ? snapChartTickToGrid(currentChartTick, chartClock.ticksPerBeat, snapSubdivision)
+      : currentChartTick;
+    const alreadyExists = timelineEvents.some((eventSlot) => eventSlot.tick === tick);
 
     setTimelineEvents((current) => {
-      const nextEvent = makeTimelineEvent(current.length, tick, { hit, spin, drag });
-      const nextEvents = [...current.filter((eventSlot) => eventSlot.tick !== tick), nextEvent].sort(
-        (left, right) => left.tick - right.tick,
-      );
+      const existingEvent = current.find((eventSlot) => eventSlot.tick === tick);
+      if (existingEvent) {
+        const incomingEvent = makeTimelineEvent(current.length, tick, { hit, spin, drag });
+        const nextEvent = appendChartActionsToEvent(existingEvent, incomingEvent);
 
+        setActiveEventId(existingEvent.id);
+        return current.map((eventSlot) => eventSlot.id === existingEvent.id ? nextEvent : eventSlot);
+      }
+
+      const nextEvent = makeTimelineEvent(current.length, tick, { hit, spin, drag });
       setActiveEventId(nextEvent.id);
-      return nextEvents;
+      return [...current, nextEvent].sort((left, right) => left.tick - right.tick);
     });
+    if (chartFile.trim()) {
+      handleAudioSeek(chartClock.toSeconds(tick));
+    }
     setMode("event");
-    setSaveStatus("Unsaved chart event changes");
+    setSaveStatus(alreadyExists
+      ? `Unsaved chart event changes · Added actions to the existing event at tick ${tick}`
+      : "Unsaved chart event changes");
   }
 
   function handleDeleteChartEvent(eventId: string) {
@@ -5524,12 +6039,15 @@ export default function LessonBuilderClient({
       >
         {workspaceMode === "chartEditor" ? (
           <ChartEventsPanel
+            currentTime={audioCurrentTime}
             currentTick={currentChartTick}
             events={timelineEvents}
             activeEventId={activeEventId}
+            snapSubdivision={snapSubdivision}
             onAddEvent={handleAddChartEventAtCurrentTick}
             onDeleteEvent={handleDeleteChartEvent}
             onSelectEvent={handleSelectEvent}
+            onSnapSubdivisionChange={setSnapSubdivision}
           />
         ) : (
           <EquationsPanel
@@ -5553,6 +6071,8 @@ export default function LessonBuilderClient({
           audioDuration={audioDuration}
           currentChartTick={currentChartTick}
           chartFile={chartFile}
+          chartClock={chartClock}
+          snapSubdivision={snapSubdivision}
           sidecar={sidecar}
           onCustomTokenLabelChange={setCustomTokenLabel}
           onSelectEvent={handleSelectEvent}
@@ -5566,6 +6086,7 @@ export default function LessonBuilderClient({
           onToggleAudio={handleToggleAudio}
           onAudioTimeUpdate={setAudioCurrentTime}
           onAudioDurationChange={setAudioDuration}
+          onAudioPlaybackEnd={() => setIsAudioPlaying(false)}
           onAudioSeek={handleAudioSeek}
         />
 

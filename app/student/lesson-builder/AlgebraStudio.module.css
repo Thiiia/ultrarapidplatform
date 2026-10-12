@@ -93,6 +93,20 @@
 .guideActions button:last-child { border-color: #cfff04; background: #cfff04; color: #0b1428; }
 .guideActions button:disabled { opacity: .55; cursor: not-allowed; }
 .tutorialBubble { animation: studio-bubble-arrive .28s cubic-bezier(.22,1,.36,1) both; }
+.reentryTutorial { position: fixed; z-index: 1300; top: clamp(88px, 10vh, 124px); right: clamp(12px, 2vw, 28px); width: min(360px, calc(100vw - 24px)); box-sizing: border-box; display: grid; gap: 10px; padding: 16px; border: 1px solid #bca6f5; border-radius: 16px; background: linear-gradient(135deg, #34235b, #14233c); color: #fff; box-shadow: inset 0 1px #ffffff33, 0 14px 36px #0008; animation: studio-bubble-arrive .28s cubic-bezier(.22,1,.36,1) both; }
+.reentryTutorialHeader { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.reentryTutorialKicker { color: #d3c5fa; font-size: 10px; font-weight: 900; letter-spacing: .09em; }
+.reentryTutorial h2 { margin: 0; font-size: 18px; line-height: 1.2; }
+.reentryTutorial p { margin: 0; color: #e1def0; font-size: 13px; line-height: 1.45; }
+.reentryTutorialActions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.reentryTutorialActions button { min-height: 44px; padding: 8px 11px; border: 1px solid #bba9e9; border-radius: 10px; background: transparent; color: #fff; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.reentryTutorialActions button:first-child { border-color: #cfff04; background: #cfff04; color: #10151c; }
+.reentryTutorialActions button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.reentryTutorialClose { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid #ffffff33; border-radius: 10px; background: #ffffff0a; color: #fff; font-size: 18px; cursor: pointer; }
+.reentryTutorialClose:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.reentryBuildHint { padding: 0 12px 10px; }
+@media (max-width: 720px) { .reentryTutorial { top: 82px; right: 12px; } }
+@media (prefers-reduced-motion: reduce) { .reentryTutorial, .tutorialBubble { animation: none; } }
 @keyframes studio-bubble-arrive { from { transform: translateY(8px); opacity: .65; } to { transform: translateY(0); opacity: 1; } }
 .main { position: relative; gap: 10px; padding: 10px clamp(8px, 1.5vw, 24px) 14px; box-sizing: border-box; }
 .main:not([data-guided-start="true"]) { grid-template-rows: minmax(0, 1fr) minmax(180px, 27dvh) !important; }

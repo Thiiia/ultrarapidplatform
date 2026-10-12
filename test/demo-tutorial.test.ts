@@ -42,9 +42,12 @@ test("first-time, play-only, and non-demo visits do not interrupt play with the 
   assert.equal(shouldShowDemoDraftReentryTutorial({ ...base, activityKey: "other" }), false);
 });
 
-test("the builder starts the welcome prompt only after a saved demo draft is restored", () => {
+test("the builder opens a non-blocking, activity-aware refresher only after a saved demo draft is restored", () => {
   assert.match(lessonBuilderSource, /shouldShowDemoDraftReentryTutorial\(/);
   assert.match(lessonBuilderSource, /readDemoLessonDraft\(window\.localStorage, selectedSongStorage\.id, activityKey\)/);
   assert.match(lessonBuilderSource, /setTutorialStep\("welcome"\)/);
-  assert.match(studentCopySource, /demoReentryTutorial: "Welcome back\. Your lesson is saved on this device\./);
+  assert.match(lessonBuilderSource, /aria-label="Quick lesson refresher"/);
+  assert.match(lessonBuilderSource, /demoReentryNumberBondsTutorial/);
+  assert.doesNotMatch(lessonBuilderSource, /Demo tutorial step 1: dim every panel/);
+  assert.match(studentCopySource, /demoReentryTutorial: "Build an equation, save it, and add it to an encounter\./);
 });

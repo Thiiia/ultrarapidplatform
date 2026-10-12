@@ -2640,7 +2640,7 @@ function TutorialBubble({
 }) {
   return (
     <div
-      role="dialog"
+      role="note"
       aria-label="Tutorial step"
       className={algebraStyles.tutorialBubble}
       style={{
@@ -2663,15 +2663,17 @@ function TutorialBubble({
         onClick={onSkip}
         style={{
           position: "absolute",
-          top: 8,
-          right: 12,
+          top: 4,
+          right: 6,
+          minHeight: 44,
           background: "none",
           border: "none",
-          padding: 0,
+          padding: "8px 10px",
           color: "#FFFFFF80",
           fontSize: 12,
           fontWeight: 800,
           textDecoration: "underline",
+          borderRadius: 8,
           cursor: "pointer",
         }}
       >
@@ -7745,6 +7747,7 @@ function LeftEquationBuilderPanel({
   draftIssue,
   canAuthorEquation = true,
   tutorialPrompt = null,
+  tutorialBuildPrompt = null,
   onSkipTutorial,
   isAlgebraStudio = false,
 }: {
@@ -7758,6 +7761,7 @@ function LeftEquationBuilderPanel({
   draftIssue: string | null;
   canAuthorEquation?: boolean;
   tutorialPrompt?: string | null;
+  tutorialBuildPrompt?: string | null;
   onSkipTutorial?: () => void;
   isAlgebraStudio?: boolean;
 }) {
@@ -7800,6 +7804,15 @@ function LeftEquationBuilderPanel({
           <strong>{activeEventEquationText ?? (activeEventLabel ? "No equation assigned" : "Start with a number")}</strong>
         </div>
       </div>
+
+      {tutorialBuildPrompt ? (
+        <div className={algebraStyles.reentryBuildHint}>
+          <TutorialBubble
+            text={tutorialBuildPrompt}
+            onSkip={onSkipTutorial ?? (() => {})}
+          />
+        </div>
+      ) : null}
 
       <div className={algebraStyles.equationPaletteScroll}>
         <div className={algebraStyles.equationPaletteGroups}>
@@ -16222,10 +16235,7 @@ export default function LessonBuilderClient({
                     flex: `0 0 ${row2DisplayWidths.column1}px`,
                     minWidth: 0,
                     height: "100%",
-                    // Demo tutorial step 1: keep the equation builder above the
-                    // dimming overlay so its buttons stay clickable.
                     position: "relative",
-                    zIndex: tutorialStep === "welcome" ? 1200 : undefined,
                   }}
                 >
                   <button
@@ -16250,7 +16260,12 @@ export default function LessonBuilderClient({
                     draftIssue={draftIssue}
                     tutorialPrompt={
                       showSaveEquationTutorialPrompt
-                        ? "Save this equation so you can use it in your lesson."
+                        ? "Step 2 · Save. Save this equation so you can use it in your lesson."
+                        : null
+                    }
+                    tutorialBuildPrompt={
+                      tutorialStep === "build" && !isDraftEquationValid
+                        ? studentCopy.editor.demoReentryBuildPrompt
                         : null
                     }
                     onSkipTutorial={() => setTutorialStep(null)}
@@ -16663,7 +16678,7 @@ export default function LessonBuilderClient({
                       shouldScrollLibrary={isTimelineInstructionVisible}
                       tutorialPrompt={
                         tutorialStep === "add"
-                          ? "Choose this equation, then add it to encounter 1."
+                          ? "Step 3 · Add. Choose this equation, then add it to encounter 1."
                           : null
                       }
                       onSkipTutorial={() => setTutorialStep(null)}
@@ -16822,36 +16837,55 @@ export default function LessonBuilderClient({
         onLoad={handleLoadSongFromFilePicker}
       />
 
-      {/* Demo tutorial step 1: dim every panel except the equation builder. */}
       {tutorialStep === "welcome" ? (
-        <>
-          <div
-            aria-hidden="true"
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.65)",
-              zIndex: 1100,
-              pointerEvents: "none",
-            }}
-          />
-          <div
-            style={{
-              position: "fixed",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: "min(420px, 92vw)",
-              zIndex: 1300,
-              pointerEvents: "auto",
-            }}
-          >
-            <TutorialBubble
-              text={studentCopy.editor.demoReentryTutorial}
-              onSkip={() => setTutorialStep(null)}
-            />
+        <section
+          role="region"
+          aria-label="Quick lesson refresher"
+          aria-live="polite"
+          className={algebraStyles.reentryTutorial}
+        >
+          <div className={algebraStyles.reentryTutorialHeader}>
+            <span className={algebraStyles.reentryTutorialKicker}>
+              {isNumberBondsActivity ? "QUICK REFRESHER" : studentCopy.editor.demoReentryTutorialKicker}
+            </span>
+            <button
+              type="button"
+              className={algebraStyles.reentryTutorialClose}
+              aria-label={studentCopy.editor.tutorialSkip}
+              onClick={() => setTutorialStep(null)}
+            >
+              ×
+            </button>
           </div>
-        </>
+          <h2>{studentCopy.editor.demoReentryTutorialTitle}</h2>
+          <p>
+            {isNumberBondsActivity
+              ? studentCopy.editor.demoReentryNumberBondsTutorial
+              : studentCopy.editor.demoReentryTutorial}
+          </p>
+          <div className={algebraStyles.reentryTutorialActions}>
+            <button
+              type="button"
+              onClick={() => {
+                if (!isNumberBondsActivity) {
+                  setIsBuilderPanelOpen(true);
+                  setTutorialStep("build");
+                  return;
+                }
+                setTutorialStep(null);
+              }}
+            >
+              {isNumberBondsActivity
+                ? studentCopy.editor.demoReentryTutorialContinue
+                : studentCopy.editor.demoReentryTutorialStart}
+            </button>
+            {!isNumberBondsActivity ? (
+              <button type="button" onClick={() => setTutorialStep(null)}>
+                {studentCopy.editor.demoReentryTutorialContinue}
+              </button>
+            ) : null}
+          </div>
+        </section>
       ) : null}
 
       {pendingNavigation ? (

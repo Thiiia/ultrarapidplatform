@@ -28,7 +28,7 @@ export async function convertUploadedChartSourceToChartText(
 
   if (!sourceFormat) {
     throw new Error(
-      "Unsupported chart format. Please upload a .chart, .mid, .midi, or .eof file."
+      "Unsupported chart format. Import a .chart file; MIDI and EOF conversion are not available yet."
     )
   }
 
@@ -52,13 +52,13 @@ export async function convertUploadedChartSourceToChartText(
 
   if (sourceFormat === "mid") {
     throw new Error(
-      "MIDI upload is wired into the flow, but MIDI-to-.chart conversion is not implemented yet on the server."
+      "MIDI-to-.chart conversion is not available yet. Import a .chart file instead."
     )
   }
 
   if (sourceFormat === "eof") {
     throw new Error(
-      "EOF upload is wired into the flow, but EOF-to-.chart conversion is not implemented yet on the server."
+      "EOF-to-.chart conversion is not available yet. Import a .chart file instead."
     )
   }
 
