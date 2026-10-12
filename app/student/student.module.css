@@ -679,15 +679,22 @@
 .headerTabButton {
   display: inline-flex;
   min-height: var(--ur-target-minimum-web);
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border-radius: 0;
-  border: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0 0.85rem;
   background: transparent;
+  color: var(--ur-text-marketing);
+  font-family: var(--ur-font-interface), sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
-  flex-shrink: 0;
   box-sizing: border-box;
-  line-height: 0;
   overflow: visible;
   transition:
     background-color 0.18s ease,
@@ -710,29 +717,35 @@
 }
 
 .headerTabButtonActive {
-  background: transparent;
+  border-color: color-mix(in srgb, var(--ur-accent-lime) 32%, transparent);
+  background: color-mix(in srgb, var(--ur-accent-lime) 12%, transparent);
+  color: var(--ur-accent-lime);
   opacity: 1;
 }
 
 .headerTabButtonActive:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--ur-accent-lime) 16%, transparent);
 }
 
 .utilityButton {
   display: inline-flex;
-  min-height: var(--ur-target-minimum-web);
+  min-height: 44px;
   align-items: center;
   justify-content: center;
-  border-radius: 0;
-  border: none;
-  background: var(--ur-canvas-top);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  padding: 0 0.85rem;
+  background: transparent;
   cursor: pointer;
   flex-shrink: 0;
   box-sizing: border-box;
-  padding: 0;
-  line-height: 0;
   text-decoration: none;
   color: var(--ur-text-marketing);
+  font-family: var(--ur-font-interface), sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
   transition:
     background-color 0.18s ease,
     opacity 0.18s ease,

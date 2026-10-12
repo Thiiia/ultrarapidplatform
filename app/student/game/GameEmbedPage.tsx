@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FC, SVGProps } from "react";
 // import SongFlowDebugger from "@/app/components/SongFlowDebugger";
 import { persistLaunchParams, resolveEmbeddedCalibrationLaunchSnapshot, resolveLaunchParams, type EmbeddedCalibrationLaunchSnapshot } from "@/lib/launch-handoff";
 import { buildEmbeddedGameUrl } from "@/lib/platform-launch";
@@ -20,33 +19,19 @@ import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigat
 import { webglFlexFrameStyle, webglViewportHostStyle } from "@/lib/webgl-embed-layout";
 import styles from "../student.module.css";
 
-/* Header Icon imports */
+/* Brand mark */
 import URIcon from "@/public/header_icons/URIcon.svg";
-import PlayTab from "@/public/header_icons/play_tab.svg";
-import PlayPressedTab from "@/public/header_icons/play_tab_pressed.svg";
-import HomeIcon from "@/public/header_icons/Home.svg";
-import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
-import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab.svg";
-import ProgressTab from "@/public/header_icons/progress_tab.svg";
-
-/* Utility Icon Imports */
-import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
 
 const GAME_URL = getUnityGameUrl();
-type TabIcon = FC<SVGProps<SVGSVGElement>>;
 
 type HeaderTab = {
   label: string;
   href: string;
-  Icon: TabIcon;
-  width: number;
 };
 
 type UtilityTab = {
   label: string;
   href: string;
-  Icon: TabIcon;
-  width: number;
 };
 
 type GameEmbedPageProps = {
@@ -108,30 +93,22 @@ async function refreshPendingPlayerAttempt(pending: PendingOutcome) {
 
 function getTopTabs(navBasePath = "/student"): HeaderTab[] {
   return [
-    { label: "Home", href: navBasePath, Icon: HomeIcon, width: 99 },
+    { label: "Home", href: navBasePath },
     {
       label: studentCopy.navigation.lessons,
       href: `${navBasePath}/lessons`,
-      Icon: MyLessonsTab,
-      width: 139,
     },
     {
       label: studentCopy.navigation.builder,
       href: `${navBasePath}/song-choice`,
-      Icon: LessonBuilderTab,
-      width: 159,
     },
     {
       label: studentCopy.navigation.progress,
       href: `${navBasePath}/progress`,
-      Icon: ProgressTab,
-      width: 120,
     },
-        {
+    {
       label: studentCopy.navigation.play,
       href: `${navBasePath}/game`,
-      Icon: PlayTab,
-      width: 99,
     },
   ];
 }
@@ -141,8 +118,6 @@ function getUtilityTabs(navBasePath = "/student"): UtilityTab[] {
     {
       label: "Profile",
       href: navBasePath === "/demo/student" ? `${navBasePath}/profile` : "/student/profile",
-      Icon: ProfileIcon,
-      width: 134.45,
     },
   ];
 }
@@ -245,7 +220,7 @@ function HeaderBar({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 12,
+              gap: 3,
               flexWrap: "nowrap",
               minWidth: 0,
               overflow: "visible",
@@ -273,8 +248,6 @@ const isActive =
     cleanTabHref !== "/" &&
     pathname.startsWith(`${cleanTabHref}/`));
 
-              const Icon = isPlayTab && isActive ? PlayPressedTab : tab.Icon;
-
               return (
                 <Link
                   key={tab.label}
@@ -284,22 +257,8 @@ const isActive =
                   className={`${styles.headerTabButton} ${
                     isActive ? styles.headerTabButtonActive : ""
                   }`}
-                  style={{
-                    width: tab.width,
-                    height: 45.5,
-                    opacity: 1,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
                 >
-                  <Icon
-                    style={{
-                      width: tab.width,
-                      height: 45.5,
-                      display: "block",
-                    }}
-                  />
+                  {tab.label}
                 </Link>
               );
             })}
@@ -324,18 +283,8 @@ const isActive =
               href={tab.href}
               aria-label={tab.label}
               className={styles.utilityButton}
-              style={{
-                width: tab.width,
-                height: 38,
-              }}
             >
-              <tab.Icon
-                style={{
-                  width: tab.width,
-                  height: 38,
-                  display: "block",
-                }}
-              />
+              {tab.label}
             </Link>
           ))}
 

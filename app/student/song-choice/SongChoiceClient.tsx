@@ -7,7 +7,6 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { FC, SVGProps } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { persistLaunchParams } from "@/lib/launch-handoff";
 import { createSongLaunchNavigationParams } from "@/lib/platform-launch";
@@ -26,37 +25,19 @@ import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigat
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
 
-/* Header Icon imports */
+/* Brand mark */
 import URIcon from "@/public/header_icons/URIcon.svg";
-import HomeIcon from "@/public/header_icons/Home.svg";
-import HomePressedIcon from "@/public/header_icons/Home_pressed.svg";
-import MyLessonsTab from "@/public/header_icons/my_lessons_tab.svg";
-import MyLessonsPressedTab from "@/public/header_icons/my_lessons_tab_pressed.svg";
-import LessonBuilderTab from "@/public/header_icons/lesson_builder_tab.svg";
-import LessonBuilderPressedTab from "@/public/header_icons/lesson_builder_tab_pressed.svg";
-import ProgressTab from "@/public/header_icons/progress_tab.svg";
-import ProgressPressedTab from "@/public/header_icons/progress_tab_pressed.svg";
-import PlayTab from "@/public/header_icons/play_tab.svg";
-import PlayPressedTab from "@/public/header_icons/play_tab_pressed.svg";
-
-/* Utility Icon Imports */
-import ProfileIcon from "@/public/utility_icons/profile_icon.svg";
 import SongChoiceIcon from "@/public/song-choice_icons/song_choice_icon.png";
 
 /* Song Choice Icon Imports */
 import NoteIcon from "@/public/song_choice_icons/Note.svg";
 import PlayIcon from "@/public/song_choice_icons/Play_Icon.svg";
 
-type TabIcon = FC<SVGProps<SVGSVGElement>>;
-
 type DashboardType = "student" | "teacher";
 
 type HeaderTab = {
   label: string;
   href: string;
-  width: number;
-  Icon?: TabIcon;
-  ActiveIcon?: TabIcon;
 };
 
 type SongChoiceWithEquationSlots = SongChoice & {
@@ -107,37 +88,22 @@ function getStudentTopTabs(navBasePath = "/student"): HeaderTab[] {
     {
       label: "Home",
       href: navBasePath,
-      Icon: HomeIcon,
-      ActiveIcon: HomePressedIcon,
-      width: 99,
     },
     {
       label: studentCopy.navigation.lessons,
       href: `${navBasePath}/lessons`,
-      Icon: MyLessonsTab,
-      ActiveIcon: MyLessonsPressedTab,
-      width: 139,
     },
     {
       label: studentCopy.navigation.builder,
       href: `${navBasePath}/song-choice`,
-      Icon: LessonBuilderTab,
-      ActiveIcon: LessonBuilderPressedTab,
-      width: 159,
     },
     {
       label: studentCopy.navigation.progress,
       href: `${navBasePath}/progress`,
-      Icon: ProgressTab,
-      ActiveIcon: ProgressPressedTab,
-      width: 120,
     },
     {
       label: studentCopy.navigation.play,
       href: `${navBasePath}/game`,
-      Icon: PlayTab,
-      ActiveIcon: PlayPressedTab,
-      width: 99,
     },
   ];
 }
@@ -147,32 +113,26 @@ function getTeacherTopTabs(navBasePath = "/teacher"): HeaderTab[] {
     {
       label: "Home",
       href: navBasePath,
-      width: 99,
     },
     {
       label: "Classes",
       href: `${navBasePath}/classes`,
-      width: 120,
     },
     {
       label: "Students",
       href: `${navBasePath}/students`,
-      width: 120,
     },
     {
       label: "Lessons",
       href: `${navBasePath}/lessons`,
-      width: 120,
     },
     {
       label: "Lesson Builder",
       href: `${navBasePath}/song-choice`,
-      width: 159,
     },
     {
       label: "Progress",
       href: `${navBasePath}/progress`,
-      width: 120,
     },
   ];
 }
@@ -299,7 +259,7 @@ function HeaderBar({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 12,
+              gap: 3,
               flexWrap: "nowrap",
               minWidth: 0,
               overflow: "visible",
@@ -327,8 +287,6 @@ function HeaderBar({
                   cleanTabHref !== "/" &&
                   pathname.startsWith(`${cleanTabHref}/`));
 
-              const Icon = isActive ? tab.ActiveIcon : tab.Icon;
-
               return (
                 <Link
                   key={tab.label}
@@ -339,39 +297,8 @@ function HeaderBar({
                   className={`${styles.headerTabButton} ${
                     isActive ? styles.headerTabButtonActive : ""
                   }`}
-                  style={{
-                    width: tab.width,
-                    height: 45.5,
-                    opacity: 1,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    textDecoration: "none",
-                    background: "var(--ur-canvas-top)",
-                    borderBottom:
-                      dashboardType === "teacher"
-                        ? isActive
-                          ? "3px solid #CFFF04"
-                          : "3px solid transparent"
-                        : undefined,
-                    color: "var(--ur-text-marketing)",
-                    fontSize: dashboardType === "teacher" ? 13 : undefined,
-                    fontWeight: dashboardType === "teacher" ? 500 : undefined,
-                    lineHeight:
-                      dashboardType === "teacher" ? "19.5px" : undefined,
-                  }}
                 >
-                  {Icon ? (
-                    <Icon
-                      style={{
-                        width: tab.width,
-                        height: 45.5,
-                        display: "block",
-                      }}
-                    />
-                  ) : (
-                    tab.label
-                  )}
+                  {tab.label}
                 </Link>
               );
             })}
@@ -395,18 +322,8 @@ function HeaderBar({
             prefetch={false}
             aria-label="Profile"
             className={styles.utilityButton}
-            style={{
-              width: 134.45,
-              height: 38,
-            }}
           >
-            <ProfileIcon
-              style={{
-                width: 134.45,
-                height: 38,
-                display: "block",
-              }}
-            />
+            {studentCopy.navigation.profile}
           </Link>
 
           <a
