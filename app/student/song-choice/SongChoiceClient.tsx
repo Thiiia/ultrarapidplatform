@@ -1351,7 +1351,10 @@ export default function SongChoiceClient({
                   <article
                     key={song.id}
                     className={songStyles.songCard}
+                    data-song-id={song.id}
+                    data-view-mode={songViewMode}
                     data-selected={isSelected ? "true" : "false"}
+                    data-previewing={isPreviewing ? "true" : "false"}
                     role="listitem"
                   >
                     <button
@@ -1406,7 +1409,11 @@ export default function SongChoiceClient({
                       type="button"
                       onClick={() => void handlePreview(song)}
                       aria-pressed={isPreviewing}
-                      aria-label={studentCopy.songChoice.preview(song.name)}
+                      aria-label={
+                        isPreviewing
+                          ? studentCopy.songChoice.pausePreview(song.name)
+                          : studentCopy.songChoice.preview(song.name)
+                      }
                       title={
                         isPreviewing
                           ? studentCopy.songChoice.pausePreview(song.name)
@@ -1415,12 +1422,10 @@ export default function SongChoiceClient({
                       className={songStyles.previewButton}
                     >
                       {isPreviewing ? (
-                        <span
-                          aria-hidden="true"
-                          style={{ display: "inline-flex", gap: 3 }}
-                        >
-                          <span style={{ width: 3, height: 13, background: "#CFFF04" }} />
-                          <span style={{ width: 3, height: 13, background: "#CFFF04" }} />
+                        <span className={songStyles.previewEqualizer} aria-hidden="true">
+                          <i />
+                          <i />
+                          <i />
                         </span>
                       ) : (
                         <PlayIcon
