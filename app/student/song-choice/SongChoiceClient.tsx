@@ -36,6 +36,7 @@ import SongChoiceIcon from "@/public/song-choice_icons/song_choice_icon.png";
 
 /* Song Choice Icon Imports */
 import PlayIcon from "@/public/song_choice_icons/Play_Icon.svg";
+import NoteIcon from "@/public/song_choice_icons/Note.svg";
 
 type DashboardType = "student" | "teacher";
 type SongChoiceViewMode = "grid" | "list";
@@ -427,6 +428,8 @@ export default function SongChoiceClient({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [songViewMode, setSongViewMode] = useState<SongChoiceViewMode>("grid");
+  const [selectedArtistFilters, setSelectedArtistFilters] = useState<string[]>([]);
+  const [selectedRhythmFilters, setSelectedRhythmFilters] = useState<string[]>([]);
   const [hasLoadedSongViewPreference, setHasLoadedSongViewPreference] =
     useState(false);
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
@@ -555,21 +558,83 @@ export default function SongChoiceClient({
     return activityKey;
   }
 
-  const filteredSongs = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
+  const artistFilterOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    songs.forEach((song) => {
+      const artist = song.artist?.trim() || studentCopy.songChoice.unknownArtist;
+      counts.set(artist, (counts.get(artist) ?? 0) + 1);
+    });
 
-    if (!normalizedQuery) {
-      return songs;
-    }
+    return Array.from(counts, ([artist, count]) => ({ artist, count })).sort(
+      (left, right) => left.artist.localeCompare(right.artist),
+    );
+  }, [songs, studentCopy.songChoice.unknownArtist]);
 
-    return songs.filter((song) => {
-      return (
-        song.name.toLowerCase().includes(normalizedQuery) ||
-        song.path.toLowerCase().includes(normalizedQuery) ||
-        song.artist?.toLowerCase().includes(normalizedQuery)
+  const rhythmDifficultyOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    songs.forEach((song) => {
+      if (!song.rhythmDifficultyKey) return;
+      counts.set(
+        song.rhythmDifficultyKey,
+        (counts.get(song.rhythmDifficultyKey) ?? 0) + 1,
       );
     });
-  }, [searchQuery, songs]);
+
+    const order = ["EasySingle", "MediumSingle", "HardSingle", "ExpertSingle"];
+    return Array.from(counts, ([difficulty, count]) => ({
+      difficulty,
+      label: difficulty.replace(/Single$/, ""),
+      count,
+    })).sort(
+      (left, right) => order.indexOf(left.difficulty) - order.indexOf(right.difficulty),
+    );
+  }, [songs]);
+
+  useEffect(() => {
+    const availableArtists = new Set(
+      artistFilterOptions.map(({ artist }) => artist),
+    );
+    const availableRhythms = new Set(
+      rhythmDifficultyOptions.map(({ difficulty }) => difficulty),
+    );
+    setSelectedArtistFilters((current) => {
+      const next = current.filter((artist) => availableArtists.has(artist));
+      return next.length === current.length ? current : next;
+    });
+    setSelectedRhythmFilters((current) => {
+      const next = current.filter((difficulty) => availableRhythms.has(difficulty));
+      return next.length === current.length ? current : next;
+    });
+  }, [artistFilterOptions, rhythmDifficultyOptions]);
+
+  const filteredSongs = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const selectedArtists = new Set(selectedArtistFilters);
+    const selectedRhythms = new Set(selectedRhythmFilters);
+
+    return songs.filter((song) => {
+      const artist = song.artist?.trim() || studentCopy.songChoice.unknownArtist;
+      const matchesArtist =
+        selectedArtists.size === 0 || selectedArtists.has(artist);
+      const matchesRhythm =
+        selectedRhythms.size === 0 ||
+        (song.rhythmDifficultyKey !== undefined &&
+          selectedRhythms.has(song.rhythmDifficultyKey));
+      const matchesQuery =
+        !normalizedQuery ||
+        song.name.toLowerCase().includes(normalizedQuery) ||
+        song.path.toLowerCase().includes(normalizedQuery) ||
+        artist.toLowerCase().includes(normalizedQuery);
+
+      return matchesArtist && matchesRhythm && matchesQuery;
+    });
+  }, [
+    searchQuery,
+    selectedArtistFilters,
+    selectedRhythmFilters,
+    songs,
+    studentCopy.songChoice.unknownArtist,
+  ]);
 
   const selectedSong = useMemo(() => {
     const baseSong = songs.find((song) => song.id === selectedSongId) ?? null;
@@ -1294,205 +1359,335 @@ export default function SongChoiceClient({
               </div>
             </div>
 
-            <div className={songStyles.songCount} role="status" aria-live="polite">
-              <span>
-                {filteredSongs.length === songs.length
-                  ? songs.length + (songs.length === 1 ? " song" : " songs")
-                  : filteredSongs.length + " of " + songs.length + " songs"}
-                {" · "}
-                {selectedActivity?.label ??
-                  (currentActivityKey
-                    ? activityLabelMap[currentActivityKey] ?? currentActivityKey
-                    : "Choose an activity")}
-              </span>
-              {searchQuery.trim() ? <span>Search results</span> : <span>Choose a track</span>}
-            </div>
-
-            {previewError ? (
-              <p
-                role="alert"
-                className="experience-status"
-                data-status="error"
-                style={{
-                  margin: "8px 0 0",
-                  color: "var(--ur-feedback-error)",
-                  fontSize: 12,
-                  lineHeight: 1.4,
-                }}
-              >
-                {previewError}
-              </p>
-            ) : null}
-
-            <div
-              className={songStyles.songGrid}
-              data-view-mode={songViewMode}
-              role="list"
-              aria-label="Available songs"
-            >
-            {filteredSongs.length > 0 ? (
-              filteredSongs.map((song) => {
-                const isSelected = selectedSongId === song.id;
-                const duration =
-                  song.durationSeconds ?? durationsById[song.id] ?? null;
-                const isPreviewing = previewingSongId === song.id;
-                const coverArtSource = getSongChoiceCoverArt(
-                  song.id,
-                  coverArtBySongId,
-                );
-                const coverArt =
-                  coverArtSource &&
-                  failedCoverArtBySongId[song.id] !== coverArtSource
-                    ? coverArtSource
-                    : null;
-                const artist = song.artist ?? studentCopy.songChoice.unknownArtist;
-
-                return (
-                  <article
-                    key={song.id}
-                    className={songStyles.songCard}
-                    data-song-id={song.id}
-                    data-view-mode={songViewMode}
-                    data-selected={isSelected ? "true" : "false"}
-                    data-previewing={isPreviewing ? "true" : "false"}
-                    role="listitem"
-                  >
+            <div className={songStyles.songLayout} data-view-mode={songViewMode}>
+              {songViewMode === "list" &&
+              (artistFilterOptions.length > 0 || rhythmDifficultyOptions.length > 0) ? (
+                <aside className={songStyles.artistFilters} aria-label="Song filters">
+                  <div className={songStyles.filterPanelHeader}>
+                    <span>Filters</span>
+                    <span className={songStyles.filterPanelCount}>
+                      {artistFilterOptions.length + rhythmDifficultyOptions.length} options
+                    </span>
+                  </div>
+                  {artistFilterOptions.length > 0 ? (
+                    <fieldset className={songStyles.artistFilterGroup}>
+                      <legend>Artist</legend>
+                      <div className={songStyles.artistFilterOptions}>
+                        {artistFilterOptions.map(({ artist, count }) => (
+                          <label key={artist} className={songStyles.artistFilterOption}>
+                            <input
+                              type="checkbox"
+                              checked={selectedArtistFilters.includes(artist)}
+                              onChange={() =>
+                                setSelectedArtistFilters((current) =>
+                                  current.includes(artist)
+                                    ? current.filter((value) => value !== artist)
+                                    : [...current, artist],
+                                )
+                              }
+                            />
+                            <span className={songStyles.artistFilterName}>{artist}</span>
+                            <span className={songStyles.artistFilterCount} aria-hidden="true">
+                              {count}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : null}
+                  {rhythmDifficultyOptions.length > 0 ? (
+                    <fieldset className={songStyles.artistFilterGroup}>
+                      <legend>Rhythm difficulty</legend>
+                      <div className={songStyles.artistFilterOptions}>
+                        {rhythmDifficultyOptions.map(({ difficulty, label, count }) => (
+                          <label key={difficulty} className={songStyles.artistFilterOption}>
+                            <input
+                              type="checkbox"
+                              checked={selectedRhythmFilters.includes(difficulty)}
+                              onChange={() =>
+                                setSelectedRhythmFilters((current) =>
+                                  current.includes(difficulty)
+                                    ? current.filter((value) => value !== difficulty)
+                                    : [...current, difficulty],
+                                )
+                              }
+                            />
+                            <span className={songStyles.artistFilterName}>{label}</span>
+                            <span className={songStyles.artistFilterCount} aria-hidden="true">
+                              {count}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : null}
+                  {selectedArtistFilters.length > 0 || selectedRhythmFilters.length > 0 ? (
                     <button
                       type="button"
-                      onClick={() => handleSelectSong(song)}
-                      aria-pressed={isSelected}
-                      aria-label={"Select " + song.name + " by " + artist}
-                      disabled={isLaunching}
-                      className={songStyles.songSelect}
+                      className={songStyles.clearArtistFilters}
+                      onClick={() => {
+                        setSelectedArtistFilters([]);
+                        setSelectedRhythmFilters([]);
+                      }}
                     >
-                      <span className={songStyles.artwork} aria-hidden="true">
-                        {coverArt ? (
-                          <Image
-                            src={coverArt}
-                            alt=""
-                            fill
-                            sizes="(max-width: 520px) 104px, (max-width: 760px) 48vw, 25vw"
-                            unoptimized
-                            referrerPolicy="no-referrer"
-                            className={songStyles.coverImage}
-                            onError={() =>
-                              markCoverArtUnavailable(song.id, coverArt)
-                            }
-                          />
-                        ) : (
-                          <span
-                            className={songStyles.coverFallback}
-                            data-song-id={song.id}
-                          >
-                            <span className={songStyles.coverMark}>UltraRapid audio</span>
-                            <span className={songStyles.coverTitle}>{song.name}</span>
-                            <span className={songStyles.coverArtist}>{artist}</span>
-                          </span>
-                        )}
-                        <span className={songStyles.selectedMark} aria-hidden="true">
-                          <svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16" fill="none">
-                            <path d="m3.5 8.3 2.8 2.8 6.2-6.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                          Selected
-                        </span>
-                      </span>
-                      <span className={songStyles.songDetails}>
-                        <span className={songStyles.songText}>
-                          <span className={songStyles.songName}>{song.name}</span>
-                          <span className={songStyles.songArtist}>{artist}</span>
-                        </span>
-                        <span className={songStyles.songDuration}>{formatDuration(duration)}</span>
-                      </span>
+                      Clear filters
                     </button>
+                  ) : null}
+                </aside>
+              ) : null}
 
-                    <button
-                      type="button"
-                      onClick={() => void handlePreview(song)}
-                      aria-pressed={isPreviewing}
-                      aria-label={
-                        isPreviewing
-                          ? studentCopy.songChoice.pausePreview(song.name)
-                          : studentCopy.songChoice.preview(song.name)
-                      }
-                      title={
-                        isPreviewing
-                          ? studentCopy.songChoice.pausePreview(song.name)
-                          : studentCopy.songChoice.preview(song.name)
-                      }
-                      className={songStyles.previewButton}
-                    >
-                      {isPreviewing ? (
-                        <span className={songStyles.previewEqualizer} aria-hidden="true">
-                          <i />
-                          <i />
-                          <i />
-                        </span>
-                      ) : (
-                        <PlayIcon
-                          aria-hidden="true"
-                          style={{
-                            width: 22,
-                            height: 22,
-                            display: "block",
-                          }}
-                        />
-                      )}
-                    </button>
-                  </article>
-                );
-              })
-            ) : (
-              <div
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  borderRadius: 12,
-                  padding: 16,
-                }}
-              >
-                <h2
-                  style={{
-                    margin: "0 0 8px 0",
-                    fontSize: 15,
-                    fontWeight: 600,
-                  }}
-                >
-                  {songs.length === 0
-                    ? currentActivityKey === "number-bonds"
-                      ? "No Number Bonds songs are ready yet"
-                      : "No songs are ready yet"
-                    : studentCopy.songChoice.noSongsTitle}
-                </h2>
-                <p
-                  style={{
-                    margin: 0,
-                    color: "#D1D5DB",
-                    fontSize: 13,
-                    fontWeight: 500,
-                    lineHeight: "19.5px",
-                  }}
-                >
-                  {songs.length === 0
-                    ? currentActivityKey === "number-bonds"
-                      ? studentCopy.songChoice.noNumberBondsSongsBody
-                      : studentCopy.songChoice.noActivitySongsBody
-                    : studentCopy.songChoice.noSongsBody}
-                </p>
-                {songs.length > 0 ? (
-                  <button type="button" onClick={() => setSearchQuery("")} className={styles.songChoiceEmptyAction}>
-                    Clear search
-                  </button>
-                ) : currentActivityKey === "number-bonds" ? (
-                  <button
-                    type="button"
-                    onClick={() => router.push(`${navBasePath}/song-choice?activity=early-algebra`)}
-                    className={styles.songChoiceEmptyAction}
+              <section className={songStyles.songListPane} aria-label="Songs">
+                <div className={songStyles.songCount} role="status" aria-live="polite">
+                  <span>
+                    {filteredSongs.length === songs.length
+                      ? songs.length + (songs.length === 1 ? " song" : " songs")
+                      : filteredSongs.length + " of " + songs.length + " songs"}
+                    {" · "}
+                    {selectedActivity?.label ??
+                      (currentActivityKey
+                        ? activityLabelMap[currentActivityKey] ?? currentActivityKey
+                        : "Choose an activity")}
+                  </span>
+                  {searchQuery.trim() ? (
+                    <span>Search results</span>
+                  ) : selectedArtistFilters.length > 0 || selectedRhythmFilters.length > 0 ? (
+                    <span>Filters applied</span>
+                  ) : (
+                    <span>Choose a track</span>
+                  )}
+                </div>
+
+                {previewError ? (
+                  <p
+                    role="alert"
+                    className="experience-status"
+                    data-status="error"
+                    style={{
+                      margin: "8px 0 0",
+                      color: "var(--ur-feedback-error)",
+                      fontSize: 12,
+                      lineHeight: 1.4,
+                    }}
                   >
-                    Browse Early Algebra songs
-                  </button>
+                    {previewError}
+                  </p>
                 ) : null}
-              </div>
-            )}
+
+                <div
+                  className={songStyles.songGrid}
+                  data-view-mode={songViewMode}
+                  role="list"
+                  aria-label="Available songs"
+                >
+                  {filteredSongs.length > 0 ? (
+                    filteredSongs.map((song) => {
+                      const isSelected = selectedSongId === song.id;
+                      const duration =
+                        song.durationSeconds ?? durationsById[song.id] ?? null;
+                      const isPreviewing = previewingSongId === song.id;
+                      const coverArtSource = getSongChoiceCoverArt(
+                        song.id,
+                        coverArtBySongId,
+                      );
+                      const coverArt =
+                        coverArtSource &&
+                        failedCoverArtBySongId[song.id] !== coverArtSource
+                          ? coverArtSource
+                          : null;
+                      const artist =
+                        song.artist?.trim() || studentCopy.songChoice.unknownArtist;
+
+                      return (
+                        <article
+                          key={song.id}
+                          className={songStyles.songCard}
+                          data-song-id={song.id}
+                          data-view-mode={songViewMode}
+                          data-selected={isSelected ? "true" : "false"}
+                          data-previewing={isPreviewing ? "true" : "false"}
+                          role="listitem"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleSelectSong(song)}
+                            aria-pressed={isSelected}
+                            aria-label={"Select " + song.name + " by " + artist}
+                            disabled={isLaunching}
+                            className={songStyles.songSelect}
+                          >
+                            <span className={songStyles.artwork} aria-hidden="true">
+                              {coverArt ? (
+                                <Image
+                                  src={coverArt}
+                                  alt=""
+                                  fill
+                                  sizes={
+                                    songViewMode === "list"
+                                      ? "40px"
+                                      : "(max-width: 520px) 104px, (max-width: 760px) 48vw, 25vw"
+                                  }
+                                  unoptimized
+                                  referrerPolicy="no-referrer"
+                                  className={songStyles.coverImage}
+                                  onError={() =>
+                                    markCoverArtUnavailable(song.id, coverArt)
+                                  }
+                                />
+                              ) : songViewMode === "list" ? (
+                                <span
+                                  className={songStyles.listCoverFallback}
+                                  aria-hidden="true"
+                                >
+                                  <NoteIcon aria-hidden="true" />
+                                </span>
+                              ) : (
+                                <span
+                                  className={songStyles.coverFallback}
+                                  data-song-id={song.id}
+                                >
+                                  <span className={songStyles.coverMark}>UltraRapid audio</span>
+                                  <span className={songStyles.coverTitle}>{song.name}</span>
+                                  <span className={songStyles.coverArtist}>{artist}</span>
+                                </span>
+                              )}
+                              <span className={songStyles.selectedMark} aria-hidden="true">
+                                <svg
+                                  aria-hidden="true"
+                                  width="13"
+                                  height="13"
+                                  viewBox="0 0 16 16"
+                                  fill="none"
+                                >
+                                  <path
+                                    d="m3.5 8.3 2.8 2.8 6.2-6.2"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                                Selected
+                              </span>
+                            </span>
+                            <span className={songStyles.songDetails}>
+                              <span className={songStyles.songText}>
+                                <span className={songStyles.songName}>{song.name}</span>
+                                <span className={songStyles.songArtist}>{artist}</span>
+                              </span>
+                              <span className={songStyles.songDuration}>
+                                {formatDuration(duration)}
+                              </span>
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => void handlePreview(song)}
+                            aria-pressed={isPreviewing}
+                            aria-label={
+                              isPreviewing
+                                ? studentCopy.songChoice.pausePreview(song.name)
+                                : studentCopy.songChoice.preview(song.name)
+                            }
+                            title={
+                              isPreviewing
+                                ? studentCopy.songChoice.pausePreview(song.name)
+                                : studentCopy.songChoice.preview(song.name)
+                            }
+                            className={songStyles.previewButton}
+                          >
+                            {isPreviewing ? (
+                              <span
+                                className={songStyles.previewEqualizer}
+                                aria-hidden="true"
+                              >
+                                <i />
+                                <i />
+                                <i />
+                              </span>
+                            ) : songViewMode === "list" ? (
+                              <span
+                                className={songStyles.listPreviewGlyph}
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <PlayIcon
+                                aria-hidden="true"
+                                style={{
+                                  width: 22,
+                                  height: 22,
+                                  display: "block",
+                                }}
+                              />
+                            )}
+                          </button>
+                        </article>
+                      );
+                    })
+                  ) : (
+                    <div
+                      style={{
+                        background: "rgba(255,255,255,0.06)",
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        borderRadius: 12,
+                        padding: 16,
+                      }}
+                    >
+                      <h2
+                        style={{
+                          margin: "0 0 8px 0",
+                          fontSize: 15,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {songs.length === 0
+                          ? currentActivityKey === "number-bonds"
+                            ? "No Number Bonds songs are ready yet"
+                            : "No songs are ready yet"
+                          : studentCopy.songChoice.noSongsTitle}
+                      </h2>
+                      <p
+                        style={{
+                          margin: 0,
+                          color: "#D1D5DB",
+                          fontSize: 13,
+                          fontWeight: 500,
+                          lineHeight: "19.5px",
+                        }}
+                      >
+                        {songs.length === 0
+                          ? currentActivityKey === "number-bonds"
+                            ? studentCopy.songChoice.noNumberBondsSongsBody
+                            : studentCopy.songChoice.noActivitySongsBody
+                          : studentCopy.songChoice.noSongsBody}
+                      </p>
+                      {songs.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchQuery("");
+                            setSelectedArtistFilters([]);
+                            setSelectedRhythmFilters([]);
+                          }}
+                          className={styles.songChoiceEmptyAction}
+                        >
+                          Clear filters
+                        </button>
+                      ) : currentActivityKey === "number-bonds" ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            router.push(`${navBasePath}/song-choice?activity=early-algebra`)
+                          }
+                          className={styles.songChoiceEmptyAction}
+                        >
+                          Browse Early Algebra songs
+                        </button>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              </section>
             </div>
           </div>
         </div>

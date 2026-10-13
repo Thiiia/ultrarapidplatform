@@ -115,6 +115,7 @@ import {
   planNumberBondSequenceCues,
 } from "@/lib/number-bonds-note-plan";
 import { getSongChartCues } from "@/lib/song-chart-cues";
+import { findNearestChartCueIndex } from "@/lib/editor/chart-cue-navigation";
 import { getLearnerFacingError, studentCopy } from "@/lib/student-copy";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import { AlgebraStudioBar } from "./AlgebraStudioBar";
@@ -5243,25 +5244,93 @@ const SONG_PREVIEW_RATES = [0.5, 0.75, 1] as const;
 
 const ChartCueMarkerLane = memo(function ChartCueMarkerLane({
   cues,
+  currentSongSeconds,
+  onSelectCue,
   pixelsPerSecond,
   trackWidth,
 }: {
   cues: ReadonlyArray<{ tick: number; lane: number; seconds: number }>;
+  currentSongSeconds: number;
+  onSelectCue: (seconds: number) => void;
   pixelsPerSecond: number;
   trackWidth: number;
 }) {
-  const cuesByTime = new Map<number, Set<number>>();
+  const groupedCues = useMemo(() => {
+    const cuesByTime = new Map<number, Set<number>>();
 
-  for (const cue of cues) {
-    const seconds = Math.round(cue.seconds * 1000) / 1000;
-    const lanes = cuesByTime.get(seconds) ?? new Set<number>();
-    lanes.add(cue.lane);
-    cuesByTime.set(seconds, lanes);
+    for (const cue of cues) {
+      const seconds = Math.round(cue.seconds * 1000) / 1000;
+      const lanes = cuesByTime.get(seconds) ?? new Set<number>();
+      lanes.add(cue.lane);
+      cuesByTime.set(seconds, lanes);
+    }
+
+    return [...cuesByTime.entries()]
+      .map(([seconds, lanes]) => ({ seconds, lanes }))
+      .sort((left, right) => left.seconds - right.seconds);
+  }, [cues]);
+  const cueSeconds = useMemo(
+    () => groupedCues.map((cue) => cue.seconds),
+    [groupedCues],
+  );
+  const nearestCueIndex = findNearestChartCueIndex(cueSeconds, currentSongSeconds);
+
+  if (nearestCueIndex < 0 || !Number.isFinite(pixelsPerSecond) || pixelsPerSecond <= 0) {
+    return null;
   }
 
+  const selectCue = (index: number) => {
+    if (index >= 0 && index < cueSeconds.length) {
+      onSelectCue(cueSeconds[index]);
+    }
+  };
+
   return (
-    <>
-      {[...cuesByTime.entries()].map(([seconds, lanes]) => {
+    <div
+      role="slider"
+      aria-label="Playable chart cues"
+      aria-orientation="horizontal"
+      aria-valuemin={0}
+      aria-valuemax={cueSeconds.length - 1}
+      aria-valuenow={nearestCueIndex}
+      aria-valuetext={`Cue ${nearestCueIndex + 1} of ${cueSeconds.length} at ${cueSeconds[nearestCueIndex].toFixed(2)} seconds`}
+      aria-keyshortcuts="ArrowLeft ArrowRight Home End"
+      title="Click to seek to the nearest chart note. Use left or right arrow keys to move between cues."
+      className={algebraStyles.chartCueSeekLane}
+      data-timeline-interactive="true"
+      tabIndex={0}
+      onClick={(event) => {
+        event.stopPropagation();
+        const bounds = event.currentTarget.getBoundingClientRect();
+        if (bounds.width <= 0) return;
+        const pointerSeconds = Math.max(
+          0,
+          Math.min(trackWidth, event.clientX - bounds.left),
+        ) / pixelsPerSecond;
+        selectCue(findNearestChartCueIndex(cueSeconds, pointerSeconds));
+      }}
+      onKeyDown={(event) => {
+        let nextIndex = nearestCueIndex;
+        if (event.key === "ArrowLeft") nextIndex -= 1;
+        else if (event.key === "ArrowRight") nextIndex += 1;
+        else if (event.key === "Home") nextIndex = 0;
+        else if (event.key === "End") nextIndex = cueSeconds.length - 1;
+        else return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        selectCue(Math.max(0, Math.min(cueSeconds.length - 1, nextIndex)));
+      }}
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        width: trackWidth,
+        height: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      {groupedCues.map(({ seconds, lanes }) => {
         const markerLeft = Math.min(
           trackWidth,
           Math.max(0, seconds * pixelsPerSecond),
@@ -5270,25 +5339,17 @@ const ChartCueMarkerLane = memo(function ChartCueMarkerLane({
         return (
           <span
             key={`chart-cue-${seconds}`}
+            className={algebraStyles.chartCueMarker}
             aria-hidden="true"
             data-chart-cue-marker="true"
-            title={`Chart cue at ${seconds.toFixed(2)} seconds${lanes.size > 1 ? ` · ${lanes.size} notes` : ""}`}
             style={{
-              position: "absolute",
               left: markerLeft,
-              top: 3,
-              bottom: 3,
               width: Math.min(4, 2 + lanes.size - 1),
-              borderRadius: 999,
-              background: "#CFFF04",
-              opacity: 0.48,
-              transform: "translateX(-50%)",
-              pointerEvents: "none",
             }}
           />
         );
       })}
-    </>
+    </div>
   );
 });
 
@@ -6333,6 +6394,8 @@ function EquationTimeline({
                 {mechanic === "hit" ? (
                   <ChartCueMarkerLane
                     cues={chartHitCues}
+                    currentSongSeconds={currentSongSeconds}
+                    onSelectCue={onSeek}
                     pixelsPerSecond={pixelsPerSecond}
                     trackWidth={trackWidth}
                   />
@@ -14715,7 +14778,7 @@ export default function LessonBuilderClient({
   }, [isSongPlaying, timelineDurationSeconds, audioObjectUrl]);
 
   function seekSong(seconds: number) {
-    const nextSeconds = Math.max(0, Math.min(timelineDurationSeconds, Math.round(seconds * 50) / 50));
+    const nextSeconds = Math.max(0, Math.min(timelineDurationSeconds, Math.round(seconds * 1000) / 1000));
     const audio = audioRef.current;
 
     if (audio) {

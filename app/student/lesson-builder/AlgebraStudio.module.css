@@ -127,6 +127,40 @@
   outline-offset: 4px;
   box-shadow: 0 0 0 7px #cfff0430;
 }
+.chartCueSeekLane {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: crosshair;
+  touch-action: pan-y;
+  transition: background-color .16s ease;
+}
+.chartCueSeekLane:hover { background: rgba(207,255,4,.035); }
+.chartCueSeekLane:focus-visible {
+  outline: 2px solid var(--studio-accent);
+  outline-offset: -3px;
+  border-radius: 6px;
+  background: rgba(207,255,4,.06);
+}
+.chartCueMarker {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border-radius: 999px;
+  background: #CFFF04;
+  opacity: .48;
+  transform: translateX(-50%);
+  pointer-events: none;
+  transition: opacity .16s ease;
+}
+.chartCueSeekLane:hover .chartCueMarker,
+.chartCueSeekLane:focus-visible .chartCueMarker { opacity: .9; }
+@media (prefers-reduced-motion: reduce) {
+  .chartCueSeekLane,
+  .chartCueMarker { transition: none; }
+}
 .timelineResizeHandle {
   z-index: 5;
   opacity: 0;
