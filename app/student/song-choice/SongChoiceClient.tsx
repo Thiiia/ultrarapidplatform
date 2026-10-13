@@ -12,7 +12,10 @@ import { persistLaunchParams } from "@/lib/launch-handoff";
 import { createSongLaunchNavigationParams } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import { assertSongActivityMatches } from "@/lib/song-activity-authority";
-import { fetchId3FrontCover } from "@/lib/song-artwork";
+import {
+  fetchId3FrontCover,
+  getSongChoiceCoverArt,
+} from "@/lib/song-artwork";
 import { normalizeSongActivityKey } from "@/lib/song-activity-storage";
 import {
   buildSongSelectionCacheKey,
@@ -35,6 +38,9 @@ import SongChoiceIcon from "@/public/song-choice_icons/song_choice_icon.png";
 import PlayIcon from "@/public/song_choice_icons/Play_Icon.svg";
 
 type DashboardType = "student" | "teacher";
+type SongChoiceViewMode = "grid" | "list";
+
+const SONG_CHOICE_VIEW_MODE_STORAGE_KEY = "ultrarapid:song-choice:view-mode";
 
 type HeaderTab = {
   label: string;
@@ -420,6 +426,9 @@ export default function SongChoiceClient({
       : getStudentTopTabs(navBasePath);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [songViewMode, setSongViewMode] = useState<SongChoiceViewMode>("grid");
+  const [hasLoadedSongViewPreference, setHasLoadedSongViewPreference] =
+    useState(false);
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [isCustomizePromptOpen, setIsCustomizePromptOpen] = useState(false);
   const customizePromptDialogRef = useRef<HTMLDialogElement | null>(null);
@@ -446,6 +455,36 @@ export default function SongChoiceClient({
   const [previewingSongId, setPreviewingSongId] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState("");
   const [coverArtBySongId, setCoverArtBySongId] = useState<Record<string, string>>({});
+  const [failedCoverArtBySongId, setFailedCoverArtBySongId] = useState<
+    Record<string, string>
+  >({});
+
+  useEffect(() => {
+    try {
+      const savedViewMode = window.localStorage.getItem(
+        SONG_CHOICE_VIEW_MODE_STORAGE_KEY,
+      );
+      if (savedViewMode === "grid" || savedViewMode === "list") {
+        setSongViewMode(savedViewMode);
+      }
+    } catch {
+      // The selector still works when browser storage is unavailable.
+    } finally {
+      setHasLoadedSongViewPreference(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedSongViewPreference) return;
+    try {
+      window.localStorage.setItem(
+        SONG_CHOICE_VIEW_MODE_STORAGE_KEY,
+        songViewMode,
+      );
+    } catch {
+      // Keep the current choice for this visit when browser storage is blocked.
+    }
+  }, [hasLoadedSongViewPreference, songViewMode]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -582,6 +621,23 @@ export default function SongChoiceClient({
     ? selectionPackages[selectedSongCacheKey]
     : undefined;
   const selectedSongCanPlay = isPlayableSongLaunchPackage(selectedSongPackage);
+  const selectedSongCoverArtSource = selectedSong
+    ? getSongChoiceCoverArt(selectedSong.id, coverArtBySongId)
+    : null;
+  const selectedSongCoverArt =
+    selectedSong &&
+    selectedSongCoverArtSource &&
+    failedCoverArtBySongId[selectedSong.id] !== selectedSongCoverArtSource
+      ? selectedSongCoverArtSource
+      : null;
+
+  function markCoverArtUnavailable(songId: string, source: string) {
+    setFailedCoverArtBySongId((current) =>
+      current[songId] === source
+        ? current
+        : { ...current, [songId]: source },
+    );
+  }
   const selectedSongStatus: SongPackageLoadStatus = selectedSongCacheKey
     ? selectionStatusById[selectedSongCacheKey] ??
       (selectedSongPackage ? "ready" : "idle")
@@ -1164,7 +1220,8 @@ export default function SongChoiceClient({
         >
           <div className={songStyles.workspace}>
 
-            <div className={songStyles.searchBox}>
+            <div className={songStyles.songToolbar}>
+              <div className={songStyles.searchBox}>
             <svg
               aria-hidden="true"
               width="16"
@@ -1197,6 +1254,44 @@ export default function SongChoiceClient({
                 placeholder={studentCopy.songChoice.searchPlaceholder}
                 aria-label={studentCopy.songChoice.searchLabel}
               />
+              </div>
+
+              <div
+                className={songStyles.viewModeToggle}
+                role="group"
+                aria-label="Song layout"
+              >
+                <button
+                  type="button"
+                  className={songStyles.viewModeButton}
+                  onClick={() => setSongViewMode("grid")}
+                  aria-label="Grid view"
+                  aria-pressed={songViewMode === "grid"}
+                  title="Grid view"
+                >
+                  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none">
+                    <rect x="2.5" y="2.5" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.7" />
+                    <rect x="11.5" y="2.5" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.7" />
+                    <rect x="2.5" y="11.5" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.7" />
+                    <rect x="11.5" y="11.5" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.7" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className={songStyles.viewModeButton}
+                  onClick={() => setSongViewMode("list")}
+                  aria-label="List view"
+                  aria-pressed={songViewMode === "list"}
+                  title="List view"
+                >
+                  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none">
+                    <circle cx="3" cy="4" r="1" fill="currentColor" />
+                    <circle cx="3" cy="10" r="1" fill="currentColor" />
+                    <circle cx="3" cy="16" r="1" fill="currentColor" />
+                    <path d="M7 4h10M7 10h10M7 16h10" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div className={songStyles.songCount} role="status" aria-live="polite">
@@ -1229,14 +1324,27 @@ export default function SongChoiceClient({
               </p>
             ) : null}
 
-            <div className={songStyles.songGrid} role="list" aria-label="Available songs">
+            <div
+              className={songStyles.songGrid}
+              data-view-mode={songViewMode}
+              role="list"
+              aria-label="Available songs"
+            >
             {filteredSongs.length > 0 ? (
               filteredSongs.map((song) => {
                 const isSelected = selectedSongId === song.id;
                 const duration =
                   song.durationSeconds ?? durationsById[song.id] ?? null;
                 const isPreviewing = previewingSongId === song.id;
-                const coverArt = coverArtBySongId[song.id];
+                const coverArtSource = getSongChoiceCoverArt(
+                  song.id,
+                  coverArtBySongId,
+                );
+                const coverArt =
+                  coverArtSource &&
+                  failedCoverArtBySongId[song.id] !== coverArtSource
+                    ? coverArtSource
+                    : null;
                 const artist = song.artist ?? studentCopy.songChoice.unknownArtist;
 
                 return (
@@ -1262,7 +1370,11 @@ export default function SongChoiceClient({
                             fill
                             sizes="(max-width: 520px) 104px, (max-width: 760px) 48vw, 25vw"
                             unoptimized
+                            referrerPolicy="no-referrer"
                             className={songStyles.coverImage}
+                            onError={() =>
+                              markCoverArtUnavailable(song.id, coverArt)
+                            }
                           />
                         ) : (
                           <span
@@ -1385,14 +1497,21 @@ export default function SongChoiceClient({
         <div className={songStyles.selectionStatus} role="status" aria-live="polite">
           <span className={songStyles.selectionArtwork} aria-hidden="true">
             {selectedSong ? (
-              coverArtBySongId[selectedSong.id] ? (
+              selectedSongCoverArt ? (
                 <Image
-                  src={coverArtBySongId[selectedSong.id]}
+                  src={selectedSongCoverArt}
                   alt=""
                   fill
                   unoptimized
+                  referrerPolicy="no-referrer"
                   sizes="48px"
                   className={songStyles.coverImage}
+                  onError={() =>
+                    markCoverArtUnavailable(
+                      selectedSong.id,
+                      selectedSongCoverArt,
+                    )
+                  }
                 />
               ) : (
                 <span className={songStyles.coverFallback} data-song-id={selectedSong.id}>

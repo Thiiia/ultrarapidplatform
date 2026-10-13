@@ -7,6 +7,40 @@ export type Id3FrontCover = {
   bytes: Uint8Array;
 };
 
+/**
+ * Official Apple Music release artwork for catalog songs without an embedded
+ * ID3 front cover. The client keeps its designed fallback if a remote image
+ * cannot be loaded.
+ *
+ * Verified release pages:
+ * - oogie — grudge: https://music.apple.com/us/album/grudge/1884032110?i=1884032111
+ * - oogie — Just Because: https://music.apple.com/us/album/just-because/1730444997?i=1730445272
+ * - Melika — jazz in the maybach: https://music.apple.com/us/album/jazz-in-the-maybach/1815838192?i=1815838193
+ * - Metrik & Grafix — Waves: https://music.apple.com/us/album/waves/1822753095?i=1822753907
+ */
+export const SONG_CHOICE_COVER_FALLBACK_BY_ID: Readonly<Record<string, string>> =
+  Object.freeze({
+    grudge:
+      "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/31/00/ba/3100ba03-a53d-7a53-777e-0aa530805159/859733646326_cover.jpg/600x600bb.jpg",
+    justbecause:
+      "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/30/94/9e/30949e10-3724-cb09-6e54-dff8b2513e45/859784060478_cover.jpg/600x600bb.jpg",
+    jazzmaybach:
+      "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/d4/8a/98/d48a98e8-a35e-a422-5f47-33c9b149f43d/artwork.jpg/600x600bb.jpg",
+    waves:
+      "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/97/12/37/9712375b-f4af-0b74-adf4-289a6c531956/cover.jpg/600x600bb.jpg",
+  });
+
+export function getSongChoiceCoverArt(
+  songId: string,
+  embeddedCoverArtBySongId: Readonly<Record<string, string>>,
+) {
+  return (
+    embeddedCoverArtBySongId[songId] ??
+    SONG_CHOICE_COVER_FALLBACK_BY_ID[songId] ??
+    null
+  );
+}
+
 function readSynchsafeInteger(bytes: Uint8Array, offset: number) {
   if (offset + 4 > bytes.length) return null;
   const value = bytes.slice(offset, offset + 4);
