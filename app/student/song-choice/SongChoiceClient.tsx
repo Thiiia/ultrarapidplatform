@@ -14,7 +14,7 @@ import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import { assertSongActivityMatches } from "@/lib/song-activity-authority";
 import {
   fetchId3FrontCover,
-  getSongChoiceCoverArt,
+  getSongChoiceCoverArtCandidates,
 } from "@/lib/song-artwork";
 import { normalizeSongActivityKey } from "@/lib/song-activity-storage";
 import {
@@ -36,10 +36,40 @@ import SongChoiceIcon from "@/public/song-choice_icons/song_choice_icon.png";
 
 /* Song Choice Icon Imports */
 import PlayIcon from "@/public/song_choice_icons/Play_Icon.svg";
-import NoteIcon from "@/public/song_choice_icons/Note.svg";
 
 type DashboardType = "student" | "teacher";
 type SongChoiceViewMode = "grid" | "list";
+type SongSortOrder = "catalogue" | "title" | "artist" | "shortest" | "longest";
+
+const SONG_LENGTH_FILTERS = [
+  { key: "under-3", label: "Under 3 min", minSeconds: 0, maxSeconds: 180 },
+  { key: "3-to-4", label: "3–4 min", minSeconds: 180, maxSeconds: 240 },
+  { key: "4-plus", label: "4+ min", minSeconds: 240, maxSeconds: Number.POSITIVE_INFINITY },
+] as const;
+
+type SongLengthFilter = (typeof SONG_LENGTH_FILTERS)[number]["key"];
+
+function matchesSongLengthFilter(seconds: number | null, filterKey: SongLengthFilter) {
+  if (seconds === null || !Number.isFinite(seconds) || seconds <= 0) return false;
+  const filter = SONG_LENGTH_FILTERS.find(({ key }) => key === filterKey);
+  if (!filter) return false;
+  return (
+    seconds >= filter.minSeconds && seconds < filter.maxSeconds
+  );
+}
+
+function getSongCoverMonogram(name: string) {
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.slice(0, 1))
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "UR"
+  );
+}
 
 const SONG_CHOICE_VIEW_MODE_STORAGE_KEY = "ultrarapid:song-choice:view-mode";
 
@@ -428,8 +458,10 @@ export default function SongChoiceClient({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [songViewMode, setSongViewMode] = useState<SongChoiceViewMode>("grid");
+  const [songSortOrder, setSongSortOrder] = useState<SongSortOrder>("catalogue");
   const [selectedArtistFilters, setSelectedArtistFilters] = useState<string[]>([]);
   const [selectedRhythmFilters, setSelectedRhythmFilters] = useState<string[]>([]);
+  const [selectedLengthFilters, setSelectedLengthFilters] = useState<SongLengthFilter[]>([]);
   const [hasLoadedSongViewPreference, setHasLoadedSongViewPreference] =
     useState(false);
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
@@ -459,7 +491,7 @@ export default function SongChoiceClient({
   const [previewError, setPreviewError] = useState("");
   const [coverArtBySongId, setCoverArtBySongId] = useState<Record<string, string>>({});
   const [failedCoverArtBySongId, setFailedCoverArtBySongId] = useState<
-    Record<string, string>
+    Record<string, string[]>
   >({});
 
   useEffect(() => {
@@ -590,12 +622,29 @@ export default function SongChoiceClient({
     );
   }, [songs]);
 
+  const trackLengthOptions = useMemo(
+    () =>
+      SONG_LENGTH_FILTERS.map((filter) => ({
+        ...filter,
+        count: songs.filter((song) =>
+          matchesSongLengthFilter(
+            song.durationSeconds ?? durationsById[song.id] ?? null,
+            filter.key,
+          ),
+        ).length,
+      })).filter(({ count }) => count > 0),
+    [songs, durationsById],
+  );
+
   useEffect(() => {
     const availableArtists = new Set(
       artistFilterOptions.map(({ artist }) => artist),
     );
     const availableRhythms = new Set(
       rhythmDifficultyOptions.map(({ difficulty }) => difficulty),
+    );
+    const availableLengths = new Set(
+      trackLengthOptions.map(({ key }) => key),
     );
     setSelectedArtistFilters((current) => {
       const next = current.filter((artist) => availableArtists.has(artist));
@@ -605,36 +654,94 @@ export default function SongChoiceClient({
       const next = current.filter((difficulty) => availableRhythms.has(difficulty));
       return next.length === current.length ? current : next;
     });
-  }, [artistFilterOptions, rhythmDifficultyOptions]);
+    setSelectedLengthFilters((current) => {
+      const next = current.filter((length) => availableLengths.has(length));
+      return next.length === current.length ? current : next;
+    });
+  }, [artistFilterOptions, rhythmDifficultyOptions, trackLengthOptions]);
 
   const filteredSongs = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
     const selectedArtists = new Set(selectedArtistFilters);
     const selectedRhythms = new Set(selectedRhythmFilters);
+    const selectedLengths = new Set(selectedLengthFilters);
 
-    return songs.filter((song) => {
+    const matches = songs.filter((song) => {
       const artist = song.artist?.trim() || studentCopy.songChoice.unknownArtist;
+      const duration = song.durationSeconds ?? durationsById[song.id] ?? null;
       const matchesArtist =
         selectedArtists.size === 0 || selectedArtists.has(artist);
       const matchesRhythm =
         selectedRhythms.size === 0 ||
         (song.rhythmDifficultyKey !== undefined &&
           selectedRhythms.has(song.rhythmDifficultyKey));
+      const matchesLength =
+        selectedLengths.size === 0 ||
+        Array.from(selectedLengths).some((length) =>
+          matchesSongLengthFilter(duration, length),
+        );
       const matchesQuery =
         !normalizedQuery ||
         song.name.toLowerCase().includes(normalizedQuery) ||
-        song.path.toLowerCase().includes(normalizedQuery) ||
+        song.title.toLowerCase().includes(normalizedQuery) ||
         artist.toLowerCase().includes(normalizedQuery);
 
-      return matchesArtist && matchesRhythm && matchesQuery;
+      return matchesArtist && matchesRhythm && matchesLength && matchesQuery;
     });
+
+    return matches
+      .map((song, index) => ({ song, index }))
+      .sort((left, right) => {
+        const leftArtist = left.song.artist?.trim() || studentCopy.songChoice.unknownArtist;
+        const rightArtist = right.song.artist?.trim() || studentCopy.songChoice.unknownArtist;
+        if (songSortOrder === "title") {
+          return left.song.name.localeCompare(right.song.name) || left.index - right.index;
+        }
+        if (songSortOrder === "artist") {
+          return leftArtist.localeCompare(rightArtist) ||
+            left.song.name.localeCompare(right.song.name) ||
+            left.index - right.index;
+        }
+        if (songSortOrder === "shortest" || songSortOrder === "longest") {
+          const leftDuration = left.song.durationSeconds ?? durationsById[left.song.id] ?? null;
+          const rightDuration = right.song.durationSeconds ?? durationsById[right.song.id] ?? null;
+          if (leftDuration === null) return rightDuration === null ? left.index - right.index : 1;
+          if (rightDuration === null) return -1;
+          const durationOrder = songSortOrder === "shortest"
+            ? leftDuration - rightDuration
+            : rightDuration - leftDuration;
+          return durationOrder || left.index - right.index;
+        }
+        return left.index - right.index;
+      })
+      .map(({ song }) => song);
   }, [
     searchQuery,
     selectedArtistFilters,
     selectedRhythmFilters,
+    selectedLengthFilters,
     songs,
+    durationsById,
+    songSortOrder,
     studentCopy.songChoice.unknownArtist,
   ]);
+
+  const selectedFilterCount =
+    selectedArtistFilters.length +
+    selectedRhythmFilters.length +
+    selectedLengthFilters.length;
+  const hasActiveSongFilters = Boolean(searchQuery.trim()) || selectedFilterCount > 0;
+  const hasSongFilterOptions =
+    artistFilterOptions.length > 0 ||
+    rhythmDifficultyOptions.length > 0 ||
+    trackLengthOptions.length > 0;
+
+  function clearSongFilters() {
+    setSearchQuery("");
+    setSelectedArtistFilters([]);
+    setSelectedRhythmFilters([]);
+    setSelectedLengthFilters([]);
+  }
 
   const selectedSong = useMemo(() => {
     const baseSong = songs.find((song) => song.id === selectedSongId) ?? null;
@@ -686,21 +793,17 @@ export default function SongChoiceClient({
     ? selectionPackages[selectedSongCacheKey]
     : undefined;
   const selectedSongCanPlay = isPlayableSongLaunchPackage(selectedSongPackage);
-  const selectedSongCoverArtSource = selectedSong
-    ? getSongChoiceCoverArt(selectedSong.id, coverArtBySongId)
+  const selectedSongCoverArt = selectedSong
+    ? getSongChoiceCoverArtCandidates(selectedSong.id, coverArtBySongId).find(
+        (source) => !failedCoverArtBySongId[selectedSong.id]?.includes(source),
+      ) ?? null
     : null;
-  const selectedSongCoverArt =
-    selectedSong &&
-    selectedSongCoverArtSource &&
-    failedCoverArtBySongId[selectedSong.id] !== selectedSongCoverArtSource
-      ? selectedSongCoverArtSource
-      : null;
 
   function markCoverArtUnavailable(songId: string, source: string) {
     setFailedCoverArtBySongId((current) =>
-      current[songId] === source
+      current[songId]?.includes(source)
         ? current
-        : { ...current, [songId]: source },
+        : { ...current, [songId]: [...(current[songId] ?? []), source] },
     );
   }
   const selectedSongStatus: SongPackageLoadStatus = selectedSongCacheKey
@@ -1321,11 +1424,26 @@ export default function SongChoiceClient({
               />
               </div>
 
-              <div
-                className={songStyles.viewModeToggle}
-                role="group"
-                aria-label="Song layout"
-              >
+              <div className={songStyles.songToolbarControls}>
+                <label className={songStyles.songSortControl}>
+                  <span>Sort</span>
+                  <select
+                    value={songSortOrder}
+                    onChange={(event) => setSongSortOrder(event.target.value as SongSortOrder)}
+                    aria-label="Sort songs"
+                  >
+                    <option value="catalogue">Default order</option>
+                    <option value="title">Title A–Z</option>
+                    <option value="artist">Artist A–Z</option>
+                    <option value="shortest">Shortest first</option>
+                    <option value="longest">Longest first</option>
+                  </select>
+                </label>
+                <div
+                  className={songStyles.viewModeToggle}
+                  role="group"
+                  aria-label="Song layout"
+                >
                 <button
                   type="button"
                   className={songStyles.viewModeButton}
@@ -1356,17 +1474,21 @@ export default function SongChoiceClient({
                     <path d="M7 4h10M7 10h10M7 16h10" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
                   </svg>
                 </button>
+                </div>
               </div>
             </div>
 
-            <div className={songStyles.songLayout} data-view-mode={songViewMode}>
-              {songViewMode === "list" &&
-              (artistFilterOptions.length > 0 || rhythmDifficultyOptions.length > 0) ? (
+            <div
+              className={songStyles.songLayout}
+              data-view-mode={songViewMode}
+              data-has-filters={hasSongFilterOptions}
+            >
+              {hasSongFilterOptions ? (
                 <aside className={songStyles.artistFilters} aria-label="Song filters">
                   <div className={songStyles.filterPanelHeader}>
-                    <span>Filters</span>
+                    <span>Filter tracks</span>
                     <span className={songStyles.filterPanelCount}>
-                      {artistFilterOptions.length + rhythmDifficultyOptions.length} options
+                      {selectedFilterCount} active
                     </span>
                   </div>
                   {artistFilterOptions.length > 0 ? (
@@ -1374,7 +1496,11 @@ export default function SongChoiceClient({
                       <legend>Artist</legend>
                       <div className={songStyles.artistFilterOptions}>
                         {artistFilterOptions.map(({ artist, count }) => (
-                          <label key={artist} className={songStyles.artistFilterOption}>
+                          <label
+                            key={artist}
+                            className={songStyles.artistFilterOption}
+                            data-selected={selectedArtistFilters.includes(artist)}
+                          >
                             <input
                               type="checkbox"
                               checked={selectedArtistFilters.includes(artist)}
@@ -1387,7 +1513,7 @@ export default function SongChoiceClient({
                               }
                             />
                             <span className={songStyles.artistFilterName}>{artist}</span>
-                            <span className={songStyles.artistFilterCount} aria-hidden="true">
+                            <span className={songStyles.artistFilterCount}>
                               {count}
                             </span>
                           </label>
@@ -1400,7 +1526,11 @@ export default function SongChoiceClient({
                       <legend>Rhythm difficulty</legend>
                       <div className={songStyles.artistFilterOptions}>
                         {rhythmDifficultyOptions.map(({ difficulty, label, count }) => (
-                          <label key={difficulty} className={songStyles.artistFilterOption}>
+                          <label
+                            key={difficulty}
+                            className={songStyles.artistFilterOption}
+                            data-selected={selectedRhythmFilters.includes(difficulty)}
+                          >
                             <input
                               type="checkbox"
                               checked={selectedRhythmFilters.includes(difficulty)}
@@ -1413,7 +1543,7 @@ export default function SongChoiceClient({
                               }
                             />
                             <span className={songStyles.artistFilterName}>{label}</span>
-                            <span className={songStyles.artistFilterCount} aria-hidden="true">
+                            <span className={songStyles.artistFilterCount}>
                               {count}
                             </span>
                           </label>
@@ -1421,16 +1551,43 @@ export default function SongChoiceClient({
                       </div>
                     </fieldset>
                   ) : null}
-                  {selectedArtistFilters.length > 0 || selectedRhythmFilters.length > 0 ? (
+                  {trackLengthOptions.length > 0 ? (
+                    <fieldset className={songStyles.artistFilterGroup}>
+                      <legend>Track length</legend>
+                      <div className={songStyles.artistFilterOptions}>
+                        {trackLengthOptions.map(({ key, label, count }) => (
+                          <label
+                            key={key}
+                            className={songStyles.artistFilterOption}
+                            data-selected={selectedLengthFilters.includes(key)}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedLengthFilters.includes(key)}
+                              onChange={() =>
+                                setSelectedLengthFilters((current) =>
+                                  current.includes(key)
+                                    ? current.filter((value) => value !== key)
+                                    : [...current, key],
+                                )
+                              }
+                            />
+                            <span className={songStyles.artistFilterName}>{label}</span>
+                            <span className={songStyles.artistFilterCount}>
+                              {count}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : null}
+                  {hasActiveSongFilters ? (
                     <button
                       type="button"
                       className={songStyles.clearArtistFilters}
-                      onClick={() => {
-                        setSelectedArtistFilters([]);
-                        setSelectedRhythmFilters([]);
-                      }}
+                      onClick={clearSongFilters}
                     >
-                      Clear filters
+                      Clear all
                     </button>
                   ) : null}
                 </aside>
@@ -1448,10 +1605,12 @@ export default function SongChoiceClient({
                         ? activityLabelMap[currentActivityKey] ?? currentActivityKey
                         : "Choose an activity")}
                   </span>
-                  {searchQuery.trim() ? (
-                    <span>Search results</span>
-                  ) : selectedArtistFilters.length > 0 || selectedRhythmFilters.length > 0 ? (
-                    <span>Filters applied</span>
+                  {hasActiveSongFilters ? (
+                    <span>
+                      {selectedFilterCount > 0
+                        ? `${selectedFilterCount} filter${selectedFilterCount === 1 ? "" : "s"} applied`
+                        : "Search results"}
+                    </span>
                   ) : (
                     <span>Choose a track</span>
                   )}
@@ -1485,17 +1644,15 @@ export default function SongChoiceClient({
                       const duration =
                         song.durationSeconds ?? durationsById[song.id] ?? null;
                       const isPreviewing = previewingSongId === song.id;
-                      const coverArtSource = getSongChoiceCoverArt(
+                      const coverArt = getSongChoiceCoverArtCandidates(
                         song.id,
                         coverArtBySongId,
-                      );
-                      const coverArt =
-                        coverArtSource &&
-                        failedCoverArtBySongId[song.id] !== coverArtSource
-                          ? coverArtSource
-                          : null;
+                      ).find(
+                        (source) => !failedCoverArtBySongId[song.id]?.includes(source),
+                      ) ?? null;
                       const artist =
                         song.artist?.trim() || studentCopy.songChoice.unknownArtist;
+                      const coverMonogram = getSongCoverMonogram(song.name);
 
                       return (
                         <article
@@ -1523,7 +1680,7 @@ export default function SongChoiceClient({
                                   fill
                                   sizes={
                                     songViewMode === "list"
-                                      ? "40px"
+                                      ? "(max-width: 520px) 64px, (max-width: 760px) 88px, 108px"
                                       : "(max-width: 520px) 104px, (max-width: 760px) 48vw, 25vw"
                                   }
                                   unoptimized
@@ -1533,21 +1690,14 @@ export default function SongChoiceClient({
                                     markCoverArtUnavailable(song.id, coverArt)
                                   }
                                 />
-                              ) : songViewMode === "list" ? (
-                                <span
-                                  className={songStyles.listCoverFallback}
-                                  aria-hidden="true"
-                                >
-                                  <NoteIcon aria-hidden="true" />
-                                </span>
                               ) : (
                                 <span
                                   className={songStyles.coverFallback}
                                   data-song-id={song.id}
+                                  aria-hidden="true"
                                 >
                                   <span className={songStyles.coverMark}>UltraRapid audio</span>
-                                  <span className={songStyles.coverTitle}>{song.name}</span>
-                                  <span className={songStyles.coverArtist}>{artist}</span>
+                                  <span className={songStyles.coverMonogram}>{coverMonogram}</span>
                                 </span>
                               )}
                               <span className={songStyles.selectedMark} aria-hidden="true">
@@ -1664,14 +1814,10 @@ export default function SongChoiceClient({
                       {songs.length > 0 ? (
                         <button
                           type="button"
-                          onClick={() => {
-                            setSearchQuery("");
-                            setSelectedArtistFilters([]);
-                            setSelectedRhythmFilters([]);
-                          }}
+                          onClick={clearSongFilters}
                           className={styles.songChoiceEmptyAction}
                         >
-                          Clear filters
+                          Clear all
                         </button>
                       ) : currentActivityKey === "number-bonds" ? (
                         <button
@@ -1716,9 +1862,8 @@ export default function SongChoiceClient({
               ) : (
                 <span className={songStyles.coverFallback} data-song-id={selectedSong.id}>
                   <span className={songStyles.coverMark}>UltraRapid audio</span>
-                  <span className={songStyles.coverTitle}>{selectedSong.name}</span>
-                  <span className={songStyles.coverArtist}>
-                    {selectedSong.artist ?? studentCopy.songChoice.unknownArtist}
+                  <span className={songStyles.coverMonogram}>
+                    {getSongCoverMonogram(selectedSong.name)}
                   </span>
                 </span>
               )

@@ -34,10 +34,20 @@ export function getSongChoiceCoverArt(
   songId: string,
   embeddedCoverArtBySongId: Readonly<Record<string, string>>,
 ) {
-  return (
-    embeddedCoverArtBySongId[songId] ??
-    SONG_CHOICE_COVER_FALLBACK_BY_ID[songId] ??
-    null
+  return getSongChoiceCoverArtCandidates(songId, embeddedCoverArtBySongId)[0] ?? null;
+}
+
+export function getSongChoiceCoverArtCandidates(
+  songId: string,
+  embeddedCoverArtBySongId: Readonly<Record<string, string>>,
+) {
+  return Array.from(
+    new Set(
+      [
+        embeddedCoverArtBySongId[songId],
+        SONG_CHOICE_COVER_FALLBACK_BY_ID[songId],
+      ].filter((source): source is string => Boolean(source)),
+    ),
   );
 }
 
