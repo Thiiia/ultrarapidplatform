@@ -12,6 +12,7 @@ import { persistLaunchParams } from "@/lib/launch-handoff";
 import { createSongLaunchNavigationParams } from "@/lib/platform-launch";
 import { appendSongFlowDebug } from "@/lib/song-flow-debug";
 import { assertSongActivityMatches } from "@/lib/song-activity-authority";
+import { fetchId3FrontCover } from "@/lib/song-artwork";
 import { normalizeSongActivityKey } from "@/lib/song-activity-storage";
 import {
   buildSongSelectionCacheKey,
@@ -24,13 +25,13 @@ import { studentCopy } from "@/lib/student-copy";
 import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigation";
 import type { SongChoice } from "@/lib/song-storage";
 import styles from "../student.module.css";
+import songStyles from "./song-choice.module.css";
 
 /* Brand mark */
 import URIcon from "@/public/header_icons/URIcon.svg";
 import SongChoiceIcon from "@/public/song-choice_icons/song_choice_icon.png";
 
 /* Song Choice Icon Imports */
-import NoteIcon from "@/public/song_choice_icons/Note.svg";
 import PlayIcon from "@/public/song_choice_icons/Play_Icon.svg";
 
 type DashboardType = "student" | "teacher";
@@ -427,6 +428,8 @@ export default function SongChoiceClient({
   const [durationsById, setDurationsById] = useState<Record<string, number>>(
     {},
   );
+  const durationsByIdRef = useRef<Record<string, number>>({});
+  const durationLoadsRef = useRef(new Set<string>());
   const [selectionPackages, setSelectionPackages] = useState<
     Record<string, FreshSongLaunchPackage>
   >({});
@@ -442,6 +445,51 @@ export default function SongChoiceClient({
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const [previewingSongId, setPreviewingSongId] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState("");
+  const [coverArtBySongId, setCoverArtBySongId] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const objectUrls: string[] = [];
+    let isCurrent = true;
+    setCoverArtBySongId({});
+
+    void Promise.all(
+      songs.map(async (song) => {
+        const audioUrl = song.song.signedUrl || song.signedUrl;
+        if (!audioUrl) return null;
+
+        try {
+          const cover = await fetchId3FrontCover(audioUrl, controller.signal);
+          if (!cover) return null;
+
+          const objectUrl = URL.createObjectURL(cover);
+          if (!isCurrent) {
+            URL.revokeObjectURL(objectUrl);
+            return null;
+          }
+
+          objectUrls.push(objectUrl);
+          return [song.id, objectUrl] as const;
+        } catch {
+          // Cover art is optional. Keep the track's designed fallback if the
+          // signed audio range request is unavailable or expires.
+          return null;
+        }
+      }),
+    ).then((covers) => {
+      if (!isCurrent) return;
+      const entries = covers.filter(
+        (cover): cover is readonly [string, string] => cover !== null,
+      );
+      setCoverArtBySongId(Object.fromEntries(entries));
+    });
+
+    return () => {
+      isCurrent = false;
+      controller.abort();
+      objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+    };
+  }, [songs]);
 
   const routeActivityValue = searchParams.get("activity")?.trim() ?? "";
   const routeActivityKey = normalizeSongActivityKey(routeActivityValue);
@@ -695,35 +743,71 @@ export default function SongChoiceClient({
 
   useEffect(() => {
     let cancelled = false;
+    const activeLoads: Array<{
+      songId: string;
+      audio: HTMLAudioElement;
+      handleLoadedMetadata: () => void;
+      handleError: () => void;
+    }> = [];
+
+    const releaseAudio = (load: (typeof activeLoads)[number]) => {
+      load.audio.removeEventListener("loadedmetadata", load.handleLoadedMetadata);
+      load.audio.removeEventListener("error", load.handleError);
+      load.audio.pause();
+      load.audio.removeAttribute("src");
+      durationLoadsRef.current.delete(load.songId);
+    };
 
     songs.forEach((song) => {
-      if (song.durationSeconds || durationsById[song.id]) {
+      if (song.durationSeconds && song.durationSeconds > 0) {
+        durationsByIdRef.current[song.id] = song.durationSeconds;
+        return;
+      }
+      if (
+        durationsByIdRef.current[song.id] ||
+        durationLoadsRef.current.has(song.id) ||
+        !song.signedUrl.trim()
+      ) {
         return;
       }
 
+      durationLoadsRef.current.add(song.id);
       const audio = new Audio();
       audio.preload = "metadata";
-      audio.src = song.signedUrl;
+      const load = {
+        songId: song.id,
+        audio,
+        handleLoadedMetadata: () => {},
+        handleError: () => {},
+      };
 
-      const handleLoadedMetadata = () => {
-        if (cancelled || !Number.isFinite(audio.duration)) {
+      load.handleLoadedMetadata = () => {
+        if (cancelled || !Number.isFinite(audio.duration) || audio.duration <= 0) {
+          releaseAudio(load);
           return;
         }
 
+        durationsByIdRef.current[song.id] = audio.duration;
         setDurationsById((current) => ({
           ...current,
           [song.id]: audio.duration,
         }));
+        releaseAudio(load);
       };
+      load.handleError = () => releaseAudio(load);
 
-      audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.addEventListener("loadedmetadata", load.handleLoadedMetadata);
+      audio.addEventListener("error", load.handleError);
+      activeLoads.push(load);
+      audio.src = song.signedUrl;
       audio.load();
     });
 
     return () => {
       cancelled = true;
+      activeLoads.forEach(releaseAudio);
     };
-  }, [songs, durationsById]);
+  }, [songs]);
 
   function stopSongPreview() {
     const audio = previewAudioRef.current;
@@ -1077,33 +1161,9 @@ export default function SongChoiceClient({
             boxSizing: "border-box",
           }}
         >
-          <div
-            style={{
-              width: "min(960px, 100%)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-              minHeight: 0,
-              flex: 1,
-            }}
-          >
+          <div className={songStyles.workspace}>
 
-            <div
-              style={{
-                width: "100%",
-                height: 44,
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.16)",
-                borderRadius: 12,
-                color: "#FFFFFF",
-                padding: "0 16px",
-                boxSizing: "border-box",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                flexShrink: 0,
-              }}
-            >
+            <div className={songStyles.searchBox}>
             <svg
               aria-hidden="true"
               width="16"
@@ -1130,25 +1190,26 @@ export default function SongChoiceClient({
 
               <input
                 type="search"
-                className="experience-field"
+                className={songStyles.searchInput}
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={studentCopy.songChoice.searchPlaceholder}
                 aria-label={studentCopy.songChoice.searchLabel}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  background: "transparent",
-                  border: "none",
-                  color: "#FFFFFF",
-                  padding: 0,
-                  outline: "none",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  lineHeight: "19.5px",
-                  textAlign: "left",
-                }}
               />
+            </div>
+
+            <div className={songStyles.songCount} role="status" aria-live="polite">
+              <span>
+                {filteredSongs.length === songs.length
+                  ? songs.length + (songs.length === 1 ? " song" : " songs")
+                  : filteredSongs.length + " of " + songs.length + " songs"}
+                {" · "}
+                {selectedActivity?.label ??
+                  (currentActivityKey
+                    ? activityLabelMap[currentActivityKey] ?? currentActivityKey
+                    : "Choose an activity")}
+              </span>
+              {searchQuery.trim() ? <span>Search results</span> : <span>Choose a track</span>}
             </div>
 
             {previewError ? (
@@ -1167,196 +1228,78 @@ export default function SongChoiceClient({
               </p>
             ) : null}
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 0,
-                flex: 1,
-                minHeight: 0,
-                overflowY: "auto",
-                paddingBottom: 12,
-              }}
-            >
+            <div className={songStyles.songGrid} role="list" aria-label="Available songs">
             {filteredSongs.length > 0 ? (
-              filteredSongs.map((song, index) => {
+              filteredSongs.map((song) => {
                 const isSelected = selectedSongId === song.id;
                 const duration =
                   song.durationSeconds ?? durationsById[song.id] ?? null;
-
                 const isPreviewing = previewingSongId === song.id;
+                const coverArt = coverArtBySongId[song.id];
+                const artist = song.artist ?? studentCopy.songChoice.unknownArtist;
 
                 return (
-                  <div
+                  <article
                     key={song.id}
-                  className="songChoiceRow"
-                  data-selected={isSelected ? "true" : "false"}
-                    style={{
-                      width: "100%",
-                      minHeight: 58,
-                      background: isSelected
-                        ? "rgba(207, 255, 4, 0.12)"
-                        : "rgba(255,255,255,0.04)",
-                      borderTop: "none",
-                      borderRight: "none",
-                      borderBottom: isSelected
-                        ? "1px solid #CFFF04"
-                        : "1px solid rgba(255, 255, 255, 0.08)",
-                      borderLeft: isSelected
-                        ? "1px solid #CFFF04"
-                        : "1px solid transparent",
-                      borderRadius:
-                        filteredSongs.length === 1
-                          ? 12
-                          : index === 0
-                            ? "12px 12px 0 0"
-                            : index === filteredSongs.length - 1
-                              ? "0 0 12px 12px"
-                              : 0,
-                      color: "#FFFFFF",
-                      padding: "0 12px 0 0",
-                      display: "grid",
-                      gridTemplateColumns: "minmax(0, 1fr) 42px",
-                      alignItems: "center",
-                      columnGap: 8,
-                      rowGap: 0,
-                      textAlign: "left",
-                    }}
+                    className={songStyles.songCard}
+                    data-selected={isSelected ? "true" : "false"}
+                    role="listitem"
                   >
                     <button
                       type="button"
                       onClick={() => handleSelectSong(song)}
                       aria-pressed={isSelected}
-                      style={{
-                        width: "100%",
-                        minWidth: 0,
-                        minHeight: 58,
-                        background: "transparent",
-                        border: 0,
-                        color: "#FFFFFF",
-                        padding: "0 0 0 18px",
-                        cursor: "pointer",
-                        display: "grid",
-                        gridTemplateColumns: "44px minmax(0, 1fr) 58px",
-                        alignItems: "center",
-                        columnGap: 18,
-                        rowGap: 0,
-                        textAlign: "left",
-                      }}
+                      aria-label={"Select " + song.name + " by " + artist}
+                      disabled={isLaunching}
+                      className={songStyles.songSelect}
                     >
-                    <span
-                      style={{
-                        width: 32,
-                        height: 32,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        overflow: "visible",
-                        transform: "translateY(-10px)",
-                      }}
-                    >
-                      <NoteIcon
-                        aria-hidden="true"
-                        style={{
-                          width: 20,
-                          height: 20,
-                          display: "block",
-                          overflow: "visible",
-                        }}
-                      />
-                    </span>
-
-                    <div
-                      style={{
-                        minWidth: 0,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "flex-start",
-                        justifyContent: "center",
-                        gap: 2,
-                        textAlign: "left",
-                      }}
-                    >
-                      <span
-                        style={{
-                          color: "#FFFFFF",
-                          fontSize: 14,
-                          fontWeight: 500,
-                          lineHeight: "20px",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          textAlign: "left",
-                          width: "100%",
-                        }}
-                      >
-                        {song.name}
+                      <span className={songStyles.artwork} aria-hidden="true">
+                        {coverArt ? (
+                          <Image
+                            src={coverArt}
+                            alt=""
+                            fill
+                            sizes="(max-width: 520px) 104px, (max-width: 760px) 48vw, 25vw"
+                            unoptimized
+                            className={songStyles.coverImage}
+                          />
+                        ) : (
+                          <span
+                            className={songStyles.coverFallback}
+                            data-song-id={song.id}
+                          >
+                            <span className={songStyles.coverMark}>UltraRapid audio</span>
+                            <span className={songStyles.coverTitle}>{song.name}</span>
+                            <span className={songStyles.coverArtist}>{artist}</span>
+                          </span>
+                        )}
+                        <span className={songStyles.selectedMark} aria-hidden="true">
+                          <svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16" fill="none">
+                            <path d="m3.5 8.3 2.8 2.8 6.2-6.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          Selected
+                        </span>
                       </span>
-
-                      <span
-                        style={{
-                          color: "#D1D5DB",
-                          fontSize: 11,
-                          fontWeight: 500,
-                          lineHeight: "15px",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          textAlign: "left",
-                          width: "100%",
-                        }}
-                      >
-                        {song.artist ?? studentCopy.songChoice.unknownArtist}
+                      <span className={songStyles.songDetails}>
+                        <span className={songStyles.songText}>
+                          <span className={songStyles.songName}>{song.name}</span>
+                          <span className={songStyles.songArtist}>{artist}</span>
+                        </span>
+                        <span className={songStyles.songDuration}>{formatDuration(duration)}</span>
                       </span>
-                    </div>
-
-                    <span
-                      style={{
-                        color: "#FFFFFF",
-                        fontSize: 13,
-                        fontWeight: 500,
-                        lineHeight: "19.5px",
-                        whiteSpace: "nowrap",
-                        textAlign: "right",
-                        justifySelf: "end",
-                      }}
-                    >
-                      {formatDuration(duration)}
-                    </span>
-
                     </button>
 
                     <button
                       type="button"
                       onClick={() => void handlePreview(song)}
                       aria-pressed={isPreviewing}
-                      aria-label={
-                        isPreviewing
-                          ? studentCopy.songChoice.pausePreview(song.name)
-                          : studentCopy.songChoice.preview(song.name)
-                      }
+                      aria-label={studentCopy.songChoice.preview(song.name)}
                       title={
                         isPreviewing
                           ? studentCopy.songChoice.pausePreview(song.name)
                           : studentCopy.songChoice.preview(song.name)
                       }
-                      style={{
-                        width: 28,
-                        height: 28,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        justifySelf: "end",
-                        transform: "translateY(2px)",
-                        border: 0,
-                        borderRadius: 999,
-                        background: isPreviewing
-                          ? "rgba(207,255,4,0.18)"
-                          : "transparent",
-                        color: "#FFFFFF",
-                        cursor: "pointer",
-                        padding: 0,
-                      }}
+                      className={songStyles.previewButton}
                     >
                       {isPreviewing ? (
                         <span
@@ -1377,7 +1320,7 @@ export default function SongChoiceClient({
                         />
                       )}
                     </button>
-                  </div>
+                  </article>
                 );
               })
             ) : (
@@ -1437,96 +1380,116 @@ export default function SongChoiceClient({
         </div>
       
 
-      <div
-        style={{
-          height: "8.5vh",
-          background: "var(--ur-canvas-top)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 24px",
-          boxSizing: "border-box",
-          borderTop: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
-        {selectedSongCanPlay ? <button
+      <div className={songStyles.footer}>
+        <div className={songStyles.selectionStatus} role="status" aria-live="polite">
+          <span className={songStyles.selectionArtwork} aria-hidden="true">
+            {selectedSong ? (
+              coverArtBySongId[selectedSong.id] ? (
+                <Image
+                  src={coverArtBySongId[selectedSong.id]}
+                  alt=""
+                  fill
+                  unoptimized
+                  sizes="48px"
+                  className={songStyles.coverImage}
+                />
+              ) : (
+                <span className={songStyles.coverFallback} data-song-id={selectedSong.id}>
+                  <span className={songStyles.coverMark}>UltraRapid audio</span>
+                  <span className={songStyles.coverTitle}>{selectedSong.name}</span>
+                  <span className={songStyles.coverArtist}>
+                    {selectedSong.artist ?? studentCopy.songChoice.unknownArtist}
+                  </span>
+                </span>
+              )
+            ) : null}
+          </span>
+          <span className={songStyles.selectionCopy}>
+            <span className={songStyles.selectionTitle}>
+              {selectedSong?.name ?? "Choose a track"}
+            </span>
+            <span className={songStyles.selectionDetail}>
+              {!selectedSong
+                ? "Select a song to prepare your lesson"
+                : selectedSongStatus === "loading"
+                  ? studentCopy.songChoice.preparingMessage
+                  : selectedSongStatus === "error"
+                    ? "This track could not be prepared. Try again."
+                    : selectedSongStatus === "ready"
+                      ? selectedSongCanPlay
+                        ? "Lesson ready · play now or continue"
+                        : "Track ready · continue to build your lesson"
+                      : "Selected · preparing your lesson"}
+            </span>
+          </span>
+        </div>
+        <div className={songStyles.footerActions}>
+          {selectedSongCanPlay ? (
+            <button
+              type="button"
+              className={songStyles.playButton}
+              disabled={isLaunching}
+              aria-busy={isLaunching}
+              onClick={() => void handleCustomizeNo()}
+              aria-label={`Play ${selectedSong?.name ?? "selected song"} now`}
+            >
+              {isLaunching ? "Opening game…" : "Play now"}
+            </button>
+          ) : null}
+          <button
             type="button"
-            className={styles.songChoicePlayButton}
-            disabled={isLaunching}
-            aria-busy={isLaunching}
-            onClick={() => void handleCustomizeNo()}
-            aria-label={`Play ${selectedSong?.name ?? "selected song"} now`}
+            className={songStyles.backButton}
+            onClick={() => router.push(navBasePath)}
           >
-            {isLaunching ? "Opening game…" : "Play now"}
-          </button> : null}
-        <span
-          role="status"
-          aria-live="polite"
-          style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }}
-        >
-          {isLaunching ? "Opening game" : ""}
-        </span>
-        <button
-          type="button"
-          className="experience-button experience-button--secondary"
-          onClick={() => router.push(`${navBasePath}`)}
-          style={{
-            border: "1px solid #7A8FA8",
-            borderRadius: 999,
-            background: "transparent",
-            color: "#FFFFFF",
-            padding: "10px 24px",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          {studentCopy.songChoice.back}
-        </button>
+            {studentCopy.songChoice.back}
+          </button>
 
-        <button
-          type="button"
-          className="experience-button"
-          disabled={isLaunching || !selectedSong || selectedSongStatus === "idle" || selectedSongStatus === "loading"}
-          aria-busy={isLaunching || selectedSongStatus === "loading"}
-          onClick={handleContinue}
-          aria-label={selectedSongStatus === "error" ? "Try loading this song again" : currentActivityKey === "number-bonds" ? "Make and play a Number Bonds mission" : `Continue to ${studentCopy.navigation.builder}`}
-          title={
-            selectedSongStatus === "loading"
-              ? studentCopy.songChoice.preparingMessage
-              : selectedSongStatus === "error"
+          <button
+            type="button"
+            className={songStyles.primaryButton}
+            data-status={selectedSongStatus}
+            disabled={
+              isLaunching ||
+              !selectedSong ||
+              selectedSongStatus === "idle" ||
+              selectedSongStatus === "loading"
+            }
+            aria-busy={isLaunching || selectedSongStatus === "loading"}
+            onClick={handleContinue}
+            aria-label={
+              selectedSongStatus === "error"
                 ? "Try loading this song again"
-                : selectedSongStatus === "idle"
-                  ? "Select a song to continue"
                 : currentActivityKey === "number-bonds"
-                  ? selectedSongCanPlay ? "Open the published Number Bonds lesson" : "Use the Number Bonds starter in Lesson Builder, then save to play"
+                  ? "Make and play a Number Bonds mission"
                   : `Continue to ${studentCopy.navigation.builder}`
-          }
-          style={{
-            border: "none",
-            borderRadius: 999,
-            background:
-              selectedSongStatus === "ready"
-                ? "#CFFF04"
+            }
+            title={
+              selectedSongStatus === "loading"
+                ? studentCopy.songChoice.preparingMessage
                 : selectedSongStatus === "error"
-                  ? "#FFCB6B"
-                  : "rgba(207,255,4,0.35)",
-            color: selectedSongStatus === "ready" ? "#082733" : "#082733",
-            padding: "10px 24px",
-            fontSize: 14,
-            fontWeight: 700,
-            cursor: selectedSongStatus === "error" || selectedSongStatus === "ready" ? "pointer" : "not-allowed",
-            opacity: selectedSongStatus === "ready" || selectedSongStatus === "error" ? 1 : 0.7,
-          }}
-        >
-          {selectedSongStatus === "loading"
-            ? studentCopy.songChoice.preparing
-            : selectedSongStatus === "error"
-              ? "Try again"
-            : currentActivityKey === "number-bonds"
-              ? selectedSongCanPlay ? "Edit Number Bonds lesson" : "Build Number Bonds lesson"
-              : selectedSongCanPlay ? "Choose how to start" : "Make a lesson"}
-        </button>
+                  ? "Try loading this song again"
+                  : selectedSongStatus === "idle"
+                    ? "Select a song to continue"
+                    : currentActivityKey === "number-bonds"
+                      ? selectedSongCanPlay
+                        ? "Open the published Number Bonds lesson"
+                        : "Use the Number Bonds starter in Lesson Builder, then save to play"
+                      : `Continue to ${studentCopy.navigation.builder}`
+            }
+          >
+            {selectedSongStatus === "loading"
+              ? studentCopy.songChoice.preparing
+              : selectedSongStatus === "error"
+                ? "Try again"
+                : currentActivityKey === "number-bonds"
+                  ? selectedSongCanPlay
+                    ? "Edit Number Bonds lesson"
+                    : "Build Number Bonds lesson"
+                  : selectedSongCanPlay
+                    ? "Choose how to start"
+                    : "Make a lesson"}
+          </button>
+        </div>
       </div>
 
       {launchError && !isCustomizePromptOpen ? (
@@ -1648,36 +1611,6 @@ export default function SongChoiceClient({
         </div>
       </dialog>
 
-        <style jsx global>{`
-          @media (prefers-reduced-motion: reduce) {
-            .${styles.songChoicePlayButton} { transition-duration: 0ms !important; }
-          }
-
-          .songChoiceRow:hover {
-            background: rgba(207, 255, 4, 0.12) !important;
-            border-bottom-color: #cfff04 !important;
-            border-left-color: #cfff04 !important;
-          }
-
-          .songChoiceRow[data-selected="true"] {
-            background: rgba(207, 255, 4, 0.12) !important;
-            border-bottom-color: #cfff04 !important;
-            border-left-color: #cfff04 !important;
-          }
-
-          .songChoiceRow[data-selected="false"] {
-            border-left-color: transparent !important;
-          }
-
-          input[type="search"]::placeholder {
-            color: #d1d5db;
-            opacity: 1;
-          }
-
-          input[type="search"]::-webkit-search-cancel-button {
-            filter: invert(1);
-          }
-        `}</style>
       </div>
 
     </>
