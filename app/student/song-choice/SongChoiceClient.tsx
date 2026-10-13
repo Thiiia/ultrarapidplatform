@@ -755,6 +755,7 @@ export default function SongChoiceClient({
       load.audio.removeEventListener("error", load.handleError);
       load.audio.pause();
       load.audio.removeAttribute("src");
+      load.audio.load();
       durationLoadsRef.current.delete(load.songId);
     };
 
