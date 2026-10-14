@@ -7,7 +7,6 @@ import { AUTHORED_MAX_REQUIRED_HIT_PADS, isAuthoredEquationOperator } from "@/li
 import { getNumberBondsWholeTokenIndex } from "@/lib/activity-authoring-capabilities";
 import {
   PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
-  PLAYER_HEX_AUTHORED_HIT_PAD_PREVIEW_RADIUS_PX,
   PLAYER_HEX_AUTHORED_HIT_PADS,
   authoredHitPadForSlot,
   authoredHitPadLabelForSlot,
@@ -205,14 +204,12 @@ function HitControls({
   instance,
   tokens,
   isNumberBonds,
-  isAlgebra,
   numberBondsWholeTokenIndex,
   nearestChartCueSeconds,
   chartCueSourceAvailable,
   onPatchInstance,
 }: Pick<GuidedEncounterComposerProps, "instance" | "tokens" | "onPatchInstance"> & {
   isNumberBonds: boolean;
-  isAlgebra: boolean;
   numberBondsWholeTokenIndex: number | null;
   nearestChartCueSeconds: number | null;
   chartCueSourceAvailable: boolean;
@@ -306,8 +303,10 @@ function HitControls({
         </button>
       ) : null}
       <div data-repair-control="pad" className="algebra-composer__padPicker">
-        <div className="algebra-composer__fieldLabel">{isNumberBonds ? "Choose its player pad" : "Player pads for this term"}</div>
-        <p className="algebra-composer__padInstruction" role="status" aria-live="polite">{padInstruction}</p>
+        <div className="algebra-composer__padHeading">
+          <span className="algebra-composer__fieldLabel">{isNumberBonds ? "Choose its player pad" : "Player pads for this term"}</span>
+          <span className="algebra-composer__padCount" aria-label={`${selectedSlots.size} of ${padLimit} pads selected`}>{selectedSlots.size} / {padLimit}</span>
+        </div>
         {legacyMapping.length > 0 ? (
           <div role="status" className="algebra-composer__legacyWarning">
             <span>This saved Hit uses the legacy pad layout. Its slot mapping differs from the player&apos;s named pads.</span>
@@ -339,7 +338,9 @@ function HitControls({
           >
             {PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad, label }, slot) => {
               const selected = selectedSlots.has(slot);
-              const offset = resolvePlayerHexHitPadPixelOffset(slot, isAlgebra ? 70 : PLAYER_HEX_AUTHORED_HIT_PAD_PREVIEW_RADIUS_PX);
+              // Both activities show the same physical player layout, with room
+              // between the 44px targets and the term at the centre.
+              const offset = resolvePlayerHexHitPadPixelOffset(slot, 70);
               if (!offset) return null;
               return (
                 <button
@@ -374,13 +375,17 @@ function HitControls({
                   }}
                   style={{ left: `calc(50% ${offset.dx < 0 ? "-" : "+"} ${Math.abs(offset.dx).toFixed(2)}px)`, top: `calc(50% ${offset.dy < 0 ? "-" : "+"} ${Math.abs(offset.dy).toFixed(2)}px)` }}
                 >
-                  {slot + 1}
+                  <span>{slot + 1}</span>
                 </button>
               );
             })}
-            <div aria-hidden="true" className="algebra-composer__padCenter" />
+            <div aria-hidden="true" className="algebra-composer__padCenter">
+              <span>{isNumberBonds ? "Whole" : "Term"}</span>
+              <strong>{selectedTokenIndex === undefined ? "?" : tokens[selectedTokenIndex]?.label ?? "?"}</strong>
+            </div>
           </div>
         )}
+        <p className="algebra-composer__padInstruction" role="status" aria-live="polite">{padInstruction}</p>
         {chartCueSourceAvailable && nearestChartCueSeconds === null ? (
           <div className="algebra-composer__chartSync" data-aligned="false" role="status">
             <div>
@@ -548,7 +553,6 @@ export function GuidedEncounterComposer({
         instance={instance}
         tokens={tokens}
         isNumberBonds
-        isAlgebra={false}
         numberBondsWholeTokenIndex={numberBondsWholeTokenIndex}
         nearestChartCueSeconds={nearestChartCueSeconds}
         chartCueSourceAvailable={chartHitCues !== undefined}
@@ -565,7 +569,6 @@ export function GuidedEncounterComposer({
       instance={instance}
       tokens={tokens}
       isNumberBonds={false}
-      isAlgebra={isAlgebra}
       numberBondsWholeTokenIndex={null}
       nearestChartCueSeconds={nearestChartCueSeconds}
       chartCueSourceAvailable={chartHitCues !== undefined}

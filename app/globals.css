@@ -598,18 +598,53 @@ textarea:focus-visible,
 
 .algebra-composer__padPicker {
   display: grid;
+  min-width: 0;
+  align-content: start;
   justify-items: center;
+  gap: var(--ur-space-3);
+}
+
+.algebra-composer__padHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--ur-space-2);
+  width: min(100%, 14rem);
+}
+
+.algebra-composer__padCount {
+  flex-shrink: 0;
+  border: 1px solid rgb(184 232 235 / 24%);
+  border-radius: var(--ur-radius-pill);
+  padding: 0.2rem 0.5rem;
+  color: var(--ur-text-primary);
+  font: 700 0.6875rem/1.4 var(--ur-font-technical), monospace;
+  font-variant-numeric: tabular-nums;
+  background: rgb(255 255 255 / 4%);
 }
 
 .algebra-composer__padBoard {
   position: relative;
-  width: 12rem;
-  height: 12rem;
+  isolation: isolate;
+  width: min(100%, 14rem);
+  aspect-ratio: 1;
   box-sizing: border-box;
-  border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: var(--ur-radius-large);
-  background: color-mix(in srgb, var(--ur-canvas-deep) 72%, var(--ur-canvas-top));
+  border: 1px solid rgb(184 232 235 / 34%);
+  border-radius: 24px;
+  background:
+    radial-gradient(ellipse at 30% 0%, rgb(184 232 235 / 10%), transparent 65%),
+    linear-gradient(150deg, rgb(255 255 255 / 4%), transparent 55%),
+    var(--color-surface-raised);
+  box-shadow: inset 0 1px rgb(255 255 255 / 12%), 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.algebra-composer__padBoard::before {
+  content: "";
+  position: absolute;
+  inset: calc(50% - 70px);
+  pointer-events: none;
+  border: 1px solid rgb(184 232 235 / 16%);
+  border-radius: 50%;
 }
 
 .algebra-composer__padButton {
@@ -619,22 +654,64 @@ textarea:focus-visible,
   height: var(--ur-target-minimum-web);
   min-height: var(--ur-target-minimum-web);
   place-items: center;
-  transform: translate(-50%, -50%);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--ur-radius-medium);
-  background: color-mix(in srgb, var(--ur-canvas-top) 78%, var(--ur-canvas-deep));
+  box-sizing: border-box;
+  padding: 0;
+  /* Positioning is independent of press/selection motion. An animation that
+     scales a pad must never replace the translation anchoring its centre. */
+  translate: -50% -50%;
+  border: 1px solid rgb(184 232 235 / 52%);
+  border-radius: 50%;
+  background: var(--ur-canvas-top);
   color: var(--ur-text-primary);
-  box-shadow: none;
+  box-shadow: inset 0 1px rgb(255 255 255 / 20%), 0 3px 10px rgb(0 0 0 / 22%);
   font-size: 0.75rem;
   font-weight: 800;
   cursor: pointer;
 }
 
+.algebra-composer__padButton::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: url("/experience/liquid-glass-bubble.svg") center / contain no-repeat;
+}
+
+.algebra-composer__padButton > span {
+  position: relative;
+  z-index: 1;
+}
+
+.algebra-composer__padButton:hover:not(:disabled) {
+  border-color: rgb(220 246 244 / 90%);
+  box-shadow: inset 0 1px rgb(255 255 255 / 28%), 0 0 0 3px rgb(184 232 235 / 9%), 0 5px 14px rgb(0 0 0 / 22%);
+}
+
+.algebra-composer__padButton:active:not(:disabled) {
+  scale: 0.96;
+}
+
 .algebra-composer__padButton[data-selected="true"] {
   border-color: var(--ur-accent-lime);
+  color: var(--ur-text-primary);
+  box-shadow: inset 0 1px rgb(255 255 255 / 24%), 0 0 0 3px rgb(var(--ur-accent-lime-rgb) / 16%), 0 5px 16px rgb(0 0 0 / 22%);
+}
+
+.algebra-composer__padButton[data-selected="true"]::after {
+  content: "✓";
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
   background: var(--ur-accent-lime);
   color: var(--ur-canvas-deep);
-  box-shadow: 0 0 1rem rgb(var(--ur-accent-lime-rgb) / 28%);
+  font: 800 10px/1 var(--ur-font-interface), sans-serif;
+  pointer-events: none;
 }
 
 .algebra-composer__padButton:focus-visible {
@@ -655,6 +732,10 @@ textarea:focus-visible,
   font-size: 0.75rem;
   line-height: 1.45;
   text-align: center;
+}
+
+.algebra-composer__padPicker > .algebra-composer__padInstruction {
+  min-height: 4.35em;
 }
 
 .algebra-composer__numberBondsTarget {
@@ -733,14 +814,32 @@ textarea:focus-visible,
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 1rem;
-  height: 1rem;
-  transform: translate(-50%, -50%);
-  border: 1px solid var(--color-blue);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  width: 60px;
+  height: 60px;
+  translate: -50% -50%;
+  border: 1px solid rgb(184 232 235 / 38%);
   border-radius: 50%;
-  background: color-mix(in srgb, var(--color-blue) 15%, transparent);
-  box-shadow: 0 0 1rem color-mix(in srgb, var(--color-blue) 25%, transparent);
+  background: url("/experience/liquid-glass-bubble.svg") center / contain no-repeat, var(--ur-canvas-deep);
+  color: var(--ur-text-primary);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 18%);
   pointer-events: none;
+}
+
+.algebra-composer__padCenter > span {
+  color: var(--color-ink-muted);
+  font: 700 9px/1 var(--ur-font-technical), monospace;
+}
+
+.algebra-composer__padCenter > strong {
+  max-width: 52px;
+  overflow: hidden;
+  font: 800 20px/1.2 var(--ur-font-interface), sans-serif;
+  text-overflow: ellipsis;
 }
 
 .algebra-composer__legacyWarning {
@@ -802,6 +901,10 @@ textarea:focus-visible,
   .algebra-composer__padButton,
   .algebra-composer__chartSync {
     transition: none;
+  }
+
+  .algebra-composer__padButton:active:not(:disabled) {
+    scale: 1;
   }
 }
 
