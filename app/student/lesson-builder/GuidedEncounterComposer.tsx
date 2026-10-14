@@ -668,11 +668,14 @@ export function GuidedEncounterComposer({
               <span>{motionCue}</span>
             </span>
             <span className="algebra-composer__previewTarget">
-              {selectedTokenIndex === undefined
+              {instance.mechanic === "hit" ? (
+                <>
+                  <span>{selectedTokenIndex === undefined ? "Choose a target" : `Equation target ${tokens[selectedTokenIndex]?.label ?? "equation token"}`}</span>
+                  <span>{previewPadLabels.length > 0 ? `Player pad${previewPadLabels.length === 1 ? "" : "s"} ${previewPadLabels.join(" + ")}` : "Choose a player pad"}</span>
+                </>
+              ) : selectedTokenIndex === undefined
                 ? "Choose a target in the action controls."
-                : instance.mechanic === "hit"
-                  ? `Equation target ${tokens[selectedTokenIndex]?.label ?? "equation token"} · ${previewPadLabels.length > 0 ? `player pad${previewPadLabels.length === 1 ? "" : "s"} ${previewPadLabels.join(" + ")}` : "choose a player pad"}`
-                  : `Target: ${tokens[selectedTokenIndex]?.label ?? "equation token"}${dragSourceLabel ? ` · From ${dragSourceLabel}` : ""}`}
+                : `Target: ${tokens[selectedTokenIndex]?.label ?? "equation token"}${dragSourceLabel ? ` · From ${dragSourceLabel}` : ""}`}
             </span>
             <span className="algebra-composer__previewTiming">{timingSummary}</span>
           </div>

@@ -293,9 +293,10 @@ textarea:focus-visible,
 }
 
 .algebra-composer__preview[data-mechanic="hit"] .algebra-composer__previewTarget {
-  /* The pad summary changes on selection. Reserve its wrapped height so the
-     controls beneath a stacked mobile preview do not move under the pointer. */
-  min-height: 4.2em;
+  /* Keep the target and pad summary on separate, stable rows. */
+  display: grid;
+  align-content: start;
+  min-height: 2.8em;
 }
 
 .algebra-composer__previewTiming {
