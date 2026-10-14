@@ -982,10 +982,6 @@
 }
 .composer :global(.algebra-composer__tokenButton:hover:not(:disabled)) { border-color: #fff; background: rgba(255,255,255,.12); }
 .composer :global(.algebra-composer__tokenButton[data-selected="true"]) { border-color: var(--studio-accent); background: rgba(207,255,4,.16); color: #fff; box-shadow: inset 0 0 0 1px rgba(207,255,4,.4), 0 0 0 3px rgba(207,255,4,.12); }
-.composer :global(.algebra-composer__padBoard) { border-color: rgba(169,217,208,.34); background: radial-gradient(circle at 50% 46%, rgba(40,121,129,.3), transparent 68%), #082733; }
-.composer :global(.algebra-composer__padButton) { border-color: rgba(169,217,208,.5); background: #394c54; color: #fff; }
-.composer :global(.algebra-composer__padButton:hover:not(:disabled)) { border-color: #fff; background: #477171; }
-.composer :global(.algebra-composer__padButton[data-selected="true"]) { border-color: #00ff57; background: #00ff57; color: #030e14; box-shadow: 0 0 0 5px rgba(0,255,87,.15), 0 0 22px rgba(0,255,87,.34); }
 .composer :global(.algebra-composer__padInstruction) { color: #c4d0ca; }
 .composer :global(.algebra-composer__gesture) { border-color: rgba(169,217,208,.28); background: rgba(40,121,129,.12); }
 .composer :global(.algebra-composer__gesturePads span) { border-color: rgba(169,217,208,.56); background: #394c54; color: #f4f5ed; }

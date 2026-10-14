@@ -304,7 +304,7 @@ function HitControls({
       ) : null}
       <div data-repair-control="pad" className="algebra-composer__padPicker">
         <div className="algebra-composer__padHeading">
-          <span className="algebra-composer__fieldLabel">{isNumberBonds ? "Choose its player pad" : "Player pads for this term"}</span>
+          <span className="algebra-composer__fieldLabel">{isNumberBonds ? "Choose its player pad" : "Choose player pads"}</span>
           <span className="algebra-composer__padCount" aria-label={`${selectedSlots.size} of ${padLimit} pads selected`}>{selectedSlots.size} / {padLimit}</span>
         </div>
         {legacyMapping.length > 0 ? (
@@ -616,6 +616,7 @@ export function GuidedEncounterComposer({
       aria-label={`${heading} composer`}
       className={`algebra-composer ${isAlgebra ? studioClasses?.composer ?? "" : ""}`}
       data-state={readiness.ready ? "ready" : "incomplete"}
+      data-mechanic={instance.mechanic}
       data-setup-stage={showAlgebraSetupProgress ? setupStage : undefined}
     >
       <header className="algebra-composer__header">
