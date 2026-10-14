@@ -8,6 +8,26 @@ export type Id3FrontCover = {
 };
 
 /**
+ * Square Apple Music release art for tracks whose embedded ID3 image is a
+ * padded video still. These entries were matched by exact track and artist:
+ * - Garden — https://music.apple.com/gb/album/garden/1533425954?i=1533425958
+ * - GEMINI QUEEN — https://music.apple.com/gb/album/gemini-queen/6786786542?i=6786786544
+ * - one & one — https://music.apple.com/gb/album/one-one/1835165706?i=1835165707
+ * - Seven — https://music.apple.com/gb/album/seven/1515988014?i=1515988303
+ */
+export const SONG_CHOICE_COVER_OVERRIDE_BY_ID: Readonly<Record<string, string>> =
+  Object.freeze({
+    garden:
+      "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/6f/18/fd/6f18fd75-11ee-9a03-c127-6414ed628181/5054526060623_1.jpg/600x600bb.jpg",
+    geminiqueen:
+      "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/74/0e/4e/740e4e3d-8bdb-73d2-31ea-af799025e0df/artwork.jpg/600x600bb.jpg",
+    oneone:
+      "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/b9/30/54/b93054db-f41a-5099-ca01-a40cbd91f237/artwork.jpg/600x600bb.jpg",
+    seven:
+      "https://is1-ssl.mzstatic.com/image/thumb/Music123/v4/a3/27/f5/a327f580-9584-2ac2-51f2-fbba6a286dd8/5054526515390_1.jpg/600x600bb.jpg",
+  });
+
+/**
  * Official Apple Music release artwork for catalog songs without an embedded
  * ID3 front cover. The client keeps its designed fallback if a remote image
  * cannot be loaded.
@@ -44,6 +64,7 @@ export function getSongChoiceCoverArtCandidates(
   return Array.from(
     new Set(
       [
+        SONG_CHOICE_COVER_OVERRIDE_BY_ID[songId],
         embeddedCoverArtBySongId[songId],
         SONG_CHOICE_COVER_FALLBACK_BY_ID[songId],
       ].filter((source): source is string => Boolean(source)),
