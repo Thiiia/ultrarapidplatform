@@ -1724,11 +1724,12 @@ export default function SongChoiceClient({
                                 <span className={songStyles.songName}>{song.name}</span>
                                 <span className={songStyles.songArtist}>{artist}</span>
                               </span>
-                              <span className={songStyles.songDuration}>
-                                {formatDuration(duration)}
-                              </span>
                             </span>
                           </button>
+
+                          <span className={songStyles.songDuration}>
+                            {formatDuration(duration)}
+                          </span>
 
                           <button
                             type="button"

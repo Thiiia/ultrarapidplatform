@@ -2646,11 +2646,16 @@ function TutorialBubble({
       className={algebraStyles.tutorialBubble}
       style={{
         position: "relative",
+        display: "grid",
+        gap: 8,
+        minWidth: 0,
+        maxWidth: "100%",
+        overflowWrap: "anywhere",
         borderRadius: 18,
         border: "1px solid #BCA6F5",
         background: "linear-gradient(135deg, #34235B, #14233C)",
         color: "#FFFFFF",
-        padding: "29px 17px 17px",
+        padding: "12px 17px 17px",
         boxSizing: "border-box",
         fontFamily: "Space Grotesk, sans-serif",
         fontSize: 14,
@@ -2663,14 +2668,12 @@ function TutorialBubble({
         type="button"
         onClick={onSkip}
         style={{
-          position: "absolute",
-          top: 4,
-          right: 6,
+          justifySelf: "end",
           minHeight: 44,
           background: "none",
           border: "none",
-          padding: "8px 10px",
-          color: "#FFFFFF80",
+          padding: "6px 10px",
+          color: "#E3DDF7",
           fontSize: 12,
           fontWeight: 800,
           textDecoration: "underline",
@@ -7868,16 +7871,15 @@ function LeftEquationBuilderPanel({
         </div>
       </div>
 
-      {tutorialBuildPrompt ? (
-        <div className={algebraStyles.reentryBuildHint}>
-          <TutorialBubble
-            text={tutorialBuildPrompt}
-            onSkip={onSkipTutorial ?? (() => {})}
-          />
-        </div>
-      ) : null}
-
       <div className={algebraStyles.equationPaletteScroll}>
+        {tutorialBuildPrompt ? (
+          <div className={algebraStyles.reentryBuildHint}>
+            <TutorialBubble
+              text={tutorialBuildPrompt}
+              onSkip={onSkipTutorial ?? (() => {})}
+            />
+          </div>
+        ) : null}
         <div className={algebraStyles.equationPaletteGroups}>
           <div className={algebraStyles.equationPaletteGroup} data-kind="number">
             <div className={algebraStyles.equationPaletteHeading}><span>Numbers</span><span>0–9</span></div>
@@ -7924,6 +7926,13 @@ function LeftEquationBuilderPanel({
         </div>
         {!canAuthorEquation ? <div role="status" className={algebraStyles.equationDraftStatus}>Choose and load a song before saving an equation.</div> : hasDraft && draftIssue ? <div role="status" className={algebraStyles.equationDraftStatus}>{draftIssue}</div> : null}
 
+        {tutorialPrompt ? (
+          <TutorialBubble
+            text={tutorialPrompt}
+            onSkip={onSkipTutorial ?? (() => {})}
+          />
+        ) : null}
+
         <div className={algebraStyles.equationComposerActions} data-has-draft={hasDraft ? "true" : "false"}>
           {hasDraft ? (
             <button
@@ -7934,32 +7943,14 @@ function LeftEquationBuilderPanel({
               Clear
             </button>
           ) : null}
-          <div style={{ position: "relative" }}>
-            {tutorialPrompt ? (
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: "calc(100% + 8px)",
-                  right: 0,
-                  width: 240,
-                  zIndex: 1300,
-                }}
-              >
-                <TutorialBubble
-                  text={tutorialPrompt}
-                  onSkip={onSkipTutorial ?? (() => {})}
-                />
-              </div>
-            ) : null}
-            <button
-              type="button"
-              onClick={onSaveEquation}
-              disabled={!canAuthorEquation || !hasDraft || Boolean(draftIssue)}
-              className={algebraStyles.equationComposerPrimary}
-            >
-              {studentCopy.editor.saveEquation}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onSaveEquation}
+            disabled={!canAuthorEquation || !hasDraft || Boolean(draftIssue)}
+            className={algebraStyles.equationComposerPrimary}
+          >
+            {studentCopy.editor.saveEquation}
+          </button>
         </div>
         {hasDraft && activeEventLabel ? (
           <button
@@ -10220,21 +10211,10 @@ function LibraryPanel({
         {activeEventId && displayedEquations.length > 0 ? (
           <div className={algebraStyles.equationLibraryAssign}>
             {tutorialPrompt ? (
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: "calc(100% + 8px)",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: 240,
-                  zIndex: 1300,
-                }}
-              >
-                <TutorialBubble
-                  text={tutorialPrompt}
-                  onSkip={onSkipTutorial ?? (() => {})}
-                />
-              </div>
+              <TutorialBubble
+                text={tutorialPrompt}
+                onSkip={onSkipTutorial ?? (() => {})}
+              />
             ) : null}
             <button
               type="button"
