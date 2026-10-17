@@ -21,3 +21,18 @@ export function findNearestChartCueIndex(
 
   return nearestIndex;
 }
+
+/** Offer only cues that the runtime's minimum positive move window can retain exactly. */
+export function getRangeChartCueTargets(cues: readonly number[], start: number | undefined, end: number | undefined) {
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end! <= start!) {
+    return { startSeconds: null, endSeconds: null };
+  }
+  const starts = cues.filter((cue) => Number.isFinite(cue) && cue >= 0 && cue <= end! - 0.01);
+  const ends = cues.filter((cue) => Number.isFinite(cue) && cue >= start! + 0.01);
+  const startIndex = findNearestChartCueIndex(starts, start!);
+  const endIndex = findNearestChartCueIndex(ends, end!);
+  return {
+    startSeconds: startIndex < 0 ? null : starts[startIndex],
+    endSeconds: endIndex < 0 ? null : ends[endIndex],
+  };
+}

@@ -7,6 +7,12 @@ import styles from "./NumberBondsMissionComposer.module.css";
 type OrbitNote = { id: string; seconds: number };
 const QUICK_TARGETS = [5, 7, 8, 10, 12, 15, 20];
 
+function cueTime(seconds: number) {
+  if (!Number.isFinite(seconds)) return "Timing unavailable";
+  const centiseconds = Math.max(0, Math.round(seconds * 100));
+  return `${Math.floor(centiseconds / 6000)}:${String(Math.floor(centiseconds / 100) % 60).padStart(2, "0")}.${String(centiseconds % 100).padStart(2, "0")}`;
+}
+
 function UnitGroup({ count, tone, label, filled = true }: { count: number; tone: "whole" | "partA" | "partB"; label: string; filled?: boolean }) {
   const tenGroups = Math.floor(count / 10);
   const looseCount = count % 10;
@@ -108,6 +114,7 @@ export function NumberBondsMissionComposer({
   onSelectNote: (index: number) => void;
 }) {
   const [wholeDraft, setWholeDraft] = useState({ whole, songCapacity, text: String(whole) });
+  const [cueView, setCueView] = useState<"sequence" | "orbit">("sequence");
   const selectedHitEditorRef = useRef<HTMLElement | null>(null);
   const previousSelectedNoteId = useRef(selectedNoteId);
   const wholeText = wholeDraft.whole === whole && wholeDraft.songCapacity === songCapacity
@@ -169,6 +176,43 @@ export function NumberBondsMissionComposer({
         <p className={styles.sequenceHint} role="note">This saved revision has chart-timed Hits only. Build gems from the chart to add a Spin and Drag to every unit.</p>
       ) : null}
 
+      <div className={styles.cueWorkspace}>
+        <div className={styles.bondSummary} role="img" aria-label={`Whole ${whole} is made from part A ${partA} and part B ${partB}`}>
+          <div><span>Part–whole relationship</span><strong>{partA} + {partB} = {whole}</strong></div>
+          <div className={styles.bondBar} aria-hidden="true">
+            <span style={{ flexGrow: partA }} />
+            <span style={{ flexGrow: partB }} />
+          </div>
+          <div className={styles.bondLabels} aria-hidden="true"><span>Part A · {partA}</span><span>Part B · {partB}</span></div>
+        </div>
+        <div className={styles.cueToolbar}>
+          <h2>Gem cues</h2>
+          <div role="group" aria-label="Gem cue view">
+            <button type="button" aria-pressed={cueView === "sequence"} onClick={() => setCueView("sequence")}>Sequence</button>
+            <button type="button" aria-pressed={cueView === "orbit"} onClick={() => setCueView("orbit")}>Orbit</button>
+          </div>
+        </div>
+        {cueView === "sequence" ? (
+          <ol className={styles.cueList} aria-label="Chart-timed gem sequence">
+            {Array.from({ length: whole }, (_, index) => {
+              const note = notes[index];
+              const isAuthored = Boolean(note && index < authoredNoteCount);
+              const isSelected = Boolean(isAuthored && note?.id === selectedNoteId);
+              return (
+                <li key={note?.id ?? `pending-${index}`}>
+                  <button type="button" disabled={!isAuthored} aria-pressed={isAuthored ? isSelected : undefined}
+                    data-selected={isSelected || undefined} data-built={isAuthored || undefined}
+                    onClick={() => onSelectNote(index)}
+                    aria-label={`Gem ${index + 1}${note ? ` at ${cueTime(note.seconds)}` : ", awaiting timing"}${isAuthored ? ", select to edit Hit" : ", build gems to use this cue"}`}>
+                    <span className={styles.cueNumber}>{index + 1}</span>
+                    <span className={styles.cueTime}>{note ? cueTime(note.seconds) : "Awaiting chart"}</span>
+                    <span className={styles.cueState}>{isAuthored ? hasAuthoredSequence ? "Hit · Spin · Drag" : "Hit only" : note ? "Suggested" : "Pending"}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
       <div className={`${styles.orbit} ${usesTwoOrbitRings ? styles.orbitDense : ""}`} role="group" aria-label={`Make ${whole}: ${whole} equals ${partA} plus ${partB}; ${whole} chart-timed gem journeys`}
         style={{ "--bond-progress": `${Math.min(100, 100 * authoredNoteCount / whole)}%` } as CSSProperties}>
         <div className={styles.orbitRing} aria-hidden="true" />
@@ -204,6 +248,9 @@ export function NumberBondsMissionComposer({
             </button>
           );
         })}
+      </div>
+        )}
+        <p className={styles.cueHelp}>Select a built gem to edit its Hit pad and song timing. Suggested cues become editable after building.</p>
       </div>
 
       <div className={styles.controls}>

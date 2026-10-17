@@ -1,4 +1,4 @@
-import type { ChangeEvent, ReactNode } from "react";
+import { useMemo, type ChangeEvent, type ReactNode } from "react";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
 import SwipeRoundedIcon from "@mui/icons-material/SwipeRounded";
 import TouchAppRoundedIcon from "@mui/icons-material/TouchAppRounded";
@@ -23,6 +23,35 @@ import type {
 } from "@/lib/guided-authored-encounter";
 import { retimeGuidedEncounter } from "@/lib/guided-authored-encounter";
 import { EquationLens } from "./EquationLens";
+import { getRangeChartCueTargets } from "@/lib/editor/chart-cue-navigation";
+
+function RangeChartGuide({ instance, cues, onPatchInstance }: {
+  instance: GuidedEncounterInput;
+  cues: readonly number[];
+  onPatchInstance: GuidedEncounterComposerProps["onPatchInstance"];
+}) {
+  const targets = getRangeChartCueTargets(cues, instance.tick, instance.endTick);
+  return (
+    <div className="algebra-composer__rangeChartGuide" role="group" aria-label="Match move timing to chart cues">
+      <strong>Match the move to the music</strong>
+      <span>Choose chart cues for the start and release. The other edge stays in place.</span>
+      {(["start", "end"] as const).map((edge) => {
+        const candidate = edge === "start" ? targets.startSeconds : targets.endSeconds;
+        const current = edge === "start" ? instance.tick : instance.endTick;
+        const aligned = candidate !== null && typeof current === "number" && Math.abs(candidate - current) <= 0.01;
+        return (
+          <div key={edge}>
+            <span>{edge === "start" ? "Start" : "Release"} · {candidate === null ? "Set a valid action window first" : `chart cue ${timeValue(candidate)}s`}</span>
+            <button type="button" disabled={candidate === null || aligned} className="algebra-composer__rangeSnap"
+              onClick={() => { if (candidate !== null) onPatchInstance(instance.id, retimeGuidedEncounter(instance, edge, candidate)); }}>
+              {aligned ? "On cue" : edge === "start" ? "Snap start" : "Snap release"}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 type DragSource = { id: string; label: string };
 
@@ -537,7 +566,7 @@ export function GuidedEncounterComposer({
       ? studentCopy.mechanics.makeSpin
       : studentCopy.mechanics.makeDrag;
   let controls: ReactNode;
-  const finiteChartCueTimes = chartHitCues?.map((cue) => cue.seconds).filter(Number.isFinite) ?? [];
+  const finiteChartCueTimes = useMemo(() => chartHitCues?.map((cue) => cue.seconds).filter((seconds) => Number.isFinite(seconds) && seconds >= 0) ?? [], [chartHitCues]);
   const nearestChartCueSeconds = instance.mechanic === "hit" && typeof instance.tick === "number" && finiteChartCueTimes.length
     ? finiteChartCueTimes.reduce((closest, candidate) =>
       Math.abs(candidate - instance.tick!) < Math.abs(closest - instance.tick!) ? candidate : closest,
@@ -662,7 +691,6 @@ export function GuidedEncounterComposer({
       {!isNumberBonds && instance.equation && tokens.length > 0 ? (
         <div className="algebra-composer__preview" data-mechanic={instance.mechanic} role="group" aria-label={`Player cue preview. Equation: ${equationState}`}>
           <div className="algebra-composer__previewCopy">
-            <span className="algebra-composer__previewEyebrow">PLAYER CUE</span>
             <span className="algebra-composer__previewAction" data-mechanic={instance.mechanic} aria-label={`Player action: ${motionCue}`}>
               <MotionIcon className="algebra-composer__previewActionIcon" aria-hidden="true" fontSize="small" />
               <span>{motionCue}</span>
@@ -708,7 +736,7 @@ export function GuidedEncounterComposer({
           {isAlgebra && instance.mechanic !== "hit" ? (
             <div key={instance.mechanic} className="algebra-composer__gesture" data-mechanic={instance.mechanic} aria-hidden="true">
               {instance.mechanic === "spin" ? (
-                <div className="algebra-composer__gestureSpin"><span>↻</span></div>
+                <div className="algebra-composer__gestureSpin"><ReplayRoundedIcon aria-hidden="true" /></div>
               ) : (
                 <div className="algebra-composer__gestureDrag"><span /><i /><span /></div>
               )}
@@ -719,18 +747,18 @@ export function GuidedEncounterComposer({
       {!isNumberBonds && instance.equation && onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} className="algebra-composer__changeEquation">Change equation</button> : null}
       {isNumberBonds ? (
         <div className="algebra-composer__numberBondsNote">
-          Catch the gem on the beat, then place it in a slot.
+          Choose the song cue and player pad for catching this gem.
         </div>
       ) : null}
         </div>
         <div className={isAlgebra ? studioClasses?.composerInspector : undefined} style={isAlgebra ? undefined : { display: "contents" }}>
           {isAlgebra ? (
             <div className={studioClasses?.inspectorHeading}>
-              <span>THE ACTION</span>
               <strong>Set what the player does</strong>
             </div>
           ) : null}
           {controls}
+          {instance.mechanic !== "hit" && chartHitCues !== undefined ? <RangeChartGuide instance={instance} cues={finiteChartCueTimes} onPatchInstance={onPatchInstance} /> : null}
         </div>
       </div>
     </section>

@@ -451,15 +451,6 @@
   transform: scale(0.96);
 }
 
-.songGrid[data-view-mode="list"] .listPreviewGlyph {
-  width: 16px;
-  height: 16px;
-  display: block;
-  background: currentColor;
-  -webkit-mask: url("/song_choice_icons/Play_Icon.svg") center / contain no-repeat;
-  mask: url("/song_choice_icons/Play_Icon.svg") center / contain no-repeat;
-}
-
 .songGrid[data-view-mode="list"] .songCard::before {
   content: none;
 }
@@ -816,15 +807,17 @@
 }
 
 .previewButton {
+  box-sizing: border-box;
   position: absolute;
   z-index: 2;
   top: 12px;
   right: 12px;
   width: 48px;
   height: 48px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  line-height: 0;
   padding: 0;
   margin: 0;
   color: var(--song-accent);
@@ -838,6 +831,14 @@
     border-color 180ms ease,
     box-shadow 180ms ease,
     transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.previewGlyph {
+  display: block;
+  width: 20px;
+  height: 20px;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .previewButton:hover,

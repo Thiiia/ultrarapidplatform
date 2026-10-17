@@ -35,7 +35,7 @@ import URIcon from "@/public/header_icons/URIcon.svg";
 import SongChoiceIcon from "@/public/song-choice_icons/song_choice_icon.png";
 
 /* Song Choice Icon Imports */
-import PlayIcon from "@/public/song_choice_icons/Play_Icon.svg";
+import { PlayGlyph } from "@/app/components/PlayGlyph";
 
 type DashboardType = "student" | "teacher";
 type SongChoiceViewMode = "grid" | "list";
@@ -1760,20 +1760,8 @@ export default function SongChoiceClient({
                                 <i />
                                 <i />
                               </span>
-                            ) : songViewMode === "list" ? (
-                              <span
-                                className={songStyles.listPreviewGlyph}
-                                aria-hidden="true"
-                              />
                             ) : (
-                              <PlayIcon
-                                aria-hidden="true"
-                                style={{
-                                  width: 22,
-                                  height: 22,
-                                  display: "block",
-                                }}
-                              />
+                              <PlayGlyph className={songStyles.previewGlyph} />
                             )}
                           </button>
                         </article>

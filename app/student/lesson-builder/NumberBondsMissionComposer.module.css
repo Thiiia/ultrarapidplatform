@@ -1,7 +1,7 @@
 .composer {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(240px, .8fr) minmax(300px, 1.2fr);
   grid-template-rows: auto auto;
   align-items: start;
   gap: 8px clamp(16px, 2vw, 24px);
@@ -62,6 +62,32 @@
   min-width: 0;
   aspect-ratio: 1;
 }
+
+.cueWorkspace { display: grid; align-content: start; gap: 12px; min-width: 0; }
+.bondSummary { display: grid; gap: 8px; padding-block: 3px 12px; border-bottom: 1px solid #70929b55; }
+.bondSummary > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px; }
+.bondSummary > div:first-child > span { color: #c8d8d7; font-size: 12px; }
+.bondSummary strong { color: #efffc1; font-size: 17px; font-variant-numeric: tabular-nums; }
+.bondBar { display: flex; gap: 3px; height: 20px; overflow: hidden; border-radius: 5px; }
+.bondBar span { flex-basis: 0; min-width: 0; background: #66b8ff; }
+.bondBar span:last-child { background: #b796ff; }
+.bondLabels { display: flex; justify-content: space-between; gap: 12px; color: #d4e1e8; font-size: 12px; }
+.cueToolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cueToolbar h2 { margin: 0; color: #f8fafc; font-size: 15px; }
+.cueToolbar > div { display: flex; gap: 3px; padding: 3px; border: 1px solid #70929b66; border-radius: 9px; }
+.cueToolbar button { min-height: 36px; padding: 0 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #c8d8d7; font: 700 12px/1 "Space Grotesk", sans-serif; cursor: pointer; }
+.cueToolbar button[aria-pressed="true"] { border-color: #70929b88; background: #193b43; color: #f8fafc; }
+.cueToolbar button:focus-visible, .cueList button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.cueList { display: grid; gap: 3px; max-height: 300px; margin: 0; padding: 3px; overflow-y: auto; list-style: none; scrollbar-width: thin; scrollbar-color: #70929b88 transparent; }
+.cueList button { box-sizing: border-box; display: grid; grid-template-columns: 28px minmax(0,1fr) auto; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 6px 9px; border: 1px solid transparent; border-radius: 8px; background: #0b2630; color: #f8fafc; font-family: "Space Grotesk", sans-serif; text-align: left; cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease; }
+.cueList button:hover:not(:disabled) { border-color: #87d9bd77; background: #163b42; }
+.cueList button[data-selected="true"] { border-color: #d9ff50; background: #203e39; }
+.cueList button:disabled { background: #0b2029; color: #a8bfbd; cursor: default; }
+.cueNumber { display: grid; width: 24px; height: 24px; place-items: center; border: 1px solid #70929b66; border-radius: 50%; font-size: 11px; font-weight: 800; }
+.cueList button[data-built="true"] .cueNumber { border-color: #87d9bd88; color: #e9ffc1; }
+.cueTime { font-size: 13px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.cueState { font-size: 10px; color: #b9ceca; }
+.cueHelp { margin: 0; color: #c8d8d7; font-size: 12px; line-height: 1.45; }
 
 .orbitRing {
   position: absolute;
@@ -697,6 +723,8 @@
   }
 
   .intro { grid-column: 1; }
+  .cueWorkspace { width: min(100%, 520px); justify-self: center; }
+  .cueList { max-height: 224px; }
   .orbit { width: min(100%, 270px); }
   .controls { width: min(100%, 520px); justify-self: center; }
   .actions {
@@ -762,6 +790,7 @@
   .note, .noteSuggested, .noteNext, .pictorialModel, .orbitRing::before { animation: none; }
   .note, .notePlaced, .orbitRing::before { transition: none; }
   .notePlaced,
+  .cueList button,
   .targetRow > button,
   .quickTargets button,
   .actions button { transition: none; }
