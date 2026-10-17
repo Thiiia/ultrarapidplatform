@@ -1415,6 +1415,8 @@ export default function SongChoiceClient({
             </svg>
 
               <input
+                id="song-search"
+                name="song-search"
                 type="search"
                 className={songStyles.searchInput}
                 value={searchQuery}
@@ -1428,6 +1430,8 @@ export default function SongChoiceClient({
                 <label className={songStyles.songSortControl}>
                   <span>Sort</span>
                   <select
+                    id="song-sort-order"
+                    name="song-sort-order"
                     value={songSortOrder}
                     onChange={(event) => setSongSortOrder(event.target.value as SongSortOrder)}
                     aria-label="Sort songs"
@@ -1681,7 +1685,7 @@ export default function SongChoiceClient({
                                   sizes={
                                     songViewMode === "list"
                                       ? "(max-width: 520px) 64px, (max-width: 760px) 88px, 108px"
-                                      : "(max-width: 520px) 104px, (max-width: 760px) 48vw, 25vw"
+                                      : "(max-width: 520px) 104px, (max-width: 760px) 48vw, 280px"
                                   }
                                   unoptimized
                                   referrerPolicy="no-referrer"

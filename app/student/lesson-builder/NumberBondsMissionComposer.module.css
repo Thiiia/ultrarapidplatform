@@ -1,15 +1,15 @@
 .composer {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
   grid-template-rows: auto auto;
   align-items: start;
-  gap: 12px clamp(18px, 3vw, 32px);
+  gap: 8px clamp(16px, 2vw, 24px);
   width: 100%;
   height: 100%;
   min-height: 0;
   overflow: auto;
-  padding: clamp(18px, 2vw, 28px);
+  padding: clamp(12px, 1.4vw, 20px);
   background: radial-gradient(circle at 38% 48%, #153440 0, #0b202a 37%, #07151d 75%);
   color: #f8fafc;
   font-family: "Space Grotesk", sans-serif;
@@ -29,23 +29,23 @@
 }
 
 .intro h1 {
-  margin: 8px 0;
-  font-size: clamp(25px, 2.8vw, 38px);
+  margin: 5px 0;
+  font-size: clamp(22px, 2.2vw, 30px);
   line-height: 1.06;
 }
 
 .intro p {
-  max-width: 670px;
+  max-width: 76ch;
   margin: 0;
   color: #d4e1e8;
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
 .sequenceHint {
   grid-column: 1 / -1;
   margin: 0;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid #d2b86a88;
   border-radius: 10px;
   background: #302d1fcc;
@@ -57,7 +57,7 @@
 .orbit {
   position: relative;
   justify-self: center;
-  width: min(100%, 320px);
+  width: min(100%, 310px);
   min-width: 0;
   aspect-ratio: 1;
 }
@@ -185,13 +185,13 @@
 .playFlow {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+  gap: 5px;
 }
 
 .playFlow span {
   display: grid;
   gap: 3px;
-  padding: 10px;
+  padding: 7px 8px;
   border: 1px solid #72919966;
   border-radius: 9px;
   background: #10262fbb;
@@ -204,8 +204,8 @@
 
 .pictorialModel {
   display: grid;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 9px 10px;
   border: 1px solid #70929b88;
   border-radius: 14px;
   background: #071c25cc;
@@ -342,17 +342,17 @@
 
 .controls {
   display: grid;
-  align-content: center;
-  gap: 16px;
+  align-content: start;
+  gap: 9px;
   min-width: 0;
 }
 
 .selectedHitEditor {
   grid-column: 1 / -1;
   display: grid;
-  gap: 12px;
+  gap: 9px;
   min-width: 0;
-  padding: clamp(14px, 2vw, 20px);
+  padding: 12px;
   border: 1px solid #cfff0466;
   border-radius: 18px;
   background: linear-gradient(135deg, #172c32f5, #0c1d26f5);
@@ -379,8 +379,8 @@
 
 .targetPanel {
   display: grid;
-  gap: 12px;
-  padding: 14px;
+  gap: 9px;
+  padding: 12px;
   border: 1px solid #70929b88;
   border-radius: 16px;
   background: #10262fdd;
@@ -551,7 +551,7 @@
 
 .progress {
   display: grid;
-  gap: 7px;
+  gap: 5px;
 }
 
 .progress strong {
@@ -562,8 +562,8 @@
 .progress span,
 .status {
   color: #e0ecee;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .progress progress {
@@ -657,12 +657,12 @@
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto auto;
     align-items: start;
-    gap: 18px;
+    gap: 12px;
     overflow-y: auto;
   }
 
   .intro { grid-column: 1; }
-  .orbit { width: min(100%, 360px); }
+  .orbit { width: min(100%, 310px); }
   .controls { width: min(100%, 520px); justify-self: center; }
   .actions {
     position: sticky;

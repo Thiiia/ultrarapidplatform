@@ -163,7 +163,7 @@ export function NumberBondsMissionComposer({
       <div className={styles.intro}>
         <span className={styles.eyebrow}>NUMBER BONDS · {songTitle}</span>
         <h1>Build a bond. Play the song.</h1>
-        <p>Choose a target from 2 to {NUMBER_BONDS_MAX_WHOLE}. Each Hit starts on a playable note from this song&apos;s verified chart; smaller targets sample cues across the track. Spin and Drag land on the chart&apos;s beat grid. Select a placed note to choose its single player pad—the whole stays the Hit target. Fine-tune its timing in the cue editor and snap it back to a playable chart cue when needed.</p>
+        <p>Choose a whole from 2 to {NUMBER_BONDS_MAX_WHOLE} and split it into two parts. Hits use verified cues across this song; each gem then spins and drags on beat. Select a placed Hit to change its pad or fine-tune its timing.</p>
       </div>
       {authoredNoteCount === whole && !hasAuthoredSequence ? (
         <p className={styles.sequenceHint} role="note">This saved revision has chart-timed Hits only. Build gems from the chart to add a Spin and Drag to every unit.</p>

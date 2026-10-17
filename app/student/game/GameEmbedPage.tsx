@@ -15,6 +15,7 @@ import { getSongChoiceRoute, getSongLaunchErrorMessage } from "@/lib/song-choice
 import { requestFreshSongLaunchParams, SongLaunchRequestError } from "@/lib/song-launch-client";
 import { getUnityGameUrl } from "@/lib/unity-game-url";
 import { studentCopy } from "@/lib/student-copy";
+import { announceGameLoadingMusic } from "@/lib/site-music";
 import ExperienceMobileNavigation from "@/app/components/ExperienceMobileNavigation";
 import { webglFlexFrameStyle, webglViewportHostStyle } from "@/lib/webgl-embed-layout";
 import styles from "../student.module.css";
@@ -863,6 +864,13 @@ function GameEmbedSession({
     (!activeLaunchParams.get("receipt") || (bridgeContext && calibrationStatus !== "loading")),
   );
   const launchErrorMessage = launchPreparationError || bridgeSetup.error;
+  const shouldPlayLoadingMusic = !recoveredOutcome && returnSyncState === "idle" &&
+    !canRenderEmbeddedGame && !launchErrorMessage && !needsSongChoice;
+
+  useEffect(() => {
+    announceGameLoadingMusic(shouldPlayLoadingMusic);
+    return () => announceGameLoadingMusic(false);
+  }, [shouldPlayLoadingMusic]);
 
   return (
     <div

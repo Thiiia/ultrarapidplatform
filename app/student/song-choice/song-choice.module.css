@@ -349,9 +349,9 @@
 }
 
 .songGrid[data-view-mode="list"] .songCard {
-  min-height: 128px;
+  min-height: 144px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 68px 64px;
+  grid-template-columns: minmax(0, 1fr) 76px 72px;
   grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
   background: rgba(5, 24, 31, 0.82);
@@ -361,11 +361,11 @@
 }
 
 .songGrid[data-view-mode="list"] .songSelect {
-  min-height: 126px;
+  min-height: 142px;
   grid-column: 1;
   grid-row: 1;
   display: grid;
-  grid-template-columns: 108px minmax(0, 1fr);
+  grid-template-columns: 116px minmax(0, 1fr);
   align-items: center;
   column-gap: 18px;
   padding: 8px 12px 8px 10px;
@@ -375,14 +375,14 @@
 .songGrid[data-view-mode="list"] .artwork {
   grid-column: 1;
   grid-row: 1;
-  width: 108px;
-  height: 108px;
+  width: 116px;
+  height: 116px;
   aspect-ratio: 1;
   border-radius: 9px;
 }
 
 .songGrid[data-view-mode="list"] .songDetails {
-  min-height: 108px;
+  min-height: 116px;
   grid-column: 2;
   grid-row: 1;
   grid-template-columns: minmax(0, 1fr);
@@ -402,8 +402,8 @@
 }
 
 .songGrid[data-view-mode="list"] .songName {
-  font-size: 16px;
-  line-height: 22px;
+  font-size: 17px;
+  line-height: 23px;
   font-weight: 700;
 }
 
@@ -428,8 +428,8 @@
   grid-row: 1;
   align-self: center;
   justify-self: center;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   margin: 0;
   color: var(--song-accent);
   background: color-mix(in srgb, var(--song-accent) 7%, rgba(3, 14, 20, 0.8));
@@ -487,7 +487,7 @@
   min-width: 0;
   overflow: hidden;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 52px;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 56px;
   --song-accent: var(--ur-accent-lime, #cfff04);
   background: rgba(5, 24, 31, 0.84);
@@ -539,7 +539,7 @@
 }
 
 .songGrid[data-view-mode="list"] .songCard:hover {
-  border-color: transparent;
+  border-color: color-mix(in srgb, var(--song-accent) 48%, rgba(255, 255, 255, 0.16));
   background: color-mix(in srgb, var(--song-accent) 5%, rgba(5, 24, 31, 0.94));
   transform: none;
 }
@@ -777,8 +777,8 @@
   grid-column: 1;
   grid-row: 2;
   align-self: center;
-  justify-self: start;
-  margin-left: 12px;
+  justify-self: end;
+  margin-right: 12px;
   color: #e4edf0;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
@@ -816,13 +816,12 @@
 }
 
 .previewButton {
-  position: static;
-  grid-column: 2;
-  grid-row: 2;
-  align-self: center;
-  justify-self: center;
-  width: 44px;
-  height: 44px;
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  width: 48px;
+  height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1306,6 +1305,7 @@
   }
 
   .previewButton {
+    position: static;
     grid-column: 2;
     grid-row: 1;
     align-self: end;

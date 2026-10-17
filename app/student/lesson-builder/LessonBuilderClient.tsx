@@ -8818,29 +8818,31 @@ function RtcmModePanel({
         height: "100%",
         minHeight: 0,
         minWidth: 0,
-        background: row2Column2BackgroundColor,
+        background: "transparent",
         color: textColor,
         boxSizing: "border-box",
-        overflow: "visible",
+        overflow: "auto",
         display: "grid",
-        gridTemplateRows: "auto auto 1fr",
-        justifyItems: "center",
-        alignItems: "start",
-        padding: "16px 0 0",
+        gridTemplateRows: "auto auto minmax(0, 1fr)",
+        justifyItems: "stretch",
+        alignItems: "stretch",
+        gap: 10,
+        padding: "clamp(12px, 1.4vw, 20px)",
         fontFamily: "Space Grotesk, sans-serif",
       }}
     >
       <div
         style={{
-          width: "90vw",
+          width: "min(100%, 1120px)",
+          justifySelf: "center",
           display: "flex",
-          justifyContent: "center",
-          paddingBottom: 12,
+          justifyContent: "flex-start",
+          paddingBottom: 0,
           boxSizing: "border-box",
           overflow: "visible",
         }}
       >
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-start" }}>
           <button
             type="button"
             className={algebraStyles.recordEncounterButton}
@@ -8851,8 +8853,8 @@ function RtcmModePanel({
               minWidth: 132,
               minHeight: 44,
               borderRadius: 12,
-              border: `1px solid ${eventRangeStartTick !== null ? "#CFFF04" : subtleBorderColor}`,
-              background: eventRangeStartTick !== null ? "linear-gradient(145deg, #dfff9a30, #cfff0419), #10182d" : "linear-gradient(145deg, #ffffff19, #ffffff08), #111a2d",
+              border: `1px solid ${eventRangeStartTick !== null ? "#CFFF04" : "rgba(169,217,208,.35)"}`,
+              background: eventRangeStartTick !== null ? "linear-gradient(145deg, rgba(207,255,4,.16), rgba(16,51,54,.95))" : "rgba(16,51,54,.9)",
               color: eventRangeStartTick !== null ? "#CFFF04" : "#FFFFFFDD",
               fontSize: 11,
               fontWeight: 900,
@@ -8871,8 +8873,8 @@ function RtcmModePanel({
               minHeight: 38,
               borderRadius: 10,
               border: `1px solid ${subtleBorderColor}`,
-              background: canDeleteEvent ? "#252525" : "#1D1D1D",
-              color: canDeleteEvent ? "#FFFFFFDD" : "#FFFFFF55",
+              background: canDeleteEvent ? "rgba(16,51,54,.9)" : "rgba(16,51,54,.48)",
+              color: canDeleteEvent ? "#E7F3EF" : "#A9B9B5",
               fontSize: 11,
               fontWeight: 900,
               cursor: canDeleteEvent ? "pointer" : "not-allowed",
@@ -8888,9 +8890,9 @@ function RtcmModePanel({
               minWidth: 100,
               minHeight: 38,
               borderRadius: 10,
-              border: "1px solid #FF6B6B",
-              background: "#2B1414",
-              color: "#FF9C9C",
+              border: "1px solid rgba(255,124,124,.42)",
+              background: "rgba(73,30,35,.56)",
+              color: "#FFC0C0",
               fontSize: 11,
               fontWeight: 900,
               cursor: "pointer",
@@ -8902,7 +8904,7 @@ function RtcmModePanel({
         </div>
       </div>
 
-      <div style={{ width: "min(720px, 90vw)", display: "grid", gap: 10, paddingBottom: 12 }}>
+      <div style={{ width: "min(100%, 1120px)", justifySelf: "center", display: "grid", gap: 9, paddingBottom: 0 }}>
         {isEncounterOpen ? (
           <div
             className={algebraStyles.rtcmCaptureReadout}
@@ -8937,14 +8939,14 @@ function RtcmModePanel({
                 minHeight: 58,
                 borderRadius: 14,
                 border: `1px solid ${selectedTool === mechanic ? mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF8A8A" : "#C69AFF" : subtleBorderColor}`,
-                background: selectedTool === mechanic ? "linear-gradient(145deg, #283455, #151E32)" : "#151E2B",
+                background: selectedTool === mechanic ? "linear-gradient(145deg, rgba(34,81,83,.76), rgba(12,35,40,.98))" : "rgba(8,29,36,.88)",
                 color: "#FFFFFF",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,
                 padding: "7px 9px",
-                boxShadow: selectedTool === mechanic ? "inset 0 1px #FFFFFF33, 0 5px 18px #0006" : "none",
+                boxShadow: selectedTool === mechanic ? "inset 0 1px #FFFFFF22, 0 5px 18px #0004" : "none",
                 cursor: "pointer",
               }}
             >
@@ -8956,7 +8958,7 @@ function RtcmModePanel({
             </button>
           ))}
         </div>
-        <div role="status" aria-live="polite" style={{ color: isEncounterOpen ? "#DFFF70" : "#AFC2D8", fontSize: 13, fontWeight: 700, lineHeight: 1.45, textAlign: "center" }}>
+        <div role="status" aria-live="polite" style={{ color: isEncounterOpen ? "#DFFF70" : "#BED0D0", fontSize: 13, fontWeight: 700, lineHeight: 1.45, textAlign: "left" }}>
           {pendingRangeMechanic
             ? `Recording ${pendingRangeMechanic}. Release to set its end time.`
             : isEncounterOpen
@@ -8968,97 +8970,30 @@ function RtcmModePanel({
       </div>
 
       <div
-        style={{
-          width: "min(720px, 90vw)",
-          height: "75%",
-          minHeight: 0,
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr)",
-          gap: 14,
-        }}
+        style={{ width: "min(100%, 1120px)", height: "100%", minHeight: 0, justifySelf: "center", display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 9 }}
       >
         <div
-          style={{
-            display: selectedTool === "hit" ? "grid" : "none",
-            height: "100%",
-            borderRadius: 14,
-            border: "1px solid #2EA7FF77",
-            background: "radial-gradient(circle at 50% 35%, #1D4264, #141A27 65%)",
-            padding: "12px 8px 14px",
-            boxSizing: "border-box",
-            gridTemplateRows: "auto 1fr auto",
-            justifyItems: "center",
-            gap: 10,
-            alignItems: "center",
-          }}
+          style={{ display: selectedTool === "hit" ? "grid" : "none", minHeight: 0, borderRadius: 16, border: "1px solid #66D9FF66", background: "linear-gradient(145deg, rgba(19, 54, 62, .96), rgba(7, 23, 30, .98))", padding: "clamp(12px, 1.4vw, 20px)", boxSizing: "border-box", gridTemplateRows: "auto 1fr auto", justifyItems: "center", gap: 10, alignItems: "center" }}
         >
-          <div style={{ color: "#2EA7FF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
-            Hit
-          </div>
+          <div style={{ color: "#66D9FF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>Hit</div>
           <RtcmHitPadToken onAddHit={onAddHit} isSongPlaying={canRecord} />
-          <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
-            While the song plays, click the pad the learner should hit.
-          </div>
+          <div style={{ color: "#C1D5D6", fontSize: 12, fontWeight: 650, textAlign: "center" }}>While the song plays, click the pad the learner should hit.</div>
         </div>
 
         <div
-          style={{
-            display: selectedTool === "spin" ? "grid" : "none",
-            height: "100%",
-            borderRadius: 14,
-            border: `1px solid ${pendingRangeMechanic === "spin" ? "#FF3535AA" : subtleBorderColor}`,
-            background: "radial-gradient(circle at 50% 35%, #5A2935, #1D1723 65%)",
-            padding: "12px 8px 14px",
-            boxSizing: "border-box",
-            gridTemplateRows: "auto 1fr auto",
-            justifyItems: "center",
-            gap: 10,
-            alignItems: "center",
-          }}
+          style={{ display: selectedTool === "spin" ? "grid" : "none", minHeight: 0, borderRadius: 16, border: `1px solid ${pendingRangeMechanic === "spin" ? "#FF8A8AAA" : "#FF8A8A55"}`, background: "linear-gradient(145deg, rgba(42, 39, 43, .96), rgba(7, 23, 30, .98))", padding: "clamp(12px, 1.4vw, 20px)", boxSizing: "border-box", gridTemplateRows: "auto 1fr auto", justifyItems: "center", gap: 10, alignItems: "center" }}
         >
-          <div style={{ color: "#FF3535", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
-            Spin
-          </div>
-          <RtcmHoldToken
-            mechanic="spin"
-            isSongPlaying={canRecord}
-            isArmed={pendingRangeMechanic === "spin"}
-            onStartHold={onStartHold}
-            onEndHold={onEndHold}
-          />
-          <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
-            Hold for the full spin duration. Release to record it in this encounter draft.
-          </div>
+          <div style={{ color: "#FF9A9A", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>Spin</div>
+          <RtcmHoldToken mechanic="spin" isSongPlaying={canRecord} isArmed={pendingRangeMechanic === "spin"} onStartHold={onStartHold} onEndHold={onEndHold} />
+          <div style={{ color: "#C1D5D6", fontSize: 12, fontWeight: 650, textAlign: "center" }}>Hold for the full spin duration. Release to record it in this encounter draft.</div>
         </div>
 
         <div
-          style={{
-            display: selectedTool === "drag" ? "grid" : "none",
-            height: "100%",
-            borderRadius: 14,
-            border: `1px solid ${pendingRangeMechanic === "drag" ? "#B45CFFAA" : subtleBorderColor}`,
-            background: "radial-gradient(circle at 50% 35%, #492D63, #1B1729 65%)",
-            padding: "12px 8px 14px",
-            boxSizing: "border-box",
-            gridTemplateRows: "auto 1fr auto",
-            justifyItems: "center",
-            gap: 10,
-            alignItems: "center",
-          }}
+          style={{ display: selectedTool === "drag" ? "grid" : "none", minHeight: 0, borderRadius: 16, border: `1px solid ${pendingRangeMechanic === "drag" ? "#B796FFAA" : "#B796FF55"}`, background: "linear-gradient(145deg, rgba(43, 39, 55, .96), rgba(7, 23, 30, .98))", padding: "clamp(12px, 1.4vw, 20px)", boxSizing: "border-box", gridTemplateRows: "auto 1fr auto", justifyItems: "center", gap: 10, alignItems: "center" }}
         >
-          <div style={{ color: "#B45CFF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>
-            Drag
-          </div>
-          <RtcmHoldToken
-            mechanic="drag"
-            isSongPlaying={canRecord}
-            isArmed={pendingRangeMechanic === "drag"}
-            onStartHold={onStartHold}
-            onEndHold={onEndHold}
-          />
-          <div style={{ color: "#FFFFFF99", fontSize: 11, fontWeight: 700, textAlign: "center" }}>
-            Hold for the full drag duration. Release to record it in this encounter draft.
-          </div>
+          <div style={{ color: "#C5A8FF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>Drag</div>
+          <RtcmHoldToken mechanic="drag" isSongPlaying={canRecord} isArmed={pendingRangeMechanic === "drag"} onStartHold={onStartHold} onEndHold={onEndHold} />
+          <div style={{ color: "#C1D5D6", fontSize: 12, fontWeight: 650, textAlign: "center" }}>Hold for the full drag duration. Release to record it in this encounter draft.</div>
         </div>
       </div>
     </section>
