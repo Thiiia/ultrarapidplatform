@@ -455,14 +455,15 @@ function DragControls({
   tokens,
   dragSources,
   onPatchInstance,
-}: Pick<GuidedEncounterComposerProps, "instance" | "tokens" | "dragSources" | "onPatchInstance">) {
+  requireSource = false,
+}: Pick<GuidedEncounterComposerProps, "instance" | "tokens" | "dragSources" | "onPatchInstance"> & { requireSource?: boolean }) {
   return (
     <div className="algebra-composer__dragControls">
       <TargetPicker instance={instance} tokens={tokens} kind="Drag target" displayLabel={studentCopy.mechanics.pickDragTarget} onPatchInstance={onPatchInstance} />
       <label className="algebra-composer__fieldLabel">
-        {studentCopy.mechanics.chooseEarlierHit}
+        {requireSource ? "Source Hit for this gem" : studentCopy.mechanics.chooseEarlierHit}
         <select
-          aria-label={studentCopy.mechanics.chooseEarlierHitLabel}
+          aria-label={requireSource ? "Source Hit for this gem" : studentCopy.mechanics.chooseEarlierHitLabel}
           data-repair-control="source"
           value={instance.dragTargets[0]?.sourceHitId ?? ""}
           onChange={(event) => {
@@ -472,12 +473,12 @@ function DragControls({
           }}
           className="algebra-composer__field algebra-composer__sourceField"
         >
-          <option value="">{studentCopy.mechanics.chooseEarlierHitOption}</option>
+          <option value="" disabled={requireSource}>{requireSource ? "Choose this gem’s Hit" : studentCopy.mechanics.chooseEarlierHitOption}</option>
           {(dragSources ?? []).map((source) => <option key={source.id} value={source.id}>{source.label}</option>)}
         </select>
       </label>
       <TimingDetails instance={instance} onPatchInstance={onPatchInstance} />
-      <div aria-hidden="true" className="algebra-composer__hint">{studentCopy.mechanics.connectEarlierHit}</div>
+      <div className="algebra-composer__hint">{requireSource ? "Keep this Drag linked to the Hit that catches the same gem." : studentCopy.mechanics.connectEarlierHit}</div>
     </div>
   );
 }
@@ -551,6 +552,7 @@ export function GuidedEncounterComposer({
 }: GuidedEncounterComposerProps) {
   const isNumberBonds = activityKey === "number-bonds";
   const isAlgebra = activityKey === "early-algebra";
+  const usesStudioLayout = (isAlgebra || isNumberBonds) && Boolean(studioClasses?.composer);
   const numberBondsWholeTokenIndex = isNumberBonds
     ? getNumberBondsWholeTokenIndex({ tokens: instance.equation?.tokens ?? tokens })
     : null;
@@ -612,7 +614,7 @@ export function GuidedEncounterComposer({
       </div>
     );
   } else {
-    controls = <DragControls instance={instance} tokens={tokens} dragSources={dragSources} onPatchInstance={onPatchInstance} />;
+    controls = <DragControls instance={instance} tokens={tokens} dragSources={dragSources} requireSource={isNumberBonds} onPatchInstance={onPatchInstance} />;
   }
 
   const equationState = tokens.map((token) => token.label).join(" ");
@@ -643,16 +645,13 @@ export function GuidedEncounterComposer({
     <section
       ref={(section) => focusRepairChoice(section, repairFocus)}
       aria-label={`${heading} composer`}
-      className={`algebra-composer ${isAlgebra ? studioClasses?.composer ?? "" : ""}`}
+      className={`algebra-composer ${usesStudioLayout ? studioClasses?.composer ?? "" : ""}`}
       data-state={readiness.ready ? "ready" : "incomplete"}
       data-mechanic={instance.mechanic}
       data-setup-stage={showAlgebraSetupProgress ? setupStage : undefined}
     >
       <header className="algebra-composer__header">
         <div>
-          {activityKey === "early-algebra" ? null : (
-            <div className="algebra-composer__eyebrow">{isNumberBonds ? "CUE WORKSHOP" : "ACTION WORKSHOP"}</div>
-          )}
           <h3 className="algebra-composer__title">{heading}</h3>
         </div>
         <div className="algebra-composer__actions">
@@ -666,8 +665,8 @@ export function GuidedEncounterComposer({
           {onRemove ? <button type="button" data-repair-control="remove" onClick={onRemove} className="algebra-composer__remove">{isNumberBonds ? "Remove note" : "Remove action"}</button> : null}
         </div>
       </header>
-      <div className={isAlgebra ? studioClasses?.composerBody : undefined} style={isAlgebra ? undefined : { display: "contents" }}>
-        <div className={isAlgebra ? studioClasses?.composerStage : undefined} style={isAlgebra ? undefined : { display: "contents" }}>
+      <div className={usesStudioLayout ? studioClasses?.composerBody : undefined} style={usesStudioLayout ? undefined : { display: "contents" }}>
+        <div className={usesStudioLayout ? studioClasses?.composerStage : undefined} style={usesStudioLayout ? undefined : { display: "contents" }}>
       {showAlgebraSetupProgress ? (
         <ol className="algebra-composer__steps" aria-label="Algebra action setup">
           {ALGEBRA_SETUP_STEPS.map((label, index) => {
@@ -683,12 +682,12 @@ export function GuidedEncounterComposer({
       ) : null}
       {readiness.ready ? (
         <div className="experience-status" data-status="success" role="status" aria-live="polite">
-          {isNumberBonds ? "This note is ready. Press Play mission when you are ready." : studentCopy.editor.readyToPlay}
+          {isNumberBonds ? "This action is ready. Check the whole mission before playing." : studentCopy.editor.readyToPlay}
         </div>
       ) : (
         <div className="experience-status" data-status="warning" role="status" aria-live="polite">{readiness.nextAction}</div>
       )}
-      {!isNumberBonds && instance.equation && tokens.length > 0 ? (
+      {(!isNumberBonds || instance.mechanic !== "hit") && instance.equation && tokens.length > 0 ? (
         <div className="algebra-composer__preview" data-mechanic={instance.mechanic} role="group" aria-label={`Player cue preview. Equation: ${equationState}`}>
           <div className="algebra-composer__previewCopy">
             <span className="algebra-composer__previewAction" data-mechanic={instance.mechanic} aria-label={`Player action: ${motionCue}`}>
@@ -708,7 +707,7 @@ export function GuidedEncounterComposer({
             <span className="algebra-composer__previewTiming">{timingSummary}</span>
           </div>
           <div className="algebra-composer__equation" aria-hidden="true">
-            {tokens.map((token, index) => isAlgebra ? (
+            {tokens.map((token, index) => usesStudioLayout ? (
               <EquationLens
                 key={`${token.id}-${selectedTokenIndex === index ? instance.mechanic : "idle"}`}
                 label={token.label}
@@ -733,7 +732,7 @@ export function GuidedEncounterComposer({
               </span>
             ))}
           </div>
-          {isAlgebra && instance.mechanic !== "hit" ? (
+          {usesStudioLayout && instance.mechanic !== "hit" ? (
             <div key={instance.mechanic} className="algebra-composer__gesture" data-mechanic={instance.mechanic} aria-hidden="true">
               {instance.mechanic === "spin" ? (
                 <div className="algebra-composer__gestureSpin"><ReplayRoundedIcon aria-hidden="true" /></div>
@@ -747,12 +746,12 @@ export function GuidedEncounterComposer({
       {!isNumberBonds && instance.equation && onChooseEquation ? <button type="button" data-repair-control="equation" onClick={onChooseEquation} className="algebra-composer__changeEquation">Change equation</button> : null}
       {isNumberBonds ? (
         <div className="algebra-composer__numberBondsNote">
-          Choose the song cue and player pad for catching this gem.
+          {instance.mechanic === "hit" ? "Choose the song cue and player pad for catching this gem." : instance.mechanic === "spin" ? "Turn this gem during its Spin window, then release." : "Drag this gem to its assigned part during this window."}
         </div>
       ) : null}
         </div>
-        <div className={isAlgebra ? studioClasses?.composerInspector : undefined} style={isAlgebra ? undefined : { display: "contents" }}>
-          {isAlgebra ? (
+        <div className={usesStudioLayout ? studioClasses?.composerInspector : undefined} style={usesStudioLayout ? undefined : { display: "contents" }}>
+          {usesStudioLayout ? (
             <div className={studioClasses?.inspectorHeading}>
               <strong>Set what the player does</strong>
             </div>

@@ -26,7 +26,7 @@ if (moduleApi.registerHooks) {
         return {
           format: "commonjs",
           shortCircuit: true,
-          source: "module.exports = new Proxy({}, { get: (_styles, name) => String(name) });",
+          source: "const styles = new Proxy({}, { get: (_styles, name) => String(name) }); module.exports = { __esModule: true, default: styles };",
         };
       }
       return nextLoad(url, context);
@@ -34,7 +34,7 @@ if (moduleApi.registerHooks) {
   });
 } else {
   require.extensions[".css"] = (module) => {
-    module.exports = new Proxy({}, { get: (_styles, name) => String(name) });
+    module.exports = { __esModule: true, default: new Proxy({}, { get: (_styles, name) => String(name) }) };
   };
 }
 
@@ -87,6 +87,24 @@ function renderComposer(
     onPatchInstance: () => undefined,
   });
 }
+
+test("Number Bonds held stages use the studio layout and mechanic-specific instructions", () => {
+  for (const mechanic of ["spin", "drag"] as const) {
+    const instance: GuidedEncounterInput = {
+      ...emptySpin, mechanic, tick: 10, endTick: 11,
+      spinTargets: [{ tokenIndex: 0 }], dragTargets: [{ tokenIndex: 2, sourceHitId: "source-hit" }],
+    };
+    const tree = GuidedEncounterComposer({ instance, tokens, activityKey: "number-bonds",
+      studioClasses: { composer: "shared-studio" },
+      readiness: { encounterId: instance.id, ready: true, issueCodes: [], issues: [], nextAction: "Ready" },
+      onPatchInstance: () => undefined,
+    });
+    assert.match(tree.props.className, /shared-studio/);
+    const copy = text(tree);
+    assert.doesNotMatch(copy, /player pad for catching|This note is ready/);
+    assert.match(copy, mechanic === "spin" ? /Turn this gem during its Spin window/ : /Source Hit for this gem/);
+  }
+});
 
 test("composer progress follows equation, action repair, and ready-to-preview stages", () => {
 	assert.match(text(renderComposer({ equation: null }, {

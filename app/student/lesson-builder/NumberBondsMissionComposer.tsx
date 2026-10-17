@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NUMBER_BONDS_MAX_WHOLE, NUMBER_BONDS_MIN_WHOLE } from "@/lib/number-bonds-authoring";
+import type { NumberBondJourneyView } from "@/lib/editor/number-bond-journey-view";
+import { getNumberBondEditorAction } from "@/lib/editor/number-bond-editor-action";
 import styles from "./NumberBondsMissionComposer.module.css";
 
 type OrbitNote = { id: string; seconds: number };
@@ -76,6 +78,9 @@ export function NumberBondsMissionComposer({
   hasAuthoredSequence,
   selectedNoteId,
   selectedHitEditor,
+  selectedEncounterId,
+  journeys = [],
+  onSelectJourneyStage,
   stopAtSeconds,
   songDurationSeconds,
   isReady,
@@ -101,6 +106,9 @@ export function NumberBondsMissionComposer({
   hasAuthoredSequence: boolean;
   selectedNoteId?: string | null;
   selectedHitEditor?: ReactNode;
+  selectedEncounterId?: string | null;
+  journeys?: readonly NumberBondJourneyView[];
+  onSelectJourneyStage?: (id: string, seconds: number) => void;
   stopAtSeconds?: number;
   songDurationSeconds: number;
   isReady: boolean;
@@ -125,10 +133,13 @@ export function NumberBondsMissionComposer({
   const maxInputWhole = Math.max(NUMBER_BONDS_MIN_WHOLE, maxSelectableWhole);
   const canChooseNumber = isSongLoaded && maxSelectableWhole >= NUMBER_BONDS_MIN_WHOLE && !isPreparing;
   const canPlaceNotes = whole >= NUMBER_BONDS_MIN_WHOLE && whole <= maxSelectableWhole;
+  const primaryAction = getNumberBondEditorAction({ ready: isReady, matchingNotes: authoredNoteCount === whole, hasSequence: hasAuthoredSequence });
   const stopFitsSong = !stopAtSeconds || !songDurationSeconds || stopAtSeconds <= songDurationSeconds + 0.05;
-  const canPlay = isSongLoaded && stopFitsSong && (isReady || canPlaceNotes);
+  const canPlay = isSongLoaded && (primaryAction === "review" || (stopFitsSong && (isReady || canPlaceNotes)));
   const selectedNoteIndex = selectedNoteId ? notes.findIndex((note) => note.id === selectedNoteId) : -1;
   const selectedNote = selectedNoteIndex >= 0 ? notes[selectedNoteIndex] : null;
+  const selectedJourney = journeys.find(journey =>
+    [journey.sourceHitId, journey.spin?.id, journey.drag?.id].some(id => Boolean(id) && id === (selectedEncounterId ?? selectedNoteId)));
 
   useEffect(() => {
     if (previousSelectedNoteId.current === selectedNoteId) return;
@@ -198,6 +209,7 @@ export function NumberBondsMissionComposer({
               const note = notes[index];
               const isAuthored = Boolean(note && index < authoredNoteCount);
               const isSelected = Boolean(isAuthored && note?.id === selectedNoteId);
+              const journey = note ? journeys.find(item => item.sourceHitId === note.id) : undefined;
               return (
                 <li key={note?.id ?? `pending-${index}`}>
                   <button type="button" disabled={!isAuthored} aria-pressed={isAuthored ? isSelected : undefined}
@@ -206,7 +218,7 @@ export function NumberBondsMissionComposer({
                     aria-label={`Gem ${index + 1}${note ? ` at ${cueTime(note.seconds)}` : ", awaiting timing"}${isAuthored ? ", select to edit Hit" : ", build gems to use this cue"}`}>
                     <span className={styles.cueNumber}>{index + 1}</span>
                     <span className={styles.cueTime}>{note ? cueTime(note.seconds) : "Awaiting chart"}</span>
-                    <span className={styles.cueState}>{isAuthored ? hasAuthoredSequence ? "Hit · Spin · Drag" : "Hit only" : note ? "Suggested" : "Pending"}</span>
+                    <span className={styles.cueState}>{isAuthored ? hasAuthoredSequence ? journey && !journey.issues.length ? "Hit · Spin · Drag" : "Check links" : "Hit only" : note ? "Suggested" : "Pending"}</span>
                   </button>
                 </li>
               );
@@ -380,6 +392,8 @@ export function NumberBondsMissionComposer({
               ? "Preparing mission…"
               : !isSongLoaded
                 ? "Loading song chart…"
+                : primaryAction === "review"
+                  ? "Check mission"
                 : !stopFitsSong
                   ? "Move final note earlier"
                   : songCapacity < 2 && !isReady
@@ -392,12 +406,26 @@ export function NumberBondsMissionComposer({
         {status ? <p className={styles.status} role="status">{status}</p> : null}
       </div>
       {selectedHitEditor ? (
-        <section ref={selectedHitEditorRef} className={styles.selectedHitEditor} aria-label="Selected Number Bonds Hit editor">
+        <section ref={selectedHitEditorRef} className={styles.selectedHitEditor} aria-label="Selected Number Bonds action editor">
           <div className={styles.selectedHitSummary}>
             <span className={styles.eyebrow}>EDITING SELECTED GEM</span>
-            <strong>{selectedNote ? `Gem ${selectedNoteIndex + 1} · ${selectedNote.seconds.toFixed(1)}s` : "Selected Hit cue"}</strong>
-            <p>Choose this gem’s player pad and check its timing against the song chart. Changes apply to this Hit in the lesson draft.</p>
+            <strong>{selectedJourney ? `Gem ${selectedJourney.unitIndex + 1} · Part ${selectedJourney.destination.part === "part-a" ? "A" : "B"}, socket ${selectedJourney.destination.slotIndex + 1}` : selectedNote ? `Gem ${selectedNoteIndex + 1} · ${selectedNote.seconds.toFixed(1)}s` : "Selected gem action"}</strong>
+            <p>{selectedJourney ? "Check this action against the song. The linked stages below belong to this same gem." : "Choose this gem’s player pad and check its timing against the song chart."}</p>
           </div>
+          {selectedJourney ? (
+            <nav className={styles.journeyStages} aria-label="Selected gem journey">
+              {(["hit", "spin", "drag"] as const).map(mechanic => {
+                const stage = selectedJourney[mechanic];
+                return <button key={mechanic} type="button" disabled={!stage || !onSelectJourneyStage}
+                  aria-pressed={Boolean(stage && stage.id === (selectedEncounterId ?? selectedNoteId))}
+                  onClick={() => { if (stage) onSelectJourneyStage?.(stage.id, stage.startSeconds); }}>
+                  <strong>{mechanic === "hit" ? "Hit" : mechanic === "spin" ? "Spin" : "Drag"}</strong>
+                  <span>{stage ? mechanic === "hit" ? cueTime(stage.startSeconds) : `${cueTime(stage.startSeconds)}–${cueTime(stage.endSeconds)}` : "Link or timing unavailable"}</span>
+                </button>;
+              })}
+            </nav>
+          ) : null}
+          {selectedJourney?.issues.length ? <p className={styles.journeyIssue} role="status">{selectedJourney.issues.join(" ")} Check the lesson’s Ready panel before playing.</p> : null}
           {selectedHitEditor}
         </section>
       ) : null}

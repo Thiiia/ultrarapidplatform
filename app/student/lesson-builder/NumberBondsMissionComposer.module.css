@@ -426,6 +426,15 @@
   gap: 4px;
 }
 
+.journeyStages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.journeyStages button { display: grid; gap: 5px; min-width: 0; min-height: 58px; padding: 9px; border: 1px solid #70929b88; border-radius: 10px; background: #0b2630; color: #eff8f4; font: inherit; text-align: left; cursor: pointer; }
+.journeyStages button strong { font-size: 13px; }
+.journeyStages button span { font-size: 12px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.journeyStages button[aria-pressed="true"] { border-color: #d9ff50; background: #203e39; }
+.journeyStages button:disabled { color: #b9ceca; cursor: default; }
+.journeyStages button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.journeyIssue { margin: 0; padding: 10px; border-left: 3px solid #e6bc71; color: #ffedc8; font-size: 13px; line-height: 1.5; }
+
 .selectedHitSummary strong {
   font-size: 17px;
   line-height: 1.25;

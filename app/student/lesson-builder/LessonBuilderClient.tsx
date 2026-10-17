@@ -116,6 +116,8 @@ import {
 } from "@/lib/number-bonds-note-plan";
 import { getSongChartCues } from "@/lib/song-chart-cues";
 import { findNearestChartCueIndex } from "@/lib/editor/chart-cue-navigation";
+import { buildNumberBondJourneyViews } from "@/lib/editor/number-bond-journey-view";
+import { getNumberBondEditorAction } from "@/lib/editor/number-bond-editor-action";
 import { getLearnerFacingError, studentCopy } from "@/lib/student-copy";
 import GuidedTemplateStart from "./GuidedTemplateStart";
 import { AlgebraStudioBar } from "./AlgebraStudioBar";
@@ -10915,6 +10917,12 @@ export default function LessonBuilderClient({
     return (planNumberBondNotes(numberBondSongNotes, numberBondTargetWhole) ?? [])
       .map((note, index) => ({ id: `planned-${index}`, seconds: note.seconds }));
   }, [numberBondAuthoredNotesMatch, numberBondSongNotes, numberBondTargetWhole, rtcmAuthoredEvents, timelineEvents]);
+  const numberBondJourneyViews = useMemo(() => numberBondHasSequenceV1 && numberBondSequenceV1
+    ? buildNumberBondJourneyViews(numberBondSequenceV1.sequence.gems, [...timelineEvents, ...rtcmAuthoredEvents] as AuthoredTimelineEvent[])
+    : [], [numberBondHasSequenceV1, numberBondSequenceV1, rtcmAuthoredEvents, timelineEvents]);
+  const numberBondSelectedEncounterId = selectedGuidedEncounter?.id ?? recordedRepairDraft?.id ?? null;
+  const numberBondSelectedJourney = numberBondJourneyViews.find(journey =>
+    [journey.sourceHitId, journey.spin?.id, journey.drag?.id].some(id => Boolean(id) && id === numberBondSelectedEncounterId));
 
   useEffect(() => {
     if (isNumberBondsActivity && isLessonLoaded && selectedSongLaunch) {
@@ -12258,7 +12266,13 @@ export default function LessonBuilderClient({
   }
 
   function handlePlayNumberBondMission() {
-    if (lessonPublishReadiness.ready && numberBondAuthoredNotesMatch) {
+    const action = getNumberBondEditorAction({ ready: lessonPublishReadiness.ready, matchingNotes: numberBondAuthoredNotesMatch, hasSequence: numberBondHasSequenceV1 });
+    if (action === "review") {
+      setSaveStatus(lessonPublishReadiness.blockers[0]?.nextAction ?? "Check this mission before playing. Your authored journey timings are preserved.");
+      setIsReadinessOpen(true);
+      return;
+    }
+    if (action === "play") {
       void handleLaunchGame();
       return;
     }
@@ -12281,10 +12295,14 @@ export default function LessonBuilderClient({
   function handleSelectNumberBondNote(index: number) {
     const note = numberBondOrbitNotes[index];
     if (!note) return;
+    handleSelectNumberBondEncounter(note.id, note.seconds);
+  }
+
+  function handleSelectNumberBondEncounter(encounterId: string, seconds: number) {
     const selection = findGuidedEncounterSelection(
       timelineEvents as unknown as AuthoredTimelineEvent[],
-      note.id,
-    ) ?? findGuidedEncounterSelection(rtcmAuthoredEvents, note.id);
+      encounterId,
+    ) ?? findGuidedEncounterSelection(rtcmAuthoredEvents, encounterId);
     if (selection) {
       const isRecordedDraft = rtcmDraftMechanics.some((draft) => draft.id === selection.eventId);
       if (isRecordedDraft) {
@@ -12301,7 +12319,7 @@ export default function LessonBuilderClient({
       setAdvancedMode(false);
       setCenterChoice(null);
     }
-    seekSong(note.seconds);
+    seekSong(seconds);
   }
 
   function updateActiveMechanicInstance(
@@ -15323,10 +15341,13 @@ export default function LessonBuilderClient({
               notes={numberBondOrbitNotes}
               authoredNoteCount={numberBondAuthoredNotesMatch ? numberBondHitCount : 0}
               hasAuthoredSequence={numberBondHasSequenceV1}
-              selectedNoteId={selectedGuidedEncounter?.mechanic === "hit"
+              journeys={numberBondJourneyViews}
+              selectedEncounterId={numberBondSelectedEncounterId}
+              onSelectJourneyStage={handleSelectNumberBondEncounter}
+              selectedNoteId={numberBondSelectedJourney?.sourceHitId ?? (selectedGuidedEncounter?.mechanic === "hit"
                 ? selectedGuidedEncounter.id
-                : recordedRepairDraft?.mechanic === "hit" ? recordedRepairDraft.id : null}
-              selectedHitEditor={selectedGuidedEncounter?.mechanic === "hit" && selectedGuidedReadiness ? (
+                : recordedRepairDraft?.mechanic === "hit" ? recordedRepairDraft.id : null)}
+              selectedHitEditor={selectedGuidedEncounter && selectedGuidedReadiness && (selectedGuidedEncounter.mechanic === "hit" || numberBondHasSequenceV1) ? (
                 <GuidedEncounterComposer
                   instance={selectedGuidedEncounter}
                   studioClasses={algebraStyles}
@@ -15339,7 +15360,7 @@ export default function LessonBuilderClient({
                   repairFocus={repairFocus}
                   onRemove={isFocusedGuidedEditor ? handleRemoveSelectedContextMechanic : undefined}
                 />
-              ) : recordedRepairDraft?.mechanic === "hit" && recordedRepairReadiness ? (
+              ) : recordedRepairDraft && recordedRepairReadiness && (recordedRepairDraft.mechanic === "hit" || numberBondHasSequenceV1) ? (
                 <GuidedEncounterComposer
                   instance={{ ...recordedRepairDraft, equation: recordedRepairEquation }}
                   studioClasses={algebraStyles}
