@@ -1,4 +1,4 @@
-import { useMemo, type ChangeEvent, type ReactNode } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
 import SwipeRoundedIcon from "@mui/icons-material/SwipeRounded";
 import TouchAppRoundedIcon from "@mui/icons-material/TouchAppRounded";
@@ -566,7 +566,7 @@ export function GuidedEncounterComposer({
       ? studentCopy.mechanics.makeSpin
       : studentCopy.mechanics.makeDrag;
   let controls: ReactNode;
-  const finiteChartCueTimes = useMemo(() => chartHitCues?.map((cue) => cue.seconds).filter((seconds) => Number.isFinite(seconds) && seconds >= 0) ?? [], [chartHitCues]);
+  const finiteChartCueTimes = chartHitCues?.map((cue) => cue.seconds).filter((seconds) => Number.isFinite(seconds) && seconds >= 0) ?? [];
   const nearestChartCueSeconds = instance.mechanic === "hit" && typeof instance.tick === "number" && finiteChartCueTimes.length
     ? finiteChartCueTimes.reduce((closest, candidate) =>
       Math.abs(candidate - instance.tick!) < Math.abs(closest - instance.tick!) ? candidate : closest,
