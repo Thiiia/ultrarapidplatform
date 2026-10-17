@@ -137,8 +137,8 @@ export function NumberBondsMissionComposer({
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     selectedHitEditorRef.current.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
   }, [selectedNoteId]);
-  // At 17 targets, narrow touch layouts no longer leave 44px between single-ring cues.
-  const usesTwoOrbitRings = whole >= 17;
+  // Keep every cue's 44px pointer target separate, including the inner ring.
+  const usesTwoOrbitRings = whole >= 13;
   const outerOrbitCount = usesTwoOrbitRings ? Math.ceil(whole / 2) : whole;
   const lastNoteSeconds = notes.length ? Math.max(...notes.map((note) => note.seconds)) : null;
   const formattedStop = stopAtSeconds === undefined ? "After notes are placed" : `${Math.floor(stopAtSeconds / 60)}:${String(Math.floor(stopAtSeconds % 60)).padStart(2, "0")}`;
@@ -226,8 +226,8 @@ export function NumberBondsMissionComposer({
           const usesInnerRing = usesTwoOrbitRings && index >= outerOrbitCount;
           const ringIndex = usesInnerRing ? index - outerOrbitCount : index;
           const ringCount = usesInnerRing ? whole - outerOrbitCount : outerOrbitCount;
-          const orbitRadius = usesInnerRing ? 25 : usesTwoOrbitRings ? 40.7 : 39;
-          const angle = -Math.PI / 2 + 2 * Math.PI * ringIndex / ringCount;
+          const orbitRadius = usesInnerRing ? 27 : usesTwoOrbitRings ? 43.5 : 39;
+          const angle = -Math.PI / 2 + 2 * Math.PI * (ringIndex + (usesInnerRing ? 0.5 : 0)) / ringCount;
           const note = notes[index];
           const isAuthored = Boolean(note && index < authoredNoteCount);
           const isNextSuggested = Boolean(note && !isAuthored && index === authoredNoteCount);

@@ -1134,7 +1134,7 @@
 .composer :global(.algebra-composer__rangeChartGuide > strong) { font-size: 13px; color: #eff8f4; }
 .composer :global(.algebra-composer__rangeChartGuide > span) { color: #b8cbc6; font-size: 12px; line-height: 1.45; }
 .composer :global(.algebra-composer__rangeChartGuide > div) { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; color: #c8d8d7; font-size: 12px; font-variant-numeric: tabular-nums; }
-.composer :global(.algebra-composer__rangeSnap) { min-height: 40px; padding: 0 10px; border: 1px solid rgba(169,217,208,.35); border-radius: 9px; background: #103336; color: #f4f5ed; font: inherit; font-size: 12px; cursor: pointer; }
+.composer :global(.algebra-composer__rangeSnap) { min-height: 44px; padding: 0 10px; border: 1px solid rgba(169,217,208,.35); border-radius: 9px; background: #103336; color: #f4f5ed; font: inherit; font-size: 12px; cursor: pointer; }
 .composer :global(.algebra-composer__rangeSnap:hover:not(:disabled)) { border-color: var(--studio-accent); }
 .composer :global(.algebra-composer__rangeSnap:disabled) { border-color: transparent; background: transparent; color: #c2ddaf; cursor: default; }
 .composer :global(.algebra-composer__gestureSpin > svg) { width: 52px; height: 52px; color: #e4d8ff; }
@@ -1219,18 +1219,18 @@
 .rtcmCaptureStatus[data-state="open"] .rtcmStatusDot, .rtcmCaptureStatus[data-state="capturing"] .rtcmStatusDot { background: var(--studio-accent); box-shadow: 0 0 12px rgba(207,255,4,.58); }
 .rtcmCaptureReady { flex: none; margin-left: auto; color: #9eb5af; font-size: 9px; font-weight: 900; letter-spacing: .1em; white-space: nowrap; }
 .rtcmCaptureStatus[data-state="capturing"] .rtcmCaptureReady { color: var(--studio-accent); }
-.rtcmPreviewRegion { width: min(100%, 1120px); min-height: 0; justify-self: center; }
+.rtcmPreviewRegion { width: min(100%, 1120px); min-height: min-content; justify-self: center; }
 .rtcmPreviewCard {
   position: relative;
   isolation: isolate;
   box-sizing: border-box;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(min-content, 1fr) auto;
   justify-items: center;
   align-items: center;
   gap: 8px;
   width: 100%;
-  height: 100%;
-  min-height: 240px;
+  height: auto;
+  min-height: 100%;
   overflow: hidden;
   padding: clamp(10px, 1.3vw, 17px);
   border: 1px solid rgba(169,217,208,.24);
@@ -1268,7 +1268,7 @@
 .rtcmPreviewState { color: #a9bdb8; font-size: 9px; font-weight: 900; letter-spacing: .08em; white-space: nowrap; }
 .rtcmPreviewState[data-ready="true"] { color: var(--studio-accent); }
 .rtcmPreviewHint { width: min(100%, 740px); margin: 0; color: #b8cbc6; font-size: 11px; line-height: 1.35; text-align: center; }
-.rtcmHitPadStage { position: relative; display: grid; width: min(300px, 100%); aspect-ratio: 15 / 13; place-items: center; overflow: visible; }
+.rtcmHitPadStage { position: relative; display: grid; width: min(300px, 100%); aspect-ratio: 1; place-items: center; overflow: visible; }
 .rtcmHitPadStage > div { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
 .rtcmHitPadButton {
   display: grid;
@@ -1288,7 +1288,7 @@
 .rtcmHitPadLabel { color: #fff; font-weight: 900; line-height: 1; text-shadow: 0 1px 8px rgba(0,0,0,.45); }
 .rtcmBlankToken { box-sizing: border-box; display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; }
 .rtcmGestureToken:disabled { cursor: not-allowed; }
-.rtcmGestureStage { position: relative; display: grid; width: 260px; height: 198px; place-items: center; overflow: visible; }
+.rtcmGestureStage { position: relative; display: grid; width: 260px; height: 260px; place-items: center; overflow: visible; }
 .rtcmSpinGlyph, .rtcmDragGhost { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; pointer-events: none; opacity: .84; }
 .rtcmSpinGlyphIcon { width: 172px; height: 180px; color: rgba(238,248,244,.58); filter: drop-shadow(0 8px 16px rgba(0,0,0,.25)); }
 .rtcmDragGhost { opacity: .72; }

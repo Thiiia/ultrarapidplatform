@@ -11,8 +11,8 @@ type GameplayMechanic = "hit" | "spin" | "drag";
 type HitBubblePad = AuthoredHitPad;
 const gameplayMechanics: GameplayMechanic[] = ["hit", "spin", "drag"];
 
-function getHitBubblePadStyle(pad: HitBubblePad, bubbleSize: number, layoutVersion = 2) {
-  const offset = resolvePlayerHexHitPadPixelOffset(resolveAuthoredHitPadSlot(pad, layoutVersion), bubbleSize * 0.78);
+function getHitBubblePadStyle(pad: HitBubblePad, orbitRadius: number, layoutVersion = 2) {
+  const offset = resolvePlayerHexHitPadPixelOffset(resolveAuthoredHitPadSlot(pad, layoutVersion), orbitRadius);
   if (!offset) return {};
   return {
     left: `calc(50% ${offset.dx < 0 ? "-" : "+"} ${Math.abs(offset.dx).toFixed(2)}px)`,
@@ -82,8 +82,8 @@ function RtcmHitPadToken({
   }, []);
   const scale = stageWidth / 300;
   const emptyTokenSize = Math.round(56 * scale);
-  const hitPadDiameter = Math.max(34, Math.round(92 * scale));
-  const hitPadAnchorSize = 84 * scale;
+  const hitPadDiameter = Math.max(44, Math.round(64 * scale));
+  const hitPadOrbitRadius = 100 * scale;
   const pads: HitBubblePad[] = PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad }) => pad);
 
   return (
@@ -104,7 +104,7 @@ function RtcmHitPadToken({
       </div>
 
       {pads.map((pad) => {
-        const padStyle = getHitBubblePadStyle(pad, hitPadAnchorSize, 2);
+        const padStyle = getHitBubblePadStyle(pad, hitPadOrbitRadius, 2);
         const padNumber = getHitPadNumber(pad, 2);
 
         return (
@@ -194,17 +194,17 @@ function RtcmHoldToken({
       if (started) endHoldRef.current();
     };
   }, [settleGesture]);
-  const spinRingDiameter = 230;
+  const spinRingDiameter = 190;
   const spinHandleDiameter = Math.max(34, Math.round(68 * 0.75));
   const spinRingRadius = spinRingDiameter / 2;
   const dragArcCenterX = 130;
-  const dragArcCenterY = 99;
-  const dragArcRadiusX = 125;
+  const dragArcCenterY = 130;
+  const dragArcRadiusX = 72;
   const dragArcRadiusY = 72;
 
   const tokenBasePosition = {
     left: 130,
-    top: 98,
+    top: 130,
   };
 
   function clamp(value: number, min: number, max: number) {
@@ -420,22 +420,22 @@ function RtcmHoldToken({
           <svg
             width="100%"
             height="100%"
-            viewBox="0 0 260 198"
+            viewBox="0 0 260 260"
             fill="none"
             preserveAspectRatio="none"
             style={{ display: "block", overflow: "visible" }}
           >
             <path
-              d="M 5 99 A 125 72 0 0 1 255 99"
+              d="M 58 130 A 72 72 0 0 1 202 130"
               stroke="rgba(157, 145, 255, 0.2)"
-              strokeWidth="58"
+              strokeWidth="42"
               strokeLinecap="round"
               strokeDasharray="1 5"
             />
             <path
-              d="M 5 99 A 125 72 0 0 0 255 99"
+              d="M 58 130 A 72 72 0 0 0 202 130"
               stroke="rgba(157, 145, 255, 0.2)"
-              strokeWidth="58"
+              strokeWidth="42"
               strokeLinecap="round"
               strokeDasharray="1 5"
             />
@@ -521,7 +521,7 @@ function RtcmHoldToken({
         }
       >
         <RtcmBlankNumberToken
-          size={mechanic === "drag" ? 144 : 72}
+          size={mechanic === "drag" ? 112 : 72}
           borderColor={mechanic === "spin" ? "#FF8A8A99" : "#D2A9FF99"}
           background={mechanic === "spin" ? "#4A1D22" : "#2D1A47"}
         />

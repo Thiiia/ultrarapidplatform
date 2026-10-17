@@ -75,7 +75,7 @@
 .cueToolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cueToolbar h2 { margin: 0; color: #f8fafc; font-size: 15px; }
 .cueToolbar > div { display: flex; gap: 3px; padding: 3px; border: 1px solid #70929b66; border-radius: 9px; }
-.cueToolbar button { min-height: 36px; padding: 0 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #c8d8d7; font: 700 12px/1 "Space Grotesk", sans-serif; cursor: pointer; }
+.cueToolbar button { min-height: 44px; padding: 0 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #c8d8d7; font: 700 12px/1 "Space Grotesk", sans-serif; cursor: pointer; }
 .cueToolbar button[aria-pressed="true"] { border-color: #70929b88; background: #193b43; color: #f8fafc; }
 .cueToolbar button:focus-visible, .cueList button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 .cueList { display: grid; gap: 3px; max-height: 300px; margin: 0; padding: 3px; overflow-y: auto; list-style: none; scrollbar-width: thin; scrollbar-color: #70929b88 transparent; }
@@ -99,13 +99,13 @@
 
 .orbitRingInner {
   position: absolute;
-  inset: 25%;
+  inset: 23%;
   border: 1px dashed #87d9bd55;
   border-radius: 50%;
 }
 
 .orbitDense .orbitRing {
-  inset: 9.3%;
+  inset: 6.5%;
 }
 
 .orbitDense .orbitCore {
@@ -165,7 +165,8 @@
   box-sizing: border-box;
   display: grid;
   place-items: center;
-  width: clamp(29px, 8%, 42px);
+  width: 44px;
+  height: 44px;
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
   border-radius: 50%;
@@ -185,7 +186,7 @@
 .notePlaced:hover:not(:disabled) {
   filter: brightness(1.2);
   box-shadow: 0 0 22px #cfff04dd;
-  scale: 1.12;
+  scale: 1;
 }
 
 .noteSelected {
@@ -193,7 +194,7 @@
   outline: 3px solid #fff;
   outline-offset: 3px;
   box-shadow: 0 0 0 6px #cfff0455, 0 0 22px #cfff04dd;
-  scale: 1.1;
+  scale: 1;
 }
 
 .noteSuggested {
@@ -472,7 +473,7 @@
 }
 
 .targetRow > button {
-  min-width: 42px;
+  min-width: 44px;
   min-height: 44px;
   border: 1px solid #70929b;
   border-radius: 10px;
@@ -780,7 +781,7 @@
 @media (max-height: 780px) and (min-width: 901px) {
   .composer { gap: 6px 16px; padding-block: 10px; }
   .intro h1 { font-size: clamp(20px, 1.8vw, 25px); }
-  .orbit { width: min(100%, 238px); }
+  .orbit { width: min(100%, 270px); }
   .controls { gap: 6px; }
   .targetPanel { gap: 7px; padding: 9px; }
   .splitEditor { padding: 7px; }

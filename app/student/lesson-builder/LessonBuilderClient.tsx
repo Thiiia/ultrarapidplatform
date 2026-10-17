@@ -3799,11 +3799,6 @@ function getHitBubblePadStyle(
   };
 }
 
-function getHitPadNumber(pad: HitBubblePad, layoutVersion: number = 2): number | null {
-  const slot = resolveAuthoredHitPadSlot(pad, layoutVersion);
-  return slot >= 0 ? slot + 1 : null;
-}
-
 function getHitPadNumberFromPlacement(
   placement: HitBubblePlacement | undefined,
 ): number | null {
