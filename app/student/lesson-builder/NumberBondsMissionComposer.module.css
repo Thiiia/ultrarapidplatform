@@ -1,7 +1,7 @@
 .composer {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-items: start;
   gap: 8px clamp(16px, 2vw, 24px);
@@ -57,7 +57,8 @@
 .orbit {
   position: relative;
   justify-self: center;
-  width: min(100%, 310px);
+  align-self: center;
+  width: min(100%, 270px);
   min-width: 0;
   aspect-ratio: 1;
 }
@@ -343,8 +344,42 @@
 .controls {
   display: grid;
   align-content: start;
-  gap: 9px;
+  gap: 8px;
   min-width: 0;
+}
+
+.learningPanel {
+  min-width: 0;
+  border: 1px solid #70929b66;
+  border-radius: 12px;
+  background: #0a2029cc;
+  overflow: clip;
+}
+
+.learningPanel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  padding: 8px 11px;
+  color: #e4f0ee;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  list-style: none;
+}
+
+.learningPanel > summary::-webkit-details-marker { display: none; }
+.learningPanel > summary::after { content: "+"; color: #d9ff50; font-size: 19px; line-height: 1; }
+.learningPanel[open] > summary::after { content: "−"; }
+.learningPanel > summary strong { margin-left: auto; color: #d9ff50; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.learningPanel > summary:focus-visible { outline: 3px solid #fff; outline-offset: -3px; }
+
+.learningContent {
+  display: grid;
+  gap: 8px;
+  padding: 0 8px 8px;
 }
 
 .selectedHitEditor {
@@ -662,7 +697,7 @@
   }
 
   .intro { grid-column: 1; }
-  .orbit { width: min(100%, 310px); }
+  .orbit { width: min(100%, 270px); }
   .controls { width: min(100%, 520px); justify-self: center; }
   .actions {
     position: sticky;
@@ -712,6 +747,15 @@
   .modelUnit { width: 12px; height: 12px; }
   .splitEditor { grid-template-columns: minmax(64px, 1fr) auto minmax(64px, 1fr); }
   .splitEditor > strong { grid-column: 1 / -1; min-height: 24px; }
+}
+
+@media (max-height: 780px) and (min-width: 901px) {
+  .composer { gap: 6px 16px; padding-block: 10px; }
+  .intro h1 { font-size: clamp(20px, 1.8vw, 25px); }
+  .orbit { width: min(100%, 238px); }
+  .controls { gap: 6px; }
+  .targetPanel { gap: 7px; padding: 9px; }
+  .splitEditor { padding: 7px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -207,13 +207,21 @@ export function NumberBondsMissionComposer({
       </div>
 
       <div className={styles.controls}>
-        <div className={styles.playFlow} aria-label="How this lesson plays">
-          <span><b>01</b> Catch the gem</span>
-          <span><b>02</b> Tap the charted pad</span>
-          <span><b>03</b> Spin the gem</span>
-          <span><b>04</b> Drag it to a part</span>
-        </div>
-        <PartWholeModel key={`${whole}-${partA}-${partB}`} whole={whole} partA={partA} partB={partB} />
+        <details className={styles.learningPanel}>
+          <summary>
+            <span>How the mission plays</span>
+            <strong>{whole} = {partA} + {partB}</strong>
+          </summary>
+          <div className={styles.learningContent}>
+            <div className={styles.playFlow} aria-label="How this lesson plays">
+              <span><b>01</b> Catch the gem</span>
+              <span><b>02</b> Tap the charted pad</span>
+              <span><b>03</b> Spin the gem</span>
+              <span><b>04</b> Drag it to a part</span>
+            </div>
+            <PartWholeModel key={`${whole}-${partA}-${partB}`} whole={whole} partA={partA} partB={partB} />
+          </div>
+        </details>
         <div className={styles.targetPanel}>
           <div className={styles.targetHeading}>
             <strong>Choose a target</strong>
@@ -281,7 +289,7 @@ export function NumberBondsMissionComposer({
                 <button
                   key={target}
                   type="button"
-                  className={whole === target ? styles.quickTargetActive : styles.quickTarget}
+                  className={whole === target ? styles.quickTargetActive : undefined}
                   aria-label={`Make ${target}`}
                   aria-pressed={whole === target}
                   title={available ? `Build make ${target}` : `This song needs room for ${target} complete gem journeys`}

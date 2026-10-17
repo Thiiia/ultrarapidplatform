@@ -8290,8 +8290,10 @@ function RtcmBlankNumberToken({
         width: size,
         minWidth: size,
         height: Math.max(34, Math.round(size * 0.82)),
-        borderTop: `1px solid ${borderColor}`,
+        border: `1px solid ${borderColor}`,
+        borderRadius: 999,
         background,
+        boxShadow: "inset 0 1px rgba(255,255,255,.28), 0 8px 20px rgba(0,0,0,.26)",
         color: "transparent",
         textShadow: "none",
       }}
@@ -8308,21 +8310,28 @@ function RtcmHitPadToken({
   onAddHit: (pad: HitBubblePad) => void;
   isSongPlaying: boolean;
 }) {
-  const emptyTokenSize = Math.round(74 * 0.75);
-  const hitPadDiameter = Math.max(34, Math.round(emptyTokenSize * 0.82 * 2));
-  const hitPadAnchorSize = 84;
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [stageWidth, setStageWidth] = useState(300);
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => {
+      const nextWidth = Math.round(entry.contentRect.width);
+      if (nextWidth > 0) setStageWidth((current) => Math.abs(current - nextWidth) > 1 ? nextWidth : current);
+    });
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, []);
+  const scale = stageWidth / 300;
+  const emptyTokenSize = Math.round(56 * scale);
+  const hitPadDiameter = Math.max(34, Math.round(92 * scale));
+  const hitPadAnchorSize = 84 * scale;
   const pads: HitBubblePad[] = PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad }) => pad);
 
   return (
     <div
-      style={{
-        position: "relative",
-        width: 300,
-        height: 260,
-        display: "grid",
-        placeItems: "center",
-        overflow: "visible",
-      }}
+      ref={stageRef}
+      className={algebraStyles.rtcmHitPadStage}
     >
       <div
         style={{
@@ -8333,7 +8342,7 @@ function RtcmHitPadToken({
           pointerEvents: "none",
         }}
       >
-        <RtcmBlankNumberToken size={emptyTokenSize} />
+        <RtcmBlankNumberToken size={emptyTokenSize} borderColor="rgba(255,255,255,.42)" background="rgba(255,255,255,.06)" />
       </div>
 
       {pads.map((pad) => {
@@ -8344,6 +8353,7 @@ function RtcmHitPadToken({
           <button
             key={pad}
             type="button"
+            className={algebraStyles.rtcmHitPadButton}
             onClick={isSongPlaying ? () => onAddHit(pad) : undefined}
             aria-label={`Add hit at pad ${padNumber}`}
             disabled={!isSongPlaying}
@@ -8351,24 +8361,14 @@ function RtcmHitPadToken({
               position: "absolute",
               width: hitPadDiameter,
               height: hitPadDiameter,
-              borderRadius: 999,
-              border: "1px solid #7CC8FF",
-              background: isSongPlaying ? "#2EA7FF" : "rgba(46,167,255,0.4)",
-              boxShadow: "0 0 10px rgba(46,167,255,0.3)",
-              cursor: isSongPlaying ? "pointer" : "not-allowed",
-              padding: 0,
-              opacity: isSongPlaying ? 1 : 0.65,
               ...padStyle,
             }}
           >
             <span
               aria-hidden="true"
+              className={algebraStyles.rtcmHitPadLabel}
               style={{
-                color: "#FFFFFF",
-                fontSize: 24,
-                fontWeight: 900,
-                lineHeight: 1,
-                textShadow: "0 0 8px rgba(0,0,0,0.28)",
+                fontSize: Math.max(16, Math.round(24 * scale)),
               }}
             >
               {padNumber}
@@ -8608,46 +8608,24 @@ function RtcmHoldToken({
   return (
     <div
       ref={surfaceRef}
-      style={{
-        position: "relative",
-        width: 260,
-        height: 198,
-        display: "grid",
-        placeItems: "center",
-        overflow: "visible",
-      }}
+      className={algebraStyles.rtcmGestureStage}
+      data-mechanic={mechanic}
+      data-armed={isArmed ? "true" : "false"}
+      data-capturing={(isDraggingToken || isDraggingSpinHandle) ? "true" : "false"}
     >
       {mechanic === "spin" ? (
         <span
           aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "grid",
-            placeItems: "center",
-            pointerEvents: "none",
-            zIndex: 1,
-          }}
+          className={algebraStyles.rtcmSpinGlyph}
         >
           <SpinIcon
-            style={{
-              width: 172,
-              height: 180,
-              opacity: 0.95,
-              filter: isArmed ? "drop-shadow(0 0 22px rgba(255,255,255,0.15))" : "none",
-            }}
+            className={algebraStyles.rtcmSpinGlyphIcon}
           />
         </span>
       ) : (
         <span
           aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-            zIndex: 1,
-            opacity: 0.95,
-          }}
+          className={algebraStyles.rtcmDragGhost}
         >
           <svg
             width="100%"
@@ -8659,15 +8637,17 @@ function RtcmHoldToken({
           >
             <path
               d="M 5 99 A 125 72 0 0 1 255 99"
-              stroke="rgba(180, 92, 255, 0.32)"
-              strokeWidth="72"
+              stroke="rgba(157, 145, 255, 0.2)"
+              strokeWidth="58"
               strokeLinecap="round"
+              strokeDasharray="1 5"
             />
             <path
               d="M 5 99 A 125 72 0 0 0 255 99"
-              stroke="rgba(180, 92, 255, 0.32)"
-              strokeWidth="72"
+              stroke="rgba(157, 145, 255, 0.2)"
+              strokeWidth="58"
               strokeLinecap="round"
+              strokeDasharray="1 5"
             />
           </svg>
         </span>
@@ -8676,18 +8656,8 @@ function RtcmHoldToken({
       {mechanic === "spin" ? (
         <span
           aria-hidden="true"
-          style={{
-            position: "absolute",
-            left: tokenBasePosition.left,
-            top: tokenBasePosition.top,
-            width: spinRingDiameter,
-            height: spinRingDiameter,
-            borderRadius: 999,
-            border: "5px solid rgba(255, 138, 138, 0.7)",
-            transform: "translate(-50%, -50%)",
-            pointerEvents: "none",
-            zIndex: 2,
-          }}
+          className={algebraStyles.rtcmSpinTrack}
+          style={{ width: spinRingDiameter, height: spinRingDiameter }}
         />
       ) : null}
 
@@ -8699,23 +8669,15 @@ function RtcmHoldToken({
           onPointerUp={finishSpinHandleGesture}
           onPointerCancel={finishSpinHandleGesture}
           disabled={!isSongPlaying}
+          className={algebraStyles.rtcmSpinHandle}
+          data-capturing={isDraggingSpinHandle ? "true" : "false"}
           style={{
             position: "absolute",
             left: spinHandleX,
             top: spinHandleY,
             width: spinHandleDiameter,
             height: spinHandleDiameter,
-            borderRadius: 999,
-            border: "1px solid #7CC8FF",
-            background: isSongPlaying ? "#2EA7FF" : "rgba(46,167,255,0.4)",
-            boxShadow: "0 0 10px rgba(46,167,255,0.3)",
-            cursor: isSongPlaying ? "grab" : "not-allowed",
-            padding: 0,
-            transform: "translate(-50%, -50%)",
-            zIndex: 4,
-            touchAction: "none",
-            opacity: isSongPlaying ? 1 : 0.65,
-            transition: isDraggingSpinHandle ? "none" : "left 120ms linear, top 120ms linear",
+            transition: isDraggingSpinHandle ? "none" : undefined,
           }}
           aria-label="Hold to add spin timing"
           title={
@@ -8732,11 +8694,14 @@ function RtcmHoldToken({
         onPointerMove={handleTokenPointerMove}
         onPointerUp={finishTokenGesture}
         onPointerCancel={finishTokenGesture}
+        className={algebraStyles.rtcmGestureToken}
+        data-mechanic={mechanic}
+        data-armed={isArmed ? "true" : "false"}
+        data-capturing={isDraggingToken ? "true" : "false"}
         style={{
           position: "absolute",
           left: mechanic === "drag" ? dragTokenX : tokenBasePosition.left,
           top: mechanic === "drag" ? dragTokenY : tokenBasePosition.top,
-          transform: "translate(-50%, -50%)",
           transition:
             mechanic === "drag"
               ? isDraggingToken
@@ -8744,19 +8709,7 @@ function RtcmHoldToken({
                 : "left 180ms ease-out, top 180ms ease-out"
               : isDraggingToken
                 ? "none"
-                : "transform 180ms ease-out",
-          border: "none",
-          background: "transparent",
-          cursor: mechanic === "spin" ? "default" : isDraggingToken ? "grabbing" : "grab",
-          padding: 0,
-          zIndex: 3,
-          touchAction: "none",
-          filter: isArmed
-            ? mechanic === "spin"
-              ? "drop-shadow(0 0 20px rgba(255,53,53,0.36))"
-              : "drop-shadow(0 0 20px rgba(180,92,255,0.42))"
-            : "none",
-          pointerEvents: mechanic === "spin" ? "none" : "auto",
+                : undefined,
         }}
         aria-label={`Hold to add ${mechanic} timing`}
         title={
@@ -8809,191 +8762,123 @@ function RtcmModePanel({
   const [selectedTool, setSelectedTool] = useState<GameplayMechanic>("hit");
   const isEncounterOpen = eventRangeStartTick !== null;
   const canRecord = isSongPlaying && isEncounterOpen;
+  const capturePrompt = canRecord ? "CAPTURE READY" : isSongPlaying ? "OPEN RANGE" : isEncounterOpen ? "PLAY SONG" : "OPEN RANGE + PLAY";
 
   return (
-    <section
-      aria-label="Real-time chart maker"
-      style={{
-        width: "100%",
-        height: "100%",
-        minHeight: 0,
-        minWidth: 0,
-        background: "transparent",
-        color: textColor,
-        boxSizing: "border-box",
-        overflow: "auto",
-        display: "grid",
-        gridTemplateRows: "auto auto minmax(0, 1fr)",
-        justifyItems: "stretch",
-        alignItems: "stretch",
-        gap: 10,
-        padding: "clamp(12px, 1.4vw, 20px)",
-        fontFamily: "Space Grotesk, sans-serif",
-      }}
-    >
-      <div
-        style={{
-          width: "min(100%, 1120px)",
-          justifySelf: "center",
-          display: "flex",
-          justifyContent: "flex-start",
-          paddingBottom: 0,
-          boxSizing: "border-box",
-          overflow: "visible",
-        }}
-      >
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-start" }}>
+    <section className={algebraStyles.rtcmModePanel} aria-label="Real-time chart maker" data-encounter-open={isEncounterOpen ? "true" : "false"}>
+      <div className={algebraStyles.rtcmModeHeader}>
+        <div className={algebraStyles.rtcmModeIdentity}>
+          <span className={algebraStyles.rtcmModeEyebrow}>RECORD LIVE</span>
+          <strong>Capture the move on the beat</strong>
+          <span>Play the song, open an encounter, then record each gesture.</span>
+        </div>
+        <div className={algebraStyles.rtcmModeActions}>
           <button
             type="button"
-            className={algebraStyles.recordEncounterButton}
-            aria-pressed={eventRangeStartTick !== null}
+            className={`${algebraStyles.recordEncounterButton} ${algebraStyles.rtcmRecordButton}`}
+            aria-pressed={isEncounterOpen}
+            data-recording={isEncounterOpen ? "true" : "false"}
             title={eventRangeStartTick === null ? "Start capturing moves in a song range" : "Finish and save the recorded encounter"}
             onClick={onCreateEvent}
-            style={{
-              minWidth: 132,
-              minHeight: 44,
-              borderRadius: 12,
-              border: `1px solid ${eventRangeStartTick !== null ? "#CFFF04" : "rgba(169,217,208,.35)"}`,
-              background: eventRangeStartTick !== null ? "linear-gradient(145deg, rgba(207,255,4,.16), rgba(16,51,54,.95))" : "rgba(16,51,54,.9)",
-              color: eventRangeStartTick !== null ? "#CFFF04" : "#FFFFFFDD",
-              fontSize: 11,
-              fontWeight: 900,
-              cursor: "pointer",
-              padding: "0 12px",
-            }}
           >
             {eventRangeStartTick === null ? "Record encounter" : "Save encounter"}
           </button>
-          <button
-            type="button"
-            onClick={onDeleteEvent}
-            disabled={!canDeleteEvent}
-            style={{
-              minWidth: 120,
-              minHeight: 38,
-              borderRadius: 10,
-              border: `1px solid ${subtleBorderColor}`,
-              background: canDeleteEvent ? "rgba(16,51,54,.9)" : "rgba(16,51,54,.48)",
-              color: canDeleteEvent ? "#E7F3EF" : "#A9B9B5",
-              fontSize: 11,
-              fontWeight: 900,
-              cursor: canDeleteEvent ? "pointer" : "not-allowed",
-              padding: "0 12px",
-            }}
-          >
-            Delete Event
+          <button type="button" className={algebraStyles.rtcmSecondaryButton} onClick={onDeleteEvent} disabled={!canDeleteEvent}>
+            Delete event
           </button>
-          <button
-            type="button"
-            onClick={onClear}
-            style={{
-              minWidth: 100,
-              minHeight: 38,
-              borderRadius: 10,
-              border: "1px solid rgba(255,124,124,.42)",
-              background: "rgba(73,30,35,.56)",
-              color: "#FFC0C0",
-              fontSize: 11,
-              fontWeight: 900,
-              cursor: "pointer",
-              padding: "0 12px",
-            }}
-          >
+          <button type="button" className={algebraStyles.rtcmClearButton} onClick={onClear}>
             Clear draft
           </button>
         </div>
       </div>
 
-      <div style={{ width: "min(100%, 1120px)", justifySelf: "center", display: "grid", gap: 9, paddingBottom: 0 }}>
-        {isEncounterOpen ? (
-          <div
-            className={algebraStyles.rtcmCaptureReadout}
-            aria-label="Encounter capture range"
-            aria-live="off"
-          >
-            <div className={algebraStyles.rtcmCaptureMeta}>
-              <span>CAPTURE WINDOW</span>
-              <span>PLAYHEAD {formatSongTime(currentSongSeconds, true)}</span>
-            </div>
-            <div className={algebraStyles.rtcmCaptureRange}>
-              <span>{formatSongTime(Math.min(eventRangeStartTick, currentSongSeconds), true)}</span>
-              <span aria-hidden="true">→</span>
-              <span>{formatSongTime(Math.max(eventRangeStartTick, currentSongSeconds), true)}</span>
-            </div>
-            <div className={algebraStyles.rtcmCaptureCounts}>
-              <span>{inRangeDraftCount} move{inRangeDraftCount === 1 ? "" : "s"} will be included</span>
-              {outOfRangeDraftCount > 0 ? (
-                <span>{outOfRangeDraftCount} draft{outOfRangeDraftCount === 1 ? "" : "s"} outside this range</span>
-              ) : null}
-            </div>
+      {isEncounterOpen ? (
+        <div className={algebraStyles.rtcmCaptureReadout} aria-label="Encounter capture range" aria-live="off">
+          <div className={algebraStyles.rtcmCaptureMeta}>
+            <span>CAPTURE WINDOW</span>
+            <span>PLAYHEAD {formatSongTime(currentSongSeconds, true)}</span>
           </div>
-        ) : null}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }} aria-label="Choose recorder tool">
-          {gameplayMechanics.map((mechanic) => (
-            <button
-              key={mechanic}
-              type="button"
-              onClick={() => setSelectedTool(mechanic)}
-              aria-pressed={selectedTool === mechanic}
-              style={{
-                minHeight: 58,
-                borderRadius: 14,
-                border: `1px solid ${selectedTool === mechanic ? mechanic === "hit" ? "#2EA7FF" : mechanic === "spin" ? "#FF8A8A" : "#C69AFF" : subtleBorderColor}`,
-                background: selectedTool === mechanic ? "linear-gradient(145deg, rgba(34,81,83,.76), rgba(12,35,40,.98))" : "rgba(8,29,36,.88)",
-                color: "#FFFFFF",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                padding: "7px 9px",
-                boxShadow: selectedTool === mechanic ? "inset 0 1px #FFFFFF22, 0 5px 18px #0004" : "none",
-                cursor: "pointer",
-              }}
-            >
-              {mechanic === "hit" ? <TouchAppRoundedIcon aria-hidden="true" fontSize="small" /> : mechanic === "spin" ? <ReplayRoundedIcon aria-hidden="true" fontSize="small" /> : <SwipeRoundedIcon aria-hidden="true" fontSize="small" />}
-              <span style={{ display: "grid", gap: 1, textAlign: "left" }}>
-                <strong style={{ fontSize: 14 }}>{mechanic === "hit" ? "Hit" : mechanic === "spin" ? "Spin" : "Drag"}</strong>
-                <small style={{ color: "#CBD7E9", fontSize: 11, fontWeight: 600 }}>{mechanic === "hit" ? "Tap a pad" : mechanic === "spin" ? "Hold & turn" : "Pull a term"}</small>
-              </span>
-            </button>
-          ))}
+          <div className={algebraStyles.rtcmCaptureRange}>
+            <span>{formatSongTime(Math.min(eventRangeStartTick, currentSongSeconds), true)}</span>
+            <span aria-hidden="true">→</span>
+            <span>{formatSongTime(Math.max(eventRangeStartTick, currentSongSeconds), true)}</span>
+          </div>
+          <div className={algebraStyles.rtcmCaptureCounts}>
+            <span>{inRangeDraftCount} move{inRangeDraftCount === 1 ? "" : "s"} will be included</span>
+            {outOfRangeDraftCount > 0 ? <span>{outOfRangeDraftCount} draft{outOfRangeDraftCount === 1 ? "" : "s"} outside this range</span> : null}
+          </div>
         </div>
-        <div role="status" aria-live="polite" style={{ color: isEncounterOpen ? "#DFFF70" : "#BED0D0", fontSize: 13, fontWeight: 700, lineHeight: 1.45, textAlign: "left" }}>
-          {pendingRangeMechanic
-            ? `Recording ${pendingRangeMechanic}. Release to set its end time.`
-            : isEncounterOpen
-              ? `${inRangeDraftCount} move${inRangeDraftCount === 1 ? "" : "s"} in this range. ${isSongPlaying ? "Use the selected gesture or save the encounter." : "Play the song to capture moves."}`
-              : draftedActionCount > 0
-                ? `${draftedActionCount} unsaved move${draftedActionCount === 1 ? "" : "s"} remain. Start an encounter to place them in a song range.`
-                : "Start an encounter, play the song, then capture each move with its gesture."}
-        </div>
+      ) : null}
+
+      <div className={algebraStyles.rtcmToolRail} role="group" aria-label="Choose recorder tool">
+        {gameplayMechanics.map((mechanic) => (
+          <button
+            key={mechanic}
+            type="button"
+            className={algebraStyles.rtcmToolButton}
+            data-mechanic={mechanic}
+            aria-pressed={selectedTool === mechanic}
+            onClick={() => setSelectedTool(mechanic)}
+          >
+            <span className={algebraStyles.rtcmToolIcon} aria-hidden="true">
+              {mechanic === "hit" ? <TouchAppRoundedIcon fontSize="small" /> : mechanic === "spin" ? <ReplayRoundedIcon fontSize="small" /> : <SwipeRoundedIcon fontSize="small" />}
+            </span>
+            <span className={algebraStyles.rtcmToolCopy}>
+              <strong>{mechanic === "hit" ? "Hit" : mechanic === "spin" ? "Spin" : "Drag"}</strong>
+              <small>{mechanic === "hit" ? "Tap a pad" : mechanic === "spin" ? "Hold and turn" : "Pull a term"}</small>
+            </span>
+            <span className={algebraStyles.rtcmToolStep} aria-hidden="true">{mechanic === "hit" ? "01" : mechanic === "spin" ? "02" : "03"}</span>
+          </button>
+        ))}
       </div>
 
       <div
-        style={{ width: "min(100%, 1120px)", height: "100%", minHeight: 0, justifySelf: "center", display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 9 }}
+        className={algebraStyles.rtcmCaptureStatus}
+        role="status"
+        aria-live="polite"
+        data-state={pendingRangeMechanic ? "capturing" : isEncounterOpen ? "open" : "idle"}
       >
-        <div
-          style={{ display: selectedTool === "hit" ? "grid" : "none", minHeight: 0, borderRadius: 16, border: "1px solid #66D9FF66", background: "linear-gradient(145deg, rgba(19, 54, 62, .96), rgba(7, 23, 30, .98))", padding: "clamp(12px, 1.4vw, 20px)", boxSizing: "border-box", gridTemplateRows: "auto 1fr auto", justifyItems: "center", gap: 10, alignItems: "center" }}
-        >
-          <div style={{ color: "#66D9FF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>Hit</div>
+        <span className={algebraStyles.rtcmStatusDot} aria-hidden="true" />
+        <span>{pendingRangeMechanic
+          ? `Recording ${pendingRangeMechanic}. Release to set its end time.`
+          : isEncounterOpen
+            ? `${inRangeDraftCount} move${inRangeDraftCount === 1 ? "" : "s"} in this range. ${isSongPlaying ? "Use the selected gesture or save the encounter." : "Play the song to capture moves."}`
+            : draftedActionCount > 0
+              ? `${draftedActionCount} unsaved move${draftedActionCount === 1 ? "" : "s"} remain. Start an encounter to place them in a song range.`
+              : "Start an encounter, play the song, then capture each gesture."}
+        </span>
+        <span className={algebraStyles.rtcmCaptureReady}>{canRecord ? "LIVE" : "READY WHEN PLAYING"}</span>
+      </div>
+
+      <div className={algebraStyles.rtcmPreviewRegion}>
+        <div className={algebraStyles.rtcmPreviewCard} data-mechanic="hit" style={{ display: selectedTool === "hit" ? "grid" : "none" }} aria-hidden={selectedTool !== "hit"}>
+          <div className={algebraStyles.rtcmPreviewHeading}>
+            <span className={algebraStyles.rtcmPreviewGlyph}>01</span>
+            <div><strong>Choose a hit pad</strong><span>Tap the pad the learner should hit.</span></div>
+            <span className={algebraStyles.rtcmPreviewState} data-ready={canRecord ? "true" : "false"}>{canRecord ? "CAPTURE READY" : capturePrompt}</span>
+          </div>
           <RtcmHitPadToken onAddHit={onAddHit} isSongPlaying={canRecord} />
-          <div style={{ color: "#C1D5D6", fontSize: 12, fontWeight: 650, textAlign: "center" }}>While the song plays, click the pad the learner should hit.</div>
+          <p className={algebraStyles.rtcmPreviewHint}>Each tap records a chart-timed Hit at the current playhead.</p>
         </div>
 
-        <div
-          style={{ display: selectedTool === "spin" ? "grid" : "none", minHeight: 0, borderRadius: 16, border: `1px solid ${pendingRangeMechanic === "spin" ? "#FF8A8AAA" : "#FF8A8A55"}`, background: "linear-gradient(145deg, rgba(42, 39, 43, .96), rgba(7, 23, 30, .98))", padding: "clamp(12px, 1.4vw, 20px)", boxSizing: "border-box", gridTemplateRows: "auto 1fr auto", justifyItems: "center", gap: 10, alignItems: "center" }}
-        >
-          <div style={{ color: "#FF9A9A", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>Spin</div>
+        <div className={algebraStyles.rtcmPreviewCard} data-mechanic="spin" style={{ display: selectedTool === "spin" ? "grid" : "none" }} aria-hidden={selectedTool !== "spin"}>
+          <div className={algebraStyles.rtcmPreviewHeading}>
+            <span className={algebraStyles.rtcmPreviewGlyph}>02</span>
+            <div><strong>Trace the spin</strong><span>Hold the handle and follow the ring.</span></div>
+            <span className={algebraStyles.rtcmPreviewState} data-ready={pendingRangeMechanic === "spin" ? "true" : "false"}>{pendingRangeMechanic === "spin" ? "RELEASE TO SET END" : canRecord ? "READY TO SPIN" : capturePrompt}</span>
+          </div>
           <RtcmHoldToken mechanic="spin" isSongPlaying={canRecord} isArmed={pendingRangeMechanic === "spin"} onStartHold={onStartHold} onEndHold={onEndHold} />
-          <div style={{ color: "#C1D5D6", fontSize: 12, fontWeight: 650, textAlign: "center" }}>Hold for the full spin duration. Release to record it in this encounter draft.</div>
+          <p className={algebraStyles.rtcmPreviewHint}>Hold for the full spin duration; release to set its end time.</p>
         </div>
 
-        <div
-          style={{ display: selectedTool === "drag" ? "grid" : "none", minHeight: 0, borderRadius: 16, border: `1px solid ${pendingRangeMechanic === "drag" ? "#B796FFAA" : "#B796FF55"}`, background: "linear-gradient(145deg, rgba(43, 39, 55, .96), rgba(7, 23, 30, .98))", padding: "clamp(12px, 1.4vw, 20px)", boxSizing: "border-box", gridTemplateRows: "auto 1fr auto", justifyItems: "center", gap: 10, alignItems: "center" }}
-        >
-          <div style={{ color: "#C5A8FF", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>Drag</div>
+        <div className={algebraStyles.rtcmPreviewCard} data-mechanic="drag" style={{ display: selectedTool === "drag" ? "grid" : "none" }} aria-hidden={selectedTool !== "drag"}>
+          <div className={algebraStyles.rtcmPreviewHeading}>
+            <span className={algebraStyles.rtcmPreviewGlyph}>03</span>
+            <div><strong>Pull the term across</strong><span>Follow the curved path, then release.</span></div>
+            <span className={algebraStyles.rtcmPreviewState} data-ready={pendingRangeMechanic === "drag" ? "true" : "false"}>{pendingRangeMechanic === "drag" ? "RELEASE TO SET END" : canRecord ? "READY TO DRAG" : capturePrompt}</span>
+          </div>
           <RtcmHoldToken mechanic="drag" isSongPlaying={canRecord} isArmed={pendingRangeMechanic === "drag"} onStartHold={onStartHold} onEndHold={onEndHold} />
-          <div style={{ color: "#C1D5D6", fontSize: 12, fontWeight: 650, textAlign: "center" }}>Hold for the full drag duration. Release to record it in this encounter draft.</div>
+          <p className={algebraStyles.rtcmPreviewHint}>Keep the pointer down for the full drag duration to record its path in the encounter.</p>
         </div>
       </div>
     </section>

@@ -1097,6 +1097,238 @@
 .timelineEventClusterMenu { border-color: rgba(169,217,208,.24); background: #082733; }
 .timelineEventClusterOption:hover, .timelineEventClusterOption[data-active="true"] { border-color: rgba(207,255,4,.42); background: rgba(207,255,4,.1); }
 .timelineEventClusterOption:focus-visible { outline-color: var(--studio-accent); }
+
+/* Record Live shares Guided mode's ink, water and glass language. */
+.rtcmModePanel {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(240px, 1fr);
+  align-content: stretch;
+  gap: clamp(8px, 1.15vh, 12px);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: clamp(12px, 1.4vw, 20px);
+  color: #f4f5ed;
+  font-family: var(--ur-font-interface), "Space Grotesk", sans-serif;
+}
+.rtcmModePanel[data-encounter-open="true"] { grid-template-rows: auto auto auto auto minmax(240px, 1fr); }
+.rtcmModeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(100%, 1120px);
+  justify-self: center;
+  padding: 0 0 10px;
+  border-bottom: 1px solid rgba(169,217,208,.18);
+}
+.rtcmModeIdentity { display: grid; gap: 2px; min-width: 180px; }
+.rtcmModeEyebrow { color: var(--studio-accent); font-size: 10px; font-weight: 900; letter-spacing: .14em; }
+.rtcmModeIdentity strong { color: #fff; font-size: clamp(14px, 1.4vw, 17px); line-height: 1.2; }
+.rtcmModeIdentity > span:last-child { color: #b8cbc6; font-size: 12px; line-height: 1.35; }
+.rtcmModeActions { display: flex; flex: none; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 7px; }
+.rtcmRecordButton, .rtcmSecondaryButton, .rtcmClearButton {
+  min-height: 44px;
+  padding: 0 13px;
+  border: 1px solid rgba(169,217,208,.28);
+  border-radius: 11px;
+  background: rgba(8,39,51,.9);
+  color: #eff8f4;
+  font: 800 11px/1.2 var(--ur-font-interface), "Space Grotesk", sans-serif;
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease, color .16s ease, transform .16s ease;
+}
+.rtcmRecordButton[data-recording="true"] { border-color: var(--studio-accent); background: rgba(207,255,4,.1); color: #eaff95; }
+.rtcmSecondaryButton:hover:not(:disabled), .rtcmClearButton:hover { border-color: rgba(207,255,4,.56); background: rgba(16,51,54,.96); }
+.rtcmSecondaryButton:disabled { opacity: .42; cursor: not-allowed; }
+.rtcmClearButton { border-color: rgba(226,159,154,.3); color: #f2c7c4; }
+.rtcmCaptureReadout { width: min(100%, 1120px); justify-self: center; }
+.rtcmToolRail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: min(100%, 1120px);
+  justify-self: center;
+}
+.rtcmToolButton {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 8px 12px;
+  border: 1px solid rgba(169,217,208,.2);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.01)), rgba(8,39,51,.82);
+  color: #e8f2ef;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .16s cubic-bezier(.22,1,.36,1), border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.rtcmToolButton:hover { transform: translateY(-1px); border-color: rgba(169,217,208,.46); }
+.rtcmToolButton[aria-pressed="true"] { border-color: rgba(207,255,4,.62); background: linear-gradient(145deg, rgba(207,255,4,.12), rgba(40,121,129,.1)), #0c2b34; box-shadow: inset 0 1px rgba(255,255,255,.12), 0 7px 18px rgba(0,0,0,.2); }
+.rtcmToolIcon {
+  display: grid;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid rgba(169,217,208,.28);
+  border-radius: 11px;
+  background: rgba(255,255,255,.045);
+  color: #d6e5df;
+}
+.rtcmToolButton[data-mechanic="hit"] .rtcmToolIcon { color: #dfff70; }
+.rtcmToolButton[data-mechanic="spin"] .rtcmToolIcon { color: #d4c3ff; }
+.rtcmToolButton[data-mechanic="drag"] .rtcmToolIcon { color: #8fe8e3; }
+.rtcmToolCopy { display: grid; gap: 2px; min-width: 0; }
+.rtcmToolCopy strong { color: #fff; font-size: 14px; line-height: 1.1; }
+.rtcmToolCopy small { color: #b8cbc6; font-size: 11px; font-weight: 650; line-height: 1.25; }
+.rtcmToolStep { margin-left: auto; align-self: flex-start; color: #a9bdb8; font-size: 10px; font-weight: 900; letter-spacing: .08em; }
+.rtcmToolButton[aria-pressed="true"] .rtcmToolStep { color: var(--studio-accent); }
+.rtcmCaptureStatus {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: min(100%, 1120px);
+  min-width: 0;
+  justify-self: center;
+  padding: 8px 11px;
+  border: 1px solid rgba(169,217,208,.16);
+  border-radius: 10px;
+  background: rgba(5,24,31,.62);
+  color: #c4d5d0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.rtcmCaptureStatus[data-state="capturing"] { border-color: rgba(207,255,4,.48); color: #efffc1; }
+.rtcmStatusDot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: #6f8b86; }
+.rtcmCaptureStatus[data-state="open"] .rtcmStatusDot, .rtcmCaptureStatus[data-state="capturing"] .rtcmStatusDot { background: var(--studio-accent); box-shadow: 0 0 12px rgba(207,255,4,.58); }
+.rtcmCaptureReady { flex: none; margin-left: auto; color: #9eb5af; font-size: 9px; font-weight: 900; letter-spacing: .1em; white-space: nowrap; }
+.rtcmCaptureStatus[data-state="capturing"] .rtcmCaptureReady { color: var(--studio-accent); }
+.rtcmPreviewRegion { width: min(100%, 1120px); min-height: 0; justify-self: center; }
+.rtcmPreviewCard {
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-items: center;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  overflow: hidden;
+  padding: clamp(10px, 1.3vw, 17px);
+  border: 1px solid rgba(169,217,208,.24);
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(40,121,129,.13), transparent 56%),
+    linear-gradient(145deg, rgba(255,255,255,.045), transparent 44%),
+    rgba(5,24,31,.86);
+  box-shadow: inset 0 1px rgba(255,255,255,.07), 0 12px 28px rgba(0,0,0,.2);
+  animation: rtcmPreviewEnter .22s cubic-bezier(.22,1,.36,1) both;
+}
+.rtcmPreviewCard::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 52%, rgba(207,255,4,.06), transparent 48%);
+  content: "";
+  pointer-events: none;
+}
+.rtcmPreviewHeading {
+  display: grid;
+  grid-template-columns: 34px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 740px);
+  min-width: 0;
+}
+.rtcmPreviewGlyph { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid rgba(207,255,4,.38); border-radius: 50%; background: rgba(207,255,4,.07); color: var(--studio-accent); font-size: 10px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.rtcmPreviewHeading[data-mechanic="spin"] .rtcmPreviewGlyph { border-color: rgba(183,160,255,.5); background: rgba(183,160,255,.09); color: #d4c3ff; }
+.rtcmPreviewHeading[data-mechanic="drag"] .rtcmPreviewGlyph { border-color: rgba(102,217,255,.45); background: rgba(102,217,255,.08); color: #8fe8e3; }
+.rtcmPreviewHeading > div { display: grid; gap: 2px; min-width: 0; }
+.rtcmPreviewHeading strong { color: #fff; font-size: 14px; line-height: 1.2; }
+.rtcmPreviewHeading > div > span { color: #b8cbc6; font-size: 11px; line-height: 1.35; }
+.rtcmPreviewState { color: #a9bdb8; font-size: 9px; font-weight: 900; letter-spacing: .08em; white-space: nowrap; }
+.rtcmPreviewState[data-ready="true"] { color: var(--studio-accent); }
+.rtcmPreviewHint { width: min(100%, 740px); margin: 0; color: #b8cbc6; font-size: 11px; line-height: 1.35; text-align: center; }
+.rtcmHitPadStage { position: relative; display: grid; width: min(300px, 100%); aspect-ratio: 15 / 13; place-items: center; overflow: visible; }
+.rtcmHitPadStage > div { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.rtcmHitPadButton {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(217,255,80,.72);
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 24%, rgba(255,255,255,.34), rgba(255,255,255,.08) 42%, transparent 72%), linear-gradient(145deg, rgba(207,255,4,.32), rgba(40,121,129,.52));
+  color: #fff;
+  box-shadow: inset 0 1px rgba(255,255,255,.42), 0 0 0 1px rgba(207,255,4,.12), 0 7px 18px rgba(0,0,0,.24);
+  cursor: pointer;
+  transition: transform .16s cubic-bezier(.22,1,.36,1), border-color .16s ease, filter .16s ease, opacity .16s ease;
+}
+.rtcmHitPadButton:not(:disabled):hover { filter: brightness(1.18); box-shadow: inset 0 1px rgba(255,255,255,.52), 0 0 0 3px rgba(207,255,4,.13), 0 10px 22px rgba(0,0,0,.3); }
+.rtcmHitPadButton:disabled { opacity: .45; cursor: not-allowed; box-shadow: inset 0 1px rgba(255,255,255,.2); }
+.rtcmHitPadButton:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.rtcmHitPadLabel { color: #fff; font-weight: 900; line-height: 1; text-shadow: 0 1px 8px rgba(0,0,0,.45); }
+.rtcmGestureStage { position: relative; display: grid; width: 260px; height: 198px; place-items: center; overflow: visible; }
+.rtcmSpinGlyph, .rtcmDragGhost { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; pointer-events: none; opacity: .84; }
+.rtcmSpinGlyphIcon { width: 172px; height: 180px; color: rgba(238,248,244,.58); filter: drop-shadow(0 8px 16px rgba(0,0,0,.25)); }
+.rtcmDragGhost { opacity: .72; }
+.rtcmDragGhost svg { display: block; overflow: visible; }
+.rtcmSpinTrack { position: absolute; left: 50%; top: 50%; box-sizing: border-box; border: 2px solid rgba(183,160,255,.56); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; z-index: 2; box-shadow: inset 0 0 18px rgba(183,160,255,.08), 0 0 18px rgba(183,160,255,.12); transition: border-color .18s ease, box-shadow .18s ease; }
+.rtcmGestureStage[data-mechanic="drag"] .rtcmSpinTrack { border-color: rgba(102,217,255,.22); }
+.rtcmGestureStage[data-armed="true"] .rtcmSpinTrack { border-color: rgba(207,255,4,.82); box-shadow: inset 0 0 20px rgba(207,255,4,.08), 0 0 26px rgba(207,255,4,.22); }
+.rtcmSpinHandle { position: absolute; z-index: 4; display: grid; place-items: center; padding: 0; border: 1px solid rgba(207,255,4,.76); border-radius: 50%; background: radial-gradient(circle at 32% 24%, rgba(255,255,255,.4), rgba(255,255,255,.07) 55%), rgba(40,121,129,.75); box-shadow: inset 0 1px rgba(255,255,255,.45), 0 0 18px rgba(207,255,4,.24); transform: translate(-50%,-50%); touch-action: none; cursor: grab; transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease; }
+.rtcmSpinHandle:not(:disabled):hover { transform: translate(-50%,-50%) scale(1.1); }
+.rtcmSpinHandle:disabled { opacity: .45; cursor: not-allowed; }
+.rtcmSpinHandle[data-capturing="true"] { transform: translate(-50%,-50%) scale(1.08); box-shadow: 0 0 0 6px rgba(207,255,4,.12), 0 0 28px rgba(207,255,4,.52); }
+.rtcmGestureToken { z-index: 3; display: grid; place-items: center; padding: 0; border: 0; background: transparent; transform: translate(-50%,-50%); touch-action: none; cursor: grab; transition: filter .16s ease; }
+.rtcmGestureToken[data-mechanic="spin"] { pointer-events: none; }
+.rtcmGestureToken:active { cursor: grabbing; }
+.rtcmGestureToken[data-armed="true"] { filter: drop-shadow(0 0 18px rgba(207,255,4,.36)); }
+.rtcmGestureToken[data-capturing="true"] { filter: drop-shadow(0 0 24px rgba(207,255,4,.58)); }
+@keyframes rtcmPreviewEnter { from { opacity: .75; transform: translateY(4px) scale(.995); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (max-width: 900px) {
+  .rtcmModePanel { grid-template-rows: auto auto auto minmax(250px, 1fr); }
+  .rtcmModePanel[data-encounter-open="true"] { grid-template-rows: auto auto auto auto minmax(250px, 1fr); }
+  .rtcmModeHeader { align-items: flex-start; flex-direction: column; }
+  .rtcmModeActions { width: 100%; justify-content: flex-start; }
+  .rtcmPreviewCard { min-height: 250px; }
+}
+@media (max-width: 560px) {
+  .rtcmModePanel { padding: 10px; gap: 8px; }
+  .rtcmToolRail { gap: 5px; }
+  .rtcmToolButton { align-items: flex-start; flex-direction: column; min-height: 76px; gap: 5px; padding: 7px; }
+  .rtcmToolIcon { width: 30px; height: 30px; flex-basis: 30px; border-radius: 9px; }
+  .rtcmToolCopy strong { font-size: 12px; }
+  .rtcmToolCopy small { font-size: 10px; }
+  .rtcmToolStep { position: absolute; top: 8px; right: 8px; }
+  .rtcmCaptureReady { display: none; }
+  .rtcmPreviewHeading { grid-template-columns: 30px minmax(0,1fr); gap: 8px; }
+  .rtcmPreviewGlyph { width: 28px; height: 28px; }
+  .rtcmPreviewState { grid-column: 2; }
+  .rtcmPreviewCard { min-height: 250px; padding: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rtcmRecordButton, .rtcmSecondaryButton, .rtcmClearButton, .rtcmToolButton, .rtcmHitPadButton, .rtcmSpinTrack, .rtcmSpinHandle, .rtcmGestureToken { transition: none; }
+  .rtcmToolButton:hover { transform: none; }
+  .rtcmPreviewCard { animation: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .rtcmToolButton, .rtcmCaptureStatus, .rtcmPreviewCard, .rtcmHitPadButton, .rtcmSpinHandle { backdrop-filter: none; }
+  .rtcmPreviewCard { background: #082733; }
+  .rtcmHitPadButton { background: #285343; }
+}
+
 @media (max-width: 900px) {
   .headerInner { padding-inline: 12px; }
   .headerStudioIdentity strong { font-size: 13px; }
