@@ -77,6 +77,9 @@ export function NumberBondsMissionComposer({
   notes,
   authoredNoteCount,
   hasAuthoredSequence,
+  isDemoMode = false,
+  publishedLaunchPhase = "idle",
+  publishedLessonUnavailable = false,
   selectedNoteId,
   selectedHitEditor,
   selectedEncounterId,
@@ -105,6 +108,9 @@ export function NumberBondsMissionComposer({
   notes: OrbitNote[];
   authoredNoteCount: number;
   hasAuthoredSequence: boolean;
+  isDemoMode?: boolean;
+  publishedLaunchPhase?: "idle" | "checking" | "preparing";
+  publishedLessonUnavailable?: boolean;
   selectedNoteId?: string | null;
   selectedHitEditor?: ReactNode;
   selectedEncounterId?: string | null;
@@ -134,10 +140,13 @@ export function NumberBondsMissionComposer({
   const maxInputWhole = Math.max(NUMBER_BONDS_MIN_WHOLE, maxSelectableWhole);
   const canChooseNumber = isSongLoaded && maxSelectableWhole >= NUMBER_BONDS_MIN_WHOLE && !isPreparing;
   const canPlaceNotes = whole >= NUMBER_BONDS_MIN_WHOLE && whole <= maxSelectableWhole;
-  const primaryAction = getNumberBondEditorAction({ ready: isReady, matchingNotes: authoredNoteCount === whole, hasSequence: hasAuthoredSequence });
+  const primaryAction = getNumberBondEditorAction({ ready: isReady, matchingNotes: authoredNoteCount === whole, hasSequence: hasAuthoredSequence, demo: isDemoMode });
   const presentation = getBondPresentationState({ loaded: isSongLoaded, error: Boolean(loadError), preparing: isPreparing, ready: isReady, built: primaryAction === "review" });
   const stopFitsSong = !stopAtSeconds || !songDurationSeconds || stopAtSeconds <= songDurationSeconds + 0.05;
-  const canPlay = isSongLoaded && (primaryAction === "review" || (stopFitsSong && (isReady || canPlaceNotes)));
+  const publishedLaunchPending = isDemoMode && publishedLaunchPhase !== "idle";
+  const canPlay = isSongLoaded && !loadError && (primaryAction === "published-template"
+    ? !publishedLessonUnavailable
+    : primaryAction === "review" || (stopFitsSong && (isReady || canPlaceNotes)));
   const selectedNoteIndex = selectedNoteId ? notes.findIndex((note) => note.id === selectedNoteId) : -1;
   const selectedNote = selectedNoteIndex >= 0 ? notes[selectedNoteIndex] : null;
   const selectedJourney = journeys.find(journey =>
@@ -387,11 +396,19 @@ export function NumberBondsMissionComposer({
           <button
             className={styles.primary}
             type="button"
-            aria-describedby="number-bonds-stop-guidance"
-            disabled={!canPlay || isPreparing}
+            aria-describedby={isDemoMode ? "number-bonds-published-play-guidance" : "number-bonds-stop-guidance"}
+            disabled={!canPlay || isPreparing || publishedLaunchPending}
             onClick={onPlay}
           >
-            {isPreparing
+            {isDemoMode
+              ? publishedLaunchPhase === "checking"
+                ? "Checking lesson…"
+                : publishedLaunchPhase === "preparing" || isPreparing
+                  ? "Preparing lesson…"
+                  : publishedLessonUnavailable
+                    ? "Published lesson unavailable"
+                    : "Play published lesson"
+              : isPreparing
               ? "Preparing mission…"
               : !isSongLoaded
                 ? "Loading song chart…"
@@ -406,6 +423,11 @@ export function NumberBondsMissionComposer({
                       : "Build gems & play"}
           </button>
         </div>
+        {isDemoMode ? (
+          <p id="number-bonds-published-play-guidance" className={styles.status}>
+            Your edits are saved on this device before play. The published lesson plays without these edits.
+          </p>
+        ) : null}
         {status ? <p className={styles.status} role="status">{status}</p> : null}
       </div>
       {selectedHitEditor ? (

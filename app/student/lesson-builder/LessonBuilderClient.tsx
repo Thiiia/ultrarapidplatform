@@ -12177,7 +12177,13 @@ export default function LessonBuilderClient({
   }
 
   function handlePlayNumberBondMission() {
-    const action = getNumberBondEditorAction({ ready: lessonPublishReadiness.ready, matchingNotes: numberBondAuthoredNotesMatch, hasSequence: numberBondHasSequenceV1 });
+    const action = getNumberBondEditorAction({ ready: lessonPublishReadiness.ready, matchingNotes: numberBondAuthoredNotesMatch, hasSequence: numberBondHasSequenceV1, demo: isDemoMode });
+    if (action === "published-template") {
+      if (isSaving || demoLaunchInFlightRef.current) return;
+      if (hasUnsavedChanges && !savePrivateDraft()) return;
+      void handleLaunchGame(true);
+      return;
+    }
     if (action === "review") {
       setSaveStatus(lessonPublishReadiness.blockers[0]?.nextAction ?? "Check this mission before playing. Your authored journey timings are preserved.");
       setIsReadinessOpen(true);
@@ -15268,6 +15274,9 @@ export default function LessonBuilderClient({
               notes={numberBondOrbitNotes}
               authoredNoteCount={numberBondAuthoredNotesMatch ? numberBondHitCount : 0}
               hasAuthoredSequence={numberBondHasSequenceV1}
+              isDemoMode={isDemoMode}
+              publishedLaunchPhase={demoLaunchPhase}
+              publishedLessonUnavailable={isDemoMode && lessonReadiness?.canLaunch === false}
               journeys={numberBondJourneyViews}
               selectedEncounterId={numberBondSelectedEncounterId}
               onSelectJourneyStage={handleSelectNumberBondEncounter}
