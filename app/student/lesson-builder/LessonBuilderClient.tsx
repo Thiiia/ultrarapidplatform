@@ -9,6 +9,7 @@ import { LessonLoadNotice } from "./LessonLoadNotice";
 import { useRecordedDrafts } from "./useRecordedDrafts";
 import { closeRecordedHold, groupRecordedDrafts, isRecoverableRecordedDraft as isRecoverableRtcmDraft, snapshotRecordedDrafts, type RecordedMechanicDraft } from "@/lib/editor/recorded-draft";
 import { canCaptureEditorPlayback, readEditorPlaybackSeconds } from "@/lib/editor/playback-clock";
+import { shouldToggleEditorPlayback } from "@/lib/editor/keyboard-shortcuts";
 import { useRecordedTimelinePublication } from "./useRecordedTimelinePublication";
 import { useWorkspaceExitRecovery } from "./useWorkspaceExitRecovery";
 import WaveSurfer from "wavesurfer.js";
@@ -13982,33 +13983,16 @@ export default function LessonBuilderClient({
     }
   }
 
+  const togglePlaybackFromShortcut = useEffectEvent(handleToggleSongPlayback);
   useEffect(() => {
     function handleDocumentKeyDown(event: KeyboardEvent) {
-      if (event.code !== "Space") {
-        return;
-      }
-
-      const target = event.target as HTMLElement | null;
-      const isTypingTarget =
-        target?.tagName === "INPUT" ||
-        target?.tagName === "TEXTAREA" ||
-        target?.tagName === "SELECT" ||
-        target?.isContentEditable;
-
-      if (isTypingTarget) {
-        return;
-      }
-
+      if (!shouldToggleEditorPlayback(event, event.target instanceof Element ? event.target : null)) return;
       event.preventDefault();
-      handleToggleSongPlayback();
+      togglePlaybackFromShortcut();
     }
-
     document.addEventListener("keydown", handleDocumentKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleDocumentKeyDown);
-    };
-  }, [currentSongSeconds, timelineDurationSeconds]);
+    return () => document.removeEventListener("keydown", handleDocumentKeyDown);
+  }, []);
 
   function syncTimelineFilesFromEvents(nextEvents: TimelineEventSlot[]) {
     markDirty();
