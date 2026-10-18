@@ -1,6 +1,7 @@
 export type DemoLessonDraft = {
   chart: string;
   sidecar: string;
+  updatedAt?: number;
 };
 
 type DemoDraftStorage = Pick<Storage, "getItem" | "setItem">;
@@ -14,8 +15,9 @@ export function saveDemoLessonDraft(
   songAssetId: string,
   activityKey: string,
   draft: DemoLessonDraft,
+  now = Date.now(),
 ) {
-  storage.setItem(demoLessonDraftStorageKey(songAssetId, activityKey), JSON.stringify(draft));
+  storage.setItem(demoLessonDraftStorageKey(songAssetId, activityKey), JSON.stringify({ ...draft, updatedAt: now }));
 }
 
 export function readDemoLessonDraft(
@@ -39,7 +41,12 @@ export function readDemoLessonDraft(
       typeof (value as DemoLessonDraft).chart === "string" &&
       typeof (value as DemoLessonDraft).sidecar === "string"
     ) {
-      const draft = { chart: (value as DemoLessonDraft).chart, sidecar: (value as DemoLessonDraft).sidecar };
+      const timestamp = (value as DemoLessonDraft).updatedAt;
+      const draft: DemoLessonDraft = {
+        chart: (value as DemoLessonDraft).chart,
+        sidecar: (value as DemoLessonDraft).sidecar,
+        ...(Number.isSafeInteger(timestamp) && timestamp! >= 0 ? { updatedAt: timestamp } : {}),
+      };
       JSON.parse(draft.sidecar);
       return draft;
     }

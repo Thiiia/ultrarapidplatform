@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { readWorkspaceAuthoredLesson } from "./editor/lesson-workspace-snapshot";
+import type { AuthoredLessonDraft } from "./authored-lesson";
 
 export const WORKSPACE_MAX_BYTES = 48_000;
 
@@ -45,6 +47,8 @@ export const PlayerWorkspacePayloadSchema = z.object({
   hiddenSourceEquationIds: z.array(SafeId).max(200),
   timelineEdits: z.array(PlayerTimelineEditSchema).max(400),
   recordedDrafts: z.array(PlayerTimelineEditSchema).max(200).optional(),
+  authoredLesson: z.custom<AuthoredLessonDraft>((value) => readWorkspaceAuthoredLesson(value) !== null,
+    { message: "Authored workspace snapshot is invalid" }).optional(),
   tutorial: z.object({ step: z.enum(["welcome", "equation", "encounter", "done"]) }).strict(),
   updatedAt: z.number().int().nonnegative(),
 }).strict().superRefine((payload, ctx) => {
@@ -55,6 +59,12 @@ export const PlayerWorkspacePayloadSchema = z.object({
   if (new Set(payload.hiddenSourceEquationIds).size !== payload.hiddenSourceEquationIds.length) {
     ctx.addIssue({ code: "custom", path: ["hiddenSourceEquationIds"], message: "Hidden source IDs must be unique" });
   }
+  if (containsCredentialLikeValue(payload.authoredLesson)) {
+    ctx.addIssue({ code: "custom", path: ["authoredLesson"], message: "Authored workspace contains credential-like data" });
+  }
+}).transform((payload) => payload.authoredLesson
+  ? { ...payload, authoredLesson: readWorkspaceAuthoredLesson(payload.authoredLesson)!, timelineEdits: [] }
+  : payload).superRefine((payload, ctx) => {
   if (new TextEncoder().encode(JSON.stringify(payload)).byteLength > WORKSPACE_MAX_BYTES) {
     ctx.addIssue({ code: "custom", message: "Workspace payload is too large" });
   }
@@ -64,7 +74,11 @@ export const WorkspaceMutationSchema = z.object({
   key: PlayerWorkspaceKeySchema,
   expectedVersion: z.number().int().nonnegative(),
   payload: PlayerWorkspacePayloadSchema,
-}).strict();
+}).strict().superRefine((mutation, ctx) => {
+  if (mutation.payload.authoredLesson && !readWorkspaceAuthoredLesson(mutation.payload.authoredLesson, mutation.key)) {
+    ctx.addIssue({ code: "custom", path: ["payload", "authoredLesson"], message: "Authored workspace source does not match its lesson" });
+  }
+});
 
 export type PlayerWorkspaceKey = z.infer<typeof PlayerWorkspaceKeySchema>;
 export type PlayerWorkspacePayload = z.infer<typeof PlayerWorkspacePayloadSchema>;

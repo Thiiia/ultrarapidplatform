@@ -97,8 +97,8 @@ test("demo lessons save and reopen from browser storage without creating READY c
   };
   const draft = { chart: "[Song]\n{}", sidecar: JSON.stringify({ version: 1, events: [] }) };
 
-  saveDemoLessonDraft(storage, "song-1", "number-bonds", draft);
-  assert.deepEqual(readDemoLessonDraft(storage, "song-1", "number-bonds"), draft);
+  saveDemoLessonDraft(storage, "song-1", "number-bonds", draft, 1234);
+  assert.deepEqual(readDemoLessonDraft(storage, "song-1", "number-bonds"), { ...draft, updatedAt: 1234 });
   assert.equal(canPublishLessonForAuthor(null, "demo-author"), false);
 });
 

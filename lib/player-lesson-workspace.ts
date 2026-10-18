@@ -1,3 +1,6 @@
+import { readWorkspaceAuthoredLesson } from "./editor/lesson-workspace-snapshot";
+import type { AuthoredLessonDraft } from "./authored-lesson";
+
 export const PLAYER_LESSON_WORKSPACE_VERSION = 1;
 export const PLAYER_LESSON_WORKSPACE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export const PLAYER_LESSON_WORKSPACE_MAX_BYTES = 48_000;
@@ -33,6 +36,7 @@ export type PlayerLessonWorkspaceDraft = {
   source: LessonSourceIdentity;
   timelineEvents: unknown[];
   recordedDrafts?: unknown[];
+  authoredLesson?: AuthoredLessonDraft;
   equationEdits: unknown[];
   hiddenSourceEquationIds?: string[];
   updatedAt: number;
@@ -92,6 +96,10 @@ export function readPlayerLessonWorkspaceDraft(
       storage.removeItem(key);
       return null;
     }
+    if (parsed.authoredLesson !== undefined && !readWorkspaceAuthoredLesson(parsed.authoredLesson, source)) {
+      storage.removeItem(key);
+      return null;
+    }
     return parsed;
   } catch {
     storage.removeItem(key);
@@ -101,11 +109,14 @@ export function readPlayerLessonWorkspaceDraft(
 
 export function writePlayerLessonWorkspaceDraft(storage: StorageLike, draft: PlayerLessonWorkspaceDraft): void {
   assertSource(draft.source);
-  const encoded = JSON.stringify(draft);
+  const authoredLesson = draft.authoredLesson === undefined ? undefined : readWorkspaceAuthoredLesson(draft.authoredLesson, draft.source);
+  if (draft.authoredLesson !== undefined && !authoredLesson) throw new Error("Lesson workspace authored snapshot is invalid");
+  const stored = authoredLesson ? { ...draft, authoredLesson, timelineEvents: [] } : draft;
+  const encoded = JSON.stringify(stored);
   if (draft.version !== PLAYER_LESSON_WORKSPACE_VERSION || !Number.isSafeInteger(draft.updatedAt) || new TextEncoder().encode(encoded).byteLength > PLAYER_LESSON_WORKSPACE_MAX_BYTES || containsCredentialLikeValue(draft)) {
     throw new Error("Lesson workspace draft contains unsupported or credential-like data");
   }
-  storage.setItem(playerLessonWorkspaceKey(draft.source), JSON.stringify(draft));
+  storage.setItem(playerLessonWorkspaceKey(draft.source), encoded);
 }
 
 export function deletePlayerLessonWorkspaceDraft(storage: StorageLike, source: LessonSourceIdentity): void {

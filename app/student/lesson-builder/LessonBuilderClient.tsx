@@ -31,6 +31,12 @@ import {
 import { getAuthoringLessonSaveFailureMessage } from "@/lib/editor/lesson-save-error";
 import { getEquationDraftIssue } from "@/lib/editor/equation-draft-readiness";
 import {
+  captureAuthoredWorkspaceLesson,
+  readWorkspaceAuthoredLesson,
+  shouldRestoreLessonWorkspace,
+  type LessonWorkspaceRestorePayload,
+} from "@/lib/editor/lesson-workspace-snapshot";
+import {
   serializeAuthoredLesson,
   timelineEventsFromAuthoredLesson,
   type AuthoredLessonDraft,
@@ -9989,7 +9995,7 @@ export default function LessonBuilderClient({
   const workspaceVersionRef = useRef(0);
   const workspaceRestoredSourceRef = useRef<string | null>(null);
   const [workspaceStatus, setWorkspaceStatus] = useState<"idle" | "loading" | "ready" | "offline" | "conflict">("idle");
-  const [workspaceConflict, setWorkspaceConflict] = useState<{ version: number; payload: { equations: SavedEquation[]; hiddenSourceEquationIds: string[]; timelineEdits: unknown[]; recordedDrafts?: unknown[] } } | null>(null);
+  const [workspaceConflict, setWorkspaceConflict] = useState<{ version: number; payload: { equations: SavedEquation[]; hiddenSourceEquationIds: string[]; timelineEdits: unknown[]; recordedDrafts?: unknown[]; authoredLesson?: unknown } } | null>(null);
   const [workspaceRetryNonce, setWorkspaceRetryNonce] = useState(0);
   // Pending in-app navigation blocked by the unsaved-changes popup.
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
@@ -10168,24 +10174,35 @@ export default function LessonBuilderClient({
     workspaceRestoredSourceRef.current = sourceKey;
     setWorkspaceStatus("loading");
     let cancelled = false;
-    const applyPayload = (payload: { equations?: unknown[]; hiddenSourceEquationIds?: unknown[]; timelineEdits?: unknown[]; recordedDrafts?: unknown[] }, message: string) => {
+    const applyPayload = (payload: LessonWorkspaceRestorePayload, message: string) => {
       if (cancelled) return;
+      const authoredLesson = readWorkspaceAuthoredLesson(payload.authoredLesson, workspaceSource);
+      const demoDraft = isDemoMode
+        ? readDemoLessonDraft(window.localStorage, workspaceSource.songAssetId, workspaceSource.activityKey)
+        : null;
+      if ((payload.authoredLesson !== undefined && !authoredLesson)
+          || !shouldRestoreLessonWorkspace({ demoDraft, updatedAt: payload.updatedAt, authoredLesson })) {
+        setWorkspaceStatus("ready");
+        return;
+      }
       const restoredEvents = Array.isArray(payload.timelineEdits)
         ? payload.timelineEdits.filter((event): event is TimelineEventSlot => Boolean(event && typeof event === "object" && typeof (event as { id?: unknown }).id === "string" && typeof (event as { tick?: unknown }).tick === "number"))
         : [];
       const restoredDrafts = Array.isArray(payload.recordedDrafts)
         ? payload.recordedDrafts.filter(isRecoverableRtcmDraft)
         : [];
-      if (restoredEvents.length > 0) {
+      if (authoredLesson) {
+        loadSidecarIntoTimeline(normalizeSidecar(authoredLesson), null);
+      } else if (restoredEvents.length > 0) {
         setTimelineEvents(restoredEvents);
         setActiveEventId(restoredEvents[0]?.id ?? null);
       }
       setRtcmDraftMechanics(restoredDrafts);
-      if (restoredEvents.length > 0 || restoredDrafts.length > 0) markDirty();
+      if (authoredLesson || restoredEvents.length > 0 || restoredDrafts.length > 0) markDirty();
       if (Array.isArray(payload.equations)) {
         const equations = payload.equations as SavedEquation[];
         setSavedEquations(equations);
-        setAuthoredEquationQueue((current) => [
+        if (!authoredLesson) setAuthoredEquationQueue((current) => [
           ...current,
           ...equations.filter((equation) => !current.some((entry) => entry.id === equation.id)),
         ]);
@@ -10197,7 +10214,7 @@ export default function LessonBuilderClient({
     if (!canSyncWorkspace) {
       const draft = readPlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
       if (draft) {
-        applyPayload({ equations: draft.equationEdits, hiddenSourceEquationIds: draft.hiddenSourceEquationIds, timelineEdits: draft.timelineEvents, recordedDrafts: draft.recordedDrafts }, "Your saved changes are back on this device. The original lesson stays safe to play.");
+        applyPayload({ equations: draft.equationEdits, hiddenSourceEquationIds: draft.hiddenSourceEquationIds, timelineEdits: draft.timelineEvents, recordedDrafts: draft.recordedDrafts, authoredLesson: draft.authoredLesson, updatedAt: draft.updatedAt }, "Your saved changes are back on this device. The original lesson stays safe to play.");
       } else {
         setWorkspaceStatus("ready");
       }
@@ -10213,23 +10230,23 @@ export default function LessonBuilderClient({
         }
         return null;
       })
-      .then((record: { version?: number; payload?: { equations?: unknown[]; hiddenSourceEquationIds?: unknown[]; timelineEdits?: unknown[]; recordedDrafts?: unknown[] } | null } | null) => {
+      .then((record: { version?: number; payload?: LessonWorkspaceRestorePayload | null } | null) => {
         if (record?.payload) {
           workspaceVersionRef.current = record.version ?? 0;
           applyPayload(record.payload, "Your saved changes are back. The original lesson stays safe.");
           return;
         }
         const draft = readPlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
-        if (draft) applyPayload({ equations: draft.equationEdits, hiddenSourceEquationIds: draft.hiddenSourceEquationIds, timelineEdits: draft.timelineEvents, recordedDrafts: draft.recordedDrafts }, "Your saved changes are back on this device. The original lesson stays safe to play.");
+        if (draft) applyPayload({ equations: draft.equationEdits, hiddenSourceEquationIds: draft.hiddenSourceEquationIds, timelineEdits: draft.timelineEvents, recordedDrafts: draft.recordedDrafts, authoredLesson: draft.authoredLesson, updatedAt: draft.updatedAt }, "Your saved changes are back on this device. The original lesson stays safe to play.");
         else { setWorkspaceStatus("ready"); }
       })
       .catch(() => {
         const draft = readPlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
-        if (draft) applyPayload({ equations: draft.equationEdits, hiddenSourceEquationIds: draft.hiddenSourceEquationIds, timelineEdits: draft.timelineEvents, recordedDrafts: draft.recordedDrafts }, "Your saved changes are back. They will sync when you are connected.");
+        if (draft) applyPayload({ equations: draft.equationEdits, hiddenSourceEquationIds: draft.hiddenSourceEquationIds, timelineEdits: draft.timelineEvents, recordedDrafts: draft.recordedDrafts, authoredLesson: draft.authoredLesson, updatedAt: draft.updatedAt }, "Your saved changes are back. They will sync when you are connected.");
         else { setWorkspaceStatus("offline"); }
       });
     return () => { cancelled = true; };
-  }, [canSyncWorkspace, entryIntent, guidedStarted, isLessonLoaded, workspaceSource, setRtcmDraftMechanics]);
+  }, [canSyncWorkspace, entryIntent, guidedStarted, isDemoMode, isLessonLoaded, workspaceSource, setRtcmDraftMechanics]);
 
   useEffect(() => {
     if (!guidedStarted || workspaceStatus === "loading" || !workspaceSource || (!hasUnsavedChanges && savedEquations.length === 0 && hiddenSourceEquationIds.length === 0)) return;
@@ -10242,6 +10259,7 @@ export default function LessonBuilderClient({
         hiddenSourceEquationIds,
         timelineEdits: timelineEvents as unknown[],
         recordedDrafts: rtcmDraftMechanics as unknown[],
+        authoredLesson: captureWorkspaceAuthoredLesson(),
         tutorial: { step: tutorialStep === "welcome" ? "welcome" : tutorialStep === "build" || tutorialStep === "save" ? "equation" : tutorialStep === "add" ? "encounter" : "done" } as const,
         updatedAt: Date.now(),
       };
@@ -10251,6 +10269,7 @@ export default function LessonBuilderClient({
           source: workspaceSource,
           timelineEvents,
           recordedDrafts: rtcmDraftMechanics,
+          authoredLesson: payload.authoredLesson,
           equationEdits: savedEquations,
           hiddenSourceEquationIds,
           updatedAt: Date.now(),
@@ -10319,7 +10338,7 @@ export default function LessonBuilderClient({
       window.clearTimeout(timer);
       if (retryTimer !== null) window.clearTimeout(retryTimer);
     };
-  }, [canSyncWorkspace, guidedStarted, hasUnsavedChanges, hiddenSourceEquationIds, rtcmDraftMechanics, savedEquations, timelineEvents, tutorialStep, workspaceRetryNonce, workspaceSource]);
+  }, [authoredEquationQueue, canSyncWorkspace, guidedStarted, hasUnsavedChanges, hiddenSourceEquationIds, numberBondSequenceV1, rtcmDraftMechanics, savedEquations, timelineEvents, tutorialStep, workspaceRetryNonce, workspaceSource]);
 
   const shouldShowStarterTemplate = shouldOfferStarterTemplate({
     songId: selectedSongStorage?.id ?? null,
@@ -11898,12 +11917,18 @@ export default function LessonBuilderClient({
 
   function handleReloadLatestWorkspace() {
     if (!workspaceConflict) return;
+    const authoredLesson = workspaceSource
+      ? readWorkspaceAuthoredLesson(workspaceConflict.payload.authoredLesson, workspaceSource)
+      : null;
     const latestEvents = workspaceConflict.payload.timelineEdits.filter((event): event is TimelineEventSlot => Boolean(event && typeof event === "object" && typeof (event as { id?: unknown }).id === "string" && typeof (event as { tick?: unknown }).tick === "number"));
-    setTimelineEvents(latestEvents);
-    setActiveEventId(latestEvents[0]?.id ?? null);
+    if (authoredLesson) loadSidecarIntoTimeline(normalizeSidecar(authoredLesson), null);
+    else {
+      setTimelineEvents(latestEvents);
+      setActiveEventId(latestEvents[0]?.id ?? null);
+    }
     setRtcmDraftMechanics((workspaceConflict.payload.recordedDrafts ?? []).filter(isRecoverableRtcmDraft));
     setSavedEquations(workspaceConflict.payload.equations);
-    setAuthoredEquationQueue((current) => [
+    if (!authoredLesson) setAuthoredEquationQueue((current) => [
       ...current,
       ...workspaceConflict.payload.equations.filter((equation) => !current.some((entry) => entry.id === equation.id)),
     ]);
@@ -12622,6 +12647,11 @@ export default function LessonBuilderClient({
           chart: chartText,
           sidecar: sidecarJson,
         });
+        // A complete explicit save supersedes the earlier autosave. Its timestamp
+        // also prevents stale recovery if browser storage removal is unavailable.
+        try {
+          if (workspaceSource) deletePlayerLessonWorkspaceDraft(sessionStorage, workspaceSource);
+        } catch { /* The timestamped demo save remains authoritative. */ }
         originalChartFileRef.current = chartText;
         setChartFile(chartText);
         setStoreSidecar(sidecarToPersist as StoreSidecarPayload);
@@ -13382,6 +13412,21 @@ export default function LessonBuilderClient({
       });
   }
 
+  function captureWorkspaceAuthoredLesson() {
+    if (!workspaceSource || legacyEncounterSourceRef.current) return undefined;
+    return captureAuthoredWorkspaceLesson({
+      source: workspaceSource,
+      events: timelineEvents as AuthoredTimelineEvent[],
+      equationQueue: authoredEquationQueue,
+      clock: createLessonClock(chartFile || originalChartFileRef.current),
+      stopAtSeconds: sidecar.stopAtSeconds,
+      ...(numberBondSequenceV1?.songAssetId === workspaceSource.songAssetId
+          && workspaceSource.activityKey === "number-bonds"
+        ? { numberBondSequenceV1: numberBondSequenceV1.sequence } : {}),
+    });
+  }
+
+
   function savePrivateDraft() {
     try {
       if (isDemoMode && selectedSongStorage) {
@@ -13389,7 +13434,7 @@ export default function LessonBuilderClient({
         if (activityKey) {
           saveDemoLessonDraft(window.localStorage, selectedSongStorage.id, activityKey, {
             chart: chartFile || originalChartFileRef.current,
-            sidecar: JSON.stringify(sidecarFromTimelineEvents(timelineEvents, true)),
+            sidecar: JSON.stringify(captureWorkspaceAuthoredLesson() ?? sidecarFromTimelineEvents(timelineEvents, true)),
           });
         }
       }
