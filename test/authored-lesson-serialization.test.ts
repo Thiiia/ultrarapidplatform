@@ -84,6 +84,44 @@ function makeEvent(
   };
 }
 
+for (const mechanic of ["hit", "spin", "drag"] as const) {
+  test(`serializes the same stable ${mechanic} term after tokens are inserted without changing its music timing`, () => {
+    const clock = createLessonClock(
+      `[Song]\n{\n  Resolution = "480"\n  Offset = "0"\n}\n[SyncTrack]\n{\n  0 = B 120000\n}\n[Events]\n{\n}\n`,
+    );
+    const editedEquation = equation("eq-stable-term", ["X", "+", "3", "=", "9"]);
+    const targetId = editedEquation.tokens[2].id;
+    editedEquation.tokens.splice(2, 0, { id: "inserted-two", label: "2" }, { id: "inserted-plus", label: "+" });
+    const authoredInstance = instance("stable-term-action", {
+      tick: 2,
+      endTick: mechanic === "hit" ? 2 : 4,
+      hitBubbles: [{ tokenIndex: 2, targetId, positions: ["left"], pads: ["left"] }],
+      spinTargets: [{ tokenIndex: 2, targetId }],
+      dragTargets: [{ tokenIndex: 2, targetId }],
+    });
+    const draft = serializeAuthoredLesson([
+      makeEvent("stable-term-event", 2, {
+        hit: mechanic === "hit" ? 1 : 0,
+        spin: mechanic === "spin" ? 1 : 0,
+        drag: mechanic === "drag" ? 1 : 0,
+      }, { equation: editedEquation, instances: { [mechanic]: [authoredInstance] } }),
+    ], IDENTITY, clock);
+    const targetKey = mechanic === "hit" ? "hitBubbles" : mechanic === "spin" ? "spinTargets" : "dragTargets";
+    const target = draft.encounters[0][targetKey]?.[0];
+    assert.equal(target?.targetId, targetId);
+    assert.equal(target?.tokenIndex, 4, "The raw saved draft must agree with its durable target before parser repair.");
+    assert.equal(draft.equations[0].tokens?.[target!.tokenIndex].label, "3");
+    assert.equal(draft.encounters[0].startTick, clock.toTick(2));
+    assert.equal(draft.encounters[0].endTick, clock.toTick(mechanic === "hit" ? 2 : 4));
+    const hydrated = timelineEventsFromAuthoredLesson(parseAuthoredLessonDraft(draft), clock);
+    const hydratedInstance = hydrated.events[0].mechanicInstances[mechanic][0];
+    assert.equal(hydratedInstance[targetKey][0].tokenIndex, 4);
+    assert.equal(hydratedInstance[targetKey][0].targetId, targetId);
+    assert.equal(hydratedInstance.tick, 2);
+    assert.equal(authoredInstance[targetKey][0].tokenIndex, 2, "Serialization must not mutate the editor's input object.");
+  });
+}
+
 test("draft persistence accepts an empty authored workspace while official publication rejects it", () => {
   const identity = {
     songAssetId: "song-1",

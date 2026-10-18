@@ -122,10 +122,12 @@ function bindTargetToEquation<T extends { tokenIndex: number; targetId?: string 
   target: T,
   equation: AuthoredSavedEquation,
 ): T {
-  const targetId = target.targetId && equation.tokens.some((token) => token.id === target.targetId)
-    ? target.targetId
-    : equation.tokens[target.tokenIndex]?.id;
-  const reboundTarget = { ...target };
+  const stableIndex = target.targetId
+    ? equation.tokens.findIndex((token) => token.id === target.targetId)
+    : -1;
+  const tokenIndex = stableIndex >= 0 ? stableIndex : target.tokenIndex;
+  const targetId = equation.tokens[tokenIndex]?.id;
+  const reboundTarget = { ...target, tokenIndex };
   if (targetId) reboundTarget.targetId = targetId;
   else delete reboundTarget.targetId;
   return reboundTarget;

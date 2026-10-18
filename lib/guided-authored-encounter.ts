@@ -21,6 +21,11 @@ import {
 import { resolveAuthoredHitPadTarget } from "./authored-hit-pad-layout";
 import { getEquationDraftIssue } from "./editor/equation-draft-readiness";
 
+// Unity's standalone Drag presents its pickup half a second before the
+// generic approach lead. Linked Hit-to-Drag and co-timed groups retain their
+// existing dependency/group policy; this guard covers a preceding Spin.
+const STANDALONE_SPIN_DRAG_PREPARATION_SECONDS = 1.25;
+
 export type GuidedMechanic = "hit" | "spin" | "drag";
 
 export type GuidedEncounterInput = {
@@ -620,8 +625,16 @@ export function evaluateLessonPublishReadiness(
       const right = ordered[candidateIndex];
       const rightInput = inputFromEvent(right.event, right.mechanic, right.instance);
       const rightStart = rightInput.tick ?? right.event.tick;
-      const rightPresentationStart = Math.max(0, rightStart - AUTHORED_PRESENTATION_LEAD_SECONDS);
-      if (rightPresentationStart > leftRelease) break;
+      const standaloneSpinToDrag = left.mechanic === "spin" && right.mechanic === "drag" &&
+        rightStart > leftStart && !rightInput.dragTargets.some((target) => target.sourceHitId);
+      const rightPresentationLead = standaloneSpinToDrag
+        ? STANDALONE_SPIN_DRAG_PREPARATION_SECONDS
+        : AUTHORED_PRESENTATION_LEAD_SECONDS;
+      const rightPresentationStart = Math.max(0, rightStart - rightPresentationLead);
+      // A later standalone Drag has a longer lead than an intervening Hit.
+      // Stop only when even that longest preparation window is clear.
+      if (rightStart - STANDALONE_SPIN_DRAG_PREPARATION_SECONDS > leftRelease) break;
+      if (rightPresentationStart > leftRelease) continue;
 
       // Number Bonds has a stricter one-at-a-time authored contract. Its shared
       // timing validator reports the pair with stable gem_* codes below.
@@ -672,7 +685,7 @@ export function evaluateLessonPublishReadiness(
           { encounterId: left.instance.id, label: leftLabel, startSeconds: leftPresentationStart, endSeconds: leftRelease },
           { encounterId: right.instance.id, label: rightLabel, startSeconds: rightPresentationStart, endSeconds: rightRelease },
         ],
-        earliestSafeStartSeconds: leftRelease + AUTHORED_PRESENTATION_LEAD_SECONDS + 0.001,
+        earliestSafeStartSeconds: leftRelease + rightPresentationLead + 0.001,
         message: `${rightLabel} overlaps ${leftLabel}.`,
         nextAction: `Move ${rightLabel} later so its approach window does not overlap ${leftLabel}.`,
       };

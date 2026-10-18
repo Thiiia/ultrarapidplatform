@@ -61,6 +61,42 @@ function eventWith(...instances: GuidedEncounterInput[]): AuthoredTimelineEvent 
   };
 }
 
+test("standalone Spin-to-Drag warns when Unity's pickup preparation still overlaps the Spin", () => {
+  const spin = encounter("spin", { tick: 8, endTick: 10 });
+  const drag = encounter("drag", { tick: 11, endTick: 13, dragTargets: [{ tokenIndex: 2 }] });
+  const result = evaluateLessonPublishReadiness([eventWith(spin, drag)], { activityKey: "early-algebra" });
+  const warning = result.blockers.find((blocker) => blocker.code === "unsupported_concurrency");
+  assert.ok(warning);
+  assert.equal(warning.encounterId, drag.id);
+  assert.equal(warning.relatedEncounterId, spin.id);
+  assert.equal(warning.earliestSafeStartSeconds, 11.251);
+  assert.equal(warning.conflictStartSeconds, 9.75);
+  assert.equal(spin.endTick, 10);
+  assert.equal(drag.tick, 11, "Readiness reports the correction without changing authored music timing.");
+  const interveningHit = encounter("hit", { tick: 10.8, endTick: 10.8 });
+  const intervening = evaluateLessonPublishReadiness([eventWith(spin, interveningHit, drag)], { activityKey: "early-algebra" });
+  assert.ok(intervening.blockers.some((blocker) => blocker.encounterId === drag.id &&
+    (blocker.relatedEncounterId === spin.id || blocker.relatedEncounterIds?.includes(spin.id))),
+  "An intervening cue with a shorter lead must not hide the later Drag's earlier pickup.");
+  const clear = evaluateLessonPublishReadiness([eventWith(spin, { ...drag, tick: 11.3 })], { activityKey: "early-algebra" });
+  assert.equal(clear.blockers.some((blocker) => blocker.code === "unsupported_concurrency"), false);
+});
+
+test("Spin-to-Drag preparation keeps explicit Hit-linked and co-timed group policies", () => {
+  const hit = encounter("hit", { tick: 6, endTick: 6 });
+  const spin = encounter("spin", { tick: 8, endTick: 10 });
+  const linkedDrag = encounter("drag", { tick: 11, endTick: 13 });
+  const linked = evaluateLessonPublishReadiness([eventWith(hit, spin, linkedDrag)], { activityKey: "early-algebra" });
+  assert.equal(linked.blockers.some((blocker) => blocker.code === "unsupported_concurrency"), false);
+  const coTimed = evaluateLessonPublishReadiness([eventWith(spin, {
+    ...linkedDrag, tick: 8, dragTargets: [{ tokenIndex: 2 }],
+  })], { activityKey: "early-algebra" });
+  const priorGroupWarning = coTimed.blockers.find((blocker) => blocker.code === "unsupported_concurrency");
+  assert.ok(priorGroupWarning);
+  assert.equal(priorGroupWarning.earliestSafeStartSeconds, 10.751,
+    "This bounded check must not reclassify an incumbent co-timed group with the standalone pickup lead.");
+});
+
 test("a lesson without a playable move is not ready to publish", () => {
   for (const events of [[], [eventWith()]]) {
     const result = evaluateLessonPublishReadiness(events);
