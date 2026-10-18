@@ -645,6 +645,7 @@ export function GuidedEncounterComposer({
     <section
       ref={(section) => focusRepairChoice(section, repairFocus)}
       aria-label={`${heading} composer`}
+      data-ur-editor="guided"
       className={`algebra-composer ${usesStudioLayout ? studioClasses?.composer ?? "" : ""}`}
       data-state={readiness.ready ? "ready" : "incomplete"}
       data-mechanic={instance.mechanic}
@@ -681,14 +682,14 @@ export function GuidedEncounterComposer({
         </ol>
       ) : null}
       {readiness.ready ? (
-        <div className="experience-status" data-status="success" role="status" aria-live="polite">
+        <div className="experience-status" data-status="success" data-editor-signal="ready" role="status" aria-live="polite">
           {isNumberBonds ? "This action is ready. Check the whole mission before playing." : studentCopy.editor.readyToPlay}
         </div>
       ) : (
-        <div className="experience-status" data-status="warning" role="status" aria-live="polite">{readiness.nextAction}</div>
+        <div className="experience-status" data-status="warning" data-editor-signal="repair" role="status" aria-live="polite">{readiness.nextAction}</div>
       )}
       {(!isNumberBonds || instance.mechanic !== "hit") && instance.equation && tokens.length > 0 ? (
-        <div className="algebra-composer__preview" data-mechanic={instance.mechanic} role="group" aria-label={`Player cue preview. Equation: ${equationState}`}>
+        <div key={`${instance.id}-${instance.mechanic}-${instance.equation.id}`} className="algebra-composer__preview" data-cue-preview data-mechanic={instance.mechanic} role="group" aria-label={`Player cue preview. Equation: ${equationState}`}>
           <div className="algebra-composer__previewCopy">
             <span className="algebra-composer__previewAction" data-mechanic={instance.mechanic} aria-label={`Player action: ${motionCue}`}>
               <MotionIcon className="algebra-composer__previewActionIcon" aria-hidden="true" fontSize="small" />

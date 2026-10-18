@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { NUMBER_BONDS_MAX_WHOLE, NUMBER_BONDS_MIN_WHOLE } from "@/lib/number-bonds-authoring";
 import type { NumberBondJourneyView } from "@/lib/editor/number-bond-journey-view";
 import { getNumberBondEditorAction } from "@/lib/editor/number-bond-editor-action";
+import { getBondPresentationState } from "@/lib/editor/presentation-state";
 import styles from "./NumberBondsMissionComposer.module.css";
 
 type OrbitNote = { id: string; seconds: number };
@@ -134,6 +135,7 @@ export function NumberBondsMissionComposer({
   const canChooseNumber = isSongLoaded && maxSelectableWhole >= NUMBER_BONDS_MIN_WHOLE && !isPreparing;
   const canPlaceNotes = whole >= NUMBER_BONDS_MIN_WHOLE && whole <= maxSelectableWhole;
   const primaryAction = getNumberBondEditorAction({ ready: isReady, matchingNotes: authoredNoteCount === whole, hasSequence: hasAuthoredSequence });
+  const presentation = getBondPresentationState({ loaded: isSongLoaded, error: Boolean(loadError), preparing: isPreparing, ready: isReady, built: primaryAction === "review" });
   const stopFitsSong = !stopAtSeconds || !songDurationSeconds || stopAtSeconds <= songDurationSeconds + 0.05;
   const canPlay = isSongLoaded && (primaryAction === "review" || (stopFitsSong && (isReady || canPlaceNotes)));
   const selectedNoteIndex = selectedNoteId ? notes.findIndex((note) => note.id === selectedNoteId) : -1;
@@ -164,12 +166,12 @@ export function NumberBondsMissionComposer({
 
   if (!isSongLoaded) {
     return (
-      <section className={styles.composer} aria-label="Number Bonds mission composer" aria-busy={!loadError}>
+      <section className={styles.composer} data-ur-editor="number-bonds" data-editor-state={presentation.phase} aria-label="Number Bonds mission composer" aria-busy={!loadError}>
         <div className={styles.intro}>
           <span className={styles.eyebrow}>NUMBER BONDS · {songTitle}</span>
           <h1>Build a bond. Play the song.</h1>
         </div>
-        <p className={styles.status} role={loadError ? "alert" : "status"}>
+        <p className={styles.status} data-editor-signal={loadError ? "error" : undefined} role={loadError ? "alert" : "status"}>
           {loadError || status || `Loading ${songTitle}’s chart and playable notes…`}
         </p>
       </section>
@@ -177,11 +179,12 @@ export function NumberBondsMissionComposer({
   }
 
   return (
-    <section className={styles.composer} aria-label="Number Bonds mission composer">
+    <section className={styles.composer} data-ur-editor="number-bonds" data-editor-state={presentation.phase} aria-busy={isPreparing} aria-label="Number Bonds mission composer">
       <div className={styles.intro}>
         <span className={styles.eyebrow}>NUMBER BONDS · {songTitle}</span>
         <h1>Build a bond. Play the song.</h1>
         <p>Choose a whole from 2 to {NUMBER_BONDS_MAX_WHOLE} and split it into two parts. Hits use verified cues across this song; each gem then spins and drags on beat. Select a placed Hit to change its pad or fine-tune its timing.</p>
+        <span className={styles.phase} data-editor-phase={presentation.phase}>{presentation.label}</span>
       </div>
       {authoredNoteCount === whole && !hasAuthoredSequence ? (
         <p className={styles.sequenceHint} role="note">This saved revision has chart-timed Hits only. Build gems from the chart to add a Spin and Drag to every unit.</p>
@@ -191,8 +194,8 @@ export function NumberBondsMissionComposer({
         <div className={styles.bondSummary} role="img" aria-label={`Whole ${whole} is made from part A ${partA} and part B ${partB}`}>
           <div><span>Part–whole relationship</span><strong>{partA} + {partB} = {whole}</strong></div>
           <div className={styles.bondBar} aria-hidden="true">
-            <span style={{ flexGrow: partA }} />
-            <span style={{ flexGrow: partB }} />
+            <span style={{ transform: `scaleX(${partA / whole})` }} />
+            <span style={{ transform: `scaleX(${partB / whole})` }} />
           </div>
           <div className={styles.bondLabels} aria-hidden="true"><span>Part A · {partA}</span><span>Part B · {partB}</span></div>
         </div>
@@ -416,7 +419,7 @@ export function NumberBondsMissionComposer({
             <nav className={styles.journeyStages} aria-label="Selected gem journey">
               {(["hit", "spin", "drag"] as const).map(mechanic => {
                 const stage = selectedJourney[mechanic];
-                return <button key={mechanic} type="button" disabled={!stage || !onSelectJourneyStage}
+                return <button key={mechanic} type="button" data-journey-stage={mechanic} disabled={!stage || !onSelectJourneyStage}
                   aria-pressed={Boolean(stage && stage.id === (selectedEncounterId ?? selectedNoteId))}
                   onClick={() => { if (stage) onSelectJourneyStage?.(stage.id, stage.startSeconds); }}>
                   <strong>{mechanic === "hit" ? "Hit" : mechanic === "spin" ? "Spin" : "Drag"}</strong>

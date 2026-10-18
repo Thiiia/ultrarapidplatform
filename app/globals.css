@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./experience/experience-tokens.css";
 @import "./experience/experience-primitives.css";
+@import "./experience/editor-motion.css";
 
 :root {
   --background: var(--color-background);

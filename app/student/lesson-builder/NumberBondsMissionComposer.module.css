@@ -68,9 +68,10 @@
 .bondSummary > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px; }
 .bondSummary > div:first-child > span { color: #c8d8d7; font-size: 12px; }
 .bondSummary strong { color: #efffc1; font-size: 17px; font-variant-numeric: tabular-nums; }
-.bondBar { display: flex; gap: 3px; height: 20px; overflow: hidden; border-radius: 5px; }
-.bondBar span { flex-basis: 0; min-width: 0; background: #66b8ff; }
-.bondBar span:last-child { background: #b796ff; }
+.bondBar { position: relative; height: 20px; overflow: hidden; border-radius: 5px; background: #071c25; }
+.bondBar span { position: absolute; inset: 0; background: #66b8ff; transform-origin: left center; transition: transform var(--editor-resolve, 280ms) var(--editor-settle, ease-out); }
+.bondBar span:last-child { background: #b796ff; transform-origin: right center; }
+.phase { margin-top: 10px; }
 .bondLabels { display: flex; justify-content: space-between; gap: 12px; color: #d4e1e8; font-size: 12px; }
 .cueToolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cueToolbar h2 { margin: 0; color: #f8fafc; font-size: 15px; }
@@ -207,7 +208,8 @@
 .noteNext {
   border-style: solid;
   box-shadow: 0 0 18px #cfff04aa;
-  animation: orbit-breathe 2.4s ease-in-out infinite;
+  outline: 2px solid #e5ffc0;
+  outline-offset: 2px;
 }
 
 .playFlow {
@@ -797,6 +799,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .bondBar span { transition: none; }
   .note, .noteSuggested, .noteNext, .pictorialModel, .orbitRing::before { animation: none; }
   .note, .notePlaced, .orbitRing::before { transition: none; }
   .notePlaced,

@@ -7,6 +7,7 @@ import SpinIcon from "@/public/lesson_builder_icons/Spin.svg";
 import { PLAYER_HEX_AUTHORED_HIT_PADS, resolveAuthoredHitPadSlot, resolvePlayerHexHitPadPixelOffset, type AuthoredHitPad } from "@/lib/authored-hit-pad-layout";
 import algebraStyles from "./AlgebraStudio.module.css";
 import { findNearestChartCueIndex } from "@/lib/editor/chart-cue-navigation";
+import { getRecorderPresentationState } from "@/lib/editor/presentation-state";
 type GameplayMechanic = "hit" | "spin" | "drag";
 type HitBubblePad = AuthoredHitPad;
 const gameplayMechanics: GameplayMechanic[] = ["hit", "spin", "drag"];
@@ -439,6 +440,11 @@ function RtcmHoldToken({
               strokeLinecap="round"
               strokeDasharray="1 5"
             />
+            {isDraggingToken ? <path
+              d={dragArcSide === -1 ? "M 58 130 A 72 72 0 0 1 202 130" : "M 58 130 A 72 72 0 0 0 202 130"}
+              pathLength={1} stroke="#b3f1eb" strokeWidth="3" strokeLinecap="round"
+              strokeDasharray="1" strokeDashoffset={1 - dragArcProgress}
+            /> : null}
           </svg>
         </span>
       )}
@@ -568,12 +574,13 @@ export function LiveEncounterRecorder({
   const [selectedTool, setSelectedTool] = useState<GameplayMechanic>("hit");
   const isEncounterOpen = eventRangeStartTick !== null;
   const canRecord = isSongPlaying && isEncounterOpen;
+  const presentation = getRecorderPresentationState({ playing: isSongPlaying, rangeOpen: isEncounterOpen, pending: pendingRangeMechanic, drafts: draftedActionCount });
   const capturePrompt = canRecord ? "CAPTURE READY" : isSongPlaying ? "OPEN RANGE" : isEncounterOpen ? "PLAY SONG" : "OPEN RANGE + PLAY";
   const nearestCueIndex = findNearestChartCueIndex(chartCueTimes, currentSongSeconds);
   const nearestCue = nearestCueIndex < 0 ? null : chartCueTimes[nearestCueIndex];
 
   return (
-    <section className={algebraStyles.rtcmModePanel} aria-label="Real-time chart maker" data-encounter-open={isEncounterOpen ? "true" : "false"}>
+    <section className={algebraStyles.rtcmModePanel} data-ur-editor="live" data-editor-state={presentation.phase} aria-label="Real-time chart maker" data-encounter-open={isEncounterOpen ? "true" : "false"}>
       <div className={algebraStyles.rtcmModeHeader}>
         <div className={algebraStyles.rtcmModeIdentity}>
           <strong>Capture the move on the beat</strong>
@@ -646,10 +653,11 @@ export function LiveEncounterRecorder({
         className={algebraStyles.rtcmCaptureStatus}
         role="status"
         aria-live="polite"
-        data-state={pendingRangeMechanic ? "capturing" : isEncounterOpen ? "open" : "idle"}
+        data-state={presentation.phase}
+        data-editor-signal={presentation.phase === "ready" ? "ready" : undefined}
       >
         <span className={algebraStyles.rtcmStatusDot} aria-hidden="true" />
-        <span>{pendingRangeMechanic
+        <span>{presentation.phase === "capturing"
           ? `Recording ${pendingRangeMechanic}. Release to set its end time.`
           : isEncounterOpen
             ? `${inRangeDraftCount} move${inRangeDraftCount === 1 ? "" : "s"} in this range. ${isSongPlaying ? "Use the selected gesture or save the encounter." : "Play the song to capture moves."}`
@@ -657,7 +665,7 @@ export function LiveEncounterRecorder({
               ? `${draftedActionCount} unsaved move${draftedActionCount === 1 ? "" : "s"} remain. Start an encounter to place them in a song range.`
               : "Start an encounter, play the song, then capture each gesture."}
         </span>
-        <span className={algebraStyles.rtcmCaptureReady}>{canRecord ? "LIVE" : "READY WHEN PLAYING"}</span>
+        <span className={algebraStyles.rtcmCaptureReady} data-editor-phase={presentation.phase}>{presentation.label}</span>
       </div>
 
       <div className={algebraStyles.rtcmPreviewRegion}>
@@ -677,7 +685,7 @@ export function LiveEncounterRecorder({
             <div><strong>Trace the spin</strong><span>Hold the handle and follow the ring.</span></div>
             <span className={algebraStyles.rtcmPreviewState} data-ready={pendingRangeMechanic === "spin" ? "true" : "false"}>{pendingRangeMechanic === "spin" ? "RELEASE TO SET END" : canRecord ? "READY TO SPIN" : capturePrompt}</span>
           </div>
-          {selectedTool === "spin" ? <RtcmHoldToken key={`spin-${canRecord}`} mechanic="spin" isSongPlaying={canRecord} isArmed={pendingRangeMechanic === "spin"} onStartHold={onStartHold} onEndHold={onEndHold} /> : null}
+          {selectedTool === "spin" ? <RtcmHoldToken key={`spin-${canRecord}`} mechanic="spin" isSongPlaying={canRecord} isArmed={canRecord && pendingRangeMechanic === "spin"} onStartHold={onStartHold} onEndHold={onEndHold} /> : null}
           <p className={algebraStyles.rtcmPreviewHint}>Hold for the full spin duration; release to set its end time.</p>
         </div>
 
@@ -687,7 +695,7 @@ export function LiveEncounterRecorder({
             <div><strong>Pull the term across</strong><span>Follow the curved path, then release.</span></div>
             <span className={algebraStyles.rtcmPreviewState} data-ready={pendingRangeMechanic === "drag" ? "true" : "false"}>{pendingRangeMechanic === "drag" ? "RELEASE TO SET END" : canRecord ? "READY TO DRAG" : capturePrompt}</span>
           </div>
-          {selectedTool === "drag" ? <RtcmHoldToken key={`drag-${canRecord}`} mechanic="drag" isSongPlaying={canRecord} isArmed={pendingRangeMechanic === "drag"} onStartHold={onStartHold} onEndHold={onEndHold} /> : null}
+          {selectedTool === "drag" ? <RtcmHoldToken key={`drag-${canRecord}`} mechanic="drag" isSongPlaying={canRecord} isArmed={canRecord && pendingRangeMechanic === "drag"} onStartHold={onStartHold} onEndHold={onEndHold} /> : null}
           <p className={algebraStyles.rtcmPreviewHint}>Keep the pointer down for the full drag duration to record its path in the encounter.</p>
         </div>
       </div>

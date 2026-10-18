@@ -1200,6 +1200,7 @@
 .rtcmToolCopy small { color: #b8cbc6; font-size: 11px; font-weight: 650; line-height: 1.25; }
 .rtcmCaptureStatus {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 9px;
   width: min(100%, 1120px);
@@ -1214,11 +1215,13 @@
   font-weight: 700;
   line-height: 1.35;
 }
+.rtcmCaptureStatus > span:nth-child(2) { flex: 1 1 180px; }
 .rtcmCaptureStatus[data-state="capturing"] { border-color: rgba(207,255,4,.48); color: #efffc1; }
 .rtcmStatusDot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: #6f8b86; }
-.rtcmCaptureStatus[data-state="open"] .rtcmStatusDot, .rtcmCaptureStatus[data-state="capturing"] .rtcmStatusDot { background: var(--studio-accent); box-shadow: 0 0 12px rgba(207,255,4,.58); }
-.rtcmCaptureReady { flex: none; margin-left: auto; color: #9eb5af; font-size: 9px; font-weight: 900; letter-spacing: .1em; white-space: nowrap; }
-.rtcmCaptureStatus[data-state="capturing"] .rtcmCaptureReady { color: var(--studio-accent); }
+.rtcmCaptureStatus[data-state="ready"] .rtcmStatusDot, .rtcmCaptureStatus[data-state="capturing"] .rtcmStatusDot { background: var(--studio-accent); }
+.rtcmCaptureStatus[data-state="paused"] .rtcmStatusDot { background: #b8c4d5; }
+.rtcmCaptureStatus[data-state="unsaved"] .rtcmStatusDot { background: #e5bf7f; }
+.rtcmCaptureReady { flex: none; margin-left: auto; white-space: nowrap; }
 .rtcmPreviewRegion { width: min(100%, 1120px); min-height: min-content; justify-self: center; }
 .rtcmPreviewCard {
   position: relative;
@@ -1240,7 +1243,7 @@
     linear-gradient(145deg, rgba(255,255,255,.045), transparent 44%),
     rgba(5,24,31,.86);
   box-shadow: inset 0 1px rgba(255,255,255,.07), 0 12px 28px rgba(0,0,0,.2);
-  animation: rtcmPreviewEnter .22s cubic-bezier(.22,1,.36,1) both;
+  animation: rtcmPreviewEnter var(--editor-resolve, 280ms) var(--editor-settle, ease-out) both;
 }
 .rtcmPreviewCard::before {
   position: absolute;
@@ -1320,7 +1323,7 @@
   .rtcmToolIcon { width: 30px; height: 30px; flex-basis: 30px; border-radius: 9px; }
   .rtcmToolCopy strong { font-size: 12px; }
   .rtcmToolCopy small { font-size: 10px; }
-  .rtcmCaptureReady { display: none; }
+  .rtcmCaptureReady { display: inline-flex; margin-left: 17px; white-space: normal; }
   .rtcmPreviewHeading { grid-template-columns: 30px minmax(0,1fr); gap: 8px; }
   .rtcmPreviewGlyph { width: 28px; height: 28px; }
   .rtcmPreviewState { grid-column: 2; }

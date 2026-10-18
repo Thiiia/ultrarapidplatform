@@ -1,0 +1,37 @@
+/* Authored presentation, consuming the pinned generated motion contract. */
+[data-ur-editor] {
+  --editor-respond: var(--ur-motion-duration-respond, 120ms);
+  --editor-commit: var(--ur-motion-duration-commit, 180ms);
+  --editor-resolve: var(--ur-motion-duration-resolve, 280ms);
+  --editor-settle: var(--ur-motion-easing-quart-out, cubic-bezier(.22, 1, .36, 1));
+}
+[data-ur-editor] [data-editor-signal] {
+  transition: background-color var(--editor-commit) ease-out, border-color var(--editor-respond) ease-out;
+}
+[data-ur-editor] [data-editor-signal="ready"] { animation: editor-state-resolve var(--editor-resolve) ease-out; }
+[data-ur-editor] [data-editor-signal="repair"],
+[data-ur-editor] [data-editor-signal="error"] { animation: editor-state-attention var(--editor-commit) ease-out; }
+[data-ur-editor] [data-cue-preview] { animation: editor-cue-reveal var(--editor-resolve) var(--editor-settle); }
+[data-ur-editor] [data-journey-stage][aria-pressed="true"] { animation: editor-state-resolve var(--editor-resolve) ease-out; }
+[data-ur-editor] [data-editor-phase] {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 10px;
+  border: 1px solid #719b9b99; border-radius: 8px; color: #dbefec; background: #0b2930;
+  font-size: 12px; font-weight: 700; line-height: 1.4;
+}
+[data-ur-editor] [data-editor-phase="ready"] { border-color: #a8ce65; color: #e9ffc0; }
+[data-ur-editor] [data-editor-phase="review"],
+[data-ur-editor] [data-editor-phase="error"],
+[data-ur-editor] [data-editor-phase="unsaved"] { border-color: #c9aa75; color: #ffe5b7; }
+[data-ur-editor] [data-editor-phase="capturing"] { border-color: #bba2ed; color: #f0e5ff; }
+[data-ur-editor] [data-editor-phase="preparing"],
+[data-ur-editor] [data-editor-phase="loading"] { border-style: dashed; }
+@keyframes editor-state-resolve { from { background-color: #315847; } }
+@keyframes editor-state-attention { from { outline: 2px solid #ddbd7f; outline-offset: 2px; } to { outline: 2px solid transparent; outline-offset: 2px; } }
+@keyframes editor-cue-reveal { from { opacity: .72; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  [data-ur-editor] [data-cue-preview], [data-ur-editor] [data-editor-signal],
+  [data-ur-editor] [data-journey-stage][aria-pressed] { animation: none; }
+}
+@media (forced-colors: active) {
+  [data-ur-editor] [data-editor-phase] { background: Canvas; color: CanvasText; border-color: CanvasText; }
+}
