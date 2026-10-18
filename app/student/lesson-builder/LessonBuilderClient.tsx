@@ -6,6 +6,9 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useId } fr
 import { createPortal } from "react-dom";
 import { EditorLeaveDialog } from "./EditorLeaveDialog";
 import { LessonLoadNotice } from "./LessonLoadNotice";
+import { useRecordedDrafts } from "./useRecordedDrafts";
+import { groupRecordedDrafts, isRecoverableRecordedDraft as isRecoverableRtcmDraft, type RecordedMechanicDraft } from "@/lib/editor/recorded-draft";
+import { useRecordedTimelinePublication } from "./useRecordedTimelinePublication";
 import WaveSurfer from "wavesurfer.js";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
 import SwipeRoundedIcon from "@mui/icons-material/SwipeRounded";
@@ -347,17 +350,7 @@ type TimelineEventSlot = {
   mechanicInstances: Record<GameplayMechanic, MechanicInstanceState[]>;
 };
 
-type RtcmDraftMechanic = {
-  id: string;
-  mechanic: GameplayMechanic;
-  /** Captured when the mechanic is authored; never inferred at save time. */
-  equationId?: string;
-  tick: number;
-  endTick?: number;
-  hitBubbles: HitBubblePlacement[];
-  spinTargets: SpinTarget[];
-  dragTargets: DragTarget[];
-};
+type RtcmDraftMechanic = RecordedMechanicDraft;
 
 function selectRtcmDraftsInRange(
   drafts: readonly RtcmDraftMechanic[],
@@ -380,25 +373,6 @@ function selectRtcmDraftsInRange(
       ? draft.endTick <= endSeconds
       : true;
   });
-}
-
-function isRecoverableRtcmDraft(value: unknown): value is RtcmDraftMechanic {
-  if (!value || typeof value !== "object") return false;
-  const draft = value as Partial<RtcmDraftMechanic>;
-  const pads = new Set<HitBubblePad>(["topLeft", "topRight", "left", "right", "bottomLeft", "bottomRight"]);
-  const validIndex = (index: unknown) => Number.isSafeInteger(index) && (index as number) >= 0;
-  return typeof draft.id === "string" && draft.id.length > 0
-    && (draft.mechanic === "hit" || draft.mechanic === "spin" || draft.mechanic === "drag")
-    && typeof draft.tick === "number" && Number.isFinite(draft.tick) && draft.tick >= 0
-    && (draft.endTick === undefined || (typeof draft.endTick === "number" && Number.isFinite(draft.endTick) && draft.endTick >= draft.tick))
-    && (draft.equationId === undefined || typeof draft.equationId === "string")
-    && Array.isArray(draft.hitBubbles) && draft.hitBubbles.every((target) =>
-      target && validIndex(target.tokenIndex)
-      && Array.isArray(target.positions) && target.positions.every((pad) => pads.has(pad))
-      && Array.isArray(target.pads) && target.pads.every((pad) => pads.has(pad)))
-    && Array.isArray(draft.spinTargets) && draft.spinTargets.every((target) => target && validIndex(target.tokenIndex))
-    && Array.isArray(draft.dragTargets) && draft.dragTargets.every((target) => target && validIndex(target.tokenIndex)
-      && (target.sourceHitId === undefined || typeof target.sourceHitId === "string"));
 }
 
 function authoredEventsFromRtcmDrafts(
@@ -9888,6 +9862,7 @@ export default function LessonBuilderClient({
   const [pendingSongFile, setPendingSongFile] = useState<File | null>(null);
 
   const [timelineEvents, setTimelineEvents] = useState<TimelineEventSlot[]>([]);
+  const recordedTimelinePublication = useRecordedTimelinePublication(timelineEvents, syncTimelineFilesFromEvents);
   const [numberBondDraftTarget, setNumberBondDraftTarget] = useState<{ songAssetId: string; whole: number } | null>(null);
   const [numberBondSequenceV1, setNumberBondSequenceV1] = useState<{
     songAssetId: string;
@@ -9906,7 +9881,7 @@ export default function LessonBuilderClient({
   const [libraryTab, setLibraryTab] = useState<LibraryTab>("mine");
   const [selectedEquationId, setSelectedEquationId] = useState<string | null>(null);
   const [hideEquationHeader, setHideEquationHeader] = useState(false);
-  const [rtcmDraftMechanics, setRtcmDraftMechanics] = useState<RtcmDraftMechanic[]>([]);
+  const { drafts: rtcmDraftMechanics, setDrafts: setRtcmDraftMechanics, ledger: rtcmDraftLedger } = useRecordedDrafts<RtcmDraftMechanic>();
   const [rtcmEventRangeStartTick, setRtcmEventRangeStartTick] = useState<number | null>(null);
   const [rtcmPendingHold, setRtcmPendingHold] = useState<{
     draftId: string;
@@ -10253,7 +10228,7 @@ export default function LessonBuilderClient({
         else { setWorkspaceStatus("offline"); }
       });
     return () => { cancelled = true; };
-  }, [canSyncWorkspace, entryIntent, guidedStarted, isLessonLoaded, workspaceSource]);
+  }, [canSyncWorkspace, entryIntent, guidedStarted, isLessonLoaded, workspaceSource, setRtcmDraftMechanics]);
 
   useEffect(() => {
     if (!guidedStarted || workspaceStatus === "loading" || !workspaceSource || (!hasUnsavedChanges && savedEquations.length === 0 && hiddenSourceEquationIds.length === 0)) return;
@@ -11136,12 +11111,21 @@ export default function LessonBuilderClient({
   }
 
   function handleToggleRctm1Mode() {
+    handleFinalizeAnyPendingHold();
     setAdvancedMode(true);
     if (mode === "rctm1") {
       setMode("event");
       return;
     }
 
+    // Guided and Record Live are views of this same lesson and recording draft.
+    if (mode !== "rctm2") {
+      setMode("rctm1");
+      setCenterChoice(null);
+      return;
+    }
+
+    recordedTimelinePublication.cancel();
     setTimelineEvents([]);
     setRtcmDraftMechanics([]);
     setRtcmEventRangeStartTick(null);
@@ -11205,6 +11189,7 @@ export default function LessonBuilderClient({
     timelineRehydrateSourceRef.current = entrySidecar;
     rctm2EntrySidecarRef.current = entrySidecar;
     rctm2EntryChartFileRef.current = chartFile;
+    recordedTimelinePublication.cancel();
     setTimelineEvents([]);
     setRtcmDraftMechanics([]);
     setRtcmEventRangeStartTick(null);
@@ -11220,7 +11205,19 @@ export default function LessonBuilderClient({
     setCenterChoice(null);
   }
 
+  function handleClearRecordedDraft() {
+    const hadRecordedMoves = rtcmDraftLedger.getSnapshot().length > 0;
+    rtcmPendingHoldRef.current = null;
+    setRtcmPendingHold(null);
+    setRtcmDraftMechanics([]);
+    setRtcmEventRangeStartTick(null);
+    setRecordedRepairId(null);
+    if (hadRecordedMoves) markDirty();
+    setSaveStatus("Recording draft cleared. Existing lesson encounters are unchanged.");
+  }
+
   function handleClearRtcmChart() {
+    recordedTimelinePublication.cancel();
     setNumberBondSequenceV1(null);
     setTimelineEvents([]);
     setRtcmDraftMechanics([]);
@@ -11316,9 +11313,11 @@ export default function LessonBuilderClient({
     const nextEquationQueue = selectedEquation && !authoredEquationQueue.some((entry) => entry.id === selectedEquation.id)
       ? [...authoredEquationQueue, selectedEquation]
       : authoredEquationQueue;
+    const currentDrafts = rtcmDraftLedger.getSnapshot();
+    const pendingHoldId = rtcmPendingHoldRef.current?.draftId ?? null;
     const conflict = findNewTimingConflict(
-      [...timelineEvents, ...rtcmAuthoredEvents] as AuthoredTimelineEvent[],
-      [...timelineEvents, ...authoredEventsFromRtcmDrafts([...rtcmDraftMechanics, draftCandidate], nextEquationQueue, rtcmPendingHold?.draftId ?? null, currentSongSeconds)] as AuthoredTimelineEvent[],
+      [...timelineEvents, ...authoredEventsFromRtcmDrafts(currentDrafts, nextEquationQueue, pendingHoldId, currentSongSeconds)] as AuthoredTimelineEvent[],
+      [...timelineEvents, ...authoredEventsFromRtcmDrafts([...currentDrafts, draftCandidate], nextEquationQueue, pendingHoldId, currentSongSeconds)] as AuthoredTimelineEvent[],
       { activityKey: selectedSongActivity?.key ?? selectedSongLaunch?.activityKey, equationQueue: nextEquationQueue },
     );
     if (conflict) {
@@ -11327,7 +11326,7 @@ export default function LessonBuilderClient({
       return "";
     }
 
-    setRtcmDraftMechanics((current) => [...current, draftCandidate]);
+    setRtcmDraftMechanics([...currentDrafts, draftCandidate]);
     if (selectedEquation) {
       setAuthoredEquationQueue((current) =>
         current.some((entry) => entry.id === selectedEquation.id)
@@ -11369,11 +11368,12 @@ export default function LessonBuilderClient({
   }
 
   function handleStartRtcmHold(mechanic: "spin" | "drag") {
+    if (!isSongPlaying || rtcmEventRangeStartTick === null || rtcmPendingHoldRef.current) return false;
     const tick = Number(currentSongSeconds.toFixed(3));
     const draftId = addRtcmDraftMechanic(mechanic, currentSongSeconds, {
       endSeconds: currentSongSeconds,
     });
-    if (!draftId) return;
+    if (!draftId) return false;
 
     const pendingHold = {
       draftId,
@@ -11382,13 +11382,15 @@ export default function LessonBuilderClient({
     };
     rtcmPendingHoldRef.current = pendingHold;
     setRtcmPendingHold(pendingHold);
+    return true;
   }
 
   function handleFinalizeRtcmHold() {
-    const pendingHold = rtcmPendingHoldRef.current ?? rtcmPendingHold;
+    const pendingHold = rtcmPendingHoldRef.current;
     if (!pendingHold) {
       return;
     }
+    rtcmPendingHoldRef.current = null;
 
     const endTick = Number(currentSongSeconds.toFixed(3));
 
@@ -11405,7 +11407,6 @@ export default function LessonBuilderClient({
       }),
     );
 
-    rtcmPendingHoldRef.current = null;
     setRtcmPendingHold(null);
     setSaveStatus(`${studentCopy.mechanics[pendingHold.mechanic]} recorded in the current encounter draft. Save the encounter when it is complete.`);
   }
@@ -11424,8 +11425,9 @@ export default function LessonBuilderClient({
       return;
     }
 
+    if (rtcmPendingHoldRef.current) handleFinalizeRtcmHold();
     const selectedDrafts = selectRtcmDraftsInRange(
-      rtcmDraftMechanics,
+      rtcmDraftLedger.getSnapshot(),
       startTick,
       finalEndTick,
     );
@@ -11435,56 +11437,25 @@ export default function LessonBuilderClient({
       return;
     }
 
-    setTimelineEvents((current) => {
-      const nextEvent = makeTimelineEvent(
-        current.length,
-        startTick,
-        selectedDrafts.reduce<Partial<MechanicCounts>>((counts, draft) => {
-          counts[draft.mechanic] = (counts[draft.mechanic] ?? 0) + 1;
-          return counts;
-        }, {}),
-        finalEndTick,
-      );
-
-      if (typeof options.rctm2Number === "number") {
-        nextEvent.rctm2Number = Math.max(
-          1,
-          Math.min(20, Math.round(options.rctm2Number)),
-        );
-      }
-
-      const nextDraftsByMechanic: Record<GameplayMechanic, MechanicInstanceState[]> = {
-        hit: [],
-        spin: [],
-        drag: [],
-      };
-
-      selectedDrafts.forEach((draft) => {
-        const instance = {
-          id: draft.id,
-          tick: draft.tick,
-          ...(draft.mechanic === "hit" ? {} : { endTick: draft.endTick ?? draft.tick }),
-          hitBubbles: draft.hitBubbles,
-          spinTargets: draft.spinTargets,
-          dragTargets: draft.dragTargets,
-        } satisfies MechanicInstanceState;
-
-        nextDraftsByMechanic[draft.mechanic].push(instance);
-      });
-
-      nextEvent.mechanicInstances = {
-        hit: nextDraftsByMechanic.hit,
-        spin: nextDraftsByMechanic.spin,
-        drag: nextDraftsByMechanic.drag,
-      };
-
-      const nextEvents = [...current, nextEvent].sort(
+    const nextEvent = makeTimelineEvent(
+      timelineEvents.length,
+      startTick,
+      selectedDrafts.reduce<Partial<MechanicCounts>>((counts, draft) => {
+        counts[draft.mechanic] = (counts[draft.mechanic] ?? 0) + 1;
+        return counts;
+      }, {}),
+      finalEndTick,
+    );
+    if (typeof options.rctm2Number === "number") nextEvent.rctm2Number = Math.max(1, Math.min(20, Math.round(options.rctm2Number)));
+    const capturedEquations = selectedEquation && !authoredEquationQueue.some(equation => equation.id === selectedEquation.id)
+      ? [...authoredEquationQueue, selectedEquation] : authoredEquationQueue;
+    const captured = groupRecordedDrafts(selectedDrafts, capturedEquations);
+    nextEvent.mechanicInstances = captured.mechanicInstances;
+    nextEvent.assignments = captured.assignments;
+    recordedTimelinePublication.queue(nextEvent.id);
+    setTimelineEvents((current) => [...current, nextEvent].sort(
         (left, right) => timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
-      );
-
-      syncTimelineFilesFromEvents(nextEvents);
-      return nextEvents;
-    });
+    ));
 
     setRtcmDraftMechanics((current) =>
       current.filter((draft) => !selectedDrafts.some((selected) => selected.id === draft.id)),
@@ -13077,6 +13048,7 @@ export default function LessonBuilderClient({
   }
 
   function hydrateSelectedSong(selectedSong: SelectedSongPayload) {
+    recordedTimelinePublication.cancel();
     setIsLessonHydrating(true);
     setNumberBondSequenceV1(null);
     const generation = ++lessonLoadGenerationRef.current;
@@ -13987,7 +13959,7 @@ export default function LessonBuilderClient({
 
       setProject(nextProject);
       setChartFile(projectToChart(nextProject));
-      setSaveStatus(studentCopy.editor.changesSaved);
+      setSaveStatus("Lesson updated in the editor. Save it to keep these changes.");
     } catch (error) {
       console.error("Failed to update chart after timeline edit", error);
       setSaveStatus(studentCopy.editor.lessonSaveFailed);
@@ -14273,9 +14245,6 @@ export default function LessonBuilderClient({
   function handleAddMechanicAtPlayhead(
     mechanic: GameplayMechanic,
     options: {
-      allowActiveEvent?: boolean;
-      allowPlayheadEvent?: boolean;
-      draftIfNoEvent?: boolean;
       hitPad?: HitBubblePad;
     } = {},
   ) {
@@ -14295,39 +14264,26 @@ export default function LessonBuilderClient({
     const hitPad = options.hitPad ?? (
       mechanic === "hit" && capabilities.activityKey === "number-bonds" ? "left" : undefined
     );
-    const allowActiveEvent = options.allowActiveEvent ?? true;
-    const allowPlayheadEvent = options.allowPlayheadEvent ?? true;
-    const draftIfNoEvent = options.draftIfNoEvent ?? false;
     const mechanicSeconds = currentSongSeconds;
     const mechanicTick = Number(mechanicSeconds.toFixed(3));
     let nextAddedInstanceId: string | null = null;
 
     setTimelineEvents((current) => {
       const selectedEvent =
-        allowActiveEvent && activeEventId
+        activeEventId
           ? current.find((eventSlot) => eventSlot.id === activeEventId) ?? null
           : null;
-      const playheadEvent =
-        allowPlayheadEvent ? findTimelineEventAtSeconds(current, mechanicSeconds) : null;
+      const playheadEvent = findTimelineEventAtSeconds(current, mechanicSeconds);
       const targetEvent =
         selectedEvent ??
         playheadEvent ??
-        (draftIfNoEvent ? null : makeTimelineEvent(current.length, mechanicTick));
+        makeTimelineEvent(current.length, mechanicTick);
       const baseEvents = selectedEvent || playheadEvent
         ? current
-        : targetEvent
-          ? [...current, targetEvent].sort(
+        : [...current, targetEvent].sort(
             (left, right) =>
               timelineTickToSeconds(left.tick) - timelineTickToSeconds(right.tick),
-          )
-          : current;
-
-      if (!targetEvent) {
-        addRtcmDraftMechanic(mechanic, mechanicSeconds, {
-          hitPad,
-        });
-        return current;
-      }
+          );
 
       const nextEvents = baseEvents.map((eventSlot) => {
         if (eventSlot.id !== targetEvent.id) {
@@ -14409,12 +14365,8 @@ export default function LessonBuilderClient({
   }
 
   function handleRtcmAddHitAtPlayhead(hitPad: HitBubblePad) {
-    handleAddMechanicAtPlayhead("hit", {
-      allowActiveEvent: false,
-      allowPlayheadEvent: true,
-      draftIfNoEvent: true,
-      hitPad,
-    });
+    if (!isSongPlaying || rtcmEventRangeStartTick === null) return false;
+    return Boolean(addRtcmDraftMechanic("hit", currentSongSeconds, { hitPad }));
   }
 
   function handleAddSpinAtPlayhead() {
@@ -14422,7 +14374,7 @@ export default function LessonBuilderClient({
   }
 
   function handleRtcmStartSpinAtPlayhead() {
-    handleStartRtcmHold("spin");
+    return handleStartRtcmHold("spin");
   }
 
   function handleAddDragAtPlayhead() {
@@ -14430,7 +14382,7 @@ export default function LessonBuilderClient({
   }
 
   function handleRtcmStartDragAtPlayhead() {
-    handleStartRtcmHold("drag");
+    return handleStartRtcmHold("drag");
   }
 
   function handleAddRctm2TimelineMarker(
@@ -15317,15 +15269,15 @@ export default function LessonBuilderClient({
                 onAddHit={handleRtcmAddHitAtPlayhead}
                 onStartHold={(tool) => {
                   if (tool === "spin") {
-                    handleRtcmStartSpinAtPlayhead();
+                    return handleRtcmStartSpinAtPlayhead();
                   } else {
-                    handleRtcmStartDragAtPlayhead();
+                    return handleRtcmStartDragAtPlayhead();
                   }
                 }}
                 onEndHold={handleFinalizeAnyPendingHold}
                 onCreateEvent={handleToggleRtcmEventCreation}
                 onDeleteEvent={handleDeleteActiveEvent}
-                onClear={handleClearRtcmChart}
+                onClear={handleClearRecordedDraft}
                 isSongPlaying={isSongPlaying}
                 currentSongSeconds={currentSongSeconds}
                 pendingRangeMechanic={rtcmPendingHold?.mechanic ?? null}

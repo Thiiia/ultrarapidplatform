@@ -271,13 +271,48 @@ test("recorded encounter drafts are dirty, validated, and reachable from readine
   assert.match(recording, /setAuthoredEquationQueue\(/);
   assert.match(finalize, /if \(selectedDrafts\.length === 0\)/);
   assert.match(finalize, /markDirty\(\)/);
+  assert.match(finalize, /groupRecordedDrafts\(selectedDrafts, capturedEquations\)/);
+  assert.match(finalize, /recordedTimelinePublication\.queue\(nextEvent\.id\)/);
+  assert.doesNotMatch(finalize, /syncTimelineFilesFromEvents\(/);
   assert.match(lessonBuilderSource, /evaluateLessonPublishReadiness\(\[\.\.\.timelineEvents, \.\.\.rtcmAuthoredEvents\]/);
   assert.match(lessonBuilderSource, /authoredSidecarFromTimelineEvents\([\s\S]*?\[\.\.\.timelineEvents, \.\.\.rtcmAuthoredEvents\]/);
   assert.match(lessonBuilderSource, /findGuidedEncounterSelection\(rtcmAuthoredEvents, encounterId\)/);
-  assert.match(lessonBuilderSource, /function handleStartRtcmHold\([\s\S]*?if \(!draftId\) return;/);
+  assert.match(lessonBuilderSource, /function handleStartRtcmHold\([\s\S]*?if \(!draftId\) return false;/);
   assert.match(lessonBuilderSource, /function handleBeginRctm2DragMarker\([\s\S]*?if \(!draftId\) return "";/);
   assert.match(lessonBuilderSource, /recordedDrafts: rtcmDraftMechanics/);
   assert.match(lessonBuilderSource, /payload\.recordedDrafts\.filter\(isRecoverableRtcmDraft\)/);
+});
+
+test("Record Live keeps accepted Hits in the same draft as held stages and validates immediate input", () => {
+  const recorder = readFileSync(join(process.cwd(), "app/student/lesson-builder/LiveEncounterRecorder.tsx"), "utf8");
+  const hit = lessonBuilderSource.split("function handleRtcmAddHitAtPlayhead(")[1]?.split("function handleAddSpinAtPlayhead(")[0];
+  assert.ok(hit);
+  assert.match(hit, /return Boolean\(addRtcmDraftMechanic\("hit", currentSongSeconds, \{ hitPad \}\)\)/);
+  assert.doesNotMatch(hit, /handleAddMechanicAtPlayhead/);
+  assert.doesNotMatch(lessonBuilderSource, /draftIfNoEvent|allowPlayheadEvent|allowActiveEvent/);
+  assert.match(lessonBuilderSource, /const currentDrafts = rtcmDraftLedger\.getSnapshot\(\)/);
+  assert.match(lessonBuilderSource, /authoredEventsFromRtcmDrafts\(\[\.\.\.currentDrafts, draftCandidate\]/);
+  assert.match(lessonBuilderSource, /if \(!isSongPlaying \|\| rtcmEventRangeStartTick === null \|\| rtcmPendingHoldRef\.current\) return false/);
+  assert.match(recorder, /if \(!onStartHold\(mechanic\)\) return/);
+  assert.match(recorder, /if \(!onStartHold\("spin"\)\) return/);
+  assert.match(recorder, /if \(onAddHit\(pad\)\) setReceipt/);
+});
+
+test("ordinary recorder mode changes preserve lesson data and clear draft never resets the chart", () => {
+  const toggle = lessonBuilderSource.split("function handleToggleRctm1Mode(")[1]?.split("function handleToggleRctm2Mode(")[0];
+  const clear = lessonBuilderSource.split("function handleClearRecordedDraft(")[1]?.split("function handleClearRtcmChart(")[0];
+  assert.ok(toggle);
+  assert.ok(clear);
+  assert.match(toggle, /handleFinalizeAnyPendingHold\(\)/);
+  assert.ok(toggle.indexOf('if (mode !== "rctm2")') < toggle.indexOf("setTimelineEvents([])"));
+  assert.match(toggle, /if \(mode !== "rctm2"\) \{\s+setMode\("rctm1"\);\s+setCenterChoice\(null\);\s+return;/);
+  assert.match(clear, /setRtcmDraftMechanics\(\[\]\)/);
+  assert.doesNotMatch(clear, /setTimelineEvents|setChartFile|setNumberBondSequenceV1|syncTimelineFilesFromEvents/);
+  assert.match(lessonBuilderSource, /<LiveEncounterRecorder[\s\S]*?onClear=\{handleClearRecordedDraft\}/);
+  const projection = lessonBuilderSource.split("function syncTimelineFilesFromEvents(")[1]?.split("function makeAlgebraDraftEvent(")[0];
+  assert.ok(projection);
+  assert.doesNotMatch(projection, /studentCopy\.editor\.changesSaved/);
+  assert.match(projection, /Save it to keep these changes/);
 });
 
 test("recording and timeline edits reject newly introduced Unity timing conflicts", () => {

@@ -66,11 +66,12 @@ function RtcmHitPadToken({
   onAddHit,
   isSongPlaying,
 }: {
-  onAddHit: (pad: HitBubblePad) => void;
+  onAddHit: (pad: HitBubblePad) => boolean;
   isSongPlaying: boolean;
 }) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [stageWidth, setStageWidth] = useState(300);
+  const [receipt, setReceipt] = useState<{ pad: HitBubblePad; sequence: number } | null>(null);
   useLayoutEffect(() => {
     const stage = stageRef.current;
     if (!stage || typeof ResizeObserver === "undefined") return;
@@ -113,7 +114,9 @@ function RtcmHitPadToken({
             key={pad}
             type="button"
             className={algebraStyles.rtcmHitPadButton}
-            onClick={isSongPlaying ? () => onAddHit(pad) : undefined}
+            onClick={isSongPlaying ? () => {
+              if (onAddHit(pad)) setReceipt(current => ({ pad, sequence: (current?.sequence ?? 0) + 1 }));
+            } : undefined}
             aria-label={`Add hit at pad ${padNumber}`}
             disabled={!isSongPlaying}
             style={{
@@ -123,6 +126,7 @@ function RtcmHitPadToken({
               ...padStyle,
             }}
           >
+            {isSongPlaying && receipt?.pad === pad ? <span key={receipt.sequence} className={algebraStyles.rtcmHitReceipt} aria-hidden="true" /> : null}
             <span
               aria-hidden="true"
               className={algebraStyles.rtcmHitPadLabel}
@@ -135,6 +139,9 @@ function RtcmHitPadToken({
           </button>
         );
       })}
+      <span className={algebraStyles.rtcmReceiptAnnouncement} role="status" aria-atomic="true">
+        {receipt ? `Pad ${getHitPadNumber(receipt.pad)} captured in the recording draft.` : ""}
+      </span>
     </div>
   );
 }
@@ -149,7 +156,7 @@ function RtcmHoldToken({
   mechanic: Exclude<GameplayMechanic, "hit">;
   isSongPlaying: boolean;
   isArmed: boolean;
-  onStartHold: (mechanic: Exclude<GameplayMechanic, "hit">) => void;
+  onStartHold: (mechanic: Exclude<GameplayMechanic, "hit">) => boolean;
   onEndHold: () => void;
 }) {
   const [dragArcProgress, setDragArcProgress] = useState(0);
@@ -243,6 +250,7 @@ function RtcmHoldToken({
 
     event.preventDefault();
     event.stopPropagation();
+    if (!onStartHold(mechanic)) return;
     event.currentTarget.setPointerCapture(event.pointerId);
 
     const startedHold = isSongPlaying;
@@ -263,9 +271,6 @@ function RtcmHoldToken({
 
     setIsDraggingToken(true);
 
-    if (startedHold) {
-      onStartHold(mechanic);
-    }
   }
 
   function handleTokenPointerMove(event: PointerEvent<HTMLButtonElement>) {
@@ -327,6 +332,7 @@ function RtcmHoldToken({
     if (!isSongPlaying || !event.isPrimary || event.button !== 0 || pointerStateRef.current || spinHandleStateRef.current || keyboardHoldRef.current) return;
     event.preventDefault();
     event.stopPropagation();
+    if (!onStartHold("spin")) return;
     event.currentTarget.setPointerCapture(event.pointerId);
 
     const startedHold = isSongPlaying;
@@ -339,9 +345,6 @@ function RtcmHoldToken({
     setIsDraggingSpinHandle(true);
     setSpinHandleAngle(angleFromClientPosition(event.clientX, event.clientY));
 
-    if (startedHold) {
-      onStartHold("spin");
-    }
   }
 
   function handleSpinHandlePointerMove(event: PointerEvent<HTMLButtonElement>) {
@@ -383,10 +386,10 @@ function RtcmHoldToken({
     if (event.key !== " " && event.key !== "Enter") return;
     event.preventDefault();
     if (!isSongPlaying || event.repeat || pointerStateRef.current || spinHandleStateRef.current || keyboardHoldRef.current) return;
+    if (!onStartHold(mechanic)) return;
     keyboardHoldRef.current = true;
     if (mechanic === "spin") setIsDraggingSpinHandle(true);
     else setIsDraggingToken(true);
-    onStartHold(mechanic);
   }
 
   function endKeyboardGesture(event: KeyboardEvent<HTMLButtonElement>) {
@@ -519,7 +522,7 @@ function RtcmHoldToken({
                 ? "none"
                 : undefined,
         }}
-        aria-label={`Hold to add ${mechanic} timing`}
+        aria-label={mechanic === "drag" ? "Hold and drag to add drag timing" : "Hold to add spin timing"}
         title={
           isSongPlaying
             ? `Hold to create ${mechanic} timing, then release to end.`
@@ -554,8 +557,8 @@ export function LiveEncounterRecorder({
   equationLabel = "",
   chartCueTimes = [],
 }: {
-  onAddHit: (pad: HitBubblePad) => void;
-  onStartHold: (tool: Exclude<GameplayMechanic, "hit">) => void;
+  onAddHit: (pad: HitBubblePad) => boolean;
+  onStartHold: (tool: Exclude<GameplayMechanic, "hit">) => boolean;
   onEndHold: () => void;
   onCreateEvent: () => void;
   onDeleteEvent: () => void;
@@ -676,7 +679,7 @@ export function LiveEncounterRecorder({
             <span className={algebraStyles.rtcmPreviewState} data-ready={canRecord ? "true" : "false"}>{canRecord ? "CAPTURE READY" : capturePrompt}</span>
           </div>
           {selectedTool === "hit" ? <RtcmHitPadToken onAddHit={onAddHit} isSongPlaying={canRecord} /> : null}
-          <p className={algebraStyles.rtcmPreviewHint}>Each tap records a chart-timed Hit at the current playhead.</p>
+          <p className={algebraStyles.rtcmPreviewHint}>Each accepted tap records a Hit at the song playhead. Use the chart cues above to align it.</p>
         </div>
 
         <div className={algebraStyles.rtcmPreviewCard} data-mechanic="spin" style={{ display: selectedTool === "spin" ? "grid" : "none" }} aria-hidden={selectedTool !== "spin"}>
