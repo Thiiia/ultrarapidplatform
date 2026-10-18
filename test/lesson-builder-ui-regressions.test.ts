@@ -296,6 +296,8 @@ test("Record Live keeps accepted Hits in the same draft as held stages and valid
   assert.match(recorder, /if \(!onStartHold\(mechanic\)\) return/);
   assert.match(recorder, /if \(!onStartHold\("spin"\)\) return/);
   assert.match(recorder, /if \(onAddHit\(pad\)\) setReceipt/);
+  assert.match(recorder, /if \(!isSongPlaying\) return;[\s\S]*?return settleGesture;/);
+  assert.doesNotMatch(recorder, /key=\{`(?:spin|drag)-\$\{canRecord\}`\}/);
 });
 
 test("ordinary recorder mode changes preserve lesson data and clear draft never resets the chart", () => {

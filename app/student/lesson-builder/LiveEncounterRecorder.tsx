@@ -189,6 +189,11 @@ function RtcmHoldToken({
     if (started) endHoldRef.current();
   }, []);
   useEffect(() => {
+    if (!isSongPlaying) return;
+    // Playback owns the gesture; release it when playback stops or unmounts.
+    return settleGesture;
+  }, [isSongPlaying, settleGesture]);
+  useEffect(() => {
     const onVisibilityChange = () => { if (document.hidden) settleGesture(); };
     window.addEventListener("blur", settleGesture);
     document.addEventListener("visibilitychange", onVisibilityChange);
@@ -688,7 +693,7 @@ export function LiveEncounterRecorder({
             <div><strong>Trace the spin</strong><span>Hold the handle and follow the ring.</span></div>
             <span className={algebraStyles.rtcmPreviewState} data-ready={pendingRangeMechanic === "spin" ? "true" : "false"}>{pendingRangeMechanic === "spin" ? "RELEASE TO SET END" : canRecord ? "READY TO SPIN" : capturePrompt}</span>
           </div>
-          {selectedTool === "spin" ? <RtcmHoldToken key={`spin-${canRecord}`} mechanic="spin" isSongPlaying={canRecord} isArmed={canRecord && pendingRangeMechanic === "spin"} onStartHold={onStartHold} onEndHold={onEndHold} /> : null}
+          {selectedTool === "spin" ? <RtcmHoldToken mechanic="spin" isSongPlaying={canRecord} isArmed={canRecord && pendingRangeMechanic === "spin"} onStartHold={onStartHold} onEndHold={onEndHold} /> : null}
           <p className={algebraStyles.rtcmPreviewHint}>Hold for the full spin duration; release to set its end time.</p>
         </div>
 
@@ -698,7 +703,7 @@ export function LiveEncounterRecorder({
             <div><strong>Pull the term across</strong><span>Follow the curved path, then release.</span></div>
             <span className={algebraStyles.rtcmPreviewState} data-ready={pendingRangeMechanic === "drag" ? "true" : "false"}>{pendingRangeMechanic === "drag" ? "RELEASE TO SET END" : canRecord ? "READY TO DRAG" : capturePrompt}</span>
           </div>
-          {selectedTool === "drag" ? <RtcmHoldToken key={`drag-${canRecord}`} mechanic="drag" isSongPlaying={canRecord} isArmed={canRecord && pendingRangeMechanic === "drag"} onStartHold={onStartHold} onEndHold={onEndHold} /> : null}
+          {selectedTool === "drag" ? <RtcmHoldToken mechanic="drag" isSongPlaying={canRecord} isArmed={canRecord && pendingRangeMechanic === "drag"} onStartHold={onStartHold} onEndHold={onEndHold} /> : null}
           <p className={algebraStyles.rtcmPreviewHint}>Keep the pointer down for the full drag duration to record its path in the encounter.</p>
         </div>
       </div>
