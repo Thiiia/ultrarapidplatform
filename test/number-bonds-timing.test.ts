@@ -17,8 +17,10 @@ import type { AuthoredSavedEquation, AuthoredTimelineEvent } from "../lib/author
 import {
   getNumberBondSequenceCapacity,
   planNumberBondSequenceCues,
+  planNumberBondSequenceCuesForHitTicks,
   type NumberBondSequenceCueTiming,
 } from "../lib/number-bonds-note-plan";
+import { NUMBER_BOND_SEQUENCE_PLAYABILITY_POLICY } from "../lib/number-bonds-authored-sequence";
 
 test("Number Bonds uses a full final interaction tail", () => {
   assert.equal(authoredStopBufferSeconds("number-bonds"), 12);
@@ -71,7 +73,7 @@ test("song-specific Number Bonds cues stay on the tempo grid across a tempo chan
     "{",
     "  2304 = N 0 0",
     "  9408 = N 1 0",
-    "  11520 = N 2 0",
+    "  11904 = N 2 0",
     "}",
   ].join("\n");
   const clock = createLessonClock(chart);
@@ -79,7 +81,7 @@ test("song-specific Number Bonds cues stay on the tempo grid across a tempo chan
 
   assert.ok(cues);
   assert.equal(getNumberBondSequenceCapacity(chart, "ExpertSingle", 60), 3);
-  assert.deepEqual(cues.map((cue) => cue.hitTick), [2304, 9408, 11520]);
+  assert.deepEqual(cues.map((cue) => cue.hitTick), [2304, 9408, 11904]);
   const gridTicks = clock.ticksPerBeat / 16;
   const equation: AuthoredSavedEquation = {
     id: "bond-3",
@@ -145,15 +147,66 @@ test("song-specific Number Bonds cues stay on the tempo grid across a tempo chan
     assert.equal(cue.dragEndTick % gridTicks, 0);
     assert.ok(cue.spinStartSeconds - AUTHORED_PRESENTATION_LEAD_SECONDS > cue.hitSeconds + AUTHORED_HIT_MISS_WINDOW_SECONDS);
     assert.ok(cue.spinStartTick < cue.spinEndTick);
+    assert.ok(cue.spinEndSeconds - cue.spinStartSeconds + 1e-8 >= NUMBER_BOND_SEQUENCE_PLAYABILITY_POLICY.minimumSpinDurationSeconds);
     assert.ok(cue.spinEndTick < cue.dragStartTick);
     assert.ok(cue.dragStartTick < cue.dragEndTick);
-    assert.ok(cue.dragStartSeconds - AUTHORED_PRESENTATION_LEAD_SECONDS > cue.spinEndSeconds);
+    assert.ok(cue.dragEndSeconds - cue.dragStartSeconds + 1e-8 >= NUMBER_BOND_SEQUENCE_PLAYABILITY_POLICY.minimumDragDurationSeconds);
+    assert.ok(cue.dragStartSeconds - NUMBER_BOND_SEQUENCE_PLAYABILITY_POLICY.spinToDragPreparationSeconds > cue.spinEndSeconds);
     if (cues[index + 1]) {
       const nextCue: NumberBondSequenceCueTiming = cues[index + 1]!;
       assert.ok(cue.dragEndTick < nextCue.hitTick);
     }
     assert.ok(60 - cue.dragEndSeconds >= 12);
   }
+});
+
+function chartWithNotesAtSeconds(seconds: readonly number[], bpm = 100) {
+  const ticksPerSecond = 192 * bpm / 60;
+  return `[Song]\n{\n  Resolution = 192\n}\n[SyncTrack]\n{\n  0 = B ${bpm * 1000}\n}\n[ExpertSingle]\n{\n${seconds.map((value, index) => `  ${Math.round(value * ticksPerSecond)} = N ${index % 5} 0`).join("\n")}\n}`;
+}
+
+test("dense Number Bonds charts lower capacity instead of squeezing complete gestures into half beats", () => {
+  const chart = chartWithNotesAtSeconds([6, 13.5, 21, 28.5, 36]);
+  assert.equal(getNumberBondSequenceCapacity(chart, "ExpertSingle", 60), 3);
+  assert.equal(planNumberBondSequenceCues(chart, "ExpertSingle", 60, 5), null);
+  const cues = planNumberBondSequenceCues(chart, "ExpertSingle", 60, 3);
+  assert.ok(cues);
+  assert.deepEqual(cues.map((cue) => cue.hitSeconds), [6, 21, 36]);
+  for (const cue of cues) {
+    assert.ok(cue.spinEndSeconds - cue.spinStartSeconds + 1e-8 >= 4);
+    assert.ok(cue.dragEndSeconds - cue.dragStartSeconds + 1e-8 >= 1);
+    assert.ok(cue.dragStartSeconds - cue.spinEndSeconds > 1.25);
+    assert.ok(60 - cue.dragEndSeconds >= 12);
+  }
+});
+
+test("catalogue rebudgeting preserves valid chart Hits and refuses invented or compressed selections", () => {
+  const chart = chartWithNotesAtSeconds([6, 13.5, 21, 28.5, 36]);
+  const clock = createLessonClock(chart);
+  const ticks = [6, 21, 36].map(clock.toTick);
+  assert.deepEqual(planNumberBondSequenceCuesForHitTicks(chart, "ExpertSingle", 60, ticks)?.map((cue) => cue.hitTick), ticks);
+  assert.equal(planNumberBondSequenceCuesForHitTicks(chart, "ExpertSingle", 60, [clock.toTick(6), clock.toTick(13.5)]), null);
+  assert.equal(planNumberBondSequenceCuesForHitTicks(chart, "ExpertSingle", 60, [clock.toTick(6), clock.toTick(22)]), null);
+  assert.equal(planNumberBondSequenceCuesForHitTicks(chart, "ExpertSingle", 60, [clock.toTick(21), clock.toTick(6)]), null);
+});
+
+test("fast charts preserve second-based gesture budgets and report no fake capacity for a short song", () => {
+  const seconds = Array.from({ length: 42 }, (_, index) => 6 + index);
+  const chart = chartWithNotesAtSeconds(seconds, 300);
+  const capacity = getNumberBondSequenceCapacity(chart, "ExpertSingle", 75);
+  assert.ok(capacity >= 2 && capacity < 8);
+  const cues = planNumberBondSequenceCues(chart, "ExpertSingle", 75, capacity);
+  assert.ok(cues);
+  for (let index = 0; index < cues.length; index += 1) {
+    const cue = cues[index];
+    assert.ok(seconds.includes(cue.hitSeconds), "Every Hit stays on an existing chart note.");
+    assert.ok(cue.spinEndSeconds - cue.spinStartSeconds + 1e-8 >= 4);
+    assert.ok(cue.dragEndSeconds - cue.dragStartSeconds + 1e-8 >= 1);
+    if (index > 0) assert.ok(cue.hitSeconds - AUTHORED_PRESENTATION_LEAD_SECONDS > cues[index - 1].dragEndSeconds);
+  }
+  const shortChart = chartWithNotesAtSeconds([6, 13.5, 21]);
+  assert.equal(getNumberBondSequenceCapacity(shortChart, "ExpertSingle", 28), 0);
+  assert.equal(planNumberBondSequenceCues(shortChart, "ExpertSingle", 28, 2), null);
 });
 
 test("editor guidance delegates every timing decision to the shared readiness and publication validator", () => {

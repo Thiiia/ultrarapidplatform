@@ -20,11 +20,12 @@ import {
 } from "./activity-authoring-capabilities";
 import { resolveAuthoredHitPadTarget } from "./authored-hit-pad-layout";
 import { getEquationDraftIssue } from "./editor/equation-draft-readiness";
+import { NUMBER_BOND_SEQUENCE_PLAYABILITY_POLICY } from "./number-bonds-authored-sequence";
 
-// Unity's standalone Drag presents its pickup half a second before the
-// generic approach lead. Linked Hit-to-Drag and co-timed groups retain their
-// existing dependency/group policy; this guard covers a preceding Spin.
-const STANDALONE_SPIN_DRAG_PREPARATION_SECONDS = 1.25;
+// Unity's Drag presents its pickup half a second before the generic approach.
+// Preserve incumbent Algebra Hit-linked/group policy; explicit Number Bonds
+// journeys also reserve this space between their linked Spin and Drag.
+const SPIN_DRAG_PREPARATION_SECONDS = NUMBER_BOND_SEQUENCE_PLAYABILITY_POLICY.spinToDragPreparationSeconds;
 
 export type GuidedMechanic = "hit" | "spin" | "drag";
 
@@ -52,6 +53,8 @@ export type EncounterIssueCode =
   | "single_target_required"
   | "drag_source_required"
   | "duration_required"
+  | "spin_duration_short"
+  | "drag_duration_short"
   | "operator_target"
   | "drag_source_not_ready"
   | "drag_source_not_earlier"
@@ -130,6 +133,8 @@ const ISSUE_ACTIONS: Record<EncounterIssueCode, string> = {
   single_target_required: "Choose exactly one target token for this move.",
   drag_source_required: "Choose an earlier Hit to start this Drag.",
   duration_required: "Set when this move ends.",
+  spin_duration_short: `Give this Spin at least ${NUMBER_BOND_SEQUENCE_PLAYABILITY_POLICY.minimumSpinDurationSeconds} seconds before the Drag.`,
+  drag_duration_short: `Give this Drag at least ${NUMBER_BOND_SEQUENCE_PLAYABILITY_POLICY.minimumDragDurationSeconds} second to reach its part.`,
   operator_target: "Pick a number or variable, not a + or = sign.",
   drag_source_not_ready: "Choose a Hit that comes before this Drag.",
   drag_source_not_earlier: "Move this Drag after its source Hit.",
@@ -162,6 +167,8 @@ function issue(encounter: GuidedEncounterInput, code: EncounterIssueCode): Encou
     single_target_required: "has more than one target token",
     drag_source_required: "needs an earlier Hit",
     duration_required: "needs an end time",
+    spin_duration_short: "has too little time to spin",
+    drag_duration_short: "has too little time to reach its part",
     operator_target: "uses a + or = sign as its target",
     drag_source_not_ready: "needs a Hit that comes first",
     drag_source_not_earlier: "must start after its source Hit",
@@ -346,6 +353,18 @@ export function evaluateEncounterReadiness(
 
   if (encounter.mechanic !== "hit" && (typeof encounter.endTick !== "number" || encounter.endTick <= (encounter.tick ?? 0))) {
     issues.push(issue(encounter, "duration_required"));
+  }
+
+  if (explicitNumberBondsSequence && typeof encounter.endTick === "number") {
+    const durationSeconds = encounter.endTick - (encounter.tick ?? 0);
+    if (durationSeconds > 0 && encounter.mechanic === "spin" &&
+      durationSeconds + 1e-8 < NUMBER_BOND_SEQUENCE_PLAYABILITY_POLICY.minimumSpinDurationSeconds) {
+      issues.push(issue(encounter, "spin_duration_short"));
+    }
+    if (durationSeconds > 0 && encounter.mechanic === "drag" &&
+      durationSeconds + 1e-8 < NUMBER_BOND_SEQUENCE_PLAYABILITY_POLICY.minimumDragDurationSeconds) {
+      issues.push(issue(encounter, "drag_duration_short"));
+    }
   }
 
   if (encounter.equation) {
@@ -625,15 +644,16 @@ export function evaluateLessonPublishReadiness(
       const right = ordered[candidateIndex];
       const rightInput = inputFromEvent(right.event, right.mechanic, right.instance);
       const rightStart = rightInput.tick ?? right.event.tick;
-      const standaloneSpinToDrag = left.mechanic === "spin" && right.mechanic === "drag" &&
-        rightStart > leftStart && !rightInput.dragTargets.some((target) => target.sourceHitId);
-      const rightPresentationLead = standaloneSpinToDrag
-        ? STANDALONE_SPIN_DRAG_PREPARATION_SECONDS
+      const needsSpinToDragPreparation = left.mechanic === "spin" && right.mechanic === "drag" &&
+        rightStart > leftStart && (!rightInput.dragTargets.some((target) => target.sourceHitId) ||
+          (capabilities.activityKey === "number-bonds" && options.numberBondSequenceVersion === 1));
+      const rightPresentationLead = needsSpinToDragPreparation
+        ? SPIN_DRAG_PREPARATION_SECONDS
         : AUTHORED_PRESENTATION_LEAD_SECONDS;
       const rightPresentationStart = Math.max(0, rightStart - rightPresentationLead);
       // A later standalone Drag has a longer lead than an intervening Hit.
       // Stop only when even that longest preparation window is clear.
-      if (rightStart - STANDALONE_SPIN_DRAG_PREPARATION_SECONDS > leftRelease) break;
+      if (rightStart - SPIN_DRAG_PREPARATION_SECONDS > leftRelease) break;
       if (rightPresentationStart > leftRelease) continue;
 
       // Number Bonds has a stricter one-at-a-time authored contract. Its shared

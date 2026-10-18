@@ -61,6 +61,42 @@ function eventWith(...instances: GuidedEncounterInput[]): AuthoredTimelineEvent 
   };
 }
 
+for (const mechanic of ["spin", "drag"] as const) {
+  test(`explicit Number Bonds readiness flags a compressed ${mechanic} without rewriting its saved times`, () => {
+    const bondEquation: AuthoredSavedEquation = {
+      id: "bond-2", tokens: ["2", "=", "1", "+", "1"].map((label, index) => ({ id: `bond-${index}`, label })),
+    };
+    const input = encounter(mechanic, { tick: 7.46, endTick: 7.76, equation: bondEquation });
+    const options = { activityKey: "number-bonds", numberBondSequenceVersion: 1 as const };
+    const short = evaluateEncounterReadiness(input, new Set(["hit-1"]), options);
+    assert.ok(short.issueCodes.includes(mechanic === "spin" ? "spin_duration_short" : "drag_duration_short"));
+    const playable = evaluateEncounterReadiness({ ...input, endTick: input.tick! + (mechanic === "spin" ? 4 : 1) }, new Set(["hit-1"]), options);
+    assert.equal(playable.issueCodes.includes("spin_duration_short") || playable.issueCodes.includes("drag_duration_short"), false);
+    assert.equal(input.tick, 7.46);
+    assert.equal(input.endTick, 7.76);
+    const algebra = evaluateEncounterReadiness(input, new Set(["hit-1"]), { activityKey: "early-algebra" });
+    assert.equal(algebra.issueCodes.includes("spin_duration_short") || algebra.issueCodes.includes("drag_duration_short"), false,
+      "The conservative Number Bonds gesture budget does not redefine authored Algebra choreography.");
+  });
+}
+
+test("explicit Number Bonds journeys reserve the native pickup lead after their linked Spin", () => {
+  const bondEquation: AuthoredSavedEquation = {
+    id: "bond-2", tokens: ["2", "=", "1", "+", "1"].map((label, index) => ({ id: `bond-${index}`, label })),
+  };
+  const hit = encounter("hit", { tick: 6, endTick: 6, equation: bondEquation });
+  const spin = encounter("spin", { tick: 8, endTick: 12, equation: bondEquation });
+  const drag = encounter("drag", { tick: 13, endTick: 14, equation: bondEquation });
+  const readiness = evaluateLessonPublishReadiness([eventWith(hit, spin, drag)], {
+    activityKey: "number-bonds", numberBondSequenceVersion: 1,
+  });
+  const pickup = readiness.blockers.find((blocker) => blocker.code === "unsupported_concurrency" && blocker.encounterId === drag.id);
+  assert.ok(pickup);
+  assert.equal(pickup.relatedEncounterId, spin.id);
+  assert.equal(pickup.earliestSafeStartSeconds, 13.251);
+  assert.equal(drag.tick, 13);
+});
+
 test("standalone Spin-to-Drag warns when Unity's pickup preparation still overlaps the Spin", () => {
   const spin = encounter("spin", { tick: 8, endTick: 10 });
   const drag = encounter("drag", { tick: 11, endTick: 13, dragTargets: [{ tokenIndex: 2 }] });

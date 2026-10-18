@@ -1,5 +1,16 @@
 export type NumberBondSequenceDestinationPart = "part-a" | "part-b";
 
+/** Conservative editor budgets for the existing sequential native gestures.
+ * SpinDragController keeps a 3.95s playable watchdog floor; the authored
+ * musical Spin must have its own readable window before Drag takes over.
+ * These seconds are planning/readiness policy, not changes to saved ticks.
+ */
+export const NUMBER_BOND_SEQUENCE_PLAYABILITY_POLICY = {
+  minimumSpinDurationSeconds: 4,
+  minimumDragDurationSeconds: 1,
+  spinToDragPreparationSeconds: 1.25,
+} as const;
+
 export type NumberBondSequenceGem = Readonly<{
   gemId: string;
   unitIndex: number;

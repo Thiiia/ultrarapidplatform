@@ -232,7 +232,7 @@ test("Number Bonds sequence v1 generalizes equation tokens, gem counts, and part
   assert.equal(lesson.encounters.length, 45);
 });
 
-test("Number Bonds sequence v1 survives editor hydration and save with encounter edits validated", () => {
+test("historical Number Bonds sequence stays editable while new publication requires playable gesture timing", () => {
   const parsed = parseAuthoredLessonDraft(clone(fixture.validLesson));
   const identityClock = {
     toTick: (seconds: number) => seconds,
@@ -243,7 +243,7 @@ test("Number Bonds sequence v1 survives editor hydration and save with encounter
   assert.equal(hydrated.numberBondSequenceVersion, 1);
   assert.deepEqual(hydrated.numberBondGems, parsed.numberBondGems);
 
-  const saved = serializeAuthoredLesson(
+  const serializeHydrated = (forPublish = false) => serializeAuthoredLesson(
     hydrated.events,
     {
       songAssetId: parsed.songAssetId,
@@ -255,7 +255,7 @@ test("Number Bonds sequence v1 survives editor hydration and save with encounter
     parsed.stopAtSeconds,
     hydrated.equations,
     {
-      forPublish: true,
+      forPublish,
       activityKey: "number-bonds",
       numberBondSequenceV1: {
         version: 1,
@@ -263,13 +263,18 @@ test("Number Bonds sequence v1 survives editor hydration and save with encounter
       },
     },
   );
+  const saved = serializeHydrated();
 
   assert.equal(saved.numberBondSequenceVersion, 1);
   assert.deepEqual(saved.numberBondGems, parsed.numberBondGems);
+  assert.deepEqual(stableSequenceProjection(saved), stableSequenceProjection(parsed),
+    "Saving a historical draft must preserve its exact target identities and music timing.");
   assert.deepEqual(
     parseAuthoredLessonDraft(saved).numberBondGems,
     parsed.numberBondGems,
   );
+  assert.throws(() => serializeHydrated(true), /not ready to publish:.*Spin at least 4 seconds/,
+    "New editor publication must request a playable Spin instead of silently rewriting the old revision.");
 
   const changed = structuredClone(hydrated.events);
   const lastGemDrag = changed
