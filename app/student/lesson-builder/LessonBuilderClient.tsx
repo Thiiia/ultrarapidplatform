@@ -5,6 +5,7 @@ import type { ChangeEvent, DragEvent, KeyboardEvent as ReactKeyboardEvent, Point
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useId } from "react";
 import { createPortal } from "react-dom";
 import { EditorLeaveDialog } from "./EditorLeaveDialog";
+import { LessonLoadNotice } from "./LessonLoadNotice";
 import WaveSurfer from "wavesurfer.js";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
 import SwipeRoundedIcon from "@mui/icons-material/SwipeRounded";
@@ -9953,6 +9954,8 @@ export default function LessonBuilderClient({
   const [algebraActionDraft, setAlgebraActionDraft] = useState<GuidedEncounterInput | null>(null);
   const [pendingAlgebraActionDraft, setPendingAlgebraActionDraft] = useState<GuidedEncounterInput | null>(null);
   const [isLessonLoaded, setIsLessonLoaded] = useState(false);
+  const [isLessonHydrating, setIsLessonHydrating] = useState(true);
+  const editorWorkspaceRef = useRef<HTMLElement>(null);
   const [advancedConfirmOpen, setAdvancedConfirmOpen] = useState(false);
   const [isReadinessOpen, setIsReadinessOpen] = useState(false);
   const [timingRepairPreviewState, setTimingRepairPreviewState] = useState<{
@@ -13074,6 +13077,7 @@ export default function LessonBuilderClient({
   }
 
   function hydrateSelectedSong(selectedSong: SelectedSongPayload) {
+    setIsLessonHydrating(true);
     setNumberBondSequenceV1(null);
     const generation = ++lessonLoadGenerationRef.current;
     lessonLoadAbortRef.current?.abort();
@@ -13160,6 +13164,7 @@ export default function LessonBuilderClient({
       setSelectedSongStorage(null);
       setSelectedSongLaunch(null);
       setSelectedSongActivity(null);
+      setIsLessonHydrating(false);
       setLoadError(message);
       setLessonReadiness({
         state: "repairable",
@@ -13381,6 +13386,7 @@ export default function LessonBuilderClient({
         }
         loadedSongReadyRef.current = true;
         setIsLessonLoaded(true);
+        setIsLessonHydrating(false);
         setSaveStatus(demoDraft ? "Restored your local demo draft." : studentCopy.editor.lessonLoaded);
         setLessonReadiness(isDemoMode ? null : {
           state: "ready",
@@ -13399,6 +13405,7 @@ export default function LessonBuilderClient({
         if (generation !== lessonLoadGenerationRef.current || controller.signal.aborted) return;
         loadedSongReadyRef.current = false;
         setIsLessonLoaded(false);
+        setIsLessonHydrating(false);
         console.error("Failed to hydrate selected lesson", error);
         const message = getLearnerFacingError(error, studentCopy.editor.lessonLoadFailed);
         setLoadError(message);
@@ -13537,6 +13544,7 @@ export default function LessonBuilderClient({
     const raw = sessionStorage.getItem("ultrarapid_selected_song");
 
     if (!raw) {
+      setIsLessonHydrating(false);
       return;
     }
 
@@ -13545,6 +13553,7 @@ export default function LessonBuilderClient({
       hydrateSelectedSong(selectedSong);
     } catch (error) {
       console.error("Failed to parse selected song package", error);
+      setIsLessonHydrating(false);
       appendSongFlowDebug("lesson-builder:session:parse-error", "Failed to parse the selected song payload from session storage.", {
         message: error instanceof Error ? error.message : String(error),
         hasStoredPayload: Boolean(raw),
@@ -14889,6 +14898,7 @@ export default function LessonBuilderClient({
     setIsReadinessOpen(true);
     setSaveStatus("Undid the last timing repair.");
   }
+  const editorLoadBlocked = isLessonHydrating || Boolean(loadError);
   return (
     <div
       className={`${styles.studentTypography} ${isAlgebraActivity ? algebraStyles.shell : ""}`}
@@ -14980,7 +14990,7 @@ export default function LessonBuilderClient({
           songTitle={metadata?.songTitle?.trim() || uploadedSongName || "Choose a song"}
           encounterCount={timelineEvents.length}
           actionCount={timelineEvents.reduce((total, event) => total + gameplayMechanics.reduce((count, mechanic) => count + Math.max(0, event.counts?.[mechanic] ?? 0), 0), 0)}
-          canAddAction={isLessonLoaded && Boolean(selectedSongStorage || selectedSongLaunch)}
+          canAddAction={isLessonLoaded && !loadError && Boolean(selectedSongStorage || selectedSongLaunch)}
           onEditFirstEncounter={handlePersonalizeStarterEncounter}
           onCreateEquation={handleAddToStarterTemplate}
           onAddAction={() => openAlgebraActionDraft("hit")}
@@ -15148,10 +15158,15 @@ export default function LessonBuilderClient({
       ) : null}
 
       <main
+        ref={editorWorkspaceRef}
+        inert={editorLoadBlocked}
+        aria-hidden={editorLoadBlocked || undefined}
         className={isAlgebraActivity ? algebraStyles.main : undefined}
         data-guided-start={isGuidedStart ? "true" : undefined}
         style={{
           width: "100%",
+          // Keep the timeline measured and mounted while its audio is prepared.
+          visibility: editorLoadBlocked ? "hidden" : undefined,
           flex: isAlgebraActivity ? "none" : 1,
           height: isAlgebraActivity ? "calc(100dvh - 128px)" : undefined,
           minHeight: isAlgebraActivity ? 560 : 0,
@@ -15914,6 +15929,15 @@ export default function LessonBuilderClient({
         )}
       </main>
 
+      {editorLoadBlocked ? <LessonLoadNotice
+        songTitle={metadata?.songTitle || uploadedSongName || "your lesson"}
+        error={isLessonHydrating ? "" : loadError}
+        isAlgebraStudio={isAlgebraActivity}
+        workspaceRef={editorWorkspaceRef}
+        onRetry={handleRetryCurrentLesson}
+        onChooseSong={handleBackToSongChoice}
+      /> : null}
+
       {isAlgebraActivity && algebraActionDraft && algebraDraftReadiness ? (
         <AlgebraActionDraft
           draft={algebraActionDraft}
@@ -16002,7 +16026,7 @@ export default function LessonBuilderClient({
         onLoad={handleLoadSongFromFilePicker}
       />
 
-      {tutorialStep === "welcome" ? (
+      {tutorialStep === "welcome" && !editorLoadBlocked ? (
         <section
           role="region"
           aria-label="Quick lesson refresher"

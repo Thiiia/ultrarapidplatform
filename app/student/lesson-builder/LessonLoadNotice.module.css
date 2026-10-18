@@ -1,0 +1,26 @@
+.notice {
+  position: fixed;
+  inset: 64px 0 0;
+  z-index: 6;
+  display: grid;
+  align-content: center;
+  padding: clamp(24px, 6vw, 80px);
+  overflow: auto;
+  background: #081f28;
+  color: #f1f7f5;
+}
+.content { width: min(100%, 640px); margin-inline: auto; animation: reveal var(--ur-motion-duration-resolve, 280ms) ease-out; }
+.content h1 { margin: 0 0 20px; font-size: clamp(28px, 4vw, 44px); line-height: 1.15; text-wrap: balance; overflow-wrap: anywhere; }
+.content p { margin: 0; font-size: 16px; line-height: 1.6; color: #c4dce0; overflow-wrap: anywhere; }
+.content .hint { margin-top: 24px; font-size: 14px; }
+.notice[data-state="error"] h1 { color: #ffe2dc; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.actions button { min-height: 44px; border: 1px solid #cfff04; border-radius: 10px; padding: 12px 18px; background: #cfff04; color: #102012; font: inherit; font-weight: 700; cursor: pointer; }
+.actions button:hover { background: #e0ff63; }
+.actions .secondary { border-color: #7d9fa4; background: transparent; color: #e4edf0; }
+.actions .secondary:hover { background: #15343d; }
+.actions button:focus-visible { outline: 3px solid #cfff04; outline-offset: 4px; }
+@keyframes reveal { from { opacity: .75; } }
+@media (max-width: 420px) { .actions button { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .content { animation: none; } }
+@media (forced-colors: active) { .notice, .actions button, .actions .secondary { background: Canvas; color: CanvasText; border-color: CanvasText; } }

@@ -71,6 +71,23 @@ test("both activities share a native leave dialog with protected saving and expl
   assert.match(css, /prefers-reduced-motion: reduce/);
 });
 
+test("package hydration gates editing without unmounting the audio timeline or inventing progress", () => {
+  const notice = readFileSync(join(process.cwd(), "app/student/lesson-builder/LessonLoadNotice.tsx"), "utf8");
+  assert.match(lessonBuilderSource, /const \[isLessonHydrating, setIsLessonHydrating\] = useState\(true\)/);
+  assert.match(lessonBuilderSource, /function hydrateSelectedSong[\s\S]*?setIsLessonHydrating\(true\)/);
+  assert.match(lessonBuilderSource, /const editorLoadBlocked = isLessonHydrating \|\| Boolean\(loadError\)/);
+  assert.match(lessonBuilderSource, /<main\s+ref=\{editorWorkspaceRef\}\s+inert=\{editorLoadBlocked\}\s+aria-hidden=\{editorLoadBlocked \|\| undefined\}/);
+  assert.match(lessonBuilderSource, /visibility: editorLoadBlocked \? "hidden" : undefined/);
+  assert.match(lessonBuilderSource, /setIsLessonLoaded\(true\);\s+setIsLessonHydrating\(false\)/);
+  assert.match(lessonBuilderSource, /controller\.signal\.aborted\) return;\s+loadedSongReadyRef\.current = false;\s+setIsLessonLoaded\(false\);\s+setIsLessonHydrating\(false\)/);
+  assert.match(lessonBuilderSource, /onRetry=\{handleRetryCurrentLesson\}/);
+  assert.match(notice, /Try loading again/);
+  assert.match(notice, /Choose another song/);
+  assert.match(notice, /workspace\.getBoundingClientRect\(\)\.top/);
+  assert.match(notice, /observer\?\.disconnect\(\)/);
+  assert.doesNotMatch(notice, /aria-valuenow|progressbar|setInterval|setTimeout/);
+});
+
 test("editor side panels progressively disclose without removing access", () => {
   assert.match(lessonBuilderSource, /const \[advancedMode, setAdvancedMode\] = useState\(false\)/);
   assert.match(lessonBuilderSource, /const \[isBuilderPanelOpen, setIsBuilderPanelOpen\] = useState\(false\)/);
