@@ -2,14 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import type { ChangeEvent, DragEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent, ReactNode } from "react";
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useId } from "react";
+import { memo, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, useId } from "react";
 import { createPortal } from "react-dom";
 import { EditorLeaveDialog } from "./EditorLeaveDialog";
 import { LessonLoadNotice } from "./LessonLoadNotice";
 import { useRecordedDrafts } from "./useRecordedDrafts";
-import { closeRecordedHold, groupRecordedDrafts, isRecoverableRecordedDraft as isRecoverableRtcmDraft, type RecordedMechanicDraft } from "@/lib/editor/recorded-draft";
+import { closeRecordedHold, groupRecordedDrafts, isRecoverableRecordedDraft as isRecoverableRtcmDraft, snapshotRecordedDrafts, type RecordedMechanicDraft } from "@/lib/editor/recorded-draft";
 import { canCaptureEditorPlayback, readEditorPlaybackSeconds } from "@/lib/editor/playback-clock";
 import { useRecordedTimelinePublication } from "./useRecordedTimelinePublication";
+import { useWorkspaceExitRecovery } from "./useWorkspaceExitRecovery";
 import WaveSurfer from "wavesurfer.js";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
 import SwipeRoundedIcon from "@mui/icons-material/SwipeRounded";
@@ -10248,18 +10249,25 @@ export default function LessonBuilderClient({
     return () => { cancelled = true; };
   }, [canSyncWorkspace, entryIntent, guidedStarted, isDemoMode, isLessonLoaded, workspaceSource, setRtcmDraftMechanics]);
 
+  const captureRecoverySnapshot = useEffectEvent(() => ({
+    recordedDrafts: snapshotRecordedDrafts(rtcmDraftLedger.getSnapshot(), rtcmPendingHoldRef.current,
+      readEditorPlaybackSeconds(audioRef.current, currentSongSeconds)),
+    authoredLesson: captureWorkspaceAuthoredLesson(),
+  }));
+
   useEffect(() => {
-    if (!guidedStarted || workspaceStatus === "loading" || !workspaceSource || (!hasUnsavedChanges && savedEquations.length === 0 && hiddenSourceEquationIds.length === 0)) return;
+    if (!(guidedStarted || mode === "rctm1" || mode === "rctm2") || workspaceStatus === "loading" || workspaceStatus === "conflict" || !workspaceSource || (!hasUnsavedChanges && savedEquations.length === 0 && hiddenSourceEquationIds.length === 0)) return;
     let cancelled = false;
     let retryTimer: number | null = null;
     const timer = window.setTimeout(() => {
+      const { recordedDrafts: recoveryDrafts, authoredLesson } = captureRecoverySnapshot();
       const payload = {
         version: 1,
         equations: savedEquations,
         hiddenSourceEquationIds,
         timelineEdits: timelineEvents as unknown[],
-        recordedDrafts: rtcmDraftMechanics as unknown[],
-        authoredLesson: captureWorkspaceAuthoredLesson(),
+        recordedDrafts: recoveryDrafts as unknown[],
+        authoredLesson,
         tutorial: { step: tutorialStep === "welcome" ? "welcome" : tutorialStep === "build" || tutorialStep === "save" ? "equation" : tutorialStep === "add" ? "encounter" : "done" } as const,
         updatedAt: Date.now(),
       };
@@ -10268,7 +10276,7 @@ export default function LessonBuilderClient({
           version: 1,
           source: workspaceSource,
           timelineEvents,
-          recordedDrafts: rtcmDraftMechanics,
+          recordedDrafts: recoveryDrafts,
           authoredLesson: payload.authoredLesson,
           equationEdits: savedEquations,
           hiddenSourceEquationIds,
@@ -10338,7 +10346,16 @@ export default function LessonBuilderClient({
       window.clearTimeout(timer);
       if (retryTimer !== null) window.clearTimeout(retryTimer);
     };
-  }, [authoredEquationQueue, canSyncWorkspace, guidedStarted, hasUnsavedChanges, hiddenSourceEquationIds, numberBondSequenceV1, rtcmDraftMechanics, savedEquations, timelineEvents, tutorialStep, workspaceRetryNonce, workspaceSource]);
+  }, [authoredEquationQueue, canSyncWorkspace, guidedStarted, mode, hasUnsavedChanges, hiddenSourceEquationIds, numberBondSequenceV1, rtcmDraftMechanics, savedEquations, timelineEvents, tutorialStep, workspaceRetryNonce, workspaceSource, workspaceStatus]);
+
+  useWorkspaceExitRecovery((guidedStarted || mode === "rctm1" || mode === "rctm2") && isLessonLoaded && workspaceStatus !== "loading", () => {
+    if (!hasUnsavedChanges || !workspaceSource) return;
+    try { writeWorkspaceRecovery(); }
+    catch {
+      setWorkspaceStatus("offline");
+      setSaveStatus(studentCopy.editor.draftRecoveryFailed);
+    }
+  });
 
   const shouldShowStarterTemplate = shouldOfferStarterTemplate({
     songId: selectedSongStorage?.id ?? null,
@@ -11391,6 +11408,7 @@ export default function LessonBuilderClient({
   function handleStartRtcmHold(mechanic: "spin" | "drag") {
     if (!canCaptureEditorPlayback(audioRef.current, isSongPlaying) || rtcmEventRangeStartTick === null || rtcmPendingHoldRef.current) return false;
     const seconds = readEditorPlaybackSeconds(audioRef.current, currentSongSeconds);
+    setCurrentSongSeconds(Number(seconds.toFixed(3)));
     const tick = Number(seconds.toFixed(3));
     const draftId = addRtcmDraftMechanic(mechanic, seconds, {
       endSeconds: seconds,
@@ -11415,6 +11433,7 @@ export default function LessonBuilderClient({
     rtcmPendingHoldRef.current = null;
 
     const seconds = readEditorPlaybackSeconds(audioRef.current, currentSongSeconds);
+    setCurrentSongSeconds(Number(seconds.toFixed(3)));
     setRtcmDraftMechanics((current) => closeRecordedHold(current, pendingHold, seconds));
 
     setRtcmPendingHold(null);
@@ -13426,9 +13445,25 @@ export default function LessonBuilderClient({
     });
   }
 
+  function writeWorkspaceRecovery() {
+    if (!workspaceSource || typeof window === "undefined") return false;
+    writePlayerLessonWorkspaceDraft(sessionStorage, {
+      version: 1,
+      source: workspaceSource,
+      timelineEvents,
+      recordedDrafts: snapshotRecordedDrafts(rtcmDraftLedger.getSnapshot(), rtcmPendingHoldRef.current,
+        readEditorPlaybackSeconds(audioRef.current, currentSongSeconds)),
+      authoredLesson: captureWorkspaceAuthoredLesson(),
+      equationEdits: savedEquations,
+      hiddenSourceEquationIds,
+      updatedAt: Date.now(),
+    });
+    return true;
+  }
 
   function savePrivateDraft() {
     try {
+      let didSave = false;
       if (isDemoMode && selectedSongStorage) {
         const activityKey = selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null;
         if (activityKey) {
@@ -13436,19 +13471,11 @@ export default function LessonBuilderClient({
             chart: chartFile || originalChartFileRef.current,
             sidecar: JSON.stringify(captureWorkspaceAuthoredLesson() ?? sidecarFromTimelineEvents(timelineEvents, true)),
           });
+          didSave = true;
         }
       }
-      if (workspaceSource && typeof window !== "undefined") {
-        writePlayerLessonWorkspaceDraft(sessionStorage, {
-          version: 1,
-          source: workspaceSource,
-          timelineEvents,
-          recordedDrafts: rtcmDraftMechanics,
-          equationEdits: savedEquations,
-          hiddenSourceEquationIds,
-          updatedAt: Date.now(),
-        });
-      }
+      if (writeWorkspaceRecovery()) didSave = true;
+      if (!didSave) throw new Error("No loaded lesson workspace is available to save.");
       setSaveStatus(studentCopy.editor.draftSaved);
       return true;
     } catch {
@@ -14412,6 +14439,7 @@ export default function LessonBuilderClient({
   function handleRtcmAddHitAtPlayhead(hitPad: HitBubblePad) {
     if (!canCaptureEditorPlayback(audioRef.current, isSongPlaying) || rtcmEventRangeStartTick === null) return false;
     const seconds = readEditorPlaybackSeconds(audioRef.current, currentSongSeconds);
+    setCurrentSongSeconds(Number(seconds.toFixed(3)));
     return Boolean(addRtcmDraftMechanic("hit", seconds, { hitPad }));
   }
 

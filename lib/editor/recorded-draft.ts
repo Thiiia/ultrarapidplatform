@@ -26,6 +26,11 @@ export function closeRecordedHold<T extends RecordedMechanicDraft>(drafts: T[], 
     : draft);
 }
 
+/** Recovery stores the elapsed hold, while the live gesture keeps its owner. */
+export function snapshotRecordedDrafts<T extends RecordedMechanicDraft>(drafts: T[], hold: { draftId: string; startTick: number } | null, seconds: number): T[] {
+  return hold ? closeRecordedHold(drafts, hold, seconds) : drafts;
+}
+
 /** Structural recovery only. Missing gameplay targets remain editable readiness issues. */
 export function isRecoverableRecordedDraft(value: unknown): value is RecordedMechanicDraft {
   if (!record(value)) return false;

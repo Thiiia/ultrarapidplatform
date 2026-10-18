@@ -279,7 +279,8 @@ test("recorded encounter drafts are dirty, validated, and reachable from readine
   assert.match(lessonBuilderSource, /findGuidedEncounterSelection\(rtcmAuthoredEvents, encounterId\)/);
   assert.match(lessonBuilderSource, /function handleStartRtcmHold\([\s\S]*?if \(!draftId\) return false;/);
   assert.match(lessonBuilderSource, /function handleBeginRctm2DragMarker\([\s\S]*?if \(!draftId\) return "";/);
-  assert.match(lessonBuilderSource, /recordedDrafts: rtcmDraftMechanics/);
+  assert.match(lessonBuilderSource, /recordedDrafts: recoveryDrafts/);
+  assert.match(lessonBuilderSource, /recordedDrafts: snapshotRecordedDrafts\(rtcmDraftLedger\.getSnapshot\(\), rtcmPendingHoldRef\.current/);
   assert.match(lessonBuilderSource, /payload\.recordedDrafts\.filter\(isRecoverableRtcmDraft\)/);
 });
 
@@ -288,6 +289,7 @@ test("Record Live keeps accepted Hits in the same draft as held stages and valid
   const hit = lessonBuilderSource.split("function handleRtcmAddHitAtPlayhead(")[1]?.split("function handleAddSpinAtPlayhead(")[0];
   assert.ok(hit);
   assert.match(hit, /const seconds = readEditorPlaybackSeconds\(audioRef\.current, currentSongSeconds\)/);
+  assert.match(hit, /setCurrentSongSeconds\(Number\(seconds\.toFixed\(3\)\)\)/);
   assert.match(hit, /return Boolean\(addRtcmDraftMechanic\("hit", seconds, \{ hitPad \}\)\)/);
   assert.doesNotMatch(hit, /handleAddMechanicAtPlayhead/);
   assert.doesNotMatch(lessonBuilderSource, /draftIfNoEvent|allowPlayheadEvent|allowActiveEvent/);
@@ -299,6 +301,14 @@ test("Record Live keeps accepted Hits in the same draft as held stages and valid
   assert.match(recorder, /if \(onAddHit\(pad\)\) setReceipt/);
   assert.match(recorder, /if \(!isSongPlaying\) return;[\s\S]*?return settleGesture;/);
   assert.doesNotMatch(recorder, /key=\{`(?:spin|drag)-\$\{canRecord\}`\}/);
+});
+
+test("Record Live recovery works without first completing the guided starter", () => {
+  assert.match(lessonBuilderSource, /if \(!\(guidedStarted \|\| mode === "rctm1" \|\| mode === "rctm2"\) \|\| workspaceStatus === "loading"/);
+  assert.match(lessonBuilderSource, /useWorkspaceExitRecovery\(\(guidedStarted \|\| mode === "rctm1" \|\| mode === "rctm2"\)/);
+  assert.match(lessonBuilderSource, /if \(!didSave\) throw new Error\("No loaded lesson workspace is available to save\."\)/);
+  assert.match(lessonBuilderSource, /workspaceStatus === "loading" \|\| workspaceStatus === "conflict"/);
+  assert.match(lessonBuilderSource, /const captureRecoverySnapshot = useEffectEvent/);
 });
 
 test("ordinary recorder mode changes preserve lesson data and clear draft never resets the chart", () => {

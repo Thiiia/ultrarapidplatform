@@ -1,13 +1,33 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { LEGACY_AUTHORED_HIT_PADS, PLAYER_HEX_AUTHORED_HIT_PADS } from "../lib/authored-hit-pad-layout";
-import { groupRecordedDrafts, isRecoverableRecordedDraft, type RecordedMechanicDraft } from "../lib/editor/recorded-draft";
+import { groupRecordedDrafts, isRecoverableRecordedDraft, snapshotRecordedDrafts, type RecordedMechanicDraft } from "../lib/editor/recorded-draft";
+import { readPlayerLessonWorkspaceDraft, writePlayerLessonWorkspaceDraft } from "../lib/player-lesson-workspace";
 import { serializeAuthoredLesson, timelineEventsFromAuthoredLesson, type AuthoredTimelineEvent } from "../lib/authored-lesson-serialization";
 import { parseAuthoredLessonDraft } from "../lib/authored-lesson";
 import { createLessonClock } from "../lib/editor/lesson-timing";
 import { inputFromEvent } from "../lib/guided-authored-encounter";
 
 const base = () => ({ id: "stable-hit", mechanic: "hit", equationId: "eq", tick: 6.321, hitBubbles: [], spinTargets: [], dragTargets: [] });
+
+test("unfinished holds recover elapsed duration without ending the live owner or mutating its draft", () => {
+  const draft = { ...base(), mechanic: "spin" as const, endTick: 6.321, spinTargets: [{ tokenIndex: 0 }] };
+  const pending = { draftId: draft.id, startTick: draft.tick };
+  const snapshot = snapshotRecordedDrafts([draft], pending, 8.56789);
+  assert.equal(snapshot[0].endTick, 8.568);
+  assert.equal(draft.endTick, 6.321);
+  assert.deepEqual(pending, { draftId: draft.id, startTick: 6.321 });
+  const values = new Map<string, string>();
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
+  const source = { songAssetId: "garden", activityKey: "early-algebra", authorId: "dev", revision: "recovery-test" };
+  const now = Date.now();
+  writePlayerLessonWorkspaceDraft(storage, { version: 1, source, timelineEvents: [], recordedDrafts: snapshot, equationEdits: [], updatedAt: now });
+  const restored = readPlayerLessonWorkspaceDraft(storage, source, now);
+  assert.ok(restored);
+  assert.ok(isRecoverableRecordedDraft(restored.recordedDrafts![0]));
+  assert.equal((restored.recordedDrafts![0] as RecordedMechanicDraft).endTick, 8.568);
+  assert.equal(snapshotRecordedDrafts([], pending, 9).length, 0, "A late recovery write cannot revive a cleared move.");
+});
 for (const [version, pads] of [[1, LEGACY_AUTHORED_HIT_PADS], [2, PLAYER_HEX_AUTHORED_HIT_PADS.map(({ pad }) => pad)]] as const) {
   for (const pad of pads) test(`recovery preserves layout ${version} pad ${pad} and authored identity`, () => {
     const draft = { ...base(), hitBubbles: [{ tokenIndex: 0, targetId: "term-x", pads: [pad], positions: [pad], padLayoutVersion: version }] };
