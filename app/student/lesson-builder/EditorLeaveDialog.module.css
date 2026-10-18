@@ -1,0 +1,38 @@
+.dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #74999e;
+  border-radius: 16px;
+  background: #0b252d;
+  color: #f1f7f5;
+  font-family: inherit;
+  color-scheme: dark;
+}
+.dialog[open] { animation: arrive var(--ur-motion-duration-resolve, 280ms) var(--ur-motion-easing-quart-out, ease-out); }
+.dialog::backdrop { background: rgb(0 10 15 / 76%); }
+.content { display: grid; gap: 16px; padding: clamp(20px, 4vw, 28px); }
+.content h2 { margin: 0; font-size: 24px; line-height: 1.2; text-wrap: balance; }
+.content p { margin: 0; font-size: 15px; line-height: 1.55; overflow-wrap: anywhere; }
+.content .saveState { color: #bdd5d7; font-size: 14px; }
+.dialog[data-phase="saving"] .saveState { color: #e5f7bc; }
+.content .error { padding: 12px; border: 1px solid #d4918b; border-radius: 8px; color: #ffe2dc; background: #42292c; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
+.actions button {
+  min-height: 44px; padding: 10px 14px; border: 1px solid #7d9fa4; border-radius: 10px;
+  background: #15343d; color: #f1f7f5; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: background-color var(--ur-motion-duration-respond, 120ms) ease-out;
+}
+.actions button:hover:enabled { background: #244b54; }
+.actions button:focus-visible { outline: 3px solid #cfff04; outline-offset: 3px; }
+.actions button:disabled { opacity: .6; cursor: wait; }
+.actions .discard { color: #ffcdc6; }
+.actions .save { flex: 1 0 100%; background: #cfff04; color: #102012; border-color: #cfff04; }
+.actions .save:hover:enabled { background: #e0ff63; }
+@keyframes arrive { from { opacity: .8; transform: translateY(6px); } }
+@media (max-width: 420px) { .actions button { flex: 1 0 100%; } }
+@media (prefers-reduced-motion: reduce) { .dialog[open] { animation: none; } .actions button { transition: none; } }
+@media (forced-colors: active) { .dialog, .content .error, .actions button { border-color: CanvasText; background: Canvas; color: CanvasText; } }

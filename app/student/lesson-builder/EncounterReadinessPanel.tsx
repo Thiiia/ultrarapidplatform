@@ -78,6 +78,7 @@ export function EncounterReadinessPanel({
 
   return (
     <aside
+      data-ur-editor="readiness"
       aria-label="Ready check"
       className={`${styles.editorReadiness} ${isOpen ? styles.editorReadinessOpen : ""}`}
       data-open={isOpen ? "true" : "false"}
@@ -94,6 +95,9 @@ export function EncounterReadinessPanel({
           className={`${styles.editorReadinessStatus} experience-status`}
           data-ready={fullyReady ? "true" : "false"}
           data-status={fullyReady ? "success" : "warning"}
+          data-editor-signal={fullyReady ? "ready" : "repair"}
+          role="status"
+          aria-atomic="true"
         >
           {statusLabel}
         </span>

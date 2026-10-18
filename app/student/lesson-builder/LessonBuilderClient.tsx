@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import type { ChangeEvent, DragEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent, ReactNode } from "react";
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useId } from "react";
 import { createPortal } from "react-dom";
+import { EditorLeaveDialog } from "./EditorLeaveDialog";
 import WaveSurfer from "wavesurfer.js";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
 import SwipeRoundedIcon from "@mui/icons-material/SwipeRounded";
@@ -2526,110 +2527,6 @@ function HeaderBar({
   );
 }
 
-function UnsavedChangesModal({
-  isSaving,
-  onSaveAndLeave,
-  onLeaveWithoutSaving,
-  onStay,
-}: {
-  isSaving: boolean;
-  onSaveAndLeave: () => void;
-  onLeaveWithoutSaving: () => void;
-  onStay: () => void;
-}) {
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.6)",
-        display: "grid",
-        placeItems: "center",
-        zIndex: 2000,
-        padding: 20,
-      }}
-    >
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-label="Unsaved changes"
-        style={{
-          width: "min(440px, 92vw)",
-          borderRadius: 14,
-          border: `1px solid ${subtleBorderColor}`,
-          background: "#101621",
-          color: "#FFFFFF",
-          padding: 18,
-          boxSizing: "border-box",
-          fontFamily: "Space Grotesk, sans-serif",
-          display: "grid",
-          gap: 14,
-        }}
-      >
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{studentCopy.editor.unsavedTitle}</h2>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#D1D5DB", lineHeight: 1.45 }}>
-          {studentCopy.editor.unsavedBody}
-        </p>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={onStay}
-            style={{
-              minHeight: 34,
-              borderRadius: 999,
-              border: `1px solid ${subtleBorderColor}`,
-              background: "#1D2533",
-              color: "#FFFFFF",
-              fontSize: 12,
-              fontWeight: 700,
-              padding: "0 14px",
-              cursor: "pointer",
-            }}
-          >
-            {studentCopy.editor.keepEditing}
-          </button>
-          <button
-            type="button"
-            onClick={onLeaveWithoutSaving}
-            style={{
-              minHeight: 34,
-              borderRadius: 999,
-              border: `1px solid ${subtleBorderColor}`,
-              background: "#252525",
-              color: "#FF9B9B",
-              fontSize: 12,
-              fontWeight: 700,
-              padding: "0 14px",
-              cursor: "pointer",
-            }}
-          >
-            {studentCopy.editor.leaveWithoutSaving}
-          </button>
-          <button
-            type="button"
-            onClick={onSaveAndLeave}
-            disabled={isSaving}
-            style={{
-              minHeight: 34,
-              borderRadius: 999,
-              border: "1px solid #CFFF04",
-              background: "#CFFF04",
-              color: "#071222",
-              fontSize: 12,
-              fontWeight: 800,
-              padding: "0 14px",
-              cursor: isSaving ? "not-allowed" : "pointer",
-              opacity: isSaving ? 0.6 : 1,
-            }}
-          >
-            {isSaving ? "Saving…" : studentCopy.editor.saveAndLeave}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /**
  * Small tutorial callout used by the demo walkthrough. It stays out of the
  * way of the editor and offers a quick way to dismiss the tips.
@@ -2742,11 +2639,14 @@ function EditorToast({
       setIsVisible(false);
       enterFrameId = window.requestAnimationFrame(() => setIsVisible(true));
     });
-    const duration = kind === "error" ? 5000 : kind === "success" ? 2800 : 2400;
-    hideTimerRef.current = window.setTimeout(() => {
-      setIsVisible(false);
-      removeTimerRef.current = window.setTimeout(() => setIsMounted(false), 240);
-    }, duration);
+    // A save/launch failure must remain readable until explicitly dismissed.
+    if (kind !== "error") {
+      const duration = kind === "success" ? 2800 : 2400;
+      hideTimerRef.current = window.setTimeout(() => {
+        setIsVisible(false);
+        removeTimerRef.current = window.setTimeout(() => setIsMounted(false), 240);
+      }, duration);
+    }
 
     return () => {
       window.cancelAnimationFrame(mountFrameId);
@@ -11705,18 +11605,19 @@ export default function LessonBuilderClient({
     // Nothing loaded means nothing to persist; just leave.
     if (!selectedSongStorage) {
       handleLeaveWithoutSaving();
-      return;
+      return true;
     }
 
     const didSave = await handlePublishChanges();
 
     if (!didSave) {
-      return;
+      return false;
     }
 
     const navigate = pendingNavigation;
     setPendingNavigation(null);
     navigate?.();
+    return true;
   }
 
   // Browser tab close / refresh guard for unsaved work.
@@ -16153,11 +16054,10 @@ export default function LessonBuilderClient({
       ) : null}
 
       {pendingNavigation ? (
-        <UnsavedChangesModal
+        <EditorLeaveDialog
           isSaving={isSaving}
-          onSaveAndLeave={() => {
-            void handleSaveAndLeave();
-          }}
+          failureMessage={saveStatus}
+          onSaveAndLeave={handleSaveAndLeave}
           onLeaveWithoutSaving={handleLeaveWithoutSaving}
           onStay={() => setPendingNavigation(null)}
         />

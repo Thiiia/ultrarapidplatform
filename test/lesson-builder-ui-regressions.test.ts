@@ -51,6 +51,24 @@ test("editor status messages use one animated, dismissible toast lifecycle", () 
   assert.match(lessonBuilderSource, /aria-live=\{kind === "error" \? "assertive" : "polite"\}/);
   assert.doesNotMatch(lessonBuilderSource, /width: "min\(360px, calc\(100vw - 36px\)\)"/);
   assert.doesNotMatch(lessonBuilderSource, /saveNotice \?/);
+  assert.match(lessonBuilderSource, /if \(kind !== "error"\) \{/);
+});
+
+test("both activities share a native leave dialog with protected saving and explicit recovery", () => {
+  const dialog = readFileSync(join(process.cwd(), "app/student/lesson-builder/EditorLeaveDialog.tsx"), "utf8");
+  const css = readFileSync(join(process.cwd(), "app/student/lesson-builder/EditorLeaveDialog.module.css"), "utf8");
+  assert.match(lessonBuilderSource, /<EditorLeaveDialog[\s\S]*?failureMessage=\{saveStatus\}[\s\S]*?onSaveAndLeave=\{handleSaveAndLeave\}/);
+  assert.doesNotMatch(lessonBuilderSource, /function UnsavedChangesModal/);
+  assert.match(dialog, /dialog\?\.showModal\(\)/);
+  assert.match(dialog, /previousFocus\.isConnected/);
+  assert.match(dialog, /if \(busy \|\| inFlight\.current\) return/);
+  assert.equal((dialog.match(/disabled=\{busy\}/g) ?? []).length, 3);
+  assert.match(dialog, /onCancel=[\s\S]*?event\.preventDefault\(\); if \(!busy && !inFlight\.current\) onStay\(\)/);
+  assert.match(dialog, /if \(active\.current\) setFailed\(!saved\)/);
+  assert.match(dialog, /Try saving again/);
+  assert.match(dialog, /!unexpectedFailure && failureMessage/);
+  assert.match(css, /min-height: 44px/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
 });
 
 test("editor side panels progressively disclose without removing access", () => {
