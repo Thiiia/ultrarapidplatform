@@ -18,6 +18,14 @@ const index = (value: unknown) => Number.isSafeInteger(value) && (value as numbe
 const optionalString = (value: unknown) => value === undefined || typeof value === "string";
 const optionalPads = (value: unknown) => value === undefined || (Array.isArray(value) && value.every(pad => typeof pad === "string" && knownPads.has(pad)));
 
+/** Seal exactly the owned gesture using one sampled playback position. */
+export function closeRecordedHold<T extends RecordedMechanicDraft>(drafts: T[], hold: { draftId: string; startTick: number }, seconds: number): T[] {
+  const end = Number.isFinite(seconds) ? Number(seconds.toFixed(3)) : hold.startTick;
+  return drafts.map(draft => draft.id === hold.draftId
+    ? { ...draft, endTick: Math.max(draft.tick, hold.startTick, end) }
+    : draft);
+}
+
 /** Structural recovery only. Missing gameplay targets remain editable readiness issues. */
 export function isRecoverableRecordedDraft(value: unknown): value is RecordedMechanicDraft {
   if (!record(value)) return false;

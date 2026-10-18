@@ -7,7 +7,8 @@ import { createPortal } from "react-dom";
 import { EditorLeaveDialog } from "./EditorLeaveDialog";
 import { LessonLoadNotice } from "./LessonLoadNotice";
 import { useRecordedDrafts } from "./useRecordedDrafts";
-import { groupRecordedDrafts, isRecoverableRecordedDraft as isRecoverableRtcmDraft, type RecordedMechanicDraft } from "@/lib/editor/recorded-draft";
+import { closeRecordedHold, groupRecordedDrafts, isRecoverableRecordedDraft as isRecoverableRtcmDraft, type RecordedMechanicDraft } from "@/lib/editor/recorded-draft";
+import { canCaptureEditorPlayback, readEditorPlaybackSeconds } from "@/lib/editor/playback-clock";
 import { useRecordedTimelinePublication } from "./useRecordedTimelinePublication";
 import WaveSurfer from "wavesurfer.js";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
@@ -11348,9 +11349,10 @@ export default function LessonBuilderClient({
 
   function handleStartRtcmEventCreation(pendingRctm2Number: number | null = null) {
     setCenterChoice(null);
-    setRtcmEventRangeStartTick(Number(currentSongSeconds.toFixed(3)));
+    const seconds = readEditorPlaybackSeconds(audioRef.current, currentSongSeconds);
+    setRtcmEventRangeStartTick(Number(seconds.toFixed(3)));
     setRctm2PendingEventNumber(pendingRctm2Number);
-    setSaveStatus(`Encounter starts at ${formatSongTime(currentSongSeconds, isAdvancedMode)}. Move the playhead to choose when it ends.`);
+    setSaveStatus(`Encounter starts at ${formatSongTime(seconds, isAdvancedMode)}. Move the playhead to choose when it ends.`);
   }
 
   function handleToggleRtcmEventCreation(pendingRctm2Number: number | null = null) {
@@ -11368,10 +11370,11 @@ export default function LessonBuilderClient({
   }
 
   function handleStartRtcmHold(mechanic: "spin" | "drag") {
-    if (!isSongPlaying || rtcmEventRangeStartTick === null || rtcmPendingHoldRef.current) return false;
-    const tick = Number(currentSongSeconds.toFixed(3));
-    const draftId = addRtcmDraftMechanic(mechanic, currentSongSeconds, {
-      endSeconds: currentSongSeconds,
+    if (!canCaptureEditorPlayback(audioRef.current, isSongPlaying) || rtcmEventRangeStartTick === null || rtcmPendingHoldRef.current) return false;
+    const seconds = readEditorPlaybackSeconds(audioRef.current, currentSongSeconds);
+    const tick = Number(seconds.toFixed(3));
+    const draftId = addRtcmDraftMechanic(mechanic, seconds, {
+      endSeconds: seconds,
     });
     if (!draftId) return false;
 
@@ -11392,20 +11395,8 @@ export default function LessonBuilderClient({
     }
     rtcmPendingHoldRef.current = null;
 
-    const endTick = Number(currentSongSeconds.toFixed(3));
-
-    setRtcmDraftMechanics((current) =>
-      current.map((draft) => {
-        if (draft.id !== pendingHold.draftId) {
-          return draft;
-        }
-
-        return {
-          ...draft,
-          endTick: Math.max(pendingHold.startTick, endTick),
-        };
-      }),
-    );
+    const seconds = readEditorPlaybackSeconds(audioRef.current, currentSongSeconds);
+    setRtcmDraftMechanics((current) => closeRecordedHold(current, pendingHold, seconds));
 
     setRtcmPendingHold(null);
     setSaveStatus(`${studentCopy.mechanics[pendingHold.mechanic]} recorded in the current encounter draft. Save the encounter when it is complete.`);
@@ -11416,7 +11407,7 @@ export default function LessonBuilderClient({
       return;
     }
 
-    const endTick = Number(currentSongSeconds.toFixed(3));
+    const endTick = Number(readEditorPlaybackSeconds(audioRef.current, currentSongSeconds).toFixed(3));
     const startTick = Math.min(rtcmEventRangeStartTick, endTick);
     const finalEndTick = Math.max(rtcmEventRangeStartTick, endTick);
 
@@ -13753,7 +13744,7 @@ export default function LessonBuilderClient({
       return;
     }
 
-    const finalEndTick = Number(currentSongSeconds.toFixed(3));
+    const finalEndTick = Number(readEditorPlaybackSeconds(audioRef.current, currentSongSeconds).toFixed(3));
 
     setTimelineEvents((current) => {
       const nextEvents = current.map((eventSlot) => {
@@ -13858,6 +13849,15 @@ export default function LessonBuilderClient({
   function seekSong(seconds: number) {
     const nextSeconds = Math.max(0, Math.min(timelineDurationSeconds, Math.round(seconds * 1000) / 1000));
     const audio = audioRef.current;
+
+    if (rtcmPendingHoldRef.current) {
+      // Seal at the old audio position before seeking. A held gesture must not
+      // accidentally span a skipped section of music or resume from a new clock.
+      handleFinalizeRtcmHold();
+      audio?.pause();
+      setIsSongPlaying(false);
+      setSaveStatus("Recording ended before the seek. Resume the song to record another move.");
+    }
 
     if (audio) {
       audio.currentTime = nextSeconds;
@@ -14264,7 +14264,7 @@ export default function LessonBuilderClient({
     const hitPad = options.hitPad ?? (
       mechanic === "hit" && capabilities.activityKey === "number-bonds" ? "left" : undefined
     );
-    const mechanicSeconds = currentSongSeconds;
+    const mechanicSeconds = readEditorPlaybackSeconds(audioRef.current, currentSongSeconds);
     const mechanicTick = Number(mechanicSeconds.toFixed(3));
     let nextAddedInstanceId: string | null = null;
 
@@ -14365,8 +14365,9 @@ export default function LessonBuilderClient({
   }
 
   function handleRtcmAddHitAtPlayhead(hitPad: HitBubblePad) {
-    if (!isSongPlaying || rtcmEventRangeStartTick === null) return false;
-    return Boolean(addRtcmDraftMechanic("hit", currentSongSeconds, { hitPad }));
+    if (!canCaptureEditorPlayback(audioRef.current, isSongPlaying) || rtcmEventRangeStartTick === null) return false;
+    const seconds = readEditorPlaybackSeconds(audioRef.current, currentSongSeconds);
+    return Boolean(addRtcmDraftMechanic("hit", seconds, { hitPad }));
   }
 
   function handleAddSpinAtPlayhead() {
@@ -14390,7 +14391,7 @@ export default function LessonBuilderClient({
     point: Rctm2Point,
   ) {
     if (mechanic === "hit") {
-      const draftId = addRtcmDraftMechanic("hit", currentSongSeconds);
+      const draftId = addRtcmDraftMechanic("hit", readEditorPlaybackSeconds(audioRef.current, currentSongSeconds));
       if (!draftId) return;
       setRctm2HitPlacements((current) => ({
         ...current,
@@ -14400,8 +14401,9 @@ export default function LessonBuilderClient({
   }
 
   function handleBeginRctm2DragMarker(startPoint: Rctm2Point, sourceHitId: string) {
-    const draftId = addRtcmDraftMechanic("drag", currentSongSeconds, {
-      endSeconds: currentSongSeconds,
+    const seconds = readEditorPlaybackSeconds(audioRef.current, currentSongSeconds);
+    const draftId = addRtcmDraftMechanic("drag", seconds, {
+      endSeconds: seconds,
     });
     if (!draftId) return "";
 
@@ -14418,7 +14420,7 @@ export default function LessonBuilderClient({
   }
 
   function handleCompleteRctm2DragMarker(draftId: string, zone: Rctm2BondZone) {
-    const endTick = Number(currentSongSeconds.toFixed(3));
+    const endTick = Number(readEditorPlaybackSeconds(audioRef.current, currentSongSeconds).toFixed(3));
     const tokenIndex = zone === "leftBond" ? 0 : 1;
     const sourceHitId = rctm2DragSourceHitIds[draftId];
 

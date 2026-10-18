@@ -287,12 +287,13 @@ test("Record Live keeps accepted Hits in the same draft as held stages and valid
   const recorder = readFileSync(join(process.cwd(), "app/student/lesson-builder/LiveEncounterRecorder.tsx"), "utf8");
   const hit = lessonBuilderSource.split("function handleRtcmAddHitAtPlayhead(")[1]?.split("function handleAddSpinAtPlayhead(")[0];
   assert.ok(hit);
-  assert.match(hit, /return Boolean\(addRtcmDraftMechanic\("hit", currentSongSeconds, \{ hitPad \}\)\)/);
+  assert.match(hit, /const seconds = readEditorPlaybackSeconds\(audioRef\.current, currentSongSeconds\)/);
+  assert.match(hit, /return Boolean\(addRtcmDraftMechanic\("hit", seconds, \{ hitPad \}\)\)/);
   assert.doesNotMatch(hit, /handleAddMechanicAtPlayhead/);
   assert.doesNotMatch(lessonBuilderSource, /draftIfNoEvent|allowPlayheadEvent|allowActiveEvent/);
   assert.match(lessonBuilderSource, /const currentDrafts = rtcmDraftLedger\.getSnapshot\(\)/);
   assert.match(lessonBuilderSource, /authoredEventsFromRtcmDrafts\(\[\.\.\.currentDrafts, draftCandidate\]/);
-  assert.match(lessonBuilderSource, /if \(!isSongPlaying \|\| rtcmEventRangeStartTick === null \|\| rtcmPendingHoldRef\.current\) return false/);
+  assert.match(lessonBuilderSource, /if \(!canCaptureEditorPlayback\(audioRef\.current, isSongPlaying\) \|\| rtcmEventRangeStartTick === null \|\| rtcmPendingHoldRef\.current\) return false/);
   assert.match(recorder, /if \(!onStartHold\(mechanic\)\) return/);
   assert.match(recorder, /if \(!onStartHold\("spin"\)\) return/);
   assert.match(recorder, /if \(onAddHit\(pad\)\) setReceipt/);
