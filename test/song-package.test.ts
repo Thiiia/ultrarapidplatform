@@ -30,37 +30,37 @@ async function loadSongPackageModule(): Promise<SongPackageLoader | null> {
 
 test("normalizes storage paths before matching song assets", () => {
   const songs = [
-    { id: "waves", title: "Waves", songPath: "Folder/EOF_Metrik_Grafix_Waves.mp3" },
+    { id: "garden", title: "Garden", songPath: "Folder/Garden.mp3" },
     { id: "garden", title: "Garden", songPath: "Garden.mp3" },
   ];
 
   assert.equal(
-    normalizeSongStoragePath("/Folder/EOF_Metrik_Grafix_Waves.mp3"),
-    "folder/eof_metrik_grafix_waves.mp3",
+    normalizeSongStoragePath("/Folder/Garden.mp3"),
+    "folder/garden.mp3",
   );
-  assert.equal(findMatchingSongAsset(songs, "/folder/eof_metrik_grafix_waves.mp3")?.id, "waves");
+  assert.equal(findMatchingSongAsset(songs, "/folder/garden.mp3")?.id, "garden");
   assert.equal(findMatchingSongAsset(songs, "Garden.mp3")?.id, "garden");
 });
 
 test("resolves stored song files when path separators and casing differ", () => {
   const resolveStorageSong = createSongStoragePathResolver([
-    { path: "early-algebra/Waves.mp3" },
+    { path: "early-algebra/Garden.mp3" },
   ]);
 
   assert.equal(
-    resolveStorageSong("\\EARLY-ALGEBRA\\WAVES.mp3")?.path,
-    "early-algebra/Waves.mp3",
+    resolveStorageSong("\\EARLY-ALGEBRA\\GARDEN.mp3")?.path,
+    "early-algebra/Garden.mp3",
   );
 });
 
 test("does not guess when normalized storage paths are ambiguous", () => {
   const resolveStorageSong = createSongStoragePathResolver([
-    { path: "Authors/A/Waves.mp3" },
-    { path: "authors/a/waves.mp3" },
+    { path: "Authors/A/Sample.mp3" },
+    { path: "authors/a/sample.mp3" },
   ]);
 
-  assert.equal(resolveStorageSong("\\authors\\a\\waves.mp3"), null);
-  assert.equal(resolveStorageSong("Authors/A/Waves.mp3")?.path, "Authors/A/Waves.mp3");
+  assert.equal(resolveStorageSong("\\authors\\a\\sample.mp3"), null);
+  assert.equal(resolveStorageSong("Authors/A/Sample.mp3")?.path, "Authors/A/Sample.mp3");
 });
 
 test("loads chart and sidecar data when the audio request is unavailable", async () => {

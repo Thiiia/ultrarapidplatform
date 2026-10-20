@@ -31,7 +31,7 @@ test("Number Bonds difficulty paths use Unity's per-song encounter sidecar basen
   assert.equal(paths.chartPath, "dev/Number_Bonds/waves.chart");
   assert.equal(
     paths.sidecarPath,
-    "dev/Number_Bonds/number-bonds-waves-HardSingle.encounters.json",
+    "dev/Number_Bonds/number-bonds-garden-HardSingle.encounters.json",
   );
   assert.equal(
     buildAuthoredChartStoragePaths({

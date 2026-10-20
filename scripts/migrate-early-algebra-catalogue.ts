@@ -12,7 +12,7 @@ import { createLessonClock } from "../lib/editor/lesson-timing";
 import { validateLessonContent } from "../lib/lesson-content";
 
 const origin = "https://ultrarapidplatform.vercel.app";
-const songs = ["garden", "geminiqueen", "grudge", "jazzmaybach", "justbecause", "oneone", "seven", "waves"];
+const songs = ["garden", "geminiqueen", "grudge", "jazzmaybach", "justbecause", "oneone", "seven"];
 const argument = (name: string) => process.argv.find((value) => value.startsWith(`${name}=`))?.slice(name.length + 1);
 const snapshotDir = argument("--snapshot-dir") ?? "/tmp/early-algebra-catalogue-20260926";
 const outputDir = argument("--output-dir") ?? "/tmp/early-algebra-catalogue-migrated-20260926";

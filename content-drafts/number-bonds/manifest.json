@@ -365,50 +365,6 @@
       "whole": 5,
       "encounterCount": 15,
       "hitCount": 5
-    },
-    {
-      "candidateFile": "number-bonds-waves-EasySingle.encounters.json",
-      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-waves-EasySingle.encounters.json",
-      "chartFile": "Assets/StreamingAssets/Charts/Grafix - Waves.chart",
-      "songAssetId": "waves",
-      "rhythmDifficultyKey": "EasySingle",
-      "equation": "3 + 3 = 6",
-      "whole": 6,
-      "encounterCount": 18,
-      "hitCount": 6
-    },
-    {
-      "candidateFile": "number-bonds-waves-ExpertSingle.encounters.json",
-      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-waves-ExpertSingle.encounters.json",
-      "chartFile": "Assets/StreamingAssets/Charts/Grafix - Waves.chart",
-      "songAssetId": "waves",
-      "rhythmDifficultyKey": "ExpertSingle",
-      "equation": "3 + 3 = 6",
-      "whole": 6,
-      "encounterCount": 18,
-      "hitCount": 6
-    },
-    {
-      "candidateFile": "number-bonds-waves-HardSingle.encounters.json",
-      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-waves-HardSingle.encounters.json",
-      "chartFile": "Assets/StreamingAssets/Charts/Grafix - Waves.chart",
-      "songAssetId": "waves",
-      "rhythmDifficultyKey": "HardSingle",
-      "equation": "3 + 3 = 6",
-      "whole": 6,
-      "encounterCount": 18,
-      "hitCount": 6
-    },
-    {
-      "candidateFile": "number-bonds-waves-MediumSingle.encounters.json",
-      "sourceFile": "Assets/StreamingAssets/Charts/NumberBonds/number-bonds-waves-MediumSingle.encounters.json",
-      "chartFile": "Assets/StreamingAssets/Charts/Grafix - Waves.chart",
-      "songAssetId": "waves",
-      "rhythmDifficultyKey": "MediumSingle",
-      "equation": "3 + 3 = 6",
-      "whole": 6,
-      "encounterCount": 18,
-      "hitCount": 6
     }
   ]
 }

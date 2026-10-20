@@ -7,7 +7,7 @@ import { createLessonClock } from "../lib/editor/lesson-timing";
 // Read-only: never calls save/publish or logs signed asset URLs. The default
 // catalogue sweep remains available, while --song/--activity make this useful
 // for a specific published revision (including a Number Bonds pilot package).
-const defaultSongs = ["garden", "geminiqueen", "grudge", "jazzmaybach", "justbecause", "oneone", "seven", "waves"];
+const defaultSongs = ["garden", "geminiqueen", "grudge", "jazzmaybach", "justbecause", "oneone", "seven"];
 type AuditOptions = {
   songAssetId: string;
   activityKey: string;

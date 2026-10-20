@@ -15,7 +15,6 @@ import {
 } from "../lib/number-bonds-sidecar";
 
 const songs = [
-  "waves",
   "jazzmaybach",
   "grudge",
   "geminiqueen",
@@ -83,7 +82,6 @@ test("Early Algebra accepts READY title-named legacy sidecars only when paired w
     ["justbecause", "Oogie - just because.chart", "Oogie - just because.encounters.json"],
     ["oneone", "one one.chart", "one one.encounters.json"],
     ["seven", "EF - seven.chart", "EF - seven.encounters.json"],
-    ["waves", "Grafix - Waves.chart", "Grafix - Waves.encounters.json"],
   ] as const;
 
   for (const [songAssetId, chartFile, sidecarFile] of publishedPairs) {
@@ -112,46 +110,46 @@ test("Early Algebra accepts READY title-named legacy sidecars only when paired w
 test("sidecar identity rejects another song, difficulty spelling, or activity sidecar", () => {
   assert.equal(
     getNumberBondsDifficultyFromSidecarPath(
-      "Charts/NumberBonds/number-bonds-waves-HardSingle.encounters.json",
+      "Charts/NumberBonds/number-bonds-garden-HardSingle.encounters.json",
       "jazzmaybach",
     ),
     null,
   );
   assert.equal(
     getNumberBondsDifficultyFromSidecarPath(
-      "Charts/NumberBonds/number-bonds-waves-hardsingle.encounters.json",
-      "waves",
+      "Charts/NumberBonds/number-bonds-garden-hardsingle.encounters.json",
+      "garden",
     ),
     null,
   );
-  assert.equal(getNumberBondsDifficultyFromSidecarPath("Early_Algebra/waves.json", "waves"), null);
+  assert.equal(getNumberBondsDifficultyFromSidecarPath("Early_Algebra/garden.json", "garden"), null);
   assert.throws(() => buildNumberBondsEncounterSidecarFilename("unknown-song", "ExpertSingle"), /Unsupported/);
 });
 
 test("launch selection picks the immutable revision whose sidecar matches the selected song and difficulty", () => {
-  const newest = { revision: "newest-easy", sidecarPath: "Number_Bonds/revisions/easy/number-bonds-waves-EasySingle.encounters.json" };
-  const selected = { revision: "selected-hard", sidecarPath: "Number_Bonds/revisions/hard/number-bonds-waves-HardSingle.encounters.json" };
+  const newest = { revision: "newest-easy", sidecarPath: "Number_Bonds/revisions/easy/number-bonds-garden-EasySingle.encounters.json" };
+  const selected = { revision: "selected-hard", sidecarPath: "Number_Bonds/revisions/hard/number-bonds-garden-HardSingle.encounters.json" };
 
-  assert.equal(selectNumberBondsSidecarRevision([newest, selected], "waves", "HardSingle"), selected);
-  assert.equal(selectNumberBondsSidecarRevision([newest], "waves", "HardSingle"), null);
+  assert.equal(selectNumberBondsSidecarRevision([newest, selected], "garden", "HardSingle"), selected);
+  assert.equal(selectNumberBondsSidecarRevision([newest], "garden", "HardSingle"), null);
 });
 
 test("unpinned launch prefers an exact revision, then allows only a READY generic legacy revision", () => {
-  const legacyReady = { revision: "legacy-ready", status: "ready", sidecarPath: "Number_Bonds/revisions/legacy/waves.json" };
-  const legacyDraft = { revision: "legacy-draft", status: "draft", sidecarPath: "Number_Bonds/revisions/draft/waves.json" };
-  const exact = { revision: "newest-exact", status: "ready", sidecarPath: "Number_Bonds/revisions/exact/number-bonds-waves-HardSingle.encounters.json" };
+  const legacyReady = { revision: "legacy-ready", status: "ready", sidecarPath: "Number_Bonds/revisions/legacy/garden.json" };
+  const legacyDraft = { revision: "legacy-draft", status: "draft", sidecarPath: "Number_Bonds/revisions/draft/garden.json" };
+  const exact = { revision: "newest-exact", status: "ready", sidecarPath: "Number_Bonds/revisions/exact/number-bonds-garden-HardSingle.encounters.json" };
 
   assert.equal(selectNumberBondsSidecarRevision(
-    [legacyReady, legacyDraft], "waves", "HardSingle", { allowLegacyReadyFallback: true },
+    [legacyReady, legacyDraft], "garden", "HardSingle", { allowLegacyReadyFallback: true },
   ), legacyReady);
   assert.equal(selectNumberBondsSidecarRevision(
-    [legacyReady, exact], "waves", "HardSingle", { allowLegacyReadyFallback: true },
+    [legacyReady, exact], "garden", "HardSingle", { allowLegacyReadyFallback: true },
   ), exact);
   assert.equal(selectNumberBondsSidecarRevision(
-    [legacyReady], "waves", "HardSingle",
+    [legacyReady], "garden", "HardSingle",
   ), null, "a pinned lookup must not substitute another revision");
   assert.equal(selectNumberBondsSidecarRevision(
-    [legacyDraft], "waves", "HardSingle", { allowLegacyReadyFallback: true },
+    [legacyDraft], "garden", "HardSingle", { allowLegacyReadyFallback: true },
   ), null, "legacy draft rows are not a READY fallback");
   assert.equal(isLegacyNumberBondsSidecarPathForSong("Number_Bonds/revisions/r1/waves.encounters.json", "waves"), true);
   assert.equal(isLegacyNumberBondsSidecarPathForSong("Number_Bonds/revisions/r1/jazzmaybach.json", "waves"), false);

@@ -123,7 +123,7 @@ function orderOneStepVariantsBySolution(
 
   // Backtrack across answer tiers when a tier has only one available operand.
   // This keeps adjacent rows varied even when a final singleton would otherwise
-  // repeat the preceding operand (for example, Waves' largest subtraction).
+  // repeat the preceding operand when the final answer tier has a singleton.
   if (!selectTier(0, undefined)) {
     throw new Error(`Could not order ${requestedCount} distinct Early Algebra equation variants`);
   }
@@ -181,7 +181,6 @@ const catalogue: Record<string, { offset: number; dualPadFromEquation: number }>
   justbecause: { offset: 2, dualPadFromEquation: 1 },
   oneone: { offset: 4, dualPadFromEquation: 1 },
   seven: { offset: 5, dualPadFromEquation: 2 },
-  waves: { offset: 0, dualPadFromEquation: 2 },
 };
 
 type Clock = ReturnType<typeof createLessonClock>;

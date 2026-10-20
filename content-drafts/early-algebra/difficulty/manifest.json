@@ -19,7 +19,6 @@
   "baselineRevisionBySong": {
     "garden": "eb171cbc-fb04-44ce-a1d0-0e3b66d80cbe",
     "geminiqueen": "35d7c908-8d24-435f-8063-bb6b2281fd12",
-    "waves": "d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa",
     "jazzmaybach": "b346a2c3-c8ad-4395-8397-ef0dc55e218a",
     "justbecause": "dc33a284-c050-477c-a749-282ff95946da",
     "grudge": "62bed83e-2e57-4c6c-9be0-b259bec21653",
@@ -67,27 +66,6 @@
       "maximumHitShiftMs": 1960,
       "meanAbsoluteHitShiftMs": 619,
       "minimumHitGapMs": 1704,
-      "baselineExactChartNoteHits": 2
-    },
-    {
-      "songAssetId": "waves",
-      "rhythmDifficultyKey": "EasySingle",
-      "filename": "early-algebra-waves-EasySingle.encounters.json",
-      "chartSourceRevision": "d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa",
-      "chartPath": "dev/Early_Algebra/revisions/d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa/Grafix - Waves.chart",
-      "chartUniqueNoteOnsets": 201,
-      "equationCount": 6,
-      "equationSolutionRange": [
-        2,
-        7
-      ],
-      "hitCount": 27,
-      "spinCount": 5,
-      "dragCount": 13,
-      "exactChartNoteHits": 27,
-      "maximumHitShiftMs": 1724,
-      "meanAbsoluteHitShiftMs": 568,
-      "minimumHitGapMs": 1552,
       "baselineExactChartNoteHits": 2
     },
     {
@@ -238,27 +216,6 @@
       "baselineExactChartNoteHits": 7
     },
     {
-      "songAssetId": "waves",
-      "rhythmDifficultyKey": "MediumSingle",
-      "filename": "early-algebra-waves-MediumSingle.encounters.json",
-      "chartSourceRevision": "d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa",
-      "chartPath": "dev/Early_Algebra/revisions/d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa/Grafix - Waves.chart",
-      "chartUniqueNoteOnsets": 282,
-      "equationCount": 6,
-      "equationSolutionRange": [
-        2,
-        7
-      ],
-      "hitCount": 27,
-      "spinCount": 5,
-      "dragCount": 13,
-      "exactChartNoteHits": 27,
-      "maximumHitShiftMs": 1724,
-      "meanAbsoluteHitShiftMs": 402,
-      "minimumHitGapMs": 1552,
-      "baselineExactChartNoteHits": 7
-    },
-    {
       "songAssetId": "jazzmaybach",
       "rhythmDifficultyKey": "MediumSingle",
       "filename": "early-algebra-jazzmaybach-MediumSingle.encounters.json",
@@ -403,27 +360,6 @@
       "maximumHitShiftMs": 1363,
       "meanAbsoluteHitShiftMs": 290,
       "minimumHitGapMs": 1704,
-      "baselineExactChartNoteHits": 12
-    },
-    {
-      "songAssetId": "waves",
-      "rhythmDifficultyKey": "HardSingle",
-      "filename": "early-algebra-waves-HardSingle.encounters.json",
-      "chartSourceRevision": "d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa",
-      "chartPath": "dev/Early_Algebra/revisions/d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa/Grafix - Waves.chart",
-      "chartUniqueNoteOnsets": 381,
-      "equationCount": 6,
-      "equationSolutionRange": [
-        2,
-        7
-      ],
-      "hitCount": 27,
-      "spinCount": 5,
-      "dragCount": 13,
-      "exactChartNoteHits": 27,
-      "maximumHitShiftMs": 1552,
-      "meanAbsoluteHitShiftMs": 275,
-      "minimumHitGapMs": 1552,
       "baselineExactChartNoteHits": 12
     },
     {
@@ -572,27 +508,6 @@
       "meanAbsoluteHitShiftMs": 157,
       "minimumHitGapMs": 1704,
       "baselineExactChartNoteHits": 19
-    },
-    {
-      "songAssetId": "waves",
-      "rhythmDifficultyKey": "ExpertSingle",
-      "filename": "early-algebra-waves-ExpertSingle.encounters.json",
-      "chartSourceRevision": "d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa",
-      "chartPath": "dev/Early_Algebra/revisions/d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa/Grafix - Waves.chart",
-      "chartUniqueNoteOnsets": 510,
-      "equationCount": 6,
-      "equationSolutionRange": [
-        2,
-        7
-      ],
-      "hitCount": 27,
-      "spinCount": 5,
-      "dragCount": 13,
-      "exactChartNoteHits": 27,
-      "maximumHitShiftMs": 1552,
-      "meanAbsoluteHitShiftMs": 236,
-      "minimumHitGapMs": 1552,
-      "baselineExactChartNoteHits": 15
     },
     {
       "songAssetId": "jazzmaybach",

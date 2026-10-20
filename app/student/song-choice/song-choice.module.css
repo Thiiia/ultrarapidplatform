@@ -519,10 +519,6 @@
   --song-accent: #b5cc79;
 }
 
-.songCard[data-song-id="waves"] {
-  --song-accent: #72c8df;
-}
-
 .songCard:hover {
   border-color: color-mix(in srgb, var(--song-accent) 70%, transparent);
   background: color-mix(in srgb, var(--song-accent) 7%, rgba(5, 24, 31, 0.94));
@@ -703,12 +699,6 @@
   --cover-dark: #3a2924;
   --cover-main: #8b542e;
   --cover-bright: #f0bc63;
-}
-
-.coverFallback[data-song-id="waves"] {
-  --cover-dark: #102a3b;
-  --cover-main: #21627b;
-  --cover-bright: #61d9da;
 }
 
 .coverMark {

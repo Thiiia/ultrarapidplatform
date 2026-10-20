@@ -21,7 +21,6 @@ const songAssetIds = [
   "justbecause",
   "oneone",
   "seven",
-  "waves",
 ] as const;
 const apply = process.argv.includes("--apply");
 const enforceFirstCueFloor = process.argv.includes("--enforce-first-cue-floor");

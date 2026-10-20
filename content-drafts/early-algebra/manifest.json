@@ -51,13 +51,6 @@
       "candidateFile": "seven.json",
       "equationCount": 6,
       "encounterCount": 31
-    },
-    {
-      "song": "Waves",
-      "sourceReadyRevision": "d8fb4994-43b0-40f4-ac3a-cc334c2bfcfa",
-      "candidateFile": "waves.json",
-      "equationCount": 6,
-      "encounterCount": 45
     }
   ],
   "equationTargeting": "Every candidate encounter targets the numeric operand token at index 2."

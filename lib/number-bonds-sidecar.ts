@@ -1,5 +1,4 @@
 export const NUMBER_BONDS_SONG_ASSET_IDS = [
-  "waves",
   "jazzmaybach",
   "grudge",
   "geminiqueen",
