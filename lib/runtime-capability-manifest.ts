@@ -21,6 +21,7 @@ export type AuthoredRuntimeAdapterMechanic = typeof AUTHORED_MECHANICS[number];
 export type RuntimeCapabilityAuthoredAdapter = Readonly<{
   authoredLessonProtocolVersion: 3;
   mechanics: readonly AuthoredRuntimeAdapterMechanic[];
+  multiSourceHitPrerequisites?: boolean;
 }>;
 
 export type RuntimeCapabilityAuthoredSequenceAdapter = Readonly<{
@@ -62,6 +63,7 @@ const PROTOCOL_KEYS = [
 ] as const;
 const ACTIVITY_KEYS_IN_DOCUMENT = ["activityKey", "runtimeMechanics", "authoredLessonAdapters", "authoredSequenceAdapters"] as const;
 const ADAPTER_KEYS = ["authoredLessonProtocolVersion", "mechanics"] as const;
+const MULTI_SOURCE_ADAPTER_KEYS = [...ADAPTER_KEYS, "multiSourceHitPrerequisites"] as const;
 const SEQUENCE_ADAPTER_KEYS = ["authoredLessonProtocolVersion", "sequenceVersion", "encounterMechanics"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -158,7 +160,11 @@ export function parseRuntimeCapabilityManifest(value: unknown): RuntimeCapabilit
     }
     const authoredLessonAdapters = activity.authoredLessonAdapters.map((adapter, adapterIndex): RuntimeCapabilityAuthoredAdapter => {
       if (!isRecord(adapter)) throw new Error(`Authored lesson adapter ${adapterIndex} must be an object.`);
-      assertExactKeys(adapter, ADAPTER_KEYS, `Authored lesson adapter ${adapterIndex}`);
+      assertExactKeys(
+        adapter,
+        Object.prototype.hasOwnProperty.call(adapter, "multiSourceHitPrerequisites") ? MULTI_SOURCE_ADAPTER_KEYS : ADAPTER_KEYS,
+        `Authored lesson adapter ${adapterIndex}`,
+      );
       if (adapter.authoredLessonProtocolVersion !== 3) {
         throw new Error(`Authored lesson adapter ${adapterIndex} uses an unsupported lesson protocol.`);
       }
@@ -166,9 +172,16 @@ export function parseRuntimeCapabilityManifest(value: unknown): RuntimeCapabilit
       if (!matchesExpected(mechanics, EXPECTED_MECHANICS[activityKey].authored)) {
         throw new Error(`Runtime capability activity '${activityKey}' authored mechanics do not match the implemented adapter.`);
       }
+      if (adapter.multiSourceHitPrerequisites !== undefined && typeof adapter.multiSourceHitPrerequisites !== "boolean") {
+        throw new Error(`Authored lesson adapter ${adapterIndex} multiSourceHitPrerequisites must be a boolean.`);
+      }
+      if (adapter.multiSourceHitPrerequisites === true && activityKey !== "early-algebra") {
+        throw new Error("Multi-source Hit prerequisites are supported only for Early Algebra.");
+      }
       return {
         authoredLessonProtocolVersion: 3,
         mechanics,
+        ...(adapter.multiSourceHitPrerequisites === undefined ? {} : { multiSourceHitPrerequisites: adapter.multiSourceHitPrerequisites }),
       };
     });
 

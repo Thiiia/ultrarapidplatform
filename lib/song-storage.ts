@@ -12,6 +12,9 @@ import {
   type RhythmDifficultyKey,
 } from "@/lib/number-bonds-sidecar";
 
+// Retired tracks are excluded from song pickers without deleting saved lessons.
+const RETIRED_SONG_ASSET_IDS = ["waves"];
+
 export type SongChoice = {
   id: string;
   activityKey: SongActivityKey;
@@ -619,7 +622,10 @@ export async function getSongChoices(
   }
 
   const songAssets = await prisma.songAsset.findMany({
-    where: { isActive: true, id: { in: playableSongAssetIds } },
+    where: {
+      isActive: true,
+      id: { in: playableSongAssetIds, notIn: RETIRED_SONG_ASSET_IDS },
+    },
     orderBy: { title: "asc" },
   });
 
@@ -805,6 +811,7 @@ export async function getEditorSongChoices(
   const charts = await prisma.songChart.findMany({
     where: {
       activityKey: preferredActivityKey,
+      songAsset: { id: { notIn: RETIRED_SONG_ASSET_IDS } },
       ...(authorId ? { authorId } : {}),
     },
     include: { songAsset: true, author: true },
@@ -828,7 +835,7 @@ export async function getEditorSongChoices(
   const authoredSongIds = new Set(chartsByAsset.values().map((chart) => chart.songAssetId));
 
   const songAssets = await prisma.songAsset.findMany({
-    where: { isActive: true },
+    where: { isActive: true, id: { notIn: RETIRED_SONG_ASSET_IDS } },
     orderBy: { title: "asc" },
   });
 

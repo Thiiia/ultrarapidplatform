@@ -1,4 +1,5 @@
 import {
+  enumerateAuthoredTargetSourceHitIds,
   AUTHORED_HIT_MISS_WINDOW_SECONDS,
   AUTHORED_MIN_FIRST_CUE_SECONDS,
   AUTHORED_PRESENTATION_EPSILON_SECONDS,
@@ -404,10 +405,12 @@ export function evaluateEncounterReadiness(
   }
 
   if (encounter.mechanic === "drag") {
-    const sourceHitId = encounter.dragTargets[0]?.sourceHitId;
+    const sourceHitIds = encounter.dragTargets[0]
+      ? enumerateAuthoredTargetSourceHitIds(encounter.dragTargets[0])
+      : [];
     // The v3 transport and Unity support standalone timed Drags. Only an
     // explicitly linked Drag depends on an earlier successful Hit.
-    if (sourceHitId && !readyHitIds.has(sourceHitId)) {
+    if (sourceHitIds.some((sourceHitId) => !readyHitIds.has(sourceHitId))) {
       issues.push(issue(encounter, "drag_source_not_ready"));
     }
   }
@@ -532,33 +535,37 @@ export function evaluateLessonPublishReadiness(
     const readiness = evaluateEncounterReadiness(input, readyHitIds, options);
     blockers.push(...readiness.issues);
 
-    const sourceHitId = mechanic === "drag" ? input.dragTargets[0]?.sourceHitId : undefined;
-    const source = sourceHitId ? inputById.get(sourceHitId) : undefined;
-    if (sourceHitId && source && source.mechanic === "hit" &&
-      (source.input.tick ?? source.event.tick) >= (input.tick ?? event.tick)) {
-      const sourceStartSeconds = source.input.tick ?? source.event.tick;
-      const dragStartSeconds = input.tick ?? event.tick;
-      blockers.push({
-        ...issue(input, "drag_source_not_earlier"),
-        relatedEncounterId: sourceHitId,
-        conflictStartSeconds: sourceStartSeconds,
-        conflictEndSeconds: dragStartSeconds,
-        earliestSafeStartSeconds: sourceStartSeconds + 0.001,
-        conflictIntervals: [
-          {
-            encounterId: sourceHitId,
-            label: moveLabel(sourceHitId, "hit"),
-            startSeconds: sourceStartSeconds,
-            endSeconds: sourceStartSeconds,
-          },
-          {
-            encounterId: instance.id,
-            label: moveLabel(instance.id, "drag"),
-            startSeconds: dragStartSeconds,
-            endSeconds: input.endTick ?? dragStartSeconds,
-          },
-        ],
-      });
+    const sourceHitIds = mechanic === "drag" && input.dragTargets[0]
+      ? enumerateAuthoredTargetSourceHitIds(input.dragTargets[0])
+      : [];
+    for (const sourceHitId of sourceHitIds) {
+      const source = inputById.get(sourceHitId);
+      if (source && source.mechanic === "hit" &&
+        (source.input.tick ?? source.event.tick) >= (input.tick ?? event.tick)) {
+        const sourceStartSeconds = source.input.tick ?? source.event.tick;
+        const dragStartSeconds = input.tick ?? event.tick;
+        blockers.push({
+          ...issue(input, "drag_source_not_earlier"),
+          relatedEncounterId: sourceHitId,
+          conflictStartSeconds: sourceStartSeconds,
+          conflictEndSeconds: dragStartSeconds,
+          earliestSafeStartSeconds: sourceStartSeconds + 0.001,
+          conflictIntervals: [
+            {
+              encounterId: sourceHitId,
+              label: moveLabel(sourceHitId, "hit"),
+              startSeconds: sourceStartSeconds,
+              endSeconds: sourceStartSeconds,
+            },
+            {
+              encounterId: instance.id,
+              label: moveLabel(instance.id, "drag"),
+              startSeconds: dragStartSeconds,
+              endSeconds: input.endTick ?? dragStartSeconds,
+            },
+          ],
+        });
+      }
     }
 
     if (mechanic === "hit" && readiness.ready) readyHitIds.add(instance.id);
@@ -645,7 +652,7 @@ export function evaluateLessonPublishReadiness(
       const rightInput = inputFromEvent(right.event, right.mechanic, right.instance);
       const rightStart = rightInput.tick ?? right.event.tick;
       const needsSpinToDragPreparation = left.mechanic === "spin" && right.mechanic === "drag" &&
-        rightStart > leftStart && (!rightInput.dragTargets.some((target) => target.sourceHitId) ||
+        rightStart > leftStart && (!rightInput.dragTargets.some((target) => enumerateAuthoredTargetSourceHitIds(target).length > 0) ||
           (capabilities.activityKey === "number-bonds" && options.numberBondSequenceVersion === 1));
       const rightPresentationLead = needsSpinToDragPreparation
         ? SPIN_DRAG_PREPARATION_SECONDS

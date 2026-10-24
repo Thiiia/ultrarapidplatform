@@ -84,6 +84,22 @@ test("retimes the opening authored cue to the requested learner-safe floor", () 
   assert.equal(result.lesson.encounters[0]?.startTick, 2304);
 });
 
+test("retiming keeps every multi-source Drag prerequisite attached to its single target", () => {
+  const source = lesson([
+    { id: "hit-a", eventId: "event-a", type: "hit", equationId: "eq", startTick: 192, endTick: 192, hitBubbles: [{ tokenIndex: 0, pads: ["left"] }] },
+    { id: "hit-b", eventId: "event-b", type: "hit", equationId: "eq", startTick: 1152, endTick: 1152, hitBubbles: [{ tokenIndex: 2, pads: ["right"] }] },
+    { id: "drag-final", eventId: "event-drag", type: "drag", equationId: "eq", startTick: 2304, endTick: 2496, dragTargets: [{ tokenIndex: 0, sourceHitId: "hit-a", sourceHitIds: ["hit-a", "hit-b"] }] },
+  ]);
+  const clock = createLessonClock(chart);
+  const result = retimeAuthoredLessonToMusic({ chart, lesson: source, clock });
+  const drag = result.lesson.encounters.find((encounter) => encounter.id === "drag-final");
+  assert.ok(drag?.type === "drag");
+  const targets = drag.dragTargets ?? [];
+  assert.equal(targets.length, 1);
+  assert.equal(targets[0]?.sourceHitId, "hit-a");
+  assert.deepEqual(targets[0]?.sourceHitIds, ["hit-a", "hit-b"]);
+});
+
 test("aligns an authored cue to its closest viable rhythm note", () => {
   const source = lesson([
     { id: "hit-1", eventId: "event-1", type: "hit", equationId: "eq", startTick: 500, endTick: 500, hitBubbles: [{ tokenIndex: 0, pads: ["left"] }] },

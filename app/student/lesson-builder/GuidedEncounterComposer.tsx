@@ -3,7 +3,7 @@ import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
 import SwipeRoundedIcon from "@mui/icons-material/SwipeRounded";
 import TouchAppRoundedIcon from "@mui/icons-material/TouchAppRounded";
 
-import { AUTHORED_MAX_REQUIRED_HIT_PADS, isAuthoredEquationOperator } from "@/lib/authored-lesson";
+import { AUTHORED_MAX_REQUIRED_HIT_PADS, enumerateAuthoredTargetSourceHitIds, isAuthoredEquationOperator } from "@/lib/authored-lesson";
 import { getNumberBondsWholeTokenIndex } from "@/lib/activity-authoring-capabilities";
 import {
   PLAYER_HEX_AUTHORED_HIT_PAD_LAYOUT_VERSION,
@@ -53,7 +53,7 @@ function RangeChartGuide({ instance, cues, onPatchInstance }: {
   );
 }
 
-type DragSource = { id: string; label: string };
+type DragSource = { id: string; label: string; equationId?: string; seconds?: number };
 
 export type GuidedEncounterComposerProps = {
   instance: GuidedEncounterInput;
@@ -203,8 +203,8 @@ function TargetPicker({
     } else if (kind === "Spin target") {
       onPatchInstance(instance.id, { spinTargets: [{ tokenIndex, targetId }] });
     } else {
-      const sourceHitId = instance.dragTargets[0]?.sourceHitId;
-      onPatchInstance(instance.id, { dragTargets: [{ tokenIndex, targetId, ...(sourceHitId ? { sourceHitId } : {}) }] });
+      const existing = instance.dragTargets[0];
+      onPatchInstance(instance.id, { dragTargets: [{ ...(existing ?? {}), tokenIndex, targetId }] });
     }
   }
 
@@ -454,9 +454,17 @@ function DragControls({
   instance,
   tokens,
   dragSources,
+  activityKey,
   onPatchInstance,
   requireSource = false,
-}: Pick<GuidedEncounterComposerProps, "instance" | "tokens" | "dragSources" | "onPatchInstance"> & { requireSource?: boolean }) {
+}: Pick<GuidedEncounterComposerProps, "instance" | "tokens" | "dragSources" | "activityKey" | "onPatchInstance"> & { requireSource?: boolean }) {
+  const target = instance.dragTargets[0];
+  const eligibleAdditionalSources = (dragSources ?? []).filter((source) =>
+    source.id !== target?.sourceHitId &&
+    source.equationId === instance.equation?.id &&
+    typeof source.seconds === "number" &&
+    source.seconds < (instance.tick ?? Number.POSITIVE_INFINITY),
+  );
   return (
     <div className="algebra-composer__dragControls">
       <TargetPicker instance={instance} tokens={tokens} kind="Drag target" displayLabel={studentCopy.mechanics.pickDragTarget} onPatchInstance={onPatchInstance} />
@@ -467,9 +475,16 @@ function DragControls({
           data-repair-control="source"
           value={instance.dragTargets[0]?.sourceHitId ?? ""}
           onChange={(event) => {
-            const target = instance.dragTargets[0];
             if (!target) return;
-            onPatchInstance(instance.id, { dragTargets: [{ ...target, sourceHitId: event.currentTarget.value || undefined }] });
+            const sourceHitId = event.currentTarget.value || undefined;
+            const sourceHitIds = target.sourceHitIds?.filter((id) => id !== sourceHitId);
+            onPatchInstance(instance.id, {
+              dragTargets: [{
+                ...target,
+                ...(sourceHitId ? { sourceHitId } : { sourceHitId: undefined }),
+                ...(sourceHitIds?.length ? { sourceHitIds } : { sourceHitIds: undefined }),
+              }],
+            });
           }}
           className="algebra-composer__field algebra-composer__sourceField"
         >
@@ -477,6 +492,34 @@ function DragControls({
           {(dragSources ?? []).map((source) => <option key={source.id} value={source.id}>{source.label}</option>)}
         </select>
       </label>
+      {activityKey === "early-algebra" && eligibleAdditionalSources.length > 0 ? (
+        <fieldset className="algebra-composer__sourcePrerequisites">
+          <legend>Also require earlier Hits</legend>
+          {eligibleAdditionalSources.map((source) => {
+            const selected = target?.sourceHitIds?.includes(source.id) ?? false;
+            return (
+              <label key={source.id}>
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={(event) => {
+                    if (!target) return;
+                    const next = new Set(target.sourceHitIds ?? []);
+                    if (event.currentTarget.checked) next.add(source.id);
+                    else next.delete(source.id);
+                    if (target.sourceHitId) next.delete(target.sourceHitId);
+                    const sourceHitIds = [...next];
+                    onPatchInstance(instance.id, {
+                      dragTargets: [{ ...target, sourceHitIds: sourceHitIds.length > 0 ? sourceHitIds : undefined }],
+                    });
+                  }}
+                />
+                <span>{source.label}</span>
+              </label>
+            );
+          })}
+        </fieldset>
+      ) : null}
       <TimingDetails instance={instance} onPatchInstance={onPatchInstance} />
       <div className="algebra-composer__hint">{requireSource ? "Keep this Drag linked to the Hit that catches the same gem." : studentCopy.mechanics.connectEarlierHit}</div>
     </div>
@@ -614,7 +657,7 @@ export function GuidedEncounterComposer({
       </div>
     );
   } else {
-    controls = <DragControls instance={instance} tokens={tokens} dragSources={dragSources} requireSource={isNumberBonds} onPatchInstance={onPatchInstance} />;
+    controls = <DragControls instance={instance} tokens={tokens} dragSources={dragSources} activityKey={activityKey} requireSource={isNumberBonds} onPatchInstance={onPatchInstance} />;
   }
 
   const equationState = tokens.map((token) => token.label).join(" ");
@@ -638,7 +681,9 @@ export function GuidedEncounterComposer({
     : new Set<number>();
   const previewPadLabels = [...previewPads].sort((left, right) => left - right).map((slot) => slot + 1);
   const dragSourceLabel = instance.mechanic === "drag"
-    ? dragSources.find((source) => source.id === instance.dragTargets[0]?.sourceHitId)?.label
+    ? enumerateAuthoredTargetSourceHitIds(instance.dragTargets[0] ?? {}).map((id) =>
+      dragSources.find((source) => source.id === id)?.label ?? id,
+    ).join(" + ")
     : null;
 
   return (

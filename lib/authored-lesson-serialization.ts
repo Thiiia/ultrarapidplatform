@@ -49,7 +49,7 @@ export type AuthoredMechanicInstance = {
   endTick?: number;
   hitBubbles: AuthoredHitBubble[];
   spinTargets: Array<{ tokenIndex: number; targetId?: string }>;
-  dragTargets: Array<{ tokenIndex: number; targetId?: string; sourceHitId?: string }>;
+  dragTargets: Array<{ tokenIndex: number; targetId?: string; sourceHitId?: string; sourceHitIds?: string[] }>;
   /** Optional per-instance binding; event assignment is only the legacy fallback. */
   equation?: AuthoredSavedEquation | null;
 };
@@ -83,7 +83,7 @@ export type AuthoredDraftEncounter = {
   endTick: number;
   hitBubbles?: AuthoredHitBubble[];
   spinTargets?: Array<{ tokenIndex: number; targetId?: string }>;
-  dragTargets?: Array<{ tokenIndex: number; targetId?: string; sourceHitId?: string }>;
+  dragTargets?: Array<{ tokenIndex: number; targetId?: string; sourceHitId?: string; sourceHitIds?: string[] }>;
 };
 
 export type AuthoredLessonDraft = {
@@ -368,7 +368,7 @@ function emptyInstances(): Record<"hit" | "spin" | "drag", AuthoredMechanicInsta
 /**
  * Inverse of serializeAuthoredLesson: rebuild the editor timeline from a v3
  * draft, converting integer ticks back to fractional audio seconds through the
- * same tempo map. Event IDs, instance IDs, equation IDs, targets, sourceHitId
+ * same tempo map. Event IDs, instance IDs, equation IDs, targets, sourceHitId(s)
  * and start/end are preserved exactly; equations with zero mechanics are kept
  * in the returned queue. Input must already be validated (parseAuthoredLessonDraft)
  * so invalid data is rejected, never normalized away.
@@ -385,7 +385,7 @@ export function timelineEventsFromAuthoredLesson(
       endTick: number;
       hitBubbles?: unknown[];
       spinTargets?: Array<{ tokenIndex: number; targetId?: string }>;
-      dragTargets?: Array<{ tokenIndex: number; targetId?: string; sourceHitId?: string }>;
+      dragTargets?: Array<{ tokenIndex: number; targetId?: string; sourceHitId?: string; sourceHitIds?: string[] }>;
     }>;
     numberBondSequenceVersion?: 1;
     numberBondGems?: readonly AuthoredLessonNumberBondGem[];
@@ -471,6 +471,7 @@ export function timelineEventsFromAuthoredLesson(
         tokenIndex: target.tokenIndex,
         ...(typeof target.targetId === "string" ? { targetId: target.targetId } : {}),
         ...(target.sourceHitId ? { sourceHitId: target.sourceHitId } : {}),
+        ...(target.sourceHitIds?.length ? { sourceHitIds: [...target.sourceHitIds] } : {}),
       })),
     };
 

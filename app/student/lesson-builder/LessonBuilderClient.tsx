@@ -334,6 +334,7 @@ type SpinTarget = {
 type DragTarget = {
   tokenIndex: number;
   sourceHitId?: string;
+  sourceHitIds?: string[];
 };
 
 type MechanicInstanceState = {
@@ -737,11 +738,15 @@ function normalizeTokenTargets<T extends SpinTarget | DragTarget>(
       typeof target.sourceHitId === "string" && target.sourceHitId.trim().length > 0
         ? target.sourceHitId
         : undefined;
+    const sourceHitIds = Array.isArray(target.sourceHitIds)
+      ? [...target.sourceHitIds] as string[]
+      : undefined;
 
     return [
       {
         tokenIndex,
         ...(sourceHitId ? { sourceHitId } : {}),
+        ...(sourceHitIds ? { sourceHitIds } : {}),
       } as T,
     ];
   });
@@ -8372,17 +8377,14 @@ function Rctm2ModePanel({
 
       const dragInstances = eventSlot.mechanicInstances?.drag ?? [];
       dragInstances.forEach((instance) => {
-        const sourceHitId = instance.dragTargets?.[0]?.sourceHitId;
-
-        if (!sourceHitId) {
-          return;
-        }
-
         const dragStart = timelineTickToSeconds(instance.tick ?? eventSlot.tick);
-        const currentStart = dragStartByHit.get(sourceHitId);
-
-        if (typeof currentStart !== "number" || dragStart < currentStart) {
-          dragStartByHit.set(sourceHitId, dragStart);
+        const target = instance.dragTargets?.[0];
+        const sourceHitIds = [...new Set([target?.sourceHitId, ...(target?.sourceHitIds ?? [])].filter((id): id is string => Boolean(id)))];
+        for (const sourceHitId of sourceHitIds) {
+          const currentStart = dragStartByHit.get(sourceHitId);
+          if (typeof currentStart !== "number" || dragStart < currentStart) {
+            dragStartByHit.set(sourceHitId, dragStart);
+          }
         }
       });
     });
@@ -11768,7 +11770,7 @@ export default function LessonBuilderClient({
 
             return {
               ...instance,
-              dragTargets: [{ tokenIndex, targetId, ...(instance.dragTargets?.[0]?.sourceHitId ? { sourceHitId: instance.dragTargets[0].sourceHitId } : {}) }],
+              dragTargets: [{ ...(instance.dragTargets?.[0] ?? {}), tokenIndex, targetId }],
             };
           },
         );
@@ -12351,7 +12353,8 @@ export default function LessonBuilderClient({
         dragTargets: isSameTokenAlreadySelected ? [] : [{
           tokenIndex,
           targetId: (instance.equation ?? eventSlot.assignments[mechanic])?.tokens[tokenIndex]?.id,
-          sourceHitId: instance.dragTargets[0]?.sourceHitId,
+          ...(instance.dragTargets[0]?.sourceHitId ? { sourceHitId: instance.dragTargets[0].sourceHitId } : {}),
+          ...(instance.dragTargets[0]?.sourceHitIds ? { sourceHitIds: [...instance.dragTargets[0].sourceHitIds] } : {}),
         }],
       };
     });
@@ -14709,10 +14712,15 @@ export default function LessonBuilderClient({
   });
   const dragSources = useMemo(
     () => timelineEvents.flatMap((eventSlot) =>
-      (eventSlot.mechanicInstances.hit ?? []).map((instance, index) => ({
-        id: instance.id,
-        label: `Hit ${index + 1} · ${formatTimelineTime(timelineTickToSeconds(instance.tick ?? eventSlot.tick), isAdvancedMode)}`,
-      })),
+      (eventSlot.mechanicInstances.hit ?? []).map((instance, index) => {
+        const seconds = timelineTickToSeconds(instance.tick ?? eventSlot.tick);
+        return {
+          id: instance.id,
+          label: `Hit ${index + 1} · ${formatTimelineTime(seconds, isAdvancedMode)}`,
+          equationId: instance.equation?.id ?? eventSlot.assignments.hit?.id,
+          seconds,
+        };
+      }),
     ),
     [isAdvancedMode, timelineEvents],
   );
@@ -15057,7 +15065,7 @@ export default function LessonBuilderClient({
               nextAction: lessonPublishReadiness.blockers.find((blocker) => blocker.encounterId === recordedRepairDraft.id)?.nextAction ?? "This move is ready.",
             }}
             activityKey={selectedSongActivity?.key ?? selectedSongLaunch?.activityKey ?? null}
-            dragSources={[...dragSources, ...rtcmDraftMechanics.filter((draft) => draft.mechanic === "hit").map((draft) => ({ id: draft.id, label: `Recorded Hit · ${draft.tick.toFixed(2)}s` }))]}
+            dragSources={[...dragSources, ...rtcmDraftMechanics.filter((draft) => draft.mechanic === "hit").map((draft) => ({ id: draft.id, label: `Recorded Hit · ${draft.tick.toFixed(2)}s`, equationId: draft.equationId, seconds: draft.tick }))]}
             chartHitCues={activityChartHitCues}
             repairFocus={repairFocus}
             onChooseEquation={isNumberBondsActivity ? undefined : () => document.getElementById("recorded-repair-equation")?.focus()}
@@ -15306,7 +15314,7 @@ export default function LessonBuilderClient({
                   chartHitCues={numberBondSongNotes}
                   dragSources={[
                     ...dragSources,
-                    ...rtcmDraftMechanics.filter((draft) => draft.mechanic === "hit").map((draft) => ({ id: draft.id, label: `Recorded Hit · ${draft.tick.toFixed(2)}s` })),
+                    ...rtcmDraftMechanics.filter((draft) => draft.mechanic === "hit").map((draft) => ({ id: draft.id, label: `Recorded Hit · ${draft.tick.toFixed(2)}s`, equationId: draft.equationId, seconds: draft.tick })),
                   ]}
                   repairFocus={repairFocus}
                   onPatchInstance={handlePatchRecordedRepair}

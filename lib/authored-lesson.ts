@@ -24,9 +24,22 @@ export type AuthoredLessonTarget = {
   tokenIndex: number;
   targetId?: string;
   sourceHitId?: string;
+  sourceHitIds?: string[];
   positions?: string[];
   pads?: string[];
 };
+
+/** Unity evaluates the legacy singular link first, then unique plural links. */
+export function enumerateAuthoredTargetSourceHitIds(
+  target: Pick<AuthoredLessonTarget, "sourceHitId" | "sourceHitIds">,
+): string[] {
+  const result: string[] = [];
+  if (target.sourceHitId) result.push(target.sourceHitId);
+  for (const sourceHitId of target.sourceHitIds ?? []) {
+    if (sourceHitId && !result.includes(sourceHitId)) result.push(sourceHitId);
+  }
+  return result;
+}
 
 export type AuthoredLessonHitBubble = {
   tokenIndex: number;
@@ -198,9 +211,20 @@ function normalizeTarget(value: unknown, label: string): AuthoredLessonTarget {
   const sourceHitId = target.sourceHitId == null
     ? undefined
     : requireString(target.sourceHitId, `${label}.sourceHitId`);
+  const sourceHitIds = normalizeSourceHitIds(target.sourceHitIds, `${label}.sourceHitIds`);
   const positions = normalizePadList(target.positions, `${label}.positions`);
   const pads = normalizePadList(target.pads, `${label}.pads`);
-  return { tokenIndex, ...(targetId ? { targetId } : {}), ...(sourceHitId ? { sourceHitId } : {}), ...(positions ? { positions } : {}), ...(pads ? { pads } : {}) };
+  return { tokenIndex, ...(targetId ? { targetId } : {}), ...(sourceHitId ? { sourceHitId } : {}), ...(sourceHitIds ? { sourceHitIds } : {}), ...(positions ? { positions } : {}), ...(pads ? { pads } : {}) };
+}
+
+function normalizeSourceHitIds(value: unknown, label: string): string[] | undefined {
+  if (value == null) return undefined;
+  if (!Array.isArray(value)) throw new Error(`Authored lesson ${label} must be an array`);
+  const ids = value.map((entry, index) => requireString(entry, `${label}[${index}]`));
+  if (new Set(ids).size !== ids.length) {
+    throw new Error(`Authored lesson ${label} must contain distinct HIT identities`);
+  }
+  return ids;
 }
 
 function normalizeEquationTokens(value: unknown, state: string, label: string): AuthoredLessonToken[] | undefined {
@@ -532,6 +556,9 @@ export function parseAuthoredLessonDraft(
   if (payload.version !== AUTHORED_LESSON_VERSION || payload.mode !== "authored") {
     throw new Error("Unsupported authored lesson payload version or mode");
   }
+  const sourceActivityKey = typeof payload.activityKey === "string"
+    ? normalizeSongActivityKey(payload.activityKey)
+    : null;
   const equations = Array.isArray(payload.equations) ? payload.equations.map((value, index) => {
     if (!value || typeof value !== "object") throw new Error(`Authored lesson equation ${index} is invalid`);
     const equation = value as Record<string, unknown>;
@@ -556,6 +583,19 @@ export function parseAuthoredLessonDraft(
     }
     if ((type === "spin" || type === "drag") && endTick <= startTick) {
       throw new Error(`Authored lesson ${type} '${requireString(encounter.id, `encounter[${index}].id`)}' requires a positive duration`);
+    }
+    const rawTargets = type === "hit" ? encounter.hitBubbles : encounter[type === "spin" ? "spinTargets" : "dragTargets"];
+    if (Array.isArray(rawTargets)) {
+      rawTargets.forEach((rawTarget, targetIndex) => {
+        if (!rawTarget || typeof rawTarget !== "object" || Array.isArray(rawTarget)) return;
+        const sourceHitIds = normalizeSourceHitIds(
+          (rawTarget as Record<string, unknown>).sourceHitIds,
+          `encounter[${index}].${type === "hit" ? "hitBubbles" : type === "spin" ? "spinTargets" : "dragTargets"}[${targetIndex}].sourceHitIds`,
+        );
+        if (sourceHitIds?.length && (type !== "drag" || sourceActivityKey !== "early-algebra")) {
+          throw new Error("Authored lesson sourceHitIds are supported only for Early Algebra drag prerequisites");
+        }
+      });
     }
     const targetKey = type === "spin" ? "spinTargets" : type === "drag" ? "dragTargets" : null;
     const targets = targetKey == null
@@ -693,13 +733,18 @@ export function parseAuthoredLessonDraft(
   const hits = new Map(result.encounters.filter((encounter) => encounter.type === "hit").map((encounter) => [encounter.id, encounter]));
   for (const encounter of result.encounters) {
     for (const target of encounter.type === "drag" ? encounter.dragTargets ?? [] : []) {
-      if (!target.sourceHitId) continue;
-      const source = hits.get(target.sourceHitId);
-      if (!source) {
-        throw new Error(`Encounter '${encounter.id}' sourceHitId '${target.sourceHitId}' references a missing hit`);
-      }
-      if (source.endTick >= encounter.startTick) {
-        throw new Error(`Encounter '${encounter.id}' sourceHitId '${target.sourceHitId}' must complete before the drag begins`);
+      const sourceHitIds = enumerateAuthoredTargetSourceHitIds(target);
+      for (const sourceHitId of sourceHitIds) {
+        const source = hits.get(sourceHitId);
+        if (!source) {
+          throw new Error(`Encounter '${encounter.id}' sourceHitId '${sourceHitId}' references a missing hit`);
+        }
+        if (target.sourceHitIds?.length && source.equationId !== encounter.equationId) {
+          throw new Error(`Encounter '${encounter.id}' sourceHitId '${sourceHitId}' must belong to the same equation`);
+        }
+        if (source.endTick >= encounter.startTick) {
+          throw new Error(`Encounter '${encounter.id}' sourceHitId '${sourceHitId}' must complete before the drag begins`);
+        }
       }
     }
   }

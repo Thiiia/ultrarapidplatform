@@ -1,16 +1,20 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
+  enumerateAuthoredTargetSourceHitIds,
   isAuthoredEquationOperator,
   authoredLegacyHitInteractionSignature,
   parseAuthoredLessonDraft,
   stampAuthoredLessonIdentity,
+  tokenizeAuthoredEquationState,
   validateAuthoredLessonPlayability,
   validateAuthoredLessonStopBoundary,
   validateAuthoredRuntimePresentationConcurrency,
 } from '../lib/authored-lesson';
 import { createLessonClock } from '../lib/editor/lesson-timing';
 import { validateLessonContent } from '../lib/lesson-content';
+import { serializeAuthoredLesson, timelineEventsFromAuthoredLesson } from '../lib/authored-lesson-serialization';
 
 const authored = {
   version: 3,
@@ -28,6 +32,122 @@ const authored = {
     hitBubbles: [{ tokenIndex: 0, positions: ['left'], pads: ['left'] }],
   }],
 };
+
+const multiSourceFixture = JSON.parse(readFileSync(
+  new URL('./fixtures/early-algebra-multi-source-v3.json', import.meta.url),
+  'utf8',
+)) as Record<string, unknown>;
+
+test('mixed legacy and plural prerequisites normalize in Unity order without adding drag targets', () => {
+  const draft = parseAuthoredLessonDraft(multiSourceFixture);
+  const drag = draft.encounters.find((encounter) => encounter.id === 'drag-final');
+  assert.ok(drag?.type === 'drag');
+  const targets = drag.dragTargets ?? [];
+  assert.equal(targets.length, 1);
+  assert.deepEqual(targets[0]?.sourceHitIds, ['hit-a', 'hit-b']);
+  assert.deepEqual(enumerateAuthoredTargetSourceHitIds(targets[0] ?? {}), ['hit-a', 'hit-b']);
+});
+
+test('multi-source Drag survives real JSON publish, editor hydration, and a second save', () => {
+  const chart = '[Song]\n{\n Resolution = 192\n}\n[SyncTrack]\n{\n 0 = B 120000\n}';
+  const clock = createLessonClock(chart);
+  const playableFixture = structuredClone(multiSourceFixture) as any;
+  playableFixture.encounters[1].startTick = 1152;
+  playableFixture.encounters[1].endTick = 1152;
+  playableFixture.encounters[2].startTick = 2304;
+  playableFixture.encounters[2].endTick = 2496;
+  const parsed = parseAuthoredLessonDraft(playableFixture);
+  const hydrated = timelineEventsFromAuthoredLesson(parsed, clock);
+  const equationQueue = parsed.equations.map((equation) => ({
+    id: equation.id,
+    tokens: equation.tokens?.map(({ id, label }) => ({ id, label })) ??
+      tokenizeAuthoredEquationState(equation.state).map((label, index) => ({ id: `${equation.id}-token-${index}`, label })),
+  }));
+  const saved = serializeAuthoredLesson(
+    hydrated.events,
+    { songAssetId: parsed.songAssetId, activityKey: parsed.activityKey, authorId: parsed.authorId, revision: parsed.revision },
+    clock,
+    20,
+    equationQueue,
+    { forPublish: true },
+  );
+  const reopened = parseAuthoredLessonDraft(JSON.parse(JSON.stringify(saved)), { requirePublishedIdentity: true });
+  const drag = reopened.encounters.find((encounter) => encounter.id === 'drag-final');
+  assert.ok(drag?.type === 'drag');
+  const targets = drag.dragTargets ?? [];
+  assert.equal(targets.length, 1);
+  assert.equal(targets[0]?.sourceHitId, 'hit-a');
+  assert.deepEqual(targets[0]?.sourceHitIds, ['hit-a', 'hit-b']);
+
+  const reopenedTimeline = timelineEventsFromAuthoredLesson(reopened, clock);
+  const savedAgain = serializeAuthoredLesson(
+    reopenedTimeline.events,
+    { songAssetId: reopened.songAssetId, activityKey: reopened.activityKey, authorId: reopened.authorId, revision: 'fixture-r2' },
+    clock,
+    20,
+    reopened.equations.map((equation) => ({
+      id: equation.id,
+      tokens: equation.tokens?.map(({ id, label }) => ({ id, label })) ??
+        tokenizeAuthoredEquationState(equation.state).map((label, index) => ({ id: `${equation.id}-token-${index}`, label })),
+    })),
+    { forPublish: true },
+  );
+  const dragAgain = savedAgain.encounters.find((encounter) => encounter.id === 'drag-final');
+  assert.ok(dragAgain?.type === 'drag');
+  const targetsAgain = dragAgain.dragTargets ?? [];
+  assert.equal(targetsAgain.length, 1);
+  assert.deepEqual(targetsAgain[0]?.sourceHitIds, ['hit-a', 'hit-b']);
+});
+
+test('empty and null plural declarations retain the legacy singular prerequisite', () => {
+  for (const sourceHitIds of [null, []]) {
+    const input = structuredClone(multiSourceFixture) as any;
+    input.encounters[2].dragTargets[0].sourceHitIds = sourceHitIds;
+    const draft = parseAuthoredLessonDraft(input);
+    const drag = draft.encounters.find((encounter) => encounter.id === 'drag-final');
+    assert.ok(drag?.type === 'drag');
+    assert.deepEqual(enumerateAuthoredTargetSourceHitIds((drag.dragTargets ?? [])[0] ?? {}), ['hit-a']);
+  }
+});
+
+test('plural prerequisites reject duplicate, missing, non-Hit, cross-equation and late sources', () => {
+  const duplicate = structuredClone(multiSourceFixture) as any;
+  duplicate.encounters[2].dragTargets[0].sourceHitIds = ['hit-a', 'hit-a'];
+  assert.throws(() => parseAuthoredLessonDraft(duplicate), /sourceHitIds.*distinct/i);
+
+  const missing = structuredClone(multiSourceFixture) as any;
+  missing.encounters[2].dragTargets[0].sourceHitIds = ['hit-a', 'missing-hit'];
+  assert.throws(() => parseAuthoredLessonDraft(missing), /sourceHitId.*missing hit/i);
+
+  const crossEquation = structuredClone(multiSourceFixture) as any;
+  crossEquation.equations.push({ id: 'equation-other', state: 'a + 1 = 3' });
+  crossEquation.encounters[1].equationId = 'equation-other';
+  assert.throws(() => parseAuthoredLessonDraft(crossEquation), /same equation/i);
+
+  const late = structuredClone(multiSourceFixture) as any;
+  late.encounters[1].startTick = 576;
+  late.encounters[1].endTick = 576;
+  assert.throws(() => parseAuthoredLessonDraft(late), /complete before the drag/i);
+});
+
+test('plural prerequisites remain Early Algebra Drag-only while old singular cross-equation links stay valid', () => {
+  const numberBonds = structuredClone(multiSourceFixture) as any;
+  numberBonds.activityKey = 'number-bonds';
+  assert.throws(() => parseAuthoredLessonDraft(numberBonds), /only for Early Algebra drag prerequisites/i);
+
+  const spin = structuredClone(multiSourceFixture) as any;
+  spin.encounters[2].type = 'spin';
+  spin.encounters[2].spinTargets = spin.encounters[2].dragTargets;
+  delete spin.encounters[2].dragTargets;
+  assert.throws(() => parseAuthoredLessonDraft(spin), /only for Early Algebra drag prerequisites/i);
+
+  const historicalSingular = structuredClone(multiSourceFixture) as any;
+  historicalSingular.equations.push({ id: 'equation-other', state: 'a + 1 = 3' });
+  historicalSingular.encounters[1].equationId = 'equation-other';
+  historicalSingular.encounters[2].dragTargets[0].sourceHitId = 'hit-b';
+  historicalSingular.encounters[2].dragTargets[0].sourceHitIds = [];
+  assert.doesNotThrow(() => parseAuthoredLessonDraft(historicalSingular));
+});
 
 test('operator classification matches every token Unity rejects as non-playable', () => {
   for (const token of ['+', '-', '=', '*', '/', '^', '(', ')', '×', '÷', '−']) {

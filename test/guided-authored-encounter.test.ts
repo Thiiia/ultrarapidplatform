@@ -279,6 +279,21 @@ test("drag source must be an earlier ready Hit", () => {
   assert.match(result.blockers[0].message, /Hit that comes first/);
 });
 
+test("multi-source Drag readiness requires every unique Hit prerequisite", () => {
+  const first = encounter("hit", { id: "hit-1", tick: 6, endTick: 6 });
+  const second = encounter("hit", { id: "hit-2", tick: 8, endTick: 8, hitBubbles: [{ tokenIndex: 2, pads: ["right"] }] });
+  const drag = encounter("drag", {
+    id: "drag-1", tick: 15, endTick: 18,
+    dragTargets: [{ tokenIndex: 0, sourceHitId: first.id, sourceHitIds: [first.id, second.id] }],
+  });
+
+  const partial = evaluateEncounterReadiness(drag, new Set([first.id]), { activityKey: "early-algebra" });
+  assert.ok(partial.issueCodes.includes("drag_source_not_ready"), "one completed Hit cannot satisfy the other prerequisite");
+
+  const ready = evaluateLessonPublishReadiness([eventWith(first), eventWith(second), eventWith(drag)], { activityKey: "early-algebra" });
+  assert.equal(ready.ready, true, ready.blockers.map((blocker) => blocker.message).join("; "));
+});
+
 test("drag cannot share the source Hit's tick", () => {
   const hit = encounter("hit", { id: "hit-1", tick: 12 });
   const drag = encounter("drag", {

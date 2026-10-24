@@ -4,6 +4,7 @@ import {
   type AuthoredLessonClock,
   type AuthoredLessonDraft,
   type AuthoredLessonEncounter,
+  enumerateAuthoredTargetSourceHitIds,
 } from "./authored-lesson";
 import {
   SUPPORTED_RHYTHM_DIFFICULTIES,
@@ -167,10 +168,14 @@ export function retimeAuthoredLessonToMusic({
     index += group.length;
 
     const originalStartSeconds = clock.toSeconds(group[0].startTick);
-    const dependencyReleaseSeconds = group[0].type === "drag"
-      ? group[0].dragTargets
-        ?.map((target) => target.sourceHitId ? releaseById.get(target.sourceHitId) : undefined)
-        .find((release): release is number => typeof release === "number")
+    const dependencyReleases = group[0].type === "drag"
+      ? (group[0].dragTargets ?? [])
+        .flatMap(enumerateAuthoredTargetSourceHitIds)
+        .map((sourceHitId) => releaseById.get(sourceHitId))
+        .filter((release): release is number => typeof release === "number")
+      : [];
+    const dependencyReleaseSeconds = dependencyReleases.length > 0
+      ? Math.max(...dependencyReleases)
       : undefined;
     const minimumStartSeconds = Math.max(
       isFirstGroup ? firstCueFloorSeconds : -Infinity,

@@ -1,0 +1,55 @@
+{
+  "version": 3,
+  "mode": "authored",
+  "songAssetId": "multi-source-fixture",
+  "activityKey": "early-algebra",
+  "authorId": "fixture-author",
+  "revision": "fixture-r1",
+  "equations": [
+    {
+      "id": "equation-main",
+      "state": "x + 2 = 5",
+      "tokens": [
+        { "id": "term-x", "label": "x" },
+        { "id": "operator-plus", "label": "+" },
+        { "id": "term-two", "label": "2" },
+        { "id": "operator-equals", "label": "=" },
+        { "id": "term-five", "label": "5" }
+      ]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "hit-a",
+      "eventId": "event-hit-a",
+      "type": "hit",
+      "equationId": "equation-main",
+      "startTick": 192,
+      "endTick": 192,
+      "hitBubbles": [{ "tokenIndex": 0, "targetId": "term-x", "positions": ["left"], "pads": ["left"] }]
+    },
+    {
+      "id": "hit-b",
+      "eventId": "event-hit-b",
+      "type": "hit",
+      "equationId": "equation-main",
+      "startTick": 384,
+      "endTick": 384,
+      "hitBubbles": [{ "tokenIndex": 2, "targetId": "term-two", "positions": ["right"], "pads": ["right"] }]
+    },
+    {
+      "id": "drag-final",
+      "eventId": "event-drag-final",
+      "type": "drag",
+      "equationId": "equation-main",
+      "startTick": 576,
+      "endTick": 768,
+      "dragTargets": [{
+        "tokenIndex": 0,
+        "targetId": "term-x",
+        "sourceHitId": "hit-a",
+        "sourceHitIds": ["hit-a", "hit-b"]
+      }]
+    }
+  ]
+}

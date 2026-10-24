@@ -19,6 +19,10 @@ const lessonPath = fileURLToPath(new URL(
   "../contracts/number-bonds/sequence-v1/fixtures.json",
   import.meta.url,
 ));
+const multiSourceLessonPath = fileURLToPath(new URL(
+  "./fixtures/early-algebra-multi-source-v3.json",
+  import.meta.url,
+));
 const manifestText = readFileSync(manifestPath, "utf8");
 const manifest = parseRuntimeCapabilityManifestJson(manifestText);
 const fixture = JSON.parse(readFileSync(lessonPath, "utf8")) as {
@@ -29,6 +33,7 @@ const fixture = JSON.parse(readFileSync(lessonPath, "utf8")) as {
     revision: string;
   };
 };
+const multiSourceLesson = JSON.parse(readFileSync(multiSourceLessonPath, "utf8")) as Record<string, unknown>;
 
 function digest(value: string) {
   return createHash("sha256").update(value, "utf8").digest("hex");
@@ -114,6 +119,20 @@ test("legacy Number Bonds Hit-only content uses the authored lesson adapter with
 
   assert.equal(result.implemented, true);
   assert.equal("sequenceVersion" in result, false);
+});
+
+test("older hosted builds reject multi-source Algebra while a declared compatible build admits it", () => {
+  assert.throws(
+    () => evaluateAuthoredLessonRuntimeCapability(manifest, multiSourceLesson, "early-algebra", multiSourceLesson as never),
+    (error) => error instanceof Error && /multi-source Early Algebra Drag prerequisites/.test(error.message),
+  );
+
+  const candidate = JSON.parse(manifestText) as { activities: Array<Record<string, any>> };
+  candidate.activities.find((activity) => activity.activityKey === "early-algebra")!
+    .authoredLessonAdapters[0].multiSourceHitPrerequisites = true;
+  const compatible = parseRuntimeCapabilityManifestJson(JSON.stringify(candidate));
+  const result = evaluateAuthoredLessonRuntimeCapability(compatible, multiSourceLesson, "early-algebra", multiSourceLesson as never);
+  assert.equal(result.implemented, true);
 });
 
 test("sequence-v1 lessons fail when the hosted build only declares the legacy Hit adapter", () => {

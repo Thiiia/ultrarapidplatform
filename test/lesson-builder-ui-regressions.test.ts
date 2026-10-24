@@ -185,6 +185,25 @@ test("Number Bonds timing repairs require a beat-snapped preview and can be undo
   assert.doesNotMatch(readinessSource, /Move this note for me/);
 });
 
+test("Early Algebra Drag source checkboxes add only earlier same-equation Hits to the single target", () => {
+  assert.match(composerSource, /activityKey === "early-algebra" && eligibleAdditionalSources\.length > 0/);
+  assert.match(composerSource, /source\.equationId === instance\.equation\?\.id/);
+  assert.match(composerSource, /source\.seconds < \(instance\.tick \?\? Number\.POSITIVE_INFINITY\)/);
+  assert.match(composerSource, /<legend>Also require earlier Hits<\/legend>/);
+  assert.match(composerSource, /dragTargets: \[\{ \.\.\.target, sourceHitIds:/);
+  assert.doesNotMatch(numberBondsComposerSource, /Also require earlier Hits/);
+});
+
+test("multi-source prerequisites remain in the editor timeline snapshot across timing-repair undo", () => {
+  const undo = lessonBuilderSource.match(/function handleUndoTimingRepair\(\) \{[\s\S]*?\n  \}/)?.[0];
+  assert.ok(undo, "the editor exposes a timing repair undo path");
+  assert.match(lessonBuilderSource, /const undoSnapshot = \{ timelineEvents, rtcmDraftMechanics \};/);
+  assert.match(lessonBuilderSource, /setTimingRepairUndoSnapshot\(undoSnapshot\)/);
+  assert.match(undo, /setTimelineEvents\(snapshot\.timelineEvents\)/);
+  assert.match(undo, /syncTimelineFilesFromEvents\(snapshot\.timelineEvents\)/);
+  assert.match(composerSource, /sourceHitIds/);
+});
+
 test("Number Bonds note creation explains the one-note, one-gem contract", () => {
   assert.match(composerSource, /Each note brings one gem into play/);
   assert.match(lessonBuilderSource, /createDefaultNumberBondHitBubble/);

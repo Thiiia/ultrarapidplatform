@@ -138,3 +138,24 @@ test("runtime capability parser preserves honest hit-only Number Bonds builds", 
   assert.deepEqual(manifest.activities[0].authoredLessonAdapters[0].mechanics, ["hit"]);
   assert.deepEqual(manifest.activities[0].authoredSequenceAdapters, []);
 });
+
+test("multi-source Hit prerequisites are an explicit Early Algebra runtime capability", () => {
+  const activities = structuredClone(fixture.activities) as Array<Record<string, any>>;
+  activities[1].authoredLessonAdapters[0].multiSourceHitPrerequisites = true;
+  const extended = parseRuntimeCapabilityManifestJson(JSON.stringify({ ...fixture, activities }));
+  assert.equal(extended.activities[1].authoredLessonAdapters[0].multiSourceHitPrerequisites, true);
+
+  const invalidActivities = structuredClone(activities);
+  invalidActivities[0].authoredLessonAdapters[0].multiSourceHitPrerequisites = true;
+  assert.throws(
+    () => parseRuntimeCapabilityManifestJson(JSON.stringify({ ...fixture, activities: invalidActivities })),
+    /only for Early Algebra/i,
+  );
+
+  const malformedActivities = structuredClone(activities);
+  malformedActivities[1].authoredLessonAdapters[0].multiSourceHitPrerequisites = "true";
+  assert.throws(
+    () => parseRuntimeCapabilityManifestJson(JSON.stringify({ ...fixture, activities: malformedActivities })),
+    /must be a boolean/i,
+  );
+});

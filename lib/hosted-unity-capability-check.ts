@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { parseAuthoredLessonDraft } from "./authored-lesson";
+import { enumerateAuthoredTargetSourceHitIds, parseAuthoredLessonDraft } from "./authored-lesson";
 import {
   parseRuntimeCapabilityManifestJson,
   type RuntimeCapabilityManifest,
@@ -238,6 +238,14 @@ export function evaluateAuthoredLessonRuntimeCapability(
   );
   if (!lessonAdapter) {
     return capabilityFailure(`The hosted Unity build cannot play this '${lesson.activityKey}' authored lesson.`);
+  }
+  const requiresMultiSourceHitPrerequisites = lesson.encounters.some((encounter) =>
+    encounter.type === "drag" && (encounter.dragTargets ?? []).some((target) =>
+      enumerateAuthoredTargetSourceHitIds(target).length > (target.sourceHitId ? 1 : 0),
+    ),
+  );
+  if (requiresMultiSourceHitPrerequisites && lessonAdapter.multiSourceHitPrerequisites !== true) {
+    return capabilityFailure("The hosted Unity build does not support multi-source Early Algebra Drag prerequisites.");
   }
   return {
     activityKey: lesson.activityKey,
