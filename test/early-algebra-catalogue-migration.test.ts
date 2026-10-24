@@ -7,6 +7,8 @@ import {
   refreshEarlyAlgebraEquationContent,
   upgradeEarlyAlgebraCatalogueHitPads,
 } from "../lib/early-algebra-catalogue-migration";
+import { parseAuthoredLessonDraft } from "../lib/authored-lesson";
+import { repairLegacyMigratedAuthoredLesson } from "../lib/legacy-authored-migration";
 import { createLessonClock } from "../lib/editor/lesson-timing";
 
 const chart = `[Song]
@@ -70,7 +72,7 @@ test("migrates old hits to the player hex and uses the released phrase for separ
 test("every catalogue progression has distinct equations with positive integer solutions", () => {
   const counts: Record<string, number> = {
     garden: 10, geminiqueen: 12, grudge: 7, jazzmaybach: 2,
-    justbecause: 10, oneone: 8, seven: 10, waves: 18,
+    justbecause: 10, oneone: 8, seven: 10,
   };
   const side = (expression: string) => expression.replace(/\s/g, "")
     .replace(/-/g, "+-").split("+").filter(Boolean)
@@ -100,6 +102,76 @@ test("every catalogue progression has distinct equations with positive integer s
     assert.ok(solutions.every((solution) => Number.isSafeInteger(solution) && solution > 0), songAssetId);
     assert.ok(new Set(solutions).size >= Math.min(2, count), songAssetId);
   }
+});
+
+test("legacy repair waits until the latest mixed or plural Hit prerequisite before a Drag", () => {
+  for (const dragSource of [
+    { sourceHitId: "legacy-0-hit", sourceHitIds: ["legacy-0-hit", "legacy-1-hit"] },
+    { sourceHitIds: ["legacy-0-hit", "legacy-1-hit"] },
+  ]) {
+    const source = {
+      version: 3,
+      mode: "authored",
+      songAssetId: "garden",
+      activityKey: "early-algebra",
+      equations: [{ id: "equation", state: "x + 1 = 2" }],
+      encounters: [
+        { id: "legacy-0-hit", eventId: "event-hit-0", type: "hit", equationId: "equation",
+          startTick: 4, endTick: 4, hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"], positions: ["topLeft"] }] },
+        { id: "legacy-1-hit", eventId: "event-hit-1", type: "hit", equationId: "equation",
+          startTick: 10, endTick: 10, hitBubbles: [{ tokenIndex: 0, pads: ["topRight"], positions: ["topRight"] }] },
+        { id: "legacy-2-drag", eventId: "event-drag", type: "drag", equationId: "equation",
+          startTick: 8, endTick: 14, dragTargets: [{ tokenIndex: 2, ...dragSource }] },
+      ],
+    };
+
+    const repaired = repairLegacyMigratedAuthoredLesson(source);
+    const playable = parseAuthoredLessonDraft(repaired);
+    const drag = playable.encounters.find((encounter) => encounter.id === "legacy-2-drag");
+    assert.ok(drag?.type === "drag");
+    assert.equal(drag.startTick, 11);
+    assert.equal(drag.endTick, 17);
+    assert.deepEqual(drag.dragTargets?.[0]?.sourceHitIds, ["legacy-0-hit", "legacy-1-hit"]);
+  }
+});
+
+test("catalogue refresh retargets every linked Hit when a Drag has multiple sources", () => {
+  const source = {
+    version: 3,
+    mode: "authored",
+    songAssetId: "waves",
+    activityKey: "early-algebra",
+    equations: [{ id: "one-step", state: "x + 2 = 5" }],
+    encounters: [
+      { id: "hit-first", eventId: "event-1", type: "hit", equationId: "one-step",
+        startTick: 1, endTick: 1, hitBubbles: [{ tokenIndex: 0, pads: ["topLeft"] }] },
+      { id: "hit-last", eventId: "event-2", type: "hit", equationId: "one-step",
+        startTick: 4, endTick: 4, hitBubbles: [{ tokenIndex: 2, pads: ["topRight"] }] },
+      { id: "drag-final", eventId: "event-3", type: "drag", equationId: "one-step",
+        startTick: 7, endTick: 8,
+        dragTargets: [{ tokenIndex: 2, sourceHitId: "hit-first", sourceHitIds: ["hit-first", "hit-last"] }] },
+    ],
+  };
+  const refreshed = refreshEarlyAlgebraEquationContent({ songAssetId: "waves", sidecar: JSON.stringify(source) });
+  const drag = refreshed.encounters.find((encounter) => encounter.id === "drag-final");
+  assert.ok(drag?.type === "drag");
+  assert.equal(drag.dragTargets?.length, 1);
+  assert.equal(drag.dragTargets?.[0]?.sourceHitId, "hit-first");
+  assert.deepEqual(drag.dragTargets?.[0]?.sourceHitIds, ["hit-first", "hit-last"]);
+  const dragTargetId = drag.dragTargets?.[0]?.targetId;
+  for (const hitId of ["hit-first", "hit-last"]) {
+    const hit = refreshed.encounters.find((encounter) => encounter.id === hitId);
+    assert.ok(hit?.type === "hit");
+    assert.equal(hit.hitBubbles?.[0]?.targetId, dragTargetId, `${hitId} must teach the term this Drag moves`);
+  }
+});
+
+test("removed Waves content stays outside the Early Algebra catalogue migrator", () => {
+  assert.throws(() => migrateEarlyAlgebraCatalogueSong({
+    songAssetId: "waves",
+    chart,
+    sidecar: "{}",
+  }), /Unknown Early Algebra catalogue song 'waves'/);
 });
 
 test("gives each drag its own small equation row and rewrites the following cue targets", () => {

@@ -1,8 +1,19 @@
 import { prisma } from "@/lib/prisma";
+import { summarizeStudentRunTimingJudgements, type StudentRunTimingJudgements } from "@/lib/student-run-feedback";
 
 export type StudentActivityStat = {
   activityKey: string;
   attempts: number;
+};
+
+export type TeacherRunProgress = {
+  state: "no-saved-result" | "completed" | "unverified-completion" | "failed" | "abandoned" | "cancelled" | "unclassified";
+  resultSaved: boolean;
+  completedEvents: number | null;
+  requiredEvents: number | null;
+  solvedSets: number | null;
+  hitAttempts: number | null;
+  timingJudgements: StudentRunTimingJudgements | null;
 };
 
 export type StudentProgressSummary = {
@@ -13,11 +24,15 @@ export type StudentProgressSummary = {
   lastLoginAt: Date | null;
   totalAttempts: number;
   attemptsByActivity: StudentActivityStat[];
+  latestRun: TeacherRunProgress;
   completedEvents: number;
   hitAttempts: number;
   completedCount: number;
   unverifiedCompletedCount: number;
   failedCount: number;
+  abandonedCount: number;
+  cancelledCount: number;
+  unclassifiedOutcomeCount: number;
   lastPlayed: {
     activityKey: string;
     songTitle: string;
@@ -33,11 +48,73 @@ export function summarizePlayerRunOutcomeCounts(
       counts.unverifiedCompletedCount += 1;
     } else if (outcome.outcome === "completed") {
       counts.completedCount += 1;
-    } else if (["failed", "abandoned", "cancelled"].includes(outcome.outcome)) {
+    } else if (outcome.outcome === "failed") {
       counts.failedCount += 1;
+    } else if (outcome.outcome === "abandoned") {
+      counts.abandonedCount += 1;
+    } else if (outcome.outcome === "cancelled") {
+      counts.cancelledCount += 1;
+    } else {
+      counts.unclassifiedOutcomeCount += 1;
     }
     return counts;
-  }, { completedCount: 0, unverifiedCompletedCount: 0, failedCount: 0 });
+  }, {
+    completedCount: 0,
+    unverifiedCompletedCount: 0,
+    failedCount: 0,
+    abandonedCount: 0,
+    cancelledCount: 0,
+    unclassifiedOutcomeCount: 0,
+  });
+}
+
+export function findOutcomeForLaunchAttempt<T extends { launchAttemptId: string }>(
+  outcomes: ReadonlyArray<T>,
+  launchAttemptId: string,
+): T | null {
+  return outcomes.find((outcome) => outcome.launchAttemptId === launchAttemptId) ?? null;
+}
+
+export function projectTeacherRunProgress(
+  outcome: {
+    outcome: string;
+    completionVersion: number | null;
+    completedEvents: number | null;
+    requiredEvents: number | null;
+    solvedSets: number | null;
+    hitAttempts: number | null;
+    missionSteps?: unknown;
+  } | null,
+): TeacherRunProgress {
+  if (!outcome) {
+    return {
+      state: "no-saved-result",
+      resultSaved: false,
+      completedEvents: null,
+      requiredEvents: null,
+      solvedSets: null,
+      hitAttempts: null,
+      timingJudgements: null,
+    };
+  }
+
+  const state: TeacherRunProgress["state"] = outcome.outcome === "completed"
+    ? outcome.completionVersion === 2 || outcome.completionVersion === 3
+      ? "completed"
+      : "unverified-completion"
+    : outcome.outcome === "failed" || outcome.outcome === "abandoned" || outcome.outcome === "cancelled"
+      ? outcome.outcome
+      : "unclassified";
+
+  return {
+    state,
+    resultSaved: true,
+    completedEvents: outcome.completedEvents,
+    requiredEvents: outcome.requiredEvents,
+    solvedSets: outcome.solvedSets,
+    hitAttempts: outcome.hitAttempts,
+    timingJudgements: summarizeStudentRunTimingJudgements(outcome.missionSteps),
+  };
 }
 
 /**
@@ -89,11 +166,15 @@ export async function getClassStudentActivity({
     prisma.playerRunOutcome.findMany({
       where: { userId: { in: studentIds } },
       select: {
+        launchAttemptId: true,
         userId: true,
         outcome: true,
         completionVersion: true,
         completedEvents: true,
+        requiredEvents: true,
+        solvedSets: true,
         hitAttempts: true,
+        missionSteps: true,
       },
     }),
   ]);
@@ -127,6 +208,9 @@ export async function getClassStudentActivity({
     );
 
     const mostRecentAttempt = attempts[0] ?? null;
+    const latestOutcome = mostRecentAttempt
+      ? findOutcomeForLaunchAttempt(studentOutcomes, mostRecentAttempt.launchAttemptId)
+      : null;
 
     const outcomeCounts = summarizePlayerRunOutcomeCounts(studentOutcomes);
 
@@ -140,6 +224,7 @@ export async function getClassStudentActivity({
       attemptsByActivity: Array.from(attemptCountsByActivity.entries()).map(
         ([activityKey, count]) => ({ activityKey, attempts: count }),
       ),
+      latestRun: projectTeacherRunProgress(latestOutcome),
       completedEvents: totalCompletedEvents,
       hitAttempts: totalHitAttempts,
       ...outcomeCounts,

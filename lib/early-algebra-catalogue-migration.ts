@@ -1,6 +1,7 @@
 import {
   AUTHORED_HIT_MISS_WINDOW_SECONDS,
   AUTHORED_PRESENTATION_LEAD_SECONDS,
+  enumerateAuthoredTargetSourceHitIds,
   isAuthoredEquationOperator,
   parseAuthoredLessonDraft,
   tokenizeAuthoredEquationState,
@@ -257,7 +258,10 @@ export function refreshEarlyAlgebraEquationContent(input: {
     const hitIds = new Set(pendingEncounters
       .filter((encounter) => encounter.type === "hit")
       .map(({ id }) => id));
-    if (hitIds.size === 0 || !hitIds.has(dragEncounters[0].dragTargets?.[0]?.sourceHitId ?? "")) {
+    const sourceHitIds = dragEncounters[0].dragTargets?.[0]
+      ? enumerateAuthoredTargetSourceHitIds(dragEncounters[0].dragTargets[0])
+      : [];
+    if (hitIds.size === 0 || sourceHitIds.length === 0 || sourceHitIds.some((id) => !hitIds.has(id))) {
       throw new Error(`Drag encounter '${dragEncounters[0].id}' must use a Hit from its own equation row`);
     }
 
@@ -301,15 +305,15 @@ export function refreshEarlyAlgebraEquationContent(input: {
     const tokens = step.equation.tokens ?? [];
     const targetAt = (tokenIndex: number) => ({ tokenIndex, targetId: tokens[tokenIndex].id });
     const playableTokenIndexes = playableIndexes(step.equation);
-    const dragSourceHitId = step.encounters.find((encounter) => encounter.type === "drag")
-      ?.dragTargets?.[0]?.sourceHitId;
+    const dragTarget = step.encounters.find((encounter) => encounter.type === "drag")?.dragTargets?.[0];
+    const dragSourceHitIds = new Set(dragTarget ? enumerateAuthoredTargetSourceHitIds(dragTarget) : []);
     let hitProgress = 0;
 
     for (const encounter of step.encounters) {
       const refreshed = { ...encounter, equationId: step.equation.id };
       if (encounter.type === "hit") {
         const hitBubbles = (encounter.hitBubbles ?? []).map((bubble, bubbleIndex) => {
-          const tokenIndex = encounter.id === dragSourceHitId && bubbleIndex === 0
+          const tokenIndex = dragSourceHitIds.has(encounter.id) && bubbleIndex === 0
             ? step.operationTargetIndex
             : playableTokenIndexes[(hitProgress + bubbleIndex) % playableTokenIndexes.length];
           return { ...bubble, ...targetAt(tokenIndex) };
@@ -445,6 +449,8 @@ export function migrateEarlyAlgebraCatalogueSong(input: {
       ...targetFor(equation, "drag", 0),
       ...(encounter.dragTargets?.[0]?.sourceHitId
         ? { sourceHitId: encounter.dragTargets[0].sourceHitId } : {}),
+      ...(encounter.dragTargets?.[0]?.sourceHitIds?.length
+        ? { sourceHitIds: [...encounter.dragTargets[0].sourceHitIds] } : {}),
     }] };
   }).sort((left, right) => left.startTick - right.startTick || left.id.localeCompare(right.id));
 
@@ -452,7 +458,8 @@ export function migrateEarlyAlgebraCatalogueSong(input: {
   let addedOrdinal = 0;
   for (const [index, previous] of encounters.entries()) {
     const next = encounters[index + 1];
-    if (next?.type === "drag" && next.dragTargets?.[0]?.sourceHitId === previous.id) continue;
+    if (next?.type === "drag" && next.dragTargets?.[0] &&
+      enumerateAuthoredTargetSourceHitIds(next.dragTargets[0]).includes(previous.id)) continue;
     const earliest = releaseSeconds(previous, clock) + AUTHORED_PRESENTATION_LEAD_SECONDS + 0.01;
     const latest = next
       ? clock.toSeconds(next.startTick) - AUTHORED_HIT_MISS_WINDOW_SECONDS - AUTHORED_PRESENTATION_LEAD_SECONDS - 0.01

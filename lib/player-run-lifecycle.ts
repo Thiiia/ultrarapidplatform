@@ -107,14 +107,16 @@ export async function persistPlayerRunOutcome(input: {
     if (canonicalPlayerJson(attempt.receipt) !== canonicalPlayerJson(input.receipt)) {
       return conflict("Outcome receipt does not match the launch attempt");
     }
-    if (attempt.status === "returned") {
-      return conflict("Launch attempt has already been returned");
-    }
-
     const existing = await transaction.findRunOutcome(launchAttemptId);
     if (existing) {
       if (!matchesCompletion(existing, input.userId, input.completion)) {
         return conflict("A different outcome is already recorded for this launch attempt");
+      }
+      // Return can commit even when its acknowledgement is lost. Permit the
+      // exact persisted result to be acknowledged again so clients can finish
+      // their durable Return intent; this does not create a new outcome.
+      if (attempt.status === "returned") {
+        return { ok: true, status: 200, idempotent: true, outcome: existing };
       }
       if (attempt.status === "active") {
         const transitioned = await transaction.transitionLaunchAttempt(
@@ -135,6 +137,10 @@ export async function persistPlayerRunOutcome(input: {
         return conflict("Launch attempt is no longer active");
       }
       return { ok: true, status: 200, idempotent: true, outcome: existing };
+    }
+
+    if (attempt.status === "returned") {
+      return conflict("Launch attempt has already been returned");
     }
 
     if (attempt.status !== "active") {

@@ -146,7 +146,7 @@ test("outcome persistence rejects changed completion fields and altered receipt 
   assert.equal(store.outcomes.size, 1);
 });
 
-test("Return terminalizes the same attempt and rejects late completion without changing its result", async () => {
+test("Return terminalizes the attempt, accepts only the exact saved result replay, and rejects new completion", async () => {
   const store = createStore();
   const saved = await persistPlayerRunOutcome({
     repository: store,
@@ -165,8 +165,48 @@ test("Return terminalizes the same attempt and rejects late completion without c
   assert.deepEqual(returned, { ok: true, idempotent: false });
   assert.equal(store.attempts.get(launchAttemptId)?.status, "returned");
 
-  const lateCompletion = await persistPlayerRunOutcome({
+  const exactReplay = await persistPlayerRunOutcome({
     repository: store,
+    userId: "student-1",
+    receipt,
+    completion,
+  });
+  assert.equal(exactReplay.ok, true);
+  if (!exactReplay.ok || !saved.ok) return;
+  assert.equal(exactReplay.status, 200);
+  assert.equal(exactReplay.idempotent, true);
+  assert.deepEqual(exactReplay.outcome, saved.outcome);
+
+  const alteredReplay = await persistPlayerRunOutcome({
+    repository: store,
+    userId: "student-1",
+    receipt,
+    completion: { ...completion, hitAttempts: completion.hitAttempts + 1 },
+  });
+  assert.deepEqual(alteredReplay, {
+    ok: false,
+    status: 409,
+    error: "A different outcome is already recorded for this launch attempt",
+  });
+
+  const duplicateReturn = await returnPlayerLaunchAttempt({
+    repository: store,
+    userId: "student-1",
+    receipt,
+    fullReceipt: receipt,
+  });
+  assert.deepEqual(duplicateReturn, { ok: true, idempotent: true });
+  assert.equal(store.outcomes.size, 1);
+
+  const returnedBeforeSave = createStore();
+  await returnPlayerLaunchAttempt({
+    repository: returnedBeforeSave,
+    userId: "student-1",
+    receipt,
+    fullReceipt: receipt,
+  });
+  const lateCompletion = await persistPlayerRunOutcome({
+    repository: returnedBeforeSave,
     userId: "student-1",
     receipt,
     completion,
@@ -176,14 +216,6 @@ test("Return terminalizes the same attempt and rejects late completion without c
     status: 409,
     error: "Launch attempt has already been returned",
   });
-  const duplicateReturn = await returnPlayerLaunchAttempt({
-    repository: store,
-    userId: "student-1",
-    receipt,
-    fullReceipt: receipt,
-  });
-  assert.deepEqual(duplicateReturn, { ok: true, idempotent: true });
-  assert.equal(store.outcomes.size, 1);
 });
 
 test("a learner cannot complete or return another learner's launch attempt", async () => {

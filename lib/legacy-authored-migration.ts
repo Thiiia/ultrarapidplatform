@@ -1,6 +1,7 @@
 import {
   AUTHORED_HIT_MISS_WINDOW_SECONDS,
   AUTHORED_PRESENTATION_LEAD_SECONDS,
+  enumerateAuthoredTargetSourceHitIds,
   isAuthoredEquationOperator,
   parseAuthoredLessonDraft,
   tokenizeAuthoredEquationState,
@@ -250,11 +251,22 @@ export function repairLegacyMigratedAuthoredLesson<T>(value: T): T {
     if (encounter.type === "drag" && Array.isArray(encounter.dragTargets) &&
       typeof encounter.startTick === "number" && Number.isSafeInteger(encounter.startTick) &&
       typeof encounter.endTick === "number" && Number.isSafeInteger(encounter.endTick)) {
-      const sourceTick = encounter.dragTargets
-        .flatMap((target) => isRecord(target) && typeof target.sourceHitId === "string"
-          ? [hitTickById.get(target.sourceHitId)]
-          : [])
-        .find((tick): tick is number => typeof tick === "number");
+      const sourceTicks = encounter.dragTargets.flatMap((target) => {
+        if (!isRecord(target)) return [];
+        const sourceHitIds = enumerateAuthoredTargetSourceHitIds({
+          sourceHitId: typeof target.sourceHitId === "string" ? target.sourceHitId : undefined,
+          sourceHitIds: Array.isArray(target.sourceHitIds)
+            ? target.sourceHitIds.filter((id): id is string => typeof id === "string")
+            : undefined,
+        });
+        return sourceHitIds.flatMap((sourceHitId) => {
+          const tick = hitTickById.get(sourceHitId);
+          return tick == null ? [] : [tick];
+        });
+      });
+      const sourceTick = sourceTicks.length > 0
+        ? sourceTicks.reduce((latest, tick) => Math.max(latest, tick), Number.NEGATIVE_INFINITY)
+        : null;
       if (sourceTick != null && sourceTick >= encounter.startTick) {
         const duration = Math.max(1, encounter.endTick - encounter.startTick);
         repaired = { ...repaired, startTick: sourceTick + 1, endTick: sourceTick + 1 + duration };

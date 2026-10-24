@@ -9,7 +9,9 @@ import { readPlayerLessonWorkspaceDraft, writePlayerLessonWorkspaceDraft } from 
 import { prepareWorkspaceMutation } from "../lib/player-workspace-client";
 
 const lesson = parseAuthoredLessonDraft(JSON.parse(readFileSync("contracts/number-bonds/sequence-v1/fixtures.json", "utf8")).validLesson);
+const algebraLesson = parseAuthoredLessonDraft(JSON.parse(readFileSync("test/fixtures/early-algebra-multi-source-v3.json", "utf8")));
 const source = { songAssetId: lesson.songAssetId, activityKey: lesson.activityKey, authorId: "author", revision: "00000000-0000-4000-8000-000000000001" };
+const algebraSource = { songAssetId: algebraLesson.songAssetId, activityKey: "early-algebra", authorId: "author", revision: "00000000-0000-4000-8000-000000000002" };
 const clock = { toTick: (seconds: number) => Math.round(seconds), toSeconds: (tick: number) => tick };
 const memoryStorage = () => {
   const values = new Map<string, string>();
@@ -71,6 +73,62 @@ test("Algebra recovery preserves queue order including equations with no encount
     clock, events: hydrated.events, equationQueue: [unassigned, ...hydrated.equations], stopAtSeconds: 123 });
   assert.ok(captured);
   assert.deepEqual(captured.equations.map((equation) => equation.id), ["next-equation", lesson.equations[0].id]);
+});
+
+test("Algebra multi-Hit prerequisites survive local recovery and remote workspace save/reopen", () => {
+  const hydrated = timelineEventsFromAuthoredLesson(algebraLesson, clock);
+  const captured = captureAuthoredWorkspaceLesson({
+    source: algebraSource,
+    clock,
+    events: hydrated.events,
+    equationQueue: hydrated.equations,
+    stopAtSeconds: 123,
+  });
+  assert.ok(captured);
+
+  const storage = memoryStorage();
+  writePlayerLessonWorkspaceDraft(storage, {
+    version: 1,
+    source: algebraSource,
+    timelineEvents: hydrated.events,
+    authoredLesson: captured,
+    equationEdits: [],
+    updatedAt: 300,
+  });
+  const reopened = readPlayerLessonWorkspaceDraft(storage, algebraSource, 300);
+  assert.ok(reopened);
+  const recovered = readWorkspaceAuthoredLesson(reopened.authoredLesson, algebraSource);
+  assert.ok(recovered);
+
+  const assertSingleTwoHitDrag = (candidate: typeof recovered) => {
+    const drag = candidate.encounters.find((encounter) => encounter.type === "drag");
+    assert.ok(drag?.type === "drag");
+    const targets = drag.dragTargets ?? [];
+    assert.equal(targets.length, 1);
+    assert.equal(targets[0]?.sourceHitId, "hit-a");
+    assert.deepEqual(targets[0]?.sourceHitIds, ["hit-a", "hit-b"]);
+  };
+  assertSingleTwoHitDrag(recovered);
+
+  const remote = prepareWorkspaceMutation({
+    key: algebraSource,
+    expectedVersion: 0,
+    payload: {
+      version: 1,
+      equations: [],
+      hiddenSourceEquationIds: [],
+      timelineEdits: hydrated.events,
+      authoredLesson: captured,
+      tutorial: { step: "done" },
+      updatedAt: 300,
+    },
+  });
+  assert.equal(remote.kind, "ready");
+  if (remote.kind !== "ready") return;
+  assert.deepEqual(remote.mutation.payload.timelineEdits, []);
+  const remoteLesson = readWorkspaceAuthoredLesson(remote.mutation.payload.authoredLesson, algebraSource);
+  assert.ok(remoteLesson);
+  assertSingleTwoHitDrag(remoteLesson);
 });
 
 test("incomplete mechanics keep their original raw recovery format", () => {

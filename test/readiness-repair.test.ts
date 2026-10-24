@@ -54,6 +54,7 @@ function eventFor(
   endSeconds = startSeconds,
   sourceHitId?: string,
   authoredEquation = generalEquation,
+  sourceHitIds?: string[],
 ): AuthoredTimelineEvent {
   const instance = {
     id,
@@ -62,7 +63,11 @@ function eventFor(
     equation: authoredEquation,
     hitBubbles: mechanic === "hit" ? [{ tokenIndex: 0, targetId: authoredEquation.tokens[0].id, pads: ["left"] }] : [],
     spinTargets: mechanic === "spin" ? [{ tokenIndex: 0 }] : [],
-    dragTargets: mechanic === "drag" ? [{ tokenIndex: 0, ...(sourceHitId ? { sourceHitId } : {}) }] : [],
+    dragTargets: mechanic === "drag" ? [{
+      tokenIndex: 0,
+      ...(sourceHitId ? { sourceHitId } : {}),
+      ...(sourceHitIds?.length ? { sourceHitIds: [...sourceHitIds] } : {}),
+    }] : [],
   };
   return {
     id: `event-${id}`,
@@ -144,6 +149,46 @@ test("repair preserves action duration and a valid Drag dependency while reporti
 
   const stale = applyEncounterMovePatches(applied ?? [], proposal.patches);
   assert.equal(stale, null, "a preview cannot be applied twice over newer state");
+});
+
+test("timing repair apply and undo preserve every source Hit on one Drag target", () => {
+  const firstHit = eventFor("hit", "source-hit-a", 2, 2, undefined, equation);
+  const secondHit = eventFor("hit", "source-hit-b", 4, 4, undefined, equation);
+  const drag = eventFor(
+    "drag",
+    "drag-with-two-sources",
+    10,
+    12,
+    "source-hit-a",
+    equation,
+    ["source-hit-a", "source-hit-b"],
+  );
+  const before = [firstHit, secondHit, drag];
+  const patch = {
+    encounterId: "drag-with-two-sources",
+    eventId: drag.id,
+    mechanic: "drag" as const,
+    fromSeconds: 10,
+    toSeconds: 14,
+    fromEndSeconds: 12,
+    toEndSeconds: 16,
+  };
+
+  const applied = applyEncounterMovePatches(before, [patch]);
+  assert.ok(applied);
+  const appliedDrag = applied.find((event) => event.id === drag.id)?.mechanicInstances.drag[0];
+  assert.equal(appliedDrag?.tick, 14);
+  assert.equal(appliedDrag?.dragTargets.length, 1);
+  assert.equal(appliedDrag?.dragTargets[0]?.sourceHitId, "source-hit-a");
+  assert.deepEqual(appliedDrag?.dragTargets[0]?.sourceHitIds, ["source-hit-a", "source-hit-b"]);
+
+  const undone = applyEncounterMovePatches(applied, [patch], "undo");
+  assert.deepEqual(undone, before);
+  const undoneDrag = undone?.find((event) => event.id === drag.id)?.mechanicInstances.drag[0];
+  assert.equal(undoneDrag?.tick, 10);
+  assert.equal(undoneDrag?.dragTargets.length, 1);
+  assert.equal(undoneDrag?.dragTargets[0]?.sourceHitId, "source-hit-a");
+  assert.deepEqual(undoneDrag?.dragTargets[0]?.sourceHitIds, ["source-hit-a", "source-hit-b"]);
 });
 
 test("repair cascades to a dependent Drag when its source Hit moves later", () => {

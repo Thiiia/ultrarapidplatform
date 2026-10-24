@@ -51,6 +51,35 @@ function StatChip({ label, value }: { label: string; value: string }) {
   );
 }
 
+function latestRunStateLabel(state: StudentProgressSummary["latestRun"]["state"]) {
+  const labels: Record<StudentProgressSummary["latestRun"]["state"], string> = {
+    "completed": "Completed outcome (V2/V3 payload)",
+    "unverified-completion": "Completed outcome (version unverified)",
+    "failed": "Failed outcome",
+    "abandoned": "Abandoned outcome",
+    "cancelled": "Cancelled outcome",
+    "unclassified": "Other saved outcome",
+    "no-saved-result": "No linked outcome",
+  };
+  return labels[state];
+}
+
+function latestRunMathLabel(solvedSets: number | null) {
+  if (solvedSets === null) return "not reported";
+  return `${solvedSets} set${solvedSets === 1 ? "" : "s"} solved`;
+}
+
+function latestRunRhythmLabel(completedEvents: number | null, requiredEvents: number | null) {
+  if (completedEvents === null) return "not reported";
+  if (requiredEvents === null) return `${completedEvents} completed · total not reported`;
+  return `${completedEvents}/${requiredEvents} authored encounters`;
+}
+
+function latestRunTimingLabel(judgements: StudentProgressSummary["latestRun"]["timingJudgements"]) {
+  if (!judgements) return "Not reported";
+  return `Perfect ${judgements.perfect} · Good ${judgements.good} · Early ${judgements.early} · Late ${judgements.late} · Miss ${judgements.miss}`;
+}
+
 function ClassPicker({
   classes,
   navBasePath,
@@ -243,23 +272,74 @@ function StudentActivityRow({
         </div>
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        <StatChip label="Game launches" value={String(student.totalAttempts)} />
-        <StatChip label="Events completed" value={String(student.completedEvents)} />
-        <StatChip label="Hit attempts" value={String(student.hitAttempts)} />
-        <StatChip label="Runs finished" value={String(student.completedCount)} />
-        {student.unverifiedCompletedCount > 0 && (
-          <StatChip label="Older unverified" value={String(student.unverifiedCompletedCount)} />
+      <div
+        aria-label={`Latest saved learning progress for ${student.name}`}
+        style={{
+          marginTop: 14,
+          padding: "10px 12px",
+          borderRadius: 10,
+          background: "#191919",
+          border: "1px solid #FFFFFF14",
+          color: "#FFFFFFB3",
+          fontSize: 12,
+          lineHeight: 1.7,
+        }}
+      >
+        <strong style={{ color: "#FFFFFF" }}>Latest saved outcome:</strong> {latestRunStateLabel(student.latestRun.state)}
+        {student.latestRun.resultSaved ? (
+          <>
+            {" · "}<strong style={{ color: "#FFFFFF" }}>Math:</strong> {latestRunMathLabel(student.latestRun.solvedSets)}
+            {" · "}<strong style={{ color: "#FFFFFF" }}>Rhythm:</strong> {latestRunRhythmLabel(student.latestRun.completedEvents, student.latestRun.requiredEvents)}
+            {student.latestRun.completedEvents !== null &&
+              student.latestRun.requiredEvents !== null &&
+              student.latestRun.requiredEvents > student.latestRun.completedEvents && (
+                <> · {student.latestRun.requiredEvents - student.latestRun.completedEvents} encounters not yet recorded</>
+              )}
+            {" · Result saved"}
+          </>
+        ) : (
+          <> · No saved outcome is linked to this latest launch</>
         )}
-        <StatChip label="Not finished" value={String(student.failedCount)} />
-        {student.attemptsByActivity.map((stat) => (
-          <StatChip
-            key={stat.activityKey}
-            label={activityLabel(stat.activityKey)}
-            value={`${stat.attempts} attempt${stat.attempts === 1 ? "" : "s"}`}
-          />
-        ))}
       </div>
+
+      <details style={{ marginTop: 8, color: "#FFFFFFB3", fontSize: 12 }}>
+        <summary style={{ cursor: "pointer", fontWeight: 700, padding: "6px 0" }}>
+          Saved run details
+        </summary>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 4 }}>
+          <StatChip label="Game launches" value={String(student.totalAttempts)} />
+          <StatChip label="Completed outcomes (V2/V3)" value={String(student.completedCount)} />
+          {student.unverifiedCompletedCount > 0 && (
+            <StatChip label="Other-version completed outcomes" value={String(student.unverifiedCompletedCount)} />
+          )}
+          <StatChip label="Failed" value={String(student.failedCount)} />
+          <StatChip label="Abandoned" value={String(student.abandonedCount)} />
+          <StatChip label="Cancelled" value={String(student.cancelledCount)} />
+          {student.unclassifiedOutcomeCount > 0 && (
+            <StatChip label="Unclassified outcomes" value={String(student.unclassifiedOutcomeCount)} />
+          )}
+          <StatChip label="Recorded events across saved runs" value={String(student.completedEvents)} />
+          <StatChip label="Hit attempts across saved runs" value={String(student.hitAttempts)} />
+          {student.latestRun.resultSaved && student.latestRun.hitAttempts !== null && (
+            <StatChip label="Latest run hit attempts" value={String(student.latestRun.hitAttempts)} />
+          )}
+          {student.latestRun.resultSaved && (
+            <>
+              <StatChip label="Authored timing" value={latestRunTimingLabel(student.latestRun.timingJudgements)} />
+              <p style={{ flexBasis: "100%", margin: 0 }}>
+                Assistance and interruption details are not included in this saved outcome.
+              </p>
+            </>
+          )}
+          {student.attemptsByActivity.map((stat) => (
+            <StatChip
+              key={stat.activityKey}
+              label={activityLabel(stat.activityKey)}
+              value={`${stat.attempts} launch${stat.attempts === 1 ? "" : "es"}`}
+            />
+          ))}
+        </div>
+      </details>
     </div>
   );
 }

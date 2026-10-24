@@ -18,11 +18,13 @@ export type StudentRunFeedback = {
   nextTryTip: string | null;
 };
 
-/** Summarize only explicit authored judgements; ignore other v3 telemetry rows. */
-export function summarizeStudentRunFeedback(value: unknown): StudentRunFeedback | null {
+export type StudentRunTimingJudgements = Record<Judgement, number>;
+
+/** Count only explicit authored judgements; ignore other v3 telemetry rows. */
+export function summarizeStudentRunTimingJudgements(value: unknown): StudentRunTimingJudgements | null {
   if (!Array.isArray(value)) return null;
 
-  const counts: Record<Judgement, number> = {
+  const counts: StudentRunTimingJudgements = {
     perfect: 0,
     good: 0,
     early: 0,
@@ -35,6 +37,14 @@ export function summarizeStudentRunFeedback(value: unknown): StudentRunFeedback 
     if (typeof step.judgement !== "string" || !judgementValues.has(step.judgement as Judgement)) continue;
     counts[step.judgement as Judgement] += 1;
   }
+
+  return Object.values(counts).some((count) => count > 0) ? counts : null;
+}
+
+/** Summarize only explicit authored judgements; ignore other v3 telemetry rows. */
+export function summarizeStudentRunFeedback(value: unknown): StudentRunFeedback | null {
+  const counts = summarizeStudentRunTimingJudgements(value);
+  if (!counts) return null;
 
   const totalJudgements = Object.values(counts).reduce((total, count) => total + count, 0);
   if (totalJudgements === 0) return null;
