@@ -37,21 +37,41 @@ export type RuntimeCapabilityActivity = Readonly<{
   authoredSequenceAdapters: readonly RuntimeCapabilityAuthoredSequenceAdapter[];
 }>;
 
+/** Dedicated mission capability; it is not an authored lesson activity. */
+export type RuntimeCapabilityMissionAdapter = Readonly<{
+  missionId: "perimeter-secure-boundary";
+  contentSchemaVersion: 1;
+  completionVersion: 4;
+  geometryModel: "closed-rectilinear-fixed-point-v1";
+  fixedPointScale: 1000;
+  inputAdapters: readonly ["direct-edge-selection"];
+  requiredResultFacts: readonly [
+    "accepted-edge-ids",
+    "submitted-total",
+    "linear-unit",
+    "assistance-provenance",
+  ];
+  featureFlags: readonly ["fresh-independent-check", "assistance-provenance"];
+}>;
+
 export type RuntimeCapabilityManifest = Readonly<{
-  manifestVersion: 1;
+  manifestVersion: 1 | 2;
   protocolVersions: Readonly<{
     runtimeProtocolVersion: 1;
     receiptVersion: 1;
     contractVersion: 1;
-    completionVersions: readonly [2, 3];
+    completionVersions: readonly [2, 3] | readonly [2, 3, 4];
     authoredLessonProtocolVersion: 3;
     calibrationProtocolVersion: 1;
     publicDemoAdapterVersion: 1;
   }>;
   activities: readonly RuntimeCapabilityActivity[];
+  /** Present only in manifest v2. Does not enable a launch or result writer. */
+  missionAdapters?: readonly RuntimeCapabilityMissionAdapter[];
 }>;
 
 const MANIFEST_KEYS = ["manifestVersion", "protocolVersions", "activities"] as const;
+const MANIFEST_V2_KEYS = [...MANIFEST_KEYS, "missionAdapters"] as const;
 const PROTOCOL_KEYS = [
   "runtimeProtocolVersion",
   "receiptVersion",
@@ -65,6 +85,24 @@ const ACTIVITY_KEYS_IN_DOCUMENT = ["activityKey", "runtimeMechanics", "authoredL
 const ADAPTER_KEYS = ["authoredLessonProtocolVersion", "mechanics"] as const;
 const MULTI_SOURCE_ADAPTER_KEYS = [...ADAPTER_KEYS, "multiSourceHitPrerequisites"] as const;
 const SEQUENCE_ADAPTER_KEYS = ["authoredLessonProtocolVersion", "sequenceVersion", "encounterMechanics"] as const;
+const MISSION_ADAPTER_KEYS = [
+  "missionId",
+  "contentSchemaVersion",
+  "completionVersion",
+  "geometryModel",
+  "fixedPointScale",
+  "inputAdapters",
+  "requiredResultFacts",
+  "featureFlags",
+] as const;
+const PERIMETER_INPUT_ADAPTERS = ["direct-edge-selection"] as const;
+const PERIMETER_REQUIRED_RESULT_FACTS = [
+  "accepted-edge-ids",
+  "submitted-total",
+  "linear-unit",
+  "assistance-provenance",
+] as const;
+const PERIMETER_FEATURE_FLAGS = ["fresh-independent-check", "assistance-provenance"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -103,6 +141,48 @@ function matchesExpected(values: readonly string[], expected: readonly string[])
   return values.length === expected.length && expected.every((value) => values.includes(value));
 }
 
+function parseMissionAdapters(value: unknown): RuntimeCapabilityMissionAdapter[] {
+  if (!Array.isArray(value) || value.length !== 1) {
+    throw new Error("Runtime capability manifest v2 must declare its single supported Perimeter mission adapter.");
+  }
+  const adapter = value[0];
+  if (!isRecord(adapter)) throw new Error("Perimeter mission adapter must be an object.");
+  assertExactKeys(adapter, MISSION_ADAPTER_KEYS, "Perimeter mission adapter");
+  if (
+    adapter.missionId !== "perimeter-secure-boundary" ||
+    adapter.contentSchemaVersion !== 1 ||
+    adapter.completionVersion !== 4 ||
+    adapter.geometryModel !== "closed-rectilinear-fixed-point-v1" ||
+    adapter.fixedPointScale !== 1000
+  ) {
+    throw new Error("Perimeter mission adapter identity or domain contract is unsupported.");
+  }
+
+  const inputAdapters = parseStringArray(adapter.inputAdapters, PERIMETER_INPUT_ADAPTERS, "Perimeter input adapters");
+  const requiredResultFacts = parseStringArray(adapter.requiredResultFacts, PERIMETER_REQUIRED_RESULT_FACTS, "Perimeter result facts");
+  const featureFlags = parseStringArray(adapter.featureFlags, PERIMETER_FEATURE_FLAGS, "Perimeter feature flags");
+  if (!matchesExpected(inputAdapters, PERIMETER_INPUT_ADAPTERS)) {
+    throw new Error("Perimeter mission adapter advertises an unsupported input adapter.");
+  }
+  if (!matchesExpected(requiredResultFacts, PERIMETER_REQUIRED_RESULT_FACTS)) {
+    throw new Error("Perimeter mission adapter omits or misstates required result facts.");
+  }
+  if (!matchesExpected(featureFlags, PERIMETER_FEATURE_FLAGS)) {
+    throw new Error("Perimeter mission adapter omits or misstates required feature flags.");
+  }
+
+  return [{
+    missionId: "perimeter-secure-boundary",
+    contentSchemaVersion: 1,
+    completionVersion: 4,
+    geometryModel: "closed-rectilinear-fixed-point-v1",
+    fixedPointScale: 1000,
+    inputAdapters: ["direct-edge-selection"],
+    requiredResultFacts: ["accepted-edge-ids", "submitted-total", "linear-unit", "assistance-provenance"],
+    featureFlags: ["fresh-independent-check", "assistance-provenance"],
+  }];
+}
+
 /**
  * Parse Unity build metadata for inspection and artifact comparison only.
  * This parser is deliberately separate from lesson publication and authoring
@@ -115,8 +195,9 @@ export function parseRuntimeCapabilityManifestJson(json: string): RuntimeCapabil
 
 export function parseRuntimeCapabilityManifest(value: unknown): RuntimeCapabilityManifest {
   if (!isRecord(value)) throw new Error("Runtime capability manifest must be an object.");
-  assertExactKeys(value, MANIFEST_KEYS, "Runtime capability manifest");
-  if (value.manifestVersion !== 1) throw new Error("Unsupported runtime capability manifest version.");
+  const manifestVersion = value.manifestVersion;
+  if (manifestVersion !== 1 && manifestVersion !== 2) throw new Error("Unsupported runtime capability manifest version.");
+  assertExactKeys(value, manifestVersion === 1 ? MANIFEST_KEYS : MANIFEST_V2_KEYS, "Runtime capability manifest");
 
   const protocolVersions = value.protocolVersions;
   if (!isRecord(protocolVersions)) throw new Error("Runtime capability protocolVersions must be an object.");
@@ -129,9 +210,10 @@ export function parseRuntimeCapabilityManifest(value: unknown): RuntimeCapabilit
     protocolVersions.calibrationProtocolVersion !== 1 ||
     protocolVersions.publicDemoAdapterVersion !== 1 ||
     !Array.isArray(protocolVersions.completionVersions) ||
-    protocolVersions.completionVersions.length !== 2 ||
+    protocolVersions.completionVersions.length !== (manifestVersion === 1 ? 2 : 3) ||
     protocolVersions.completionVersions[0] !== 2 ||
-    protocolVersions.completionVersions[1] !== 3
+    protocolVersions.completionVersions[1] !== 3 ||
+    (manifestVersion === 2 && protocolVersions.completionVersions[2] !== 4)
   ) {
     throw new Error("Runtime capability manifest protocol axes do not match Runtime Protocol v1.");
   }
@@ -219,17 +301,20 @@ export function parseRuntimeCapabilityManifest(value: unknown): RuntimeCapabilit
     throw new Error("Runtime capability manifest omits an implemented activity.");
   }
 
+  const missionAdapters = manifestVersion === 2 ? parseMissionAdapters(value.missionAdapters) : undefined;
+
   return {
-    manifestVersion: 1,
+    manifestVersion,
     protocolVersions: {
       runtimeProtocolVersion: 1,
       receiptVersion: 1,
       contractVersion: 1,
-      completionVersions: [2, 3],
+      completionVersions: manifestVersion === 1 ? [2, 3] as const : [2, 3, 4] as const,
       authoredLessonProtocolVersion: 3,
       calibrationProtocolVersion: 1,
       publicDemoAdapterVersion: 1,
     },
     activities,
+    ...(missionAdapters === undefined ? {} : { missionAdapters }),
   };
 }

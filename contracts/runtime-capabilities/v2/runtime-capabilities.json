@@ -1,0 +1,56 @@
+{
+  "manifestVersion": 2,
+  "protocolVersions": {
+    "runtimeProtocolVersion": 1,
+    "receiptVersion": 1,
+    "contractVersion": 1,
+    "completionVersions": [2, 3, 4],
+    "authoredLessonProtocolVersion": 3,
+    "calibrationProtocolVersion": 1,
+    "publicDemoAdapterVersion": 1
+  },
+  "activities": [
+    {
+      "activityKey": "number-bonds",
+      "runtimeMechanics": ["hit", "catch", "spinout", "drag"],
+      "authoredLessonAdapters": [
+        { "authoredLessonProtocolVersion": 3, "mechanics": ["hit"] }
+      ],
+      "authoredSequenceAdapters": [
+        {
+          "authoredLessonProtocolVersion": 3,
+          "sequenceVersion": 1,
+          "encounterMechanics": ["hit", "spin", "drag"]
+        }
+      ]
+    },
+    {
+      "activityKey": "early-algebra",
+      "runtimeMechanics": ["hit", "spin", "drag"],
+      "authoredLessonAdapters": [
+        {
+          "authoredLessonProtocolVersion": 3,
+          "mechanics": ["hit", "spin", "drag"]
+        }
+      ],
+      "authoredSequenceAdapters": []
+    }
+  ],
+  "missionAdapters": [
+    {
+      "missionId": "perimeter-secure-boundary",
+      "contentSchemaVersion": 1,
+      "completionVersion": 4,
+      "geometryModel": "closed-rectilinear-fixed-point-v1",
+      "fixedPointScale": 1000,
+      "inputAdapters": ["direct-edge-selection"],
+      "requiredResultFacts": [
+        "accepted-edge-ids",
+        "submitted-total",
+        "linear-unit",
+        "assistance-provenance"
+      ],
+      "featureFlags": ["fresh-independent-check", "assistance-provenance"]
+    }
+  ]
+}

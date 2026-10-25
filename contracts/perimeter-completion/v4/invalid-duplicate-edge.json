@@ -1,0 +1,21 @@
+{
+  "completionVersion": 4,
+  "missionId": "perimeter-secure-boundary",
+  "contentSchemaVersion": 1,
+  "lessonId": "perimeter-secure-the-boundary-pilot",
+  "contentRevision": "pilot-r0-2026-10-25",
+  "contentSha256": "646be0538559f580694a554ee5c9b8c20a4265128398ee2690cd6db678a23098",
+  "outcome": "abandoned",
+  "practice": {
+    "problemId": "guided-3x5",
+    "acceptedEdgeIds": ["p0", "p0"],
+    "checkStartedSequence": null
+  },
+  "checkAttempts": [],
+  "unitSelections": [],
+  "guidanceEvents": [],
+  "timing": {
+    "status": "not-measured"
+  },
+  "scorePolicyId": "none"
+}

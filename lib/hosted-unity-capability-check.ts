@@ -152,9 +152,26 @@ export async function loadHostedUnityRuntimeCapabilities(
       "The hosted Unity build identity is malformed.",
     );
   }
-  const expectedDigest = (buildInfo as Record<string, unknown>).runtimeCapabilitiesSha256Lf;
+  let manifest: RuntimeCapabilityManifest;
+  try {
+    manifest = parseRuntimeCapabilityManifestJson(manifestText);
+  } catch {
+    throw new HostedUnityCapabilityError(
+      "RUNTIME_CAPABILITY_UNAVAILABLE",
+      "The hosted Unity capability manifest is unsupported or malformed.",
+    );
+  }
+
+  const identity = buildInfo as Record<string, unknown>;
+  const expectedDigest = identity.runtimeCapabilitiesSha256Lf;
   const actualDigest = sha256Lf(manifestText);
-  if (typeof expectedDigest !== "string" || !/^[a-f0-9]{64}$/i.test(expectedDigest) ||
+  const declaredVersion = identity.runtimeCapabilitiesVersion;
+  const declaredFile = identity.runtimeCapabilitiesFile;
+  const missingV2Identity = manifest.manifestVersion === 2 &&
+    (declaredVersion !== 2 || declaredFile !== "runtime-capabilities.json");
+  if ((declaredVersion !== undefined && declaredVersion !== manifest.manifestVersion) ||
+      (declaredFile !== undefined && declaredFile !== "runtime-capabilities.json") || missingV2Identity ||
+      typeof expectedDigest !== "string" || !/^[a-f0-9]{64}$/i.test(expectedDigest) ||
       actualDigest.toLowerCase() !== expectedDigest.toLowerCase()) {
     throw new HostedUnityCapabilityError(
       "RUNTIME_CAPABILITY_UNAVAILABLE",
@@ -162,17 +179,7 @@ export async function loadHostedUnityRuntimeCapabilities(
     );
   }
 
-  try {
-    return {
-      manifest: parseRuntimeCapabilityManifestJson(manifestText),
-      digest: actualDigest,
-    };
-  } catch {
-    throw new HostedUnityCapabilityError(
-      "RUNTIME_CAPABILITY_UNAVAILABLE",
-      "The hosted Unity capability manifest is unsupported or malformed.",
-    );
-  }
+  return { manifest, digest: actualDigest };
 }
 
 function capabilityFailure(message: string): never {

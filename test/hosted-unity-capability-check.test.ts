@@ -15,6 +15,14 @@ const manifestPath = fileURLToPath(new URL(
   "../contracts/runtime-capabilities/v1/runtime-capabilities.json",
   import.meta.url,
 ));
+const candidateManifestPath = fileURLToPath(new URL(
+  "../contracts/runtime-capabilities/v2/runtime-capabilities.json",
+  import.meta.url,
+));
+const candidateIdentityPath = fileURLToPath(new URL(
+  "../contracts/runtime-capabilities/v2/identity-fixture.json",
+  import.meta.url,
+));
 const lessonPath = fileURLToPath(new URL(
   "../contracts/number-bonds/sequence-v1/fixtures.json",
   import.meta.url,
@@ -24,7 +32,10 @@ const multiSourceLessonPath = fileURLToPath(new URL(
   import.meta.url,
 ));
 const manifestText = readFileSync(manifestPath, "utf8");
+const candidateManifestText = readFileSync(candidateManifestPath, "utf8");
+const candidateIdentityText = readFileSync(candidateIdentityPath, "utf8");
 const manifest = parseRuntimeCapabilityManifestJson(manifestText);
+const candidateIdentity = JSON.parse(candidateIdentityText) as Record<string, unknown>;
 const fixture = JSON.parse(readFileSync(lessonPath, "utf8")) as {
   validLesson: Record<string, unknown> & {
     songAssetId: string;
@@ -282,4 +293,26 @@ test("changed published sidecar bytes fail receipt validation before a build che
     /does not match its receipt hash/,
   );
   assert.deepEqual(requested, ["https://storage.example/sidecar"]);
+});
+
+test("host reader accepts candidate manifest v2 only when its version and normalized hash match build identity", async () => {
+  const fetchFor = (identity: Record<string, unknown>) => async (input: URL | RequestInfo) => {
+    const url = String(input);
+    return url.endsWith("build-info.json")
+      ? new Response(JSON.stringify(identity), { status: 200 })
+      : new Response(candidateManifestText, { status: 200 });
+  };
+
+  const loaded = await loadHostedUnityRuntimeCapabilities("https://game.example/", fetchFor(candidateIdentity));
+  assert.equal(loaded.manifest.manifestVersion, 2);
+  assert.deepEqual(loaded.manifest.protocolVersions.completionVersions, [2, 3, 4]);
+  assert.equal(loaded.digest, candidateIdentity.runtimeCapabilitiesSha256Lf);
+
+  await assert.rejects(
+    () => loadHostedUnityRuntimeCapabilities("https://game.example/", fetchFor({
+      ...candidateIdentity,
+      runtimeCapabilitiesVersion: 1,
+    })),
+    /does not match its build identity/,
+  );
 });

@@ -11,7 +11,12 @@ const fixturePath = fileURLToPath(new URL(
   "../contracts/runtime-capabilities/v1/runtime-capabilities.json",
   import.meta.url,
 ));
+const candidateV2Path = fileURLToPath(new URL(
+  "../contracts/runtime-capabilities/v2/runtime-capabilities.json",
+  import.meta.url,
+));
 const fixtureJson = readFileSync(fixturePath, "utf8");
+const candidateV2Json = readFileSync(candidateV2Path, "utf8");
 const fixture = JSON.parse(fixtureJson) as Record<string, unknown>;
 const normalizeLf = (value: string) => value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
@@ -121,8 +126,34 @@ test("runtime capability parser rejects protocol-axis and manifest-version drift
   })), /protocol axes do not match Runtime Protocol v1/);
   assert.throws(() => parseRuntimeCapabilityManifestJson(JSON.stringify({
     ...fixture,
-    manifestVersion: 2,
+    manifestVersion: 3,
   })), /Unsupported runtime capability manifest version/);
+});
+
+test("candidate v2 binds Perimeter to a separate mission adapter and completion v4", () => {
+  const manifest = parseRuntimeCapabilityManifestJson(candidateV2Json);
+
+  assert.equal(manifest.manifestVersion, 2);
+  assert.deepEqual(manifest.protocolVersions.completionVersions, [2, 3, 4]);
+  assert.deepEqual(manifest.activities.map((activity) => activity.activityKey), ["number-bonds", "early-algebra"]);
+  assert.deepEqual(manifest.missionAdapters, [{
+    missionId: "perimeter-secure-boundary",
+    contentSchemaVersion: 1,
+    completionVersion: 4,
+    geometryModel: "closed-rectilinear-fixed-point-v1",
+    fixedPointScale: 1000,
+    inputAdapters: ["direct-edge-selection"],
+    requiredResultFacts: ["accepted-edge-ids", "submitted-total", "linear-unit", "assistance-provenance"],
+    featureFlags: ["fresh-independent-check", "assistance-provenance"],
+  }]);
+
+  const malformed = JSON.parse(candidateV2Json) as Record<string, any>;
+  malformed.missionAdapters[0].completionVersion = 3;
+  assert.throws(() => parseRuntimeCapabilityManifestJson(JSON.stringify(malformed)), /identity or domain contract is unsupported/);
+
+  const traceNotYetAccepted = JSON.parse(candidateV2Json) as Record<string, any>;
+  traceNotYetAccepted.missionAdapters[0].inputAdapters.push("trace-confirm");
+  assert.throws(() => parseRuntimeCapabilityManifestJson(JSON.stringify(traceNotYetAccepted)), /unsupported value/);
 });
 
 test("runtime capability parser preserves honest hit-only Number Bonds builds", () => {
